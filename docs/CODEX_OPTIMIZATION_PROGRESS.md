@@ -69,6 +69,22 @@ clean / test / Lint / Debug / Release / R8 / 资源压缩验证并推送当前�
 
 局部验证：`test assembleDebug` 成功，33 个测试全部通过。
 
+#### A3：音量模糊偏好观察器重复注册
+
+状态：已修复，阶段验证和实机验证待完成。
+
+根因：`MiuiVolumeDialogImpl.initDialog` 每执行一次都会向进程级集合加入新的无 owner
+偏好观察器；观察器只更新 `blurCollapsed` / `blurExpanded` 两个进程级值，重复实例没有功能收益，
+且不会随 Dialog 销毁移除。
+
+处理：
+
+- 在 `BlurVolumeDialogBackgroundHook` 安装时读取初始值并只注册一个进程级观察器；
+- 删除仅用于重复注册观察器的 `initDialog` Hook；
+- 保持两个模糊参数的实时偏好更新以及音量 Dialog Hook 行为不变。
+
+局部验证：`test assembleDebug` 成功，33 个测试全部通过。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放

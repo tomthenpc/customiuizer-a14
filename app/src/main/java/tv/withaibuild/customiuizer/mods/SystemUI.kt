@@ -1490,9 +1490,30 @@ object SystemUI {
 
     private var blurCollapsed = 0.0f
     private var blurExpanded = 0.0f
+    private var volumeBlurObserverRegistered = false
+    private val volumeBlurPreferenceObserver = object : ModuleHelper.PreferenceObserver {
+        override fun onChange(key: String?) {
+            try {
+                if (key == "pref_key_system_volumeblur_collapsed") {
+                    blurCollapsed = MainModule.mPrefs.getInt(key, 0) / 100f
+                }
+                if (key == "pref_key_system_volumeblur_expanded") {
+                    blurExpanded = MainModule.mPrefs.getInt(key, 0) / 100f
+                }
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+            }
+        }
+    }
 
     @JvmStatic
     fun BlurVolumeDialogBackgroundHook(classLoader: ClassLoader) {
+        blurCollapsed = MainModule.mPrefs.getInt("system_volumeblur_collapsed", 0) / 100f
+        blurExpanded = MainModule.mPrefs.getInt("system_volumeblur_expanded", 0) / 100f
+        if (!volumeBlurObserverRegistered) {
+            volumeBlurObserverRegistered = true
+            ModuleHelper.observePreferenceChange(volumeBlurPreferenceObserver)
+        }
         ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "updateDialogWindowH", Boolean::class.javaPrimitiveType!!, object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val mWindow = XposedHelpers.getObjectField(param.getThisObject(), "mWindow") as Window
@@ -1518,26 +1539,6 @@ object SystemUI {
                     mWindow.clearFlags(8)
                     XposedHelpers.callMethod(param.getThisObject(), "startBlurAnim", 0f, blurCollapsed, 0)
                 }
-            }
-        })
-        ModuleHelper.hookAllMethods("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "initDialog", object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                blurCollapsed = MainModule.mPrefs.getInt("system_volumeblur_collapsed", 0) / 100f
-                blurExpanded = MainModule.mPrefs.getInt("system_volumeblur_expanded", 0) / 100f
-                ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
-                    override fun onChange(key: String?) {
-                        try {
-                            if (key == "pref_key_system_volumeblur_collapsed") {
-                                blurCollapsed = MainModule.mPrefs.getInt(key, 0) / 100f
-                            }
-                            if (key == "pref_key_system_volumeblur_expanded") {
-                                blurExpanded = MainModule.mPrefs.getInt(key, 0) / 100f
-                            }
-                        } catch (t: Throwable) {
-                            XposedHelpers.log(t)
-                        }
-                    }
-                })
             }
         })
     }
