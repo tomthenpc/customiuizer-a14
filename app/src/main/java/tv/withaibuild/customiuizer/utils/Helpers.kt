@@ -454,12 +454,41 @@ object Helpers {
         }
     }
 
+    private val appLabelComparator = Comparator<AppData> { a, b ->
+        a.label.compareTo(b.label, ignoreCase = true)
+    }
+
+    private fun getDualUserPackageInfoMethod(context: Context): Method? {
+        return if (checkMultiUserPermission(context)) getPackageInfoAsUser() else null
+    }
+
+    private fun addAppWithDualUser(
+        result: ArrayList<AppData>,
+        app: AppData,
+        pm: PackageManager,
+        dualUserMethod: Method?
+    ) {
+        result.add(app)
+        dualUserMethod ?: return
+        try {
+            if (dualUserMethod.invoke(pm, app.pkgName, 0, 999) != null) {
+                val appDual = AppData().apply {
+                    enabled = app.enabled
+                    label = app.label
+                    pkgName = app.pkgName
+                    actName = app.actName
+                    user = 999
+                }
+                result.add(appDual)
+            }
+        } catch (ignore: Throwable) {
+        }
+    }
+
     @JvmStatic
     fun getInstalledApps(context: Context) {
         val pm = context.packageManager
-        var includeDualApps = checkMultiUserPermission(context)
-        val packageInfoMethod = getPackageInfoAsUser()
-        if (packageInfoMethod == null) includeDualApps = false
+        val dualUserMethod = getDualUserPackageInfoMethod(context)
 
         val packs = pm.getInstalledApplications(PackageManager.GET_META_DATA or PackageManager.MATCH_DISABLED_COMPONENTS)
         val installedApps = ArrayList<AppData>()
@@ -470,34 +499,18 @@ object Helpers {
                 pkgName = pack.packageName
                 actName = "-"
             }
-            installedApps.add(app)
-            if (includeDualApps) try {
-                if (packageInfoMethod?.invoke(pm, app.pkgName, 0, 999) != null) {
-                    val appDual = AppData().apply {
-                        enabled = pack.enabled
-                        label = pack.loadLabel(pm).toString()
-                        pkgName = pack.packageName
-                        actName = "-"
-                        user = 999
-                    }
-                    installedApps.add(appDual)
-                }
-            } catch (ignore: Throwable) {
-            }
+            addAppWithDualUser(installedApps, app, pm, dualUserMethod)
         } catch (e: Throwable) {
             XposedHelpers.log(e)
         }
-        installedApps.sortWith { a, b -> a.label.compareTo(b.label, ignoreCase = true) }
+        installedApps.sortWith(appLabelComparator)
         AppHelper.installedAppsList = installedApps
     }
 
-    @SuppressLint("DiscouragedPrivateApi")
     @JvmStatic
     fun getLaunchableApps(context: Context) {
         val pm = context.packageManager
-        var includeDualApps = checkMultiUserPermission(context)
-        val packageInfoMethod = getPackageInfoAsUser()
-        if (packageInfoMethod == null) includeDualApps = false
+        val dualUserMethod = getDualUserPackageInfoMethod(context)
 
         val mainIntent = Intent(Intent.ACTION_MAIN, null)
         mainIntent.addCategory(Intent.CATEGORY_LAUNCHER)
@@ -510,41 +523,20 @@ object Helpers {
                 enabled = pack.activityInfo.enabled
                 label = pack.loadLabel(pm).toString()
             }
-            launchable.add(app)
-            if (includeDualApps) try {
-                if (packageInfoMethod?.invoke(pm, app.pkgName, 0, 999) != null) {
-                    val appDual = AppData().apply {
-                        pkgName = pack.activityInfo.applicationInfo.packageName
-                        actName = pack.activityInfo.name
-                        enabled = pack.activityInfo.enabled
-                        label = pack.loadLabel(pm).toString()
-                        user = 999
-                    }
-                    launchable.add(appDual)
-                }
-            } catch (ignore: Throwable) {
-            }
+            addAppWithDualUser(launchable, app, pm, dualUserMethod)
         } catch (t: Throwable) {
             t.printStackTrace()
         }
-        launchable.sortWith { a, b -> a.label.compareTo(b.label, ignoreCase = true) }
+        launchable.sortWith(appLabelComparator)
         launchableAppsList = launchable
     }
 
-    @JvmStatic
-    fun getShareApps(context: Context) {
-        val pm = context.packageManager
-        var includeDualApps = checkMultiUserPermission(context)
-        val packageInfoMethod = getPackageInfoAsUser()
-        if (packageInfoMethod == null) includeDualApps = false
-
-        val mainIntent = Intent().apply {
-            action = Intent.ACTION_SEND
-            type = "*/*"
-            putExtra("CustoMIUIzer", true)
-        }
-        val packs = pm.queryIntentActivities(mainIntent, PackageManager.MATCH_ALL or PackageManager.MATCH_DISABLED_COMPONENTS)
-        val share = ArrayList<AppData>()
+    private fun buildUniquePackageAppList(
+        pm: PackageManager,
+        packs: List<ResolveInfo>,
+        dualUserMethod: Method?
+    ): ArrayList<AppData> {
+        val result = ArrayList<AppData>()
         val seenPackages = HashSet<String>(packs.size)
         for (pack in packs) try {
             val packageName = pack.activityInfo.applicationInfo.packageName
@@ -555,34 +547,33 @@ object Helpers {
                 enabled = pack.activityInfo.applicationInfo.enabled
                 label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
             }
-            share.add(app)
             seenPackages.add(packageName)
-            if (includeDualApps) try {
-                if (packageInfoMethod?.invoke(pm, app.pkgName, 0, 999) != null) {
-                    val appDual = AppData().apply {
-                        pkgName = packageName
-                        actName = "-"
-                        enabled = pack.activityInfo.applicationInfo.enabled
-                        label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
-                        user = 999
-                    }
-                    share.add(appDual)
-                }
-            } catch (ignore: Throwable) {
-            }
+            addAppWithDualUser(result, app, pm, dualUserMethod)
         } catch (e: Throwable) {
             e.printStackTrace()
         }
-        share.sortWith { a, b -> a.label.compareTo(b.label, ignoreCase = true) }
-        shareAppsList = share
+        result.sortWith(appLabelComparator)
+        return result
+    }
+
+    @JvmStatic
+    fun getShareApps(context: Context) {
+        val pm = context.packageManager
+        val dualUserMethod = getDualUserPackageInfoMethod(context)
+
+        val mainIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            type = "*/*"
+            putExtra("CustoMIUIzer", true)
+        }
+        val packs = pm.queryIntentActivities(mainIntent, PackageManager.MATCH_ALL or PackageManager.MATCH_DISABLED_COMPONENTS)
+        shareAppsList = buildUniquePackageAppList(pm, packs, dualUserMethod)
     }
 
     @JvmStatic
     fun getOpenWithApps(context: Context) {
         val pm = context.packageManager
-        var includeDualApps = checkMultiUserPermission(context)
-        val packageInfoMethod = getPackageInfoAsUser()
-        if (packageInfoMethod == null) includeDualApps = false
+        val dualUserMethod = getDualUserPackageInfoMethod(context)
 
         val mainIntent = Intent().apply {
             action = Intent.ACTION_VIEW
@@ -597,37 +588,7 @@ object Helpers {
         val packs = pm.queryIntentActivities(mainIntent, PackageManager.MATCH_ALL or PackageManager.MATCH_DISABLED_COMPONENTS).toMutableList()
         packs.addAll(pm.queryIntentActivities(mainIntent2, PackageManager.MATCH_ALL))
 
-        val openWith = ArrayList<AppData>()
-        val seenPackages = HashSet<String>(packs.size)
-        for (pack in packs) try {
-            val packageName = pack.activityInfo.applicationInfo.packageName
-            if (packageName in seenPackages) continue
-            val app = AppData().apply {
-                pkgName = packageName
-                actName = "-"
-                enabled = pack.activityInfo.applicationInfo.enabled
-                label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
-            }
-            openWith.add(app)
-            seenPackages.add(packageName)
-            if (includeDualApps) try {
-                if (packageInfoMethod?.invoke(pm, app.pkgName, 0, 999) != null) {
-                    val appDual = AppData().apply {
-                        pkgName = packageName
-                        actName = "-"
-                        enabled = pack.activityInfo.applicationInfo.enabled
-                        label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
-                        user = 999
-                    }
-                    openWith.add(appDual)
-                }
-            } catch (ignore: Throwable) {
-            }
-        } catch (e: Throwable) {
-            e.printStackTrace()
-        }
-        openWith.sortWith { a, b -> a.label.compareTo(b.label, ignoreCase = true) }
-        openWithAppsList = openWith
+        openWithAppsList = buildUniquePackageAppList(pm, packs, dualUserMethod)
     }
 
     @JvmStatic
