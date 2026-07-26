@@ -48,6 +48,27 @@ clean / test / Lint / Debug / Release / R8 / 资源压缩验证并推送当前�
 
 局部验证：`test assembleDebug` 成功，33 个测试全部通过。
 
+#### A2：`AudioVisualizerHook` 重建与静态引用
+
+状态：已修复，阶段验证和实机验证待完成。
+
+根因：
+
+- `onViewAttachedToWindow` 每次回调都会创建新的容器和 Visualizer View，没有检查同一通知面板已有实例；
+- `System.audioViz` 是进程级强引用，旧 View detach 后没有主动清空；
+- 创建过程在加入面板前失败时，未 attach 的 View 不会收到 detach 回调，已注册资源无法自动释放；
+- 已 dispose 的子 View 随同同一面板重新 attach 时不能继续复用。
+
+处理：
+
+- 使用稳定 tag 在当前通知面板内查找实例，活跃实例直接复用；
+- 已 dispose 的旧实例连同旧容器移除后再创建，避免同一面板叠加空容器或失效 View；
+- dispose 回调只在静态字段仍指向当前实例时清空引用；
+- 创建中途失败时显式 dispose 尚未加入面板的实例；
+- 不改变原 Hook 方法、after 顺序、View 层级位置算法或显示条件。
+
+局部验证：`test assembleDebug` 成功，33 个测试全部通过。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放

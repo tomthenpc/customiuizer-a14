@@ -56,6 +56,9 @@ class AudioVisualizer @JvmOverloads constructor(
     private val visualizerLock = Any()
     @Volatile
     private var detached = false
+    internal val isDisposed: Boolean
+        get() = detached
+    internal var onDisposed: ((AudioVisualizer) -> Unit)? = null
     private var mVisualizerColorAnimator: ObjectAnimator? = null
     private var mVisualizerGlowColorAnimator: ObjectAnimator? = null
 
@@ -436,6 +439,11 @@ class AudioVisualizer @JvmOverloads constructor(
 
     public override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        dispose()
+    }
+
+    internal fun dispose() {
+        if (detached) return
         detached = true
         ModuleHelper.removePreferenceObserver(this)
         val visualizer = synchronized(visualizerLock) {
@@ -452,6 +460,9 @@ class AudioVisualizer @JvmOverloads constructor(
         mArt = null
         mProcessedArt = null
         viewScope.cancel()
+        val callback = onDisposed
+        onDisposed = null
+        callback?.invoke(this)
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {

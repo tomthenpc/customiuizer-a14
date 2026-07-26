@@ -2189,6 +2189,7 @@ object System {
     }
 
     private var audioViz: AudioVisualizer? = null
+    private const val AUDIO_VISUALIZER_TAG = "customiuizer_audio_visualizer"
     private var isKeyguardShowing = false
     private var isNotificationPanelExpanded = false
     private var mMediaController: MediaController? = null
@@ -2219,6 +2220,7 @@ object System {
                     throwable = t
                     result = null
                 }
+                var createdVisualizer: AudioVisualizer? = null
                 try {
                     val thisObject = chain.thisObject
 
@@ -2229,10 +2231,28 @@ object System {
                     }
 
                     val mContext = mNotificationPanel.context
+                    val existingVisualizer =
+                        mNotificationPanel.findViewWithTag<AudioVisualizer>(AUDIO_VISUALIZER_TAG)
+                    if (existingVisualizer != null) {
+                        if (!existingVisualizer.isDisposed) {
+                            audioViz = existingVisualizer
+                            return XposedHelpers.throwOrReturn(throwable, result)
+                        }
+                        val oldParent = existingVisualizer.parent as? ViewGroup
+                        if (oldParent?.parent === mNotificationPanel) {
+                            mNotificationPanel.removeView(oldParent)
+                        } else {
+                            oldParent?.removeView(existingVisualizer)
+                        }
+                    }
                     val visFrame = FrameLayout(mContext)
                     visFrame.layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
                     val audioVizLocal = AudioVisualizer(mContext)
-                    audioViz = audioVizLocal
+                    createdVisualizer = audioVizLocal
+                    audioVizLocal.tag = AUDIO_VISUALIZER_TAG
+                    audioVizLocal.onDisposed = { disposed ->
+                        if (audioViz === disposed) audioViz = null
+                    }
                     audioVizLocal.layoutParams = FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.BOTTOM)
                     audioVizLocal.isClickable = false
                     visFrame.addView(audioVizLocal)
@@ -2242,8 +2262,11 @@ object System {
                     var order = 0
                     if (themebkg != null) order = Math.max(order, mNotificationPanel.indexOfChild(themebkg))
                     mNotificationPanel.addView(visFrame, order + 1)
+                    audioViz = audioVizLocal
+                    createdVisualizer = null
 
                 } catch (t: Throwable) {
+                    createdVisualizer?.dispose()
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
