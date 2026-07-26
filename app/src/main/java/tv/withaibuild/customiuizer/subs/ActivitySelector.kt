@@ -10,8 +10,6 @@ import android.widget.AdapterView
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 
-import java.util.ArrayList
-
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

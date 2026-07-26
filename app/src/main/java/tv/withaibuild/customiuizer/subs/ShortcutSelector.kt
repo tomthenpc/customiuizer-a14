@@ -15,7 +15,6 @@ import android.widget.AdapterView
 
 import java.io.File
 import java.io.FileOutputStream
-import java.util.ArrayList
 
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.SubFragmentWithSearch
