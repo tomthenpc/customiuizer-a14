@@ -86,12 +86,12 @@ import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.BatteryIndicator
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.PrefMap
+import java.lang.ref.WeakReference
 import java.lang.reflect.Field
 import java.net.NetworkInterface
 import java.util.ArrayList
 import java.util.Comparator
 import java.util.Enumeration
-import java.util.HashMap
 import java.util.HashSet
 
 object SystemUI {
@@ -102,6 +102,8 @@ object SystemUI {
 
     val textIconTagId = ResourceHooks.getFakeResId("text_icon_tag")
     private val viewInitedTag = ResourceHooks.getFakeResId("view_inited_tag")
+    private val screenshotReceiverTag = ResourceHooks.getFakeResId("screenshot_visibility_receiver")
+    private const val SCREENSHOT_ACTION = "miui.intent.TAKE_SCREENSHOT"
 
     @JvmStatic
     fun setupStatusBar(mContext: Context) {
@@ -542,8 +544,7 @@ object SystemUI {
                         XposedHelpers.setObjectField(subIconState, "visible", false)
                         val subDataConnected = XposedHelpers.getObjectField(subIconState, "dataConnected") as Boolean
                         if (subDataConnected) {
-                            val syncFields = arrayOf("showName", "activityIn", "activityOut", "dataConnected")
-                            for (field in syncFields) {
+                            for (field in MOBILE_STATE_SYNC_FIELDS) {
                                 XposedHelpers.setObjectField(mainIconState, field, XposedHelpers.getObjectField(subIconState, field))
                             }
                         }
@@ -590,7 +591,9 @@ object SystemUI {
 
     private val DUAL_SIGNAL_BLACK_TINT = ColorStateList.valueOf(Color.BLACK)
 
-    private fun applyDualSignalDrawables(mobileView: Any?, mobileIconState: Any?, subLevel: Int, systemUIRes: Resources?, signalResToLevelMap: SparseIntArray, dualSignalResMap: HashMap<String, Int>, selectedIconStyle: String): Boolean {
+    private val MOBILE_STATE_SYNC_FIELDS = arrayOf("showName", "activityIn", "activityOut", "dataConnected")
+
+    private fun applyDualSignalDrawables(mobileView: Any?, mobileIconState: Any?, subLevel: Int, systemUIRes: Resources?, signalResToLevelMap: SparseIntArray, dualSignalResIds: Array<Array<IntArray>>, selectedIconStyle: String): Boolean {
         if (systemUIRes == null) return false
         val mainSignalResId = XposedHelpers.getIntField(mobileIconState, "strengthId")
         var mainLevel = getSignalLevel(systemUIRes, mainSignalResId, signalResToLevelMap)
@@ -602,21 +605,16 @@ object SystemUI {
         val mSmallRoaming = XposedHelpers.getObjectField(mobileView, "mSmallRoaming")
         val mMobile = XposedHelpers.getObjectField(mobileView, "mMobile")
         if (mMobile == null || mSmallRoaming == null) return false
-        var colorMode = ""
-        if (mUseTint && selectedIconStyle != "theme") {
-            colorMode = "_tint"
+        val colorModeIndex = if (mUseTint && selectedIconStyle != "theme") {
+            2
         } else if (!mLight) {
-            colorMode = "_dark"
+            1
+        } else {
+            0
         }
-        var iconStyle = ""
-        if (selectedIconStyle.isNotEmpty()) {
-            iconStyle = "_$selectedIconStyle"
-        }
-        val sim1IconId = "statusbar_signal_1_${mainLevel}${colorMode}${iconStyle}"
-        val sim2IconId = "statusbar_signal_2_${subLevelVar}${colorMode}${iconStyle}"
-        val sim1ResId = dualSignalResMap[sim1IconId]
-        val sim2ResId = dualSignalResMap[sim2IconId]
-        if (sim1ResId == null || sim1ResId == 0 || sim2ResId == null || sim2ResId == 0) return false
+        val sim1ResId = dualSignalResIds[0][mainLevel][colorModeIndex]
+        val sim2ResId = dualSignalResIds[1][subLevelVar][colorModeIndex]
+        if (sim1ResId == 0 || sim2ResId == 0) return false
         XposedHelpers.callMethod(mMobile, "setImageResource", sim1ResId)
         XposedHelpers.callMethod(mSmallRoaming, "setImageResource", sim2ResId)
         var tintList: ColorStateList? = null
@@ -641,8 +639,8 @@ object SystemUI {
             MainModule.resHooks.setThemeValueReplacement("com.android.systemui", "dimen", "status_bar_mobile_type_middle_to_strength_start", -0.4f)
         }
 
-        val dualSignalResMap = HashMap<String, Int>()
         val colorModeList = arrayOf("", "dark", "tint")
+        val dualSignalResIds = Array(2) { Array(6) { IntArray(colorModeList.size) } }
         val selectedIconStyle = MainModule.mPrefs.getString("system_statusbar_dualsimin2rows_style", "")
 
         ModuleHelper.findAndHookMethod("com.android.systemui.SystemUIApplication", lpparam.classLoader, "onCreate", object : MethodHook() {
@@ -652,13 +650,15 @@ object SystemUI {
                     isHooked = true
                     val mContext = XposedHelpers.callMethod(param.getThisObject(), "getApplicationContext") as Context
                     val modRes = ModuleHelper.getModuleRes(mContext)
-                    for (slot in 1..2) {
+                    for (slotIndex in 0..1) {
+                        val slot = slotIndex + 1
                         for (lvl in 0..5) {
-                            for (colorMode in colorModeList) {
+                            for ((colorModeIndex, colorMode) in colorModeList.withIndex()) {
                                 if (selectedIconStyle != "theme" || colorMode != "tint") {
                                     val dualIconResName = "statusbar_signal_${slot}_${lvl}" + (if (colorMode.isNotEmpty()) "_$colorMode" else "") + (if (selectedIconStyle.isNotEmpty()) "_$selectedIconStyle" else "")
                                     val iconResId = modRes.getIdentifier(dualIconResName, "drawable", Helpers.modulePkg)
-                                    dualSignalResMap[dualIconResName] = MainModule.resHooks.addFakeResource(dualIconResName, iconResId, "drawable")
+                                    dualSignalResIds[slotIndex][lvl][colorModeIndex] =
+                                        MainModule.resHooks.addFakeResource(dualIconResName, iconResId, "drawable")
                                 }
                             }
                         }
@@ -696,8 +696,7 @@ object SystemUI {
                     signalStates[1] = getSignalLevel(systemUIRes[0]!!, subSignalResId, signalResToLevelMap)
                     val subDataConnected = XposedHelpers.getObjectField(subIconState, "dataConnected") as Boolean
                     if (subDataConnected) {
-                        val syncFields = arrayOf("showName", "activityIn", "activityOut", "dataConnected")
-                        for (field in syncFields) {
+                        for (field in MOBILE_STATE_SYNC_FIELDS) {
                             XposedHelpers.setObjectField(mainIconState, field, XposedHelpers.getObjectField(subIconState, field))
                         }
                     }
@@ -746,7 +745,7 @@ object SystemUI {
                 val airplane = XposedHelpers.getBooleanField(mobileIconState, "airplane")
                 val subId = XposedHelpers.getIntField(mobileIconState, "subId")
                 if (!visible || airplane || subId != signalStates[0]) return
-                applyDualSignalDrawables(param.getThisObject(), mobileIconState, signalStates[1], systemUIRes[0], signalResToLevelMap, dualSignalResMap, selectedIconStyle)
+                applyDualSignalDrawables(param.getThisObject(), mobileIconState, signalStates[1], systemUIRes[0], signalResToLevelMap, dualSignalResIds, selectedIconStyle)
             }
         }
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyDarknessInternal", resetImageDrawable)
@@ -759,7 +758,7 @@ object SystemUI {
                 val airplane = XposedHelpers.getBooleanField(mobileIconState, "airplane")
                 val subId = XposedHelpers.getIntField(mobileIconState, "subId")
                 if (!visible || airplane || subId != signalStates[0]) return
-                applyDualSignalDrawables(param.getThisObject(), mobileIconState, signalStates[1], systemUIRes[0], signalResToLevelMap, dualSignalResMap, selectedIconStyle)
+                applyDualSignalDrawables(param.getThisObject(), mobileIconState, signalStates[1], systemUIRes[0], signalResToLevelMap, dualSignalResIds, selectedIconStyle)
             }
         }
         ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "onDarkChanged", onDarkChangedSetter)
@@ -1490,9 +1489,30 @@ object SystemUI {
 
     private var blurCollapsed = 0.0f
     private var blurExpanded = 0.0f
+    private var volumeBlurObserverRegistered = false
+    private val volumeBlurPreferenceObserver = object : ModuleHelper.PreferenceObserver {
+        override fun onChange(key: String?) {
+            try {
+                if (key == "pref_key_system_volumeblur_collapsed") {
+                    blurCollapsed = MainModule.mPrefs.getInt(key, 0) / 100f
+                }
+                if (key == "pref_key_system_volumeblur_expanded") {
+                    blurExpanded = MainModule.mPrefs.getInt(key, 0) / 100f
+                }
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+            }
+        }
+    }
 
     @JvmStatic
     fun BlurVolumeDialogBackgroundHook(classLoader: ClassLoader) {
+        blurCollapsed = MainModule.mPrefs.getInt("system_volumeblur_collapsed", 0) / 100f
+        blurExpanded = MainModule.mPrefs.getInt("system_volumeblur_expanded", 0) / 100f
+        if (!volumeBlurObserverRegistered) {
+            volumeBlurObserverRegistered = true
+            ModuleHelper.observePreferenceChange(volumeBlurPreferenceObserver)
+        }
         ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "updateDialogWindowH", Boolean::class.javaPrimitiveType!!, object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val mWindow = XposedHelpers.getObjectField(param.getThisObject(), "mWindow") as Window
@@ -1518,26 +1538,6 @@ object SystemUI {
                     mWindow.clearFlags(8)
                     XposedHelpers.callMethod(param.getThisObject(), "startBlurAnim", 0f, blurCollapsed, 0)
                 }
-            }
-        })
-        ModuleHelper.hookAllMethods("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "initDialog", object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                blurCollapsed = MainModule.mPrefs.getInt("system_volumeblur_collapsed", 0) / 100f
-                blurExpanded = MainModule.mPrefs.getInt("system_volumeblur_expanded", 0) / 100f
-                ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
-                    override fun onChange(key: String?) {
-                        try {
-                            if (key == "pref_key_system_volumeblur_collapsed") {
-                                blurCollapsed = MainModule.mPrefs.getInt(key, 0) / 100f
-                            }
-                            if (key == "pref_key_system_volumeblur_expanded") {
-                                blurExpanded = MainModule.mPrefs.getInt(key, 0) / 100f
-                            }
-                        } catch (t: Throwable) {
-                            XposedHelpers.log(t)
-                        }
-                    }
-                })
             }
         })
     }
@@ -2547,6 +2547,31 @@ object SystemUI {
         return processed
     }
 
+    private var lockScreenAlbumArtController: WeakReference<Any>? = null
+    private var lockScreenAlbumArtReceiverRegistered = false
+    private val lockScreenAlbumArtReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART") return
+            val controller = lockScreenAlbumArtController?.get() ?: return
+            try {
+                XposedHelpers.callMethod(controller, "updateThemeBackgroundVisibility")
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+            }
+        }
+    }
+
+    private fun registerLockScreenAlbumArtReceiver(context: Context, controller: Any) {
+        lockScreenAlbumArtController = WeakReference(controller)
+        if (lockScreenAlbumArtReceiverRegistered) return
+        context.applicationContext.registerReceiver(
+            lockScreenAlbumArtReceiver,
+            IntentFilter(GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART"),
+            Context.RECEIVER_NOT_EXPORTED
+        )
+        lockScreenAlbumArtReceiverRegistered = true
+    }
+
     @JvmStatic
     fun LockScreenAlbumArtHook(lpparam: PackageReadyParam) {
         val MiuiThemeUtilsClass = XposedHelpers.findClassIfExists("com.android.keyguard.utils.MiuiKeyguardUtils", lpparam.classLoader)
@@ -2561,20 +2586,7 @@ object SystemUI {
                     listeners.remove(mBlurRatioChangedListener)
                     val view = XposedHelpers.getObjectField(param.getThisObject(), "mThemeBackgroundView") as View
                     view.alpha = 1.0f
-
-                    val intentFilter = IntentFilter()
-                    intentFilter.addAction(GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART")
-                    view.context.registerReceiver(object : BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
-                            val action = intent.action ?: return
-                            if (action == GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART") {
-                                try {
-                                    XposedHelpers.callMethod(param.getThisObject(), "updateThemeBackgroundVisibility")
-                                } catch (e: Throwable) {
-                                }
-                            }
-                        }
-                    }, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+                    registerLockScreenAlbumArtReceiver(view.context, param.getThisObject() ?: return)
                 }
             }
         })
@@ -3066,19 +3078,69 @@ object SystemUI {
         })
     }
 
+    private class ScreenshotVisibilityReceiver(
+        private val view: View,
+        private val restorePreviousVisibility: Boolean
+    ) : BroadcastReceiver(), View.OnAttachStateChangeListener {
+        private var registered = false
+        private var visibleState = View.VISIBLE
+
+        fun bind() {
+            if (registered) return
+            view.context.registerReceiver(
+                this,
+                IntentFilter(SCREENSHOT_ACTION),
+                Context.RECEIVER_EXPORTED
+            )
+            registered = true
+            view.addOnAttachStateChangeListener(this)
+        }
+
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != SCREENSHOT_ACTION) return
+            val finished = intent.getBooleanExtra("IsFinished", true)
+            if (restorePreviousVisibility) {
+                if (!finished) visibleState = view.visibility
+                view.visibility = if (finished) visibleState else View.INVISIBLE
+            } else {
+                view.visibility = if (finished) View.VISIBLE else View.INVISIBLE
+            }
+        }
+
+        override fun onViewAttachedToWindow(v: View) {
+            if (registered) return
+            v.context.registerReceiver(
+                this,
+                IntentFilter(SCREENSHOT_ACTION),
+                Context.RECEIVER_EXPORTED
+            )
+            registered = true
+        }
+
+        override fun onViewDetachedFromWindow(v: View) {
+            if (!registered) return
+            registered = false
+            try {
+                v.context.unregisterReceiver(this)
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+            }
+        }
+    }
+
+    private fun bindScreenshotVisibility(view: View, restorePreviousVisibility: Boolean) {
+        if (view.getTag(screenshotReceiverTag) is ScreenshotVisibilityReceiver) return
+        val receiver = ScreenshotVisibilityReceiver(view, restorePreviousVisibility)
+        receiver.bind()
+        view.setTag(screenshotReceiverTag, receiver)
+    }
+
     @JvmStatic
     fun HideStatusBarWhenCaptureHook(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment", lpparam.classLoader, "onViewCreated", View::class.java, Bundle::class.java, object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val view = param.getArgs()[0] as View
-                view.context.registerReceiver(object : BroadcastReceiver() {
-                    override fun onReceive(context: Context, intent: Intent) {
-                        if (intent.action == "miui.intent.TAKE_SCREENSHOT") {
-                            val finished = intent.getBooleanExtra("IsFinished", true)
-                            view.visibility = if (finished) View.VISIBLE else View.INVISIBLE
-                        }
-                    }
-                }, IntentFilter("miui.intent.TAKE_SCREENSHOT"), Context.RECEIVER_EXPORTED)
+                bindScreenshotVisibility(view, false)
             }
         })
     }
@@ -3086,20 +3148,9 @@ object SystemUI {
     @JvmStatic
     fun HideNavBarBeforeScreenshotHook(lpparam: PackageReadyParam) {
         val hideNavHook = object : MethodHook() {
-            var visibleState = 0
             override fun after(param: AfterHookCallback) {
                 val view = XposedHelpers.getObjectField(param.getThisObject(), "mView") as View
-                view.context.registerReceiver(object : BroadcastReceiver() {
-                    override fun onReceive(context: Context, intent: Intent) {
-                        if (intent.action == "miui.intent.TAKE_SCREENSHOT") {
-                            val finished = intent.getBooleanExtra("IsFinished", true)
-                            if (!finished) {
-                                visibleState = view.visibility
-                            }
-                            view.visibility = if (finished) visibleState else View.INVISIBLE
-                        }
-                    }
-                }, IntentFilter("miui.intent.TAKE_SCREENSHOT"), Context.RECEIVER_EXPORTED)
+                bindScreenshotVisibility(view, true)
             }
         }
         ModuleHelper.findAndHookMethod("com.android.systemui.navigationbar.NavigationBar", lpparam.classLoader, "onInit", hideNavHook)

@@ -1357,6 +1357,9 @@ object Launcher {
 
     @JvmStatic
     fun IconScaleHook(lpparam: PackageReadyParam) {
+        val iconScale = Math.sqrt((MainModule.mPrefs.getInt("launcher_iconscale", 100) / 100f).toDouble()).toFloat()
+        var iconMessageMaxWidthResId = 0
+
         ModuleHelper.findAndHookMethod("com.miui.home.launcher.ShortcutIcon", lpparam.classLoader, "restoreToInitState", object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
@@ -1371,10 +1374,10 @@ object Launcher {
                     val thisObject = chain.getThisObject()
 
                     val mIconContainer = XposedHelpers.getObjectField(thisObject, "mIconContainer") as? ViewGroup
-                    if (mIconContainer == null || mIconContainer.getChildAt(0) == null) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    val multx = Math.sqrt((MainModule.mPrefs.getInt("launcher_iconscale", 100) / 100f).toDouble()).toFloat()
-                    mIconContainer.getChildAt(0).scaleX = multx
-                    mIconContainer.getChildAt(0).scaleY = multx
+                    val icon = mIconContainer?.getChildAt(0)
+                    if (icon == null) { return XposedHelpers.throwOrReturn(throwable, result) }
+                    icon.scaleX = iconScale
+                    icon.scaleY = iconScale
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
@@ -1396,29 +1399,38 @@ object Launcher {
                 try {
                     val thisObject = chain.getThisObject()
 
-                    val multx = Math.sqrt((MainModule.mPrefs.getInt("launcher_iconscale", 100) / 100f).toDouble()).toFloat()
-
                     val mIconContainer = XposedHelpers.getObjectField(thisObject, "mIconContainer") as? ViewGroup
-                    if (mIconContainer != null && mIconContainer.getChildAt(0) != null) {
-                        mIconContainer.getChildAt(0).scaleX = multx
-                        mIconContainer.getChildAt(0).scaleY = multx
+                    val icon = mIconContainer?.getChildAt(0)
+                    if (icon != null) {
+                        icon.scaleX = iconScale
+                        icon.scaleY = iconScale
                         mIconContainer.clipToPadding = false
                         mIconContainer.clipChildren = false
                     }
 
-                    if (multx > 1) {
+                    if (iconScale > 1) {
                         val mMessage = XposedHelpers.getObjectField(thisObject, "mMessage") as? TextView
-                        if (mMessage != null)
+                        if (mMessage != null) {
+                            if (iconMessageMaxWidthResId == 0) {
+                                iconMessageMaxWidthResId = Helpers.getResId(
+                                    mMessage.resources,
+                                    "icon_message_max_width",
+                                    "dimen",
+                                    lpparam.packageName
+                                )
+                            }
+                            val maxWidthResId = iconMessageMaxWidthResId
                             mMessage.addTextChangedListener(object : TextWatcher {
                                 override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
                                 override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
                                 override fun afterTextChanged(s: Editable) {
-                                    val maxWidth = mMessage.resources.getDimensionPixelSize(mMessage.resources.getIdentifier("icon_message_max_width", "dimen", lpparam.packageName))
+                                    val maxWidth = mMessage.resources.getDimensionPixelSize(maxWidthResId)
                                     mMessage.measure(View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST))
-                                    mMessage.translationX = -mMessage.measuredWidth * (multx - 1) / 2f
-                                    mMessage.translationY = mMessage.measuredHeight * (multx - 1) / 2f
+                                    mMessage.translationX = -mMessage.measuredWidth * (iconScale - 1) / 2f
+                                    mMessage.translationY = mMessage.measuredHeight * (iconScale - 1) / 2f
                                 }
                             })
+                        }
                     }
 
                     XposedHelpers.setAdditionalInstanceField(thisObject, "mMessageAnimationOrig", XposedHelpers.getObjectField(thisObject, "mMessageAnimation"))
@@ -1431,7 +1443,7 @@ object Launcher {
                                 if (mIsShowMessageAnimation) {
                                     val mMessage = XposedHelpers.getObjectField(thisObject, "mMessage") as View
                                     mMessage.animate().cancel()
-                                    mMessage.animate().scaleX(multx).scaleY(multx).setStartDelay(0).start()
+                                    mMessage.animate().scaleX(iconScale).scaleY(iconScale).setStartDelay(0).start()
                                 }
                             } catch (t: Throwable) {
                                 XposedHelpers.log(t)
@@ -1458,11 +1470,10 @@ object Launcher {
                 }
                 try {
 
-                    val multx = Math.sqrt((MainModule.mPrefs.getInt("launcher_iconscale", 100) / 100f).toDouble()).toFloat()
                     val rect = result as Rect?
                     if (rect == null) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    rect.right = rect.left + Math.round(rect.width() * multx)
-                    rect.bottom = rect.top + Math.round(rect.height() * multx)
+                    rect.right = rect.left + Math.round(rect.width() * iconScale)
+                    rect.bottom = rect.top + Math.round(rect.height() * iconScale)
                     result = rect
                     throwable = null
 
@@ -1487,10 +1498,10 @@ object Launcher {
                     val thisObject = chain.getThisObject()
 
                     val mIconContainer = XposedHelpers.getObjectField(thisObject, "mIconContainer") as? ViewGroup
-                    if (mIconContainer == null || mIconContainer.getChildAt(0) == null) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    val multx = Math.sqrt((MainModule.mPrefs.getInt("launcher_iconscale", 100) / 100f).toDouble()).toFloat()
-                    mIconContainer.getChildAt(0).scaleX = multx
-                    mIconContainer.getChildAt(0).scaleY = multx
+                    val icon = mIconContainer?.getChildAt(0)
+                    if (icon == null) { return XposedHelpers.throwOrReturn(throwable, result) }
+                    icon.scaleX = iconScale
+                    icon.scaleY = iconScale
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
