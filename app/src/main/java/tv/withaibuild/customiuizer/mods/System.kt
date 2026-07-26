@@ -4358,7 +4358,6 @@ object System {
                         val intent = args[1] as Intent
                         openInFw = shouldOpenInFreeForm(intent, freeformCallingPackage)
                     }
-                    // XposedHelpers.log("actInfo: " + openInFw + " - " + args[0] + " - " + freeformCallingPackage + " | " + args[1]);
                     if (openInFw) {
                         nextFreeformPackage = ModuleHelper.NOT_EXIST_SYMBOL
                     }

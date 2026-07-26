@@ -301,7 +301,6 @@ object Helpers {
         try {
             val appInfo = context.packageManager.getApplicationInfo(modulePkg, 0)
             val appInstalled = System.currentTimeMillis() - File(appInfo.sourceDir).lastModified()
-//            Log.e("miuizer", "installed: $appInstalled msecs or ${appInstalled / (1000 * 60 * 60)} hrs")
             showNewMods = when (opt) {
                 0 -> false
                 4 -> true
@@ -783,7 +782,6 @@ object Helpers {
                                 modData.sub = lastPrefSub ?: ""
                                 modData.order = order
                                 allModsList.add(modData)
-                                // Log.e("miuizer", modData.key + " = " + modData.order)
                             }
                         }
                         order++
