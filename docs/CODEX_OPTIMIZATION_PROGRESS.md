@@ -14,7 +14,7 @@
 
 ### 阶段 A：正确性、注册与生命周期
 
-状态：进行中。
+状态：已完成静态审查、代码修复和阶段构建验证；等待实机验证。
 
 本阶段集中审查并处理：
 
@@ -141,6 +141,44 @@ SystemUI 重建后会累积旧实例和重复回调。
 局部验证：`test assembleDebug assembleRelease` 成功；33 个测试全部通过，Release R8、
 资源压缩和 `lintVitalRelease` 均完成。
 
+#### 阶段 A 收口
+
+独立问题提交：
+
+- `00f52ea`：释放 `AudioVisualizer` 的观察器、协程、动画和原生资源；
+- `acdd51e`：防止 `AudioVisualizerHook` 重复实例和失效静态引用；
+- `68760f8`：将音量模糊偏好观察器收敛为进程唯一注册；
+- `2a95f4a`：将截图状态栏/导航栏 Receiver 绑定到 View attach/detach；
+- `1637144`：将锁屏专辑封面 Receiver 收敛为进程唯一注册和弱目标引用；
+- `6c813f3`：按真实参数契约要求截图 DexKit 目标唯一。
+
+阶段全量验证执行：
+
+```powershell
+.\gradlew.bat --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease
+```
+
+- 构建成功；33 个测试全部通过；
+- Debug/Release Lint 均为 0 errors、489 warnings；
+- Debug、Release、R8 和资源压缩均完成；
+- 完整 Release Lint 已覆盖 Vital 分析，因此同一任务图中的
+  `lintVitalReportRelease` / `lintVitalRelease` 按既有 Gradle 行为标记为 `SKIPPED`；
+- Release APK：`app/build/outputs/apk/release/CustoMIUIzer-A14-r14.10.0.apk`，
+  3,021,289 bytes，SHA-256
+  `203BD0E9E79B1A092B188A39ABC00F8699261562D9EEB486848F1FD94C2B40E1`；
+- APK v2 签名和 zipalign 校验通过，签名证书 SHA-256 仍为
+  `3061A3DA1C2FC46B44E215D024B1BFE3A012CB4D70B90B0214FA9FC896CEF60D`；
+- APK 内 `module.prop` 仍为 min API 101、target API 102、`staticScope=false`；
+- R8 后入口 `ro` 可由 mapping 追溯到 `MainModule`；
+- APK DEX 未发现 `de.robv.android.xposed`。
+
+收口边界：
+
+- 未发现 P0；阶段 A 中已确认的 P1 已全部处理；
+- PIP 截图 Receiver、锁屏手电筒 Observer 和状态栏秒钟 ticker 的宿主在目标 ROM
+  是否会同进程重建，当前缺少设备/ROM 生命周期证据；它们保留为实机观察项，不猜测重写；
+- 7 个 Devin 遗留 `mods/*.java.bak` 仍保持未跟踪、未读取内容、未修改和未提交。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
@@ -205,7 +243,7 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 ### 后续四阶段
 
-1. 阶段 A：正确性、注册与生命周期；
+1. 阶段 A：正确性、注册与生命周期（已完成静态/构建验证）；
 2. 阶段 B：核心 Hook 与热路径；
 3. 阶段 C：逻辑、算法、Kotlin 与设置 UI；
 4. 阶段 D：清理、全量验证与最终签名测试 APK。
@@ -278,12 +316,13 @@ SystemUI 重建后会累积旧实例和重复回调。
 - SystemUI 重建/主题或配置变化后无重复指示器、重复 Receiver/Observer 或崩溃
 - 截图期间隐藏状态栏功能与电池指示器组合
 
-## 下一批次准确入口
+## 下一阶段准确入口
 
-只审查 `AudioVisualizer` 的 View 生命周期闭环：
+阶段 B 按进程分开审查并提交：
 
-1. 从创建点确认一个实例对应的宿主 View 和 detach 时序；
-2. 确认偏好观察器是否在 detach 后继续强引用实例；
-3. 确认 `Visualizer(0)` 在所有 detach / 禁用路径中是否必定 `release()`；
-4. 只有在局部调用链证明问题后，复用 owner 移除机制做单文件最小修复并完整构建；
-5. 不顺带处理 `SystemUI.kt` 的其他 Receiver，也不改 Hook 注册或 API 101/102 配置。
+1. SystemUI：先索引状态栏、控制中心、通知、网络速度、电池/图标与触摸回调，
+   只读取被证明处于高频路径的方法；
+2. `system_server`：重点确认 Binder、SharedPreferences、反射、临时集合和正常路径日志；
+3. Launcher：重点确认触摸、动画、图标/资源查找和 `Application.attach` 后安装的 Hook；
+4. 各进程分别提交，单个问题仍独立根因；无量化或局部调用链证据时不改；
+5. 不把阶段 A 的实机观察项伪装成已验证结论，也不改 API 101/102 和 Hot Reload 边界。
