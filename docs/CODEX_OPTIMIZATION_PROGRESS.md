@@ -85,6 +85,25 @@ clean / test / Lint / Debug / Release / R8 / 资源压缩验证并推送当前�
 
 局部验证：`test assembleDebug` 成功，33 个测试全部通过。
 
+#### A4：截图可见性 Receiver 与 View 生命周期
+
+状态：已修复，阶段验证和实机验证待完成。
+
+根因：
+
+- 状态栏 Fragment 的 `onViewCreated` 和 NavigationBar 的 `onInit` 都会注册捕获 View 的匿名 Receiver；
+- View detach 后没有注销，重建或 `onInit` 重入会保留旧 View 并叠加回调；
+- NavigationBar 的可见性备份状态位于 Hook 对象，多个 View 会共享状态。
+
+处理：
+
+- 用同一个小型 View 生命周期 Receiver 保持原截图广播和显示/恢复规则；
+- 通过 keyed View tag 保证同一 View 只绑定一次，不引入进程级 View 引用；
+- detach 时注销，重新 attach 时恢复注册；
+- NavigationBar 的可见性状态改为每个 View 实例独立保存。
+
+局部验证：`test assembleDebug` 成功，33 个测试全部通过。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放

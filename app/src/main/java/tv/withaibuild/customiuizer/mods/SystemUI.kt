@@ -102,6 +102,8 @@ object SystemUI {
 
     val textIconTagId = ResourceHooks.getFakeResId("text_icon_tag")
     private val viewInitedTag = ResourceHooks.getFakeResId("view_inited_tag")
+    private val screenshotReceiverTag = ResourceHooks.getFakeResId("screenshot_visibility_receiver")
+    private const val SCREENSHOT_ACTION = "miui.intent.TAKE_SCREENSHOT"
 
     @JvmStatic
     fun setupStatusBar(mContext: Context) {
@@ -3067,19 +3069,69 @@ object SystemUI {
         })
     }
 
+    private class ScreenshotVisibilityReceiver(
+        private val view: View,
+        private val restorePreviousVisibility: Boolean
+    ) : BroadcastReceiver(), View.OnAttachStateChangeListener {
+        private var registered = false
+        private var visibleState = View.VISIBLE
+
+        fun bind() {
+            if (registered) return
+            view.context.registerReceiver(
+                this,
+                IntentFilter(SCREENSHOT_ACTION),
+                Context.RECEIVER_EXPORTED
+            )
+            registered = true
+            view.addOnAttachStateChangeListener(this)
+        }
+
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != SCREENSHOT_ACTION) return
+            val finished = intent.getBooleanExtra("IsFinished", true)
+            if (restorePreviousVisibility) {
+                if (!finished) visibleState = view.visibility
+                view.visibility = if (finished) visibleState else View.INVISIBLE
+            } else {
+                view.visibility = if (finished) View.VISIBLE else View.INVISIBLE
+            }
+        }
+
+        override fun onViewAttachedToWindow(v: View) {
+            if (registered) return
+            v.context.registerReceiver(
+                this,
+                IntentFilter(SCREENSHOT_ACTION),
+                Context.RECEIVER_EXPORTED
+            )
+            registered = true
+        }
+
+        override fun onViewDetachedFromWindow(v: View) {
+            if (!registered) return
+            registered = false
+            try {
+                v.context.unregisterReceiver(this)
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+            }
+        }
+    }
+
+    private fun bindScreenshotVisibility(view: View, restorePreviousVisibility: Boolean) {
+        if (view.getTag(screenshotReceiverTag) is ScreenshotVisibilityReceiver) return
+        val receiver = ScreenshotVisibilityReceiver(view, restorePreviousVisibility)
+        receiver.bind()
+        view.setTag(screenshotReceiverTag, receiver)
+    }
+
     @JvmStatic
     fun HideStatusBarWhenCaptureHook(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment", lpparam.classLoader, "onViewCreated", View::class.java, Bundle::class.java, object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val view = param.getArgs()[0] as View
-                view.context.registerReceiver(object : BroadcastReceiver() {
-                    override fun onReceive(context: Context, intent: Intent) {
-                        if (intent.action == "miui.intent.TAKE_SCREENSHOT") {
-                            val finished = intent.getBooleanExtra("IsFinished", true)
-                            view.visibility = if (finished) View.VISIBLE else View.INVISIBLE
-                        }
-                    }
-                }, IntentFilter("miui.intent.TAKE_SCREENSHOT"), Context.RECEIVER_EXPORTED)
+                bindScreenshotVisibility(view, false)
             }
         })
     }
@@ -3087,20 +3139,9 @@ object SystemUI {
     @JvmStatic
     fun HideNavBarBeforeScreenshotHook(lpparam: PackageReadyParam) {
         val hideNavHook = object : MethodHook() {
-            var visibleState = 0
             override fun after(param: AfterHookCallback) {
                 val view = XposedHelpers.getObjectField(param.getThisObject(), "mView") as View
-                view.context.registerReceiver(object : BroadcastReceiver() {
-                    override fun onReceive(context: Context, intent: Intent) {
-                        if (intent.action == "miui.intent.TAKE_SCREENSHOT") {
-                            val finished = intent.getBooleanExtra("IsFinished", true)
-                            if (!finished) {
-                                visibleState = view.visibility
-                            }
-                            view.visibility = if (finished) visibleState else View.INVISIBLE
-                        }
-                    }
-                }, IntentFilter("miui.intent.TAKE_SCREENSHOT"), Context.RECEIVER_EXPORTED)
+                bindScreenshotVisibility(view, true)
             }
         }
         ModuleHelper.findAndHookMethod("com.android.systemui.navigationbar.NavigationBar", lpparam.classLoader, "onInit", hideNavHook)
