@@ -430,6 +430,25 @@ SystemUI 重建后会累积旧实例和重复回调。
 - `.\gradlew.bat --no-daemon test assembleDebug`：成功；
 - 33 项单元测试通过。
 
+#### D3：建立 r14.11.0 测试候选版本
+
+状态：配置完成，局部验证通过，等待阶段验证。
+
+处理：
+
+- `versionCode` 从 172 递增为 173，`versionName` 从 r14.10.0 更新为 r14.11.0；
+- APK 输出名同步为 `CustoMIUIzer-A14-r14.11.0.apk`；
+- CHANGELOG 增加 r14.11.0 的阶段范围、兼容边界和实机验证条件；
+- 中文 README 将双兼容优化候选指向 r14.11.0，稳定版推荐不变；
+- r14.10.0 的 API 101/102 兼容基线文档不改写。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug assembleRelease`：成功；
+- 33 项单元测试通过；
+- Release、R8、资源压缩与 `lintVitalRelease` 成功；
+- 产物名为 `CustoMIUIzer-A14-r14.11.0.apk`。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放

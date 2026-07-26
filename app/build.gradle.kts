@@ -11,8 +11,8 @@ if (hasReleaseSigning) {
     keystorePropertiesFile.inputStream().use(keystoreProperties::load)
 }
 
-val lastVersion = 172
-val lastVersionName = "r14.10.0"
+val lastVersion = 173
+val lastVersionName = "r14.11.0"
 val supportedLocales = setOf(
     "ru-rRU",
     "zh-rCN",

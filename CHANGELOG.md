@@ -7,6 +7,27 @@
 
 性能结论会区分静态分析与实机验证；未做同设备功耗采样时，不使用推测性续航或速度百分比。
 
+## r14.11.0 — Kotlin 正确性、生命周期与热路径收尾
+
+发布日期：待 API 101 与 API 102 双环境实机验证。状态：**测试候选版，暂不发布 Release**。
+
+- 在 r14.10.0 单 APK 双兼容基线上继续工作，保持 libxposed min API 101 /
+  target API 102、`staticScope=false`，不启用 Hot Reload。
+- 完成 `AudioVisualizer`、电池指示器、截图状态、锁屏专辑封面和音量模糊观察器的
+  生命周期闭环与重复注册保护。
+- 降低双排信号重绘、振动时间段判断、Launcher 图标缩放和应用解析列表去重中的
+  重复分配、格式化、平方根计算与线性扫描。
+- 修复 Kotlin 迁移后应用选择列表失去“尚未加载”状态，以及隐私应用/应用锁列表被复制
+  两次的正确性回归。
+- 删除可由 Lint、引用搜索和 Git 历史共同证明无引用的旧 Drawable 与注释调试日志；
+  保留模块入口、Hook 兼容层和反射工具中的 Java 实现。
+- 每个独立根因均有单独 commit 和局部构建；A/B/C 阶段均完成全量测试、Lint、
+  Debug、Release、R8、资源压缩、签名、zipalign 和 API 元数据静态验证。
+
+静态验证不能替代实机。API 101 与 API 102 环境仍需分别验证 system_server、SystemUI、
+Launcher、Remote Preferences、截图、AudioVisualizer 和设置应用选择页，确认后再创建
+最终 Release。
+
 ## r14.10.0 — libxposed API 101 / API 102 compatibility
 
 发布日期：待 API 101 与 API 102 双环境实机验证。状态：**测试候选版，暂不发布 Release**。
