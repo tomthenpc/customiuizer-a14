@@ -4,16 +4,36 @@
 
 - 优化基线：`0e4c00b8b95f02cc5beaf8288bfe8c28a9423876`
 - 当前优化分支：`codex/r14.11-kotlin-performance`
+- 当前代码起点：`d39f6e8954ba901ffdea55da7622803d2dc38593`
 - libxposed：编译 API `102.0.0`，`minApiVersion=101`，`targetApiVersion=102`
 - Hot Reload：关闭
 - Android：`minSdk=34`，`targetSdk=34`
 - 构建工具：Gradle `9.5.1`、AGP `9.2.1`、compileSdk / Build Tools `37`
 
-## 当前批次
+## 当前阶段
+
+### 阶段 A：正确性、注册与生命周期
+
+状态：进行中。
+
+本阶段集中审查并处理：
+
+- `AudioVisualizer` 的 View、偏好观察器、协程与原生 `Visualizer` 生命周期；
+- SystemUI 其他长期 Receiver / Observer / Listener 的所有权与防重复注册；
+- 模块入口、进程判断、重复初始化和功能关闭后的残留任务；
+- Handler、Coroutine、Executor、attach/detach 与 SystemUI 重建路径；
+- 静态持有 View、Context、Fragment 或 ClassLoader 的明确风险。
+
+每个独立根因保持独立 commit；每个 commit 执行 `test assembleDebug`，涉及 R8、动态入口、
+Hooker、反射或 Manifest 时增加 `assembleRelease`。阶段完成后统一执行完整
+clean / test / Lint / Debug / Release / R8 / 资源压缩验证并推送当前优化分支。
+
+## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
 
-状态：已完成，等待实机验证。
+状态：已完成，等待实机验证。提交：
+`838bc56f4a9dff60b80353170c4352fa734bae2e`。
 
 根因：`BatteryIndicator` 被加入 SystemUI 状态栏窗口后，会向 Context 注册广播接收器，并向
 `ModuleHelper` 的进程级集合注册偏好观察器。原实现的 `onDetachedFromWindow()` 只取消协程，
@@ -33,8 +53,6 @@
 - 未引入轮询、后台任务、反射、API 102 专属调用或 Hot Reload；
 - 功能关闭时仍不会创建 `BatteryIndicator` 或注册相关资源。
 
-## 已完成批次
-
 ### 批次 0：固定基线和结构化库存
 
 - 从 `0e4c00b8b95f02cc5beaf8288bfe8c28a9423876` 创建
@@ -49,6 +67,38 @@
 - 依赖版本已经由 `gradle/libs.versions.toml` 集中锁定；本轮未改依赖、Gradle、AGP、SDK 或 R8 规则。
 - 活跃源码没有 Legacy Xposed API 调用；Manifest 中
   `de.robv.android.xposed.category.MODULE_SETTINGS` 仅是管理器入口 category。
+
+### 批次 2：`Credentials` 等价 Kotlin 迁移
+
+状态：已完成，等待实机验证。提交：
+`ac5f523`。
+
+- 保持完整类名、`AppCompatActivity` 继承、公开无参构造、Manifest 注册与 R8 keep name；
+- 保持凭据确认、Keystore 回退、`finish()` / 密码设置页顺序、`onActivityResult()` 和 Toast 行为；
+- Java 与 Kotlin 的构造器和生命周期方法 JVM 描述符一致；
+- 完整测试、Lint、Debug、Release、R8、签名、zipalign 和 APK 元数据检查通过。
+
+### 批次 3：`PreferenceFragmentBase` 等价 Kotlin 迁移
+
+状态：已完成，等待实机验证。提交：
+`d39f6e8`。
+
+- 保持可继承类、公开无参构造、protected 字段、静态常量和方法 JVM 描述符；
+- 保持 Fragment transaction、页面动画、菜单、Dialog、备份恢复和 Java 序列化行为；
+- 仅对 `AboutFragment` 做必要的 Kotlin 调用兼容调整；
+- 完整验证通过：33 个测试、Lint 0 errors、Debug、Release、R8、资源压缩、签名和 zipalign；
+- 最终 Release APK 为 3,021,289 bytes，SHA-256
+  `C72A3A2DFDC1D9B3AFCD903D4C36C4CC3CD36FCAC021AB9A70C69A3017E5E2E7`。
+
+### 后续四阶段
+
+1. 阶段 A：正确性、注册与生命周期；
+2. 阶段 B：核心 Hook 与热路径；
+3. 阶段 C：逻辑、算法、Kotlin 与设置 UI；
+4. 阶段 D：清理、全量验证与最终签名测试 APK。
+
+停止条件：P0 清零、明确 P1 已处理、高收益 P2 已处理，剩余仅为低收益 P3、
+需要实机数据或风险高于收益的问题；不为清空清单无限优化。
 
 ### 进程 / 功能 / Hook 路径
 
