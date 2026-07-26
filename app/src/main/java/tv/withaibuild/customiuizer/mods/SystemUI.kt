@@ -93,6 +93,7 @@ import java.util.ArrayList
 import java.util.Comparator
 import java.util.Enumeration
 import java.util.HashSet
+import java.util.Locale
 
 object SystemUI {
 
@@ -1097,15 +1098,11 @@ object SystemUI {
         return Pair(tx, rx)
     }
 
-    @SuppressLint("DefaultLocale")
     private fun humanReadableByteCount(ctx: Context, bytes: Long): String {
         try {
             val modRes = ModuleHelper.getModuleRes(ctx)
             val hideSecUnit = MainModule.mPrefs.getBoolean("system_detailednetspeed_secunit")
-            var unitSuffix = modRes.getString(R.string.Bs)
-            if (hideSecUnit) {
-                unitSuffix = ""
-            }
+            val unitSuffix = if (hideSecUnit) "" else modRes.getString(R.string.Bs)
             var f = bytes / 1024.0f
             var expIndex = 0
             if (f > 999.0f) {
@@ -1113,7 +1110,8 @@ object SystemUI {
                 f /= 1024.0f
             }
             val pre = modRes.getString(R.string.speedunits)[expIndex]
-            return (if (f < 100.0f) String.format("%.1f", f) else String.format("%.0f", f)) + String.format("%s" + unitSuffix, pre)
+            val number = if (f < 100.0f) String.format(Locale.ROOT, "%.1f", f) else String.format(Locale.ROOT, "%.0f", f)
+            return "$number$pre$unitSuffix"
         } catch (t: Throwable) {
             XposedHelpers.log(t)
             return ""
