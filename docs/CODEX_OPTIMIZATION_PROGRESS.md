@@ -333,6 +333,28 @@ SystemUI 重建后会累积旧实例和重复回调。
 - `.\gradlew.bat --no-daemon test assembleDebug`：成功；
 - 33 项单元测试通过。
 
+#### C3：隐私应用与应用锁列表重复
+
+状态：已修复，局部验证通过，阶段验证待完成。
+
+根因：
+
+- Java 基线先创建空的 `CopyOnWriteArrayList`，再用 `addAll(arr)` 复制一次；
+- Kotlin 迁移把构造改成 `CopyOnWriteArrayList(arr)` 后，仍保留后续
+  `addAll(arr)`；
+- `PrivacyAppAdapter` 和 `LockedAppAdapter` 因而在初始化时把每个应用插入两次，
+  页面条目、排序比较、过滤和图标加载工作量都翻倍。
+
+处理：
+
+- 两个 Adapter 均只使用集合构造函数复制一次输入列表；
+- 保持原始列表引用、选择状态排序、搜索过滤和 ViewHolder 绑定逻辑不变。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug`：成功；
+- 33 项单元测试通过。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
