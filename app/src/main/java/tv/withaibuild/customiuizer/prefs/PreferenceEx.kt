@@ -63,7 +63,7 @@ open class PreferenceEx(context: Context, attrs: AttributeSet?) : Preference(con
         if (warning) {
             title?.setTextColor(Helpers.markColor)
         }
-        title?.text = title?.text.toString() + if (unsupported) " ⨯" else if (dynamic) " ⟲" else ""
+        title?.text = Helpers.appendStatusMarker(title?.text, unsupported, dynamic)
         if (newmod) title?.let { Helpers.applyNewMod(it) }
         if (highlight) Helpers.applySearchItemHighlight(finalView)
 

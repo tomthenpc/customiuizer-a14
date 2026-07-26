@@ -91,7 +91,7 @@ class SeekBarPreference @JvmOverloads constructor(
 
     fun getView(finalView: View) {
         val mTitle = finalView.findViewById<TextView>(android.R.id.title)
-        mTitle?.text = (title?.toString() ?: "") + if (unsupported) " ⨯" else if (dynamic) " ⟲" else ""
+        mTitle?.text = Helpers.appendStatusMarker(title, unsupported, dynamic)
         seekBar?.alpha = if (isEnabled) 1.0f else 0.75f
         if (newmod) mTitle?.let { Helpers.applyNewMod(it) }
         if (highlight) Helpers.applySearchItemHighlight(finalView)

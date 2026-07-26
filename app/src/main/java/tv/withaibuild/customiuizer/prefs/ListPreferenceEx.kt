@@ -66,7 +66,7 @@ class ListPreferenceEx(context: Context, attrs: AttributeSet?) : ListPreference(
             val secondary = res.getColor(R.color.preference_secondary_text, context.theme)
             valSummary?.setTextColor(if (isEnabled) secondary else disableColor)
         }
-        title?.text = (title?.text?.toString() ?: "") + if (unsupported) " ⨯" else if (dynamic) " ⟲" else ""
+        title?.text = Helpers.appendStatusMarker(title?.text, unsupported, dynamic)
         if (newmod) title?.let { Helpers.applyNewMod(it) }
         if (highlight) Helpers.applySearchItemHighlight(finalView)
 

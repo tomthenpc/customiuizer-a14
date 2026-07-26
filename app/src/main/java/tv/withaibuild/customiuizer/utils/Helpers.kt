@@ -312,6 +312,12 @@ object Helpers {
     }
 
     @JvmStatic
+    fun appendStatusMarker(text: CharSequence?, unsupported: Boolean, dynamic: Boolean): CharSequence {
+        val marker = if (unsupported) " ⨯" else if (dynamic) " ⟲" else ""
+        return if (text.isNullOrEmpty()) marker else "$text$marker"
+    }
+
+    @JvmStatic
     fun applyNewMod(title: TextView) {
         val titleStr = title.text
         val newModStr = title.resources.getString(R.string.miuizer_new_mod) + " "
