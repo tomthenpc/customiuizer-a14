@@ -181,7 +181,7 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 ### 阶段 B：核心 Hook 与热路径
 
-状态：进行中。
+状态：已完成静态审查、代码优化和阶段构建验证；等待实机验证。
 
 #### B1：双 SIM 信号重绘临时分配
 
@@ -245,6 +245,40 @@ SystemUI 重建后会累积旧实例和重复回调。
 - 不新增监听器、线程、缓存层或配置格式。
 
 局部验证：`test assembleDebug` 成功，33 个测试全部通过。
+
+#### 阶段 B 收口
+
+独立问题提交：
+
+- `335887e`：移除 SystemUI 双 SIM 信号重绘中的字符串、HashMap 和字段数组临时分配；
+- `94cc608`：将 system_server 振动时段判断收敛为整数分钟比较；
+- `fc7e4c7`：缓存 Launcher 图标缩放输入和角标资源 ID。
+
+阶段全量验证再次执行：
+
+```powershell
+.\gradlew.bat --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease
+```
+
+- 构建成功；33 个测试全部通过；
+- Debug Lint 为 0 errors、489 warnings，Release Lint 为 0 errors、488 warnings；
+- Debug、Release、R8 和资源压缩均完成；
+- 完整 Release Lint 已覆盖 Vital 分析，同一任务图中的
+  `lintVitalReportRelease` / `lintVitalRelease` 按既有 Gradle 行为标记为 `SKIPPED`；
+- DexKit Lint 仍提示 `DexKitBridge.create()`；当前只在两个不同目标包的独立进程中按需创建、
+  搜索后立即关闭，不存在同一进程同一 APK 重复创建证据，因此不为消除静态告警扩大生命周期；
+- Release APK 为 3,021,289 bytes，SHA-256
+  `4EA0966BEC5497263406A31D6CBDE85590C80BC48D063865BD21004DECA0BDC0`；
+- APK v2 签名、zipalign、min API 101 / target API 102 / `staticScope=false` 元数据和
+  R8 入口 mapping 均保持有效。
+
+收口边界：
+
+- 详细网速的接口枚举决定统计口径，替换为 total traffic 需要目标 ROM 实测；
+- 通用 Hook 参数数组适配承载 API 101 的参数修改/异常传播语义，不做全局性能重写；
+- 状态栏手势仍有可缓存反射与偏好读取，但涉及多显示器和设置实时生效，缺少 trace 时列为
+  低收益或需实机数据项；
+- 未发现正常路径高频日志、无效 Binder 轮询或功能关闭后仍安装的新 Hook。
 
 ## 已完成批次
 
@@ -311,7 +345,7 @@ SystemUI 重建后会累积旧实例和重复回调。
 ### 后续四阶段
 
 1. 阶段 A：正确性、注册与生命周期（已完成静态/构建验证）；
-2. 阶段 B：核心 Hook 与热路径；
+2. 阶段 B：核心 Hook 与热路径（已完成静态/构建验证）；
 3. 阶段 C：逻辑、算法、Kotlin 与设置 UI；
 4. 阶段 D：清理、全量验证与最终签名测试 APK。
 
@@ -385,11 +419,10 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 ## 下一阶段准确入口
 
-阶段 B 按进程分开审查并提交：
+阶段 C 聚焦低风险、可证明的逻辑和设置 UI：
 
-1. SystemUI：先索引状态栏、控制中心、通知、网络速度、电池/图标与触摸回调，
-   只读取被证明处于高频路径的方法；
-2. `system_server`：重点确认 Binder、SharedPreferences、反射、临时集合和正常路径日志；
-3. Launcher：重点确认触摸、动画、图标/资源查找和 `Application.attach` 后安装的 Hook；
-4. 各进程分别提交，单个问题仍独立根因；无量化或局部调用链证据时不改；
-5. 不把阶段 A 的实机观察项伪装成已验证结论，也不改 API 101/102 和 Hot Reload 边界。
+1. 从 Kotlin 编译告警和 Lint 中筛选真实空值、恒真/恒假条件与 JVM 互操作问题；
+2. 审查 Preference、Fragment、Dialog、搜索和设置同步的重复遍历与主线程工作；
+3. 一次只处理 10～20 个强相关文件，不引入 Flow、Sequence、DSL、新架构层或协程；
+4. 已稳定的 Hook 主干只做调用方需要的最小调整，不继续风格化重写；
+5. 无功能错误或可测收益的纯风格告警降为 P3，不为清零告警无限修改。
