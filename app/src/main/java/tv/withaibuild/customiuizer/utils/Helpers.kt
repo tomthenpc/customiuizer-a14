@@ -807,28 +807,28 @@ object Helpers {
     }
 
     @JvmStatic
-    fun performLightVibration(context: Context) {
+    fun performLightVibration(context: Context?) {
         performLightVibration(context, false)
     }
 
     @JvmStatic
-    fun performLightVibration(context: Context, ignoreOff: Boolean) {
+    fun performLightVibration(context: Context?, ignoreOff: Boolean) {
         performVibration(context, false, ignoreOff)
     }
 
     @JvmStatic
-    fun performStrongVibration(context: Context) {
+    fun performStrongVibration(context: Context?) {
         performVibration(context, true, false)
     }
 
     @JvmStatic
-    fun performStrongVibration(context: Context, ignoreOff: Boolean) {
+    fun performStrongVibration(context: Context?, ignoreOff: Boolean) {
         performVibration(context, true, ignoreOff)
     }
 
     @JvmStatic
-    fun performVibration(context: Context, isStrong: Boolean, ignoreOff: Boolean) {
-        if (context == null) return
+    fun performVibration(context: Context?, isStrong: Boolean, ignoreOff: Boolean) {
+        context ?: return
         val mHapticFeedbackUtil = HapticFeedbackUtil(context, false)
         mHapticFeedbackUtil.performHapticFeedback(
             if (isStrong) HapticFeedbackConstants.LONG_PRESS else HapticFeedbackConstants.VIRTUAL_KEY,
