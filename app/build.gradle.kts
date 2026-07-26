@@ -9,6 +9,8 @@ val keystoreProperties = Properties()
 val hasReleaseSigning = keystorePropertiesFile.isFile
 if (hasReleaseSigning) {
     keystorePropertiesFile.inputStream().use(keystoreProperties::load)
+} else {
+    throw GradleException("Release signing is unavailable: ../keystore.properties was not found.")
 }
 
 val lastVersion = 174
@@ -55,14 +57,14 @@ android {
         }
     }
 
-    val releaseSigning = if (hasReleaseSigning) signingConfigs.getByName("v2") else null
+    val releaseSigning = signingConfigs.getByName("v2")
     buildTypes {
         create("develop") {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
             isCrunchPngs = true
-            signingConfig = releaseSigning ?: signingConfigs.getByName("debug")
+            signingConfig = releaseSigning
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         release {
@@ -73,7 +75,7 @@ android {
                 // Keep release APKs reproducible; the Git revision is represented by the tag.
                 include = false
             }
-            signingConfig = releaseSigning ?: signingConfigs.getByName("debug")
+            signingConfig = releaseSigning
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {

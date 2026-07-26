@@ -1,4 +1,4 @@
-*.iml
+﻿*.iml
 .gradle
 app/release/*
 app/standalone/*
@@ -25,3 +25,10 @@ app/develop/
 /*.log
 /gradle_*.txt
 /log_summary*.txt
+
+# Signing materials (never commit real keys or passwords)
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
