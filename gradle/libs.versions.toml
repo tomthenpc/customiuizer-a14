@@ -1,6 +1,6 @@
 [versions]
 agp = "9.2.1"
-kotlin = "2.3.20"
+kotlin = "2.3.21"
 versions-plugin = "0.54.0"
 libxposed-api = "102.0.0"
 libxposed-service = "102.0.0"
