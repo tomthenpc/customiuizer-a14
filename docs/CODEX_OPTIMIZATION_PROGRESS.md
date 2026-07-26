@@ -179,6 +179,31 @@ SystemUI 重建后会累积旧实例和重复回调。
   是否会同进程重建，当前缺少设备/ROM 生命周期证据；它们保留为实机观察项，不猜测重写；
 - 7 个 Devin 遗留 `mods/*.java.bak` 仍保持未跟踪、未读取内容、未修改和未提交。
 
+### 阶段 B：核心 Hook 与热路径
+
+状态：进行中。
+
+#### B1：双 SIM 信号重绘临时分配
+
+状态：已优化，阶段与实机验证待完成。
+
+证据：
+
+- `StatusBarIconControllerImpl.setMobileIcons` 在双卡状态变化时重复创建同一组四个字段名数组；
+- `applyDarknessInternal` / `onDarkChanged` 每次回调都会根据相同的启动期配置拼接两个完整
+  drawable 名称，再执行 `HashMap<String, Int>` 查询；
+- drawable 风格、明暗模式和 2 × 6 级信号资源集合在 SystemUI 启动后已经固定。
+
+处理：
+
+- 四个同步字段名提升为进程内只读共享数组；
+- 启动期仍按原资源名注册 fake resource，但把结果保存为
+  `[SIM][信号级别][普通/深色/tint]` 的 `IntArray` 索引表；
+- 热回调只计算 0/1/2 模式索引并直接读取资源 ID，不再拼接字符串或查询字符串 HashMap；
+- 保持 theme 风格不使用 tint、缺失资源返回 false、原 drawable/tint 设置顺序不变。
+
+局部验证：`test assembleDebug` 成功，33 个测试全部通过。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
