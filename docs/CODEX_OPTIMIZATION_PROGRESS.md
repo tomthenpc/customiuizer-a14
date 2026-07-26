@@ -122,6 +122,25 @@ SystemUI 重建后会累积旧实例和重复回调。
 局部验证：首次编译发现并修正 callback 可空类型边界；随后 `test assembleDebug` 成功，
 33 个测试全部通过。
 
+#### A6：截图格式 DexKit 候选唯一性
+
+状态：已修复，阶段与实机验证待完成。
+
+根因：截图格式 Hook 只用日志字符串查询目标方法，然后直接取第一个结果；ROM 中出现多个
+字符串使用点时可能 Hook 错误方法。现有回调明确要求参数数量不少于 7，且第 5 个参数会被替换为
+`Bitmap.CompressFormat`，但原查询没有验证这个调用契约。
+
+处理：
+
+- 保留既有字符串和排除包查询，不猜测当前未提供的 ROM 混淆类名或固定方法名；
+- 在 DexKit 返回的候选中只接受参数数量不少于 7、且第 5 个参数类型确为
+  `Bitmap.CompressFormat` 的方法；
+- 只有一个兼容候选时才安装该子 Hook；零个或多个时记录诊断并跳过，避免任取错误方法；
+- 方法解析或安装失败不再静默吞掉，仍保留后续通用 `Bitmap.compress` Hook。
+
+局部验证：`test assembleDebug assembleRelease` 成功；33 个测试全部通过，Release R8、
+资源压缩和 `lintVitalRelease` 均完成。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
@@ -246,9 +265,9 @@ SystemUI 重建后会累积旧实例和重复回调。
 |---|---|---|---|
 | P0 | 无已确认项 | 当前测试、Lint、Debug、Release 均可执行，无损坏入口或未完成 stub | 无 |
 | P1 | `BatteryIndicator` 脱离窗口后仍被 Receiver / Observer 持有 | 局部调用链已确认；影响 SystemUI 内重建后的回调唯一性和对象释放 | 本批已修复 |
-| P1 | `System.kt` 截图格式 DexKit 查询可能返回多个方法 | 构建期 DexKit 检查明确提示 `firstOrThrow` 结果不唯一；下一步需收紧 matcher，不能猜签名 | 待单独小闭环 |
-| P1 | `AudioVisualizer` View 生命周期 | 脱离窗口会取消协程，但偏好观察器仍使用无 owner 注册；还需确认活跃 `Visualizer` 是否总能在 detach 前释放 | 下一批入口 |
-| P2 | `SystemUI.kt` 中若干匿名 Receiver | 已定位注册点，但必须逐个确认宿主对象生命周期和系统级常驻意图，不能批量改写 | 待审查 |
+| P1 | `System.kt` 截图格式 DexKit 查询可能返回多个方法 | 已按回调真实参数契约筛选并要求唯一结果，不猜 ROM 混淆名称 | A6 已修复，待阶段/实机验证 |
+| P1 | `AudioVisualizer` View 生命周期 | 已完成观察器、协程、动画和原生 `Visualizer` 的 dispose 闭环 | A1/A2 已修复，待阶段/实机验证 |
+| P2 | `SystemUI.kt` 中若干匿名 Receiver | 截图状态/导航栏和锁屏专辑封面已修复；其余仅在能证明宿主重建泄漏时处理 | A4/A5 已处理高收益项 |
 | P3 | `BitmapCachedLoader` Kotlin 空值与协程告警 | 队列已限制为 128、目标使用弱引用、核心线程允许超时；目前没有失控证据 | 暂不修改 |
 
 ## 尚未实机验证

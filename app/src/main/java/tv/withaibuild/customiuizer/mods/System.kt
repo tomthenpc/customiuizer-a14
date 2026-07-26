@@ -3491,10 +3491,24 @@ object System {
 
         val format = MainModule.mPrefs.getStringAsInt("system_screenshot_format", 2)
         if (format > 2) {
-            val methodData = XposedHelpers.bridge.findMethod(FindMethod.create()
+            val methodCandidates = XposedHelpers.bridge.findMethod(FindMethod.create()
                 .excludePackages("android", "androidx", "com.xiaomi", "com.google.json", "kotlin", "kotlinx.coroutines", "miuix")
                 .matcher(MethodMatcher.create().usingStrings("saveBitmapToUri: external storage"))
-            ).firstOrThrow { RuntimeException("Method not found") }
+            )
+            var methodData: MethodData? = null
+            var compatibleCandidateCount = 0
+            for (candidate in methodCandidates) {
+                if (candidate.paramCount >= 7 &&
+                    candidate.paramTypeNames[4] == Bitmap.CompressFormat::class.java.name
+                ) {
+                    compatibleCandidateCount++
+                    methodData = candidate
+                }
+            }
+            if (compatibleCandidateCount != 1) {
+                XposedHelpers.log("ScreenshotConfigHook: expected one compatible save method, found $compatibleCandidateCount")
+                methodData = null
+            }
 
             val changeFormatHook = object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
@@ -3515,10 +3529,13 @@ object System {
                     return XposedHelpers.throwOrReturn(throwable, result)
                 }
             }
-            try {
-                val method = methodData.getMethodInstance(lpparam.classLoader)
-                ModuleHelper.hookMethod(method, changeFormatHook)
-            } catch (ignore: Throwable) {
+            if (methodData != null) {
+                try {
+                    val method = methodData.getMethodInstance(lpparam.classLoader)
+                    ModuleHelper.hookMethod(method, changeFormatHook)
+                } catch (t: Throwable) {
+                    XposedHelpers.log(t)
+                }
             }
         }
 
