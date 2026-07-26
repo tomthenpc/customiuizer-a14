@@ -8,7 +8,6 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Bundle
-import android.text.TextUtils
 import android.view.View
 import android.widget.AdapterView
 import androidx.appcompat.app.AlertDialog
@@ -184,7 +183,7 @@ class AppSelector : SubFragmentWithSearch() {
             } else if (customTitles) {
                 val k = key ?: return@setOnItemClickListener
                 AppHelper.showInputDialog(activity, k + ":" + app.pkgName + "|" + app.actName + "|" + app.user, R.string.launcher_renameapps_modified, 0, 1) { _, text ->
-                    if (TextUtils.isEmpty(text)) {
+                    if (text.isNullOrEmpty()) {
                         AppHelper.appPrefs!!.edit().remove(k + ":" + app.pkgName + "|" + app.actName + "|" + app.user).apply()
                     } else {
                         AppHelper.appPrefs!!.edit().putString(k + ":" + app.pkgName + "|" + app.actName + "|" + app.user, text).apply()

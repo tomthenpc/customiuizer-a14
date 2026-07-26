@@ -9,6 +9,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.preference.PreferenceViewHolder
 import tv.withaibuild.customiuizer.R
+import tv.withaibuild.customiuizer.utils.Helpers
 
 class PreferenceCategoryEx(context: Context, attrs: AttributeSet?) : PreferenceCategory(context, attrs) {
 
@@ -32,7 +33,7 @@ class PreferenceCategoryEx(context: Context, attrs: AttributeSet?) : PreferenceC
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
         super.onBindViewHolder(holder)
         val title = holder.findViewById(android.R.id.title) as? TextView
-        title?.text = (title?.text?.toString() ?: "") + if (unsupported) " ⨯" else if (dynamic) " ⟲" else ""
+        title?.text = Helpers.appendStatusMarker(title?.text, unsupported, dynamic)
         title?.visibility = if (state == 2 || state == 1) View.GONE else View.VISIBLE
         val finalView = holder.itemView
         val childPadding = context.resources.getDimensionPixelSize(R.dimen.preference_item_child_padding)

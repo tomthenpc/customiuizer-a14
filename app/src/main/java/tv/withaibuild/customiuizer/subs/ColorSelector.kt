@@ -3,7 +3,6 @@ package tv.withaibuild.customiuizer.subs
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.text.TextUtils
 import android.view.View
 import android.widget.SeekBar
 import android.widget.TextView
@@ -109,7 +108,7 @@ class ColorSelector : SubFragment(), ColorCircle.ColorListener {
         selectedColorHint?.setOnClickListener {
             AppHelper.showInputDialog(activity, selectedColorHint?.text?.toString(), R.string.array_static, 0, 1, object : Helpers.InputCallback {
                 override fun onInputFinished(key: String?, text: String?) {
-                    if (key != null && !TextUtils.isEmpty(text?.trim())) {
+                    if (key != null && !text?.trim().isNullOrEmpty()) {
                         try {
                             colorCircle?.setColor(Color.parseColor(text), true)
                         } catch (_: IllegalArgumentException) {

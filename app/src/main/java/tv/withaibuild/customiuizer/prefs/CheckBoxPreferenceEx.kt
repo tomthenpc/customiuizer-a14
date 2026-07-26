@@ -28,7 +28,7 @@ class CheckBoxPreferenceEx(context: Context, attrs: AttributeSet?) : SwitchPrefe
 
     fun getView(finalView: View) {
         val title = finalView.findViewById<TextView>(android.R.id.title)
-        title?.text = (title?.text?.toString() ?: "") + if (unsupported) " ⨯" else if (dynamic) " ⟲" else ""
+        title?.text = Helpers.appendStatusMarker(title?.text, unsupported, dynamic)
         if (newmod) title?.let { Helpers.applyNewMod(it) }
         if (highlight) Helpers.applySearchItemHighlight(finalView)
         val childPadding = context.resources.getDimensionPixelSize(R.dimen.preference_item_child_padding)

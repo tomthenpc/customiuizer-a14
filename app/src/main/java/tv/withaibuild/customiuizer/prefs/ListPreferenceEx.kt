@@ -58,7 +58,7 @@ class ListPreferenceEx(context: Context, attrs: AttributeSet?) : ListPreference(
         val valSummary = finalView.findViewById<TextView>(android.R.id.hint)
         val res = context.resources
 
-        summary?.visibility = if (valueAsSummary || summary == null || summary.text.isNullOrEmpty()) View.GONE else View.VISIBLE
+        summary?.visibility = if (valueAsSummary || summary.text.isNullOrEmpty()) View.GONE else View.VISIBLE
         valSummary?.visibility = if (valueAsSummary) View.VISIBLE else View.GONE
         valSummary?.text = if (valueAsSummary) entry else ""
         if (valueAsSummary) {

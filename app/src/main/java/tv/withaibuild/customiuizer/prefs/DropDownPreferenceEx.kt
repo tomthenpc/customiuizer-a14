@@ -55,7 +55,7 @@ class DropDownPreferenceEx(context: Context, attrs: AttributeSet?) : DropDownPre
         val summary = finalView.findViewById<TextView>(android.R.id.summary)
         val valSummary = finalView.findViewById<TextView>(android.R.id.hint)
 
-        summary?.visibility = if (valueAsSummary || summary == null || summary.text.isNullOrEmpty()) View.GONE else View.VISIBLE
+        summary?.visibility = if (valueAsSummary || summary.text.isNullOrEmpty()) View.GONE else View.VISIBLE
         valSummary?.visibility = if (valueAsSummary) View.VISIBLE else View.GONE
         valSummary?.text = if (valueAsSummary) sValue else ""
         if (valueAsSummary) valSummary?.setTextColor(if (Helpers.isNightMode(context)) secondary else primary)

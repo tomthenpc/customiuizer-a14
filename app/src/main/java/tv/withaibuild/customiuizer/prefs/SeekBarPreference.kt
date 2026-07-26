@@ -2,7 +2,6 @@ package tv.withaibuild.customiuizer.prefs
 
 import android.content.Context
 import android.content.res.TypedArray
-import android.text.TextUtils
 import android.util.AttributeSet
 import android.view.View
 import android.widget.SeekBar
@@ -223,7 +222,7 @@ class SeekBarPreference @JvmOverloads constructor(
 
     private fun updateDisplay(value: Int) {
         val mValue = valueView ?: return
-        if (!TextUtils.isEmpty(format)) {
+        if (!format.isNullOrEmpty()) {
             mValue.visibility = View.VISIBLE
             var realValue = (value + steppedMinValue) * stepValue
 
