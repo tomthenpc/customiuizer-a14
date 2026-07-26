@@ -546,20 +546,22 @@ object Helpers {
         }
         val packs = pm.queryIntentActivities(mainIntent, PackageManager.MATCH_ALL or PackageManager.MATCH_DISABLED_COMPONENTS)
         val share = ArrayList<AppData>()
+        val seenPackages = HashSet<String>(packs.size)
         for (pack in packs) try {
-            val exists = share.any { it.pkgName == pack.activityInfo.applicationInfo.packageName }
-            if (exists) continue
+            val packageName = pack.activityInfo.applicationInfo.packageName
+            if (packageName in seenPackages) continue
             val app = AppData().apply {
-                pkgName = pack.activityInfo.applicationInfo.packageName
+                pkgName = packageName
                 actName = "-"
                 enabled = pack.activityInfo.applicationInfo.enabled
                 label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
             }
             share.add(app)
+            seenPackages.add(packageName)
             if (includeDualApps) try {
                 if (packageInfoMethod?.invoke(pm, app.pkgName, 0, 999) != null) {
                     val appDual = AppData().apply {
-                        pkgName = pack.activityInfo.applicationInfo.packageName
+                        pkgName = packageName
                         actName = "-"
                         enabled = pack.activityInfo.applicationInfo.enabled
                         label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
@@ -597,20 +599,22 @@ object Helpers {
         packs.addAll(pm.queryIntentActivities(mainIntent2, PackageManager.MATCH_ALL))
 
         val openWith = ArrayList<AppData>()
+        val seenPackages = HashSet<String>(packs.size)
         for (pack in packs) try {
-            val exists = openWith.any { it.pkgName == pack.activityInfo.applicationInfo.packageName }
-            if (exists) continue
+            val packageName = pack.activityInfo.applicationInfo.packageName
+            if (packageName in seenPackages) continue
             val app = AppData().apply {
-                pkgName = pack.activityInfo.applicationInfo.packageName
+                pkgName = packageName
                 actName = "-"
                 enabled = pack.activityInfo.applicationInfo.enabled
                 label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
             }
             openWith.add(app)
+            seenPackages.add(packageName)
             if (includeDualApps) try {
                 if (packageInfoMethod?.invoke(pm, app.pkgName, 0, 999) != null) {
                     val appDual = AppData().apply {
-                        pkgName = pack.activityInfo.applicationInfo.packageName
+                        pkgName = packageName
                         actName = "-"
                         enabled = pack.activityInfo.applicationInfo.enabled
                         label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
