@@ -56,6 +56,7 @@ Release 标题统一为纯版本号。已移除版本的资产名、大小与 SH
 - APK 入口、scope、`module.prop`、签名和 zip alignment 已检查。
 - API 101 实机完成安装、整机重启和完整 `full.log` 审计，未发现模块相关崩溃、ANR、
   入口、Hook 或 API 链接错误。
+- APK 摘要、设备环境、日志扫描项和验证边界见[验证记录](docs/VERIFICATION.md)。
 
 ### 已知限制
 

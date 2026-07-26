@@ -68,8 +68,10 @@ API 102 新增 `HotReloadingParam`、`HotReloadedParam`、`onHotReloading`、
 - Release DEX 未发现 Legacy `de.robv.android.xposed` API 描述符。
 - Release DEX 未发现 API 102 专属 Hot Reload、hook ID 或 replacement 符号。
 - APK 内 `module.prop`、Xposed 入口、scope、签名和 zip alignment 已独立检查。
-- 最终代码基线已完成手机安装、整机重启和基础 LSPosed/Vector 日志检查，未发现阻止发布的
-  模块崩溃、ANR 或入口加载错误。
+
+API 101 实机已完成整机重启和完整日志审计，未发现模块相关崩溃、ANR、Hook 安装或
+二进制链接错误。API 102 的工程构建边界已验证，但仍需对应框架环境的独立实机验证。
+证据摘要与未验证范围统一记录于[验证记录](VERIFICATION.md)。
 
 构建、静态检查和单一设备验证不能替代 API 101 与 API 102 两套框架的完整实机矩阵。
 发布资产必须是用户实际安装确认的精确 APK，不得用重新构建的不同 SHA-256 替换。

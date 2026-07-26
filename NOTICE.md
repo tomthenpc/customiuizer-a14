@@ -17,7 +17,7 @@ Git 历史保留了原始及上游贡献者的作者信息。第三方源码中�
 ## 本项目的主要修改
 
 - 面向 HyperOS 1 / Android 14 固定兼容范围。
-- 迁移并适配 libxposed API 101 与指定 Vector/LSPosed 基线。
+- 使用现代 libxposed API 101/102 单 APK 兼容边界，不依赖 Legacy Xposed Hook API。
 - 独立包名、版本线、构建签名和 Release 流程。
 - Hook 兼容、启动隔离、性能、内存、可靠性及资源精简。
 - 移除上游下载、仓库、赞赏和内置网页入口。
