@@ -224,6 +224,28 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 局部验证：`test assembleDebug` 成功，33 个测试全部通过。
 
+#### B3：Launcher 图标缩放与角标资源查找
+
+状态：已优化，阶段与实机验证待完成。
+
+证据：
+
+- `IconScaleHook` 只会在 Launcher 冷启动时按开关安装，但四个图标回调每次都重新读取
+  `launcher_iconscale` 并计算同一平方根；
+- 每个角标文字变化都会用 `Resources.getIdentifier()` 重查固定的
+  `icon_message_max_width`；
+- `getIconLocation` 位于拖动/布局相关路径，角标监听器也会随通知数字频繁触发。
+
+处理：
+
+- 在 Hook 安装时只计算一次原有 `sqrt(scale / 100)`，所有回调共享同一不可变值；
+- 首次创建角标监听器时通过既有资源缓存取得资源 ID，监听器只执行
+  `getDimensionPixelSize()` 以继续适配当前 Resources；
+- 每个回调只取一次图标子 View，保持 scale、Rect 扩展、角标位移和动画公式不变；
+- 不新增监听器、线程、缓存层或配置格式。
+
+局部验证：`test assembleDebug` 成功，33 个测试全部通过。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
