@@ -286,17 +286,6 @@ class ModuleHelper private constructor() {
         }
 
         @JvmStatic
-        fun stringifyBundle(bundle: Bundle?): String? {
-            if (bundle == null) return null
-            val string = StringBuilder("Bundle{")
-            for (key in bundle.keySet()) {
-                string.append(" ").append(key).append(" -> ").append(bundle.get(key)).append(";")
-            }
-            string.append(" }Bundle")
-            return string.toString()
-        }
-
-        @JvmStatic
         fun getNextMIUIAlarmTime(context: Context): Long {
             var nextTime = 0L
             try {
