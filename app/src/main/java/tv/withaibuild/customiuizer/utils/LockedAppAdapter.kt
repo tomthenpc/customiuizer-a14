@@ -25,7 +25,7 @@ class LockedAppAdapter(context: Context, arr: ArrayList<AppData>) : BaseAdapter(
     private val inflater: LayoutInflater = LayoutInflater.from(context)
     private val filter = ItemFilter()
     private val originalAppList = arr
-    private val filteredAppList = CopyOnWriteArrayList(arr).apply { addAll(arr) }
+    private val filteredAppList = CopyOnWriteArrayList(arr)
     private var mSecurityManager: Any? = null
     private var getApplicationAccessControlEnabledAsUser: Method? = null
 

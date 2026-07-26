@@ -33,7 +33,7 @@ object AppHelper {
     var silentSync = false
 
     @JvmField
-    var installedAppsList: ArrayList<AppData> = ArrayList()
+    var installedAppsList: ArrayList<AppData>? = null
 
     enum class SettingsType {
         Preference, Edit

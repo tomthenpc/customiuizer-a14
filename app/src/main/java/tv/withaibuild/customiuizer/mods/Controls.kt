@@ -124,7 +124,6 @@ object Controls {
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     val mPowerManager = XposedHelpers.getObjectField(thisObject, "mPowerManager") as PowerManager
                     if (mPowerManager.isInteractive) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    //XposedHelpers.log("PowerKeyHook", "interceptKeyBeforeQueueing: " + args[1] + ", isTracking: " + keyEvent.isTracking() + " | Source: " + keyEvent.source + " | KeyCode: " + keyEvent.keyCode + " | Action: " + keyEvent.action + " | RepeatCount: " + keyEvent.repeatCount + " | Flags: " + keyEvent.flags)
                     if (action == KeyEvent.ACTION_DOWN) {
                         isPowerPressed = true
                         isPowerLongPressed = false
@@ -216,7 +215,6 @@ object Controls {
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     val mPowerManager = XposedHelpers.getObjectField(thisObject, "mPowerManager") as PowerManager
                     if (mPowerManager.isInteractive) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    //XposedHelpers.log("VolumeMediaButtonsHook", "interceptKeyBeforeQueueing: KeyCode: " + keyEvent.keyCode + " | Action: " + keyEvent.action + " | RepeatCount: " + keyEvent.repeatCount + " | Flags: " + keyEvent.flags + " | " + mPowerManager.isInteractive)
                     if (action == KeyEvent.ACTION_DOWN) {
                         isVolumePressed = true
                         isVolumeLongPressed = false

@@ -280,6 +280,264 @@ SystemUI 重建后会累积旧实例和重复回调。
   低收益或需实机数据项；
 - 未发现正常路径高频日志、无效 Binder 轮询或功能关闭后仍安装的新 Hook。
 
+### 阶段 C：逻辑、算法、Kotlin 与设置 UI
+
+状态：已完成静态/构建验证，等待设置页面实机验证。
+
+#### C1：应用选择列表的 nullable 加载状态
+
+状态：已修复，局部与阶段验证通过。
+
+根因：
+
+- Java 基线用 `null` 区分“尚未加载”和“已加载但结果为空”；
+- `AppHelper` / `Helpers` Kotlin 迁移时把四个列表改为立即创建的空 `ArrayList`；
+- `AppSelector.loadApps()` 仍只在列表为 `null` 时执行包管理器查询，因此所有加载分支都被
+  编译器判定为恒假，应用选择页可能永久绑定空列表。
+
+处理：
+
+- `installedAppsList`、`launchableAppsList`、`shareAppsList`、`openWithAppsList`
+  恢复 nullable 初始状态，保持原 Java 状态机；
+- 后台加载完成后仍一次性替换为真实列表，空查询结果继续用非空空列表表示“已加载”；
+- `setupList()` 通过局部非空快照绑定 Adapter，消除可变全局字段的空值竞态和强制断言；
+- 不改变查询、排序、多用户、黑白名单、隐私应用或选择回传逻辑。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug`：成功；
+- 33 项单元测试通过；
+- Kotlin 编译器原先对四个加载判断给出的“条件恒为 false”警告已消失。
+
+#### C2：分享与“打开方式”应用列表去重
+
+状态：已修复，局部与阶段验证通过。
+
+根因：
+
+- 两个包管理器查询结果按包名去重时，每遇到一个候选都会线性扫描已经创建的
+  `AppData` 列表；
+- “打开方式”还会合并内容 URI 和 HTTPS 两组候选，重复包较多时会形成不必要的
+  O(n²) 比较；
+- 双开应用也在同一列表中，使线性扫描次数进一步增加。
+
+处理：
+
+- 查询周期内分别维护只含包名的 `HashSet`，把重复检测降为均摊 O(1)；
+- 仍按包管理器首次返回顺序保留每个包，随后执行原有排序；
+- 只有主用户条目成功创建后才记录包名，保持异常时后续同包候选仍可重试；
+- 双开条目的创建、用户 ID、标签、启用状态和最终排序语义不变。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug`：成功；
+- 33 项单元测试通过。
+
+#### C3：隐私应用与应用锁列表重复
+
+状态：已修复，局部与阶段验证通过。
+
+根因：
+
+- Java 基线先创建空的 `CopyOnWriteArrayList`，再用 `addAll(arr)` 复制一次；
+- Kotlin 迁移把构造改成 `CopyOnWriteArrayList(arr)` 后，仍保留后续
+  `addAll(arr)`；
+- `PrivacyAppAdapter` 和 `LockedAppAdapter` 因而在初始化时把每个应用插入两次，
+  页面条目、排序比较、过滤和图标加载工作量都翻倍。
+
+处理：
+
+- 两个 Adapter 均只使用集合构造函数复制一次输入列表；
+- 保持原始列表引用、选择状态排序、搜索过滤和 ViewHolder 绑定逻辑不变。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug`：成功；
+- 33 项单元测试通过。
+
+#### 阶段 C 完整验证
+
+执行：
+
+```powershell
+.\gradlew.bat --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease
+```
+
+- 构建成功，33 项单元测试全部通过；
+- Debug Lint：0 errors、486 warnings；Release Lint：0 errors、487 warnings；
+- Debug、Release、R8 与资源压缩完成；完整 Release Lint 已覆盖同一任务图中的
+  `lintVitalRelease`；
+- Release APK：
+  `app/build/outputs/apk/release/CustoMIUIzer-A14-r14.10.0.apk`，
+  3,021,289 bytes，SHA-256
+  `C8C5B974954D6307D171D1E2AECC40D93973C920291A3F5B455903823BA04AAA`；
+- APK 使用 v2 签名，证书 SHA-256
+  `3061A3DA1C2FC46B44E215D024B1BFE3A012CB4D70B90B0214FA9FC896CEF60D`，
+  `zipalign -c -P 16 -v 4` 通过；
+- APK 内 Xposed 元数据保持 min API 101 / target API 102 /
+  `staticScope=false`，R8 后入口 `ro` 可由 mapping 追溯到 `MainModule`；
+- 活跃源码和 Release APK DEX 均未发现 `de.robv.android.xposed`；
+- Lint 仍报告项目既有的 `DexKitBridge.create()` 自定义警告；两个创建点属于不同目标包
+  进程的独立初始化路径，阶段 C 未新增或扩大该行为。
+
+阶段结论：
+
+- 已修复 2 个 Kotlin 迁移正确性回归和 1 个可证明的列表算法问题；
+- 未引入 Flow、Sequence、DSL、新架构层、协程或设置格式变化；
+- 其余纯空值/风格编译警告，以及需要运行 trace 才能证明收益的 UI 微优化，按 P3
+  或实机证据项保留，不为清零告警继续修改。
+
+### 阶段 D：清理和最终交付
+
+状态：已完成静态/构建验证并生成签名测试 APK，等待 API 101/102 实机验证。
+
+#### D1：移除旧版未使用 Drawable
+
+状态：已完成局部验证，等待阶段验证。
+
+证据：
+
+- Debug Lint 将整组资源判定为 `UnusedResources`；
+- 活跃源码、布局、样式、Drawable XML 与动态 `getIdentifier` 名称中均无引用；
+- Git 历史显示它们来自早期 MIUI 版本的自定义复选框、Recents 操作按钮和旧提示图标；
+- Release 已启用资源压缩，因此此项是源码与工程维护清理，不宣称 APK 运行性能收益。
+
+处理：
+
+- 删除自定义复选框 selector 及日间/夜间位图；
+- 删除三个旧 Recents 操作按钮 selector 及位图；
+- 删除不再引用的 `alert` 与 `snowflake` 位图；
+- 共删除 18 个资源文件，不修改任何资源 ID 使用方或业务逻辑。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug`：成功；
+- 33 项单元测试通过。
+
+#### D2：删除注释掉的旧调试日志
+
+状态：已完成局部验证，等待阶段验证。
+
+处理：
+
+- 删除偏好更新监听器中的 key 变化调试日志注释；
+- 删除按键事件、自由窗口参数和旧设置索引耗时日志注释；
+- 保留所有仍可执行的异常、兼容失败与诊断日志；
+- 只删除 7 行不可执行注释，不改变 Hook、控制流或 Release 字节码。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug`：成功；
+- 33 项单元测试通过。
+
+#### D3：建立 r14.11.0 测试候选版本
+
+状态：配置完成，局部验证通过，等待阶段验证。
+
+处理：
+
+- `versionCode` 从 172 递增为 173，`versionName` 从 r14.10.0 更新为 r14.11.0；
+- APK 输出名同步为 `CustoMIUIzer-A14-r14.11.0.apk`；
+- CHANGELOG 增加 r14.11.0 的阶段范围、兼容边界和实机验证条件；
+- 中文 README 将双兼容优化候选指向 r14.11.0，稳定版推荐不变；
+- r14.10.0 的 API 101/102 兼容基线文档不改写。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug assembleRelease`：成功；
+- 33 项单元测试通过；
+- Release、R8、资源压缩与 `lintVitalRelease` 成功；
+- 产物名为 `CustoMIUIzer-A14-r14.11.0.apk`。
+
+#### D4：收紧 BuildConfig 的 R8 keep
+
+状态：已完成局部验证，等待阶段验证。
+
+证据与边界：
+
+- 活跃源码只读取两次编译期常量 `BuildConfig.APPLICATION_ID`；
+- 没有按类名、反射、序列化、Manifest 或 Xposed 元数据访问 `BuildConfig`；
+- 原规则会保留整个类、构造函数以及 `DEBUG`、版本号等所有未使用字段；
+- Xposed 模块入口、Hooker、Android 组件、shortcuts XML 目标和 mods 动态入口规则均有实际
+  间接调用依据，本次不删除或扩大这些规则。
+
+处理：
+
+- 删除 `-keep class tv.withaibuild.customiuizer.BuildConfig { *; }`；
+- 由编译器/R8 正常内联 `APPLICATION_ID`，其余无引用成员允许被移除。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug assembleRelease`：成功；
+- 33 项单元测试通过，Release、R8、资源压缩与 `lintVitalRelease` 成功；
+- `BuildConfig` 不再出现在 Release mapping 或 seeds 中，并出现在 R8 `usage.txt`；
+- `MainModule`、`MainActivity`、`PrefsProvider` 等入口和组件仍保留预期名称/映射。
+
+#### 阶段 D 完整验证与交付
+
+执行：
+
+```powershell
+.\gradlew.bat --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease
+```
+
+结果：
+
+- 构建成功；33 项单元测试全部通过；
+- Debug Lint：0 errors、473 warnings；Release Lint：0 errors、472 warnings；
+- Debug、Release、R8、资源压缩和 Release Vital Lint 路径完成；
+- Lint 仍有 96 项 `UnusedResources`：剩余项主要是跨语言字符串/数组或需要排除动态资源
+  名称误报的条目；Release 资源压缩会移除不可达资源，继续批量删翻译的风险高于工程收益；
+- 项目既有 `DexKitBridge.create()` 自定义警告仍存在；两个创建点属于不同目标包进程，
+  搜索结束后均关闭，本阶段不为消除告警改写 DexKit 生命周期。
+
+最终 Release APK：
+
+- 文件：`app/build/outputs/apk/release/CustoMIUIzer-A14-r14.11.0.apk`；
+- 大小：3,020,257 bytes；
+- SHA-256：
+  `32045C71CFE015776ADB6B4CD3D4215CC403010470728425B296D4B6B2E1C5BA`；
+- 包名：`tv.withaibuild.customiuizer.r14`；
+- `versionCode=173`，`versionName=r14.11.0`；
+- Android `minSdk=34`、`targetSdk=34`，ABI 仅 `arm64-v8a`；
+- APK Signature Scheme v2 验证通过；证书 SHA-256：
+  `3061A3DA1C2FC46B44E215D024B1BFE3A012CB4D70B90B0214FA9FC896CEF60D`；
+- `zipalign -c -P 16 -v 4` 验证通过；
+- Xposed 元数据：`minApiVersion=101`、`targetApiVersion=102`、
+  `staticScope=false`，没有 `autoHotReload`；
+- R8 后 `java_init.list` 入口 `ro` 可由 mapping 追溯到 `MainModule`；
+- Release DEX 未发现 `de.robv.android.xposed`；Manifest 中
+  `de.robv.android.xposed.category.MODULE_SETTINGS` 仅是管理器设置入口 category；
+- Release compile classpath 使用 `io.github.libxposed:api:102.0.0` 与
+  `service:102.0.0`，依赖版本由 version catalog 集中固定。
+
+#### 最终清理审查
+
+- 活跃 Java 文件仅余 3 个，且没有同名 Kotlin 重复实现：
+  - `MainModule.java`：libxposed 元数据直接入口及进程分派，保留以降低 API 101 类验证和
+    Kotlin JVM 形状变化风险；
+  - `XposedHelpers.java`：API 101 Hook 参数、异常传播、反射选择与缓存兼容层，继续保留；
+  - `MemberUtilsX.java`：随 Commons Lang 反射算法适配的 Java 辅助类，继续保留。
+- R8 keep 逐条核对后，仅删除无引用的 `BuildConfig` 整类 keep；其余规则有 Xposed
+  元数据、Hooker、Manifest/shortcuts 组件或字符串/反射入口依据。
+- 没有 tracked APK、ZIP、日志、keystore、`keystore.properties`、`local.properties`、
+  `.bak`、build 产物或 class 文件。
+- 没有 `TODO()`、`NotImplementedError`、临时 `UnsupportedOperationException`、
+  `throw null` 或未完成 stub。
+- Gradle/settings 已为 Kotlin DSL，依赖由 `gradle/libs.versions.toml` 固定；不再额外引入
+  dependencyGuard。
+- 7 个未跟踪 `.java.bak` 是进入本阶段前已有的 Devin 本地备份，未读取为源码、未修改、
+  未删除、未提交。
+
+#### 停止条件结论
+
+- P0：0；
+- 已确认 P1：均已处理并完成静态/构建验证，剩余为明确的实机验收；
+- 高收益 P2：已处理；
+- 剩余项为低收益 P3、Lint/编译器风格与平台弃用告警、需要 Perfetto/ROM 实测的数据项，
+  或修改风险高于收益的核心兼容边界；
+- 按约定停止继续优化，不为清空全部告警扩大改动。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
@@ -346,8 +604,8 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 1. 阶段 A：正确性、注册与生命周期（已完成静态/构建验证）；
 2. 阶段 B：核心 Hook 与热路径（已完成静态/构建验证）；
-3. 阶段 C：逻辑、算法、Kotlin 与设置 UI；
-4. 阶段 D：清理、全量验证与最终签名测试 APK。
+3. 阶段 C：逻辑、算法、Kotlin 与设置 UI（已完成静态/构建验证）；
+4. 阶段 D：清理、全量验证与最终签名测试 APK（已完成静态/构建验证）。
 
 停止条件：P0 清零、明确 P1 已处理、高收益 P2 已处理，剩余仅为低收益 P3、
 需要实机数据或风险高于收益的问题；不为清空清单无限优化。
@@ -406,6 +664,8 @@ SystemUI 重建后会累积旧实例和重复回调。
 | P1 | `BatteryIndicator` 脱离窗口后仍被 Receiver / Observer 持有 | 局部调用链已确认；影响 SystemUI 内重建后的回调唯一性和对象释放 | 本批已修复 |
 | P1 | `System.kt` 截图格式 DexKit 查询可能返回多个方法 | 已按回调真实参数契约筛选并要求唯一结果，不猜 ROM 混淆名称 | A6 已修复，待阶段/实机验证 |
 | P1 | `AudioVisualizer` View 生命周期 | 已完成观察器、协程、动画和原生 `Visualizer` 的 dispose 闭环 | A1/A2 已修复，待阶段/实机验证 |
+| P1 | 应用选择页 Kotlin 迁移后丢失“尚未加载”状态 | 已恢复 nullable 加载状态并通过局部/阶段构建验证 | C1 已修复，待实机验证 |
+| P1 | 隐私应用与应用锁 Adapter 初始化时复制列表两次 | 已恢复 Java 基线的一次复制语义 | C3 已修复，待实机验证 |
 | P2 | `SystemUI.kt` 中若干匿名 Receiver | 截图状态/导航栏和锁屏专辑封面已修复；其余仅在能证明宿主重建泄漏时处理 | A4/A5 已处理高收益项 |
 | P3 | `BitmapCachedLoader` Kotlin 空值与协程告警 | 队列已限制为 128、目标使用弱引用、核心线程允许超时；目前没有失控证据 | 暂不修改 |
 
@@ -416,13 +676,15 @@ SystemUI 重建后会累积旧实例和重复回调。
 - 开启电池指示器后，状态栏显示、偏好实时更新和测试广播行为
 - SystemUI 重建/主题或配置变化后无重复指示器、重复 Receiver/Observer 或崩溃
 - 截图期间隐藏状态栏功能与电池指示器组合
+- 普通、分享、“打开方式”、隐私应用和应用锁选择页均能加载，且没有重复条目
 
 ## 下一阶段准确入口
 
-阶段 C 聚焦低风险、可证明的逻辑和设置 UI：
+代码优化阶段已停止。下一步只执行
+`docs/LIBXPOSED_API_101_102_COMPATIBILITY.md` 中的 API 101 / API 102 实机清单：
 
-1. 从 Kotlin 编译告警和 Lint 中筛选真实空值、恒真/恒假条件与 JVM 互操作问题；
-2. 审查 Preference、Fragment、Dialog、搜索和设置同步的重复遍历与主线程工作；
-3. 一次只处理 10～20 个强相关文件，不引入 Flow、Sequence、DSL、新架构层或协程；
-4. 已稳定的 Hook 主干只做调用方需要的最小调整，不继续风格化重写；
-5. 无功能错误或可测收益的纯风格告警降为 P3，不为清零告警无限修改。
+1. 两套框架分别完整重启并确认模块、Remote Preferences 与各目标进程成功加载；
+2. 验证 Audio Visualizer、电池指示器、截图、锁屏专辑封面和 SystemUI 重建生命周期；
+3. 验证 SystemUI、system_server、Launcher 热路径功能行为不变；
+4. 验证普通/分享/打开方式/隐私/应用锁选择页加载和去重；
+5. 收集模块相关崩溃、ANR、类加载、重复 Hook/注册日志；两套环境确认后再创建 Release。

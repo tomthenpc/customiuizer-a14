@@ -135,33 +135,33 @@ class AppSelector : SubFragmentWithSearch() {
         val currentKey = key ?: ""
         if (multi && currentKey != "") {
             if (openwith) {
-                if (Helpers.openWithAppsList == null) return
-                listView?.adapter = AppDataAdapter(context, Helpers.openWithAppsList, AppHelper.AppAdapterType.Mutli, currentKey, bwlist)
+                val apps = Helpers.openWithAppsList ?: return
+                listView?.adapter = AppDataAdapter(context, apps, AppHelper.AppAdapterType.Mutli, currentKey, bwlist)
             } else if (share) {
-                if (Helpers.shareAppsList == null) return
-                listView?.adapter = AppDataAdapter(context, Helpers.shareAppsList, AppHelper.AppAdapterType.Mutli, currentKey, bwlist)
+                val apps = Helpers.shareAppsList ?: return
+                listView?.adapter = AppDataAdapter(context, apps, AppHelper.AppAdapterType.Mutli, currentKey, bwlist)
             } else {
-                if (AppHelper.installedAppsList == null) return
-                listView?.adapter = AppDataAdapter(context, AppHelper.installedAppsList, AppHelper.AppAdapterType.Mutli, currentKey, bwlist)
+                val apps = AppHelper.installedAppsList ?: return
+                listView?.adapter = AppDataAdapter(context, apps, AppHelper.AppAdapterType.Mutli, currentKey, bwlist)
             }
         } else if (privacy) {
-            if (AppHelper.installedAppsList == null) return
-            listView?.adapter = PrivacyAppAdapter(context, AppHelper.installedAppsList, mPrivacyAppsMap ?: HashMap())
+            val apps = AppHelper.installedAppsList ?: return
+            listView?.adapter = PrivacyAppAdapter(context, apps, mPrivacyAppsMap ?: HashMap())
         } else if (applock) {
-            if (AppHelper.installedAppsList == null) return
-            listView?.adapter = LockedAppAdapter(context, AppHelper.installedAppsList)
+            val apps = AppHelper.installedAppsList ?: return
+            listView?.adapter = LockedAppAdapter(context, apps)
         } else if (customTitles) {
-            if (Helpers.launchableAppsList == null) return
-            listView?.adapter = AppDataAdapter(context, Helpers.launchableAppsList, AppHelper.AppAdapterType.CustomTitles, currentKey)
+            val apps = Helpers.launchableAppsList ?: return
+            listView?.adapter = AppDataAdapter(context, apps, AppHelper.AppAdapterType.CustomTitles, currentKey)
         } else if (standalone && currentKey != "") {
-            if (Helpers.launchableAppsList == null) return
-            listView?.adapter = AppDataAdapter(context, Helpers.launchableAppsList, AppHelper.AppAdapterType.Standalone, currentKey)
+            val apps = Helpers.launchableAppsList ?: return
+            listView?.adapter = AppDataAdapter(context, apps, AppHelper.AppAdapterType.Standalone, currentKey)
         } else if (selectActivity) {
-            if (AppHelper.installedAppsList == null) return
-            listView?.adapter = AppDataAdapter(context, AppHelper.installedAppsList, AppHelper.AppAdapterType.Default, currentKey)
+            val apps = AppHelper.installedAppsList ?: return
+            listView?.adapter = AppDataAdapter(context, apps, AppHelper.AppAdapterType.Default, currentKey)
         } else {
-            if (Helpers.launchableAppsList == null) return
-            listView?.adapter = AppDataAdapter(context, Helpers.launchableAppsList)
+            val apps = Helpers.launchableAppsList ?: return
+            listView?.adapter = AppDataAdapter(context, apps)
         }
 
         listView?.setOnItemClickListener { parent: AdapterView<*>, _, position: Int, _ ->

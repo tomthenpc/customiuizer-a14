@@ -84,13 +84,13 @@ object Helpers {
     const val NEW_MODS_SEARCH_QUERY = "\uD83C\uDD95"
 
     @JvmField
-    var shareAppsList: ArrayList<AppData> = ArrayList()
+    var shareAppsList: ArrayList<AppData>? = null
 
     @JvmField
-    var openWithAppsList: ArrayList<AppData> = ArrayList()
+    var openWithAppsList: ArrayList<AppData>? = null
 
     @JvmField
-    var launchableAppsList: ArrayList<AppData> = ArrayList()
+    var launchableAppsList: ArrayList<AppData>? = null
 
     @JvmField
     val allModsList = ArrayList<ModData>()
@@ -301,7 +301,6 @@ object Helpers {
         try {
             val appInfo = context.packageManager.getApplicationInfo(modulePkg, 0)
             val appInstalled = System.currentTimeMillis() - File(appInfo.sourceDir).lastModified()
-//            Log.e("miuizer", "installed: $appInstalled msecs or ${appInstalled / (1000 * 60 * 60)} hrs")
             showNewMods = when (opt) {
                 0 -> false
                 4 -> true
@@ -546,20 +545,22 @@ object Helpers {
         }
         val packs = pm.queryIntentActivities(mainIntent, PackageManager.MATCH_ALL or PackageManager.MATCH_DISABLED_COMPONENTS)
         val share = ArrayList<AppData>()
+        val seenPackages = HashSet<String>(packs.size)
         for (pack in packs) try {
-            val exists = share.any { it.pkgName == pack.activityInfo.applicationInfo.packageName }
-            if (exists) continue
+            val packageName = pack.activityInfo.applicationInfo.packageName
+            if (packageName in seenPackages) continue
             val app = AppData().apply {
-                pkgName = pack.activityInfo.applicationInfo.packageName
+                pkgName = packageName
                 actName = "-"
                 enabled = pack.activityInfo.applicationInfo.enabled
                 label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
             }
             share.add(app)
+            seenPackages.add(packageName)
             if (includeDualApps) try {
                 if (packageInfoMethod?.invoke(pm, app.pkgName, 0, 999) != null) {
                     val appDual = AppData().apply {
-                        pkgName = pack.activityInfo.applicationInfo.packageName
+                        pkgName = packageName
                         actName = "-"
                         enabled = pack.activityInfo.applicationInfo.enabled
                         label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
@@ -597,20 +598,22 @@ object Helpers {
         packs.addAll(pm.queryIntentActivities(mainIntent2, PackageManager.MATCH_ALL))
 
         val openWith = ArrayList<AppData>()
+        val seenPackages = HashSet<String>(packs.size)
         for (pack in packs) try {
-            val exists = openWith.any { it.pkgName == pack.activityInfo.applicationInfo.packageName }
-            if (exists) continue
+            val packageName = pack.activityInfo.applicationInfo.packageName
+            if (packageName in seenPackages) continue
             val app = AppData().apply {
-                pkgName = pack.activityInfo.applicationInfo.packageName
+                pkgName = packageName
                 actName = "-"
                 enabled = pack.activityInfo.applicationInfo.enabled
                 label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
             }
             openWith.add(app)
+            seenPackages.add(packageName)
             if (includeDualApps) try {
                 if (packageInfoMethod?.invoke(pm, app.pkgName, 0, 999) != null) {
                     val appDual = AppData().apply {
-                        pkgName = pack.activityInfo.applicationInfo.packageName
+                        pkgName = packageName
                         actName = "-"
                         enabled = pack.activityInfo.applicationInfo.enabled
                         label = pack.activityInfo.applicationInfo.loadLabel(pm).toString()
@@ -779,7 +782,6 @@ object Helpers {
                                 modData.sub = lastPrefSub ?: ""
                                 modData.order = order
                                 allModsList.add(modData)
-                                // Log.e("miuizer", modData.key + " = " + modData.order)
                             }
                         }
                         order++

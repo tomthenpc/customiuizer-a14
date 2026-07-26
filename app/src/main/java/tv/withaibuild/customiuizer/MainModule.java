@@ -105,11 +105,9 @@ public class MainModule extends XposedModule {
                     val = null;
                 }
                 if (val == null) {
-//                    XposedHelpers.log(processName + " key removed: " + key);
                     mPrefs.remove(key);
                 }
                 else {
-//                    XposedHelpers.log(processName + " key changed: " + key);
                     mPrefs.put(key, val);
                 }
                 if (!"pref_key_systemui_restart_time".equals(key)) {

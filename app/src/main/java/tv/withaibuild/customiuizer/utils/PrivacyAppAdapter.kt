@@ -29,7 +29,7 @@ class PrivacyAppAdapter(
     private val inflater: LayoutInflater = LayoutInflater.from(context)
     private val filter = ItemFilter()
     private val originalAppList = arr
-    private val filteredAppList = CopyOnWriteArrayList(arr).apply { addAll(arr) }
+    private val filteredAppList = CopyOnWriteArrayList(arr)
 
     init {
         sortList()

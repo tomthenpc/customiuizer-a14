@@ -2,7 +2,8 @@
 
 ## 兼容目标
 
-同一个 r14.10.0 APK 同时面向实现 libxposed API 101 与 API 102 的框架：
+r14.10.0 建立单 APK 双兼容基线；r14.11.0 测试候选保持同一边界，同时面向实现
+libxposed API 101 与 API 102 的框架：
 
 ```properties
 minApiVersion=101
@@ -66,5 +67,19 @@ API 101 与 102 AAR 的公开符号对比表明，项目当前使用的接口签
 - `system_server`、`com.android.systemui`、`com.miui.home` 无模块相关崩溃。
 - 没有 Legacy Xposed API 拒绝、重复 Hook、重复初始化或生命周期异常。
 - Hot Reload 保持关闭；本阶段不测试热重载。
+
+### r14.11.0 两套框架均需覆盖
+
+- 开启和关闭 Audio Visualizer，验证锁屏/通知面板显示、播放切换与 View 重建后没有重复
+  Visualizer、Observer、协程或动画。
+- 开启电池指示器，修改颜色/位置等偏好；主题或 SystemUI 重建后只存在一个实例和一组
+  Receiver/Observer。
+- 验证截图期间状态栏/导航栏隐藏、截图格式保存和截图结束后的状态恢复。
+- 验证锁屏专辑封面、音量模糊观察器在 SystemUI 重建后没有重复回调。
+- 验证普通、分享、“打开方式”、隐私应用和应用锁选择页能加载；隐私/应用锁列表没有
+  成对重复条目。
+- 验证双排移动信号的亮/暗/着色切换，定时振动边界和跨午夜区间，以及 Launcher 图标缩放。
+- 记录完整重启后的 `system_server`、SystemUI、Launcher 和模块进程日志；区分 ROM/框架
+  自身异常与模块堆栈。
 
 两套环境均完成后再创建正式 Release。
