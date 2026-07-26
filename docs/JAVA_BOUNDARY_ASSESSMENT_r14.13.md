@@ -19,7 +19,7 @@
 
 | 文件 | 风险等级 | 关键依赖 | 是否建议迁移 | 理由 |
 | --- | --- | --- | --- | --- |
-| `MainModule.java` | **高** | `META-INF/xposed/java_init.list` 声明入口；继承 `io.github.libxposed.api.XposedModule`；`mPrefs`/`resHooks` 被跨进程/跨语言静态引用；Remote Preferences、API 101/102 生命周期、R8 keep | **否** | `LIBXPOSED_API_101_102_COMPATIBILITY.md` 明确保留为稳定入口；迁移会破坏/风险化入口类名、静态字段 JVM 签名、libxposed 类加载和 DEX descriptor。 |
+| `MainModule.java` | **高** | `META-INF/xposed/java_init.list` 声明入口；继承 `io.github.libxposed.api.XposedModule`；`mPrefs`/`resHooks` 被跨进程/跨语言静态引用；Remote Preferences、API 101/102 生命周期、R8 keep | **否** | Kotlin 可以通过保持相同 FQCN、`@JvmField`、`@JvmStatic` 和明确初始化顺序维持 JVM 边界，但当前迁移收益有限，libxposed 入口、API 101 类加载、跨语言静态访问、R8 和生命周期回归风险高于收益，因此本轮保留 Java。 |
 | `XposedHelpers.java` | **高** | 反射调用链、`Class`/`Member`/`Method` 缓存、vararg、`HookerClassHelper` 回调、被大量 Kotlin 代码以 Java 静态方式调用 | **否** | 这是第三方/LSPosed 风格反射工具类；Kotlin 化会引入 platform type、vararg、泛型、异常传播和反射语义风险；无明确收益。 |
 | `MemberUtilsX.java` | **中** | Apache Commons Lang 3 内部桥，被 `XposedHelpers` 调用；保留 ASF 协议头 | **否** | 属于 vendored 兼容代码，保持原样可避免协议/签名变更和上游合并冲突。 |
 
