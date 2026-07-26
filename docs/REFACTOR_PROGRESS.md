@@ -61,6 +61,17 @@
 - 本次删除项均经全仓库引用搜索确认无调用，且未在 ProGuard/R8、Manifest、
   `META-INF/xposed` 或 DexKit/反射字符串中出现；未触碰 Hook target 或兼容 fallback。
 
+## 阶段 4 Java 边界评估（已完成）
+
+- 评估文档：`docs/JAVA_BOUNDARY_ASSESSMENT_r14.13.md`。
+- 结论：剩余 3 个 Java 源文件（`MainModule.java`、`XposedHelpers.java`、
+  `MemberUtilsX.java`）均位于 libxposed 入口、反射/Hook 或第三方兼容边界，
+  风险不可控，明确保留 Java。
+- `PreferenceFragmentBase.java` 与 `Credentials.java` 已分别由上游迁移为
+  `PreferenceFragmentBase.kt` 与 `Credentials.kt`，无需处理。
+- 未执行任何 Java → Kotlin 迁移，未触碰 Hook target、API 边界、R8 keep 规则。
+- `clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease` 通过。
+
 ## 待办
 
 - [x] `BitmapCachedLoader` threadCount 优先级缺陷修复 + 回归测试
@@ -69,7 +80,7 @@
 - [x] 阶段 1 收尾全量构建 + APK 对照
 - [x] 阶段 2：`subs/`、`prefs/` UI 层逐文件梳理与去重 + 收尾构建
 - [x] 阶段 3：mods 冷路径死代码证明与清理 + 收尾构建
-- [ ] 阶段 4：Java 边界评估（需用户确认）
+- [x] 阶段 4：Java 边界评估与全量构建
 
 ## 未实机验证清单（累积）
 
