@@ -112,6 +112,7 @@
 - API 102 实机运行仍需在对应框架环境独立验证。
 
 构建成功只证明静态和产物边界，不替代不同 ROM、框架与功能组合的实机测试。
+完整证据、APK 摘要和未验证边界见[验证记录](docs/VERIFICATION.md)。
 
 ## 开发与构建
 
@@ -129,6 +130,8 @@
 
 - [CHANGELOG](CHANGELOG.md)
 - [项目谱系](docs/PROJECT_LINEAGE.md)
+- [libxposed API 101/102 双兼容说明](docs/LIBXPOSED_API_101_102_COMPATIBILITY.md)
+- [验证记录](docs/VERIFICATION.md)
 - [工程方法](docs/ENGINEERING_METHOD.md)
 - [历史 Release 归档](docs/RELEASE_ARCHIVE.md)
 
