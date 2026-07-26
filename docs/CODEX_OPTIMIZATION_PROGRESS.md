@@ -28,6 +28,26 @@
 Hooker、反射或 Manifest 时增加 `assembleRelease`。阶段完成后统一执行完整
 clean / test / Lint / Debug / Release / R8 / 资源压缩验证并推送当前优化分支。
 
+#### A1：`AudioVisualizer` View 资源闭环
+
+状态：已修复，阶段验证和实机验证待完成。
+
+根因：
+
+- 偏好观察器使用无 owner 注册，View detach 后仍被进程级观察器集合强引用；
+- detach 只取消 View 协程，没有保证已启用的原生 `Visualizer` 执行 `release()`；
+- `Visualizer(0)` 初始化在 IO 协程中执行，detach 可能发生在初始化完成和字段赋值之间。
+
+处理：
+
+- 使用 View 作为偏好观察器 owner，并在 detach 时成对移除；
+- detach 时终止动画、随机颜色任务和 View 协程，并同步释放已经安装的 `Visualizer`；
+- 用仅覆盖 link/unlink/detach 冷路径的小锁保护原生对象交接；
+- 初始化失败、重复 link 或 detach 竞态中未安装的临时 `Visualizer` 也必定释放；
+- 不改变 Hook 目标、显示条件、FFT、颜色、绘制和动画参数。
+
+局部验证：`test assembleDebug` 成功，33 个测试全部通过。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放

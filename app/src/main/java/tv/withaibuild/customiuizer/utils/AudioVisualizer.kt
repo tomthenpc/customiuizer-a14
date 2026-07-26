@@ -51,7 +51,11 @@ class AudioVisualizer @JvmOverloads constructor(
     private val mDensity: Float = context.resources.displayMetrics.density
     private val mPaint: Paint
     private var mGlowPaint = Paint()
+    @Volatile
     private var mVisualizer: Visualizer? = null
+    private val visualizerLock = Any()
+    @Volatile
+    private var detached = false
     private var mVisualizerColorAnimator: ObjectAnimator? = null
     private var mVisualizerGlowColorAnimator: ObjectAnimator? = null
 
@@ -120,6 +124,59 @@ class AudioVisualizer @JvmOverloads constructor(
         AUTO, LINES, PATH
     }
 
+    private val preferenceObserver = object : ModuleHelper.PreferenceObserver {
+        override fun onChange(key: String?) {
+            if (detached) return
+            try {
+                when (key) {
+                    "pref_key_system_visualizer_animdur" -> {
+                        animDur = MainModule.mPrefs.getInt("system_visualizer_animdur", 65)
+                        for (i in 0 until mBandsNum) {
+                            mValueAnimators[i].duration = animDur.toLong()
+                        }
+                    }
+                    "pref_key_system_visualizer_transp" -> {
+                        transparency = (255f - 255f * MainModule.mPrefs.getInt("system_visualizer_transp", 40) / 100f).roundToInt()
+                        setColor(mOpaqueColor)
+                        updateRainbowColors()
+                    }
+                    "pref_key_system_visualizer_color" -> {
+                        colorMode = ColorMode.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_color", 1)]
+                        updateBarStyle()
+                        updateColorMode()
+                    }
+                    "pref_key_system_visualizer_style" -> {
+                        barStyle = BarStyle.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_style", 1)]
+                        updateBarStyle()
+                    }
+                    "pref_key_system_visualizer_render" -> {
+                        renderType = RenderType.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_render", 0)]
+                        updateBarStyle()
+                    }
+                    "pref_key_system_visualizer_glowlevel" -> {
+                        glowLevel = MainModule.mPrefs.getInt("system_visualizer_glowlevel", 50)
+                        updateGlowPaint()
+                    }
+                    "pref_key_system_visualizer_colorval" -> {
+                        customColor = MainModule.mPrefs.getInt("system_visualizer_colorval", Color.WHITE)
+                        setColor(customColor)
+                    }
+                    "pref_key_system_visualizer_dyntime" -> {
+                        randomizeInterval = MainModule.mPrefs.getInt("system_visualizer_dyntime", 10) * 1000
+                        randomizeColorJob?.cancel()
+                        randomizeColorJob = viewScope.launch { runRandomizeColor() }
+                    }
+                    "pref_key_system_visualizer_drawer" ->
+                        showInDrawer = MainModule.mPrefs.getBoolean("system_visualizer_drawer", false)
+                    "pref_key_system_visualizer_controller" ->
+                        showWithControllerOnly = MainModule.mPrefs.getBoolean("system_visualizer_controller", false)
+                }
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+            }
+        }
+    }
+
     init {
         setLayerType(LAYER_TYPE_HARDWARE, null)
 
@@ -173,57 +230,7 @@ class AudioVisualizer @JvmOverloads constructor(
         updateGlowPaint()
         updateRainbowColors()
 
-        ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
-            override fun onChange(key: String?) {
-                try {
-                    when (key) {
-                        "pref_key_system_visualizer_animdur" -> {
-                            animDur = MainModule.mPrefs.getInt("system_visualizer_animdur", 65)
-                            for (i in 0 until mBandsNum) {
-                                mValueAnimators[i].duration = animDur.toLong()
-                            }
-                        }
-                        "pref_key_system_visualizer_transp" -> {
-                            transparency = (255f - 255f * MainModule.mPrefs.getInt("system_visualizer_transp", 40) / 100f).roundToInt()
-                            setColor(mOpaqueColor)
-                            updateRainbowColors()
-                        }
-                        "pref_key_system_visualizer_color" -> {
-                            colorMode = ColorMode.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_color", 1)]
-                            updateBarStyle()
-                            updateColorMode()
-                        }
-                        "pref_key_system_visualizer_style" -> {
-                            barStyle = BarStyle.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_style", 1)]
-                            updateBarStyle()
-                        }
-                        "pref_key_system_visualizer_render" -> {
-                            renderType = RenderType.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_render", 0)]
-                            updateBarStyle()
-                        }
-                        "pref_key_system_visualizer_glowlevel" -> {
-                            glowLevel = MainModule.mPrefs.getInt("system_visualizer_glowlevel", 50)
-                            updateGlowPaint()
-                        }
-                        "pref_key_system_visualizer_colorval" -> {
-                            customColor = MainModule.mPrefs.getInt("system_visualizer_colorval", Color.WHITE)
-                            setColor(customColor)
-                        }
-                        "pref_key_system_visualizer_dyntime" -> {
-                            randomizeInterval = MainModule.mPrefs.getInt("system_visualizer_dyntime", 10) * 1000
-                            randomizeColorJob?.cancel()
-                            randomizeColorJob = viewScope.launch { runRandomizeColor() }
-                        }
-                        "pref_key_system_visualizer_drawer" ->
-                            showInDrawer = MainModule.mPrefs.getBoolean("system_visualizer_drawer", false)
-                        "pref_key_system_visualizer_controller" ->
-                            showWithControllerOnly = MainModule.mPrefs.getBoolean("system_visualizer_controller", false)
-                    }
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
-                }
-            }
-        })
+        ModuleHelper.observePreferenceChange(preferenceObserver, this)
     }
 
     private val mVisualizerListener = object : Visualizer.OnDataCaptureListener {
@@ -429,6 +436,19 @@ class AudioVisualizer @JvmOverloads constructor(
 
     public override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        detached = true
+        ModuleHelper.removePreferenceObserver(this)
+        val visualizer = synchronized(visualizerLock) {
+            val current = mVisualizer
+            mVisualizer = null
+            current
+        }
+        releaseVisualizer(visualizer)
+        animate().cancel()
+        mVisualizerColorAnimator?.cancel()
+        mVisualizerGlowColorAnimator?.cancel()
+        for (animator in mValueAnimators) animator.cancel()
+        randomizeColorJob?.cancel()
         mArt = null
         mProcessedArt = null
         viewScope.cancel()
@@ -508,26 +528,53 @@ class AudioVisualizer @JvmOverloads constructor(
     }
 
     private suspend fun linkVisualizer() = withContext(Dispatchers.IO) {
+        var visualizer: Visualizer? = null
         try {
-            val visualizer = Visualizer(0)
+            visualizer = Visualizer(0)
             visualizer.enabled = false
             visualizer.captureSize = Visualizer.getCaptureSizeRange()[1]
             visualizer.scalingMode = Visualizer.SCALING_MODE_NORMALIZED
             visualizer.setDataCaptureListener(mVisualizerListener, Visualizer.getMaxCaptureRate(), false, true)
             visualizer.enabled = true
-            mVisualizer = visualizer
+            var previous: Visualizer? = null
+            val installed = synchronized(visualizerLock) {
+                if (detached) {
+                    false
+                } else {
+                    previous = mVisualizer
+                    mVisualizer = visualizer
+                    true
+                }
+            }
+            if (installed) {
+                if (previous !== visualizer) releaseVisualizer(previous)
+                visualizer = null
+            }
         } catch (t: Throwable) {
             XposedHelpers.log(t)
+        } finally {
+            releaseVisualizer(visualizer)
         }
     }
 
     private suspend fun unlinkVisualizer() = withContext(Dispatchers.IO) {
-        try {
-            mVisualizer?.let {
-                it.enabled = false
-                it.release()
-            }
+        val visualizer = synchronized(visualizerLock) {
+            val current = mVisualizer
             mVisualizer = null
+            current
+        }
+        releaseVisualizer(visualizer)
+    }
+
+    private fun releaseVisualizer(visualizer: Visualizer?) {
+        if (visualizer == null) return
+        try {
+            visualizer.enabled = false
+        } catch (t: Throwable) {
+            XposedHelpers.log(t)
+        }
+        try {
+            visualizer.release()
         } catch (t: Throwable) {
             XposedHelpers.log(t)
         }
@@ -563,6 +610,7 @@ class AudioVisualizer @JvmOverloads constructor(
     }
 
     private fun checkStateChanged() {
+        if (detached) return
         if (mPlaying) {
             if (!mDisplaying) {
                 mDisplaying = true
