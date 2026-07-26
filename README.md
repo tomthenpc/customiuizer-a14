@@ -1,6 +1,6 @@
 # CustoMIUIzer A14
 
-Independent maintenance line for HyperOS 1 / Android 14.
+面向 HyperOS 1 / Android 14 的 CustoMIUIzer 独立维护版。
 
 本项目是 CustoMIUIzer 的独立维护版本。Android 14 功能语义以
 [MonwF/customiuizer v24.10.12](https://github.com/MonwF/customiuizer/releases/tag/v24.10.12)
@@ -21,11 +21,21 @@ MIUI/HyperOS 版本的兼容性。
 | Xposed API | min 101 / target 102 |
 | Hot Reload | 关闭 |
 | 构建 | Kotlin DSL / version catalog |
-| Release | [Releases/latest](https://github.com/tomthenpc/customiuizer-a14/releases/latest) |
+| 最新下载 | [r14.12.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.12.0) |
 
 `r14.12.0` 是当前现代化、Kotlin 迁移、生命周期治理和 API 101/102 单 APK
-兼容工作的稳定基线。完整长期日志审计不属于本版本的发布门槛；后续确认的问题进入
-`r14.12.x` 补丁版本。
+兼容工作的稳定基线。发布 APK 已完成 API 101 实机安装、整机重启和完整 `full.log`
+审计，未发现可归因于模块的崩溃、ANR、入口、Hook 或 API 链接错误。API 102 的构建
+兼容已经验证，API 102 实机运行仍需在对应框架环境独立确认。
+
+## 下载
+
+- 最新稳定版：[r14.12.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.12.0)
+- APK：`CustoMIUIzer-A14-r14.12.0.apk`
+- SHA-256：`7E488C4ED011F68321A8A2E5911B61D1C35659C98CA0116500855F79F05ED80E`
+- applicationId：`tv.withaibuild.customiuizer.r14`
+
+仅从本仓库 Releases 下载。不同签名的 APK 可能无法覆盖安装，处理旧安装前请先备份设置。
 
 ## 与上游 v24.10.12 的差异
 
@@ -136,9 +146,23 @@ Xposed 版本设计”；这是目标 API 的版本比较结果，不等同于�
 - `r14.12.x` 只承载日志归因明确的兼容性、崩溃、生命周期和小范围行为修复。
 - 新功能或重大架构变化进入新的 minor 版本。
 - 纯文档变更不单独发布补丁版本，也不为每个 commit 创建 Release。
-- GitHub Releases 只保留 4 个关键版本；其余版本保留在 CHANGELOG 和 Git 历史中。
-- 发布新补丁时保留最新补丁、上一补丁、当前 minor 初始基线和一个长期回退基线。
-- 删除任何旧 Release 前必须先完整归档其说明、资产和 SHA-256。
+- GitHub Releases 固定只保留 4 个关键版本。
+- Release 标题只使用版本号，并与 tag、`versionName` 保持一致，例如 `r14.12.0`。
+- 未保留版本继续存在于 [CHANGELOG](CHANGELOG.md)、[历史 Release 归档](docs/RELEASE_ARCHIVE.md)
+  和 Git tag/commit 历史中。
+
+当前公开 Release：
+
+| 版本 | 定位 |
+| --- | --- |
+| [r14.12.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.12.0) | 当前稳定版；Kotlin、生命周期治理、API 101/102 单 APK 兼容 |
+| [r14.8.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.8.0) | 核心现代化前的 Kotlin 基础设施回退点 |
+| [r14.7.4](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.7.4) | r14.7.x Kotlin/Coroutine 迁移合并版 |
+| [r14.5.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.5.0) | 独立包名、签名和发布路径的长期回退基线 |
+
+发布新版本时，应在以上四类中保留最有验证价值的四个版本；删除旧 Release 前先在
+`docs/RELEASE_ARCHIVE.md` 保存版本说明、资产名、大小和 SHA-256。删除 Release 不删除
+对应 Git tag。
 
 ## 上游、许可证和致谢
 
