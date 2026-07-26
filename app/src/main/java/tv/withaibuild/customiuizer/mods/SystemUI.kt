@@ -2171,6 +2171,8 @@ object SystemUI {
 
         val hook = object : MethodHook() {
             private var mBrightnessController: Any? = null
+            private var mDisplayManager: Any? = null
+            private var mDisplayId: Int = -1
             private var sbHeight = -1
 
             @SuppressLint("SetTextI18n")
@@ -2193,7 +2195,6 @@ object SystemUI {
                     sbHeight = res.getDimensionPixelSize(res.getIdentifier("status_bar_height_default", "dimen", "android"))
                 }
                 val event = param.getArgs()[0] as MotionEvent
-                var mDisplayManager: Any? = null
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         tapStartX = event.x
@@ -2207,9 +2208,9 @@ object SystemUI {
                                 ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.controlcenter.policy.ControlCenterControllerImpl")
                             }
                             mBrightnessController = XposedHelpers.callMethod(XposedHelpers.getObjectField(mControlCenterController, "brightnessController"), "get")
+                            mDisplayManager = XposedHelpers.getObjectField(mBrightnessController, "mDisplayManager")
+                            mDisplayId = XposedHelpers.getIntField(mBrightnessController, "mDisplayId")
                         }
-                        mDisplayManager = XposedHelpers.getObjectField(mBrightnessController, "mDisplayManager")
-                        val mDisplayId = mContext.display.displayId
                         topMinimumBacklight = XposedHelpers.getObjectField(mBrightnessController, "mMinimumBacklight") as Float
                         topMaximumBacklight = XposedHelpers.getObjectField(mBrightnessController, "mMaximumBacklight") as Float
                         tapStartBrightness = XposedHelpers.callMethod(mDisplayManager, "getBrightness", mDisplayId) as Float
@@ -2251,10 +2252,8 @@ object SystemUI {
                             }
                             GlobalActions.handleAction(mContext, "system_statusbarcontrols_longpress")
                         }
-                        if (nextBrightNess > -10) {
-                            mDisplayManager = XposedHelpers.getObjectField(mBrightnessController, "mDisplayManager")
-                            val displayId = XposedHelpers.getIntField(mBrightnessController, "mDisplayId")
-                            XposedHelpers.callMethod(mDisplayManager, "setBrightness", displayId, nextBrightNess)
+                        if (nextBrightNess > -10 && mDisplayManager != null) {
+                            XposedHelpers.callMethod(mDisplayManager, "setBrightness", mDisplayId, nextBrightNess)
                             nextBrightNess = -999f
                         }
                         currentDownTime = 0L
@@ -2286,9 +2285,9 @@ object SystemUI {
                             var ratio = delta / metrics.widthPixels
                             ratio = (if (sens == 1) 0.66f else if (sens == 3) 1.66f else 1.0f) * ratio * 0.618f
                             val nextLevel = Math.min(topMaximumBacklight, Math.max(topMinimumBacklight, tapStartBrightness + (topMaximumBacklight - topMinimumBacklight) * ratio))
-                            mDisplayManager = XposedHelpers.getObjectField(mBrightnessController, "mDisplayManager")
-                            val displayId = XposedHelpers.getIntField(mBrightnessController, "mDisplayId")
-                            XposedHelpers.callMethod(mDisplayManager, "setTemporaryBrightness", displayId, nextLevel)
+                            if (mDisplayManager != null) {
+                                XposedHelpers.callMethod(mDisplayManager, "setTemporaryBrightness", mDisplayId, nextLevel)
+                            }
                             nextBrightNess = nextLevel
                         } else if (opt == 3) {
                             val sens = MainModule.mPrefs.getStringAsInt("system_statusbarcontrols_sens_vol", 2)
