@@ -282,11 +282,11 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 ### 阶段 C：逻辑、算法、Kotlin 与设置 UI
 
-状态：进行中。
+状态：已完成静态/构建验证，等待设置页面实机验证。
 
 #### C1：应用选择列表的 nullable 加载状态
 
-状态：已修复，局部验证通过，阶段验证待完成。
+状态：已修复，局部与阶段验证通过。
 
 根因：
 
@@ -311,7 +311,7 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 #### C2：分享与“打开方式”应用列表去重
 
-状态：已修复，局部验证通过，阶段验证待完成。
+状态：已修复，局部与阶段验证通过。
 
 根因：
 
@@ -335,7 +335,7 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 #### C3：隐私应用与应用锁列表重复
 
-状态：已修复，局部验证通过，阶段验证待完成。
+状态：已修复，局部与阶段验证通过。
 
 根因：
 
@@ -354,6 +354,38 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 - `.\gradlew.bat --no-daemon test assembleDebug`：成功；
 - 33 项单元测试通过。
+
+#### 阶段 C 完整验证
+
+执行：
+
+```powershell
+.\gradlew.bat --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease
+```
+
+- 构建成功，33 项单元测试全部通过；
+- Debug Lint：0 errors、486 warnings；Release Lint：0 errors、487 warnings；
+- Debug、Release、R8 与资源压缩完成；完整 Release Lint 已覆盖同一任务图中的
+  `lintVitalRelease`；
+- Release APK：
+  `app/build/outputs/apk/release/CustoMIUIzer-A14-r14.10.0.apk`，
+  3,021,289 bytes，SHA-256
+  `C8C5B974954D6307D171D1E2AECC40D93973C920291A3F5B455903823BA04AAA`；
+- APK 使用 v2 签名，证书 SHA-256
+  `3061A3DA1C2FC46B44E215D024B1BFE3A012CB4D70B90B0214FA9FC896CEF60D`，
+  `zipalign -c -P 16 -v 4` 通过；
+- APK 内 Xposed 元数据保持 min API 101 / target API 102 /
+  `staticScope=false`，R8 后入口 `ro` 可由 mapping 追溯到 `MainModule`；
+- 活跃源码和 Release APK DEX 均未发现 `de.robv.android.xposed`；
+- Lint 仍报告项目既有的 `DexKitBridge.create()` 自定义警告；两个创建点属于不同目标包
+  进程的独立初始化路径，阶段 C 未新增或扩大该行为。
+
+阶段结论：
+
+- 已修复 2 个 Kotlin 迁移正确性回归和 1 个可证明的列表算法问题；
+- 未引入 Flow、Sequence、DSL、新架构层、协程或设置格式变化；
+- 其余纯空值/风格编译警告，以及需要运行 trace 才能证明收益的 UI 微优化，按 P3
+  或实机证据项保留，不为清零告警继续修改。
 
 ## 已完成批次
 
@@ -421,7 +453,7 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 1. 阶段 A：正确性、注册与生命周期（已完成静态/构建验证）；
 2. 阶段 B：核心 Hook 与热路径（已完成静态/构建验证）；
-3. 阶段 C：逻辑、算法、Kotlin 与设置 UI；
+3. 阶段 C：逻辑、算法、Kotlin 与设置 UI（已完成静态/构建验证）；
 4. 阶段 D：清理、全量验证与最终签名测试 APK。
 
 停止条件：P0 清零、明确 P1 已处理、高收益 P2 已处理，剩余仅为低收益 P3、
@@ -481,6 +513,8 @@ SystemUI 重建后会累积旧实例和重复回调。
 | P1 | `BatteryIndicator` 脱离窗口后仍被 Receiver / Observer 持有 | 局部调用链已确认；影响 SystemUI 内重建后的回调唯一性和对象释放 | 本批已修复 |
 | P1 | `System.kt` 截图格式 DexKit 查询可能返回多个方法 | 已按回调真实参数契约筛选并要求唯一结果，不猜 ROM 混淆名称 | A6 已修复，待阶段/实机验证 |
 | P1 | `AudioVisualizer` View 生命周期 | 已完成观察器、协程、动画和原生 `Visualizer` 的 dispose 闭环 | A1/A2 已修复，待阶段/实机验证 |
+| P1 | 应用选择页 Kotlin 迁移后丢失“尚未加载”状态 | 已恢复 nullable 加载状态并通过局部/阶段构建验证 | C1 已修复，待实机验证 |
+| P1 | 隐私应用与应用锁 Adapter 初始化时复制列表两次 | 已恢复 Java 基线的一次复制语义 | C3 已修复，待实机验证 |
 | P2 | `SystemUI.kt` 中若干匿名 Receiver | 截图状态/导航栏和锁屏专辑封面已修复；其余仅在能证明宿主重建泄漏时处理 | A4/A5 已处理高收益项 |
 | P3 | `BitmapCachedLoader` Kotlin 空值与协程告警 | 队列已限制为 128、目标使用弱引用、核心线程允许超时；目前没有失控证据 | 暂不修改 |
 
@@ -491,13 +525,16 @@ SystemUI 重建后会累积旧实例和重复回调。
 - 开启电池指示器后，状态栏显示、偏好实时更新和测试广播行为
 - SystemUI 重建/主题或配置变化后无重复指示器、重复 Receiver/Observer 或崩溃
 - 截图期间隐藏状态栏功能与电池指示器组合
+- 普通、分享、“打开方式”、隐私应用和应用锁选择页均能加载，且没有重复条目
 
 ## 下一阶段准确入口
 
-阶段 C 聚焦低风险、可证明的逻辑和设置 UI：
+阶段 D 只做可证明的清理与最终交付：
 
-1. 从 Kotlin 编译告警和 Lint 中筛选真实空值、恒真/恒假条件与 JVM 互操作问题；
-2. 审查 Preference、Fragment、Dialog、搜索和设置同步的重复遍历与主线程工作；
-3. 一次只处理 10～20 个强相关文件，不引入 Flow、Sequence、DSL、新架构层或协程；
-4. 已稳定的 Hook 主干只做调用方需要的最小调整，不继续风格化重写；
-5. 无功能错误或可测收益的纯风格告警降为 P3，不为清零告警无限修改。
+1. 用引用搜索和 Release/R8 产物交叉确认死代码、Java/Kotlin 重复实现、无效资源和旧调试代码；
+2. 逐条核对 ProGuard/R8 keep 规则，不扩大 keep，也不删除仍由反射、Xposed 元数据或 XML
+   间接引用的入口；
+3. 复核剩余 Java 文件的迁移收益与 ABI/Hook 风险，低收益或高风险文件保留 Java；
+4. 执行最终全量测试、Debug、Release、R8、资源压缩、Lint、签名、zipalign、API 101/102
+   元数据与 Legacy Xposed 扫描；
+5. 生成可追溯的正式签名测试 APK；需要 API 101/102 框架和目标 ROM 的项目明确交给实机验证。
