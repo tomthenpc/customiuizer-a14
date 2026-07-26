@@ -387,6 +387,33 @@ SystemUI 重建后会累积旧实例和重复回调。
 - 其余纯空值/风格编译警告，以及需要运行 trace 才能证明收益的 UI 微优化，按 P3
   或实机证据项保留，不为清零告警继续修改。
 
+### 阶段 D：清理和最终交付
+
+状态：进行中。
+
+#### D1：移除旧版未使用 Drawable
+
+状态：已完成局部验证，等待阶段验证。
+
+证据：
+
+- Debug Lint 将整组资源判定为 `UnusedResources`；
+- 活跃源码、布局、样式、Drawable XML 与动态 `getIdentifier` 名称中均无引用；
+- Git 历史显示它们来自早期 MIUI 版本的自定义复选框、Recents 操作按钮和旧提示图标；
+- Release 已启用资源压缩，因此此项是源码与工程维护清理，不宣称 APK 运行性能收益。
+
+处理：
+
+- 删除自定义复选框 selector 及日间/夜间位图；
+- 删除三个旧 Recents 操作按钮 selector 及位图；
+- 删除不再引用的 `alert` 与 `snowflake` 位图；
+- 共删除 18 个资源文件，不修改任何资源 ID 使用方或业务逻辑。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug`：成功；
+- 33 项单元测试通过。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
