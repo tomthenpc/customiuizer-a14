@@ -31,6 +31,9 @@
 | 7 | `7f675a99` | `BTList` 显式泛型 parcelable 与配对设备 `any()` 查找 | `test assembleDebug` 通过 |
 | 8 | `12137bd4` | `WiFiList` 网络状态 `when` 分发与 `convertView ?: inflate` | `test assembleDebug` 通过 |
 | 9 | `08f932fe` | `subs` 中冗余 `java.util.ArrayList/HashMap/LinkedHashSet` 导入清理 | `test assembleDebug` 通过 |
+| 10 | `14861202` | 删除未使用 `ModuleHelper.printCallStack`（全仓库无调用） | `test assembleDebug` 通过 |
+| 11 | `8fa0f237` | 删除未使用 `ModuleHelper.stringifyBundle`（全仓库无调用） | `test assembleDebug` 通过 |
+| 12 | `a507c008` | 删除 `SystemClockHooks` 冗余 `java.util.ArrayList` 导入 | `test assembleDebug` 通过 |
 
 ## 阶段 1 收尾验证（已完成）
 
@@ -48,6 +51,16 @@
   SHA-256 `BD89870B3A2B9F338E8E939ED346782B65C54D0095402F8F6654FC833EB02BD7`
   （本地 debug 签名，仅对照用）。
 
+## 阶段 3 收尾验证（已完成）
+
+- `clean test lint assembleDebug assembleRelease lintVitalRelease` 全部通过；
+  单元测试 36 个。
+- Release APK：3,020,249 bytes（与基线字节数相同），
+  SHA-256 `6FAD6CE6CBC7EE8D17461B98BFE32722AD7358E3B634AF384ACB5C98D310EF93`
+  （本地 debug 签名，仅对照用）。
+- 本次删除项均经全仓库引用搜索确认无调用，且未在 ProGuard/R8、Manifest、
+  `META-INF/xposed` 或 DexKit/反射字符串中出现；未触碰 Hook target 或兼容 fallback。
+
 ## 待办
 
 - [x] `BitmapCachedLoader` threadCount 优先级缺陷修复 + 回归测试
@@ -55,7 +68,7 @@
 - [x] `Helpers` 四个应用列表构建函数去重
 - [x] 阶段 1 收尾全量构建 + APK 对照
 - [x] 阶段 2：`subs/`、`prefs/` UI 层逐文件梳理与去重 + 收尾构建
-- [ ] 阶段 3：mods 冷路径死代码证明与清理（后续会话）
+- [x] 阶段 3：mods 冷路径死代码证明与清理 + 收尾构建
 - [ ] 阶段 4：Java 边界评估（需用户确认）
 
 ## 未实机验证清单（累积）
@@ -65,3 +78,5 @@
 - 阶段 2 全部变更（preference/subs UI 显示、BT/WiFi 列表页、颜色/应用选择器、
   状态标记/标题高亮）：需要实机确认设置页滚动/搜索高亮、各选择器打开与返回、
   BT/WiFi 列表刷新与点击选择正常。
+- 阶段 3 删除 `ModuleHelper.printCallStack`/`stringifyBundle` 和 `SystemClockHooks`
+  冗余导入：可构建验证，行为不变；无需单独实机测试（删除的是从未执行的调试/包装代码）。
