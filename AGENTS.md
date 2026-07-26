@@ -6,7 +6,7 @@
 
 - `docs/PROJECT_LINEAGE.md`
 - `docs/ENGINEERING_METHOD.md`
-- `docs/KOTLIN_POST_MIGRATION_REVIEW.md`
+- `docs/LIBXPOSED_API_101_102_COMPATIBILITY.md`
 - 本轮用户任务
 
 更深目录如存在 `AGENTS.md`，其规则只覆盖对应目录；本轮用户直接指令优先。
