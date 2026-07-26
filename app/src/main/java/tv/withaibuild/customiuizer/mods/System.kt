@@ -105,7 +105,6 @@ import java.util.ArrayList
 import java.util.Calendar
 import java.util.Collection
 import java.util.Collections
-import java.util.Date
 import java.util.HashSet
 import java.util.Iterator
 import java.util.List
@@ -3229,8 +3228,6 @@ object System {
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.notification.NotificationSettingsManager", lpparam.classLoader, "canFloat", Context::class.java, String::class.java, String::class.java, HookerClassHelper.returnConstant(true))
     }
 
-    private val formatter = SimpleDateFormat("H:m", Locale.ENGLISH)
-
     @JvmStatic
     fun MuffledVibrationHook(lpparam: SystemServerStartingParam) {
         ModuleHelper.hookAllMethods("com.android.server.VibratorService", lpparam.classLoader, "doVibratorOn", object : MethodHook() {
@@ -3266,18 +3263,19 @@ object System {
                         return XposedHelpers.proceedOrThrow(chain, args, throwable)
                     }
 
-                    val key = "system_vibration_amp_period"
-                    val start_hour = MainModule.mPrefs.getInt(key + "_start_hour", 0)
-                    val start_minute = MainModule.mPrefs.getInt(key + "_start_minute", 0)
-                    val end_hour = MainModule.mPrefs.getInt(key + "_end_hour", 0)
-                    val end_minute = MainModule.mPrefs.getInt(key + "_end_minute", 0)
-
-                    formatter.timeZone = TimeZone.getDefault()
-                    val start = formatter.parse("$start_hour:$start_minute")
-                    val end = formatter.parse("$end_hour:$end_minute")
-                    val now = formatter.parse(formatter.format(Date()))
-
-                    val insidePeriod = if (start!!.before(end)) now!!.after(start) && now.before(end) else now!!.before(end) || now.after(start)
+                    val startMinutes =
+                        MainModule.mPrefs.getInt("system_vibration_amp_period_start_hour", 0) * 60 +
+                            MainModule.mPrefs.getInt("system_vibration_amp_period_start_minute", 0)
+                    val endMinutes =
+                        MainModule.mPrefs.getInt("system_vibration_amp_period_end_hour", 0) * 60 +
+                            MainModule.mPrefs.getInt("system_vibration_amp_period_end_minute", 0)
+                    val now = Calendar.getInstance()
+                    val nowMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
+                    val insidePeriod = if (startMinutes < endMinutes) {
+                        nowMinutes > startMinutes && nowMinutes < endMinutes
+                    } else {
+                        nowMinutes < endMinutes || nowMinutes > startMinutes
+                    }
                     if (!insidePeriod) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
 
                     var mSupportsAmplitudeControl = false
