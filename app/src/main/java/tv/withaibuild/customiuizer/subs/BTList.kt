@@ -50,14 +50,9 @@ class BTList : SubFragment() {
         @Suppress("DEPRECATION")
         @SuppressLint("MissingPermission")
         override fun onReceive(context: Context, intent: Intent) {
-            val deviceList: ArrayList<BluetoothDevice>? =
-                intent.getParcelableArrayListExtra("device_list")
+            val deviceList = intent.getParcelableArrayListExtra<BluetoothDevice>("device_list")
             btList.clear()
-            if (deviceList != null) {
-                for (device in deviceList) {
-                    btList.add(Pair(device.address, device.name))
-                }
-            }
+            deviceList?.forEach { btList.add(Pair(it.address, it.name)) }
             btAdapter1?.notifyDataSetChanged()
             btAdapter2?.notifyDataSetChanged()
             updateProgressBar()
@@ -218,11 +213,8 @@ class BTList : SubFragment() {
             if (isEnabled(position)) {
                 row.isEnabled = true
 
-                var isBonded = false
                 val bonded = BluetoothAdapter.getDefaultAdapter()?.bondedDevices
-                for (device in bonded ?: emptySet()) {
-                    if (device.address == sr.first) isBonded = true
-                }
+                val isBonded = bonded?.any { it.address == sr.first } == true
 
                 itemTitle.setTextColor(
                     resources.getColor(
