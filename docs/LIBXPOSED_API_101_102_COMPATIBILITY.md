@@ -3,6 +3,9 @@
 本文是项目唯一的 libxposed API 101/102 兼容性权威文档。版本状态以仓库中的
 `module.prop`、version catalog 和构建脚本为准。
 
+Agent 开始修改前应先读取[AI 维护入口](AI_MAINTENANCE_GUIDE.md)，再以本文判断
+libxposed 边界；不要因为管理器版本名称、提示文本或旧上游实现改变当前配置。
+
 ## 兼容目标
 
 r14.10.0 建立单 APK 双兼容边界，r14.12.0 在该边界上完成生命周期和构建治理：
