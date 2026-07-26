@@ -64,13 +64,14 @@ class WiFiList : SubFragment() {
                 wifiAdapter2?.notifyDataSetChanged()
                 updateProgressBar()
             } else if (action == WifiManager.NETWORK_STATE_CHANGED_ACTION) {
-                val netInfo = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO) as? NetworkInfo
-                if (netInfo == null) return
-                if (netInfo.detailedState == NetworkInfo.DetailedState.CONNECTED) isWiFiReady()
-                if (netInfo.detailedState == NetworkInfo.DetailedState.CONNECTED ||
-                    netInfo.detailedState == NetworkInfo.DetailedState.DISCONNECTED
-                ) {
-                    scheduleScan(1000L)
+                val netInfo = intent.getParcelableExtra(WifiManager.EXTRA_NETWORK_INFO) as? NetworkInfo ?: return
+                when (netInfo.detailedState) {
+                    NetworkInfo.DetailedState.CONNECTED -> {
+                        isWiFiReady()
+                        scheduleScan(1000L)
+                    }
+                    NetworkInfo.DetailedState.DISCONNECTED -> scheduleScan(1000L)
+                    else -> {}
                 }
             }
         }
@@ -230,11 +231,7 @@ class WiFiList : SubFragment() {
         }
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-            val row: View = if (convertView != null) {
-                convertView
-            } else {
-                mInflater.inflate(R.layout.pref_item, parent, false)
-            }
+            val row = convertView ?: mInflater.inflate(R.layout.pref_item, parent, false)
 
             val itemTitle: TextView = row.findViewById(android.R.id.title)
             val itemSumm: TextView = row.findViewById(android.R.id.summary)
