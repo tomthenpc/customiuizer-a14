@@ -449,6 +449,30 @@ SystemUI 重建后会累积旧实例和重复回调。
 - Release、R8、资源压缩与 `lintVitalRelease` 成功；
 - 产物名为 `CustoMIUIzer-A14-r14.11.0.apk`。
 
+#### D4：收紧 BuildConfig 的 R8 keep
+
+状态：已完成局部验证，等待阶段验证。
+
+证据与边界：
+
+- 活跃源码只读取两次编译期常量 `BuildConfig.APPLICATION_ID`；
+- 没有按类名、反射、序列化、Manifest 或 Xposed 元数据访问 `BuildConfig`；
+- 原规则会保留整个类、构造函数以及 `DEBUG`、版本号等所有未使用字段；
+- Xposed 模块入口、Hooker、Android 组件、shortcuts XML 目标和 mods 动态入口规则均有实际
+  间接调用依据，本次不删除或扩大这些规则。
+
+处理：
+
+- 删除 `-keep class tv.withaibuild.customiuizer.BuildConfig { *; }`；
+- 由编译器/R8 正常内联 `APPLICATION_ID`，其余无引用成员允许被移除。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug assembleRelease`：成功；
+- 33 项单元测试通过，Release、R8、资源压缩与 `lintVitalRelease` 成功；
+- `BuildConfig` 不再出现在 Release mapping 或 seeds 中，并出现在 R8 `usage.txt`；
+- `MainModule`、`MainActivity`、`PrefsProvider` 等入口和组件仍保留预期名称/映射。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
