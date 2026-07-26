@@ -84,13 +84,13 @@ object Helpers {
     const val NEW_MODS_SEARCH_QUERY = "\uD83C\uDD95"
 
     @JvmField
-    var shareAppsList: ArrayList<AppData> = ArrayList()
+    var shareAppsList: ArrayList<AppData>? = null
 
     @JvmField
-    var openWithAppsList: ArrayList<AppData> = ArrayList()
+    var openWithAppsList: ArrayList<AppData>? = null
 
     @JvmField
-    var launchableAppsList: ArrayList<AppData> = ArrayList()
+    var launchableAppsList: ArrayList<AppData>? = null
 
     @JvmField
     val allModsList = ArrayList<ModData>()

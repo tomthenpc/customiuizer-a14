@@ -280,6 +280,35 @@ SystemUI 重建后会累积旧实例和重复回调。
   低收益或需实机数据项；
 - 未发现正常路径高频日志、无效 Binder 轮询或功能关闭后仍安装的新 Hook。
 
+### 阶段 C：逻辑、算法、Kotlin 与设置 UI
+
+状态：进行中。
+
+#### C1：应用选择列表的 nullable 加载状态
+
+状态：已修复，局部验证通过，阶段验证待完成。
+
+根因：
+
+- Java 基线用 `null` 区分“尚未加载”和“已加载但结果为空”；
+- `AppHelper` / `Helpers` Kotlin 迁移时把四个列表改为立即创建的空 `ArrayList`；
+- `AppSelector.loadApps()` 仍只在列表为 `null` 时执行包管理器查询，因此所有加载分支都被
+  编译器判定为恒假，应用选择页可能永久绑定空列表。
+
+处理：
+
+- `installedAppsList`、`launchableAppsList`、`shareAppsList`、`openWithAppsList`
+  恢复 nullable 初始状态，保持原 Java 状态机；
+- 后台加载完成后仍一次性替换为真实列表，空查询结果继续用非空空列表表示“已加载”；
+- `setupList()` 通过局部非空快照绑定 Adapter，消除可变全局字段的空值竞态和强制断言；
+- 不改变查询、排序、多用户、黑白名单、隐私应用或选择回传逻辑。
+
+局部验证：
+
+- `.\gradlew.bat --no-daemon test assembleDebug`：成功；
+- 33 项单元测试通过；
+- Kotlin 编译器原先对四个加载判断给出的“条件恒为 false”警告已消失。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
