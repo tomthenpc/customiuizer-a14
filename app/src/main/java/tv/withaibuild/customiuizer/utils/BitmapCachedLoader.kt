@@ -97,10 +97,11 @@ class BitmapCachedLoader(
         private const val TAG = "Pengeek.IconLoader"
         private const val MAX_PENDING_TASKS = 128
 
+        internal fun clampLoaderThreadCount(availableProcessors: Int): Int =
+            (availableProcessors / 2).coerceIn(2, 4)
+
         private val threadCount =
-            Runtime.getRuntime().availableProcessors() / 2
-                .coerceAtLeast(2)
-                .coerceAtMost(4)
+            clampLoaderThreadCount(Runtime.getRuntime().availableProcessors())
         private val threadNumber = AtomicInteger()
 
         private val executor = ThreadPoolExecutor(
