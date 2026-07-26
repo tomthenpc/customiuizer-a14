@@ -4,10 +4,11 @@
 
 本文件适用于整个仓库。修改任何源码前，先阅读：
 
+- `docs/AI_MAINTENANCE_GUIDE.md`
 - `docs/PROJECT_LINEAGE.md`
-- `docs/ENGINEERING_METHOD.md`
 - `docs/LIBXPOSED_API_101_102_COMPATIBILITY.md`
 - `docs/VERIFICATION.md`
+- `docs/ENGINEERING_METHOD.md`
 - 本轮用户任务
 
 更深目录如存在 `AGENTS.md`，其规则只覆盖对应目录；本轮用户直接指令优先。
@@ -18,11 +19,17 @@
 
 `MonwF/customiuizer@v24.10.12`
 
-随后当前项目完成独立包名、applicationId、版本线、签名和构建流程，并转向现代 libxposed API 101、性能治理和 Java → Kotlin 重构。
+随后当前项目完成独立包名、applicationId、版本线、签名和构建流程，并完成现代
+libxposed API 101/102 单 APK 兼容、性能与生命周期治理、Java → Kotlin 保守迁移和
+构建工程化。
 
 当前直接维护仓库是：
 
 `tomthenpc/customiuizer-a14`
+
+当前稳定版本为 `r14.12.0`，正常维护分支为 `main`。本地当前工作树、当前分支和当前
+HEAD 是后续修改的唯一直接代码基线；GitHub `origin` 用于同步和历史核对，
+`MonwF/customiuizer` 只读参考。
 
 上游 tag 仅作为功能语义、原始 Hook 行为和历史实现参考。不得用上游代码覆盖、reset、merge 或 rebase 当前独立项目，也不得恢复旧包名、旧 authority、旧版本线或旧构建配置。
 
@@ -43,7 +50,7 @@
 - 当前独立仓库是实现和修改基线；
 - 上游只用于确认功能原意和迁移前行为；
 - 不机械复制上游 Java 覆盖当前 Kotlin；
-- 先判断差异是否来自独立包名、API 101、性能优化或有意重构；
+- 先判断差异是否来自独立包名、API 101/102、性能优化或有意重构；
 - API 102 设计以 libxposed 官方资料和当前架构为准；
 - 上游行为不能替代当前 Release/R8 和实机验证。
 
@@ -133,7 +140,7 @@
 
 非 API 迁移任务不得顺带改变 API 版本。
 
-双兼容阶段：
+当前固定兼容边界：
 
 - API 101 为最低运行基线
 - 使用 API 102 编译
@@ -143,7 +150,7 @@
 - API 102 专属逻辑集中在冷边界
 - 不反射调用 libxposed API
 - 不混用 `de.robv.android.xposed`
-- 未完成资源所有权治理前不启用 Hot Reload
+- Hot Reload 保持关闭；只有用户另行启动独立生命周期改造阶段时才评估
 
 ## 生命周期与内存
 
@@ -176,10 +183,21 @@
 
 ## 变更纪律
 
-- 不混入无关依赖升级、Gradle Kotlin DSL、version catalog 或大型架构替换。
+- Kotlin DSL、version catalog 和核心 Kotlin 迁移已经完成，不重复迁移或回退。
+- 不混入无关依赖升级、工具链升级或大型架构替换。
 - 没有实际收益证据，不修改稳定代码。
 - 删除死代码必须证明不被动态引用。
 - 完成前审查完整 `git diff` 和 `git status`。
+
+## 仓库与分支
+
+- 源码仓库：`tomthenpc/customiuizer-a14`。
+- LSPosed 展示仓库：`Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14`，只放
+  README、CHANGELOG、scope、source URL 和发布资产说明，不放业务源码。
+- 两个仓库正常状态都只保留 `main`。
+- 需要审查时使用短期分支和 PR；合并后删除本地与远端短期分支。
+- 不恢复已清理的上游旧分支、旧 tag、备份、日志或阶段性报告。
+- `v24.10.12` 是保留的上游功能参考 tag；独立版本使用 `r14.*`。
 
 ## 验证
 
@@ -194,9 +212,12 @@
 
 编译通过不等于目标进程可用。不能完成实机验证时，必须明确标注。
 
+纯文档变更至少执行 UTF-8、相对链接和 `git diff --check`；没有修改源码、资源、构建
+配置、Manifest 或 Xposed 元数据时，不为形式完整重复生成已实机验证的 APK。
+
 ## 发布
 
-代码可以提交到独立分支，但未经用户明确确认：
+代码应提交到短期独立分支。未经用户明确确认：
 
 - 不合并 `main`
 - 不 force push
@@ -204,4 +225,6 @@
 - 不创建 GitHub Release
 - 不上传正式 APK
 
-最终报告必须区分已验证、未验证和需要实机测试的内容，不得声称未经测量的性能或续航提升。
+用户明确要求更新远端、发布或清理分支时，应完成提交、PR/合并、推送和最终远端复核，
+不要停在本地提交。最终报告必须区分已验证、未验证和需要实机测试的内容，不得声称
+未经测量的性能或续航提升。

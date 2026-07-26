@@ -1,5 +1,7 @@
 # CustoMIUIzer A14
 
+简体中文 | [English](README_EN.md)
+
 面向 HyperOS 1 / Android 14 的 CustoMIUIzer 独立维护版。
 
 本项目以
