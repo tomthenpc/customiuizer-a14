@@ -87,6 +87,19 @@ class BatteryIndicator @JvmOverloads constructor(
 
     private val viewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var testJob: Job? = null
+    private inner class IndicatorBroadcastReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if ("miui.intent.TAKE_SCREENSHOT" == intent.action) {
+                val finished = intent.getBooleanExtra("IsFinished", true)
+                updateScreenShotState(!finished)
+            } else {
+                testJob?.cancel()
+                startTest()
+            }
+        }
+    }
+    private val broadcastReceiver = IndicatorBroadcastReceiver()
+    private var receiverRegistered = false
 
     enum class ColorMode {
         DUMMY, DISCRETE, GRADUAL, RAINBOW
@@ -111,38 +124,30 @@ class BatteryIndicator @JvmOverloads constructor(
         }
 
         updateParameters()
-        ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
-            override fun onChange(key: String?) {
-                try {
-                    if (!mTesting && key?.contains("pref_key_system_batteryindicator") == true) {
-                        viewScope.launch { updateParameters(); update() }
+        ModuleHelper.observePreferenceChange(
+            object : ModuleHelper.PreferenceObserver {
+                override fun onChange(key: String?) {
+                    try {
+                        if (!mTesting && key?.contains("pref_key_system_batteryindicator") == true) {
+                            viewScope.launch { updateParameters(); update() }
+                        }
+                    } catch (t: Throwable) {
+                        XposedHelpers.log(t)
                     }
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
                 }
-            }
-        })
+            },
+            this
+        )
 
         val intentFilter = IntentFilter()
         intentFilter.addAction("tv.withaibuild.customiuizer.mods.BatteryIndicatorTest")
         if (MainModule.mPrefs.getBoolean("system_hidestatusbar_whenscreenshot")) {
             intentFilter.addAction("miui.intent.TAKE_SCREENSHOT")
         }
-        context.registerReceiver(
-            object : BroadcastReceiver() {
-                override fun onReceive(context: Context, intent: Intent) {
-                    if ("miui.intent.TAKE_SCREENSHOT" == intent.action) {
-                        val finished = intent.getBooleanExtra("IsFinished", true)
-                        updateScreenShotState(!finished)
-                    } else {
-                        testJob?.cancel()
-                        startTest()
-                    }
-                }
-            },
-            intentFilter,
-            Context.RECEIVER_EXPORTED
-        )
+        if (!receiverRegistered) {
+            context.registerReceiver(broadcastReceiver, intentFilter, Context.RECEIVER_EXPORTED)
+            receiverRegistered = true
+        }
     }
 
     private fun startTest() {
@@ -232,6 +237,11 @@ class BatteryIndicator @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
+        ModuleHelper.removePreferenceObserver(this)
+        if (receiverRegistered) {
+            context.unregisterReceiver(broadcastReceiver)
+            receiverRegistered = false
+        }
         viewScope.cancel()
     }
 

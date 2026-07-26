@@ -1,0 +1,126 @@
+# Codex Kotlin / 性能优化进度
+
+## 固定基线
+
+- 优化基线：`0e4c00b8b95f02cc5beaf8288bfe8c28a9423876`
+- 当前优化分支：`codex/r14.11-kotlin-performance`
+- libxposed：编译 API `102.0.0`，`minApiVersion=101`，`targetApiVersion=102`
+- Hot Reload：关闭
+- Android：`minSdk=34`，`targetSdk=34`
+- 构建工具：Gradle `9.5.1`、AGP `9.2.1`、compileSdk / Build Tools `37`
+
+## 当前批次
+
+### 批次 1：`BatteryIndicator` 生命周期释放
+
+状态：已完成，等待实机验证。
+
+根因：`BatteryIndicator` 被加入 SystemUI 状态栏窗口后，会向 Context 注册广播接收器，并向
+`ModuleHelper` 的进程级集合注册偏好观察器。原实现的 `onDetachedFromWindow()` 只取消协程，
+因此 SystemUI 在同一进程中重建 View 时，两个注册点都会继续强引用失效的 View，并可能产生重复回调。
+
+处理：
+
+- 将匿名广播接收器改为可保存身份的命名内部接收器；
+- 注册偏好观察器时使用现有的 owner 绑定能力；
+- View 脱离窗口时成对移除偏好观察器、注销广播接收器并取消协程；
+- 增加注册状态门，避免同一 View 的 `init()` 重入造成重复注册。
+
+保持不变：
+
+- 未改变 SystemUI Hook 注册点、优先级、before/after 顺序和异常传播；
+- 未改变广播 action、导出属性、偏好 key、功能开关或用户配置格式；
+- 未引入轮询、后台任务、反射、API 102 专属调用或 Hot Reload；
+- 功能关闭时仍不会创建 `BatteryIndicator` 或注册相关资源。
+
+## 已完成批次
+
+### 批次 0：固定基线和结构化库存
+
+- 从 `0e4c00b8b95f02cc5beaf8288bfe8c28a9423876` 创建
+  `codex/r14.11-kotlin-performance`；未从远程覆盖本地代码。
+- 活跃主源码共 91 个文件、31,267 行：86 个 Kotlin、5 个 Java。
+- 最大且风险最高的 Hook 主干是 `System.kt`、`SystemUI.kt`、`Launcher.kt`；
+  本轮没有整体读取或改写这些大文件，只使用符号搜索和局部上下文确认。
+- 未发现 `TODO()`、`NotImplementedError` 或临时未实现 stub；编译也未发现损坏源码。
+- 7 个 Devin 遗留的 `mods/*.java.bak` 始终保持未跟踪、未读取内容、未修改且未纳入构建或提交。
+- API/构建边界保持为：libxposed API `102.0.0` 编译、min API 101、target API 102、
+  Android min/target SDK 34、Hot Reload 关闭、Release 开启 R8 和资源压缩。
+- 依赖版本已经由 `gradle/libs.versions.toml` 集中锁定；本轮未改依赖、Gradle、AGP、SDK 或 R8 规则。
+- 活跃源码没有 Legacy Xposed API 调用；Manifest 中
+  `de.robv.android.xposed.category.MODULE_SETTINGS` 仅是管理器入口 category。
+
+### 进程 / 功能 / Hook 路径
+
+| 进程范围 | 入口和主要路径 | 本轮结论 |
+|---|---|---|
+| `system_server` / `android` | `MainModule.onSystemServerStarting()`，转入 `System`、`Controls`、`Various`、`GlobalActions` 等 | 仅索引，不修改 |
+| `com.android.systemui` | `MainModule.onPackageReady()`，按偏好注册 `SystemUI`、`System`、`Controls` 与状态栏子 Hook | 本轮只修改被 `SystemUIBatteryHooks` 创建的 `BatteryIndicator` 生命周期 |
+| `com.miui.home` | 包加载后通过 `Application.attach` 进入 `handleLoadLauncher()` | 仅索引，不修改 |
+| MIUI / Android 系统应用 | Settings、SecurityCenter、PowerKeeper、Installer、Screenshot、Gallery、InCallUI 等按 scope 和偏好分派 | 仅索引，不修改 |
+| 模块自身进程 | 设置 UI、`PrefsProvider`、Remote Preferences 写入端 | 仅索引，不修改 |
+
+结构化搜索仅作为定位索引，不直接等同于性能问题：活跃源码约有 614 个 Hook 注册引用、
+2,425 个反射/兼容辅助引用、46 个 Receiver 注册、22 个 Observer 注册、32 个延迟任务引用和
+18 个协程启动引用。候选问题必须再经过局部生命周期和调用链确认。
+
+### 固定基线验证
+
+在本轮创建并随后删除的隔离 detached worktree 中，对精确 commit `0e4c00b` 执行：
+
+```powershell
+.\gradlew.bat --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease
+```
+
+- 构建成功；33 个单元测试全部通过。
+- Release Lint：0 errors、485 warnings；`lintVitalAnalyzeRelease` 完成。
+- Debug、Release、R8 和资源压缩均完成。
+- 基线 Release APK：3,021,289 bytes；
+  SHA-256 `627CCEACC1266AEE1E8D02D4ADC7263C300D04A0766330FE2129A58944F252CB`。
+
+### 批次 1 静态验证
+
+使用同一完整命令重新验证本批修改：
+
+- 构建成功；33 个单元测试全部通过。
+- Release Lint：0 errors、487 warnings；Debug Lint：0 errors、485 warnings。
+- `lintVitalAnalyzeRelease` 完成；在同一任务图中，冗余的 `lintVitalReportRelease` /
+  `lintVitalRelease` 由 Gradle 标记为 `SKIPPED`，总任务仍成功。
+- Debug、Release、R8、资源压缩均完成。
+- Release APK：`app/build/outputs/apk/release/CustoMIUIzer-A14-r14.10.0.apk`，
+  3,021,289 bytes，SHA-256
+  `3310C289956E6B2FBA9D09A0C622BA96C27B8778ECA5E50660A11D8962D10417`。
+- APK 包名 `tv.withaibuild.customiuizer.r14`、版本 `r14.10.0`、minSdk 34。
+- APK 内 Xposed 元数据仍为 min API 101 / target API 102 / `staticScope=false`；
+  R8 后入口 `ro` 可由 mapping 追溯到 `MainModule`。
+- APK DEX 未发现 `de.robv.android.xposed` 包；v2 签名、证书和 zipalign 检查通过。
+- APK 大小相对固定基线变化为 0 bytes；这不作为运行性能结论。
+
+## 候选问题
+
+| 优先级 | 候选 | 证据和后续边界 | 状态 |
+|---|---|---|---|
+| P0 | 无已确认项 | 当前测试、Lint、Debug、Release 均可执行，无损坏入口或未完成 stub | 无 |
+| P1 | `BatteryIndicator` 脱离窗口后仍被 Receiver / Observer 持有 | 局部调用链已确认；影响 SystemUI 内重建后的回调唯一性和对象释放 | 本批已修复 |
+| P1 | `System.kt` 截图格式 DexKit 查询可能返回多个方法 | 构建期 DexKit 检查明确提示 `firstOrThrow` 结果不唯一；下一步需收紧 matcher，不能猜签名 | 待单独小闭环 |
+| P1 | `AudioVisualizer` View 生命周期 | 脱离窗口会取消协程，但偏好观察器仍使用无 owner 注册；还需确认活跃 `Visualizer` 是否总能在 detach 前释放 | 下一批入口 |
+| P2 | `SystemUI.kt` 中若干匿名 Receiver | 已定位注册点，但必须逐个确认宿主对象生命周期和系统级常驻意图，不能批量改写 | 待审查 |
+| P3 | `BitmapCachedLoader` Kotlin 空值与协程告警 | 队列已限制为 128、目标使用弱引用、核心线程允许超时；目前没有失控证据 | 暂不修改 |
+
+## 尚未实机验证
+
+- API 101 框架完整冷启动、重启和各作用域 Hook
+- API 102 框架完整冷启动、重启和各作用域 Hook
+- 开启电池指示器后，状态栏显示、偏好实时更新和测试广播行为
+- SystemUI 重建/主题或配置变化后无重复指示器、重复 Receiver/Observer 或崩溃
+- 截图期间隐藏状态栏功能与电池指示器组合
+
+## 下一批次准确入口
+
+只审查 `AudioVisualizer` 的 View 生命周期闭环：
+
+1. 从创建点确认一个实例对应的宿主 View 和 detach 时序；
+2. 确认偏好观察器是否在 detach 后继续强引用实例；
+3. 确认 `Visualizer(0)` 在所有 detach / 禁用路径中是否必定 `release()`；
+4. 只有在局部调用链证明问题后，复用 owner 移除机制做单文件最小修复并完整构建；
+5. 不顺带处理 `SystemUI.kt` 的其他 Receiver，也不改 Hook 注册或 API 101/102 配置。
