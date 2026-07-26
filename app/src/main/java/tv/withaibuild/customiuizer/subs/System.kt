@@ -46,7 +46,7 @@ class System : SubFragment() {
         }
     }
 
-    private inline fun openSystemSubFragment(preference: Preference, isDynamic: Boolean = false, xmlResId: Int) {
+    private fun openSystemSubFragment(preference: Preference, isDynamic: Boolean = false, xmlResId: Int) {
         val args = Bundle().apply {
             putBoolean("isStandalone", true)
             if (isDynamic) putBundle("catInfo", Bundle().apply { putBoolean("isDynamic", true) })
