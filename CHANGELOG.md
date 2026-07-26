@@ -3,6 +3,37 @@
 本文件记录公开版本的用户可见变化、兼容边界、验证结论和回退价值。内部迁移批次、
 Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为 Release changelog。
 
+## [r14.13.0-rc1] - Unreleased
+
+### Refactored
+
+- 完成 r14.13 第一阶段 Kotlin 与设置层代码整理。
+- 完成 Java/Kotlin 边界与核心热路径审计。
+
+### Fixed
+
+- 修复 Bitmap 缓存线程池线程数边界计算。
+- 恢复振动辅助函数的可空 Context 容错语义。
+- 网络速度格式化固定使用 `Locale.ROOT`。
+
+### Performance
+
+- 缓存状态栏手势路径使用的 DisplayManager 与 displayId，减少高频反射和重复查询。
+
+### Signing
+
+- 从 `r14.13.0-rc1` 开始更换 APK 签名证书。
+- 原 `r14.12.0` 及更早版本使用的签名私钥已经遗失，无法继续用于后续构建。
+- 新签名版本无法直接覆盖安装旧签名版本。
+- 升级前需要备份模块设置，卸载旧版本后再安装新版本。
+- 从本版本开始，后续版本固定使用新的签名证书。
+- 新证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`。
+
+### Verification
+
+- 单元测试、Lint、Debug 和 Release 构建通过。
+- 尚需用户完成长期实机回归和 LSPosed/Vector 日志审计。
+
 ## 当前公开版本
 
 | 版本 | 日期 | 定位 |

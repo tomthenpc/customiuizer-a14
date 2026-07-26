@@ -13,8 +13,8 @@ if (hasReleaseSigning) {
     throw GradleException("Release signing is unavailable: ../keystore.properties was not found.")
 }
 
-val lastVersion = 174
-val lastVersionName = "r14.12.0"
+val lastVersion = 175
+val lastVersionName = "r14.13.0-rc1"
 val supportedLocales = setOf(
     "ru-rRU",
     "zh-rCN",
