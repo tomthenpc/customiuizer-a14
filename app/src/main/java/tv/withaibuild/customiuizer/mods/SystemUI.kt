@@ -86,6 +86,7 @@ import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.BatteryIndicator
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.PrefMap
+import java.lang.ref.WeakReference
 import java.lang.reflect.Field
 import java.net.NetworkInterface
 import java.util.ArrayList
@@ -2550,6 +2551,31 @@ object SystemUI {
         return processed
     }
 
+    private var lockScreenAlbumArtController: WeakReference<Any>? = null
+    private var lockScreenAlbumArtReceiverRegistered = false
+    private val lockScreenAlbumArtReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART") return
+            val controller = lockScreenAlbumArtController?.get() ?: return
+            try {
+                XposedHelpers.callMethod(controller, "updateThemeBackgroundVisibility")
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+            }
+        }
+    }
+
+    private fun registerLockScreenAlbumArtReceiver(context: Context, controller: Any) {
+        lockScreenAlbumArtController = WeakReference(controller)
+        if (lockScreenAlbumArtReceiverRegistered) return
+        context.applicationContext.registerReceiver(
+            lockScreenAlbumArtReceiver,
+            IntentFilter(GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART"),
+            Context.RECEIVER_NOT_EXPORTED
+        )
+        lockScreenAlbumArtReceiverRegistered = true
+    }
+
     @JvmStatic
     fun LockScreenAlbumArtHook(lpparam: PackageReadyParam) {
         val MiuiThemeUtilsClass = XposedHelpers.findClassIfExists("com.android.keyguard.utils.MiuiKeyguardUtils", lpparam.classLoader)
@@ -2564,20 +2590,7 @@ object SystemUI {
                     listeners.remove(mBlurRatioChangedListener)
                     val view = XposedHelpers.getObjectField(param.getThisObject(), "mThemeBackgroundView") as View
                     view.alpha = 1.0f
-
-                    val intentFilter = IntentFilter()
-                    intentFilter.addAction(GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART")
-                    view.context.registerReceiver(object : BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
-                            val action = intent.action ?: return
-                            if (action == GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART") {
-                                try {
-                                    XposedHelpers.callMethod(param.getThisObject(), "updateThemeBackgroundVisibility")
-                                } catch (e: Throwable) {
-                                }
-                            }
-                        }
-                    }, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+                    registerLockScreenAlbumArtReceiver(view.context, param.getThisObject() ?: return)
                 }
             }
         })

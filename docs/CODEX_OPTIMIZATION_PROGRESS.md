@@ -104,6 +104,24 @@ clean / test / Lint / Debug / Release / R8 / 资源压缩验证并推送当前�
 
 局部验证：`test assembleDebug` 成功，33 个测试全部通过。
 
+#### A5：锁屏专辑封面 Receiver 重复注册与强引用
+
+状态：已修复，阶段验证和实机验证待完成。
+
+根因：默认锁屏主题下，每个 `MiuiNotificationPanelViewController` 构造实例都会注册一个
+进程生命周期匿名 Receiver；Receiver 捕获 Hook callback，进而强持有 controller 和主题背景 View，
+SystemUI 重建后会累积旧实例和重复回调。
+
+处理：
+
+- 改为功能级单个进程 Receiver；
+- 仅用 `WeakReference` 指向当前 controller，构造新实例时更新目标；
+- Receiver 不持有 View、Context 或 Hook callback；
+- 保持广播 action、导出限制和 `updateThemeBackgroundVisibility` 调用不变。
+
+局部验证：首次编译发现并修正 callback 可空类型边界；随后 `test assembleDebug` 成功，
+33 个测试全部通过。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
