@@ -71,16 +71,6 @@ class ModuleHelper private constructor() {
         private var thermalId = -1
 
         @JvmStatic
-        fun printCallStack() {
-            val stackTrace = Thread.currentThread().stackTrace
-            for (el in stackTrace) {
-                if (el != null) {
-                    XposedHelpers.log(el.className + " $$ " + el.methodName)
-                }
-            }
-        }
-
-        @JvmStatic
         fun hookMethod(method: Method, callback: MethodHook): CustomMethodUnhooker? {
             return try {
                 XposedHelpers.doHookMethod(method, callback)
