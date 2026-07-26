@@ -14,7 +14,7 @@
 ## Phase 0 基线（已完成）
 
 - 基线 commit `8e596881` = `r14.12.0` 源码（差异仅文档）。
-- `clean test lint assembleDebug assembleRelease lintVitalRelease` 通过，14 tests。
+- `clean test lint assembleDebug assembleRelease lintVitalRelease` 通过，33 个单元测试。
 - Release APK：3,020,249 bytes，
   SHA-256 `864C4EFCBF870DEFA4C1D647FA44F247B439FB8364C39F1C5348B460312004A5`。
 
@@ -22,14 +22,28 @@
 
 | # | commit | 内容 | 验证 |
 | --- | --- | --- | --- |
-| 1 | (本提交) | 计划与进度文档 | `git diff --check`，UTF-8 |
+| 1 | `dffa1c46` | 计划与进度文档 | `git diff --check`，UTF-8 |
+| 2 | `c3405daf` | `BitmapCachedLoader` threadCount 优先级缺陷修复 + 3 个回归测试 | `test assembleDebug` 通过 |
+| 3 | `8c7ca517` | `Helpers` 振动函数恢复 `Context?` 宽容语义（死判空来自迁移） | `test assembleDebug` 通过 |
+| 4 | `d8b49af4` | `Helpers` 四个应用列表构建函数去重（-39 行，行为不变） | `test assembleDebug` 通过 |
+
+## 阶段 1 收尾验证（已完成）
+
+- `clean test lint assembleDebug assembleRelease lintVitalRelease` 全部通过；
+  单元测试 36 个（基线 33 + 新增 3）。
+- Release APK：3,020,249 bytes（与基线字节数相同），
+  SHA-256 `7CCF0AEA7FCD5F69816D4AF10A9F804ED23AF89A09ABE4E425D3BA6BD702767E`
+  （本地 debug 签名，仅对照用）。
 
 ## 阶段 1 待办
 
-- [ ] `BitmapCachedLoader` threadCount 优先级缺陷修复 + 回归测试
-- [ ] `Helpers.performVibration` 可空参数语义恢复
-- [ ] `Helpers` 四个应用列表构建函数去重
-- [ ] 阶段收尾全量构建 + APK 对照
+- [x] `BitmapCachedLoader` threadCount 优先级缺陷修复 + 回归测试
+- [x] `Helpers.performVibration` 可空参数语义恢复
+- [x] `Helpers` 四个应用列表构建函数去重
+- [x] 阶段收尾全量构建 + APK 对照
+- [ ] 阶段 2：`subs/`、`prefs/` UI 层逐文件梳理（后续会话）
+- [ ] 阶段 3：mods 冷路径死代码证明与清理（后续会话）
+- [ ] 阶段 4：Java 边界评估（需用户确认）
 
 ## 未实机验证清单（累积）
 
