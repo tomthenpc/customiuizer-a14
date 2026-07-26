@@ -2,132 +2,118 @@
 
 面向 HyperOS 1 / Android 14 的 CustoMIUIzer 独立维护版。
 
-本项目是 CustoMIUIzer 的独立维护版本。Android 14 功能语义以
+本项目以
 [MonwF/customiuizer v24.10.12](https://github.com/MonwF/customiuizer/releases/tag/v24.10.12)
-为参考，但本项目不是 MonwF 的官方发布，并使用独立包名、版本线、构建、签名和发布流程。
+作为 Android 14 功能语义参考，但使用独立包名、版本线、签名、现代 libxposed API 和
+发布流程，不是上游官方版本。
 
-目标平台仅为 HyperOS 1 / Android 14。项目不承诺 Android 15、Android 16 或其他
-MIUI/HyperOS 版本的兼容性。
+## 当前版本
 
-## 当前稳定状态
-
-| 项目 | 当前状态 |
+| 项目 | 状态 |
 | --- | --- |
 | 稳定版本 | `r14.12.0` |
-| Android | Android 14 / SDK 34 |
-| ROM | HyperOS 1 |
+| 支持系统 | HyperOS 1 / Android 14（SDK 34） |
 | ABI | `arm64-v8a` |
-| 包名 | `tv.withaibuild.customiuizer.r14` |
-| Xposed API | min 101 / target 102 |
+| applicationId | `tv.withaibuild.customiuizer.r14` |
+| libxposed API | min 101 / target 102 |
 | Hot Reload | 关闭 |
-| 构建 | Kotlin DSL / version catalog |
-| 最新下载 | [r14.12.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.12.0) |
+| 构建 | Kotlin DSL / version catalog / R8 |
+| 下载 | [GitHub Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.12.0) |
 
-`r14.12.0` 是当前现代化、Kotlin 迁移、生命周期治理和 API 101/102 单 APK
-兼容工作的稳定基线。发布 APK 已完成 API 101 实机安装、整机重启和完整 `full.log`
-审计，未发现可归因于模块的崩溃、ANR、入口、Hook 或 API 链接错误。API 102 的构建
-兼容已经验证，API 102 实机运行仍需在对应框架环境独立确认。
+## r14.12.0 亮点
 
-## 下载
+- **API 101/102 单 APK 双兼容**：以 API 102 编译，API 101 作为最低运行基线。
+- **保守 Kotlin 化**：核心 Hook、设置 UI 和工具代码迁移到 Kotlin，保留必要 Java/JVM
+  入口和反射边界。
+- **生命周期治理**：SystemUI 重建时避免重复 Hook、Receiver、Observer、Listener、
+  Coroutine 和动画任务。
+- **热路径收敛**：反射、DexKit 和资源查找移到初始化路径，绘制与高频回调减少临时对象、
+  重复格式化和重复状态计算。
+- **功能关闭低成本**：不需要的功能尽量不注册 Hook 或长期监听，不增加轮询和永久后台任务。
+- **可复现发布**：固定 Gradle 与直接依赖版本，Release 启用 R8、资源压缩、zipalign 和
+  APK Signature Scheme v2。
 
-- 最新稳定版：[r14.12.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.12.0)
+## 下载与校验
+
 - APK：`CustoMIUIzer-A14-r14.12.0.apk`
+- 大小：3,020,253 bytes
 - SHA-256：`7E488C4ED011F68321A8A2E5911B61D1C35659C98CA0116500855F79F05ED80E`
-- applicationId：`tv.withaibuild.customiuizer.r14`
+- 签名证书 SHA-256：`3061A3DA1C2FC46B44E215D024B1BFE3A012CB4D70B90B0214FA9FC896CEF60D`
 
-仅从本仓库 Releases 下载。不同签名的 APK 可能无法覆盖安装，处理旧安装前请先备份设置。
-
-## 与上游 v24.10.12 的差异
-
-| 维度 | 本项目 | 上游 v24.10.12 |
-| --- | --- | --- |
-| 定位 | 独立 Android 14 维护线 | Android 14 功能参考基线 |
-| 包名和版本 | 独立包名与 `r14.x` 版本线 | 上游原始包名与版本线 |
-| Xposed API | libxposed API 101/102 单 APK 兼容 | libxposed API 100 |
-| Kotlin | Kotlin-first，保留必要 Java/JVM 边界 | 以 Java 为主 |
-| 构建 | Kotlin DSL、version catalog、Gradle 9 | Groovy DSL |
-| 生命周期 | 明确 Receiver、Observer、Listener 和 Coroutine owner | 保留上游实现 |
-| Hook | 防重复注册，并区分冷路径与热路径成本 | 保留上游实现 |
-| Release | R8、资源压缩、签名和 APK 元数据检查 | 上游独立发布流程 |
-| 验证 | 单测、Lint、Debug/Release、API 回编译和实机门禁 | 上游独立验证流程 |
-
-主要功能来自上游 Android 14 功能基线。本项目的工作重点是独立维护、现代 libxposed
-兼容、已确认缺陷修复、生命周期约束、构建治理和可复现发布，不把上游功能重新描述为
-本项目原创。
-
-## 支持范围
-
-- 仅支持 HyperOS 1 / Android 14（SDK 34）。
-- 仅提供 `arm64-v8a` 构建。
-- 框架必须实现 libxposed API 101 或 API 102。
-- 推荐使用支持现代 libxposed API 的 LSPosed/Vector 构建。
-- 不支持 Android 15、Android 16，也不保证其他 MIUI/HyperOS 版本。
-- 不得与上游版或其他 CustoMIUIzer 派生模块同时启用。
-- 不同签名的 APK 可能无法覆盖安装；卸载前应先备份配置。
-- 系统应用版本和厂商 ROM 差异仍可能影响个别 Hook。
-
-模块声明 `targetApiVersion=102`。在 API 101 框架中，管理器可能提示模块“为较新的
-Xposed 版本设计”；这是目标 API 的版本比较结果，不等同于模块加载失败。应以框架日志、
-目标进程状态和实际功能行为为准。
+仅从本项目 Release 或对应的 LSPosed 模块仓库下载。不同签名可能无法覆盖安装，处理旧
+安装前请先备份设置。
 
 ## 功能范围
 
-项目保留上游 Android 14 基线中的主要定制能力，按运行区域可概括为：
+- 状态栏、图标、电池、信号、网速、日期和温度；
+- 控制中心、音量面板、亮度与通知行为；
+- 锁屏、充电信息、媒体界面和快捷操作；
+- Launcher、最近任务、文件夹、图标和桌面手势；
+- 导航栏、按键、自定义动作、电源菜单和系统动画；
+- 应用、权限、安装、分享、隐私应用和应用锁行为。
 
-- SystemUI、状态栏和图标；
-- 控制中心、音量面板和通知；
-- 锁屏、充电信息和媒体界面；
-- Launcher、最近任务和桌面行为；
-- 全局手势、按键动作和电源菜单；
-- 应用、权限、安装和分享行为；
-- 其他 HyperOS 系统界面定制。
+具体功能是否可用仍取决于 ROM 与系统应用版本。厂商更新可能改变 Hook 目标。
 
-具体功能是否可用取决于 ROM 和系统应用版本。出现问题时应同时记录模块版本、框架 API、
-设备完整重启后的日志和目标应用版本。
+## 理论性能与省电评估
 
-## 工程差异
+模块运行在 SystemUI、Launcher 和 `system_server` 等长驻进程中，额外成本主要取决于：
 
-- 大部分业务和 Hook 实现已迁移到 Kotlin；稳定的入口、反射和 JVM 兼容边界保留 Java。
-- 使用 API 102 编译，同时以 API 101 为最低运行基线。
-- API 102 专属 Hot Reload、hook ID 和 replacement 当前未进入运行路径。
-- Receiver、Observer、Listener、Handler、动画和 CoroutineScope 绑定明确生命周期。
-- SystemUI 重建路径避免重复 Hook、重复注册和静态 View/Context 长期持有。
-- 对反射、DexKit、资源查找和稳定输入进行冷路径缓存。
-- 高频 Hook 回调减少临时数组、集合、格式化和重复状态计算。
-- Release 启用 R8、资源压缩、zipalign 和 APK Signature Scheme v2。
-- Gradle Wrapper 和直接依赖版本均固定；依赖集中在 version catalog。
+> 触发频率 × 单次成本 × 进程数量 × 存活时间
 
-详细兼容边界见
+下表是相对于上游或早期 r14 实现的**代码路径理论评估**，不是实验室功耗跑分：
+
+| 场景 | 早期实现风险 | 当前处理 | 理论影响 |
+| --- | --- | --- | --- |
+| 功能关闭 | Hook 或监听仍可能进入回调 | 按开关和进程决定是否注册 | 降低无效 Hook 分发与常驻开销 |
+| SystemUI 重建 | Receiver/Observer/任务可能重复 | 注册幂等，资源随 owner detach | 降低重复回调、泄漏和后台工作 |
+| 绘制与动画 | 重复资源查找、格式化、临时对象 | 冷路径缓存，热路径复用状态 | 降低 CPU、分配和 GC 压力 |
+| 音频与周期事件 | 任务所有权不清或重复调度 | 生命周期取消，优先响应系统事件 | 降低空唤醒与残留任务概率 |
+| 设置列表 | 重复遍历、过滤和去重 | 使用稳定缓存和常数时间去重 | 降低页面加载时的主线程工作 |
+| 兼容失败 | 重复反射探测或日志刷屏 | 冷路径探测，单项安全停用 | 降低异常重试和重启风暴风险 |
+
+理论上，收益最明显的场景是：关闭大量功能、SystemUI 多次重建、长时间待机，以及频繁
+触发状态栏/控制中心绘制。省电潜力主要来自减少无效回调、线程调度、轮询、重复注册和
+异常重试，而不是代码行数变少。
+
+项目没有宣称固定的续航、CPU 或内存提升百分比。实际收益会受启用功能、ROM、框架、
+使用习惯和系统应用版本影响，需要在同设备、同设置下用 Perfetto、Batterystats 和
+内存工具对照测量。
+
+## 兼容范围
+
+- 仅支持 HyperOS 1 / Android 14（SDK 34）和 `arm64-v8a`。
+- 框架必须实现现代 libxposed API 101 或 API 102。
+- 不支持 Android 15、Android 16，也不保证其他 MIUI/HyperOS 版本。
+- 不要与上游版或其他 CustoMIUIzer 派生模块同时启用。
+- `targetApiVersion=102` 在 API 101 管理器中可能显示“面向较新 API”的提示；应以实际
+  加载日志和功能行为判断，不把提示本身当作错误。
+- API 102 Hot Reload、hook ID 和原子 replacement 当前未启用。
+
+完整边界见
 [libxposed API 101/102 双兼容说明](docs/LIBXPOSED_API_101_102_COMPATIBILITY.md)。
 
-## 安装和升级
+## 安装
 
-1. 从 [Latest Release](https://github.com/tomthenpc/customiuizer-a14/releases/latest) 下载 APK。
-2. 安装 APK；如签名不同导致无法覆盖，先备份设置再处理旧安装。
-3. 在 LSPosed/Vector 中启用模块并检查作用域。
-4. 打开模块设置一次。
-5. 完整重启设备，不以单独重启应用代替。
-6. 检查模块、`system_server`、SystemUI 和 Launcher 日志及常用功能。
+1. 下载并安装 APK。
+2. 在 LSPosed/Vector 中启用模块并确认推荐作用域。
+3. 打开模块设置一次。
+4. 完整重启设备。
+5. 检查 `system_server`、SystemUI、Launcher 和常用功能。
 
-旧包名版本不会自动迁移为当前独立包名。升级前不要同时启用两个同源模块。
+旧包名版本不会自动迁移到当前独立包名。卸载旧模块前请先备份配置。
 
-## Release 验证
+## 验证状态
 
-稳定 Release 的静态和构建门禁包括：
+- 单元测试、Debug/Release、Lint、`lintRelease`、`lintVitalRelease` 通过；
+- R8、资源压缩、zipalign、v2 签名与 APK 元数据通过；
+- API 101 依赖回编译与 API 102 正式构建通过；
+- API 101 实机完成安装、整机重启和完整 `full.log` 审计；
+- 未发现可归因于模块的崩溃、ANR、入口、Hook 或 API 链接错误；
+- API 102 实机运行仍需在对应框架环境独立验证。
 
-- unit tests；
-- Debug 和 Release 构建；
-- Lint、`lintRelease` 和 `lintVitalRelease`；
-- R8 和 resource shrink；
-- signing 与 zipalign；
-- APK 内 Xposed 入口、scope 和 `module.prop`；
-- Legacy `de.robv.android.xposed` API 扫描；
-- API 101 依赖回编译和 API 102 正式构建；
-- 设备完整重启和基础 LSPosed/Vector 日志检查。
+构建成功只证明静态和产物边界，不替代不同 ROM、框架与功能组合的实机测试。
 
-构建通过只能证明产物和静态兼容边界，不代替 API 101、API 102 各自的实机功能验证。
-
-## 构建
+## 开发与构建
 
 需要 JDK 17 和 Android SDK：
 
@@ -136,40 +122,47 @@ Xposed 版本设计”；这是目标 API 的版本比较结果，不等同于�
 .\gradlew.bat --no-daemon clean test lint lintRelease lintVitalRelease assembleRelease
 ```
 
-正式签名配置位于仓库外部的 `../keystore.properties`，不得提交 keystore、密码或本地
-构建状态。
+签名配置位于仓库外部的 `../keystore.properties`。不得提交 keystore、密码、日志、缓存
+或本地构建状态。
 
-## 版本策略
+工程方法和来源说明：
 
-- `r14.x` 是 Android 14 独立维护版本线。
-- `r14.12.0` 是当前 minor 的初始稳定基线。
-- `r14.12.x` 只承载日志归因明确的兼容性、崩溃、生命周期和小范围行为修复。
-- 新功能或重大架构变化进入新的 minor 版本。
-- 纯文档变更不单独发布补丁版本，也不为每个 commit 创建 Release。
-- GitHub Releases 固定只保留 4 个关键版本。
-- Release 标题只使用版本号，并与 tag、`versionName` 保持一致，例如 `r14.12.0`。
-- 未保留版本继续存在于 [CHANGELOG](CHANGELOG.md)、[历史 Release 归档](docs/RELEASE_ARCHIVE.md)
-  和 Git tag/commit 历史中。
+- [CHANGELOG](CHANGELOG.md)
+- [项目谱系](docs/PROJECT_LINEAGE.md)
+- [工程方法](docs/ENGINEERING_METHOD.md)
+- [历史 Release 归档](docs/RELEASE_ARCHIVE.md)
 
-当前公开 Release：
+## 与上游的区别
+
+| 维度 | 本项目 | 上游参考 |
+| --- | --- | --- |
+| 定位 | HyperOS 1 / Android 14 独立维护线 | Android 14 功能语义参考 |
+| 包名 | `tv.withaibuild.customiuizer.r14` | 上游包名 |
+| Xposed API | 现代 API 101/102 单 APK | v24.10.12 使用 API 100 |
+| 实现 | Kotlin-first，保留稳定 JVM 边界 | 以 Java 为主 |
+| 生命周期 | 显式 owner、注销和防重复 | 保留上游实现 |
+| 构建 | Kotlin DSL、version catalog、R8 | 上游独立流程 |
+
+上游只用于核对功能原意和历史 Hook 行为，不会用旧代码覆盖当前 Kotlin/API 101/102
+实现。
+
+## Release 策略
+
+公开 Release 固定保留四个关键版本：
 
 | 版本 | 定位 |
 | --- | --- |
-| [r14.12.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.12.0) | 当前稳定版；Kotlin、生命周期治理、API 101/102 单 APK 兼容 |
-| [r14.8.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.8.0) | 核心现代化前的 Kotlin 基础设施回退点 |
-| [r14.7.4](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.7.4) | r14.7.x Kotlin/Coroutine 迁移合并版 |
-| [r14.5.0](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.5.0) | 独立包名、签名和发布路径的长期回退基线 |
+| `r14.12.0` | 当前稳定版 |
+| `r14.8.0` | Kotlin 基础设施回退点 |
+| `r14.7.4` | r14.7.x Kotlin/Coroutine 合并版 |
+| `r14.5.0` | 独立包名、签名与发布路径基线 |
 
-发布新版本时，应在以上四类中保留最有验证价值的四个版本；删除旧 Release 前先在
-`docs/RELEASE_ARCHIVE.md` 保存版本说明、资产名、大小和 SHA-256。删除 Release 不删除
-对应 Git tag。
+Release 标题只使用版本号。其余版本保留于 CHANGELOG、历史归档和 Git tag 中。
 
-## 上游、许可证和致谢
+## 许可证与致谢
 
 项目派生自 Mikanoshi/CustoMIUIzer，并参考
 [MonwF/customiuizer](https://github.com/MonwF/customiuizer) 的 Android 14 工作。
-感谢 LSPosed/libxposed、DexKit 及相关开源项目的维护者。
+感谢 LSPosed/libxposed、DexKit 及相关开源项目维护者。
 
-本项目依据 [GPL-3.0](LICENSE) 分发。二进制发布必须提供对应源代码，保留版权和许可证
-声明，并明确标识修改。来源和独立维护关系见 [NOTICE.md](NOTICE.md) 与
-[项目谱系](docs/PROJECT_LINEAGE.md)。
+本项目依据 [GPL-3.0](LICENSE) 分发。来源和独立维护关系见 [NOTICE.md](NOTICE.md)。
