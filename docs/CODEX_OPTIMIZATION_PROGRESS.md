@@ -389,7 +389,7 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 ### 阶段 D：清理和最终交付
 
-状态：进行中。
+状态：已完成静态/构建验证并生成签名测试 APK，等待 API 101/102 实机验证。
 
 #### D1：移除旧版未使用 Drawable
 
@@ -473,6 +473,71 @@ SystemUI 重建后会累积旧实例和重复回调。
 - `BuildConfig` 不再出现在 Release mapping 或 seeds 中，并出现在 R8 `usage.txt`；
 - `MainModule`、`MainActivity`、`PrefsProvider` 等入口和组件仍保留预期名称/映射。
 
+#### 阶段 D 完整验证与交付
+
+执行：
+
+```powershell
+.\gradlew.bat --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease
+```
+
+结果：
+
+- 构建成功；33 项单元测试全部通过；
+- Debug Lint：0 errors、473 warnings；Release Lint：0 errors、472 warnings；
+- Debug、Release、R8、资源压缩和 Release Vital Lint 路径完成；
+- Lint 仍有 96 项 `UnusedResources`：剩余项主要是跨语言字符串/数组或需要排除动态资源
+  名称误报的条目；Release 资源压缩会移除不可达资源，继续批量删翻译的风险高于工程收益；
+- 项目既有 `DexKitBridge.create()` 自定义警告仍存在；两个创建点属于不同目标包进程，
+  搜索结束后均关闭，本阶段不为消除告警改写 DexKit 生命周期。
+
+最终 Release APK：
+
+- 文件：`app/build/outputs/apk/release/CustoMIUIzer-A14-r14.11.0.apk`；
+- 大小：3,020,257 bytes；
+- SHA-256：
+  `32045C71CFE015776ADB6B4CD3D4215CC403010470728425B296D4B6B2E1C5BA`；
+- 包名：`tv.withaibuild.customiuizer.r14`；
+- `versionCode=173`，`versionName=r14.11.0`；
+- Android `minSdk=34`、`targetSdk=34`，ABI 仅 `arm64-v8a`；
+- APK Signature Scheme v2 验证通过；证书 SHA-256：
+  `3061A3DA1C2FC46B44E215D024B1BFE3A012CB4D70B90B0214FA9FC896CEF60D`；
+- `zipalign -c -P 16 -v 4` 验证通过；
+- Xposed 元数据：`minApiVersion=101`、`targetApiVersion=102`、
+  `staticScope=false`，没有 `autoHotReload`；
+- R8 后 `java_init.list` 入口 `ro` 可由 mapping 追溯到 `MainModule`；
+- Release DEX 未发现 `de.robv.android.xposed`；Manifest 中
+  `de.robv.android.xposed.category.MODULE_SETTINGS` 仅是管理器设置入口 category；
+- Release compile classpath 使用 `io.github.libxposed:api:102.0.0` 与
+  `service:102.0.0`，依赖版本由 version catalog 集中固定。
+
+#### 最终清理审查
+
+- 活跃 Java 文件仅余 3 个，且没有同名 Kotlin 重复实现：
+  - `MainModule.java`：libxposed 元数据直接入口及进程分派，保留以降低 API 101 类验证和
+    Kotlin JVM 形状变化风险；
+  - `XposedHelpers.java`：API 101 Hook 参数、异常传播、反射选择与缓存兼容层，继续保留；
+  - `MemberUtilsX.java`：随 Commons Lang 反射算法适配的 Java 辅助类，继续保留。
+- R8 keep 逐条核对后，仅删除无引用的 `BuildConfig` 整类 keep；其余规则有 Xposed
+  元数据、Hooker、Manifest/shortcuts 组件或字符串/反射入口依据。
+- 没有 tracked APK、ZIP、日志、keystore、`keystore.properties`、`local.properties`、
+  `.bak`、build 产物或 class 文件。
+- 没有 `TODO()`、`NotImplementedError`、临时 `UnsupportedOperationException`、
+  `throw null` 或未完成 stub。
+- Gradle/settings 已为 Kotlin DSL，依赖由 `gradle/libs.versions.toml` 固定；不再额外引入
+  dependencyGuard。
+- 7 个未跟踪 `.java.bak` 是进入本阶段前已有的 Devin 本地备份，未读取为源码、未修改、
+  未删除、未提交。
+
+#### 停止条件结论
+
+- P0：0；
+- 已确认 P1：均已处理并完成静态/构建验证，剩余为明确的实机验收；
+- 高收益 P2：已处理；
+- 剩余项为低收益 P3、Lint/编译器风格与平台弃用告警、需要 Perfetto/ROM 实测的数据项，
+  或修改风险高于收益的核心兼容边界；
+- 按约定停止继续优化，不为清空全部告警扩大改动。
+
 ## 已完成批次
 
 ### 批次 1：`BatteryIndicator` 生命周期释放
@@ -540,7 +605,7 @@ SystemUI 重建后会累积旧实例和重复回调。
 1. 阶段 A：正确性、注册与生命周期（已完成静态/构建验证）；
 2. 阶段 B：核心 Hook 与热路径（已完成静态/构建验证）；
 3. 阶段 C：逻辑、算法、Kotlin 与设置 UI（已完成静态/构建验证）；
-4. 阶段 D：清理、全量验证与最终签名测试 APK。
+4. 阶段 D：清理、全量验证与最终签名测试 APK（已完成静态/构建验证）。
 
 停止条件：P0 清零、明确 P1 已处理、高收益 P2 已处理，剩余仅为低收益 P3、
 需要实机数据或风险高于收益的问题；不为清空清单无限优化。
@@ -615,12 +680,11 @@ SystemUI 重建后会累积旧实例和重复回调。
 
 ## 下一阶段准确入口
 
-阶段 D 只做可证明的清理与最终交付：
+代码优化阶段已停止。下一步只执行
+`docs/LIBXPOSED_API_101_102_COMPATIBILITY.md` 中的 API 101 / API 102 实机清单：
 
-1. 用引用搜索和 Release/R8 产物交叉确认死代码、Java/Kotlin 重复实现、无效资源和旧调试代码；
-2. 逐条核对 ProGuard/R8 keep 规则，不扩大 keep，也不删除仍由反射、Xposed 元数据或 XML
-   间接引用的入口；
-3. 复核剩余 Java 文件的迁移收益与 ABI/Hook 风险，低收益或高风险文件保留 Java；
-4. 执行最终全量测试、Debug、Release、R8、资源压缩、Lint、签名、zipalign、API 101/102
-   元数据与 Legacy Xposed 扫描；
-5. 生成可追溯的正式签名测试 APK；需要 API 101/102 框架和目标 ROM 的项目明确交给实机验证。
+1. 两套框架分别完整重启并确认模块、Remote Preferences 与各目标进程成功加载；
+2. 验证 Audio Visualizer、电池指示器、截图、锁屏专辑封面和 SystemUI 重建生命周期；
+3. 验证 SystemUI、system_server、Launcher 热路径功能行为不变；
+4. 验证普通/分享/打开方式/隐私/应用锁选择页加载和去重；
+5. 收集模块相关崩溃、ANR、类加载、重复 Hook/注册日志；两套环境确认后再创建 Release。
