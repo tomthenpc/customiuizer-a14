@@ -22,7 +22,7 @@ class ModData {
     var cat: ModCat = ModCat.pref_key_system
 
     @JvmField
-    var sub: String = ""
+    var sub: String? = null
 
     @JvmField
     var order: Int = 0

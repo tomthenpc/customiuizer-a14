@@ -38,6 +38,8 @@ import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.ModData
 import tv.withaibuild.customiuizer.utils.ModSearchAdapter
+import tv.withaibuild.customiuizer.utils.SearchRouteResolver
+import tv.withaibuild.customiuizer.utils.SearchStateMachine
 
 class MainFragment : PreferenceFragmentBase() {
 
@@ -60,7 +62,7 @@ class MainFragment : PreferenceFragmentBase() {
     private var resultView: ListView? = null
 
     private var isSearchFocused = false
-    private var inSearchView = 0
+    private var inSearchView = SearchStateMachine.STATE_IDLE
     private var lastFilter: String? = null
     private var isRestoringSearch = false
 
@@ -154,10 +156,8 @@ class MainFragment : PreferenceFragmentBase() {
             override fun onQueryTextSubmit(query: String?): Boolean = false
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                if (isRestoringSearch) return false
-                if (!newText.isNullOrEmpty()) {
-                    inSearchView = 1
-                }
+                if (isRestoringSearch || !SearchStateMachine.canFilter(inSearchView)) return false
+                inSearchView = SearchStateMachine.transitionOnQuery(inSearchView, newText)
                 findMod(newText ?: "")
                 return false
             }
@@ -167,7 +167,9 @@ class MainFragment : PreferenceFragmentBase() {
             isSearchFocused = hasFocus
         }
 
-        if (inSearchView != 0 && !lastFilter.isNullOrEmpty()) {
+        if (SearchStateMachine.shouldClearOnReturn(inSearchView)) {
+            resetSearchUi(searchMenuItem, searchView)
+        } else if (inSearchView != SearchStateMachine.STATE_IDLE && !lastFilter.isNullOrEmpty()) {
             isRestoringSearch = true
             searchMenuItem.expandActionView()
             searchView.setQuery(lastFilter, false)
@@ -198,13 +200,12 @@ class MainFragment : PreferenceFragmentBase() {
         resultView?.setDividerHeight(0)
         resultView?.adapter = ModSearchAdapter(requireActivity())
         resultView?.setOnItemClickListener { parent: AdapterView<*>, _, position: Int, _ ->
-            val mod = parent.adapter?.getItem(position) as? ModData
-            if (mod != null) {
-                openModCat(mod.cat?.name ?: return@setOnItemClickListener, mod.sub, mod.key)
+            val mod = parent.adapter?.getItem(position) as? ModData ?: return@setOnItemClickListener
+            if (openModCat(mod.cat.name, mod.sub, mod.key)) {
+                inSearchView = SearchStateMachine.STATE_NAVIGATED
+                isSearchFocused = false
+                Helpers.hideKeyboard(activity as? AppCompatActivity, this@MainFragment.view)
             }
-            // Back from a search result should land on the main page, not re-open the search view.
-            inSearchView = 0
-            lastFilter = null
         }
         resultView?.setOnTouchListener { _, event: MotionEvent ->
             if (isSearchFocused) {
@@ -220,7 +221,10 @@ class MainFragment : PreferenceFragmentBase() {
 
         listView = getListView()
 
-        if (inSearchView != 0 && !lastFilter.isNullOrEmpty()) findMod(lastFilter ?: "")
+        when {
+            SearchStateMachine.shouldClearOnReturn(inSearchView) -> resetSearchUi(null, null)
+            inSearchView != SearchStateMachine.STATE_IDLE && !lastFilter.isNullOrEmpty() -> findMod(lastFilter ?: "")
+        }
 
         findPreference<Preference>("pref_key_miuizer_launchericon")?.setOnPreferenceChangeListener { _, newValue ->
             val act = activity as? AppCompatActivity ?: return@setOnPreferenceChangeListener false
@@ -243,7 +247,7 @@ class MainFragment : PreferenceFragmentBase() {
     }
 
     private fun findMod(filter: String) {
-        if (isRestoringSearch || inSearchView == 2) return
+        if (isRestoringSearch || !SearchStateMachine.canFilter(inSearchView)) return
         lastFilter = filter
         resultView?.visibility = if (filter == "") View.GONE else View.VISIBLE
         listView?.isEnabled = filter == ""
@@ -251,24 +255,46 @@ class MainFragment : PreferenceFragmentBase() {
         (adapter as ModSearchAdapter).filter.filter(filter)
     }
 
-    private fun openModCat(cat: String, sub: String?, mod: String): Boolean {
-        val bundle = Bundle().apply {
-            putString("cat", cat)
-            if (sub != null) putString("sub", sub)
-            putString("mod", mod)
+    private fun resetSearchUi(searchMenuItem: MenuItem?, searchView: SearchView?) {
+        if (!SearchStateMachine.shouldClearOnReturn(inSearchView)) return
+        isRestoringSearch = true
+        try {
+            searchMenuItem?.collapseActionView()
+            searchView?.setQuery("", false)
+            searchView?.clearFocus()
+            resultView?.visibility = View.GONE
+            listView?.isEnabled = true
+            isSearchFocused = false
+        } finally {
+            isRestoringSearch = false
         }
-        catSelector.setTargetFragment(this, 0)
-        return when (cat) {
+        inSearchView = SearchStateMachine.STATE_IDLE
+        lastFilter = null
+    }
+
+    private fun openModCat(cat: String, sub: String?, mod: String): Boolean {
+        val route = SearchRouteResolver.resolve(cat, sub, mod) ?: return false
+        if (!isAdded) return false
+
+        val bundle = Bundle().apply {
+            putString("cat", route.category)
+            putString("mod", route.key)
+            route.sub?.let { putString("sub", it) }
+        }
+
+        return when (route.category) {
             "pref_key_system" -> {
-                if (sub == null) {
+                if (route.isCategorySelector()) {
+                    catSelector.setTargetFragment(this, 0)
                     openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, R.xml.prefs_system_cat)
                 } else {
                     openSubFragment(prefSystem, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, R.xml.prefs_system)
                 }
-                false
+                true
             }
             "pref_key_launcher" -> {
-                if (sub == null) {
+                if (route.isCategorySelector()) {
+                    catSelector.setTargetFragment(this, 0)
                     openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.launcher_title, R.xml.prefs_launcher_cat)
                 } else {
                     openSubFragment(prefLauncher, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.launcher_title, R.xml.prefs_launcher)
@@ -276,16 +302,17 @@ class MainFragment : PreferenceFragmentBase() {
                 true
             }
             "pref_key_controls" -> {
-                if (sub == null) {
+                if (route.isCategorySelector()) {
+                    catSelector.setTargetFragment(this, 0)
                     openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.controls_mods, R.xml.prefs_controls_cat)
                 } else {
                     openSubFragment(prefControls, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.controls_mods, R.xml.prefs_controls)
                 }
-                false
+                true
             }
             "pref_key_various" -> {
                 openSubFragment(prefVarious, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.various_mods, R.xml.prefs_various)
-                false
+                true
             }
             else -> false
         }

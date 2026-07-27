@@ -746,7 +746,7 @@ object Helpers {
                                     (if (lastPrefSubSubTitle == null) "" else "/$lastPrefSubSubTitle"))
                                 modData.key = xml.getAttributeValue(ANDROID_NS, "key") ?: ""
                                 modData.cat = catPrefKey!!
-                                modData.sub = lastPrefSub ?: ""
+                                modData.sub = lastPrefSub
                                 modData.order = order
                                 allModsList.add(modData)
                             }

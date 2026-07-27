@@ -124,7 +124,7 @@ open class SubFragment : PreferenceFragmentBase() {
         settingTitle = args.getString("titleResId") ?: ""
         order = args.getFloat("order", 100.0f) + 10.0f
         catInfo = args.getBundle("catInfo")
-        sub = args.getString("sub")
+        sub = args.getString("sub")?.takeIf { it.isNotBlank() }
         isStandalone = args.getBoolean("isStandalone", false)
         highlightKey = args.getString("mod")
         if (abType == AppHelper.ActionBarType.Edit) {
@@ -155,7 +155,7 @@ open class SubFragment : PreferenceFragmentBase() {
                 isStandalone && catInfo != null && catInfo!!.getBoolean("isDynamic") -> {
                     actionBar.setTitle(settingTitle + " ⟲")
                 }
-                !isStandalone && sub != null -> {
+                !isStandalone && !sub.isNullOrBlank() -> {
                     val screen = preferenceScreen
                     val category = screen.getPreference(0) as PreferenceCategoryEx
                     if (category.isDynamic()) {
@@ -353,7 +353,7 @@ open class SubFragment : PreferenceFragmentBase() {
     }
 
     fun selectSub() {
-        if (isStandalone) return
+        if (isStandalone || sub.isNullOrBlank()) return
         val screen = preferenceScreen
         val cnt = screen.preferenceCount
         for (i in cnt - 1 downTo 0) {
