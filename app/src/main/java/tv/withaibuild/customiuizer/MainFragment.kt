@@ -62,6 +62,7 @@ class MainFragment : PreferenceFragmentBase() {
     private var isSearchFocused = false
     private var inSearchView = 0
     private var lastFilter: String? = null
+    private var isRestoringSearch = false
 
     private fun isFragmentReady(act: AppCompatActivity?): Boolean {
         return act != null && !act.isFinishing && isAdded
@@ -82,6 +83,19 @@ class MainFragment : PreferenceFragmentBase() {
         }
 
         checkModuleIsActive()
+
+        savedInstanceState?.let {
+            inSearchView = it.getInt("inSearchView", 0)
+            lastFilter = it.getString("lastFilter")
+            isSearchFocused = it.getBoolean("isSearchFocused", false)
+        }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt("inSearchView", inSearchView)
+        outState.putString("lastFilter", lastFilter)
+        outState.putBoolean("isSearchFocused", isSearchFocused)
     }
 
     private fun checkModuleIsActive() {
@@ -128,6 +142,7 @@ class MainFragment : PreferenceFragmentBase() {
             override fun onQueryTextSubmit(query: String?): Boolean = false
 
             override fun onQueryTextChange(newText: String?): Boolean {
+                if (isRestoringSearch) return false
                 if (!newText.isNullOrEmpty()) {
                     inSearchView = 1
                 }
@@ -140,10 +155,13 @@ class MainFragment : PreferenceFragmentBase() {
             isSearchFocused = hasFocus
         }
 
-        if (inSearchView == 2) {
+        if (inSearchView != 0 && !lastFilter.isNullOrEmpty()) {
+            isRestoringSearch = true
             searchMenuItem.expandActionView()
             searchView.setQuery(lastFilter, false)
-            searchView.clearFocus()
+            if (!isSearchFocused) searchView.clearFocus()
+            isRestoringSearch = false
+            findMod(lastFilter ?: "")
         }
     }
 
@@ -168,11 +186,13 @@ class MainFragment : PreferenceFragmentBase() {
         resultView?.setDividerHeight(0)
         resultView?.adapter = ModSearchAdapter(requireActivity())
         resultView?.setOnItemClickListener { parent: AdapterView<*>, _, position: Int, _ ->
-            inSearchView = 2
             val mod = parent.adapter?.getItem(position) as? ModData
             if (mod != null) {
                 openModCat(mod.cat?.name ?: return@setOnItemClickListener, mod.sub, mod.key)
             }
+            // Back from a search result should land on the main page, not re-open the search view.
+            inSearchView = 0
+            lastFilter = null
         }
         resultView?.setOnTouchListener { _, event: MotionEvent ->
             if (isSearchFocused) {
@@ -206,7 +226,7 @@ class MainFragment : PreferenceFragmentBase() {
     }
 
     private fun findMod(filter: String) {
-        if (inSearchView == 2) return
+        if (isRestoringSearch || inSearchView == 2) return
         lastFilter = filter
         resultView?.visibility = if (filter == "") View.GONE else View.VISIBLE
         listView?.isEnabled = filter == ""

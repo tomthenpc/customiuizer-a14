@@ -14,9 +14,13 @@ import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.preference.Preference
 import io.github.libxposed.service.RemotePreferences
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
+import java.io.BufferedReader
+import java.io.InputStreamReader
 import java.util.Locale
 
 object AppHelper {
@@ -335,4 +339,42 @@ object AppHelper {
     private fun prefixKey(key: String): String {
         return if (key.startsWith("pref_key_")) key else "pref_key_$key"
     }
+
+    /**
+     * Executes a shell command as root. Returns the exit code and combined stdout/stderr.
+     * Caller is responsible for running this off the main thread.
+     */
+    @JvmStatic
+    fun executeRootCommand(command: String): Pair<Int, String> {
+        var process: Process? = null
+        return try {
+            process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+            val stdout = StringBuilder()
+            val stderr = StringBuilder()
+            val stdOutReader = BufferedReader(InputStreamReader(process.inputStream))
+            val stdErrReader = BufferedReader(InputStreamReader(process.errorStream))
+            var line: String?
+            while (stdOutReader.readLine().also { line = it } != null) {
+                stdout.append(line).append("\n")
+            }
+            while (stdErrReader.readLine().also { line = it } != null) {
+                stderr.append(line).append("\n")
+            }
+            val exitCode = process.waitFor()
+            val output = (stdout.toString() + stderr.toString()).trim()
+            Pair(exitCode, output)
+        } catch (t: Throwable) {
+            Log.e(TAG, "executeRootCommand failed: ${t.message}")
+            Pair(-1, t.message ?: "unknown error")
+        } finally {
+            try { process?.destroy() } catch (_: Throwable) {}
+        }
+    }
+
+    /**
+     * Suspend wrapper for executeRootCommand that switches to IO dispatcher.
+     */
+    @JvmStatic
+    suspend fun executeRootCommandAsync(command: String): Pair<Int, String> =
+        withContext(Dispatchers.IO) { executeRootCommand(command) }
 }

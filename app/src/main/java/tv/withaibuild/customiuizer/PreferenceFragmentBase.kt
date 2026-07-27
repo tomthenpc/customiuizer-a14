@@ -9,16 +9,19 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.Menu
 import android.view.MenuInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewStub
 import android.view.animation.DecelerateInterpolator
+import android.widget.Toast
 import androidx.appcompat.app.ActionBar
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import java.io.ObjectInputStream
@@ -28,6 +31,9 @@ import java.util.Collections
 import java.util.Date
 import java.util.HashMap
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.Helpers
@@ -97,29 +103,15 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
                 return true
             }
             R.id.restartlauncher -> {
-                if (!AppHelper.moduleActive) {
-                    showXposedDialog(activity as AppCompatActivity?)
-                    return true
-                }
-                val actionIntent = Intent(GlobalActions.ACTION_PREFIX + "RestartLauncher")
-                actionIntent.setPackage("com.android.systemui")
-                getValidContext().sendBroadcast(actionIntent)
+                restartTarget("com.miui.home", R.string.restart_launcher_done, R.string.restart_launcher_failed)
                 return true
             }
             R.id.restartsystemui -> {
-                if (!AppHelper.moduleActive) {
-                    showXposedDialog(activity as AppCompatActivity?)
-                    return true
-                }
-                val actionIntent = Intent(GlobalActions.ACTION_PREFIX + "RestartSystemUI")
-                actionIntent.setPackage("com.android.systemui")
-                getValidContext().sendBroadcast(actionIntent)
+                restartTargetProcess("com.android.systemui", R.string.restart_systemui_done, R.string.restart_systemui_failed)
                 return true
             }
             R.id.restartsecuritycenter -> {
-                val actionIntent = Intent(GlobalActions.ACTION_PREFIX + "RestartSecurityCenter")
-                actionIntent.setPackage("com.android.systemui")
-                getValidContext().sendBroadcast(actionIntent)
+                restartTarget("com.miui.securitycenter", R.string.restart_securitycenter_done, R.string.restart_securitycenter_failed)
                 return true
             }
             R.id.backuprestore -> {
@@ -166,6 +158,66 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
             .setCancelable(true)
             .setPositiveButton(android.R.string.ok) { _, _ -> }
             .show()
+    }
+
+    /**
+     * Restarts a package by force-stopping it (root shell). The system will restart it on demand.
+     */
+    private fun restartTarget(packageName: String, successRes: Int, failureRes: Int) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val idResult = AppHelper.executeRootCommand("id")
+            if (idResult.first != 0 || !idResult.second.contains("uid=0")) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(getValidContext(), R.string.restart_no_root, Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
+            val cmd = "am force-stop $packageName"
+            val result = AppHelper.executeRootCommand(cmd)
+            withContext(Dispatchers.Main) {
+                val ctx = getValidContext()
+                if (result.first == 0) {
+                    Toast.makeText(ctx, successRes, Toast.LENGTH_SHORT).show()
+                } else {
+                    Log.e("miuizer", "restart $packageName failed: exit=${result.first}, out=${result.second}")
+                    Toast.makeText(ctx, "$failureRes: ${result.second}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    /**
+     * Kills a running process by name (root shell). Used for SystemUI which should be restarted by the system.
+     */
+    private fun restartTargetProcess(processName: String, successRes: Int, failureRes: Int) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val idResult = AppHelper.executeRootCommand("id")
+            if (idResult.first != 0 || !idResult.second.contains("uid=0")) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(getValidContext(), R.string.restart_no_root, Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
+            // pidof returns exit 1 when no process is found; handle that explicitly.
+            val pidResult = AppHelper.executeRootCommand("pidof $processName")
+            if (pidResult.first != 0 || pidResult.second.isBlank()) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(getValidContext(), R.string.restart_target_not_running, Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
+            val pids = pidResult.second.split("\\s+".toRegex()).filter { it.isNotEmpty() }.joinToString(" ")
+            val killResult = AppHelper.executeRootCommand("kill -9 $pids")
+            withContext(Dispatchers.Main) {
+                val ctx = getValidContext()
+                if (killResult.first == 0) {
+                    Toast.makeText(ctx, successRes, Toast.LENGTH_SHORT).show()
+                } else {
+                    Log.e("miuizer", "kill $processName failed: exit=${killResult.first}, out=${killResult.second}")
+                    Toast.makeText(ctx, "$failureRes: ${killResult.second}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
     }
 
     open fun showBackupRestoreDialog() {

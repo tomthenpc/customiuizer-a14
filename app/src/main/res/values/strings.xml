@@ -899,6 +899,14 @@
     <string name="restart_launcher">Restart launcher</string>
     <string name="restart_systemui">Restart systemui</string>
     <string name="restart_securitycenter">Restart security center</string>
+    <string name="restart_launcher_done">Launcher restarted</string>
+    <string name="restart_systemui_done">SystemUI restarted</string>
+    <string name="restart_securitycenter_done">Security center restarted</string>
+    <string name="restart_launcher_failed">Failed to restart launcher</string>
+    <string name="restart_systemui_failed">Failed to restart systemui</string>
+    <string name="restart_securitycenter_failed">Failed to restart security center</string>
+    <string name="restart_no_root">Root permission unavailable</string>
+    <string name="restart_target_not_running">Target process is not running</string>
     <string name="backup_restore">Settings management</string>
     <string name="reset_settings">Reset settings</string>
     <string name="reset_settings_done">Reset done. Please reboot</string>
