@@ -13,33 +13,39 @@
 
 | 项目 | 状态 |
 | --- | --- |
-| 稳定版本 | `r14.13.4` |
+| 稳定版本 | `r14.13.5` |
 | 支持系统 | HyperOS 1 / Android 14（SDK 34） |
 | ABI | `arm64-v8a` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | libxposed API | min 101 / target 102 |
 | Hot Reload | 关闭 |
 | 构建 | Kotlin DSL / version catalog / R8 |
-| 下载 | [源码 Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4) · [LSPosed 模块页](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/182-r14.13.4) |
+| 下载 | [源码 Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5) · [LSPosed 模块页](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5) |
 
-## r14.13.4 亮点
+## r14.13.5 亮点
 
-- **设置与语言完善**：应用内语言入口集中到 About 页面，修复语言、主题、系统栏和
-  Fragment 重建状态。
-- **SystemUI 生命周期修复**：状态栏温度、电流等文本图标不再永久强引用已经失效的 View。
-- **资源 Hook 热路径优化**：减少资源读取 miss path 的装箱、反射和无效解析，并保证缓存
-  安全发布。
-- **Kotlin 迁移回归修复**：恢复 thermal zone 首次命中退出语义，移除 pair 字符串解析中的
-  重复 Regex 编译。
-- **配置链稳定性**：RemotePreferences 空快照可重试，监听器状态只在注册成功后置位。
+- **修复首页搜索导航回归**：`Various` 搜索结果与子分类项点击后不再立即返回首页，目标
+  Preference 正确高亮并滚动。
+- **恢复搜索状态机**：`0/1/2` 三态控制，返回首页后自动收起 SearchView、清空 query、
+  隐藏结果列表，原搜索结果不再重新展开。
+- **统一 `sub` 空/空白语义**：`ModData.sub` 改为可空，`SubFragment` 不再把空字符串误判为
+  有效子分类。
+- **修正 `openModCat()` 返回值**：System / Launcher / Controls / Various 成功导航后统一
+  返回 `true`，未知分类返回 `false`。
+- **新增单元测试**：`SearchRouteResolver` 与 `SearchStateMachine` 覆盖路由解析与状态转换。
 - **API 101/102 单 APK 兼容**：保持 Android 14 / HyperOS 1、R8、资源压缩、zipalign 和
   APK Signature Scheme v2。
 
+## r14.13.4 说明
+
+`r14.13.4` 存在首页搜索导航回归，已被 `r14.13.5` 取代。`r14.13.5` 使用与 `r14.13.4`
+相同的新正式签名证书，已安装 `r14.13.4` 的用户可直接覆盖安装，无需卸载。
+
 ## 下载与校验
 
-- APK：`CustoMIUIzer-A14-r14.13.4.apk`
+- APK：`CustoMIUIzer-A14-r14.13.5.apk`
 - 大小：3,032,173 bytes
-- SHA-256：`E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C`
+- SHA-256：`89AE5046564F69D491DC44F7B853443113FEC7100FE997ABA9984181C4983EA5`
 - 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
 
 仅从本项目 Release 或对应的 LSPosed 模块仓库下载。不同签名可能无法覆盖安装，处理旧
@@ -47,15 +53,15 @@
 
 ## 重要：旧版本需要备份后重装
 
-`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失。`r14.13.4` 使用新的正式签名，
-无法直接覆盖安装旧公开版本。
+`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失。`r14.13.5` 使用新的正式签名，
+无法直接覆盖安装旧公开版本，但可直接覆盖安装 `r14.13.4`。
 
 升级步骤：
 
 1. 在旧版本模块中备份设置；
 2. 记录当前 LSPosed/Vector 作用域；
 3. 卸载旧版本；
-4. 安装 `CustoMIUIzer-A14-r14.13.4.apk`；
+4. 安装 `CustoMIUIzer-A14-r14.13.5.apk`；
 5. 重新启用模块和原有作用域；
 6. 恢复设置；
 7. 完整重启设备。

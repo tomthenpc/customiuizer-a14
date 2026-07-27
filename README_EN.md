@@ -14,35 +14,42 @@ release.
 
 | Item | Status |
 | --- | --- |
-| Stable version | `r14.13.4` |
+| Stable version | `r14.13.5` |
 | Supported system | HyperOS 1 / Android 14 (SDK 34) |
 | ABI | `arm64-v8a` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | libxposed API | min 101 / target 102 |
 | Hot Reload | Disabled |
 | Build | Kotlin DSL / version catalog / R8 |
-| Download | [Source Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4) · [LSPosed listing](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/182-r14.13.4) |
+| Download | [Source Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5) · [LSPosed listing](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5) |
 
-## r14.13.4 Highlights
+## r14.13.5 Highlights
 
-- **Settings and locale cleanup**: moves the in-app language entry to About and fixes locale,
-  theme, system-bar, and Fragment recreation behavior.
-- **SystemUI lifecycle fix**: status-bar temperature/current text icons no longer retain stale
-  Views indefinitely.
-- **Resource-hook hot-path cleanup**: reduces boxing, reflection, and unnecessary parsing on
-  resource lookup misses, with safely published caches.
-- **Kotlin migration regressions fixed**: restores first-match thermal-zone behavior and removes
-  repeated Regex compilation from pair parsing.
-- **Preference-chain reliability**: empty RemotePreferences snapshots can be retried, and listener
-  state is set only after successful registration.
+- **Fixes search navigation regression**: `Various` search results and sub-category items no longer
+  return to the home page immediately after being tapped; the target Preference is highlighted and
+  scrolled into view.
+- **Restores the search state machine**: three states `0/1/2`, automatically collapsing the
+  SearchView, clearing the query, and hiding the result list when returning to the home page.
+- **Unifies empty/blank `sub` semantics**: `ModData.sub` is now nullable, and `SubFragment` no longer
+  treats an empty string as a valid sub-category.
+- **Corrects `openModCat()` return value**: System / Launcher / Controls / Various now return `true`
+  on successful navigation and `false` for unknown categories.
+- **Adds unit tests**: `SearchRouteResolver` and `SearchStateMachine` cover route parsing and state
+  transitions.
 - **One API 101/102 APK**: retains HyperOS 1 / Android 14 support, R8, resource shrinking,
   zipalign, and APK Signature Scheme v2.
 
+## r14.13.4 Note
+
+`r14.13.4` has a search navigation regression and is superseded by `r14.13.5`. `r14.13.5` is signed
+with the same new official certificate as `r14.13.4`, so users on `r14.13.4` can update in place
+without uninstalling.
+
 ## Download and Verification
 
-- APK: `CustoMIUIzer-A14-r14.13.4.apk`
+- APK: `CustoMIUIzer-A14-r14.13.5.apk`
 - Size: 3,032,173 bytes
-- SHA-256: `E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C`
+- SHA-256: `89AE5046564F69D491DC44F7B853443113FEC7100FE997ABA9984181C4983EA5`
 - Signing certificate SHA-256:
   `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
 
@@ -53,15 +60,15 @@ removing an older installation.
 ## Important: Back Up and Reinstall
 
 The private signing key used by the public `r14.12.0` release and earlier releases has been lost.
-`r14.13.4` is signed with a new official certificate and cannot be installed as an in-place update
-over those older public builds.
+`r14.13.5` is signed with the new official certificate and cannot be installed as an in-place
+update over those older public builds, but it can be installed over `r14.13.4`.
 
 Upgrade steps:
 
 1. Back up the module settings in the old installation.
 2. Record the current LSPosed/Vector scope.
 3. Uninstall the old version.
-4. Install `CustoMIUIzer-A14-r14.13.4.apk`.
+4. Install `CustoMIUIzer-A14-r14.13.5.apk`.
 5. Re-enable the module and restore the original scope.
 6. Restore the settings.
 7. Fully reboot the device.

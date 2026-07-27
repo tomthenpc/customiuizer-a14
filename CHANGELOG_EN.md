@@ -10,7 +10,8 @@ and performance figures without same-condition measurements are not release chan
 
 | Version | Date | Purpose |
 | --- | --- | --- |
-| `r14.13.4` | 2026-07-28 | Current stable release; settings/locale, lifecycle, resource-hook, and migration-regression work |
+| `r14.13.5` | 2026-07-28 | Current stable release; fixes r14.13.4 home search navigation regression |
+| `r14.13.4` | 2026-07-28 | Withdrawn; home search navigation regression, superseded by `r14.13.5` |
 | `r14.12.0` | 2026-07-26 | Previous stable release; old signature, so back up and reinstall before upgrading |
 | `r14.8.0` | 2026-07-25 | Kotlin infrastructure rollback point |
 | `r14.7.4` | 2026-07-25 | Consolidated r14.7.x Kotlin/coroutine migration release |
@@ -20,9 +21,68 @@ Release titles contain only the version number. Asset names, sizes, and SHA-256 
 removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the
 corresponding source remains available through Git tags.
 
+## [r14.13.5] - 2026-07-28
+
+### Release scope
+
+Emergency hotfix for `r14.13.4`. Fixes the home search navigation regression affecting `Various`
+results and sub-category jumps, restores the `0/1/2` search state machine, unifies empty/blank
+`sub` semantics, and corrects the return value of `openModCat()`. Everything else remains identical
+to `r14.13.4`.
+
+This release supports only HyperOS 1 / Android 14 and `arm64-v8a`, while retaining the one-APK
+libxposed API 101/102 compatibility boundary. It is signed with the same new official certificate as
+`r14.13.4` and can be installed over `r14.13.4`.
+
+### Fixed
+
+- Fixed search results belonging to `Various` or sub-categories of System/Launcher/Controls jumping
+  back to the home page immediately and not highlighting the target Preference.
+- Restored the explicit search navigation state machine:
+  - `0 = normal home`;
+  - `1 = showing search results`;
+  - `2 = navigated into a search result, clear search UI on returning home`.
+- Made `ModData.sub` nullable so the search index no longer stores missing sub-categories as empty
+  strings.
+- `MainFragment.openModCat()` now consistently returns the navigation success/failure status for
+  System, Launcher, Controls, and Various, instead of mixing transaction results with category types.
+- Added blank `sub` protection in `SubFragment` to avoid casting a non-category Preference to
+  `PreferenceCategoryEx`.
+- Added `SearchRouteResolver` and `SearchStateMachine` unit tests.
+
+### Build and compatibility
+
+- Continues to use the verified JDK 17, Gradle 9.6.1, AGP 9.2.1, and Kotlin 2.3.21 toolchain.
+- Release builds retain R8, resource shrinking, zipalign, and APK Signature Scheme v2.
+- Signing certificate SHA-256:
+  `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`.
+
+### Verification
+
+- Unit tests: 68 tests, 0 failures, 0 skipped.
+- Lint / `lintRelease` / `lintVitalRelease`: passed; 107 deprecation warnings, 0 errors.
+- Debug / Release, R8, and resource shrinking: passed (`BUILD SUCCESSFUL in 2m 8s`).
+- APK: `CustoMIUIzer-A14-r14.13.5.apk`.
+- APK size: 3,032,173 bytes.
+- APK SHA-256: `89AE5046564F69D491DC44F7B853443113FEC7100FE997ABA9984181C4983EA5`.
+- Signing: APK Signature Scheme v2; certificate SHA-256
+  `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`.
+- versionCode/versionName: `183 / r14.13.5`.
+- `minSdk/targetSdk`: `34 / 34`.
+- Xposed metadata: `minApiVersion=101`, `targetApiVersion=102`, `staticScope=false`.
+
+### Important: r14.13.4 is withdrawn
+
+- `r14.13.4` has a home search navigation regression and is superseded by `r14.13.5`.
+- The `r14.13.4` GitHub Release and tag have been removed; historical asset information is in
+  [RELEASE_ARCHIVE.md](docs/RELEASE_ARCHIVE.md).
+- If you already have `r14.13.4` installed, you can install `r14.13.5` over it without uninstalling.
+
 ## [r14.13.4] - 2026-07-28
 
 ### Release scope
+
+> Withdrawn; superseded by `r14.13.5`.
 
 Built on the stable r14.12.0 baseline, this release completes focused work on the settings app,
 locale and theme behavior, lifecycle management, and frequent Hook paths. It also closes the

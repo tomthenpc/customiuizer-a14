@@ -6,28 +6,30 @@
 ## 当前状态
 
 - 仓库：`tomthenpc/customiuizer-a14`
-- 正式发布版本：`r14.13.4` / versionCode `182`
+- 正式发布版本：`r14.13.5` / versionCode `183`
 - 正式发布日期：2026-07-28
-- 源码仓库 tag：`r14.13.4` → `73ea3415`
-- 源码仓库 Release：[r14.13.4](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4)
-- LSPosed 模块仓库 tag：`182-r14.13.4` → `67e7d36`
-- LSPosed 模块仓库 Release：[r14.13.4](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/182-r14.13.4)
-- 两个 Release 均上传同一份正式 APK；当前 `main` 已包含正式发布提交。
+- 源码仓库 tag：`r14.13.5` → `TBD`（`main` 合并后 tag）
+- 源码仓库 Release：[r14.13.5](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5)
+- LSPosed 模块仓库 tag：`183-r14.13.5`
+- LSPosed 模块仓库 Release：[183-r14.13.5](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5)
+- `r14.13.4` 已撤回；其 GitHub Release 与 tag 已删除，历史资产信息见
+  [RELEASE_ARCHIVE.md](docs/RELEASE_ARCHIVE.md)。
+- 当前 `main` 承载 `r14.13.5` 正式发布提交。
 
 ## 当前开发分支
 
 - 分支：`devin/r14.13-kotlin-refactor`
-- 最近基线：`f7d95288`（修复首页搜索导航回归：Various 结果、`sub` 空值语义、`openModCat` 返回值）
-- 与 `origin/main` 的关系：ahead 5 / behind 0；merge base `73ea3415`
-- 当前任务：搜索导航回归修复候选已完成，等待实机覆盖验证；不合并到 `main`，因为 `main` 仍承载正式 Release tag `r14.13.4`。
+- 最近基线：`TBD`（r14.13.5 发布合并提交）
+- 与 `origin/main` 的关系：ahead 6 / behind 0；merge base `73ea3415`
+- 当前任务：`r14.13.5` 正式发布已完成，`main` 承载发布 tag `r14.13.5`。
 
 ## 发布产物与签名
 
 | 项目 | 值 |
 | --- | --- |
-| APK | `CustoMIUIzer-A14-r14.13.4.apk` |
+| APK | `CustoMIUIzer-A14-r14.13.5.apk` |
 | 大小 | 3,032,173 bytes |
-| APK SHA-256 | `E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C` |
+| APK SHA-256 | `89AE5046564F69D491DC44F7B853443113FEC7100FE997ABA9984181C4983EA5` |
 | 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
 | 签名 | APK Signature Scheme v2，1 个签名者 |
 | applicationId | `tv.withaibuild.customiuizer.r14` |

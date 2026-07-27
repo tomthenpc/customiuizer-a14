@@ -9,7 +9,8 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 | 版本 | 日期 | 定位 |
 | --- | --- | --- |
-| `r14.13.4` | 2026-07-28 | 当前稳定版；设置/Locale、生命周期、资源 Hook 与迁移回归治理 |
+| `r14.13.5` | 2026-07-28 | 当前稳定版；修复 r14.13.4 首页搜索导航回归 |
+| `r14.13.4` | 2026-07-28 | 已撤回；首页搜索导航回归，由 `r14.13.5` 取代 |
 | `r14.12.0` | 2026-07-26 | 上一稳定版；旧签名，升级到新版本前必须备份并重装 |
 | `r14.8.0` | 2026-07-25 | Kotlin 基础设施回退点 |
 | `r14.7.4` | 2026-07-25 | r14.7.x Kotlin/Coroutine 迁移合并版 |
@@ -18,9 +19,66 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
 [历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
 
+## [r14.13.5] - 2026-07-28
+
+### 版本定位
+
+`r14.13.4` 的紧急热修版本。修复首页搜索功能在 `Various` 结果、子分类跳转和返回首页
+过程中出现的导航回归，恢复 `0/1/2` 三态搜索状态机，统一 `sub` 空/空白字符串语义，并
+修正 `openModCat()` 的返回语义。其余内容与 `r14.13.4` 保持一致。
+
+本版本继续仅支持 HyperOS 1 / Android 14 和 `arm64-v8a`，保持 libxposed
+API 101/102 单 APK 兼容边界。使用与 `r14.13.4` 相同的新正式签名证书，可直接覆盖安装
+`r14.13.4`。
+
+### 修复
+
+- 修复搜索结果属于 `Various` 页面或带子分类的 System/Launcher/Controls 项目时，
+  点击后跳转随即返回首页、目标 Preference 未高亮的问题。
+- 恢复明确的搜索导航状态机：
+  - `0 = 普通首页`；
+  - `1 = 正在显示搜索结果`；
+  - `2 = 已从搜索结果进入目标页面，返回首页后清理搜索 UI`。
+- 将 `ModData.sub` 改为可空 `String?`，搜索索引不再把无子分类项存成空字符串。
+- `MainFragment.openModCat()` 对 System、Launcher、Controls、Various 四类均返回
+  导航成功/失败语义，避免把事务结果与分类类型混用。
+- `SubFragment` 增加 `sub` 空白保护，避免把空字符串误判为有效子分类并触发
+  `PreferenceCategoryEx` 强制类型转换。
+- 新增 `SearchRouteResolver` 与 `SearchStateMachine` 纯逻辑单元测试。
+
+### 构建与兼容
+
+- 继续使用已验证的 JDK 17、Gradle 9.6.1、AGP 9.2.1 和 Kotlin 2.3.21。
+- Release 保持 R8、资源压缩、zipalign 和 APK Signature Scheme v2。
+- 签名证书 SHA-256：
+  `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`。
+
+### 验证
+
+- 单元测试：68 tests, 0 failures, 0 skipped。
+- Lint / `lintRelease` / `lintVitalRelease`：通过，107 deprecation warnings，0 errors。
+- Debug / Release、R8 和资源压缩：通过（`BUILD SUCCESSFUL in 2m 8s`）。
+- APK：`CustoMIUIzer-A14-r14.13.5.apk`。
+- APK 大小：3,032,173 bytes。
+- APK SHA-256：`89AE5046564F69D491DC44F7B853443113FEC7100FE997ABA9984181C4983EA5`。
+- 签名：APK Signature Scheme v2，证书 SHA-256
+  `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`。
+- versionCode/versionName：`183 / r14.13.5`。
+- `minSdk/targetSdk`：`34 / 34`。
+- Xposed metadata：`minApiVersion=101`、`targetApiVersion=102`、`staticScope=false`。
+
+### 重要：r14.13.4 已撤回
+
+- `r14.13.4` 存在首页搜索导航回归，已被 `r14.13.5` 取代。
+- 已删除 `r14.13.4` 的 GitHub Release 与 tag；历史资产信息见
+  [RELEASE_ARCHIVE.md](docs/RELEASE_ARCHIVE.md)。
+- 如已安装 `r14.13.4`，可直接覆盖安装 `r14.13.5`，无需卸载。
+
 ## [r14.13.4] - 2026-07-28
 
 ### 版本定位
+
+> 已撤回；被 `r14.13.5` 取代。
 
 在 r14.12.0 稳定基线之上，完成设置应用、Locale、主题、生命周期和高频 Hook
 路径的集中治理，并正式收口 r14.13 开发线中的架构审计、Kotlin 迁移回归和性能修复。
