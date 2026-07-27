@@ -44,6 +44,7 @@ public class MainModule extends XposedModule {
 
     private static boolean mPrefsLoaded = false;
     private static boolean mPrefsWatcherRegistered = false;
+    private static boolean mEmptyPrefsReported = false;
 
     @Override
     public void onModuleLoaded(@NonNull XposedModuleInterface.ModuleLoadedParam param) {
@@ -59,16 +60,28 @@ public class MainModule extends XposedModule {
         return false;
     }
 
+    /**
+     * Loads the remote preference snapshot into the process-local {@link PrefMap}.
+     *
+     * <p>An empty result is not cached: the provider can still be unavailable when an early
+     * process is hooked, and freezing that state would make the whole process run unconfigured
+     * until it restarts. The retry is bounded by the number of hooked packages, and the "empty"
+     * log is emitted once per process so a device without any setting cannot spam the log.</p>
+     */
     private void initPrefs() {
         if (mPrefsLoaded) return;
         if (remotePrefs == null) {
             remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
         }
         Map<String, ?> allPrefs = remotePrefs.getAll();
-        if (allPrefs == null || allPrefs.size() == 0)
-            XposedHelpers.log("Empty preferences!");
-        else
-            mPrefs.putAll(allPrefs);
+        if (allPrefs == null || allPrefs.isEmpty()) {
+            if (!mEmptyPrefsReported) {
+                mEmptyPrefsReported = true;
+                XposedHelpers.log("Empty preferences!");
+            }
+            return;
+        }
+        mPrefs.putAll(allPrefs);
         mPrefsLoaded = true;
     }
 
@@ -78,7 +91,6 @@ public class MainModule extends XposedModule {
 
     private void watchPreferenceChange() {
         if (mPrefsWatcherRegistered) return;
-        mPrefsWatcherRegistered = true;
         mListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
             @Override
             public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, @Nullable String key) {
@@ -119,6 +131,7 @@ public class MainModule extends XposedModule {
             remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
         }
         remotePrefs.registerOnSharedPreferenceChangeListener(mListener);
+        mPrefsWatcherRegistered = true;
     }
 
     @Override
