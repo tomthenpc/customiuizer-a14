@@ -70,6 +70,8 @@ class ModuleHelper private constructor() {
 
         private var thermalId = -1
 
+        private var thermalIdScanned = false
+
         @JvmStatic
         fun hookMethod(method: Method, callback: MethodHook): CustomMethodUnhooker? {
             return try {
@@ -468,18 +470,26 @@ class ModuleHelper private constructor() {
             return intent
         }
 
+        /**
+         * Resolves the first CPU thermal zone once per process.
+         *
+         * The zone list never changes at runtime, so the sysfs scan is memoized even when nothing
+         * matches; otherwise the SystemUI monitor tick would reopen 19 sysfs files every 2 s.
+         * Called from the NetworkSpeedController background handler thread only.
+         */
         @JvmStatic
         fun getCPUThermalId(): Int {
-            if (thermalId != -1) return thermalId
+            if (thermalIdScanned) return thermalId
+            thermalIdScanned = true
             for (i in 2 until 40 step 2) {
-                try {
-                    RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$i/type", "r").use { cpuReader ->
-                        val sensorType = cpuReader.readLine()
-                        if (sensorType != null && (sensorType.startsWith("cpu-") || sensorType.startsWith("cpu_big"))) {
-                            thermalId = i
-                        }
-                    }
+                val sensorType = try {
+                    RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$i/type", "r").use { it.readLine() }
                 } catch (ign: Throwable) {
+                    null
+                }
+                if (sensorType != null && (sensorType.startsWith("cpu-") || sensorType.startsWith("cpu_big"))) {
+                    thermalId = i
+                    break
                 }
             }
             return thermalId

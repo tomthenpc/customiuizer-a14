@@ -310,13 +310,28 @@ public final class XposedHelpers {
         return c;
     }
 
+    /**
+     * Resolves the class loader of the application running in this process.
+     *
+     * <p>There is exactly one application per process, so the result is memoized: class probes
+     * that legitimately miss (ROM variants without a given class) otherwise repeat the
+     * {@code ActivityThread} reflection on every call, including from hot hook callbacks. Only a
+     * non-null loader is cached, because {@code currentApplication()} returns null before the
+     * application object exists.</p>
+     */
+    private static volatile ClassLoader applicationClassLoader;
+
     private static ClassLoader getApplicationClassLoader(ClassLoader classLoader) {
+        ClassLoader cached = applicationClassLoader;
+        if (cached != null) return cached;
         try {
             ClassLoader loader = classLoader != null ? classLoader : (moduleInst != null ? moduleInst.getClass().getClassLoader() : XposedHelpers.class.getClassLoader());
             Class<?> activityThreadClass = Class.forName("android.app.ActivityThread", false, loader);
             Object currentApp = callStaticMethod(activityThreadClass, "currentApplication");
             if (currentApp != null) {
-                return (ClassLoader) callMethod(currentApp, "getClassLoader");
+                ClassLoader appLoader = (ClassLoader) callMethod(currentApp, "getClassLoader");
+                if (appLoader != null) applicationClassLoader = appLoader;
+                return appLoader;
             }
         } catch (Throwable ignored) {}
         return null;

@@ -3,6 +3,7 @@ package tv.withaibuild.customiuizer.mods.utils
 import android.app.MiuiThemeHelper
 import android.content.Context
 import android.content.res.Resources
+import android.util.SparseArray
 import android.util.SparseIntArray
 import io.github.libxposed.api.XposedInterface
 import miui.content.res.ThemeValues
@@ -37,56 +38,55 @@ class ResourceHooks {
     }
 
     private val hookedTypes = HashSet<String>()
-    private val fakes = SparseIntArray()
     private val themeValueReplacements = ConcurrentHashMap<String, ThemeValue>()
-    private val resourceIdReplacements = ConcurrentHashMap<Int, ResourceValue>()
+
+    /**
+     * Replacement tables read by [mReplaceHook].
+     *
+     * The hook sits on `Resources.getText/getString/getLayout/getDrawableForDensity`, so it runs on
+     * every resource read of the hooked process. Sparse containers keep the lookup free of key
+     * boxing, and the tables are published copy-on-write: registration happens on hook setup and
+     * preference changes, reads happen on every UI thread of the target process.
+     */
+    private val replacementsLock = Any()
+
+    @Volatile
+    private var fakes = SparseIntArray()
+
+    @Volatile
+    private var resourceIdReplacements = SparseArray<ResourceValue>()
 
     private val mReplaceHook = object : HookerClassHelper.MethodHook() {
         @Throws(Throwable::class)
         override fun intercept(chain: XposedInterface.Chain): Any? {
             var skipValue: Any? = null
             var shouldSkip = false
-            var replacementHandled = false
             try {
                 val args = chain.getArgs()
-                val resIdObj = args[0]
-                val resId = resIdObj as Int
-                val method = chain.executable.name
+                val resId = args[0] as Int
                 val replacement = resourceIdReplacements[resId]
                 if (replacement != null) {
-                    replacementHandled = true
                     if (replacement.mType == ReplacementType.OBJECT) {
                         skipValue = replacement.mValue
                         shouldSkip = true
-                    } else if ("getLayout" == method) {
-                        // proceed original, do not check fakes
                     } else {
-                        val mContext = ModuleHelper.findContext()
-                        if (mContext != null) {
-                            val modRes = ModuleHelper.getModuleRes(mContext)
-                            if (modRes != null) {
-                                val value = getModuleResValue(modRes, method, replacement.mValue as Int, args)
-                                if (value != null) {
-                                    skipValue = value
-                                    shouldSkip = true
-                                }
+                        // Resolved only after a match: Executable.getName() is a JNI call.
+                        val method = chain.executable.name
+                        if ("getLayout" != method) {
+                            val value = moduleResValue(method, replacement.mValue as Int, args)
+                            if (value != null) {
+                                skipValue = value
+                                shouldSkip = true
                             }
                         }
                     }
-                }
-                if (!shouldSkip && !replacementHandled) {
+                } else {
                     val modResId = fakes[resId]
                     if (modResId != 0) {
-                        val mContext = ModuleHelper.findContext()
-                        if (mContext != null) {
-                            val modRes = ModuleHelper.getModuleRes(mContext)
-                            if (modRes != null) {
-                                val value = getModuleResValue(modRes, method, modResId, args)
-                                if (value != null) {
-                                    skipValue = value
-                                    shouldSkip = true
-                                }
-                            }
+                        val value = moduleResValue(chain.executable.name, modResId, args)
+                        if (value != null) {
+                            skipValue = value
+                            shouldSkip = true
                         }
                     }
                 }
@@ -95,6 +95,11 @@ class ResourceHooks {
             }
             return if (shouldSkip) skipValue else chain.proceed()
         }
+    }
+
+    private fun moduleResValue(method: String, modResId: Int, args: List<Any?>): Any? {
+        val context = ModuleHelper.findContext() ?: return null
+        return getModuleResValue(ModuleHelper.getModuleRes(context), method, modResId, args)
     }
 
     private fun initThemeHook() {
@@ -171,8 +176,13 @@ class ResourceHooks {
         val rv = ResourceValue(resourceType, replaceValue)
         if (mContext != null) {
             val resId = mContext.resources.getIdentifier(name, type, pkg)
-            if (resId > 0) resourceIdReplacements[resId] = rv
-            else {
+            if (resId > 0) {
+                synchronized(replacementsLock) {
+                    val updated = resourceIdReplacements.clone()
+                    updated.put(resId, rv)
+                    resourceIdReplacements = updated
+                }
+            } else {
                 XposedHelpers.log("Resource not found: $pkg:$type/$name")
             }
         } else {
@@ -204,7 +214,11 @@ class ResourceHooks {
     fun addFakeResource(resName: String, resId: Int, type: String): Int {
         return try {
             val fakeResId = getFakeResId(resName)
-            fakes.put(fakeResId, resId)
+            synchronized(replacementsLock) {
+                val updated = fakes.clone()
+                updated.put(fakeResId, resId)
+                fakes = updated
+            }
             applyHooks(type)
             fakeResId
         } catch (t: Throwable) {
@@ -282,10 +296,6 @@ class ResourceHooks {
             "getDrawableForDensity" -> modRes.getDrawableForDensity(modResId, args[1] as Int, args[2] as Resources.Theme?)
             else -> null
         }
-    }
-
-    private fun getModuleResValue(modRes: Resources, method: String, modResId: Int, args: Array<Any?>): Any? {
-        return getModuleResValue(modRes, method, modResId, args.asList())
     }
 
     companion object {
