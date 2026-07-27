@@ -12,6 +12,8 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.preference.Preference
 import io.github.libxposed.service.RemotePreferences
 import kotlinx.coroutines.Dispatchers
@@ -19,8 +21,6 @@ import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
-import java.io.BufferedReader
-import java.io.InputStreamReader
 import java.util.Locale
 
 object AppHelper {
@@ -131,6 +131,33 @@ object AppHelper {
     }
 
     @JvmStatic
+    fun applyLocaleChange(context: Context, localeTag: String?) {
+        val prefs = appPrefs ?: return
+        val tag = localeTag ?: "auto"
+        if (tag.isNotEmpty()) {
+            prefs.edit().putString("pref_key_miuizer_locale", tag).apply()
+        }
+        val targetLocale = when (tag) {
+            "auto", "1" -> {
+                val sysLocales = Resources.getSystem().configuration.locales
+                if (sysLocales.isEmpty) Locale.getDefault() else sysLocales[0]
+            }
+            else -> try {
+                Locale.forLanguageTag(tag)
+            } catch (t: Throwable) {
+                t.printStackTrace()
+                Locale.getDefault()
+            }
+        }
+        Locale.setDefault(targetLocale)
+        val localeList = when (tag) {
+            "auto", "1" -> LocaleListCompat.getEmptyLocaleList()
+            else -> LocaleListCompat.create(targetLocale)
+        }
+        AppCompatDelegate.setApplicationLocales(localeList)
+    }
+
+    @JvmStatic
     fun setupLocalePreference(localePref: ListPreferenceEx?) {
         if (localePref == null) return
         val locales = arrayOf("zh-CN", "zh-TW", "ru-RU", "ja-JP", "vi-VN", "cs-CZ", "pt-BR", "tr-TR", "es-ES")
@@ -155,8 +182,8 @@ object AppHelper {
         localeNames.add(0, SpannableString(localePref.context.getString(R.string.array_system_default)))
         localePref.entries = localeNames.toTypedArray()
         localePref.entryValues = localesArr.toTypedArray()
-        localePref.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, _ ->
-            (localePref.context as? android.app.Activity)?.recreate()
+        localePref.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
+            applyLocaleChange(localePref.context, newValue as? String)
             true
         }
     }
@@ -349,20 +376,15 @@ object AppHelper {
         var process: Process? = null
         return try {
             process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
-            val stdout = StringBuilder()
-            val stderr = StringBuilder()
-            val stdOutReader = BufferedReader(InputStreamReader(process.inputStream))
-            val stdErrReader = BufferedReader(InputStreamReader(process.errorStream))
-            var line: String?
-            while (stdOutReader.readLine().also { line = it } != null) {
-                stdout.append(line).append("\n")
+            val output = StringBuilder()
+            process.inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+                reader.forEachLine { output.append(it).append("\n") }
             }
-            while (stdErrReader.readLine().also { line = it } != null) {
-                stderr.append(line).append("\n")
+            process.errorStream.bufferedReader(Charsets.UTF_8).use { reader ->
+                reader.forEachLine { output.append(it).append("\n") }
             }
             val exitCode = process.waitFor()
-            val output = (stdout.toString() + stderr.toString()).trim()
-            Pair(exitCode, output)
+            Pair(exitCode, output.toString().trim())
         } catch (t: Throwable) {
             Log.e(TAG, "executeRootCommand failed: ${t.message}")
             Pair(-1, t.message ?: "unknown error")

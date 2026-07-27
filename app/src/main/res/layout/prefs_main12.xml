@@ -8,7 +8,10 @@
 	android:layout_height="match_parent"
 	android:cacheColorHint="@android:color/transparent"
 	android:clipToPadding="false"
+	android:divider="@null"
+	android:dividerHeight="0dp"
 	android:drawSelectorOnTop="false"
+	android:listSelector="@drawable/list_item_bg"
 	android:scrollbarAlwaysDrawVerticalTrack="false"
 	android:background="@color/color_window_background"
 	/>

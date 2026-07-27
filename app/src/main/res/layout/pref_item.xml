@@ -35,7 +35,8 @@
 			android:id="@android:id/title"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:singleLine="true"
+			android:maxLines="1"
+			android:ellipsize="end"
 			android:textColor="@color/preference_primary_text_color"
 			android:textSize="@dimen/normal_text_size" />
 
@@ -43,7 +44,6 @@
 			android:id="@android:id/summary"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-			android:singleLine="false"
 			android:textColor="@color/preference_secondary_text_color"
 			android:textSize="@dimen/secondary_text_size" />
 
@@ -53,7 +53,6 @@
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
 			android:layout_marginTop="10dp"
-			android:singleLine="false"
 			android:textColor="@color/preference_secondary_text_color"
 			android:textSize="11sp"
 			tools:ignore="SmallSp" />

@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 import tv.withaibuild.customiuizer.subs.CategorySelector
 import tv.withaibuild.customiuizer.subs.Controls
@@ -114,6 +115,18 @@ class MainFragment : PreferenceFragmentBase() {
         setPreferencesFromResource(R.xml.prefs_main, rootKey)
     }
 
+    private fun doBaseReload() = super.reloadPreferences()
+
+    override fun reloadPreferences() {
+        val act = activity as? AppCompatActivity ?: return super.reloadPreferences()
+        lifecycleScope.launch(Dispatchers.IO) {
+            Helpers.getAllMods(act, true)
+            withContext(Dispatchers.Main) {
+                doBaseReload()
+            }
+        }
+    }
+
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         super.onCreateOptionsMenu(menu, inflater)
         mActionMenu = menu
@@ -161,7 +174,7 @@ class MainFragment : PreferenceFragmentBase() {
             searchView.setQuery(lastFilter, false)
             if (!isSearchFocused) searchView.clearFocus()
             isRestoringSearch = false
-            findMod(lastFilter ?: "")
+            if (resultView != null && listView != null) findMod(lastFilter ?: "")
         }
     }
 
@@ -208,6 +221,8 @@ class MainFragment : PreferenceFragmentBase() {
 
         listView = getListView()
 
+        if (inSearchView != 0 && !lastFilter.isNullOrEmpty()) findMod(lastFilter ?: "")
+
         findPreference<Preference>("pref_key_miuizer_launchericon")?.setOnPreferenceChangeListener { _, newValue ->
             val act = activity as? AppCompatActivity ?: return@setOnPreferenceChangeListener false
             val pm = act.packageManager
@@ -223,6 +238,13 @@ class MainFragment : PreferenceFragmentBase() {
         findPreference<ListPreferenceEx>("pref_key_miuizer_locale")?.let { locale ->
             AppHelper.setupLocalePreference(locale)
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        resultView = null
+        listView = null
+        mActionMenu = null
     }
 
     private fun findMod(filter: String) {

@@ -7,6 +7,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -385,9 +386,33 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         return animator
     }
 
+    private var currentLocale: Locale? = null
+
     override fun onAttach(context: Context) {
         super.onAttach(context)
         actContext = context
+        currentLocale = context.resources.configuration.locales[0]
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val newLocale = newConfig.locales[0]
+        if (newLocale != currentLocale) {
+            currentLocale = newLocale
+            reloadPreferences()
+        }
+    }
+
+    open fun reloadPreferences() {
+        if (!isAdded) return
+        preferenceScreen = null
+        onCreatePreferences(null, null)
+        parentFragmentManager.beginTransaction()
+            .setReorderingAllowed(true)
+            .detach(this)
+            .attach(this)
+            .commitNowAllowingStateLoss()
+        initFragment()
     }
 
     override fun onDetach() {

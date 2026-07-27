@@ -4,9 +4,11 @@
 		<item name="android:windowAnimationStyle">@style/AppActivityAnimation</item>
 		<item name="android:windowIsTranslucent">false</item>
 		<item name="android:colorBackground">@color/color_window_background</item>
+		<item name="android:windowBackground">@color/color_window_background</item>
 		<item name="android:windowTranslucentStatus">true</item>
 		<item name="android:windowTranslucentNavigation">true</item>
-		<item name="android:windowLightStatusBar">true</item>
+		<item name="android:windowLightStatusBar">@bool/is_light_status_bars</item>
+		<item name="android:windowLightNavigationBar">@bool/is_light_navigation_bars</item>
 		<item name="android:windowDisablePreview">true</item>
 		<item name="android:colorBackgroundCacheHint">@null</item>
 		<item name="android:spinnerStyle">@style/AppSpinnerStyle</item>
@@ -38,11 +40,14 @@
 		<item name="android:activityCloseExitAnimation">@anim/activity_close_exit</item>
 	</style>
 	<style name="AppToolbarStyle" parent="ThemeOverlay.AppCompat.DayNight.ActionBar">
+		<item name="colorPrimary">@color/color_window_background</item>
+		<item name="android:textColorPrimary">@color/preference_primary_text</item>
+		<item name="android:textColorSecondary">@color/preference_secondary_text</item>
 	</style>
 	<style name="AppDialogStyle" parent="ThemeOverlay.AppCompat.Dialog">
 		<item name="android:windowBackground">@drawable/popup_background</item>
-		<item name="android:windowMinWidthMajor">65%</item>
-		<item name="android:windowMinWidthMinor">80%</item>
+		<item name="android:windowMinWidthMajor">70%</item>
+		<item name="android:windowMinWidthMinor">85%</item>
 	</style>
 
 	<style name="AppPreferenceTheme" parent="@style/PreferenceThemeOverlay.v14.Material">
@@ -67,20 +72,6 @@
 		<item name="android:windowTranslucentNavigation">true</item>
 	</style>
 
-	<style name="ApplyInvisible">
-		<item name="android:backgroundDimEnabled">true</item>
-		<item name="android:windowFrame">@null</item>
-		<item name="android:windowCloseOnTouchOutside">true</item>
-		<item name="windowNoTitle">true</item>
-		<item name="android:windowContentOverlay">@null</item>
-		<item name="android:windowIsFloating">false</item>
-		<item name="android:windowTranslucentStatus">true</item>
-		<item name="android:windowTranslucentNavigation">true</item>
-		<item name="android:windowBackground">@android:color/transparent</item>
-		<item name="android:colorBackgroundCacheHint">@null</item>
-		<item name="android:windowIsTranslucent">true</item>
-	</style>
-
 	<style name="AppTextAppearance">
 		<item name="android:textSize">@dimen/secondary_text_size</item>
 		<item name="android:textColorHighlight">?android:attr/textColorHighlight</item>
@@ -91,7 +82,7 @@
 		<item name="android:textSize">@dimen/normal_text_size</item>
 		<item name="android:textStyle">normal</item>
 	</style>
-	<style name="AppTextAppearance.Secondary" parent="TextAppearance.AppCompat.Display1">
+	<style name="AppTextAppearance.Secondary" parent="TextAppearance.AppCompat.Body1">
 		<item name="android:textSize">@dimen/secondary_text_size</item>
 		<item name="android:textStyle">normal</item>
 	</style>

@@ -10,13 +10,18 @@
 		android:id="@+id/mainActionBar"
 		android:layout_width="match_parent"
 		android:layout_height="?attr/actionBarSize"
-		android:elevation="4dp"
-		app:contentInsetLeft="0dp"
-		app:contentInsetRight="0dp"
+		android:elevation="0dp"
+		app:contentInsetStart="@dimen/preference_item_child_padding"
+		app:contentInsetEnd="@dimen/preference_item_child_padding"
 		app:titleMarginStart="0dp"
 		app:titleTextColor="@color/preference_primary_text_color"
 		app:theme="@style/AppToolbarStyle"
 		/>
+
+	<View
+		android:layout_width="match_parent"
+		android:layout_height="1dp"
+		android:background="@color/about_divider" />
 
 	<FrameLayout
 		android:id="@+id/fragment_container"

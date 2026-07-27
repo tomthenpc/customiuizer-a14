@@ -4,7 +4,7 @@
         <shape
             android:shape="rectangle"
             android:useLevel="true">
-            <corners android:radius="28dp" />
+            <corners android:radius="16dp" />
             <solid android:color="@color/color_window_background" />
         </shape>
     </item>
@@ -12,7 +12,7 @@
         <shape
             android:shape="rectangle"
             android:useLevel="true">
-            <corners android:radius="28dp" />
+            <corners android:radius="16dp" />
             <solid android:color="@color/color_popup_background" />
         </shape>
     </item>

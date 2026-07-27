@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Process
 import android.view.KeyEvent
@@ -12,6 +13,7 @@ import android.view.MenuItem
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.appcompat.widget.Toolbar
 import androidx.fragment.app.Fragment
 import io.github.libxposed.service.RemotePreferences
@@ -23,6 +25,7 @@ import tv.withaibuild.customiuizer.utils.Helpers
 class MainActivity : AppCompatActivity() {
 
     private var mainFrag: MainFragment? = null
+    private var windowInsetsController: WindowInsetsControllerCompat? = null
     private val prefsChanged = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
         if (AppHelper.remotePrefs == null) return@OnSharedPreferenceChangeListener
         if (key == null) {
@@ -71,6 +74,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        windowInsetsController = WindowInsetsControllerCompat(window, window.decorView)
+        applySystemBarsAppearance()
 
         if (AppHelper.remotePrefs == null && !serviceListenerRegistered) {
             XposedServiceHelper.registerListener(object : XposedServiceHelper.OnServiceListener {
@@ -100,6 +105,21 @@ class MainActivity : AppCompatActivity() {
         }
 
         AppHelper.appPrefs?.registerOnSharedPreferenceChangeListener(prefsChanged)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applySystemBarsAppearance()
+    }
+
+    private fun applySystemBarsAppearance() {
+        val isNightMode = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        (windowInsetsController ?: WindowInsetsControllerCompat(window, window.decorView).also {
+            windowInsetsController = it
+        }).apply {
+            isAppearanceLightStatusBars = !isNightMode
+            isAppearanceLightNavigationBars = !isNightMode
+        }
     }
 
     fun navToSubFragment(
