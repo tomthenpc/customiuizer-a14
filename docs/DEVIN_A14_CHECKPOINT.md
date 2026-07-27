@@ -17,9 +17,9 @@
 ## 当前开发分支
 
 - 分支：`devin/r14.13-kotlin-refactor`
-- 最近基线：`e693221f`（统一公开文档格式、Release 策略并新增 `CHANGELOG_EN.md`）
-- 与 `origin/main` 的关系：ahead 2 / behind 0；merge base `73ea3415`
-- 当前任务：文档格式统一已完成；不合并到 `main`，因为 `main` 已承载正式 Release tag `r14.13.4`。
+- 最近基线：`f7d95288`（修复首页搜索导航回归：Various 结果、`sub` 空值语义、`openModCat` 返回值）
+- 与 `origin/main` 的关系：ahead 5 / behind 0；merge base `73ea3415`
+- 当前任务：搜索导航回归修复候选已完成，等待实机覆盖验证；不合并到 `main`，因为 `main` 仍承载正式 Release tag `r14.13.4`。
 
 ## 发布产物与签名
 
