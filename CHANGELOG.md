@@ -1,5 +1,7 @@
 # Changelog
 
+简体中文 | [English](CHANGELOG_EN.md)
+
 本文件记录公开版本的用户可见变化、兼容边界、验证结论和回退价值。内部迁移批次、
 Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为 Release changelog。
 

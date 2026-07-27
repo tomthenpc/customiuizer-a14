@@ -162,7 +162,7 @@ keystores, passwords, logs, caches, or local build state.
 
 Engineering and provenance documents:
 
-- [CHANGELOG](CHANGELOG.md)
+- [CHANGELOG](CHANGELOG_EN.md)
 - [Project lineage](docs/PROJECT_LINEAGE.md)
 - [libxposed API 101/102 compatibility](docs/LIBXPOSED_API_101_102_COMPATIBILITY.md)
 - [Verification](docs/VERIFICATION.md)
@@ -187,10 +187,11 @@ will not replace the current Kotlin/API 101/102 implementation.
 
 ## Release Policy
 
-The public Releases page keeps four key versions:
+The public Releases page keeps the following key versions:
 
 | Version | Purpose |
 | --- | --- |
+| `r14.13.4` | Current stable release |
 | `r14.12.0` | Previous stable release; old signature, so back up and reinstall when upgrading |
 | `r14.8.0` | Kotlin infrastructure fallback |
 | `r14.7.4` | Consolidated r14.7.x Kotlin/coroutine migration |
