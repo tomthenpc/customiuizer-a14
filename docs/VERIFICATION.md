@@ -10,15 +10,15 @@ R8、资源、Manifest、入口或 Xposed 元数据后，必须按风险重新�
 
 | 项目 | 值 |
 | --- | --- |
-| 版本 | `r14.13.3` / versionCode 181 |
+| 版本 | `r14.13.4` / versionCode 182 |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
-| APK | `CustoMIUIzer-A14-r14.13.3.apk` |
-| 大小 | 3,039,311 bytes |
-| APK SHA-256 | `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927` |
+| APK | `CustoMIUIzer-A14-r14.13.4.apk` |
+| 大小 | 3,032,173 bytes |
+| APK SHA-256 | `E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C` |
 | 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
 | libxposed 元数据 | `minApiVersion=101`、`targetApiVersion=102`、`staticScope=false` |
 
-## 当前公开稳定产物
+## 历史公开稳定产物
 
 | 项目 | 值 |
 | --- | --- |
@@ -47,7 +47,31 @@ r14.12.0 发布前已完成：
 
 这些检查证明编译、打包和静态兼容边界，不等价于所有 ROM、进程和功能组合的实机结果。
 
+## r14.13.4 最终构建静态验证
+
+当前工作区（`devin/r14.13-kotlin-refactor`，最终合并前 HEAD）已完成正式构建：
+
+- 构建命令：`$env:JAVA_HOME='C:\Program Files\Java\jdk-17'; .\gradlew --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleDevelop assembleRelease`
+- 退出码：`0`（`BUILD SUCCESSFUL in 3m 32s`）
+- JDK：`17`
+- Gradle：`9.6.1`
+- AGP：`9.2.1`
+- Kotlin：`2.3.21`
+- 单元测试：45 tests, 0 failures, 0 skipped
+- Lint / `lintRelease` / `lintVitalRelease`：通过，107 deprecation warnings，0 errors
+- Debug / Develop / Release、R8、资源压缩、zipalign、APK Signature Scheme v2：通过
+- `apksigner verify -v` 确认 Release APK 由 V2 签名，1 个签名者
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+- 产物：`app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.4.apk`
+- APK 大小：3,032,173 bytes
+- APK SHA-256：`E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C`
+- `aapt2 dump badging` 确认：`package: name='tv.withaibuild.customiuizer.r14' versionCode='182' versionName='r14.13.4'`，`minSdkVersion='34'`，`targetSdkVersion='34'`
+- APK 中 `module.prop`：`minApiVersion=101`、`targetApiVersion=102`、`staticScope=false`
+- APK 中 `META-INF/xposed/java_init.list`：`cp`（R8 `-repackageclasses` 混淆后的入口类名）
+
 ## r14.13.3 候选构建静态验证
+
+> 非公开候选版本；相关改动已由 `r14.13.4` 正式版收口发布。
 
 当前工作区（`devin/r14.13-kotlin-refactor`，HEAD `b63ec5f`）已完成候选构建：
 

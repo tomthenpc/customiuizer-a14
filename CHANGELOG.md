@@ -3,9 +3,87 @@
 本文件记录公开版本的用户可见变化、兼容边界、验证结论和回退价值。内部迁移批次、
 Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为 Release changelog。
 
+## [r14.13.4] - 2026-07-28
+
+### 版本定位
+
+在 r14.12.0 稳定基线之上，完成设置应用、Locale、主题、生命周期和高频 Hook
+路径的集中治理，并正式收口 r14.13 开发线中的架构审计、Kotlin 迁移回归和性能修复。
+
+本版本继续仅支持 HyperOS 1 / Android 14 和 `arm64-v8a`，保持 libxposed
+API 101/102 单 APK 兼容边界。
+
+### 设置与界面
+
+- 应用内语言入口集中到 About 页面，支持跟随系统及项目现有多语言。
+- 修复语言和日间/夜间模式切换后的 Activity、系统栏与设置页面重建行为。
+- About 页面分别显示维护者、上游来源和当前版本。
+- 修复搜索结果进入功能后的返回状态及 Fragment 重建状态恢复。
+- Launcher、SystemUI 和 Security Center 重启改为后台 Root 命令，并补充无 Root、
+  目标未运行和执行失败反馈。
+- 整理 Preference 标题、summary、弹窗、间距、圆角和多语言资源。
+
+### 稳定性与性能
+
+- 修复 SystemUI 状态栏温度、电流等文本图标长期强引用旧 View 的问题；主题、密度、
+  横竖屏或状态栏重新创建后，失效 View 可以被回收。
+- 优化资源替换 Hook 的未命中路径，减少资源读取中的整数装箱、JNI 方法名读取和无效
+  资源名称解析，并为 Sparse 容器增加安全发布。
+- 修复 Java → Kotlin 迁移后 CPU thermal zone 扫描丢失首次命中退出语义的问题，
+  避免周期任务重复打开无关 sysfs 文件。
+- 移除 `first|second` 配置解析中的重复 Regex 编译，并增加 PrefPair 回归测试。
+- 缓存 application ClassLoader fallback，避免 ROM 合法类缺失时重复执行反射探测。
+- 修复 RemotePreferences 早期空快照被永久视为已加载的问题。
+- 仅在 preference listener 注册成功后设置注册状态。
+- 防止 DexKitBridge 重复创建。
+
+### 构建与兼容
+
+- 继续使用已验证的 JDK 17、Gradle 9.6.1、AGP 9.2.1 和 Kotlin 2.3.21。
+- 本版本不包含 AGP 9.3.1 或其他工具链升级。
+- 使用 libxposed API/service 102 构建，`minApiVersion=101`、
+  `targetApiVersion=102`、`staticScope=false`。
+- 公共加载与 Hook 路径保持 API 101 可用；未启用 Hot Reload、hook ID 或原子
+  replacement。
+- Release 保持 R8、资源压缩、zipalign 和 APK Signature Scheme v2。
+
+### 重要：签名密钥变更
+
+- `r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失，无法继续用于后续构建。
+- `r14.13.4` 使用新的正式签名证书，因此不能直接覆盖安装旧公开版本。
+- 升级前必须先在旧版本中备份模块设置，然后卸载旧版本、安装 `r14.13.4`、
+  重新启用 LSPosed/Vector 作用域、恢复设置并完整重启设备。
+- 新签名证书 SHA-256：
+  `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+
+### Verification
+
+- 单元测试：45 tests, 0 failures, 0 skipped。
+- Lint / `lintRelease` / `lintVitalRelease`：通过，107 deprecation warnings，0 errors。
+- Debug / Develop / Release、R8 和资源压缩：通过（`BUILD SUCCESSFUL in 3m 32s`）。
+- APK：`CustoMIUIzer-A14-r14.13.4.apk`。
+- APK 大小：3,032,173 bytes。
+- APK SHA-256：`E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C`。
+- 签名：APK Signature Scheme v2，证书 SHA-256
+  `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`。
+- applicationId：`tv.withaibuild.customiuizer.r14`。
+- versionCode/versionName：`182 / r14.13.4`。
+- `minSdk/targetSdk`：`34 / 34`。
+- Xposed metadata：`minApiVersion=101`、`targetApiVersion=102`、
+  `staticScope=false`。
+
+### 已知限制
+
+- 仅支持 HyperOS 1 / Android 14 和 `arm64-v8a`。
+- API 102 仍需在对应框架环境进行独立实机覆盖。
+- 厂商系统应用更新可能改变 Hook 目标。
+- 性能和功耗收益取决于 ROM、启用功能和使用方式，不声明未经同设备对照测量的固定比例。
+
 ## [r14.13.3] - 2026-07-27
 
 ### 版本定位
+
+> 非公开候选版本；相关改动已由 `r14.13.4` 正式版收口发布。
 
 针对 UI/Locale/About 页面、主题重建、LSPosed 日志审计和 DexKitBridge 初始化的维护性修复与文档同步候选。
 
@@ -65,7 +143,8 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 | 版本 | 日期 | 定位 |
 | --- | --- | --- |
-| `r14.12.0` | 2026-07-26 | 当前稳定版；API 101/102、Kotlin、生命周期与构建治理 |
+| `r14.13.4` | 2026-07-28 | 当前稳定版；设置/Locale、生命周期、资源 Hook 与迁移回归治理 |
+| `r14.12.0` | 2026-07-26 | 旧签名稳定版；升级到新版本前必须备份并重装 |
 | `r14.8.0` | 2026-07-25 | Kotlin 基础设施回退点 |
 | `r14.7.4` | 2026-07-25 | r14.7.x Kotlin/Coroutine 迁移合并版 |
 | `r14.5.0` | 2026-07-24 | 独立包名、签名和发布路径基线 |

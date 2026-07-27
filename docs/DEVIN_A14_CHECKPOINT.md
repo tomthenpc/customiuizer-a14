@@ -6,25 +6,23 @@
 
 ## 当前唯一主目标
 
-完成 `devin/r14.13-kotlin-refactor` 架构审计轮次的落地验证：本轮已实施 6 项架构/性能/迁移回归修复（见 `docs/ARCHITECTURE_AUDIT_r14.13.md`），需要实机回归 SystemUI 状态栏文本图标、设备温度读数与资源替换类功能，之后再决定版本推进。在获得当前工作树的实机证据前，不合并 `main`、不打 tag、不创建 Release。
+发布 `r14.13.4` 正式版：完成源码仓库与 LSPosed 模块仓库双仓库 tag、Release、APK 上传和文档同步。版本线 `r14.13` 由 `r14.13.4` 正式收口；不创建 `r14.14` 或新开发分支。
 
 ## 当前 Git 基线
 
 - Repository: `tomthenpc/customiuizer-a14`
 - Active branch: `devin/r14.13-kotlin-refactor`
-- Remote branch HEAD: `58b21260400a4bd0f0b505589461d5f735ac36f5`
-- Local HEAD: `58b21260400a4bd0f0b505589461d5f735ac36f5`
-- HEAD subject: `docs: sync r14.13.3 candidate build evidence and LSPosed audit`
+- Local HEAD: `6a5c8642`（version bump to `r14.13.4` / 182）
+- HEAD subject: `chore: prepare r14.13.4 release`
 - Base branch: `main`
 - Merge base / main HEAD: `8e596881419938d0edb96a8e466dc8e1e970894a`
-- Compared with main: ahead 39 / behind 0
-- Working tree: 架构审计轮次修改**未提交**（9 个文件 + 新增 `docs/ARCHITECTURE_AUDIT_r14.13.md`）
-- Branch status: active development branch; do not switch to main or create another branch
+- Working tree：文档修改待提交（`CHANGELOG.md`、`README.md`、`README_EN.md`、`docs/VERIFICATION.md`、`docs/REFACTOR_PROGRESS.md`、`docs/RELEASE_ARCHIVE.md` 等）
+- Branch status：发布前最终整理阶段；下一步合并 `main`、构建、打 tag、创建 Release
 
 ## 当前构建身份
 
-- versionName: `r14.13.3`
-- versionCode: `181`
+- versionName: `r14.13.4`
+- versionCode: `182`
 - applicationId: `tv.withaibuild.customiuizer.r14`
 - namespace: `tv.withaibuild.customiuizer`
 - Platform: HyperOS 1 / Android 14 / SDK 34
@@ -48,7 +46,7 @@
 
 - 不得继续引用“无 keystore 时 Release 使用 Debug 签名”的旧结论
 - 每个候选 APK 必须检查实际证书 SHA-256
-- 当前新签名证书 SHA-256 记录为：
+- `r14.13.4` 正式版使用新签名证书 SHA-256：
   `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
 - `r14.12.0` 及更早版本旧私钥已遗失；新签名不能覆盖旧签名安装
 - 升级文档必须要求备份设置、卸载旧版、安装新版

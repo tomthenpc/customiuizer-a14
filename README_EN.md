@@ -14,42 +14,59 @@ release.
 
 | Item | Status |
 | --- | --- |
-| Stable version | `r14.12.0` |
+| Stable version | `r14.13.4` |
 | Supported system | HyperOS 1 / Android 14 (SDK 34) |
 | ABI | `arm64-v8a` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | libxposed API | min 101 / target 102 |
 | Hot Reload | Disabled |
 | Build | Kotlin DSL / version catalog / R8 |
-| Download | [GitHub Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.12.0) |
+| Download | [GitHub Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4) |
 
-## r14.12.0 Highlights
+## r14.13.4 Highlights
 
-- **One APK for API 101 and 102**: compiled against API 102 with API 101 as the minimum runtime
-  baseline.
-- **Conservative Kotlin migration**: core hooks, settings UI, and utilities were migrated while
-  stable Java/JVM entry points and reflection boundaries were retained.
-- **Lifecycle ownership**: prevents duplicate hooks, receivers, observers, listeners, coroutines,
-  and animation tasks when SystemUI is recreated.
-- **Hot-path cleanup**: reflection, DexKit, and resource discovery stay in initialization paths;
-  drawing and frequent callbacks perform fewer allocations, formatting operations, and repeated
-  state calculations.
-- **Low disabled-feature cost**: disabled features avoid registering unnecessary hooks and
-  long-lived listeners; no polling or permanent background task was added.
-- **Reproducible release path**: Gradle and direct dependency versions are pinned, with R8,
-  resource shrinking, zipalign, and APK Signature Scheme v2 enabled for Release builds.
+- **Settings and locale cleanup**: moves the in-app language entry to About and fixes locale,
+  theme, system-bar, and Fragment recreation behavior.
+- **SystemUI lifecycle fix**: status-bar temperature/current text icons no longer retain stale
+  Views indefinitely.
+- **Resource-hook hot-path cleanup**: reduces boxing, reflection, and unnecessary parsing on
+  resource lookup misses, with safely published caches.
+- **Kotlin migration regressions fixed**: restores first-match thermal-zone behavior and removes
+  repeated Regex compilation from pair parsing.
+- **Preference-chain reliability**: empty RemotePreferences snapshots can be retried, and listener
+  state is set only after successful registration.
+- **One API 101/102 APK**: retains HyperOS 1 / Android 14 support, R8, resource shrinking,
+  zipalign, and APK Signature Scheme v2.
 
 ## Download and Verification
 
-- APK: `CustoMIUIzer-A14-r14.12.0.apk`
-- Size: 3,020,253 bytes
-- SHA-256: `7E488C4ED011F68321A8A2E5911B61D1C35659C98CA0116500855F79F05ED80E`
+- APK: `CustoMIUIzer-A14-r14.13.4.apk`
+- Size: 3,032,173 bytes
+- SHA-256: `E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C`
 - Signing certificate SHA-256:
-  `3061A3DA1C2FC46B44E215D024B1BFE3A012CB4D70B90B0214FA9FC896CEF60D`
+  `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
 
 Download only from this project's Releases or its corresponding LSPosed module repository.
 A differently signed build may not install over the existing app. Back up your settings before
 removing an older installation.
+
+## Important: Back Up and Reinstall
+
+The private signing key used by the public `r14.12.0` release and earlier releases has been lost.
+`r14.13.4` is signed with a new official certificate and cannot be installed as an in-place update
+over those older public builds.
+
+Upgrade steps:
+
+1. Back up the module settings in the old installation.
+2. Record the current LSPosed/Vector scope.
+3. Uninstall the old version.
+4. Install `CustoMIUIzer-A14-r14.13.4.apk`.
+5. Re-enable the module and restore the original scope.
+6. Restore the settings.
+7. Fully reboot the device.
+
+Do not uninstall the old version before backing up its settings.
 
 ## Feature Scope
 

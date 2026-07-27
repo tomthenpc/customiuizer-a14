@@ -135,17 +135,18 @@
 - `r14.13.0-rc3` / code 177
 - `r14.13.0` / code 178
 - `r14.13.3` / code 181
+- `r14.13.4` / code 182（正式版，合并 main 并发布双仓库 Release）
 
 ### 构建与产物
 
-- 完整矩阵 `clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease` 通过。
-- 退出码：`0`（`BUILD SUCCESSFUL in 2m 37s`）。
-- 单元测试 36 个。
-- Release APK：`3,039,311` bytes，SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`。
+- 完整矩阵 `clean test lint lintRelease lintVitalRelease assembleDebug assembleDevelop assembleRelease` 通过。
+- 退出码：`0`（`BUILD SUCCESSFUL in 3m 32s`）。
+- 单元测试：45 tests，0 failures，0 skipped。
+- Release APK：`CustoMIUIzer-A14-r14.13.4.apk`，3,032,173 bytes，SHA-256 `E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C`。
 - 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`（V2 Signer，使用仓库外部 `../keystore.properties` 指定的正式签名配置）。
-- `apksigner verify -v` 确认 V2 签名与 1 个签名者；`aapt2 dump badging` 确认 applicationId、versionCode、`minSdk`/`targetSdk` 正确。
-- 该 APK 为当前 `r14.13.3` 候选构建产物；缺少 `keystore.properties` 时构建会抛出 `GradleException`，不再回退 Debug 签名。
-- 本轮构建曾因 `prefs_about.xml` 缺少 `xmlns:miuizer` 命名空间导致 `mergeReleaseResources` 失败；已修复。
+- `apksigner verify -v` 确认 V2 签名与 1 个签名者；`aapt2 dump badging` 确认 applicationId `tv.withaibuild.customiuizer.r14`、versionCode `182`、versionName `r14.13.4`、`minSdk/targetSdk` `34/34` 正确。
+- `module.prop`：`minApiVersion=101`、`targetApiVersion=102`、`staticScope=false`。
+- 缺少 `keystore.properties` 时构建会抛出 `GradleException`，不再回退 Debug 签名。
 
 ### 当前会话修复与验证（`b63ec5f` 工作区）
 

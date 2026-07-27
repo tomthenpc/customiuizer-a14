@@ -13,37 +13,54 @@
 
 | 项目 | 状态 |
 | --- | --- |
-| 稳定版本 | `r14.12.0` |
+| 稳定版本 | `r14.13.4` |
 | 支持系统 | HyperOS 1 / Android 14（SDK 34） |
 | ABI | `arm64-v8a` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | libxposed API | min 101 / target 102 |
 | Hot Reload | 关闭 |
 | 构建 | Kotlin DSL / version catalog / R8 |
-| 下载 | [GitHub Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.12.0) |
+| 下载 | [GitHub Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4) |
 
-## r14.12.0 亮点
+## r14.13.4 亮点
 
-- **API 101/102 单 APK 双兼容**：以 API 102 编译，API 101 作为最低运行基线。
-- **保守 Kotlin 化**：核心 Hook、设置 UI 和工具代码迁移到 Kotlin，保留必要 Java/JVM
-  入口和反射边界。
-- **生命周期治理**：SystemUI 重建时避免重复 Hook、Receiver、Observer、Listener、
-  Coroutine 和动画任务。
-- **热路径收敛**：反射、DexKit 和资源查找移到初始化路径，绘制与高频回调减少临时对象、
-  重复格式化和重复状态计算。
-- **功能关闭低成本**：不需要的功能尽量不注册 Hook 或长期监听，不增加轮询和永久后台任务。
-- **可复现发布**：固定 Gradle 与直接依赖版本，Release 启用 R8、资源压缩、zipalign 和
+- **设置与语言完善**：应用内语言入口集中到 About 页面，修复语言、主题、系统栏和
+  Fragment 重建状态。
+- **SystemUI 生命周期修复**：状态栏温度、电流等文本图标不再永久强引用已经失效的 View。
+- **资源 Hook 热路径优化**：减少资源读取 miss path 的装箱、反射和无效解析，并保证缓存
+  安全发布。
+- **Kotlin 迁移回归修复**：恢复 thermal zone 首次命中退出语义，移除 pair 字符串解析中的
+  重复 Regex 编译。
+- **配置链稳定性**：RemotePreferences 空快照可重试，监听器状态只在注册成功后置位。
+- **API 101/102 单 APK 兼容**：保持 Android 14 / HyperOS 1、R8、资源压缩、zipalign 和
   APK Signature Scheme v2。
 
 ## 下载与校验
 
-- APK：`CustoMIUIzer-A14-r14.12.0.apk`
-- 大小：3,020,253 bytes
-- SHA-256：`7E488C4ED011F68321A8A2E5911B61D1C35659C98CA0116500855F79F05ED80E`
-- 签名证书 SHA-256：`3061A3DA1C2FC46B44E215D024B1BFE3A012CB4D70B90B0214FA9FC896CEF60D`
+- APK：`CustoMIUIzer-A14-r14.13.4.apk`
+- 大小：3,032,173 bytes
+- SHA-256：`E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C`
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
 
 仅从本项目 Release 或对应的 LSPosed 模块仓库下载。不同签名可能无法覆盖安装，处理旧
 安装前请先备份设置。
+
+## 重要：旧版本需要备份后重装
+
+`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失。`r14.13.4` 使用新的正式签名，
+无法直接覆盖安装旧公开版本。
+
+升级步骤：
+
+1. 在旧版本模块中备份设置；
+2. 记录当前 LSPosed/Vector 作用域；
+3. 卸载旧版本；
+4. 安装 `CustoMIUIzer-A14-r14.13.4.apk`；
+5. 重新启用模块和原有作用域；
+6. 恢复设置；
+7. 完整重启设备。
+
+不要在未备份设置的情况下直接卸载旧版本。
 
 ## 功能范围
 
