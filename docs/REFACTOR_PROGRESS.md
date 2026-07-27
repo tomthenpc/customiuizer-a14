@@ -9,7 +9,8 @@
 - Android SDK：`c:\Users\tv\Downloads\Peengeek\.tools\android-sdk`
   （`platforms;android-37.0`、`build-tools;37.0.0`、platform-tools，本轮重新安装）。
 - 构建命令需带 `$env:JAVA_HOME='C:\Program Files\Java\jdk-17'`。
-- 本地无签名 keystore，Release 使用 debug 签名，仅作构建对照。
+- 签名：`app/build.gradle.kts` 从仓库外部 `../keystore.properties` 读取正式签名配置；缺失时构建阶段抛出 `GradleException`；`develop` 和 `release` 均固定使用正式 `v2` signingConfig，不再回退 Debug 证书；每个候选 APK 必须校验实际签名证书 SHA-256。
+- 当前 HEAD：`41b336ed2329fb224be79441a471be9830829e81`（`Add files via upload`，checkpoint 同步），相对 `main`：ahead 34 / behind 0。
 
 ## Phase 0 基线（已完成）
 
@@ -85,7 +86,76 @@
 - 单元测试 36 个；Java 源文件 3 个；Kotlin 源文件 88 个。
 - Release APK：3,020,249 bytes，SHA-256
   `82265AAEB106BECC0B90DB1F1DBA36D3C1E0BE436264645EE169F3C78AE3AE6F`
-  （本地 debug 签名，仅对照用）。
+  （该构建为历史本地 debug 签名对照；当前分支已改为仅正式签名，见环境备忘）。
+
+## Phase 5+ 后续修复与 r14.13.3 推进
+
+在 Phase 5 基线之上，针对 UI/Locale/Root 重启/资源清理进行了后续会话修复，最终推进到 `r14.13.3`（versionCode 181）。
+
+- 当前 HEAD：`41b336ed2329fb224be79441a471be9830829e81`（`Add files via upload`，checkpoint 同步），相对 `main`：ahead 34 / behind 0。
+
+### RC1 日志审计
+
+- 审计文档：`docs/RC1_LOG_AUDIT_r14.13.md`。
+- 日志文件：17,707,825 bytes / 120,759 行，SHA-256 `5889427B742A95FEFD69E33570D7DC6E5F8964073AD7C836D2F27D9C3CE03646`。
+- 未发现可归因于模块的 P0/P1/P2 异常、Hook 失败、RemotePreferences 异常或模块崩溃。
+- 限制：日志仅明确观察到模块在 `com.android.settings` 加载；SystemUI 与 Launcher 在日志期间未重新加载。
+- 该日志只证明 rc1 对应范围，不能证明当前 `r14.13.3` HEAD。
+
+### 应用内语言
+
+- 语言选项移到主设置页。
+- 支持英文、简中、繁中、俄语、日语、越南语、捷克语、葡萄牙语、土耳其语、西班牙语和跟随系统。
+- 使用 `AppCompatDelegate.setApplicationLocales`。
+- `MainActivity` 处理 `locale|layoutDirection|uiMode` configChanges；`PreferenceFragmentBase` 在 Locale 变化时重新加载 Preference。
+- Locale key 不同步到 Xposed RemotePreferences。
+
+### 搜索与返回状态
+
+- 搜索结果进入功能后返回主页面，而不是重新展开搜索。
+- 保存并恢复搜索状态，避免 Fragment 重建状态错乱。
+
+### Root 重启
+
+- Launcher、SystemUI、Security Center 重启改为后台 Root shell 命令。
+- 增加无 Root、目标未运行和失败反馈。
+- Root 重启功能尚需当前 HEAD 实机覆盖成功与失败路径。
+
+### UI、主题与资源
+
+- 恢复日间/夜间状态栏和导航栏图标明暗（`MainActivity.applySystemBarsAppearance()`、`WindowInsetsControllerCompat`、`styles.xml` 的 `windowLightStatusBar`/`windowLightNavigationBar`）。
+- 调整 Toolbar、Preference、About 页面、弹窗、颜色、间距和圆角。
+- Preference title 最大行数调整为 2（`pref_item.xml`）。
+- 清理 70+ 已判定未使用的字符串及数组资源；`lint` `UnusedResources` 降为 0。
+- 修改过的 XML 行尾统一为 LF（7 个资源文件）。
+
+### 版本推进
+
+- `r14.13.0-rc2` / code 176
+- `r14.13.0-rc3` / code 177
+- `r14.13.0` / code 178
+- `r14.13.3` / code 181
+
+### 构建与产物
+
+- `clean test lintDebug assembleDebug assembleRelease lintVitalRelease` 通过。
+- 单元测试 36 个。
+- Release APK：`3,031,833` bytes，SHA-256 `3BDA05097358274E8800A5DA003A82C2572D5B109FFB40674F916EB7E38B7B19`。
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`（V2 Signer，使用仓库外部 `../keystore.properties` 指定的正式签名配置）。
+- 该 APK 为当前 `r14.13.3` 候选构建产物；缺少 `keystore.properties` 时构建会抛出 `GradleException`，不再回退 Debug 签名。
+
+## 提交记录（Phase 5 后）
+
+| # | commit | 类型 | 内容 | 验证 |
+| --- | --- | --- | --- | --- |
+| 17 | `186eb386` | build | bump version to `r14.13.3` (181) | `test assembleDebug` |
+| 18 | `7c5ef782` | fix(ui) | 修复浅色/深色状态栏图标与语言切换不 recreate | `test assembleDebug` |
+| 19 | `cfbbbe3f` | fix(prefs) | Preference title maxLines 调整为 2 | `test assembleDebug` |
+| 20 | `eb590544` | chore(cleanup) | 删除未使用字符串与数组资源 | `test assembleDebug` |
+| 21 | `9caa563f` | style | 将 7 个 XML 资源文件 CRLF 规范化为 LF | `assembleDebug` + `git diff --check` |
+
+> 注：第 17–19 项涉及 `MainActivity`、`MainFragment`、`PreferenceFragmentBase`、`AppHelper` 及资源调整，未改变 Hook target、R8 keep 规则或 libxposed API 边界；
+> 第 20–21 项仅影响资源/行尾，行为不变。
 
 ## 提交记录（Phase 1–5）
 
@@ -121,6 +191,11 @@
 - [x] 阶段 3：mods 冷路径死代码证明与清理 + 收尾构建
 - [x] 阶段 4：Java 边界评估与全量构建
 - [x] 阶段 5：热路径审计与最终收口 + 全量构建
+- [x] 阶段 5+：`r14.13.3` 版本推进、状态栏/语言切换/搜索/Root 重启修复、资源清理、XML 行尾规范化
+- [x] 同步 `docs/REFACTOR_PROGRESS.md`、`docs/REFACTOR_PLAN_r14.13.md`、`docs/DEVIN_A14_CHECKPOINT.md` 与当前 HEAD
+- [ ] 当前 HEAD（`41b336ed`）实机验证：状态栏图标、语言切换、搜索返回、Root 重启、设置页 UI
+- [ ] 当前 HEAD 完整正式签名构建矩阵（`clean test lint assembleDebug assembleRelease lintVitalRelease`）与 APK SHA-256 确认
+- [ ] 根据实机结果决定 Phase E / PR / 合并 `main` / tag / Release
 
 ## 未实机验证清单（累积）
 
@@ -136,3 +211,10 @@
   显示正常（不出现逗号小数点）。
 - 阶段 5 `StatusBarGesturesHook` 缓存 `mDisplayManager`/`mDisplayId`：
   需要实机确认状态栏左右滑动调节亮度/音量、长按/双击状态栏动作正常。
+- 阶段 5+ 浅色/深色状态栏与导航栏图标：需要实机确认日间/夜间切换、子页面返回、搜索/分类/About 页面状态栏一致。
+- 阶段 5+ 应用内语言切换：需要实机确认中文 ↔ English ↔ 跟随系统切换不闪黑、不 recreate、无旧语言残留。
+- 阶段 5+ 搜索返回状态：需要实机确认搜索进入子功能后返回主页面状态正确，Fragment 重建不丢失搜索结果。
+- 阶段 5+ Root 重启功能：需要实机确认有 Root/无 Root、目标运行/未运行、命令失败等路径反馈正确。
+- 阶段 5+ Preference 两行标题与 About/Tail 页面：需要实机确认长标题显示两行、About 页面布局正常。
+- 阶段 5+ 资源清理：需要实机确认设置页、弹窗、BT/WiFi 列表等无资源缺失或崩溃。
+- 阶段 5+ XML 行尾规范化：已通过 `git diff --check`；行为不变，无需单独实机测试。

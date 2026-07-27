@@ -77,3 +77,62 @@ API 101 基线稳定 > 兼容 > 性能 > 可维护性 > 形式。100% Kotlin 不
 每个阶段收尾：`clean test lint assembleDebug assembleRelease lintVitalRelease` +
 Release APK 大小/SHA-256 对照。实机验证本环境不可用，统一标注"未实机验证"，
 清单见 `docs/REFACTOR_PROGRESS.md`。
+
+## 状态说明
+
+- 当前分支：`devin/r14.13-kotlin-refactor`
+- 当前 HEAD：`41b336ed2329fb224be79441a471be9830829e81`
+- 相对 `main`：ahead 34 / behind 0
+- 当前目标版本：`r14.13.3` / versionCode `181`
+- 当前构建签名：仅正式签名（`../keystore.properties` + `v2` signingConfig），缺少 keystore 时构建直接失败，不回退 Debug 签名
+- 当前完成阶段：Phase 0–5 + Phase 5+（UI/Locale/Root/资源/CRLF 修复）已合并推进到 `r14.13.3`
+- 当前未完成：当前 HEAD 的实机验证、完整正式签名构建矩阵复验、后续 Phase E（受控 Java → Kotlin）尚未启动
+
+## 实际执行结果与计划偏移
+
+本文件上半部分为原始计划，应保留为基线记录。下列内容说明实际执行中超出原计划的范围与原因。
+
+### Manifest
+
+- **原计划**："不改 Manifest"。
+- **实际偏移**：修改了 `app/src/main/AndroidManifest.xml`。
+- **原因**：为了让 `MainActivity` 在 Locale、layoutDirection 和 uiMode 变化时不被系统 recreate，必须在 `MainActivity` 上显式声明 `android:configChanges="locale|layoutDirection|uiMode"`。不修改 Manifest 就无法实现应用内语言切换和日夜间主题切换无闪黑。
+
+### 版本线
+
+- **原计划**：版本目标为 `r14.13.0`。
+- **实际偏移**：推进到 `r14.13.3` / versionCode `181`。
+- **原因**：在 rc 验证过程中逐步迭代了 `r14.13.0-rc2`（code 176）、`r14.13.0-rc3`（code 177）、`r14.13.0`（code 178），并继续修复浅色状态栏、语言切换、搜索状态、Root 重启、Preference 两行标题和资源清理后，Version 提升到 `r14.13.3`（code 181），以区分中间 rc 状态。
+
+### 签名
+
+- **原计划**："不改 ... 签名"。
+- **实际偏移**：`app/build.gradle.kts` 取消缺少正式 keystore 时回退 Debug 证书的行为。
+- **原因**：避免把 Debug 签名 APK 误作 Release 候选；确保每个 `release`/`develop` 构建都使用仓库外部 `../keystore.properties` 指定的正式 `v2` signingConfig。该签名配置本身位于仓库外部，不提交密钥材料到仓库。
+
+### Locale 与应用内语言
+
+- **原计划**：阶段 2 仅做 "`subs/`、`prefs/` 中 Java 风格代码清理"。
+- **实际偏移**：新增并实现了完整的应用内语言切换（11 种语言 + 跟随系统）。
+- **原因**：浅色状态栏修复和主题切换需要 `MainActivity`/`MainFragment`/`PreferenceFragmentBase` 协同处理 `locale|uiMode` configChanges；在验证过程中发现语言选项分散、每次切换 recreate/闪黑，因此把 Locale 选项移到主设置页，并使用 `AppCompatDelegate.setApplicationLocales` 实现无 recreate 切换。这超出了原 UI 层小步梳理的范围，但属于同一工作线的合理延伸。
+
+### Root 重启
+
+- **原计划**：未包含 Root 重启改动。
+- **实际偏移**：`AppHelper` 中 Launcher、SystemUI、Security Center 重启改为后台 Root shell 执行。
+- **原因**：设置页右上角菜单的 "重启" 操作原来可能阻塞 UI 或在无 Root 时崩溃。为了让状态栏/语言切换后的验证流程可靠，需要把 Root 命令放到后台、处理 `pidof` 无结果/多 PID/非零退出码/无 Root 等情况，并给出用户反馈。
+
+### UI、主题与资源
+
+- **原计划**：阶段 2 不做 "新框架"，只做 UI 层 Kotlin 风格清理。
+- **实际偏移**：实际调整了 `MainActivity`、多个 layout/XML 资源、Toolbar、Preference、About 页面、颜色、间距、圆角、Preference title 最大行数，并清理了 70+ 个未使用字符串/数组资源。
+- **原因**：`REFACTOR_PLAN`  작성 시点是 `r14.13.0-rc1` 之后，但 rc1/rc2 实机和日志反馈暴露出浅色状态栏图标反色、语言切换闪黑、搜索返回状态错乱、About/Preference 标题截断等问题。修复这些问题需要修改 Activity 生命周期、资源 XML 和 Theme/Style，因此 UI 工作超出了原计划 "Java 风格代码清理" 的范围，但方向一致且未引入 Flow/DataBinding/Compose 等新框架。
+
+### 结论
+
+上述偏移均来自 `r14.13.0-rc` 系列的实机/日志反馈，不是为迁移而迁移。所有改动仍遵守：
+- 不修改 `mods.**` 公共静态入口与 R8 keep 规则；
+- 不修改 `META-INF/xposed`、applicationId、libxposed API 版本；
+- 不合并 `main`、不打 tag、不发 Release（需用户确认）。
+
+下一步必须在当前 HEAD 完成正式签名构建矩阵复验与实机回归，再决定 Phase E / PR / 合并 / tag / Release。

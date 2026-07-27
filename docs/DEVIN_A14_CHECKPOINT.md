@@ -12,11 +12,12 @@
 
 - Repository: `tomthenpc/customiuizer-a14`
 - Active branch: `devin/r14.13-kotlin-refactor`
-- Remote branch HEAD: `9caa563f4ede970f7ef7b3cb872d4a822e4bd62a`
-- HEAD subject: `style: normalize CRLF to LF in modified XML resources`
+- Remote branch HEAD: `41b336ed2329fb224be79441a471be9830829e81`
+- Local HEAD: `41b336ed2329fb224be79441a471be9830829e81`
+- HEAD subject: `Add files via upload`
 - Base branch: `main`
 - Merge base / main HEAD: `8e596881419938d0edb96a8e466dc8e1e970894a`
-- Compared with main: ahead 32 / behind 0
+- Compared with main: ahead 34 / behind 0
 - Branch status: active development branch; do not switch to main or create another branch
 
 ## 当前构建身份
@@ -126,15 +127,12 @@
 - 当前不能作为 `r14.13.3` 完整变更说明
 
 ### `docs/REFACTOR_PROGRESS.md`
-- 主要记录到 Phase 5
-- 未记录 Phase 5 后 8 个提交
-- 仍写“本地无 keystore，Release 使用 Debug 签名”，与当前构建脚本冲突
-- 未记录当前 HEAD、r14.13.3、UI/Locale/Root 重启和资源清理
+- 本轮已同步：保留 Phase 0–5 历史，新增 Phase 5+（RC1 日志、应用内语言、搜索状态、Root 重启、UI/主题、Preference 两行标题、资源清理、XML LF、r14.13.3 推进），修正签名表述，更新 HEAD、构建产物与待验证清单。
+- 状态：已更新，待 commit。
 
 ### `docs/REFACTOR_PLAN_r14.13.md`
-- 版本目标仍写 `r14.13.0`
-- “不改 Manifest、版本线和签名”等原计划已被后续实际工作突破
-- 应保留为原计划记录，同时补充“实际偏移与原因”，不得偷偷改写历史
+- 本轮已同步：保留原始计划，新增“状态说明”与“实际执行结果与计划偏移”，说明 Manifest、版本线、签名、Locale、Root 重启和 UI 工作超出最初计划的原因。
+- 状态：已更新，待 commit。
 
 ### `docs/VERIFICATION.md`
 - 正式验证主体仍对应 `r14.12.0`
@@ -152,17 +150,16 @@
   `82265AAEB106BECC0B90DB1F1DBA36D3C1E0BE436264645EE169F3C78AE3AE6F`
 - 该 APK 当时记录为本地 Debug 签名，仅作对照，不是正式发布资产
 
-### 当前 HEAD 缺失证据
-没有在现有分支文档中找到 `9caa563f` 当前 HEAD 的完整绿色矩阵、正式签名 APK SHA-256 和完整实机回归记录。
+### 当前 HEAD 证据状态
 
-因此当前状态必须标记为：
-
-- 编译/静态：部分历史证据，当前 HEAD 待重新闭环
-- 正式签名：待当前 HEAD 验证
-- 设置 UI/Locale：待当前 HEAD 实机回归
-- Root 重启功能：待当前 HEAD 实机回归
-- SystemUI/Launcher Hook：rc1 日志不足以覆盖当前 HEAD
-- API 102：仍待独立实机验证
+- `41b336ed` 相对于 `9caa563f` 仅新增 `docs/DEVIN_A14_CHECKPOINT.md` 与 `AGENTS.md` 文档，源码、资源、Gradle、版本未变；此前在 `9caa563f` 生成的 `r14.13.3` 候选 APK（SHA-256 `3BDA05097358274E8800A5DA003A82C2572D5B109FFB40674F916EB7E38B7B19`）及签名证书 SHA-256（`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`）仍可作为代码产物参考。
+- 本轮正在同步 `docs/REFACTOR_PROGRESS.md`、`docs/REFACTOR_PLAN_r14.13.md` 与 `docs/DEVIN_A14_CHECKPOINT.md`。
+- 仍需补充：
+  - 当前 HEAD 的完整 `clean test lint assembleDebug assembleRelease lintVitalRelease` 绿色矩阵（建议重新执行并记录）；
+  - 设置 UI/Locale 实机回归；
+  - Root 重启功能实机回归；
+  - SystemUI/Launcher Hook 实机日志；
+  - API 102 独立环境验证。
 
 ## 当前待验证清单
 
@@ -202,27 +199,26 @@
 
 ## 当前阻塞
 
-- 当前 HEAD 的完整正式签名绿色构建证据未写入仓库文档
+- 当前 HEAD 的完整正式签名绿色构建矩阵需重新执行并写入文档
 - 当前 `r14.13.3` 缺少完整设置 UI/Locale/Root 重启实机回归
 - rc1 日志不能覆盖后续 8 个提交
 - API 102 实机环境仍未确认
-- 进度文档与实际代码、版本和签名策略不一致
 
 ## 下一步
 
-先在当前分支和当前 HEAD 上：
+文档同步 commit/push 完成后：
 
-1. 同步 `docs/REFACTOR_PROGRESS.md`、`CHANGELOG.md` 和本 checkpoint；
-2. 使用正式签名配置执行完整构建矩阵；
-3. 记录精确 APK SHA-256 和签名证书；
-4. 安装该精确 APK完成设置 UI/Locale/Root 重启回归与完整重启日志审计。
+1. 使用正式签名配置在当前 HEAD 重新执行完整构建矩阵；
+2. 记录精确 APK 文件名、大小、SHA-256 与签名证书 SHA-256；
+3. 安装该精确 APK 完成设置 UI/Locale/Root 重启回归与完整重启日志审计；
+4. 根据结果决定 Phase E / PR / 合并 `main` / tag / Release。
 
 任何一步失败都先修根因，不得继续版本 bump 或准备发布。
 
 ## 发布状态
 
 - 当前分支已合并 main：否
-- 当前分支相对 main：ahead 32 / behind 0
+- 当前分支相对 main：ahead 34 / behind 0
 - `r14.13.3` tag：未从当前证据确认
 - `r14.13.3` GitHub Release：未从当前证据确认
 - 当前 HEAD 正式 APK：未从当前证据确认
