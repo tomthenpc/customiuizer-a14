@@ -51,6 +51,23 @@
 - `r14.12.0` 及更早版本旧私钥已遗失；新签名不能覆盖旧签名安装
 - 升级文档必须要求备份设置、卸载旧版、安装新版
 
+## 最终发布状态
+
+- 源码仓库 tag：`r14.13.4` → `73ea3415`
+- 源码仓库 main HEAD：`73ea3415`
+- 源码仓库 Release：`https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4`
+- 模块仓库 tag：`182-r14.13.4` → `67e7d36`
+- 模块仓库 main HEAD：`67e7d36`
+- 模块仓库 Release：`https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/182-r14.13.4`
+- 两个 Release 上传的是同一份 APK：
+  - APK：`CustoMIUIzer-A14-r14.13.4.apk`
+  - 大小：3,032,173 bytes
+  - SHA-256：`E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C`
+  - 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+  - APK Signature Scheme v2，1 个签名者
+- 旧 `r14.12.0` 及更早公开版本签名私钥已遗失；`r14.13.4` 使用新证书，不能直接覆盖安装旧公开版本。
+- API 102 独立框架实机验证仍为待完成项。
+
 ## 已完成：Phase 0–5
 
 ### Phase 0
