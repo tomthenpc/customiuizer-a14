@@ -5,8 +5,8 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.res.Resources
 import android.os.Build
-import android.os.LocaleList
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.Helpers
 import java.util.Locale
@@ -19,7 +19,10 @@ class MainApplication : Application() {
         val sp: SharedPreferences = AppHelper.getSharedPrefs(base, false)
         AppHelper.appPrefs = sp
         val locale = sp.getString("pref_key_miuizer_locale", "auto") ?: "auto"
-        if (locale != "auto" && locale != "1") {
+        if (locale == "auto" || locale == "1") {
+            val sysLocales = Resources.getSystem().configuration.locales
+            if (!sysLocales.isEmpty) Locale.setDefault(sysLocales[0])
+        } else {
             Locale.setDefault(Locale.forLanguageTag(locale))
         }
         super.attachBaseContext(base)

@@ -5,15 +5,18 @@ import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.text.InputType
+import android.text.SpannableString
 import android.util.Log
 import android.util.Pair
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.preference.Preference
 import io.github.libxposed.service.RemotePreferences
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.GlobalActions
+import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
 import java.util.Locale
 
 object AppHelper {
@@ -109,11 +112,49 @@ object AppHelper {
     @Synchronized
     fun getLocaleContext(context: Context): Context {
         val prefs = appPrefs ?: return context
-        val locale = prefs.getString("pref_key_miuizer_locale", "auto") ?: "auto"
-        if (locale == "auto" || locale == "1") return context
+        val localeTag = prefs.getString("pref_key_miuizer_locale", "auto") ?: "auto"
+        val targetLocale = when (localeTag) {
+            "auto", "1" -> {
+                val sysLocales = Resources.getSystem().configuration.locales
+                if (sysLocales.isEmpty) Locale.getDefault() else sysLocales[0]
+            }
+            else -> Locale.forLanguageTag(localeTag)
+        }
+        Locale.setDefault(targetLocale)
         val config = Configuration(context.resources.configuration)
-        config.setLocale(Locale.forLanguageTag(locale))
+        config.setLocale(targetLocale)
         return context.createConfigurationContext(config)
+    }
+
+    @JvmStatic
+    fun setupLocalePreference(localePref: ListPreferenceEx?) {
+        if (localePref == null) return
+        val locales = arrayOf("zh-CN", "zh-TW", "ru-RU", "ja-JP", "vi-VN", "cs-CZ", "pt-BR", "tr-TR", "es-ES")
+        val localesArr = ArrayList<String>(locales.asList())
+        val localeNames = ArrayList<SpannableString>()
+        localesArr.add(0, "en")
+        for (locale in localesArr) try {
+            val loc = Locale.forLanguageTag(locale)
+            val locStr: StringBuilder = if (locale == "zh-TW") {
+                StringBuilder("繁體中文 (台灣)")
+            } else {
+                val sb = StringBuilder(loc.getDisplayLanguage(loc))
+                if (sb.isNotEmpty()) sb.setCharAt(0, Character.toUpperCase(sb[0]))
+                if (locale == "pt-BR") sb.append(" (Brasil)")
+                sb
+            }
+            localeNames.add(SpannableString(locStr.toString()))
+        } catch (t: Throwable) {
+            localeNames.add(SpannableString(Locale.getDefault().getDisplayLanguage(Locale.getDefault())))
+        }
+        localesArr.add(0, "auto")
+        localeNames.add(0, SpannableString(localePref.context.getString(R.string.array_system_default)))
+        localePref.entries = localeNames.toTypedArray()
+        localePref.entryValues = localesArr.toTypedArray()
+        localePref.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, _ ->
+            (localePref.context as? android.app.Activity)?.recreate()
+            true
+        }
     }
 
     @JvmStatic

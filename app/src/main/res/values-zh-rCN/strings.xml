@@ -642,7 +642,7 @@
     <string name="array_default">默认</string>
     <string name="array_allow">允许</string>
     <string name="array_deny">拒绝</string>
-    <string name="array_system_default">系统</string>
+    <string name="array_system_default">跟随系统</string>
     <string name="array_global_actions_none">无动作</string>
     <string name="array_global_actions_notif">展开通知中心</string>
     <string name="array_global_actions_eqs">展开快速设置面板</string>
