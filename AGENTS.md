@@ -121,6 +121,7 @@
 - `docs/LIBXPOSED_API_101_102_COMPATIBILITY.md`
 - `docs/VERIFICATION.md`
 - `docs/ENGINEERING_METHOD.md`
+- `docs/ARCHITECTURE_AUDIT_r14.13.md`（当前架构地图、问题清单与目标架构）
 - 活跃重构分支存在时读取 `docs/REFACTOR_PLAN_r14.13.md`、`docs/REFACTOR_PROGRESS.md`
 - 与任务直接相关的入口、调用链、测试、R8 规则和近期提交
 
@@ -351,6 +352,24 @@ ROM 目标不存在时只记录一次，仅停用当前单项功能，不得高�
 - 兼容代码集中
 
 不得曲解为超长函数、全局可变状态、复制逻辑或吞异常。
+
+### 12.1 迁移回归核对（强制）
+
+改动或审计任何由 Java 迁移而来的 Kotlin 文件时，必须先与迁移前的 Java 原版比对控制流：
+
+```
+git show "<迁移commit>^:app/src/main/java/<path>.java" | Select-String -Pattern '\bbreak\b|\bcontinue\b' -Context 6,1
+```
+
+判定规则：
+
+- Java `switch` 中的 `break` 在 `when` 中消失属正常。
+- **循环体内的 `break`/`continue` 消失一律先按回归处理**，Kotlin 无法在 `use{}`、`forEach{}` 等 lambda 中非局部跳出，机械翻译会静默丢弃。
+- `String.split("\\|")` 等 Java 单字符快路径不得翻译成 `split("...".toRegex())`，否则每次调用都会 `Pattern.compile`。
+- `Map<Int, *>` / `Map<Long, *>` 在热路径上必须换成 `SparseArray`/`LongSparseArray`，Kotlin 的 `map[intKey]` 会逐次装箱。
+- 迁移后新增的 `@Volatile`/线程可见性要求必须与原 Java 字段语义一致，不得因为"看起来是初始化期写入"就去掉同步。
+
+已知案例记录在 `docs/ARCHITECTURE_AUDIT_r14.13.md` 第 3、6、7 节。
 
 ## 13. 性能与生命周期
 

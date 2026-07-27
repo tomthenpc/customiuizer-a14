@@ -159,6 +159,34 @@
 - 同步更新 `CHANGELOG.md`、`VERIFICATION.md`、`DEVIN_A14_CHECKPOINT.md`、`REFACTOR_PROGRESS.md`。
 - 实机 UI/Locale/About/Hook 回归与 API 102 独立验证尚未完成。
 
+## 架构审计轮次（Phase 6，未提交）
+
+审计文档：`docs/ARCHITECTURE_AUDIT_r14.13.md`（架构地图 + 问题清单 P1–P10 + 目标架构）。
+
+审计方法：用 `git show "<迁移commit>^:<file>.java"` 与当前 Kotlin 做控制流关键字比对，定位 Java → Kotlin 机械翻译造成的语义与性能漂移；再按
+`调用频率 × 单次成本 × 进程数 × 存活时间` 排序热路径。
+
+已实施 6 项修改（均未改变 hook target、注册顺序、before/after 语义、`Chain.proceed()` 次数与 R8 keep 规则）：
+
+| # | 文件 | 内容 | 分类 |
+| --- | --- | --- | --- |
+| P1 | `mods/SystemUI.kt`、`mods/SystemUIMonitorAndTileHooks.kt` | 静态 `ArrayList<View> mStatusbarTextIcons` → 弱引用自清理注册表（`registerStatusbarTextIcon` / `updateStatusbarTextIcons`），修复 SystemUI 重新 inflate 后 View + Context 永久泄漏与对已分离 View 的 2 秒反射更新 | 内存/稳定性 |
+| P2 | `mods/utils/ResourceHooks.kt` | `Resources.getString/getText/...` 拦截器：`chain.executable.name` 推迟到命中后再取；`ConcurrentHashMap<Int, _>` → `SparseArray`，消除每次资源读取的 Integer 装箱 | 全进程热路径 |
+| P3 | `mods/utils/ModuleHelper.kt` | `getCPUThermalId()` 恢复 Java 原版“命中即 break”，并对失败扫描做一次性记忆，避免 SystemUI 每 2 秒重复打开 19 个 sysfs 文件 | 迁移回归 + I/O |
+| P4 | `utils/Helpers.kt`、`mods/System.kt`、`mods/SystemUI.kt`、`mods/GlobalActionsIntentHelper.kt` | `split("\\|".toRegex())` → 字面量 `Helpers.PAIR_DELIMITER`；`containsStringPair` 改为 `indexOf` + `regionMatches` 零分配 | 迁移回归 + 分配 |
+| P5 | `mods/utils/XposedHelpers.java` | `getApplicationClassLoader` 结果进程内记忆化，避免类查找未命中时重复 `ActivityThread` 反射 | 反射成本 |
+| P6/P7 | `mods/utils/ResourceHooks.kt`、`gradle.properties` | 替换表改为锁下 copy-on-write + `@Volatile` 安全发布；`org.gradle.unsafe.configuration-cache` → `org.gradle.configuration-cache`，移除已失效的 `android.enableResourceOptimizations`，启用 `org.gradle.caching` | 并发/构建 |
+
+同时删除 `ResourceHooks.getModuleResValue(..., Array<Any?>)` 未被调用的重载。
+
+验证：
+
+- `clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease` → `BUILD SUCCESSFUL in 3m 20s`，退出码 0。
+- 单元测试 36 通过 / 0 失败。
+- Release APK：3,032,173 bytes，SHA-256 `BFBE1676DA7693AB4B26066817CEBF9451E16321FB85AB0EB6E84AB3FC3D27BC`（同版本上一轮为 3,039,311 bytes）。
+- `apksigner verify -v --print-certs`：仅 V2，1 个签名者，证书 SHA-256 `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`。
+- 全部性能结论为机制推导 + 构建验证，**无实机测量**；P1/P3 需实机确认（见 checkpoint“架构审计轮次专项”）。
+
 ## 提交记录（Phase 5 后）
 
 | # | commit | 类型 | 内容 | 验证 |

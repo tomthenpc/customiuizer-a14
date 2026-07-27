@@ -6,18 +6,19 @@
 
 ## 当前唯一主目标
 
-完成 `devin/r14.13-kotlin-refactor` 当前 `r14.13.3` 代码线的文档同步、完整正式签名构建和针对最新 UI/Locale/资源变更的实机回归。在获得当前 HEAD 的完整证据前，不合并 `main`、不打 tag、不创建 Release。
+完成 `devin/r14.13-kotlin-refactor` 架构审计轮次的落地验证：本轮已实施 6 项架构/性能/迁移回归修复（见 `docs/ARCHITECTURE_AUDIT_r14.13.md`），需要实机回归 SystemUI 状态栏文本图标、设备温度读数与资源替换类功能，之后再决定版本推进。在获得当前工作树的实机证据前，不合并 `main`、不打 tag、不创建 Release。
 
 ## 当前 Git 基线
 
 - Repository: `tomthenpc/customiuizer-a14`
 - Active branch: `devin/r14.13-kotlin-refactor`
-- Remote branch HEAD: `b63ec5f3360e09519f894f81b42d91ad9f336603`
-- Local HEAD: `b63ec5f3360e09519f894f81b42d91ad9f336603`
-- HEAD subject: `docs: sync REFACTOR_PROGRESS, REFACTOR_PLAN and DEVIN_A14_CHECKPOINT to r14.13.3 HEAD`
+- Remote branch HEAD: `58b21260400a4bd0f0b505589461d5f735ac36f5`
+- Local HEAD: `58b21260400a4bd0f0b505589461d5f735ac36f5`
+- HEAD subject: `docs: sync r14.13.3 candidate build evidence and LSPosed audit`
 - Base branch: `main`
 - Merge base / main HEAD: `8e596881419938d0edb96a8e466dc8e1e970894a`
-- Compared with main: ahead 35 / behind 0
+- Compared with main: ahead 39 / behind 0
+- Working tree: 架构审计轮次修改**未提交**（9 个文件 + 新增 `docs/ARCHITECTURE_AUDIT_r14.13.md`）
 - Branch status: active development branch; do not switch to main or create another branch
 
 ## 当前构建身份
@@ -140,18 +141,24 @@
 
 ## 最新绿色验证
 
-### 当前 HEAD 证据（`b63ec5f`）
+### 架构审计轮次证据（`58b21260` + 未提交工作树）
 
 - 构建命令：`$env:JAVA_HOME='C:\Program Files\Java\jdk-17'; .\gradlew --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease`
-- 退出码：`0`（`BUILD SUCCESSFUL in 2m 37s`）
-- 单元测试：36
+- 退出码：`0`（`BUILD SUCCESSFUL in 3m 20s`）
+- 单元测试：36 通过 / 0 失败
 - Lint / `lintRelease` / `lintVitalRelease`：通过
 - Release R8、资源压缩、zipalign：通过
-- `apksigner verify -v`：V2 签名，1 个签名者
+- `apksigner verify -v --print-certs`：仅 V2 方案，1 个签名者
 - 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
-- Release APK：`CustoMIUIzer-A14-r14.13.3.apk`
-- APK 大小：3,039,311 bytes
-- APK SHA-256：`FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`
+- Release APK：`CustoMIUIzer-A14-r14.13.3.apk`（未 bump 版本，仍为 181 / `r14.13.3`）
+- APK 大小：3,032,173 bytes（对比同版本上一轮 3,039,311 bytes，-7,138）
+- APK SHA-256：`BFBE1676DA7693AB4B26066817CEBF9451E16321FB85AB0EB6E84AB3FC3D27BC`
+- 剩余 Gradle 弃用告警来自插件侧（`Using a Project object as a dependency notation`），本仓库构建脚本已无自有弃用属性
+
+### 上一轮 HEAD 证据（`b63ec5f`，保留对照）
+
+- 同一构建矩阵通过，36 个单元测试
+- Release APK：3,039,311 bytes，SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`
 - `aapt2 dump badging` 确认 `applicationId='tv.withaibuild.customiuizer.r14'`，`versionCode=181`，`versionName='r14.13.3'`，`minSdk=34`，`targetSdk=34`
 - `module.prop` 与 `META-INF/xposed/java_init.list` 元数据正确（R8 `-adaptresourcefilecontents` 会更新入口类名）
 
@@ -202,33 +209,43 @@
 - 无重复 Hook、Receiver、Observer、Coroutine 或初始化
 - 无模块崩溃、ANR、链接错误和 RemotePreferences 异常
 
+### 架构审计轮次专项（新增）
+- 状态栏电池详情 / 设备温度文本图标：切换日夜主题、字体大小、折叠展开、重启 SystemUI 后图标仍正常显示与更新，且不出现重复图标
+- 设备温度读数：确认取到的 CPU thermal zone 数值合理（本轮恢复为“首个匹配 zone”，与上游 Java 语义一致）
+- 资源替换类功能：自定义磁贴名称、锁屏/状态栏字符串与 drawable 替换、布局替换仍生效
+- 可信 WiFi/蓝牙（`system_noscreenlock`）与应用锁跳过活动列表匹配仍正确
+- BT/WiFi 选择列表滚动与勾选状态正确
+- 全局操作里的“打开应用/活动/快捷方式”仍能正确解析 `包名|活动` 配置
+
 ### API 102
 - 独立 API 102 框架环境验证
 - 不以 API 101 结果替代
 
 ## 当前阻塞
 
-- 完整 `r14.13.3` 候选构建矩阵已在本机通过；缺少实机安装、整机重启和 LSPosed/Vector 完整日志审计
+- 架构审计轮次修改已通过完整构建矩阵，但**尚未提交**，也没有实机证据
+- 缺少实机安装、整机重启和 LSPosed/Vector 完整日志审计
 - 当前 `r14.13.3` 缺少完整设置 UI/Locale/Root 重启实机回归
 - API 102 实机环境仍未确认
 - 由于缺少实机闭环，暂不 bump 到 `r14.13.4/182`
 
 ## 下一步
 
-1. 安装 `app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.3.apk`（SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`）完成实机回归；
-2. 整机重启后采集 LSPosed/Vector `full.log` 和 `modules_*.log`，确认 SystemUI / Launcher / Settings / system_server 中模块加载与 Hook 行为正常；
-3. 完成 API 102 框架环境独立验证；
-4. 实机验证全部通过后，再决定 bump 到 `r14.13.4/182` 并重新构建；
-5. 全部验证通过后再考虑 PR / 合并 `main` / tag / Release。
+1. 由用户确认后再提交本轮架构审计修改（建议按 6 个独立 commit 拆分：SystemUI 图标注册表 / ResourceHooks 热路径 / thermal zone 回归 / 分隔符与正则 / ClassLoader 记忆化 / 构建属性）；
+2. 安装 `app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.3.apk`（SHA-256 `BFBE1676DA7693AB4B26066817CEBF9451E16321FB85AB0EB6E84AB3FC3D27BC`）完成实机回归，重点覆盖上文“架构审计轮次专项”；
+3. 整机重启后采集 LSPosed/Vector `full.log` 和 `modules_*.log`，确认 SystemUI / Launcher / Settings / system_server 中模块加载与 Hook 行为正常；
+4. 完成 API 102 框架环境独立验证；
+5. 实机验证全部通过后，再决定 bump 到 `r14.13.4/182` 并重新构建；
+6. 全部验证通过后再考虑 PR / 合并 `main` / tag / Release。
 
 任何一步失败都先修根因，不得继续版本 bump 或准备发布。
 
 ## 发布状态
 
 - 当前分支已合并 main：否
-- 当前分支相对 main：ahead 35 / behind 0
+- 当前分支相对 main：ahead 39 / behind 0
 - `r14.13.3` tag：未创建（仅工作区候选构建）
 - `r14.13.3` GitHub Release：未创建
-- 当前 HEAD 正式 APK：已构建，SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`，V2 签名正确
+- 当前工作树正式 APK：已构建，SHA-256 `BFBE1676DA7693AB4B26066817CEBF9451E16321FB85AB0EB6E84AB3FC3D27BC`，V2 签名正确
 - 可以称为公开稳定版：否（缺少实机回归与 API 102 验证）
 - 当前公开稳定基线仍应以 `r14.12.0` 及其已发布证据为准
