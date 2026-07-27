@@ -1,230 +1,412 @@
 # AGENTS.md
 
-## 适用范围
+## 1. 适用范围与优先级
 
-本文件适用于整个仓库。修改任何源码前，先阅读：
+本文件适用于整个仓库。更深目录存在 `AGENTS.md` 时，只补充对应子树规则。
 
+指令优先级：
+
+1. 用户本轮明确要求
+2. 本文件
+3. 当前任务文档与 `docs/DEVIN_A14_CHECKPOINT.md`
+4. 仓库其他工程文档
+5. Git 历史与上游参考
+
+修改前按任务范围读取：
+
+- `docs/DEVIN_A14_CHECKPOINT.md`
 - `docs/AI_MAINTENANCE_GUIDE.md`
 - `docs/PROJECT_LINEAGE.md`
 - `docs/LIBXPOSED_API_101_102_COMPATIBILITY.md`
 - `docs/VERIFICATION.md`
 - `docs/ENGINEERING_METHOD.md`
-- 本轮用户任务
+- 活跃重构分支存在时读取 `docs/REFACTOR_PLAN_r14.13.md`、`docs/REFACTOR_PROGRESS.md`
+- 与任务直接相关的入口、调用链、测试、R8 规则和近期提交
 
-更深目录如存在 `AGENTS.md`，其规则只覆盖对应目录；本轮用户直接指令优先。
+当前源码、当前分支、HEAD、构建配置、APK、日志和实机结果高于可能滞后的说明文档。
 
-## 项目谱系与定位
+## 2. 固定项目边界
 
-本项目最上游功能基线为：
+- 仓库：`tomthenpc/customiuizer-a14`
+- 项目：CustoMIUIzer A14
+- 平台：HyperOS 1 / Android 14 / SDK 34
+- `applicationId=tv.withaibuild.customiuizer.r14`
+- `minSdk=34`
+- `targetSdk=34`
+- ABI：`arm64-v8a`
+- libxposed：`minApiVersion=101`、`targetApiVersion=102`
+- `staticScope=false`
+- Hot Reload 关闭
+- 禁止 Legacy `de.robv.android.xposed` 运行 API
+- 上游功能语义基线：`MonwF/customiuizer v24.10.12`
 
-`MonwF/customiuizer@v24.10.12`
+`compileSdk`、Build Tools、Gradle、AGP、Kotlin、依赖版本、versionName、versionCode 和签名配置必须从当前分支实时读取，不得照抄历史文档。
 
-随后当前项目完成独立包名、applicationId、版本线、签名和构建流程，并完成现代
-libxposed API 101/102 单 APK 兼容、性能与生命周期治理、Java → Kotlin 保守迁移和
-构建工程化。
+## 3. 直接代码基线
 
-当前直接维护仓库是：
+本轮用户明确指定分支时，该分支是唯一直接代码基线。
 
-`tomthenpc/customiuizer-a14`
+要求：
 
-当前稳定版本为 `r14.12.0`，正常维护分支为 `main`。本地当前工作树、当前分支和当前
-HEAD 是后续修改的唯一直接代码基线；GitHub `origin` 用于同步和历史核对，
-`MonwF/customiuizer` 只读参考。
+- 先确认本地分支、HEAD、上游 tracking 和 `git status`
+- 不因为 `main` 是默认分支就切回 `main`
+- 不重新创建平行分支
+- 不用 `main`、旧 Release、旧 APK 或上游覆盖当前分支
+- 当前分支有新提交时，以最新远端分支和受保护的本地工作树共同核对
+- checkpoint 中记录分支相对 `main` 的 ahead/behind 状态
 
-上游 tag 仅作为功能语义、原始 Hook 行为和历史实现参考。不得用上游代码覆盖、reset、merge 或 rebase 当前独立项目，也不得恢复旧包名、旧 authority、旧版本线或旧构建配置。
+只有用户明确要求结束该开发线时，才准备 PR、合并、tag、Release 或分支清理。
 
-本项目面向 HyperOS 1 / Android 14，使用现代 libxposed API，主要运行于：
+## 4. 上游参考边界
 
-- `system_server`
-- `com.android.systemui`
-- `com.miui.home`
-- Android/MIUI 系统应用
-- 模块设置应用
+判断来源顺序：
 
-关键进程中的错误可能造成 SystemUI、Launcher 或 system_server 崩溃，因此稳定性高于代码形式。
+1. 用户当前要求
+2. 当前 A14 分支源码、Git、构建、APK、日志和实机结果
+3. 当前仓库历史
+4. Android、Kotlin、Gradle 和 libxposed 官方资料
+5. 上游 `v24.10.12`
 
-## 上游参考边界
+上游只用于核对功能原意、Hook 目标和历史行为。禁止：
 
-遇到功能回归时，可以对照 `MonwF/customiuizer@v24.10.12`，但：
+- 用上游 Java 覆盖当前 Kotlin/API 101/102 实现
+- reset、rebase 或 merge 当前仓库到上游 tag
+- 恢复旧包名、authority、版本线或构建配置
+- 用上游测试代替当前 Release/R8 和实机验证
 
-- 当前独立仓库是实现和修改基线；
-- 上游只用于确认功能原意和迁移前行为；
-- 不机械复制上游 Java 覆盖当前 Kotlin；
-- 先判断差异是否来自独立包名、API 101/102、性能优化或有意重构；
-- API 102 设计以 libxposed 官方资料和当前架构为准；
-- 上游行为不能替代当前 Release/R8 和实机验证。
+LSPosed 展示仓库 `Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14` 只维护用户展示、scope、source URL 和发布说明，不存放业务源码。
 
-## 固定优先级
+## 5. 固定优先级
 
-1. 实际可运行
-2. 功能行为正确
-3. API 101 基线稳定
-4. API、ROM、ClassLoader 和 R8 兼容
-5. 性能、内存和功耗
-6. 可维护性
-7. Kotlin 覆盖率和形式简洁
+1. 实际可构建、可安装、可运行
+2. 功能和 Hook 行为正确
+3. `system_server`、SystemUI、Launcher 稳定
+4. HyperOS 1 / Android 14 兼容
+5. JVM、反射、ClassLoader、进程、R8 和 libxposed 兼容
+6. 生命周期与资源安全
+7. 性能、内存和功耗
+8. 可维护性
+9. Kotlin 覆盖率和代码简短
 
 不得用低优先级目标交换高优先级目标。
 
-## 核心原则
+## 6. 当前工程方向
 
-> 功能关闭时接近零额外成本；功能开启时只响应真实事件；高频路径避免不必要分配、重复反射、阻塞和日志；兼容代码限制在明确边界内。
+项目已建立：
 
-额外成本主要取决于：
+- Kotlin DSL 与 version catalog
+- libxposed API 101/102 单 APK 兼容
+- 核心 Java → Kotlin 保守迁移
+- 主要生命周期与重复注册治理
+- 主要热路径治理
+- 独立包名、签名和 `r14.*` 版本线
 
-`触发频率 × 单次成本 × 进程数量 × 存活时间`
+默认后续方向：
 
-代码变短不等于性能提高。
+- 延续当前活跃分支的明确目标
+- 修复可复现的功能/UI/兼容回归
+- 根据日志和调用链修复稳定性问题
+- 完成当前候选版本缺少的构建、签名和实机验证
+- 同步代码、checkpoint、进度文档和 changelog
 
-## 修改前
+以下不是默认目标：
 
-必须：
+- 再次执行全项目 Java → Kotlin 迁移
+- 强制达到 100% Kotlin
+- 迁移剩余稳定 Java 边界
+- 重做 Kotlin DSL 或 version catalog
+- 启用 Hot Reload
+- Android 15/16 适配
+- 无证据全仓重构或微优化
 
-- 检查当前分支、HEAD 和 `git status`
-- 阅读相关入口、调用链、测试和 R8 规则
-- 保护所有未提交工作
-- 先复现或确认问题，再修改
-- 使用最小、完整、可解释的变更
+## 7. Devin 执行协议
 
-未经用户授权，不得执行：
+每轮开始：
+
+- 检查仓库根目录、分支、HEAD、tracking、`git status`、最近提交和 remote
+- 比较当前分支与 `main`
+- 读取 checkpoint 和当前阶段文档，但用实时事实复核
+- 保护用户已有或来源不明的未提交修改
+- 建立复现、证据或明确成本后再修改
+- 追踪入口、调用方、进程、生命周期、动态引用、测试和近期历史
+- 使用最小但完整、可解释、可验证的变更
+- 先跑最快相关验证，再按风险扩大
+- 完成前审查完整 diff、HEAD、工作区和远端同步状态
+
+普通读取、搜索、编辑、测试、构建、commit 和已授权当前开发分支 push 不逐项询问。
+
+仅在以下情况询问：
+
+- 破坏性操作
+- 凭据或签名材料未知
+- 清除应用/设备数据
+- 修改、合并或强推 `main`
+- 创建 PR、tag、Release 或公开 APK
+- 产品行为无法从证据判断
+
+## 8. 轻度 Claude 风格
+
+Devin 仍以自主执行和实际落地为主，只采用以下分析纪律：
+
+- 先陈述证据，再给判断
+- 计划简短，并随新证据调整
+- 可并行处理互不依赖的只读调查
+- 主动寻找反证
+- 不把日志级别、理论风险、上游差异或代码形式直接判定为缺陷
+- 长任务只在完成闭环、发现重要风险、改变路线或遇到硬阻塞时简短汇报
+- 不输出冗长命令流水账
+- 最终区分：已验证、代码层面确认、待实机验证、无法确认
+- 不因一次构建、一个 commit、一次 push 或一个 Phase 完成而提前停止
+
+不得因此降低 Devin 自主执行力度，也不得变成只分析不修改。
+
+## 9. Git 与敏感信息
+
+禁止未经授权执行：
 
 - `git reset --hard`
 - `git restore .`
 - `git checkout -- .`
 - `git clean -fd`
 - force push
-- 用远程旧代码覆盖当前工作树
+- 用远程旧状态覆盖未知本地工作
 
-不得提交 keystore、密码、日志、缓存、构建目录或本地 APK。
+不得提交或公开：
 
-## Hook 与进程
+- keystore、密码、token、真实 `keystore.properties`
+- APK、签名备份、私人日志、缓存和构建目录
+- 私有设备数据或机器专属敏感信息
 
-- 未启用功能尽量不注册 Hook。
-- 无关进程不初始化对应功能、DexKit、资源、缓存、线程或监听器。
-- 注册 Hook、Receiver、Observer、Listener、Callback、Runnable、Coroutine、Executor 必须防重复。
-- ROM 目标不存在时只记录一次，安全禁用当前单项功能，不得高频重试。
-- 入口层尽早按 Android 版本、包名和进程退出无关路径。
+签名规则：
 
-## 热路径
+- 正式签名配置位于仓库外部
+- 缺少正式签名配置时，不得伪造 Release 成功
+- 每个候选 APK 必须检查实际签名证书 SHA-256
+- 新签名线与旧签名线不可直接覆盖安装时，必须在用户文档中明确备份、卸载和重装要求
+- 不得用 Debug 证书 APK 冒充正式候选或 Release
 
-绘制、动画、状态栏、控制中心、网络速度、触摸、通知绑定、音频回调及高频 SystemUI/Launcher Hook 中避免：
+## 10. Hook、JVM 与动态兼容契约
 
-- 反射和 DexKit 搜索
-- 磁盘访问
-- 同步远程 Binder
-- 重复 SharedPreferences 读取
-- 临时数组、集合、Sequence、Pair/Triple、捕获 lambda
-- 重复字符串格式化
-- 大范围锁
-- 正常运行日志
-- 重复 API/ROM 判断
+Java → Kotlin 或重构时必须保持：
 
-反射、解析和兼容探测放到冷路径，热路径只读取已准备状态。
+- FQCN、构造器、重载、JVM descriptor、可见性和 primitive/boxed 类型
+- static 字段/方法、初始化顺序、同步、volatile/atomic 语义
+- `@JvmStatic`、`@JvmField`、`@JvmName` 和 Java 互操作
+- 反射类名/成员名、DexKit、字符串入口、JNI/native 边界
+- Manifest、authority、XML、preference key 和资源名
+- `META-INF/xposed/java_init.list`、`module.prop`、scope 和 libxposed metadata
+- process gate、ClassLoader 和初始化时机
+- Hook target、priority、注册条件/顺序、before/after、参数修改、early return、result、throwable、`Chain.proceed()` 和回调次数
+- Release/R8 可达性和 resource shrink 行为
 
-## Kotlin/JVM 兼容
+`MainModule.java`、`XposedHelpers.java`、`MemberUtilsX.java` 等已评估的稳定边界继续保留 Java，除非用户另行启动独立迁移和实机验证阶段。
 
-不要机械翻译 Java。必须保持：
+ROM 目标不存在时只记录一次，仅停用当前单项功能，不得高频重试或拖垮关键进程。
 
-- Hook target、priority、注册条件和顺序
-- before/after、参数修改、提前返回和异常语义
-- ClassLoader 与进程边界
-- Java/Kotlin 静态互操作
-- `@JvmStatic`、`@JvmField`、必要 JVM 签名
-- 初始化时机和同步语义
-- 反射、DexKit、字符串类名和动态方法查找
-- Release/R8 行为
+## 11. libxposed API 101/102
 
-稳定 Java 边界可以保留。100% Kotlin 不是验收条件。
+固定边界：
 
-## libxposed API 101/102
-
-非 API 迁移任务不得顺带改变 API 版本。
-
-当前固定兼容边界：
-
-- API 101 为最低运行基线
-- 使用 API 102 编译
-- `minApiVersion=101`
-- `targetApiVersion=102`
-- 公共路径只依赖 API 101 能力
-- API 102 专属逻辑集中在冷边界
+- 使用 API 102 编译，API 101 为最低运行基线
+- 公共加载和 Hook 路径只依赖 API 101 已有能力
+- API 102 专属类型不得进入 API 101 必经类的字段、签名或静态初始化
+- API 版本判断只放在入口或冷路径
 - 不反射调用 libxposed API
-- 不混用 `de.robv.android.xposed`
-- Hot Reload 保持关闭；只有用户另行启动独立生命周期改造阶段时才评估
+- 不混用 Legacy Xposed API
+- Hot Reload、hook ID 和原子 replacement 保持关闭
 
-## 生命周期与内存
+非 API 迁移任务不得顺带改变上述配置。API 101 结果不得冒充 API 102 实机证据。
 
-每个长期资源必须有创建者、所有者、停止/注销路径和防重复状态。
+## 12. Kotlin-first 与代码风格
 
-不得静态持有 Activity、Fragment、View、临时 Context 或 ClassLoader。缓存必须有上限或明确生命周期。UI 异步任务必须随生命周期取消。
+目标是 Kotlin-first，不强制 100% Kotlin。
 
-## 错误处理
+优先使用 Kotlin 改善：
 
-- 修根因，不用大范围 `try/catch` 隐藏问题。
-- 不用空实现、假返回、吞异常或禁用功能伪造成功。
-- 不无限重试。
-- Release 日志必须限流。
-- 单项功能可以安全失败，但不能拖垮 SystemUI、Launcher 或 system_server。
+- Null 安全
+- 显式状态建模
+- 不可变性
+- 资源释放
+- 分支完整性
+- 测试能力
 
-## R8 与动态入口
+避免：
 
-删除、重命名、私有化或移动代码前检查：
+- `!!`
+- 深层 scope function
+- 复杂 DSL 和隐藏副作用
+- 热路径长集合链和无必要 `Sequence`
+- 用 Flow/coroutine 替代简单回调却增加调度和生命周期成本
+- 为减少代码行数破坏 JVM、反射或 Hook 语义
 
-- `META-INF/xposed`
-- Manifest
-- 反射和字符串类名
-- DexKit
-- XML 和动态资源
-- JNI/native
-- ProGuard/R8
-- Java/Kotlin 静态入口
+项目风格：
 
-不得为了通过构建无边界扩大 keep 规则。
+- 低抽象
+- 强边界
+- 状态显式
+- 控制流直接
+- 热路径可预测
+- 资源所有权清楚
+- 兼容代码集中
 
-## 变更纪律
+不得曲解为超长函数、全局可变状态、复制逻辑或吞异常。
 
-- Kotlin DSL、version catalog 和核心 Kotlin 迁移已经完成，不重复迁移或回退。
-- 不混入无关依赖升级、工具链升级或大型架构替换。
-- 没有实际收益证据，不修改稳定代码。
-- 删除死代码必须证明不被动态引用。
-- 完成前审查完整 `git diff` 和 `git status`。
+## 13. 性能与生命周期
 
-## 仓库与分支
+额外成本模型：
 
-- 源码仓库：`tomthenpc/customiuizer-a14`。
-- LSPosed 展示仓库：`Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14`，只放
-  README、CHANGELOG、scope、source URL 和发布资产说明，不放业务源码。
-- 两个仓库正常状态都只保留 `main`。
-- 需要审查时使用短期分支和 PR；合并后删除本地与远端短期分支。
-- 不恢复已清理的上游旧分支、旧 tag、备份、日志或阶段性报告。
-- `v24.10.12` 是保留的上游功能参考 tag；独立版本使用 `r14.*`。
+`触发频率 × 单次成本 × 进程数量 × 存活时间`
 
-## 验证
+要求：
 
-使用项目实际可用任务，至少覆盖：
+- 功能关闭时接近零运行成本
+- 无关进程不初始化无关功能
+- 事件和生命周期回调优先于轮询
+- Hook、Receiver、Observer、Listener、Callback、Runnable、Coroutine 和 Executor 注册幂等
+- 释放和注销可重复调用
+- 长期资源有明确创建者、所有者、停止路径和防重复状态
+- 缓存有容量、范围、生命周期或失效规则
+- 禁止静态持有 Activity、Fragment、View、临时 Context 或临时 ClassLoader
 
-- 单元测试
-- Debug 构建
-- Release 构建
-- R8/资源压缩
-- Lint、`lintRelease`、`lintVitalRelease`
-- APK 元数据、签名、大小、SHA-256
+绘制、动画、触摸、通知绑定、状态栏、控制中心、网速、音频和高频 SystemUI/Launcher Hook 中避免：
 
-编译通过不等于目标进程可用。不能完成实机验证时，必须明确标注。
+- 反射、DexKit、磁盘 I/O、同步远程 Binder
+- 重复 SharedPreferences、API/ROM 判断
+- 临时集合/数组、Pair/Triple、装箱、捕获 lambda、重复格式化
+- 大锁、正常运行日志和重复兼容探测
 
-纯文档变更至少执行 UTF-8、相对链接和 `git diff --check`；没有修改源码、资源、构建
-配置、Manifest 或 Xposed 元数据时，不为形式完整重复生成已实机验证的 APK。
+反射、解析、资源查找和兼容探测放到冷路径；热路径只读取准备好的不可变或原子状态。
 
-## 发布
+## 14. 设置 UI、Locale 与资源变更
 
-代码应提交到短期独立分支。未经用户明确确认：
+设置应用变更必须验证：
 
-- 不合并 `main`
-- 不 force push
-- 不创建 tag
-- 不创建 GitHub Release
-- 不上传正式 APK
+- 日间/夜间主题
+- 状态栏和导航栏图标明暗
+- Toolbar、Preference title/summary、Switch、弹窗和 About 页面
+- 主页面、子页面、搜索、旋转、返回栈和 Fragment 重建
+- 应用内语言切换、跟随系统、配置变化和恢复
+- 普通/分享/打开方式选择器
+- BT/WiFi 列表
+- 资源收缩和多语言 fallback
 
-用户明确要求更新远端、发布或清理分支时，应完成提交、PR/合并、推送和最终远端复核，
-不要停在本地提交。最终报告必须区分已验证、未验证和需要实机测试的内容，不得声称
-未经测量的性能或续航提升。
+不得因为 Lint 或“未使用资源”报告直接批量删除资源。删除前必须搜索：
+
+- XML 引用
+- 代码 `R.*`
+- `getIdentifier`
+- 反射和字符串名称
+- ROM/Xposed 动态访问
+- R8/resource shrink 输出
+
+行尾、格式化和资源清理应独立提交，避免掩盖真实行为差异。
+
+## 15. Root 命令与进程重启
+
+涉及 Root shell、Launcher/SystemUI/Security Center 重启时：
+
+- 命令不得在主线程执行
+- 先确认 Root
+- 处理 `pidof` 无结果、多个 PID、非零退出码和 stderr
+- 输出和日志必须限长，不暴露敏感内容
+- Fragment/Activity 销毁后不得回调失效 UI
+- 实机验证成功、失败、无 Root 和目标未运行路径
+- 不用 Root 命令掩盖原有 Hook 或广播逻辑回归
+
+## 16. 问题证据门槛
+
+修改前至少确认：
+
+1. 具体代码和调用链
+2. 所属包、进程和生命周期
+3. 当前功能开关和触发条件
+4. 相关 Git 历史
+5. 测试、日志、稳定版本或可复现场景
+6. 是否属于 ROM、框架或其他模块
+7. 是否影响 R8、反射、ClassLoader 或动态入口
+8. 结论是否只适用于旧候选 APK
+
+不得仅因为 Java 文件仍存在、代码不够函数式、日志出现错误级别、A14 上游不同或理论上可能更慢就修改稳定代码。
+
+## 17. 验证
+
+使用仓库实际存在的任务，不伪造结果。
+
+按风险覆盖：
+
+- targeted/unit test
+- `test`
+- `lint`、`lintRelease`、`lintVitalRelease`
+- `assembleDebug`、`assembleRelease`
+- R8、resource shrink
+- applicationId、version、SDK、ABI
+- Xposed metadata、scope 和动态入口
+- zipalign、APK SHA-256、实际签名证书
+- Legacy Xposed API 扫描
+- API 101/102 边界
+
+涉及 Hook、入口、反射、R8、Manifest、资源、Locale、主题、Fragment 生命周期或 libxposed 时必须增加 Release 和实机验证。
+
+纯文档修改只需检查 UTF-8、相对链接、`git diff --check` 和最终 Git 状态，不重复生成或替换已验证 APK。
+
+Gradle 退出码为 0 或生成 APK不等于目标进程和实机行为正确。旧 rc 日志不得自动证明当前 HEAD。
+
+## 18. Checkpoint 与文档同步
+
+文档职责：
+
+- `AGENTS.md`：长期仓库规则
+- `docs/DEVIN_A14_CHECKPOINT.md`：当前分支、HEAD、版本、最新绿色验证、阻塞、下一步和实机状态
+- `docs/REFACTOR_PLAN_r14.13.md`：r14.13 计划和范围
+- `docs/REFACTOR_PROGRESS.md`：r14.13 实际提交与阶段进度
+- `docs/VERIFICATION.md`：稳定版本正式验证证据
+- `CHANGELOG.md`：用户可见版本变化
+- README：当前公开稳定版和安装说明
+
+每完成一个有意义的代码、构建、Git 或实机闭环，必须在同一任务更新 checkpoint。
+
+发生以下情况时同步对应文档：
+
+- versionName/versionCode 变化
+- 签名策略或证书变化
+- 阶段完成
+- 候选 APK 生成
+- 实机或日志审计完成
+- 计划与实际范围发生偏移
+- 当前分支相对 `main` 状态变化
+
+发现文档与代码冲突时，先记录冲突，再以实际代码和验证证据修正文档。不得保留“当前版本”“当前签名行为”等互相矛盾的表述。
+
+## 19. 提交、远端与发布
+
+当前用户指定活跃开发分支时：
+
+- 继续该分支
+- 不创建平行分支
+- 不直接修改 `main`
+- 按根因形成清晰 commit
+- 完成闭环后 push 当前已授权开发分支
+- 推送后核对远端 HEAD
+
+未经明确要求，不得：
+
+- 创建或合并 PR
+- 合并 `main`
+- 创建 tag 或 GitHub Release
+- 公开上传或替换 APK
+- 删除分支或旧 Release
+- 将未完成当前 HEAD 实机验证的版本称为稳定版
+
+## 20. 最终报告
+
+只报告高价值事实：
+
+- 当前分支、HEAD、ahead/behind 和工作区
+- 证据与根因
+- 修改文件和行为变化
+- Hook/JVM/API/R8/生命周期影响
+- 实际测试与构建
+- APK、SHA-256 和签名证书
+- commit、push、PR、merge、tag 和 Release 状态
+- 已验证、待实机、无法确认
+- 同步的 checkpoint、进度和 changelog
