@@ -86,6 +86,7 @@ import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.BatteryIndicator
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.PrefMap
+import tv.withaibuild.customiuizer.utils.PrefPair
 import java.lang.ref.WeakReference
 import java.lang.reflect.Field
 import java.net.NetworkInterface
@@ -239,7 +240,38 @@ object SystemUI {
         return iconView
     }
 
-    val mStatusbarTextIcons = ArrayList<View>()
+    /**
+     * Battery detail / device temperature text icons created by this module inside SystemUI.
+     *
+     * SystemUI re-inflates the status bar on theme, density, display and fold changes, so a strong
+     * static list keeps every dead View (and its Context) alive for the whole process lifetime and
+     * makes the 2 s monitor tick walk detached views. References are weak and dead entries are
+     * dropped on every register/update. All access happens on the SystemUI main thread.
+     */
+    private val statusbarTextIcons = ArrayList<WeakReference<View>>(4)
+
+    @JvmStatic
+    fun registerStatusbarTextIcon(iconView: View) {
+        for (i in statusbarTextIcons.indices.reversed()) {
+            val existing = statusbarTextIcons[i].get()
+            if (existing == null || existing === iconView) statusbarTextIcons.removeAt(i)
+        }
+        statusbarTextIcons.add(WeakReference(iconView))
+    }
+
+    @JvmStatic
+    fun updateStatusbarTextIcons(iconType: Int, show: Boolean, text: String) {
+        for (i in statusbarTextIcons.indices.reversed()) {
+            val iconView = statusbarTextIcons[i].get()
+            if (iconView == null) {
+                statusbarTextIcons.removeAt(i)
+                continue
+            }
+            if (iconView.getTag(textIconTagId) != iconType) continue
+            XposedHelpers.callMethod(iconView, "setVisibilityByController", show)
+            if (show) XposedHelpers.callMethod(iconView, "setNetworkSpeed", text, "")
+        }
+    }
 
     @JvmStatic
     fun AddCustomTileHook(lpparam: PackageReadyParam) {
@@ -346,7 +378,7 @@ object SystemUI {
                     for (iconType in customIconTypes) {
                         val iconView = createStatusbarTextIcon(mContext, LinearLayout.LayoutParams(-2, -2), iconType, false)
                         secondRight.addView(iconView, 0)
-                        mStatusbarTextIcons.add(iconView)
+                        registerStatusbarTextIcon(iconView)
                         XposedHelpers.callMethod(DarkIconDispatcher, "addDarkReceiver", iconView)
                     }
                 }
@@ -3019,7 +3051,7 @@ object SystemUI {
                     }
                 }
                 if (pkgAppName.isNotEmpty()) {
-                    val pkgAppArray = pkgAppName.split("\\|".toRegex())
+                    val pkgAppArray = pkgAppName.split(PrefPair.DELIMITER)
                     if (pkgAppArray.size < 2) return
 
                     val name = ComponentName(pkgAppArray[0], pkgAppArray[1])

@@ -90,6 +90,7 @@ import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.AudioVisualizer
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.Helpers.MimeType
+import tv.withaibuild.customiuizer.utils.PrefPair
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
@@ -4565,7 +4566,7 @@ object System {
                     val key = "system_applock_skip_activities"
                     val itemStr = MainModule.mPrefs.getString(key, "")
                     if (itemStr == null || itemStr.isEmpty()) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    val itemArr = itemStr.trim().split("\\|".toRegex())
+                    val itemArr = itemStr.trim().split(PrefPair.DELIMITER)
                     for (uuid in itemArr) {
                         val pkgAct = MainModule.mPrefs.getString(key + "_" + uuid + "_activity", "")
                         if (pkgAct == pkgName + "|" + actName) { result = true; throwable = null }

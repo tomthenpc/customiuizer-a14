@@ -90,7 +90,7 @@ object SystemUIMonitorAndTileHooks {
                         val i = param.getArgs()[0] as Int
                         val mGroup = XposedHelpers.getObjectField(param.getThisObject(), "mGroup") as ViewGroup
                         mGroup.addView(iconView, i)
-                        SystemUI.mStatusbarTextIcons.add(iconView)
+                        SystemUI.registerStatusbarTextIcon(iconView)
                         param.returnAndSkip(iconView)
                     }
                 }
@@ -113,18 +113,7 @@ object SystemUIMonitorAndTileHooks {
                     override fun handleMessage(msg: Message) {
                         if (msg.what == 100021) {
                             val tii = msg.obj as? TextIconInfo ?: return
-                            for (tv in SystemUI.mStatusbarTextIcons) {
-                                val tagData = tv.getTag(SystemUI.textIconTagId)
-                                if (tagData != null) {
-                                    val iconType = tagData as Int
-                                    if (tii.iconType == iconType) {
-                                        XposedHelpers.callMethod(tv, "setVisibilityByController", tii.iconShow)
-                                        if (tii.iconShow) {
-                                            XposedHelpers.callMethod(tv, "setNetworkSpeed", tii.iconText, "")
-                                        }
-                                    }
-                                }
-                            }
+                            SystemUI.updateStatusbarTextIcons(tii.iconType, tii.iconShow, tii.iconText)
                         }
                     }
                 }

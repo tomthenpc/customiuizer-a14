@@ -606,7 +606,7 @@ object Helpers {
     fun getAppName(context: Context, pkgActName: String, forcePkg: Boolean): CharSequence? {
         val pm = context.packageManager
         val notSelected = context.resources.getString(R.string.notselected)
-        val pkgActArray = pkgActName.split("\\|".toRegex())
+        val pkgActArray = pkgActName.split(PrefPair.DELIMITER)
 
         if (pkgActName != notSelected) {
             if (!forcePkg && pkgActArray.size >= 2 && pkgActArray[1].isNotBlank()) {
@@ -636,7 +636,7 @@ object Helpers {
     fun getAppIcon(context: Context, pkgActName: String, forcePkg: Boolean): Drawable? {
         val pm = context.packageManager
         val notSelected = context.resources.getString(R.string.notselected)
-        val pkgActArray = pkgActName.split("\\|".toRegex())
+        val pkgActArray = pkgActName.split(PrefPair.DELIMITER)
 
         if (pkgActName != notSelected) {
             if (!forcePkg && pkgActArray.size >= 2 && pkgActArray[1].isNotBlank()) {
@@ -877,12 +877,7 @@ object Helpers {
 
     @JvmStatic
     fun containsStringPair(hayStack: Set<String>?, needle: String): Boolean {
-        if (hayStack.isNullOrEmpty()) return false
-        for (pair in hayStack) {
-            val needles = pair.split("\\|".toRegex())
-            if (needles[0].equals(needle, ignoreCase = true)) return true
-        }
-        return false
+        return PrefPair.containsFirst(hayStack, needle)
     }
 
     @JvmStatic

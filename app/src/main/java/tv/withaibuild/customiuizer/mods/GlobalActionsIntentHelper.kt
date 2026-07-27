@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.utils.PrefPair
 
 object GlobalActionsIntentHelper {
 
@@ -26,7 +27,7 @@ object GlobalActionsIntentHelper {
             val intent = if (intentType == IntentType.SHORTCUT) {
                 Intent.parseUri(prefValue, 0)
             } else {
-                val pkgAppArray = prefValue.split("\\|".toRegex())
+                val pkgAppArray = prefValue.split(PrefPair.DELIMITER)
                 if (pkgAppArray.size < 2) return null
                 Intent().apply {
                     component = ComponentName(pkgAppArray[0], pkgAppArray[1])
