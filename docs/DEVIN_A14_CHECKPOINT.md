@@ -17,9 +17,9 @@
 ## 当前开发分支
 
 - 分支：`devin/r14.13-kotlin-refactor`
-- 最近基线：`c075c26c`（记录最终发布状态）
-- 本次文档整理开始时与 `origin/main` 的关系：ahead 1 / behind 0；merge base `73ea3415`
-- 当前任务：统一公开文档格式和版本表述；不得将仅含维护文档的开发分支合回 `main`。
+- 最近基线：`e693221f`（统一公开文档格式、Release 策略并新增 `CHANGELOG_EN.md`）
+- 与 `origin/main` 的关系：ahead 2 / behind 0；merge base `73ea3415`
+- 当前任务：文档格式统一已完成；不合并到 `main`，因为 `main` 已承载正式 Release tag `r14.13.4`。
 
 ## 发布产物与签名
 
