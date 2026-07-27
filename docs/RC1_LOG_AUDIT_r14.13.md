@@ -74,12 +74,12 @@
 
 ## 修复与版本决定
 
-- 未对任何业务代码进行修改。
-- 不生成 `r14.13.0-rc2`，保留当前 `r14.13.0-rc1`。
+- 日志审计未触发任何业务代码修改（无模块相关问题）。
+- 后续在同一分支新增了“应用界面语言”功能，因此将版本 bump 为 `r14.13.0-rc2` 并生成候选 APK。该 rc2 与 LSPosed 日志问题无关。
 - 本次审计提交 `tools/analyze_lsposed_log.py` 和 `docs/LSPOSED_LOG_ANALYSIS.md` 作为分析工具沉淀。
 
 ## Git 状态
 
 - 分支：`devin/r14.13-kotlin-refactor`
-- HEAD：`2a389d15 chore: prepare r14.13.0-rc1 signing baseline`
-- 工作区：除分析脚本与文档外，无业务代码改动。
+- 审计完成时 HEAD：`2a389d15 chore: prepare r14.13.0-rc1 signing baseline`
+- rc2 发布时 HEAD：`51c7dd89 feat: add in-app language switch with follow-system support to main settings`
