@@ -88,7 +88,7 @@ open class PreferenceEx(context: Context, attrs: AttributeSet?) : Preference(con
         super.onBindViewHolder(holder)
 
         val title = holder.findViewById(android.R.id.title) as? TextView
-        title?.maxLines = 3
+        title?.maxLines = 2
 
         val summary = holder.findViewById(android.R.id.summary) as? TextView
         var valSummary = holder.itemView.findViewById<TextView>(android.R.id.hint)

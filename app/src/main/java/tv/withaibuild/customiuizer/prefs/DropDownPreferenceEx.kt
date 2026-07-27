@@ -70,7 +70,7 @@ class DropDownPreferenceEx(context: Context, attrs: AttributeSet?) : DropDownPre
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
         super.onBindViewHolder(holder)
         val title = holder.findViewById(android.R.id.title) as? TextView
-        title?.maxLines = 3
+        title?.maxLines = 2
 
         val summary = holder.findViewById(android.R.id.summary) as? TextView
         summary?.setTextColor(secondary)
