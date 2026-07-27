@@ -10,7 +10,7 @@
   （`platforms;android-37.0`、`build-tools;37.0.0`、platform-tools，本轮重新安装）。
 - 构建命令需带 `$env:JAVA_HOME='C:\Program Files\Java\jdk-17'`。
 - 签名：`app/build.gradle.kts` 从仓库外部 `../keystore.properties` 读取正式签名配置；缺失时构建阶段抛出 `GradleException`；`develop` 和 `release` 均固定使用正式 `v2` signingConfig，不再回退 Debug 证书；每个候选 APK 必须校验实际签名证书 SHA-256。
-- 当前 HEAD：`41b336ed2329fb224be79441a471be9830829e81`（`Add files via upload`，checkpoint 同步），相对 `main`：ahead 34 / behind 0。
+- 当前 HEAD：`b63ec5f3360e09519f894f81b42d91ad9f336603`（`docs: sync REFACTOR_PROGRESS, REFACTOR_PLAN and DEVIN_A14_CHECKPOINT to r14.13.3 HEAD`，checkpoint 同步），相对 `main`：ahead 35 / behind 0。工作区另有未提交修改（UI、About、DexKitBridge 守护、AGENTS/.devin、文档同步），将在当前会话提交。
 
 ## Phase 0 基线（已完成）
 
@@ -92,7 +92,7 @@
 
 在 Phase 5 基线之上，针对 UI/Locale/Root 重启/资源清理进行了后续会话修复，最终推进到 `r14.13.3`（versionCode 181）。
 
-- 当前 HEAD：`41b336ed2329fb224be79441a471be9830829e81`（`Add files via upload`，checkpoint 同步），相对 `main`：ahead 34 / behind 0。
+- 当前 HEAD：`b63ec5f3360e09519f894f81b42d91ad9f336603`（`docs: sync REFACTOR_PROGRESS, REFACTOR_PLAN and DEVIN_A14_CHECKPOINT to r14.13.3 HEAD`，checkpoint 同步），相对 `main`：ahead 35 / behind 0。当前会话新增未提交修改。
 
 ### RC1 日志审计
 
@@ -138,11 +138,26 @@
 
 ### 构建与产物
 
-- `clean test lintDebug assembleDebug assembleRelease lintVitalRelease` 通过。
+- 完整矩阵 `clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease` 通过。
+- 退出码：`0`（`BUILD SUCCESSFUL in 2m 37s`）。
 - 单元测试 36 个。
-- Release APK：`3,031,833` bytes，SHA-256 `3BDA05097358274E8800A5DA003A82C2572D5B109FFB40674F916EB7E38B7B19`。
+- Release APK：`3,039,311` bytes，SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`。
 - 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`（V2 Signer，使用仓库外部 `../keystore.properties` 指定的正式签名配置）。
+- `apksigner verify -v` 确认 V2 签名与 1 个签名者；`aapt2 dump badging` 确认 applicationId、versionCode、`minSdk`/`targetSdk` 正确。
 - 该 APK 为当前 `r14.13.3` 候选构建产物；缺少 `keystore.properties` 时构建会抛出 `GradleException`，不再回退 Debug 签名。
+- 本轮构建曾因 `prefs_about.xml` 缺少 `xmlns:miuizer` 命名空间导致 `mergeReleaseResources` 失败；已修复。
+
+### 当前会话修复与验证（`b63ec5f` 工作区）
+
+- 清理设置首页重复语言入口，保留到 About 页面并启用 `valueAsSummary`；同步修改 `prefs_main.xml`、`prefs_about.xml`、`MainFragment.kt`、`AboutFragment.kt`、所有 `values*/strings.xml` 和 `fragment_about_head.xml`。
+- About 页面拆分为 `about_maintainer`、`about_based_on`、`about_version` 三行。
+- `MainActivity` `configChanges` 移除 `uiMode`，使系统正常重建以刷新日间/夜间主题。
+- `XposedHelpers.createBridge` 增加 `bridge != null` 非空守护，避免 DexKitBridge 重复创建；`closeBridge` 同步加空指针保护。
+- `AGENTS.md` 新增“0. 任务连续性与中断恢复”章节；`.gitignore` 增加 `/.devin/`。
+- 建立 `.devin/ACTIVE_TASK.md` 实时任务文件，用于会话中断恢复。
+- 审计 r14.13.3 重启 LSPosed 日志：未在 `full.log`、`modules_*.log` 和 `tombstones` 中发现可归因于模块的崩溃、ANR、Hook 失败或 RemotePreferences 异常；模块在 system_server / Settings / Launcher 等 scope 成功加载。`class cp` 为 R8 `-repackageclasses` 后的预期入口类名。
+- 同步更新 `CHANGELOG.md`、`VERIFICATION.md`、`DEVIN_A14_CHECKPOINT.md`、`REFACTOR_PROGRESS.md`。
+- 实机 UI/Locale/About/Hook 回归与 API 102 独立验证尚未完成。
 
 ## 提交记录（Phase 5 后）
 
@@ -153,6 +168,10 @@
 | 19 | `cfbbbe3f` | fix(prefs) | Preference title maxLines 调整为 2 | `test assembleDebug` |
 | 20 | `eb590544` | chore(cleanup) | 删除未使用字符串与数组资源 | `test assembleDebug` |
 | 21 | `9caa563f` | style | 将 7 个 XML 资源文件 CRLF 规范化为 LF | `assembleDebug` + `git diff --check` |
+| 22 | `b63ec5f*` | docs/infra | 增加任务连续性与中断恢复协议，建立 `.devin/ACTIVE_TASK.md` | `git diff --check` |
+| 23 | `?` | fix(ui) | 清理首页重复语言入口、About 三行、移除 `uiMode` | 完整构建矩阵 |
+| 24 | `?` | fix(hook) | `XposedHelpers.createBridge` 非空守护，避免 DexKitBridge 重复创建 | 完整构建矩阵 |
+| 25 | `?` | docs | 同步 CHANGELOG/VERIFICATION/DEVIN_A14_CHECKPOINT/REFACTOR_PROGRESS | 文档审阅 |
 
 > 注：第 17–19 项涉及 `MainActivity`、`MainFragment`、`PreferenceFragmentBase`、`AppHelper` 及资源调整，未改变 Hook target、R8 keep 规则或 libxposed API 边界；
 > 第 20–21 项仅影响资源/行尾，行为不变。
@@ -193,9 +212,12 @@
 - [x] 阶段 5：热路径审计与最终收口 + 全量构建
 - [x] 阶段 5+：`r14.13.3` 版本推进、状态栏/语言切换/搜索/Root 重启修复、资源清理、XML 行尾规范化
 - [x] 同步 `docs/REFACTOR_PROGRESS.md`、`docs/REFACTOR_PLAN_r14.13.md`、`docs/DEVIN_A14_CHECKPOINT.md` 与当前 HEAD
-- [ ] 当前 HEAD（`41b336ed`）实机验证：状态栏图标、语言切换、搜索返回、Root 重启、设置页 UI
-- [ ] 当前 HEAD 完整正式签名构建矩阵（`clean test lint assembleDebug assembleRelease lintVitalRelease`）与 APK SHA-256 确认
-- [ ] 根据实机结果决定 Phase E / PR / 合并 `main` / tag / Release
+- [x] 当前 HEAD（`b63ec5f`）完整正式签名构建矩阵（`clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease`）与 APK SHA-256 确认
+- [x] LSPosed 日志审计 r14.13.3：未归因模块 P0/P1 崩溃/ANR/Hook 失败
+- [ ] 当前 HEAD 实机验证：状态栏图标、语言切换、About 页面、搜索返回、Root 重启、设置页 UI
+- [ ] API 102 独立框架环境验证
+- [ ] 根据实机结果决定是否 bump `r14.13.4/182` 并重新构建
+- [ ] 全部验证通过后决定 Phase E / PR / 合并 `main` / tag / Release
 
 ## 未实机验证清单（累积）
 

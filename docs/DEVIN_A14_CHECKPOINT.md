@@ -12,12 +12,12 @@
 
 - Repository: `tomthenpc/customiuizer-a14`
 - Active branch: `devin/r14.13-kotlin-refactor`
-- Remote branch HEAD: `41b336ed2329fb224be79441a471be9830829e81`
-- Local HEAD: `41b336ed2329fb224be79441a471be9830829e81`
-- HEAD subject: `Add files via upload`
+- Remote branch HEAD: `b63ec5f3360e09519f894f81b42d91ad9f336603`
+- Local HEAD: `b63ec5f3360e09519f894f81b42d91ad9f336603`
+- HEAD subject: `docs: sync REFACTOR_PROGRESS, REFACTOR_PLAN and DEVIN_A14_CHECKPOINT to r14.13.3 HEAD`
 - Base branch: `main`
 - Merge base / main HEAD: `8e596881419938d0edb96a8e466dc8e1e970894a`
-- Compared with main: ahead 34 / behind 0
+- Compared with main: ahead 35 / behind 0
 - Branch status: active development branch; do not switch to main or create another branch
 
 ## 当前构建身份
@@ -140,26 +140,35 @@
 
 ## 最新绿色验证
 
-### 已有证据
-- Phase 5 时：
-  `clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease`
-  全部通过
+### 当前 HEAD 证据（`b63ec5f`）
+
+- 构建命令：`$env:JAVA_HOME='C:\Program Files\Java\jdk-17'; .\gradlew --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease`
+- 退出码：`0`（`BUILD SUCCESSFUL in 2m 37s`）
 - 单元测试：36
-- Phase 5 对照 APK：3,020,249 bytes
-- Phase 5 对照 SHA-256：
-  `82265AAEB106BECC0B90DB1F1DBA36D3C1E0BE436264645EE169F3C78AE3AE6F`
-- 该 APK 当时记录为本地 Debug 签名，仅作对照，不是正式发布资产
+- Lint / `lintRelease` / `lintVitalRelease`：通过
+- Release R8、资源压缩、zipalign：通过
+- `apksigner verify -v`：V2 签名，1 个签名者
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+- Release APK：`CustoMIUIzer-A14-r14.13.3.apk`
+- APK 大小：3,039,311 bytes
+- APK SHA-256：`FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`
+- `aapt2 dump badging` 确认 `applicationId='tv.withaibuild.customiuizer.r14'`，`versionCode=181`，`versionName='r14.13.3'`，`minSdk=34`，`targetSdk=34`
+- `module.prop` 与 `META-INF/xposed/java_init.list` 元数据正确（R8 `-adaptresourcefilecontents` 会更新入口类名）
 
-### 当前 HEAD 证据状态
+### LSPosed 日志审计（r14.13.3 重启日志）
 
-- `41b336ed` 相对于 `9caa563f` 仅新增 `docs/DEVIN_A14_CHECKPOINT.md` 与 `AGENTS.md` 文档，源码、资源、Gradle、版本未变；此前在 `9caa563f` 生成的 `r14.13.3` 候选 APK（SHA-256 `3BDA05097358274E8800A5DA003A82C2572D5B109FFB40674F916EB7E38B7B19`）及签名证书 SHA-256（`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`）仍可作为代码产物参考。
-- 本轮正在同步 `docs/REFACTOR_PROGRESS.md`、`docs/REFACTOR_PLAN_r14.13.md` 与 `docs/DEVIN_A14_CHECKPOINT.md`。
-- 仍需补充：
-  - 当前 HEAD 的完整 `clean test lint assembleDebug assembleRelease lintVitalRelease` 绿色矩阵（建议重新执行并记录）；
-  - 设置 UI/Locale 实机回归；
-  - Root 重启功能实机回归；
-  - SystemUI/Launcher Hook 实机日志；
-  - API 102 独立环境验证。
+- 日志路径：`C:\Users\tv\Downloads\Peengeek\LSPosed_log\r14\r14.13.3\LSPosed_2026-07-27T20_48_50.619383`
+- 未在 `full.log`、`modules_*.log` 及 `tombstones` 中发现模块包名与崩溃/ANR/Hook 失败/RemotePreferences 异常的直接关联
+- 模块在 system_server、com.android.settings、com.miui.home 等目标作用域成功加载
+- R8 混淆后入口类在 LSPosed 日志中显示为 `class cp`，属 `-repackageclasses` 与 `-adaptresourcefilecontents` 的预期行为
+- 大量 `SmartPower.DisplayPolicy`、`PackageConfigPersister` 等系统侧日志含模块包名，但均为 ROM 正常组件信息/配置查询，非模块异常
+
+### 仍需补充
+
+- 设置 UI/Locale/About 主题 实机回归；
+- Root 重启功能 实机回归；
+- SystemUI/Launcher Hook 实机日志；
+- API 102 独立环境验证。
 
 ## 当前待验证清单
 
@@ -199,28 +208,27 @@
 
 ## 当前阻塞
 
-- 当前 HEAD 的完整正式签名绿色构建矩阵需重新执行并写入文档
+- 完整 `r14.13.3` 候选构建矩阵已在本机通过；缺少实机安装、整机重启和 LSPosed/Vector 完整日志审计
 - 当前 `r14.13.3` 缺少完整设置 UI/Locale/Root 重启实机回归
-- rc1 日志不能覆盖后续 8 个提交
 - API 102 实机环境仍未确认
+- 由于缺少实机闭环，暂不 bump 到 `r14.13.4/182`
 
 ## 下一步
 
-文档同步 commit/push 完成后：
-
-1. 使用正式签名配置在当前 HEAD 重新执行完整构建矩阵；
-2. 记录精确 APK 文件名、大小、SHA-256 与签名证书 SHA-256；
-3. 安装该精确 APK 完成设置 UI/Locale/Root 重启回归与完整重启日志审计；
-4. 根据结果决定 Phase E / PR / 合并 `main` / tag / Release。
+1. 安装 `app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.3.apk`（SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`）完成实机回归；
+2. 整机重启后采集 LSPosed/Vector `full.log` 和 `modules_*.log`，确认 SystemUI / Launcher / Settings / system_server 中模块加载与 Hook 行为正常；
+3. 完成 API 102 框架环境独立验证；
+4. 实机验证全部通过后，再决定 bump 到 `r14.13.4/182` 并重新构建；
+5. 全部验证通过后再考虑 PR / 合并 `main` / tag / Release。
 
 任何一步失败都先修根因，不得继续版本 bump 或准备发布。
 
 ## 发布状态
 
 - 当前分支已合并 main：否
-- 当前分支相对 main：ahead 34 / behind 0
-- `r14.13.3` tag：未从当前证据确认
-- `r14.13.3` GitHub Release：未从当前证据确认
-- 当前 HEAD 正式 APK：未从当前证据确认
-- 可以称为公开稳定版：否
-- 当前公开稳定基线仍应以仓库现有正式 Release 证据为准
+- 当前分支相对 main：ahead 35 / behind 0
+- `r14.13.3` tag：未创建（仅工作区候选构建）
+- `r14.13.3` GitHub Release：未创建
+- 当前 HEAD 正式 APK：已构建，SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`，V2 签名正确
+- 可以称为公开稳定版：否（缺少实机回归与 API 102 验证）
+- 当前公开稳定基线仍应以 `r14.12.0` 及其已发布证据为准

@@ -3,6 +3,42 @@
 本文件记录公开版本的用户可见变化、兼容边界、验证结论和回退价值。内部迁移批次、
 Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为 Release changelog。
 
+## [r14.13.3] - 2026-07-27
+
+### 版本定位
+
+针对 UI/Locale/About 页面、主题重建、LSPosed 日志审计和 DexKitBridge 初始化的维护性修复与文档同步候选。
+
+### Fixed
+
+- 清理设置首页重复语言入口，集中到 About 页面并启用 `valueAsSummary`。
+- About 页面拆分为 maintainer、based_on、version 三行信息。
+- `MainActivity` `configChanges` 移除 `uiMode`，让系统正常重建以刷新日间/夜间主题。
+- `XposedHelpers.createBridge` 增加非空守护，避免 DexKitBridge 重复创建。
+- 补充 `prefs_about.xml` 缺失的 `xmlns:miuizer` 命名空间，修复 Release 资源合并。
+
+### Verification
+
+- 构建：单元测试、Lint、`lintRelease`、`lintVitalRelease`、Debug/Release 全部通过。
+- APK：`CustoMIUIzer-A14-r14.13.3.apk`，3,039,311 bytes，SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`，APK Signature Scheme v2 签名。
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`。
+- LSPosed 日志审计 r14.13.3 重启日志：未发现可归因于模块的崩溃、ANR、Hook 失败或 RemotePreferences 异常；tombstones 中未出现模块包名。
+- `apksigner verify -v` 与 `aapt2 dump badging` 确认 applicationId、versionCode/versionName、`minSdk`/`targetSdk`、`module.prop` 元数据正确。
+- 实机 UI/Locale/Hook 回归与 API 102 环境独立验证尚未完成。
+
+### Signing
+
+- 从 `r14.13.0-rc1` 开始更换 APK 签名证书；`r14.13.3` 继续使用该新证书。
+- 原 `r14.12.0` 及更早版本使用的签名私钥已经遗失，无法继续用于后续构建。
+- 新签名版本无法直接覆盖安装旧签名版本。
+- 升级前需要备份模块设置，卸载旧版本后再安装新版本。
+- 新证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`。
+
+### 已知限制
+
+- 实机设置应用、日间/夜间主题、语言切换、Root 重启反馈仍需验证。
+- API 102 独立框架环境尚未验证。
+
 ## [r14.13.0-rc1] - Unreleased
 
 ### Refactored
@@ -19,15 +55,6 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 ### Performance
 
 - 缓存状态栏手势路径使用的 DisplayManager 与 displayId，减少高频反射和重复查询。
-
-### Signing
-
-- 从 `r14.13.0-rc1` 开始更换 APK 签名证书。
-- 原 `r14.12.0` 及更早版本使用的签名私钥已经遗失，无法继续用于后续构建。
-- 新签名版本无法直接覆盖安装旧签名版本。
-- 升级前需要备份模块设置，卸载旧版本后再安装新版本。
-- 从本版本开始，后续版本固定使用新的签名证书。
-- 新证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`。
 
 ### Verification
 

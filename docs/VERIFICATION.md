@@ -6,7 +6,19 @@
 后续 Agent 不得把本文的 r14.12.0 结果自动套用到新源码或新 APK。改变源码、依赖、
 R8、资源、Manifest、入口或 Xposed 元数据后，必须按风险重新验证并新增对应证据。
 
-## 当前发布产物
+## 当前候选产物
+
+| 项目 | 值 |
+| --- | --- |
+| 版本 | `r14.13.3` / versionCode 181 |
+| applicationId | `tv.withaibuild.customiuizer.r14` |
+| APK | `CustoMIUIzer-A14-r14.13.3.apk` |
+| 大小 | 3,039,311 bytes |
+| APK SHA-256 | `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927` |
+| 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
+| libxposed 元数据 | `minApiVersion=101`、`targetApiVersion=102`、`staticScope=false` |
+
+## 当前公开稳定产物
 
 | 项目 | 值 |
 | --- | --- |
@@ -34,6 +46,39 @@ r14.12.0 发布前已完成：
 - API 102 专属 Hot Reload、hook ID 和 replacement 符号扫描。
 
 这些检查证明编译、打包和静态兼容边界，不等价于所有 ROM、进程和功能组合的实机结果。
+
+## r14.13.3 候选构建静态验证
+
+当前工作区（`devin/r14.13-kotlin-refactor`，HEAD `b63ec5f`）已完成候选构建：
+
+- 构建命令：`$env:JAVA_HOME='C:\Program Files\Java\jdk-17'; .\gradlew --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease`
+- 退出码：`0`（`BUILD SUCCESSFUL in 2m 37s`）
+- 单元测试：通过
+- Lint / `lintRelease` / `lintVitalRelease`：通过
+- Release R8、资源压缩、zipalign、APK Signature Scheme v2：通过
+- `apksigner verify -v` 确认 Release APK 由 V2 签名，1 个签名者
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+- 产物：`app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.3.apk`
+- APK 大小：3,039,311 bytes
+- APK SHA-256：`FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`
+- `aapt2 dump badging` 确认：`package: name='tv.withaibuild.customiuizer.r14' versionCode='181' versionName='r14.13.3'`，`minSdkVersion='34'`，`targetSdkVersion='34'`
+- APK 中 `module.prop`：`minApiVersion=101`、`targetApiVersion=102`、`staticScope=false`
+- APK 中 `META-INF/xposed/java_init.list`：`tv.withaibuild.customiuizer.MainModule`（R8 `-adaptresourcefilecontents` 会在打包时更新为混淆后类名）
+- 本轮源码改动：
+  - 清理首页重复语言入口，集中到 About 页面；
+  - About 页面拆分为 maintainer / based_on / version 三行；
+  - `MainActivity` configChanges 移除 `uiMode`，让系统正常重建以刷新主题；
+  - `XposedHelpers.createBridge` 增加 `bridge != null` 守护，避免 DexKitBridge 重复创建。
+
+### 仍需的实机验证
+
+上述产物尚未在实机上安装、重启并审计 LSPosed/Vector 日志。以下项仍需要实机闭环：
+
+- 设置应用日间/夜间主题切换、状态栏/导航栏图标明暗、About 页面；
+- 语言切换、跟随系统、返回重建后无旧语言残留或空白；
+- 搜索返回状态、Root 重启反馈、BT/WiFi 列表；
+- 完整重启后 module 加载、SystemUI/Launcher/Settings Hook、无崩溃/ANR/Hook 失败/RemotePreferences 异常；
+- API 102 环境独立验证。
 
 ## API 101 实机验证
 
