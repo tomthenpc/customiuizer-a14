@@ -5,14 +5,9 @@
     <string name="about_dev">Duy trì bởi tomthenpc · Dựa trên công trình của Mikanoshi và MonwF</string>
     <string name="about_dynamic">Nói chung, các mod yêu cầu khởi động lại mềm để được kích hoạt hoặc hủy kích hoạt, nhưng những mod được đánh dấu ⟲ chỉ yêu cầu một lần khởi động lại mềm sau khi giá trị của chúng được thay đổi từ mặc định thành tùy chỉnh, các thay đổi tiếp theo sẽ được áp dụng ngay lập tức.</string>
     <string name="about_unsupported">Mod được đánh dấu bằng ⨯ không được hỗ trợ trên thiết bị này.</string>
-    <string name="menu_update">Cập nhật</string>
     <string name="mods">Mod</string>
     <string name="mods_actions">Hành động</string>
-    <string name="value_is_empty">Giá trị chưa chỉnh</string>
-    <string name="value_is_set">Giá trị đã chỉnh</string>
-    <string name="clear_value">Xóa</string>
     <string name="common_background_color">Màu nền</string>
-    <string name="common_text_color">Màu văn bản</string>
     <string name="common_icon_color">Màu biểu tượng</string>
     <string name="enable_mod">Kích hoạt mod</string>
     <string name="white_lists">Bật tự động cho phép</string>
@@ -111,7 +106,6 @@
         \nmm - phút có hai chữ số(09)
         \nss - giây có hai chữ số(09)
     </string>
-    <string name="system_clock_dualrow_title">Hiển thị trong hàng kép</string>
     <string name="system_clock_fixedwidth_title">Cố định chiều rộng để tránh bất thường theo chiều ngang</string>
     <string name="system_clock_fixedwidth_summ">Điều chỉnh độ rộng khi hiển thị giây</string>
     <string name="system_statusbar_clock_align_title">Căn chỉnh theo chiều ngang</string>
@@ -151,7 +145,6 @@
     <string name="system_notif_disable_fold_title">Tắt thông báo gập</string>
     <string name="system_notif_disable_strong_toast_title">Tắt thông báo thiết bị</string>
     <string name="system_notif_disable_strong_toast_summ">Vô hiệu hóa trong các trường hợp sau</string>
-    <string name="system_notif_strong_toast_width_title">Thông báo thiết bị với</string>
     <string name="system_morenotif_title">Xóa giới hạn số lượng thông báo cho mỗi ứng dụng</string>
     <string name="system_colorizenotiftitle_title">Tô màu thẻ thông báo</string>
     <string name="system_colorizenotiftitle_summ">Áp dụng màu của biểu tượng cho thẻ</string>
@@ -164,10 +157,6 @@
     <string name="system_drawer_remove_emptynotify_title">Ẩn mẹo thông báo</string>
     <string name="system_removedismiss_title">Ẩn nút xóa</string>
     <string name="system_removedismiss_summ">Xóa nút xóa tất cả thông báo</string>
-    <string name="system_showlux_title">Hiển thị mức độ sáng</string>
-    <string name="system_showlux_summ">Độ sáng xung quanh được hiển thị trên thanh trượt độ sáng</string>
-    <string name="system_showlux_style_title">Phong cách thay thế</string>
-    <string name="system_showlux_style_summ">Văn bản mờ lớn</string>
     <string name="system_showpct_title">Hiển thị phần trăm độ sáng</string>
     <string name="system_showpct_summ">Hiển thị độ sáng dưới dạng phần trăm khi kéo thanh trượt độ sáng</string>
     <string name="system_showpct_top_title">Lề trên của bảng tỷ lệ phần trăm</string>
@@ -201,8 +190,6 @@
     <string name="system_chargeanimtime_summ">Thời gian hiển thị hoạt ảnh sạc</string>
     <string name="system_nolightuponcharges_title">Không sáng màn hình khi sạc</string>
     <string name="system_nolightuponcharges_summ">Màn hình không sáng khi kết nối hoặc ngắt kết nối bộ sạc</string>
-    <string name="system_nolightuponheadset_title">Không sáng màn hình khi kết nối tai nghe</string>
-    <string name="system_nolightuponheadset_summ">Không sáng màn hình khi kết nối tai nghe</string>
     <string name="system_lstimeout_title">Thời gian chờ khóa màn hình</string>
     <string name="system_dimtime_title">Thời gian tối màn hình</string>
     <string name="system_dimtime_summ">Thời gian giữ màn hình tối trước khi tự động tắt màn hình (tỉ lệ phần trăm trên tổng thời gian chờ tắt màn hình)</string>
@@ -254,7 +241,6 @@
     <string name="system_vibration_amp_period_title">Khoảng thời gian</string>
     <string name="system_vibration_title">Dừng rung</string>
     <string name="system_vibration_summ">Ngăn các ứng dụng đã chọn sử dụng chế độ rung</string>
-    <string name="system_volume">Âm thanh hệ thống</string>
     <string name="system_scramblepin_title">Mã PIN</string>
     <string name="system_scramblepin_summ">Thay đổi ngẫu nhiên thứ tự bàn phím PIN</string>
     <string name="system_securelock_title">Khóa màn hình nâng cao</string>
@@ -428,7 +414,6 @@
     <string name="system_applock_skip_title">Bỏ qua khóa ứng dụng</string>
     <string name="system_applock_skip_summ">Cho phép các hoạt động đã chọn bỏ qua khóa ứng dụng</string>
     <string name="system_applock_activities">Hoạt động đã chọn</string>
-    <string name="system_mods_qs">Cài đặt nhanh</string>
     <string name="system_mods_cc">Trung tâm điều khiển</string>
     <string name="system_qsgridcolumns_title">Số cột</string>
     <string name="system_qs_hideoperator_title">Ẩn tên nhà mạng</string>
@@ -602,7 +587,6 @@
     <string name="various_batteryoptimization_title">Tối ưu hóa pin</string>
     <string name="various_memorystats_title">Thống kê bộ nhớ</string>
     <string name="various_appusagestats_title">Thống kê sử dụng</string>
-    <string name="various_aospsearch_title">Tìm kiếm</string>
     <string name="various_aospnotif_title">Thông báo ứng dụng</string>
     <string name="various_aospnotiflog_title">Nhật ký thông báo</string>
     <string name="various_miuiinstaller_summ">Cho phép cập nhật ứng dụng hệ thống</string>
@@ -610,11 +594,9 @@
     <string name="various_installer_purify_title">Làm sạch trình cài đặt gói</string>
     <string name="various_installappinfo_title">Thông báo ứng dụng trong trình cài đặt</string>
     <string name="various_installappinfo_summ">Hiển thị thông tin về các ứng dụng đã cài đặt</string>
-    <string name="various_installappinfo_package">Gói</string>
     <string name="various_installappinfo_vername">Tên phiên bản</string>
     <string name="various_installappinfo_vercode">Mã phiên bản</string>
     <string name="various_installappinfo_sdk">SDK hỗ trợ</string>
-    <string name="various_installappinfo_current">hiện tại</string>
     <string name="various_alarmcompat_title">Khả năng tương thích báo thức</string>
     <string name="various_alarmcompat_summ">Làm cho các ứng dụng đã chọn hiển thị chính xác thời gian báo thức tiếp theo được đặt theo kho ứng dụng HyperOS Đồng hồ</string>
     <string name="various_gboardpadding_port_title">Khoảng dưới cùng màn hình dọc</string>
@@ -661,8 +643,6 @@
     <string name="calls">Cuộc gọi</string>
     <string name="settings">Cài đặt</string>
     <string name="array_default">Mặc định</string>
-    <string name="array_allow">Cho phép</string>
-    <string name="array_deny">Từ chối</string>
     <string name="array_system_default">Hệ thống</string>
     <string name="array_global_actions_none">Không có hành động nào</string>
     <string name="array_global_actions_notif">Mở rộng ngăn thông báo</string>
@@ -699,11 +679,6 @@
     <string name="array_global_toggle_rotation">Tự động xoay</string>
     <string name="array_global_toggle_torch">Đèn pin</string>
     <string name="array_global_toggle_mobiledata">Dữ liệu di động</string>
-    <string name="array_global_toggle_zen">Dữ liệu di động</string>
-    <string name="array_toasts_icon">Biểu tượng</string>
-    <string name="array_toasts_label">Tiêu đề</string>
-    <string name="array_screen_anim_none">Không có</string>
-    <string name="array_screen_anim_fade">Hiệu ứng mờ dần</string>
     <string name="array_media_none">Không thay đổi</string>
     <string name="array_media_playpause">Phát/Tạm dừng</string>
     <string name="array_media_next">Bài hát tiếp theo</string>
@@ -720,7 +695,6 @@
     <string name="array_netspeedicons_no">Không biểu tượng</string>
     <string name="array_expandnotifs_allbutblack">Loại trừ ứng dụng khỏi danh sách</string>
     <string name="array_expandnotifs_whiteonly">Chỉ các ứng dụng được liệt kê</string>
-    <string name="array_mobiletypeicon_connected">Chỉ ẩn khi không kết nối</string>
     <string name="array_mobiletypeicon_show_disconnected">Hiện khi không kết nối</string>
     <string name="system_statusbar_mobile_digital_signal_title">Hiển thị cường độ tín hiệu ở định dạng dBm</string>
     <string name="system_statusbar_mobile_digital_signal_in2rows_title">Hiển thị thành hai dòng nếu thiết bị có hai SIM</string>
@@ -733,10 +707,6 @@
     <string name="array_top">Gần trên đầu</string>
     <string name="array_middle">Ở giữa</string>
     <string name="array_bottom">Gần phía dưới</string>
-    <string name="array_max">Tối đa</string>
-    <string name="array_large">Lớn</string>
-    <string name="array_normal">Bình thường</string>
-    <string name="array_small">Nhỏ</string>
     <string name="array_low">Thấp</string>
     <string name="array_average">Trung bình</string>
     <string name="array_high">Cao</string>
@@ -753,10 +723,6 @@
     <string name="array_bars_dashed">Đường chấm chấm</string>
     <string name="array_bars_circles">Tròn</string>
     <string name="array_line">Đường thẳng</string>
-    <string name="array_never">Không bao giờ</string>
-    <string name="array_1day">1 ngày sau cập nhật</string>
-    <string name="array_3days">3 ngày sau cập nhật</string>
-    <string name="array_week">1 tuần sau cập nhật</string>
     <string name="array_always">Luôn luôn</string>
     <string name="array_image">Hình ảnh</string>
     <string name="array_audio">Âm thanh</string>
@@ -771,14 +737,6 @@
     <string name="array_incoming">Gọi đến</string>
     <string name="array_outgoing">Gọi đi</string>
     <string name="array_both">Cả hai</string>
-    <string name="array_no_vibration">Không rung</string>
-    <string name="array_single_short">Đơn (ngắn)</string>
-    <string name="array_single_long">Đơn (dài)</string>
-    <string name="array_ticktock">Tiếng tích tắc</string>
-    <string name="array_heartbeat">Nhịp tim</string>
-    <string name="array_waltz">Điệu van</string>
-    <string name="array_zig">Zig-zig-zig</string>
-    <string name="array_own">Mẫu riêng</string>
     <string name="array_scale_fit">Căn vừa màn hình</string>
     <string name="array_scale_cover">Che toàn màn hình</string>
     <string name="array_align_top">Trên</string>
@@ -791,25 +749,11 @@
     <string name="array_alarm_absolute">Thời gian</string>
     <string name="array_alarm_relative">Thời gian tương đối</string>
     <string name="array_alarm_both">Thời gian và thời gian tương đối</string>
-    <string name="array_singletap">Chạm một lần</string>
-    <string name="array_doubletap">Nhấn đúp</string>
-    <string name="array_longpress">Nhấn giữ</string>
-    <string name="array_newyear">Năm mới</string>
-    <string name="array_lunarnewyear">Tết Nguyên Đán</string>
-    <string name="array_displayonly">Chỉ hiển thị</string>
-    <string name="array_hide">Ẩn</string>
     <string name="array_render_auto">Tự động phát hiện</string>
     <string name="array_append">Nối</string>
     <string name="array_prepend">Trước</string>
     <string name="array_newline">Chèn hàng mới</string>
     <string name="array_path">Chọn đường dẫn</string>
-    <string name="array_collapse_initial">Ban đầu</string>
-    <string name="array_collapse_permanent">Vĩnh viễn</string>
-    <string name="array_second_beginning">Giây bắt đầu</string>
-    <string name="array_second_end">Giây kết thúc</string>
-    <string name="array_keep">Giữ nó</string>
-    <string name="array_turn_off">Tắt</string>
-    <string name="array_turn_off_disable">Tắt và vô hiệu hóa</string>
     <string name="array_current">Chỉ dòng điện</string>
     <string name="array_power">Chỉ nguồn</string>
     <string name="array_temp_current">Nhiệt độ và dòng điện</string>
@@ -835,8 +779,6 @@
     <string name="toggle_autobright_off">Đã tắt độ sáng tự động</string>
     <string name="toggle_autorotate_on">Đã bật tự động xoay</string>
     <string name="toggle_autorotate_off">Đã tắt tự động xoay</string>
-    <string name="toggle_flash_off">Đèn pin: tắt</string>
-    <string name="toggle_flash_on">Đèn pin: bật</string>
     <string name="toggle_mobiledata_on">Đã bật dữ liệu di động</string>
     <string name="toggle_mobiledata_off">Đã tắt dữ liệu di động</string>
     <string name="qs_toggle_autorotate">Khoá xoay màn hình</string>
@@ -847,8 +789,6 @@
     <string name="qs_toggle_fps">Tần số quét</string>
     <string name="qs_toggle_floatingtime">Thời gian nổi</string>
     <string name="miuizer">Cài đặt tùy biến HyperOS</string>
-    <string name="miuizer_show_newmods_title">Đánh dấu mod mới</string>
-    <string name="miuizer_show_newmods_summ">Các mod được thêm vào bản dựng hiện tại có nhãn \"Mới!\" trong tiêu đề</string>
     <string name="miuizer_new_mod">Mới!</string>
     <string name="miuizer_show_launchericon_title">Biểu tượng trình khởi chạy</string>
     <string name="miuizer_show_launchericon_summ">Hiển thị biểu tượng trong trình khởi chạy</string>
@@ -856,14 +796,8 @@
     <string name="miuizer_show_settingsicon_summ">Hiển thị biểu tượng trong cài đặt</string>
     <string name="miuizer_locale_title">Ngôn ngữ</string>
     <string name="miuizer_locale_summ">Luôn hiển thị giao diện mod bằng ngôn ngữ đã chọn</string>
-    <string name="troubleshoot">Xử lý sự cố</string>
-    <string name="array_color_auto">Tự động</string>
-    <string name="array_color_dark">Tối</string>
-    <string name="array_color_light">Sáng</string>
     <string name="notselected">Chưa được chọn</string>
     <string name="warning">Cảnh báo!</string>
-    <string name="warning_unsupported_os">Android %1$s không được hỗ trợ. Mod có thể không hoạt động bình thường.</string>
-    <string name="open_xposed">Quản lý các mô-đun Xposed</string>
     <string name="soft_reboot">Khởi động lại mềm</string>
     <string name="soft_reboot_ask">Thực hiện khởi động lại ngay bây giờ?</string>
     <string name="restart_launcher">Khởi động lại trình khởi chạy</string>
@@ -880,7 +814,6 @@
     <string name="storage_cannot_restore">Không tìm thấy bản sao lưu cài đặt nào</string>
     <string name="backup_ok">Sao lưu cài đặt thành công!</string>
     <string name="restore_ok">Khôi phục cài đặt thành công!</string>
-    <string name="update_available">Cập nhật khả dụng ⚠</string>
     <string name="select_app">Chọn ứng dụng</string>
     <string name="select_apps">Chọn ứng dụng</string>
     <string name="select_activity">Chọn hành động</string>
@@ -897,7 +830,6 @@
     <string name="bt_category1">Các thiết bị đáng tin cậy</string>
     <string name="bt_category2">Thiết bị khả dụng</string>
     <string name="bt_devices">Thiết bị Bluetooth</string>
-    <string name="bt_not_supported">Thiết bị này không hỗ trợ bluetooth</string>
     <string name="request_bt">Vui lòng bật bluetooth trước</string>
     <string name="request_wifi">Vui lòng bật Wi-Fi trước</string>
     <string name="request_location">Quyền vị trí không được cấp, không thể quét</string>
@@ -906,15 +838,7 @@
     <string name="credentials_unlock">Mở khóa chứng chỉ</string>
     <string name="credentials_success">Chứng chỉ đã được mở khóa!</string>
     <string name="module_not_active">Mô-đun không hoạt động!\nMở ứng dụng LSPosed, kích hoạt mô-đun và khởi động lại.</string>
-    <string name="no_browser">Cần có ứng dụng trình duyệt để mở URL</string>
-    <string name="okay">OK</string>
-    <string name="cancel">Hủy</string>
-    <string name="add">Thêm</string>
-    <string name="delete">Xóa</string>
     <string name="delete_item_info">Nhấn và giữ để xóa</string>
-    <string name="change_icon">Thay đổi biểu tượng</string>
-    <string name="guide_search">Tìm kiếm mod theo tên.\nNhấn và giữ để hiển thị danh sách các mod mới.</string>
-    <string name="guide_marknew">Làm nổi bật các mod mới</string>
     <string name="permission_scan">Bạn có muốn nhận danh sách mạng/thiết bị không?</string>
     <string name="permission_permanent">Bây giờ bạn phải bật quyền cho tùy chọn này theo cách thủ công. Tốt lắm!</string>
     <string name="format_d_ms">%d ms</string>
@@ -924,23 +848,9 @@
     <string name="oneKBs">1 KB/s</string>
     <string name="Bs">B/s</string>
     <string name="speedunits">KMG</string>
-    <string name="lux">%s lux</string>
-    <string name="off">Tắt</string>
-    <string name="time_30m">30 phút</string>
-    <string name="time_1h">1 giờ</string>
-    <string name="time_2h">2 giờ</string>
-    <string name="time_3h">3 giờ</string>
-    <string name="time_4h">4 giờ</string>
-    <string name="time_5h">5 giờ</string>
-    <string name="time_6h">6 giờ</string>
-    <string name="time_8h">8 giờ</string>
-    <string name="time_10h">10 giờ</string>
-    <string name="time_12h">12 giờ</string>
     <string name="white_color">Trắng</string>
     <string name="black_color">Đen</string>
     <string name="auto_color">Màu thanh trạng thái</string>
-    <string name="type_file">Tập tin</string>
-    <string name="type_res">Tài nguyên</string>
     <string name="system_statusbar_batterytempandcurrent_title">Hiển thị thông tin pin</string>
     <string name="system_statusbar_batterytempandcurrent_content_title">Hiển thị nội dung</string>
     <string name="system_statusbar_batterytempandcurrentatright_title">Hiển thị bên phải</string>
@@ -1011,7 +921,6 @@
     <string name="system_cc_hide_edit_title">Ẩn nút sửa</string>
     <string name="system_cc_hide_profile_monitoring_title">Ẩn mẹo bảo mật</string>
     <string name="system_cc_btandtorch_ascard_title">Hiển thị các ô bluetooth và đèn pin dưới dạng thẻ</string>
-    <string name="system_cc_tile_roundedrect_inlinetext_title">Nhãn nội tuyến</string>
     <string name="system_cc_enable_style_switch_title">Bật chuyển đổi kiểu CC</string>
     <string name="system_cc_volume_showpct_title">Hiện phần trăm âm lượng</string>
     <string name="system_cc_collapse_after_clicked_title">Thu gọn sau khi chạm</string>

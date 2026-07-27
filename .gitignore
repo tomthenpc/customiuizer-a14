@@ -25,6 +25,8 @@ app/develop/
 /*.log
 /gradle_*.txt
 /log_summary*.txt
+/tmp-apk/
+*_status.txt
 
 # Signing materials (never commit real keys or passwords)
 keystore.properties

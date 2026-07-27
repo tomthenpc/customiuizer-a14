@@ -6,14 +6,9 @@
 Překlad S11V3R 🇨🇿</string>
     <string name="about_dynamic">Obecně platí, že změny vyžadují k aktivaci nebo deaktivaci měkký restart, ale změny označené symbolem ⟲ vyžadují pouze jeden měkký restart poté, co byla jejich hodnota změněna z výchozí na vlastní, další změny se použijí okamžitě.</string>
     <string name="about_unsupported">Modifikace označené ⨯ nejsou v tomto zařízení podporovány.</string>
-    <string name="menu_update">Aktualizace</string>
     <string name="mods">Modifikace</string>
     <string name="mods_actions">Akce</string>
-    <string name="value_is_empty">Hodnota nenastavena</string>
-    <string name="value_is_set">Hodnota nastavena</string>
-    <string name="clear_value">Smazat</string>
     <string name="common_background_color">Barva pozadí</string>
-    <string name="common_text_color">Barva textu</string>
     <string name="common_icon_color">Barva ikony</string>
     <string name="enable_mod">Povolit modifikace</string>
     <string name="white_lists">Zapnout seznam povolených</string>
@@ -111,7 +106,6 @@ Překlad S11V3R 🇨🇿</string>
         \nmm - dvouciferná minuta (09)
         \nss - dvouciferná sekunda (09)
     </string>
-    <string name="system_clock_dualrow_title">Zobrazit v dvojím řádku</string>
     <string name="system_clock_fixedwidth_title">Opravit šířku obsahu pro zabránění horizontálnímu přesahu</string>
     <string name="system_clock_fixedwidth_summ">Upravit šířku, když jsou zobrazeny sekundy</string>
     <string name="system_statusbar_clock_align_title">Horizontální zarovnání</string>
@@ -148,7 +142,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="system_notifimportance_title">Zobrazit důležitost oznámení</string>
     <string name="system_notif_disable_fold_title">Zakázat skládání oznámení</string>
     <string name="system_notif_disable_strong_toast_title">Zakázat oznámení zařízení</string>
-    <string name="system_notif_strong_toast_width_title">Oznámení zařízení s</string>
     <string name="system_morenotif_title">Odstranit limit počtu oznámení na aplikaci</string>
     <string name="system_colorizenotiftitle_title">Vybarvení názvu oznámení</string>
     <string name="system_colorizenotiftitle_summ">Použít barvu ikony na kartu</string>
@@ -160,10 +153,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="system_drawer_removeshortcut_title">Skrýt stín oznámení</string>
     <string name="system_removedismiss_title">Skrýt tlačítko vymazání</string>
     <string name="system_removedismiss_summ">Odstranění tlačítka, které vymaže všechna oznámení</string>
-    <string name="system_showlux_title">Zobrazit úroveň osvětlení</string>
-    <string name="system_showlux_summ">Zobrazení hodnoty okolního osvětlení v luxech uvnitř posuvníku jasu</string>
-    <string name="system_showlux_style_title">Alternativní styl</string>
-    <string name="system_showlux_style_summ">Velký poloprůhledný text</string>
     <string name="system_showpct_title">Zobrazení jasu v procentech</string>
     <string name="system_showpct_summ">Zobrazení úrovně jasu v procentech při přetahování posuvníku jasu</string>
     <string name="system_showpct_top_title">Horní okraj panelu s procenty</string>
@@ -197,8 +186,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="system_chargeanimtime_summ">Jak dlouho by měla být obrazovka zapnutá po spuštění animace nabíjení</string>
     <string name="system_nolightuponcharges_title">Při nabíjení se nerozsvítí obrazovka</string>
     <string name="system_nolightuponcharges_summ">Nezapnout obrazovku, když připojujete nebo odpojujete nabíječku</string>
-    <string name="system_nolightuponheadset_title">Žádné rozsvícení obrazovky při připojení náhlavní soupravy</string>
-    <string name="system_nolightuponheadset_summ">Při připojení náhlavní soupravy nezapínat obrazovku</string>
     <string name="system_lstimeout_title">Časový limit vypnutí obrazovky na zamčené obrazovce</string>
     <string name="system_dimtime_title">Doba trvání stmívání</string>
     <string name="system_dimtime_summ">Jak dlouho má být obrazovka ztlumená, než se automaticky vypne (v procentech celkového časového limitu vypnutí obrazovky)</string>
@@ -249,7 +236,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="system_vibration_amp_period_title">Časové rozmezí</string>
     <string name="system_vibration_title">Blokovat vibrace</string>
     <string name="system_vibration_summ">Zabránění vybraným aplikacím používat vibrace</string>
-    <string name="system_volume">Systémové zvuky</string>
     <string name="system_scramblepin_title">PIN znak</string>
     <string name="system_scramblepin_summ">Náhodně měnit pořadí tlačítek PIN</string>
     <string name="system_securelock_title">Vylepšený zámek obrazovky</string>
@@ -422,7 +408,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="system_applock_skip_title">Přeskočit zámek aplikace</string>
     <string name="system_applock_skip_summ">Povolit vybraným činnostem obejít zámek aplikace</string>
     <string name="system_applock_activities">Vybrané činnosti</string>
-    <string name="system_mods_qs">Rychlá nastavení</string>
     <string name="system_mods_cc">Centrum Ovládání</string>
     <string name="system_qsgridcolumns_title">Počet sloupců</string>
     <string name="system_qs_hideoperator_title">Skrýt název operátora</string>
@@ -594,7 +579,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="various_batteryoptimization_title">Optimalizace baterie</string>
     <string name="various_memorystats_title">Statistické údaje o paměti</string>
     <string name="various_appusagestats_title">Statistika používání</string>
-    <string name="various_aospsearch_title">Hledat</string>
     <string name="various_aospnotif_title">Aplikace a oznámení</string>
     <string name="various_aospnotiflog_title">Protokol o oznámeních</string>
     <string name="various_miuiinstaller_summ">Povolit aktualizaci systémových aplikací</string>
@@ -602,11 +586,9 @@ Překlad S11V3R 🇨🇿</string>
     <string name="various_installer_purify_title">Vyčistit instalátor balíčků</string>
     <string name="various_installappinfo_title">Informace o aplikaci v instalačním programu</string>
     <string name="various_installappinfo_summ">Zobrazení informací o instalované aplikaci</string>
-    <string name="various_installappinfo_package">Balíček</string>
     <string name="various_installappinfo_vername">Název verze</string>
     <string name="various_installappinfo_vercode">Verze kódu</string>
     <string name="various_installappinfo_sdk">Podporavné SDK</string>
-    <string name="various_installappinfo_current">Aktuální</string>
     <string name="various_alarmcompat_title">Kompatibilita budíku</string>
     <string name="various_alarmcompat_summ">Umožnit, aby vybrané aplikace zobrazovaly správný čas příštího budíku nastavený výchozí aplikací HyperOS Hodiny</string>
     <string name="various_gboardpadding_port_title">Spodní výplň na výšku</string>
@@ -659,8 +641,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="calls">Hovory</string>
     <string name="settings">Nastavení</string>
     <string name="array_default">Výchozí</string>
-    <string name="array_allow">Povolit</string>
-    <string name="array_deny">Zamítnout</string>
     <string name="array_system_default">Systém</string>
     <string name="array_global_actions_none">Žádná akce</string>
     <string name="array_global_actions_notif">Rozbalit lištu s oznámeními</string>
@@ -697,11 +677,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="array_global_toggle_rotation">Automatické otáčení</string>
     <string name="array_global_toggle_torch">Svítilna</string>
     <string name="array_global_toggle_mobiledata">Mobilní data</string>
-    <string name="array_global_toggle_zen">Mobilní data</string>
-    <string name="array_toasts_icon">Ikona</string>
-    <string name="array_toasts_label">Štítek</string>
-    <string name="array_screen_anim_none">Nic</string>
-    <string name="array_screen_anim_fade">Blednutí</string>
     <string name="array_media_none">Beze změny</string>
     <string name="array_media_playpause">Přehrát/pozastavit</string>
     <string name="array_media_next">Další skladba</string>
@@ -718,7 +693,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="array_netspeedicons_no">Bez ikon</string>
     <string name="array_expandnotifs_allbutblack">Pro všechny aplikace, kromě uvedených</string>
     <string name="array_expandnotifs_whiteonly">Pouze pro aplikace uvedené v seznamu</string>
-    <string name="array_mobiletypeicon_connected">Skrýt pouze v případě, že není připojení</string>
     <string name="array_mobiletypeicon_show_disconnected">Zobrazit pokud není připojeno</string>
     <string name="system_statusbar_mobiletype_show_wificonnected_title">Zobrazit při připojení Wi-Fi</string>
     <string name="array_mobiletypeicon_hide">Kompletně skrýt</string>
@@ -729,10 +703,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="array_top">Blíže k vrchu</string>
     <string name="array_middle">Uprostřed</string>
     <string name="array_bottom">Blíže k spodu</string>
-    <string name="array_max">Maximum</string>
-    <string name="array_large">Velké</string>
-    <string name="array_normal">Normální</string>
-    <string name="array_small">Malé</string>
     <string name="array_low">Nízký</string>
     <string name="array_average">Průměrný</string>
     <string name="array_high">Vysoký</string>
@@ -749,10 +719,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="array_bars_dashed">Čárkované pruhy</string>
     <string name="array_bars_circles">Kruhy</string>
     <string name="array_line">Linka</string>
-    <string name="array_never">Nikdy</string>
-    <string name="array_1day">Za 1 den po aktualizaci</string>
-    <string name="array_3days">3 dny po aktualizaci</string>
-    <string name="array_week">Týden po aktualizaci</string>
     <string name="array_always">Vždy</string>
     <string name="array_image">Obrázek</string>
     <string name="array_audio">Zvuk</string>
@@ -767,14 +733,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="array_incoming">Příchozí</string>
     <string name="array_outgoing">Odchozí</string>
     <string name="array_both">Obojí</string>
-    <string name="array_no_vibration">Žádné vibrace</string>
-    <string name="array_single_short">Jediný (krátký)</string>
-    <string name="array_single_long">Jediný (dlouhý)</string>
-    <string name="array_ticktock">TickTock</string>
-    <string name="array_heartbeat">Srdeční tep</string>
-    <string name="array_waltz">Valčík</string>
-    <string name="array_zig">Zig-zig-zig</string>
-    <string name="array_own">Vlastní vzor</string>
     <string name="array_scale_fit">Přizpůsobit obrazovce</string>
     <string name="array_scale_cover">Zakrýt celou obrazovku</string>
     <string name="array_align_top">Nahoře</string>
@@ -787,25 +745,11 @@ Překlad S11V3R 🇨🇿</string>
     <string name="array_alarm_absolute">Běžný čas</string>
     <string name="array_alarm_relative">Relativní čas</string>
     <string name="array_alarm_both">Běžný a relativní čas</string>
-    <string name="array_singletap">Jediné klepnutí</string>
-    <string name="array_doubletap">Dvojité klepnutí</string>
-    <string name="array_longpress">Dlouhý stisk</string>
-    <string name="array_newyear">Nový rok</string>
-    <string name="array_lunarnewyear">Čínský nový rok</string>
-    <string name="array_displayonly">Pouze na displeji</string>
-    <string name="array_hide">Skrýt</string>
     <string name="array_render_auto">Detekovat automaticky</string>
     <string name="array_append">Přidat</string>
     <string name="array_prepend">Připsat</string>
     <string name="array_newline">Vložit jako nový řádek</string>
     <string name="array_path">Zvolená cesta</string>
-    <string name="array_collapse_initial">Původně</string>
-    <string name="array_collapse_permanent">Trvale</string>
-    <string name="array_second_beginning">Začátek sekund</string>
-    <string name="array_second_end">Konec sekundy</string>
-    <string name="array_keep">Ponechat tak, jak je</string>
-    <string name="array_turn_off">Vypnout</string>
-    <string name="array_turn_off_disable">Vypnout a zakázat</string>
     <string name="array_current">Pouze aktuální</string>
     <string name="array_power">Pouze výkon</string>
     <string name="array_temp_current">Teplota a proud</string>
@@ -831,8 +775,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="toggle_autobright_off">Automatický jas zakázán</string>
     <string name="toggle_autorotate_on">Automatické otáčení povoleno</string>
     <string name="toggle_autorotate_off">Automatické otáčení zakázáno</string>
-    <string name="toggle_flash_off">Svítilna: vypnuto</string>
-    <string name="toggle_flash_on">Svítilna: zapnuto</string>
     <string name="toggle_mobiledata_on">Mobilní data povolena</string>
     <string name="toggle_mobiledata_off">Mobilní data vypnuta</string>
     <string name="qs_toggle_autorotate">Zámek otáčení</string>
@@ -843,8 +785,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="qs_toggle_fps">Obnovovací frekvence</string>
     <string name="qs_toggle_floatingtime">Plovoucí čas</string>
     <string name="miuizer">Nastavení 米客 A14</string>
-    <string name="miuizer_show_newmods_title">Označit nové úpravy</string>
-    <string name="miuizer_show_newmods_summ">Zobrazit štítek \"Nově!\" v názvu pro mody přidané v aktuální verzi</string>
     <string name="miuizer_new_mod">Nově!</string>
     <string name="miuizer_show_launchericon_title">Ikona spouštěče</string>
     <string name="miuizer_show_launchericon_summ">Zobrazit ikonu v launcherech</string>
@@ -852,14 +792,8 @@ Překlad S11V3R 🇨🇿</string>
     <string name="miuizer_show_settingsicon_summ">Zobrazit ikonu v Nastavení</string>
     <string name="miuizer_locale_title">Jazyk uživatelského rozhraní</string>
     <string name="miuizer_locale_summ">Vždy zobrazit rozhraní modulu ve zvoleném jazyce</string>
-    <string name="troubleshoot">Řešení problémů</string>
-    <string name="array_color_auto">Automaticky</string>
-    <string name="array_color_dark">Tmavý</string>
-    <string name="array_color_light">Světlý</string>
     <string name="notselected">Není vybráno</string>
     <string name="warning">Upozornění!</string>
-    <string name="warning_unsupported_os">Systém Android %1$s není podporován, mody nemusí fungovat správně.</string>
-    <string name="open_xposed">Správa modulů Xposed</string>
     <string name="soft_reboot">Měkký restart systému</string>
     <string name="soft_reboot_ask">Provést restart nyní?</string>
     <string name="restart_launcher">Restartovat spouštěč</string>
@@ -876,7 +810,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="storage_cannot_restore">Nebyla nalezena žádná záloha nastavení</string>
     <string name="backup_ok">Nastavení byla úspěšně zálohována!</string>
     <string name="restore_ok">Nastavení byla úspěšně obnovena!</string>
-    <string name="update_available">Je k dispozici aktualizace ⚠</string>
     <string name="select_app">Vybrat aplikaci</string>
     <string name="select_apps">Vybrat aplikace</string>
     <string name="select_activity">Vybrat aktivitu</string>
@@ -893,7 +826,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="bt_category1">Důvěryhodná zařízení</string>
     <string name="bt_category2">Dostupná zařízení</string>
     <string name="bt_devices">Zařízení Bluetooth</string>
-    <string name="bt_not_supported">Bluetooth není v tomto zařízení podporováno</string>
     <string name="request_bt">Nejprve zapněte Bluetooth</string>
     <string name="request_wifi">Nejprve zapněte Wi-Fi</string>
     <string name="request_location">Nelze skenovat bez přístupu k poloze</string>
@@ -902,17 +834,7 @@ Překlad S11V3R 🇨🇿</string>
     <string name="credentials_unlock">Odemknout pověření</string>
     <string name="credentials_success">Pověření odemčena!</string>
     <string name="module_not_active">Modul není aktivní!\nOtevřete LSPosed aplikaci, aktivujte modul a restartujte.</string>
-    <string name="no_browser">K otevření adres URL je nutná aplikace prohlížeče</string>
-    <string name="okay">Ok</string>
-    <string name="cancel">Zrušit</string>
-    <string name="add">Přidat</string>
-    <string name="delete">Vymazat</string>
     <string name="delete_item_info">Dlouhým stisknutím položky odstraníte</string>
-    <string name="change_icon">Ikona nabíjení</string>
-    <string name="guide_search">Vyhledávání modů podle jména.
-\nDlouhým stisknutím zobrazíte seznam nových modů.</string>
-    <string name="guide_marknew">Nové mody od předchozí aktualizace
-\nmohou být označeny pro lepší viditelnost</string>
     <string name="permission_scan">Chcete získat seznam sítí/zařízení, nebo ne\?</string>
     <string name="permission_permanent">Tuto možnost nyní musíte povolit ručně. Dobrá práce!</string>
     <string name="format_d_ms">%d ms</string>
@@ -922,23 +844,9 @@ Překlad S11V3R 🇨🇿</string>
     <string name="oneKBs">1 KB/s</string>
     <string name="Bs">B/s</string>
     <string name="speedunits">KMGTPE</string>
-    <string name="lux">%s lux</string>
-    <string name="off">Vypnuto</string>
-    <string name="time_30m">30 minut</string>
-    <string name="time_1h">Hodina</string>
-    <string name="time_2h">2 hodiny</string>
-    <string name="time_3h">3 hodiny</string>
-    <string name="time_4h">4 hodiny</string>
-    <string name="time_5h">5 hodin</string>
-    <string name="time_6h">6 hodin</string>
-    <string name="time_8h">8 hodin</string>
-    <string name="time_10h">10 hodin</string>
-    <string name="time_12h">12 hodin</string>
     <string name="white_color">Bílá</string>
     <string name="black_color">Černá</string>
     <string name="auto_color">Barva stavového řádku</string>
-    <string name="type_file">Soubor</string>
-    <string name="type_res">Zdroj</string>
     <string name="system_statusbar_batterytempandcurrent_title">Zobrazit informace o baterii</string>
     <string name="system_statusbar_batterytempandcurrent_content_title">Zobrazit obsah</string>
     <string name="system_statusbar_batterytempandcurrentatright_title">Zobrazit na pravé straně</string>
@@ -1005,7 +913,6 @@ Překlad S11V3R 🇨🇿</string>
     <string name="system_cc_hide_edit_title">Skrýt tlačítko upravit</string>
     <string name="system_cc_hide_profile_monitoring_title">Skrýt bezpečnostní tipy</string>
     <string name="system_cc_btandtorch_ascard_title">Zobrazit dlaždice Bluetooth a svítilny jako karty</string>
-    <string name="system_cc_tile_roundedrect_inlinetext_title">Vložený název</string>
     <string name="system_cc_enable_style_switch_title">Vynutit povolení CC stylu</string>
     <string name="system_cc_volume_showpct_title">Zobrazit procenta hlasitosti</string>
     <string name="system_cc_collapse_after_clicked_title">Sbalit po dotyku</string>

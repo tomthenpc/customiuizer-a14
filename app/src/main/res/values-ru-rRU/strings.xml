@@ -5,14 +5,9 @@
     <string name="about_dev">Поддержка: tomthenpc · На основе работ Mikanoshi и MonwF</string>
     <string name="about_dynamic">Для активации или деактивации большинства модов требуется быстрая перезагрузка устройства. Но для модов, помеченных ⟲, перезагрузка требуется только один раз — после смены значения со стандартного на модифицированное, а последующие изменения будут применяться сразу.</string>
     <string name="about_unsupported">Моды, помеченные ⨯, несовместимы с данным устройством.</string>
-    <string name="menu_update">Обновить</string>
     <string name="mods">Моды</string>
     <string name="mods_actions">Действия</string>
-    <string name="value_is_empty">Оставить ненастроенным</string>
-    <string name="value_is_set">Значение настроено</string>
-    <string name="clear_value">Очистить</string>
     <string name="common_background_color">Цвет фона</string>
-    <string name="common_text_color">Цвет текста</string>
     <string name="common_icon_color">Цвет значка</string>
     <string name="enable_mod">Активировать мод</string>
     <string name="white_lists">Включить белый список</string>
@@ -109,7 +104,6 @@
 \nh - однозначный формат времени в 12-часовом формате (9, 2).
 \nmm - двухзначные минуты (09).
 \nss - двухзначные секунды (09).    </string>
-    <string name="system_clock_dualrow_title">Показать в двойных строках</string>
     <string name="system_clock_fixedwidth_title">Исправить ширину содержимого, чтобы предотвратить горизонтальное дрожание</string>
     <string name="system_clock_fixedwidth_summ">Отрегулировать ширину, когда отображаются секунды</string>
     <string name="system_statusbar_clock_align_title">Выравнивание по горизонтали</string>
@@ -146,7 +140,6 @@
     <string name="system_notifimportance_title">Показывать важные уведомления</string>
     <string name="system_notif_disable_fold_title">Отключить сворачивание уведомлений</string>
     <string name="system_notif_disable_strong_toast_title">Отключить уведомления устройства</string>
-    <string name="system_notif_strong_toast_width_title">Уведомления устройства с</string>
     <string name="system_morenotif_title">Удалить ограничение количества уведомлений для приложения</string>
     <string name="system_colorizenotiftitle_title">Раскрасить заголовок уведомления</string>
     <string name="system_colorizenotiftitle_summ">Применить цвет значка к карте</string>
@@ -158,10 +151,6 @@
     <string name="system_drawer_removeshortcut_title">Скрыть ярлык панели уведомлений</string>
     <string name="system_removedismiss_title">Скрыть кнопку удаления</string>
     <string name="system_removedismiss_summ">Убирает из шторки кнопку для удаления всех уведомлений</string>
-    <string name="system_showlux_title">Показать уровень освещённости</string>
-    <string name="system_showlux_summ">Отображает уровень окружающей освещённости в люксах внутри слайдера яркости</string>
-    <string name="system_showlux_style_title">Альтернативный стиль</string>
-    <string name="system_showlux_style_summ">Большой полупрозрачный текст</string>
     <string name="system_showpct_title">Показывать процент яркости</string>
     <string name="system_showpct_summ">Отображает уровень яркости в процентах при изменении яркости слайдером</string>
     <string name="system_showpct_top_title">Отступ панели процентов сверху</string>
@@ -195,8 +184,6 @@
     <string name="system_chargeanimtime_summ">Как долго держать экран включенным после начала анимации зарядки</string>
     <string name="system_nolightuponcharges_title">Не включать экран при зарядке</string>
     <string name="system_nolightuponcharges_summ">Запрещает включение экрана при подключении или отключении зарядки</string>
-    <string name="system_nolightuponheadset_title">Не включать экран при подключении наушников</string>
-    <string name="system_nolightuponheadset_summ">Запрещает включение экрана при подключении наушников</string>
     <string name="system_lstimeout_title">Задержка перед выключением на экране блокировки</string>
     <string name="system_dimtime_title">Продолжительность затемнения</string>
     <string name="system_dimtime_summ">Как долго экран должен быть затемнён перед автоматическим выключением (в процентах от задержки выключения экрана)</string>
@@ -247,7 +234,6 @@
     <string name="system_vibration_amp_period_title">Временной промежуток</string>
     <string name="system_vibration_title">Блокировка вибрации</string>
     <string name="system_vibration_summ">Запрещает выбранным приложениям использовать вибрацию</string>
-    <string name="system_volume">Системные звуки</string>
     <string name="system_scramblepin_title">Усложнить PIN</string>
     <string name="system_scramblepin_summ">Случайным образом переставляет кнопки ввода PIN</string>
     <string name="system_securelock_title">Улучшенная блокировка</string>
@@ -416,7 +402,6 @@
     <string name="system_applock_skip_title">Пропуск защиты</string>
     <string name="system_applock_skip_summ">Разрешить выбранным компонентам обходить защиту</string>
     <string name="system_applock_activities">Выбранные компоненты</string>
-    <string name="system_mods_qs">Быстрые настройки</string>
     <string name="system_mods_cc">Быстрые настройки</string>
     <string name="system_qsgridcolumns_title">Число колонок</string>
     <string name="system_qs_hideoperator_title">Скрыть имя оператора</string>
@@ -588,7 +573,6 @@
     <string name="various_batteryoptimization_title">Оптимизация батареи</string>
     <string name="various_memorystats_title">Статистика потребления памяти</string>
     <string name="various_appusagestats_title">Статистика использования</string>
-    <string name="various_aospsearch_title">Поиск</string>
     <string name="various_aospnotif_title">Приложения и уведомления</string>
     <string name="various_aospnotiflog_title">Журнал уведомлений</string>
     <string name="various_miuiinstaller_summ">Позволяет обновлять системные приложения</string>
@@ -596,11 +580,9 @@
     <string name="various_installer_purify_title">Очистить установщик пакетов</string>
     <string name="various_installappinfo_title">Данные о приложении при инсталляции</string>
     <string name="various_installappinfo_summ">Отображает данные об устанавливаемом приложении в окне инсталлера</string>
-    <string name="various_installappinfo_package">Пакет</string>
     <string name="various_installappinfo_vername">Версия</string>
     <string name="various_installappinfo_vercode">Код версии</string>
     <string name="various_installappinfo_sdk">Поддержка SDK</string>
-    <string name="various_installappinfo_current">текущая</string>
     <string name="various_alarmcompat_title">Совместимость будильника</string>
     <string name="various_alarmcompat_summ">Сделать выбранные приложения отображать корректное время следующего будильника установленным приложением HyperOS часов</string>
     <string name="various_gboardpadding_port_title">Нижний отступ в портретном режиме</string>
@@ -646,8 +628,6 @@
     <string name="calls">Звонки</string>
     <string name="settings">Настройки</string>
     <string name="array_default">Стандарт</string>
-    <string name="array_allow">Разрешить</string>
-    <string name="array_deny">Отклонить</string>
     <string name="array_system_default">Система</string>
     <string name="array_global_actions_none">Нет действия</string>
     <string name="array_global_actions_notif">Открыть панель уведомлений</string>
@@ -683,11 +663,6 @@
     <string name="array_global_toggle_rotation">Автоповорот</string>
     <string name="array_global_toggle_torch">Фонарик</string>
     <string name="array_global_toggle_mobiledata">Мобильный интернет</string>
-    <string name="array_global_toggle_zen">Мобильный интернет</string>
-    <string name="array_toasts_icon">Иконка</string>
-    <string name="array_toasts_label">Название</string>
-    <string name="array_screen_anim_none">Без анимации</string>
-    <string name="array_screen_anim_fade">Затухание</string>
     <string name="array_media_none">Действие не задано</string>
     <string name="array_media_playpause">Старт/Пауза</string>
     <string name="array_media_next">Следующий трек</string>
@@ -703,7 +678,6 @@
     <string name="array_netspeedicons_no">Без иконок</string>
     <string name="array_expandnotifs_allbutblack">Кроме тех приложений, что в списке</string>
     <string name="array_expandnotifs_whiteonly">Только для приложений в списке</string>
-    <string name="array_mobiletypeicon_connected">Скрывать только при отсутствии подключения</string>
     <string name="array_mobiletypeicon_show_disconnected">Показывать когда не подключен</string>
     <string name="system_statusbar_mobiletype_show_wificonnected_title">Показывать при подключении Wi-Fi</string>
     <string name="array_mobiletypeicon_hide">Скрыть полностью</string>
@@ -714,10 +688,6 @@
     <string name="array_top">Ближе к началу</string>
     <string name="array_middle">В середине списка</string>
     <string name="array_bottom">В самом низу</string>
-    <string name="array_max">Максимальный</string>
-    <string name="array_large">Большой</string>
-    <string name="array_normal">Нормальный</string>
-    <string name="array_small">Мелкий</string>
     <string name="array_low">Низкая</string>
     <string name="array_average">Средняя</string>
     <string name="array_high">Высокая</string>
@@ -734,10 +704,6 @@
     <string name="array_bars_dashed">Пунктирные полоски</string>
     <string name="array_bars_circles">Круги</string>
     <string name="array_line">Линия</string>
-    <string name="array_never">Никогда</string>
-    <string name="array_1day">1 день после обновления</string>
-    <string name="array_3days">3 дня после обновления</string>
-    <string name="array_week">Неделю после обновления</string>
     <string name="array_always">Всегда</string>
     <string name="array_image">Изображение</string>
     <string name="array_audio">Аудио</string>
@@ -752,14 +718,6 @@
     <string name="array_incoming">Входящие</string>
     <string name="array_outgoing">Исходящие</string>
     <string name="array_both">Оба</string>
-    <string name="array_no_vibration">Без вибрации</string>
-    <string name="array_single_short">Одиночная (короткая)</string>
-    <string name="array_single_long">Одиночная (длинная)</string>
-    <string name="array_ticktock">Тик-так</string>
-    <string name="array_heartbeat">Сердцебиение</string>
-    <string name="array_waltz">Вальс</string>
-    <string name="array_zig">Вж-вж-вж</string>
-    <string name="array_own">Свой шаблон</string>
     <string name="array_scale_fit">Вместить в размеры экрана</string>
     <string name="array_scale_cover">Заполнить экран полностью</string>
     <string name="array_align_top">Сверху</string>
@@ -772,25 +730,11 @@
     <string name="array_alarm_absolute">Обычное время</string>
     <string name="array_alarm_relative">Относительное время</string>
     <string name="array_alarm_both">Обычное и относительное время</string>
-    <string name="array_singletap">Одиночное нажатие</string>
-    <string name="array_doubletap">Двойное нажатие</string>
-    <string name="array_longpress">Долгое нажатие</string>
-    <string name="array_newyear">Новый Год</string>
-    <string name="array_lunarnewyear">Китайский Новый Год</string>
-    <string name="array_displayonly">Только отображение</string>
-    <string name="array_hide">Скрыть</string>
     <string name="array_render_auto">Определять автоматически</string>
     <string name="array_append">После</string>
     <string name="array_prepend">Перед</string>
     <string name="array_newline">Вставить новой строкой</string>
     <string name="array_path">Выбранный путь</string>
-    <string name="array_collapse_initial">Изначально</string>
-    <string name="array_collapse_permanent">Перманентно</string>
-    <string name="array_second_beginning">Начало секунды</string>
-    <string name="array_second_end">Конец секунды</string>
-    <string name="array_keep">Оставить как есть</string>
-    <string name="array_turn_off">Выключить</string>
-    <string name="array_turn_off_disable">Выключить и заблокировать</string>
     <string name="array_current">Ток</string>
     <string name="array_power">Только питание</string>
     <string name="array_temp_current">Температура и ток</string>
@@ -816,8 +760,6 @@
     <string name="toggle_autobright_off">Авторегулировка яркости отключена</string>
     <string name="toggle_autorotate_on">Автоповорот экрана включен</string>
     <string name="toggle_autorotate_off">Автоповорот экрана отключен</string>
-    <string name="toggle_flash_off">Фонарик выключен</string>
-    <string name="toggle_flash_on">Фонарик включен</string>
     <string name="toggle_mobiledata_on">Мобильный интернет включен</string>
     <string name="toggle_mobiledata_off">Мобильный интернет отключен</string>
     <string name="qs_toggle_autorotate">Закрепить ориентацию</string>
@@ -827,8 +769,6 @@
     <string name="qs_toggle_5g">5G</string>
     <string name="qs_toggle_fps">Частота обновления</string>
     <string name="miuizer">Настройки 米客 A14</string>
-    <string name="miuizer_show_newmods_title">Отмечать новые моды</string>
-    <string name="miuizer_show_newmods_summ">Делать пометку \"Новый!\" в заголовке модов, добавленных в текущей версии</string>
     <string name="miuizer_new_mod">Новый!</string>
     <string name="miuizer_show_launchericon_title">Иконка в ланчере</string>
     <string name="miuizer_show_launchericon_summ">Показывать иконку в ланчерах</string>
@@ -836,14 +776,8 @@
     <string name="miuizer_show_settingsicon_summ">Показывать иконку в Настройках</string>
     <string name="miuizer_locale_title">Язык интерфейса</string>
     <string name="miuizer_locale_summ">Всегда отображать интерфейс модуля на выбранном языке</string>
-    <string name="troubleshoot">Решение проблем</string>
-    <string name="array_color_auto">Автоматический</string>
-    <string name="array_color_dark">Тёмный</string>
-    <string name="array_color_light">Светлый</string>
     <string name="notselected">Не выбрано</string>
     <string name="warning">Внимание!</string>
-    <string name="warning_unsupported_os">Android %1$s не поддерживается, моды могут быть неработоспособны.</string>
-    <string name="open_xposed">Управление модулями Xposed</string>
     <string name="soft_reboot">Быстрая перезагрузка</string>
     <string name="soft_reboot_ask">Выполнить перезагрузку?</string>
     <string name="restart_launcher">Перезагрузить рабочий стол</string>
@@ -860,7 +794,6 @@
     <string name="storage_cannot_restore">Не найдено сохранённых настроек</string>
     <string name="backup_ok">Настройки успешно сохранены!</string>
     <string name="restore_ok">Настройки успешно восстановлены!</string>
-    <string name="update_available">Доступно обновление ⚠</string>
     <string name="select_app">Выбрать приложение</string>
     <string name="select_apps">Выбрать приложения</string>
     <string name="select_activity">Выбрать компонент</string>
@@ -877,7 +810,6 @@
     <string name="bt_category1">Доверенные устройства</string>
     <string name="bt_category2">Доступные устройства</string>
     <string name="bt_devices">Устройства Bluetooth</string>
-    <string name="bt_not_supported">На данном устройстве нет поддержки Bluetooth</string>
     <string name="request_bt">Сначала включите Bluetooth</string>
     <string name="request_wifi">Сначала включите Wi-Fi</string>
     <string name="request_location">Невозможно начать сканирование без доступа к местоположению</string>
@@ -886,15 +818,7 @@
     <string name="credentials_unlock">Разблокировать учётные данные</string>
     <string name="credentials_success">Учётные данные разблокированы!</string>
     <string name="module_not_active">Модуль не активен!\nОткройте LSPosed, активируйте модуль и перезагрузите.</string>
-    <string name="no_browser">Для открытия ссылок необходим браузер</string>
-    <string name="okay">Окей</string>
-    <string name="cancel">Отмена</string>
-    <string name="add">Добавить</string>
-    <string name="delete">Удалить</string>
     <string name="delete_item_info">Используйте долгое нажатие для удаления</string>
-    <string name="change_icon">Изменить иконку</string>
-    <string name="guide_search">Поиск модов по названию.\nДолгое нажатие покажет список новых модов.</string>
-    <string name="guide_marknew">Новые моды с предыдушего обновления\nмогут быть выделены для лучшей видимости</string>
     <string name="permission_scan">Вы хотите получить список сетей/устройств или нет?</string>
     <string name="permission_permanent">Теперь Вам придётся искать где вручную дать разрешение для данной функции. Так держать!</string>
     <string name="format_d_ms">%d мс</string>
@@ -904,23 +828,9 @@
     <string name="oneKBs">1 КБ/с</string>
     <string name="Bs">Б/с</string>
     <string name="speedunits">КМГТПЭ</string>
-    <string name="lux">%s люкс</string>
-    <string name="off">Отключен</string>
-    <string name="time_30m">30 минут</string>
-    <string name="time_1h">1 час</string>
-    <string name="time_2h">2 часа</string>
-    <string name="time_3h">3 часа</string>
-    <string name="time_4h">4 часа</string>
-    <string name="time_5h">5 часов</string>
-    <string name="time_6h">6 часов</string>
-    <string name="time_8h">8 часов</string>
-    <string name="time_10h">10 часов</string>
-    <string name="time_12h">12 часов</string>
     <string name="white_color">Белый</string>
     <string name="black_color">Чёрный</string>
     <string name="auto_color">Цвет статус бара</string>
-    <string name="type_file">файл</string>
-    <string name="type_res">ресурс</string>
     <string name="system_statusbar_batterytempandcurrent_title">Информация о батарее</string>
     <string name="system_statusbar_batterytempandcurrent_content_title">Показать содержимое</string>
     <string name="system_statusbar_batterytempandcurrentatright_title">Отображать справа</string>
@@ -987,7 +897,6 @@
     <string name="system_cc_hide_edit_title">Скрыть кнопку изменения</string>
     <string name="system_cc_hide_profile_monitoring_title">Скрыть советы безопасности</string>
     <string name="system_cc_btandtorch_ascard_title">Отображать bluetooth и фонарик как карты</string>
-    <string name="system_cc_tile_roundedrect_inlinetext_title">Встроенный ярлык</string>
     <string name="system_cc_enable_style_switch_title">Принудительно включить переключатель стиля CC</string>
     <string name="system_cc_volume_showpct_title">Показывать проценты громкости</string>
     <string name="system_cc_collapse_after_clicked_title">Свернуть после касания</string>

@@ -5,14 +5,9 @@
     <string name="about_dev">Mantido por tomthenpc · Baseado no trabalho de Mikanoshi e MonwF</string>
     <string name="about_dynamic">Geralmente, os mods exigem reinicialização suave para serem ativados ou desativados, mas aqueles marcados com ⟲ requerem apenas uma reinicialização suave depois que seu valor for alterado de padrão para personalizado, as alterações subsequentes são aplicadas imediatamente.</string>
     <string name="about_unsupported">Mods marcados com ⨯ não são suportados neste dispositivo.</string>
-    <string name="menu_update">Atualizar</string>
     <string name="mods">Mods</string>
     <string name="mods_actions">Ações</string>
-    <string name="value_is_empty">Valor desconfigurado</string>
-    <string name="value_is_set">Valor configurado</string>
-    <string name="clear_value">Limpar</string>
     <string name="common_background_color">Cor de fundo</string>
-    <string name="common_text_color">Cor do texto</string>
     <string name="common_icon_color">Cor do ícone</string>
     <string name="enable_mod">Ativar mod</string>
     <string name="white_lists">Ativar lista de permissões</string>
@@ -111,7 +106,6 @@
         \nh - hora de um dígito de 12 horas (9, 2)
         \nmm - hora de dois dígito (09)
         \nss - segundo de dois dígito (09)</string>
-    <string name="system_clock_dualrow_title">Mostrar em duas linhas</string>
     <string name="system_clock_fixedwidth_title">Corrigir largura do conteúdo para evitar instabilidade horizontal</string>
     <string name="system_clock_fixedwidth_summ">Ajuste a largura quando os segundos são exibidos</string>
     <string name="system_statusbar_clock_align_title">Alinhamento horizontal</string>
@@ -151,7 +145,6 @@
     <string name="system_notif_disable_fold_title">Desativar notificações dobráveis</string>
     <string name="system_notif_disable_strong_toast_title">Desativar notificações do dispositivo</string>
     <string name="system_notif_disable_strong_toast_summ">Desative nos seguintes cenários</string>
-    <string name="system_notif_strong_toast_width_title">Notificações do dispositivo com</string>
     <string name="system_morenotif_title">Remover limite de contagem de notificações por app</string>
     <string name="system_colorizenotiftitle_title">Colorir cartão de notificação</string>
     <string name="system_colorizenotiftitle_summ">Aplique a cor do ícone ao cartão</string>
@@ -164,10 +157,6 @@
     <string name="system_drawer_remove_emptynotify_title">Ocultar dica de não notificações</string>
     <string name="system_removedismiss_title">Ocultar botão limpar</string>
     <string name="system_removedismiss_summ">Remova o botão que limpa todas as notificações</string>
-    <string name="system_showlux_title">Mostrar nível de iluminação</string>
-    <string name="system_showlux_summ">Mostre o valor de iluminação do ambiente em lux dentro do centro de controle</string>
-    <string name="system_showlux_style_title">Estilo alternativo</string>
-    <string name="system_showlux_style_summ">Texto semitransparente grande</string>
     <string name="system_showpct_title">Mostrar porcentagem de brilho</string>
     <string name="system_showpct_summ">Mostre o nível de brilho em percentagens ao arrastar o controle deslizante</string>
     <string name="system_showpct_top_title">Margem superior do painel de porcentagens</string>
@@ -201,8 +190,6 @@
     <string name="system_chargeanimtime_summ">Por quanto tempo a tela deve ser mantida após o início da animação de carregamento</string>
     <string name="system_nolightuponcharges_title">Não acender a tela ao carregar</string>
     <string name="system_nolightuponcharges_summ">Não ligue a tela ao conectar ou desconectar um carregador</string>
-    <string name="system_nolightuponheadset_title">Nenhuma tela acende na conexão do fone de ouvido</string>
-    <string name="system_nolightuponheadset_summ">Não ligue a tela ao conectar um fone de ouvido</string>
     <string name="system_lstimeout_title">Tempo limite de desligamento da tela na tela de bloqueio</string>
     <string name="system_dimtime_title">Duração de escurecimento</string>
     <string name="system_dimtime_summ">Por quanto tempo a tela deve permanecer escurecida antes de desligar automaticamente (em porcentagem do tempo limite total de tela desligada)</string>
@@ -254,7 +241,6 @@
     <string name="system_vibration_amp_period_title">Período de tempo</string>
     <string name="system_vibration_title">Bloquear vibração</string>
     <string name="system_vibration_summ">Impedir que os apps selecionados vibrem</string>
-    <string name="system_volume">Sons do sistema</string>
     <string name="system_scramblepin_title">Embaralhar PIN</string>
     <string name="system_scramblepin_summ">Alterar aleatoriamente a ordem dos botões</string>
     <string name="system_securelock_title">Bloqueio de tela aprimorado</string>
@@ -428,7 +414,6 @@
     <string name="system_applock_skip_title">Ignorar Bloqueio de apps</string>
     <string name="system_applock_skip_summ">Permite que as atividades selecionadas ignorem o Bloqueio de apps</string>
     <string name="system_applock_activities">Atividades selecionadas</string>
-    <string name="system_mods_qs">Configurações rápidas</string>
     <string name="system_mods_cc">Centro de controle</string>
     <string name="system_qsgridcolumns_title">Numero de colunas</string>
     <string name="system_qs_hideoperator_title">Ocultar nome da operadora</string>
@@ -602,7 +587,6 @@
     <string name="various_batteryoptimization_title">Otimização de bateria</string>
     <string name="various_memorystats_title">Estatísticas de memória</string>
     <string name="various_appusagestats_title">Estatísticas de utilização</string>
-    <string name="various_aospsearch_title">Procurar</string>
     <string name="various_aospnotif_title">Apps e notificações</string>
     <string name="various_aospnotiflog_title">Registro de notificação</string>
     <string name="various_miuiinstaller_summ">Permite que ele atualize apps do sistema</string>
@@ -610,11 +594,9 @@
     <string name="various_installer_purify_title">Purifique o instalador do pacote</string>
     <string name="various_installappinfo_title">Informações do app no instalador</string>
     <string name="various_installappinfo_summ">Exibir informações sobre o app que está sendo instalado</string>
-    <string name="various_installappinfo_package">Pacote</string>
     <string name="various_installappinfo_vername">Nome da versão</string>
     <string name="various_installappinfo_vercode">Código da versão</string>
     <string name="various_installappinfo_sdk">SDK compatível</string>
-    <string name="various_installappinfo_current">Corrente</string>
     <string name="various_alarmcompat_title">Compatibilidade do relógio</string>
     <string name="various_alarmcompat_summ">Faça com que os apps selecionados exibam o próximo horário de alarme correto definido pelo app Relógio do HyperOS padrão</string>
     <string name="various_gboardpadding_port_title">Preenchimento inferior em retrato</string>
@@ -661,8 +643,6 @@
     <string name="calls">Chamadas</string>
     <string name="settings">Configurações</string>
     <string name="array_default">Padrão</string>
-    <string name="array_allow">Permitir</string>
-    <string name="array_deny">Negar</string>
     <string name="array_system_default">Sistema</string>
     <string name="array_global_actions_none">Nenhuma ação</string>
     <string name="array_global_actions_notif">Expandir gaveta de notificação</string>
@@ -699,11 +679,6 @@
     <string name="array_global_toggle_rotation">Auto rotação</string>
     <string name="array_global_toggle_torch">Lanterna</string>
     <string name="array_global_toggle_mobiledata">Dados móveis</string>
-    <string name="array_global_toggle_zen">Dados móveis</string>
-    <string name="array_toasts_icon">Ícone</string>
-    <string name="array_toasts_label">Rótulo</string>
-    <string name="array_screen_anim_none">Nenhum</string>
-    <string name="array_screen_anim_fade">Desaparecer</string>
     <string name="array_media_none">Sem mudança</string>
     <string name="array_media_playpause">Reproduzir/Pausar</string>
     <string name="array_media_next">Faixa seguinte</string>
@@ -720,7 +695,6 @@
     <string name="array_netspeedicons_no">Sem ícones</string>
     <string name="array_expandnotifs_allbutblack">Para todos os apps, exceto os listados</string>
     <string name="array_expandnotifs_whiteonly">Somente para apps listados</string>
-    <string name="array_mobiletypeicon_connected">Ocultar apenas quando não estiver conectado</string>
     <string name="array_mobiletypeicon_show_disconnected">Exibir quando não estiver conectado</string>
     <string name="system_statusbar_mobile_digital_signal_title">Exibir intensidade do sinal em formato numérico dBm</string>
     <string name="system_statusbar_mobile_digital_signal_in2rows_title">Exibir como duas linhas quando o dispositivo tiver dois cartões SIM</string>
@@ -733,10 +707,6 @@
     <string name="array_top">Perto do topo</string>
     <string name="array_middle">No meio</string>
     <string name="array_bottom">Perto do fundo</string>
-    <string name="array_max">Máximo</string>
-    <string name="array_large">Grande</string>
-    <string name="array_normal">Normal</string>
-    <string name="array_small">Pequeno</string>
     <string name="array_low">Baixo</string>
     <string name="array_average">Médio</string>
     <string name="array_high">Alto</string>
@@ -753,10 +723,6 @@
     <string name="array_bars_dashed">Barras tracejadas</string>
     <string name="array_bars_circles">Círculos</string>
     <string name="array_line">Linha</string>
-    <string name="array_never">Nunca</string>
-    <string name="array_1day">Por 1 dia após a atualização</string>
-    <string name="array_3days">Por 3 dias após a atualização</string>
-    <string name="array_week">Por uma semana após a atualização</string>
     <string name="array_always">Sempre</string>
     <string name="array_image">Imagem</string>
     <string name="array_audio">Áudio</string>
@@ -771,14 +737,6 @@
     <string name="array_incoming">Entrada</string>
     <string name="array_outgoing">Extrovertido</string>
     <string name="array_both">Ambos</string>
-    <string name="array_no_vibration">Sem vibração</string>
-    <string name="array_single_short">Único (curto)</string>
-    <string name="array_single_long">Único (longo)</string>
-    <string name="array_ticktock">Tic-tac</string>
-    <string name="array_heartbeat">Batimento cardiaco</string>
-    <string name="array_waltz">Valsa</string>
-    <string name="array_zig">Zig-zig-zig</string>
-    <string name="array_own">Padrão próprio</string>
     <string name="array_scale_fit">Ajustar a tela</string>
     <string name="array_scale_cover">Cobrir a tela inteira</string>
     <string name="array_align_top">Topo</string>
@@ -791,25 +749,11 @@
     <string name="array_alarm_absolute">Horário regular</string>
     <string name="array_alarm_relative">Horário relativo</string>
     <string name="array_alarm_both">Horário regular e relativo</string>
-    <string name="array_singletap">Toque único</string>
-    <string name="array_doubletap">Toque duplo</string>
-    <string name="array_longpress">Toque longo</string>
-    <string name="array_newyear">Ano Novo</string>
-    <string name="array_lunarnewyear">Ano Novo Chinês</string>
-    <string name="array_displayonly">Somente exibição</string>
-    <string name="array_hide">Ocultar</string>
     <string name="array_render_auto">Detectar automaticamente</string>
     <string name="array_append">Acrescentar</string>
     <string name="array_prepend">Anteceder</string>
     <string name="array_newline">Inserir como nova linha</string>
     <string name="array_path">Selecionar caminho</string>
-    <string name="array_collapse_initial">Inicialmente</string>
-    <string name="array_collapse_permanent">Permanentemente</string>
-    <string name="array_second_beginning">Começo de um segundo</string>
-    <string name="array_second_end">Fim de um segundo</string>
-    <string name="array_keep">Manter como está</string>
-    <string name="array_turn_off">Desligar</string>
-    <string name="array_turn_off_disable">Desligar e desativar</string>
     <string name="array_current">Corrente atual</string>
     <string name="array_power">Apenas energia</string>
     <string name="array_temp_current">Temperatura e Corrente</string>
@@ -835,8 +779,6 @@
     <string name="toggle_autobright_off">Brilho automático desativado</string>
     <string name="toggle_autorotate_on">Rotação automática ativada</string>
     <string name="toggle_autorotate_off">Rotação automática desativada</string>
-    <string name="toggle_flash_off">Lanterna: desligada</string>
-    <string name="toggle_flash_on">Lanterna: ligada</string>
     <string name="toggle_mobiledata_on">Dados móveis ativado</string>
     <string name="toggle_mobiledata_off">Dados móveis desativado</string>
     <string name="qs_toggle_autorotate">Bloqueio de rotação</string>
@@ -847,8 +789,6 @@
     <string name="qs_toggle_fps">Taxa de atualização</string>
     <string name="qs_toggle_floatingtime">Hora flutuante</string>
     <string name="miuizer">Configurações do 米客 A14</string>
-    <string name="miuizer_show_newmods_title">Marcar novos mods</string>
-    <string name="miuizer_show_newmods_summ">Exibe \"Novo!\" no título para mods adicionados na versão atual</string>
     <string name="miuizer_new_mod">Novo!</string>
     <string name="miuizer_show_launchericon_title">Ícone na tela inicial</string>
     <string name="miuizer_show_launchericon_summ">Mostrar ícone na tela inicial</string>
@@ -856,14 +796,8 @@
     <string name="miuizer_show_settingsicon_summ">Mostrar ícone em Configurações</string>
     <string name="miuizer_locale_title">Idioma do app</string>
     <string name="miuizer_locale_summ">Exibir a interface do módulo no idioma selecionado</string>
-    <string name="troubleshoot">Solução de problemas</string>
-    <string name="array_color_auto">Automático</string>
-    <string name="array_color_dark">Escuro</string>
-    <string name="array_color_light">Luz</string>
     <string name="notselected">Não selecionado</string>
     <string name="warning">Aviso!</string>
-    <string name="warning_unsupported_os">O Android %1$s não é compatível, os mods podem não funcionar corretamente.</string>
-    <string name="open_xposed">Gerenciar módulos Xposed</string>
     <string name="soft_reboot">Reinicialização suave</string>
     <string name="soft_reboot_ask">Deseja reiniciar agora?</string>
     <string name="restart_launcher">Reiniciar launcher</string>
@@ -880,7 +814,6 @@
     <string name="storage_cannot_restore">Nenhum backup de configurações encontrado</string>
     <string name="backup_ok">As configurações foram copiadas com sucesso!</string>
     <string name="restore_ok">As configurações foram restauradas com sucesso!</string>
-    <string name="update_available">A atualização está disponível ⚠</string>
     <string name="select_app">Selecionar app</string>
     <string name="select_apps">Selecionar apps</string>
     <string name="select_activity">Selecionar atividade</string>
@@ -897,7 +830,6 @@
     <string name="bt_category1">Dispositivos confiáveis</string>
     <string name="bt_category2">Dispositivos disponíveis</string>
     <string name="bt_devices">Dispositivos Bluetooth</string>
-    <string name="bt_not_supported">O Bluetooth não é compatível com este dispositivo</string>
     <string name="request_bt">Ligue o Bluetooth primeiro</string>
     <string name="request_wifi">Ligue o Wi-Fi primeiro</string>
     <string name="request_location">Não é possível digitalizar sem acesso ao local</string>
@@ -906,15 +838,7 @@
     <string name="credentials_unlock">Desbloquear credenciais</string>
     <string name="credentials_success">Credenciais desbloqueadas!</string>
     <string name="module_not_active">O módulo não está ativo!\nAbra o LSPosed, ative o módulo e reinicie.</string>
-    <string name="no_browser">O app do navegador é necessário para abrir URLs</string>
-    <string name="okay">OK</string>
-    <string name="cancel">Cancelar</string>
-    <string name="add">Adicionar</string>
-    <string name="delete">Excluir</string>
     <string name="delete_item_info">Pressione e segure o item para excluir</string>
-    <string name="change_icon">Alterar ícone</string>
-    <string name="guide_search">Pesquisar mods por nome.\nPressione e segure para exibir uma lista de novos mods.</string>
-    <string name="guide_marknew">Novos mods desde a atualização anterior\npodem ser marcados para melhor visibilidade</string>
     <string name="permission_scan">Deseja obter uma lista de redes/dispositivos ou não?</string>
     <string name="permission_permanent">Agora você precisará habilitar manualmente a permissão para esta opção. Bom trabalho!</string>
     <string name="format_d_ms">%d ms</string>
@@ -924,23 +848,9 @@
     <string name="oneKBs">1 KB/s</string>
     <string name="Bs">B/s</string>
     <string name="speedunits">KMG</string>
-    <string name="lux">%s lux</string>
-    <string name="off">Desligado</string>
-    <string name="time_30m">30 minutos</string>
-    <string name="time_1h">1 hora</string>
-    <string name="time_2h">2 horas</string>
-    <string name="time_3h">3 horas</string>
-    <string name="time_4h">4 horas</string>
-    <string name="time_5h">5 horas</string>
-    <string name="time_6h">6 horas</string>
-    <string name="time_8h">8 horas</string>
-    <string name="time_10h">10 horas</string>
-    <string name="time_12h">12 horas</string>
     <string name="white_color">Branco</string>
     <string name="black_color">Preto</string>
     <string name="auto_color">Cor da barra de status</string>
-    <string name="type_file">Arquivo</string>
-    <string name="type_res">Recurso</string>
     <string name="system_statusbar_batterytempandcurrent_title">Exibir temperatura e corrente da bateria</string>
     <string name="system_statusbar_batterytempandcurrent_content_title">Exibir conteúdo</string>
     <string name="system_statusbar_batterytempandcurrentatright_title">Exibir à direita</string>
@@ -1011,7 +921,6 @@
     <string name="system_cc_hide_edit_title">Ocultar botão editar</string>
     <string name="system_cc_hide_profile_monitoring_title">Ocultar dicas de segurança</string>
     <string name="system_cc_btandtorch_ascard_title">Exibir blocos de bluetooth e lanterna como cartões</string>
-    <string name="system_cc_tile_roundedrect_inlinetext_title">Rótulo na linha</string>
     <string name="system_cc_enable_style_switch_title">Forçar a ativação do interruptor de estilo CC</string>
     <string name="system_cc_volume_showpct_title">Mostrar porcentagem do volume</string>
     <string name="system_cc_collapse_after_clicked_title">Fechar após tocar</string>

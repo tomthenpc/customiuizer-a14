@@ -5,12 +5,7 @@
     <string name="about_dev">维护：tomthenpc · 基于 Mikanoshi 与 MonwF 的开源工作</string>
     <string name="about_dynamic">标记有⟲的模块由默认值修改为其他值后只需软重启一次，之后的更改将立即应用；其他选项始终需要软重启。</string>
     <string name="about_unsupported">标记⨯的模块不支持此设备。</string>
-    <string name="menu_update">更新</string>
-    <string name="value_is_empty">未设置</string>
-    <string name="value_is_set">已设置</string>
-    <string name="clear_value">清空</string>
     <string name="common_background_color">背景色</string>
-    <string name="common_text_color">文字颜色</string>
     <string name="common_icon_color">图标颜色</string>
 
     <string name="mods">模块</string>
@@ -122,7 +117,6 @@
         \nss - 补0秒数(09)
         \nI - 时辰(卯、亥)
     </string>
-    <string name="system_clock_dualrow_title">双排显示</string>
     <string name="system_clockseconds_summ">状态栏显示秒钟</string>
     <string name="system_maxsbicons_title">通知图标限制</string>
     <string name="system_maxsbicons_summ">变成点前显示的通知图标的数目</string>
@@ -157,7 +151,6 @@
     <string name="system_notif_disable_fold_title">禁止通知折叠为历史通知</string>
     <string name="system_notif_disable_strong_toast_title">禁用设备通知</string>
     <string name="system_notif_disable_strong_toast_summ">在以下场景禁用</string>
-    <string name="system_notif_strong_toast_width_title">设备通知宽度</string>
     <string name="system_morenotif_title">移除每个应用只显示10条通知的限制</string>
     <string name="system_colorizenotiftitle_title">着色通知卡片</string>
     <string name="system_colorizenotiftitle_summ">将图标颜色应用到通知卡片</string>
@@ -170,10 +163,6 @@
     <string name="system_drawer_remove_emptynotify_title">隐藏暂无通知消息提示</string>
     <string name="system_removedismiss_title">隐藏清除按钮</string>
     <string name="system_removedismiss_summ">移除清除所有通知的按钮</string>
-    <string name="system_showlux_title">显示照度级别</string>
-    <string name="system_showlux_summ">亮度滑块上显示环境亮度</string>
-    <string name="system_showlux_style_title">替代风格</string>
-    <string name="system_showlux_style_summ">半透明大文本</string>
     <string name="system_showpct_title">显示亮度百分比</string>
     <string name="system_showpct_summ">拖动亮度滑块时以百分比显示亮度</string>
     <string name="system_showpct_top_title">百分比面板的上边距</string>
@@ -204,8 +193,6 @@
     <string name="system_chargeanimtime_summ">充电动画显示多久</string>
     <string name="system_nolightuponcharges_title">充电时不点亮屏幕</string>
     <string name="system_nolightuponcharges_summ">连接或者断开充电器时不亮屏</string>
-    <string name="system_nolightuponheadset_title">连接耳机时不亮屏</string>
-    <string name="system_nolightuponheadset_summ">连接耳机时不亮屏</string>
     <string name="system_lstimeout_title">锁屏屏幕超时</string>
     <string name="system_dimtime_title">暗屏时长</string>
     <string name="system_dimtime_summ">自动灭屏前保持暗屏的时间(屏幕关闭超时总数的百分比)</string>
@@ -257,7 +244,6 @@
     <string name="system_vibration_amp_period_title">时段</string>
     <string name="system_vibration_title">阻止振动</string>
     <string name="system_vibration_summ">阻止已选应用使用振动</string>
-    <string name="system_volume">系统声音</string>
     <string name="system_scramblepin_title">乱序PIN</string>
     <string name="system_scramblepin_summ">随机更改PIN键盘顺序</string>
     <string name="system_securelock_title">增强屏幕锁</string>
@@ -427,7 +413,6 @@
     <string name="system_applock_skip_title">跳过应用锁定</string>
     <string name="system_applock_skip_summ">允许选中的活动跳过应用锁定</string>
     <string name="system_applock_activities">已选中活动</string>
-    <string name="system_mods_qs">快速设置</string>
     <string name="system_mods_cc">控制中心</string>
     <string name="system_qsgridcolumns_title">列数</string>
     <string name="system_qs_hideoperator_title">隐藏运营商名称</string>
@@ -591,11 +576,9 @@
     <string name="various_installappinfo_title">显示安装包信息</string>
     <string name="various_installer_purify_title">净化安装过程</string>
     <string name="various_installappinfo_summ">显示安装中应用的相关信息</string>
-    <string name="various_installappinfo_package">软件包</string>
     <string name="various_installappinfo_vername">版本名称</string>
     <string name="various_installappinfo_vercode">版本代码</string>
     <string name="various_installappinfo_sdk">支持SDK</string>
-    <string name="various_installappinfo_current">当前</string>
     <string name="various_alarmcompat_title">闹钟兼容性</string>
     <string name="various_alarmcompat_summ">令所选应用正确显示系统时钟应用设置的下一次闹钟时间</string>
     <string name="various_gboardpadding_port_title">竖屏时底部填充</string>
@@ -640,8 +623,6 @@
     <string name="calls">通话</string>
     <string name="settings">设置</string>
     <string name="array_default">默认</string>
-    <string name="array_allow">允许</string>
-    <string name="array_deny">拒绝</string>
     <string name="array_system_default">跟随系统</string>
     <string name="array_global_actions_none">无动作</string>
     <string name="array_global_actions_notif">展开通知中心</string>
@@ -678,10 +659,6 @@
     <string name="array_global_toggle_rotation">自动旋转</string>
     <string name="array_global_toggle_torch">手电筒</string>
     <string name="array_global_toggle_mobiledata">移动数据</string>
-    <string name="array_toasts_icon">图标</string>
-    <string name="array_toasts_label">文字</string>
-    <string name="array_screen_anim_none">无</string>
-    <string name="array_screen_anim_fade">淡入淡出</string>
     <string name="array_media_none">无更改</string>
     <string name="array_media_playpause">播放/暂停</string>
     <string name="array_media_next">下一首</string>
@@ -698,7 +675,6 @@
     <string name="array_netspeedicons_no">无图标</string>
     <string name="array_expandnotifs_allbutblack">排除已加入列表中的应用</string>
     <string name="array_expandnotifs_whiteonly">仅已加入列表中的应用</string>
-    <string name="array_mobiletypeicon_connected">仅在未连接时隐藏</string>
     <string name="array_mobiletypeicon_show_disconnected">未连接时显示</string>
     <string name="array_mobiletypeicon_hide">完全隐藏</string>
     <string name="array_qshaptic_light">轻微振动</string>
@@ -708,10 +684,6 @@
     <string name="array_top">靠近顶部</string>
     <string name="array_middle">中间</string>
     <string name="array_bottom">靠近底部</string>
-    <string name="array_max">最大</string>
-    <string name="array_large">大</string>
-    <string name="array_normal">标准</string>
-    <string name="array_small">小</string>
     <string name="array_low">低</string>
     <string name="array_average">平均</string>
     <string name="array_high">高</string>
@@ -729,10 +701,6 @@
     <string name="array_bars_dashed">虚线</string>
     <string name="array_bars_circles">圆形</string>
     <string name="array_line">直线</string>
-    <string name="array_never">从不</string>
-    <string name="array_1day">更新后1天</string>
-    <string name="array_3days">更新后3天</string>
-    <string name="array_week">更新后一周</string>
     <string name="array_always">总是</string>
     <string name="array_image">图像</string>
     <string name="array_audio">音频</string>
@@ -747,14 +715,6 @@
     <string name="array_incoming">来电</string>
     <string name="array_outgoing">去电</string>
     <string name="array_both">两者</string>
-    <string name="array_no_vibration">无振动</string>
-    <string name="array_single_short">单次（短）</string>
-    <string name="array_single_long">单次（长）</string>
-    <string name="array_ticktock">滴答声</string>
-    <string name="array_heartbeat">心跳声</string>
-    <string name="array_waltz">华尔兹舞</string>
-    <string name="array_zig">Zig-zig-zig</string>
-    <string name="array_own">自带</string>
     <string name="array_scale_fit">适应屏幕</string>
     <string name="array_scale_cover">覆盖全屏</string>
     <string name="array_align_top">顶部</string>
@@ -767,20 +727,11 @@
     <string name="array_alarm_absolute">定时</string>
     <string name="array_alarm_relative">相对时间</string>
     <string name="array_alarm_both">定时和相对时间</string>
-    <string name="array_singletap">单击</string>
-    <string name="array_doubletap">双击</string>
-    <string name="array_longpress">长按</string>
-    <string name="array_newyear">新年</string>
-    <string name="array_lunarnewyear">中国新年</string>
-    <string name="array_displayonly">仅显示</string>
-    <string name="array_hide">隐藏</string>
     <string name="array_render_auto">自动侦测</string>
     <string name="array_append">附加</string>
     <string name="array_prepend">前置</string>
     <string name="array_newline">插入新行</string>
     <string name="array_path">所选路径</string>
-    <string name="array_collapse_initial">原本</string>
-    <string name="array_collapse_permanent">永久</string>
     <string name="array_dualsimin2rows_style_thick">加粗</string>
     <string name="array_dualsimin2rows_style_theme">跟随主题</string>
     <string name="unlimited">无限制</string>
@@ -801,8 +752,6 @@
     <string name="toggle_autobright_off">自动亮度已禁用</string>
     <string name="toggle_autorotate_on">自动旋转已启用</string>
     <string name="toggle_autorotate_off">自动旋转已禁用</string>
-    <string name="toggle_flash_off">手电筒：关</string>
-    <string name="toggle_flash_on">手电筒：开</string>
     <string name="toggle_mobiledata_on">移动数据已启用</string>
     <string name="toggle_mobiledata_off">移动数据已禁用</string>
     <string name="qs_toggle_autorotate">旋转锁定</string>
@@ -814,8 +763,6 @@
     <string name="qs_toggle_floatingtime">悬浮时间</string>
 
     <string name="miuizer">米客 A14 设置</string>
-    <string name="miuizer_show_newmods_title">标记新模块</string>
-    <string name="miuizer_show_newmods_summ">添加到当前版本中的模块在标题处显示\"新!\"标签</string>
     <string name="miuizer_new_mod">新！</string>
     <string name="miuizer_show_launchericon_title">启动器图标</string>
     <string name="miuizer_show_launchericon_summ">在启动器中显示图标</string>
@@ -823,13 +770,8 @@
     <string name="miuizer_show_settingsicon_summ">在设置中显示图标</string>
     <string name="miuizer_locale_title">界面语言</string>
     <string name="miuizer_locale_summ">始终以所选语言显示模块界面</string>
-    <string name="troubleshoot">故障排除</string>
-    <string name="array_color_auto">自动</string>
-    <string name="array_color_dark">暗</string>
-    <string name="array_color_light">亮</string>
     <string name="notselected">未选择</string>
     <string name="warning">警告！</string>
-    <string name="open_xposed">管理Xposed模块</string>
     <string name="soft_reboot">重启系统</string>
     <string name="soft_reboot_ask">现在执行重启吗？</string>
     <string name="restart_launcher">重启桌面</string>
@@ -844,7 +786,6 @@
     <string name="storage_cannot_restore">没有找到设置备份</string>
     <string name="backup_ok">设置备份成功！</string>
     <string name="restore_ok">设置恢复成功！</string>
-    <string name="update_available">更新可用⚠</string>
     <string name="select_app">选择应用</string>
     <string name="select_apps">选择应用</string>
     <string name="select_activity">选择活动</string>
@@ -861,7 +802,6 @@
     <string name="bt_category1">可信设备</string>
     <string name="bt_category2">可用设备</string>
     <string name="bt_devices">蓝牙设备</string>
-    <string name="bt_not_supported">此设备不支持蓝牙</string>
     <string name="request_bt">请先打开蓝牙</string>
     <string name="request_wifi">请先打开Wi-Fi</string>
     <string name="request_location">没有授予位置权限，无法扫描</string>
@@ -870,15 +810,7 @@
     <string name="credentials_unlock">解锁证书</string>
     <string name="credentials_success">证书已解锁！</string>
     <string name="module_not_active">模块未被激活！\n请打开LSPosed应用，激活模块并重启。</string>
-    <string name="no_browser">打开网址需要浏览器应用</string>
-    <string name="okay">好的</string>
-    <string name="cancel">取消</string>
-    <string name="add">添加</string>
-    <string name="delete">删除</string>
     <string name="delete_item_info">长按要删除的项目</string>
-    <string name="change_icon">更改图标</string>
-    <string name="guide_search">按名称搜索模块。\n长按显示新模块的列表。</string>
-    <string name="guide_marknew">醒目显示新模块</string>
     <string name="permission_scan">您是否要获取网络/设备列表?</string>
     <string name="permission_permanent">现在您必须手动启用此选项的权限。很好！</string>
     <string name="format_d_ms">%d ms</string>
@@ -888,27 +820,11 @@
     <string name="oneKBs">1 KB/s</string>
     <string name="Bs">B/s</string>
     <string name="speedunits">KMG</string>
-    <string name="lux">%s lux</string>
-    <string name="off">关</string>
-    <string name="time_30m">30分钟</string>
-    <string name="time_1h">1小时</string>
-    <string name="time_2h">2小时</string>
-    <string name="time_3h">3小时</string>
-    <string name="time_4h">4小时</string>
-    <string name="time_5h">5小时</string>
-    <string name="time_6h">6小时</string>
-    <string name="time_8h">8小时</string>
-    <string name="time_10h">10小时</string>
-    <string name="time_12h">12小时</string>
     <string name="white_color">白色</string>
     <string name="black_color">黑色</string>
     <string name="auto_color">状态栏颜色</string>
-    <string name="type_file">文件</string>
-    <string name="type_res">资源</string>
     <string name="launcher_closedrawer_title">自动关闭应用抽屉</string>
     <string name="launcher_closedrawer_summ">启动后关闭应用抽屉</string>
-    <string name="array_second_beginning">开始秒</string>
-    <string name="array_second_end">结束秒</string>
     <string name="system_networkindicator_wifi_title">隐藏Wi-Fi网络活动指示器</string>
     <string name="system_networkindicator_mobile_title">隐藏移动网络活动指示器</string>
     <string name="system_lswallpaper_title">将壁纸应用到任意应用</string>
@@ -919,9 +835,6 @@
     <string name="launcher_pinch_summ">在任何主屏幕上两个手指相互移近的动作</string>
     <string name="launcher_spread_title">扩展动作</string>
     <string name="launcher_spread_summ">在任何主屏幕上两个手指相互移开的动作</string>
-    <string name="array_keep">将其保持</string>
-    <string name="array_turn_off">关闭</string>
-    <string name="array_turn_off_disable">关闭并禁用</string>
     <string name="various_restrictapp_title">全限制</string>
     <string name="various_restrictapp_summ">允许为系统应用配置省电策略和Wi-Fi接入</string>
     <string name="launcher_horizwidgetmargin_title">小部件水平间距</string>
@@ -1027,7 +940,6 @@
     <string name="system_cc_hide_edit_title">隐藏编辑按钮</string>
     <string name="system_cc_hide_profile_monitoring_title">隐藏安全提示</string>
     <string name="system_cc_btandtorch_ascard_title">蓝牙和手电筒以大磁贴显示</string>
-    <string name="system_cc_tile_roundedrect_inlinetext_title">内联标签</string>
     <string name="system_cc_enable_style_switch_title">强制开启控制中心样式切换</string>
     <string name="system_cc_volume_showpct_title">显示声音百分比</string>
     <string name="system_cc_switch_ccandnotification_title">对调控制中心与通知中心</string>

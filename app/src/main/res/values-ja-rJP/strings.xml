@@ -5,14 +5,9 @@
     <string name="about_dev">保守：tomthenpc · Mikanoshi / MonwF のオープンソースを基盤に開発</string>
     <string name="about_dynamic">一般的なModの有効化/無効化にはソフトリブートが必要です。⟲のマークがある物は値の変更後、ソフトリブートすることで設定が適用されます。</string>
     <string name="about_unsupported">⨯の付いたModは使用中のデバイスに対応していません。</string>
-    <string name="menu_update">アップデート</string>
     <string name="mods">Mod</string>
     <string name="mods_actions">アクション</string>
-    <string name="value_is_empty">値は未設定です</string>
-    <string name="value_is_set">値は設定されています</string>
-    <string name="clear_value">クリア</string>
     <string name="common_background_color">背景の色</string>
-    <string name="common_text_color">テキストの色</string>
     <string name="common_icon_color">アイコンの色</string>
     <string name="enable_mod">Modを有効化する</string>
     <string name="white_lists">ホワイトリストをオンにする</string>
@@ -111,7 +106,6 @@
         \nmm - 2桁の分(09)
         \nss - 2桁の秒(09)
   </string>
-    <string name="system_clock_dualrow_title">2段表示</string>
     <string name="system_clock_fixedwidth_title">水平方向のジッターを防ぐために幅を固定する</string>
     <string name="system_clock_fixedwidth_summ">秒表示時の幅を調整します</string>
     <string name="system_statusbar_clock_align_title">水平方向の整列</string>
@@ -151,7 +145,6 @@
     <string name="system_notif_disable_fold_title">通知の折りたたみを無効化する</string>
     <string name="system_notif_disable_strong_toast_title">デバイスの通知を無効化する</string>
     <string name="system_notif_disable_strong_toast_summ">以下のシナリオでは無効にする</string>
-    <string name="system_notif_strong_toast_width_title">デバイスの通知</string>
     <string name="system_morenotif_title">アプリごとの通知表示数制限を削除する</string>
     <string name="system_colorizenotiftitle_title">通知のタイトルをカラー化する</string>
     <string name="system_colorizenotiftitle_summ">アイコンの色をカードに適用します</string>
@@ -164,10 +157,6 @@
     <string name="system_drawer_remove_emptynotify_title">通知のヒントを非表示にする</string>
     <string name="system_removedismiss_title">消去ボタンを非表示にする</string>
     <string name="system_removedismiss_summ">すべての通知を消去するボタンを非表示にします</string>
-    <string name="system_showlux_title">照度レベルを表示する</string>
-    <string name="system_showlux_summ">画面の明るさのスライダー内の環境照度値をルクスで表示します</string>
-    <string name="system_showlux_style_title">別のスタイル</string>
-    <string name="system_showlux_style_summ">大きな半透明のテキスト</string>
     <string name="system_showpct_title">画面の明るさをパーセンテージで表示する</string>
     <string name="system_showpct_summ">画面の明るさのスライダーをスワイプしている間に明るさのパーセンテージを表示します</string>
     <string name="system_showpct_top_title">パーセンテージパネル上部の余白</string>
@@ -201,8 +190,6 @@
     <string name="system_chargeanimtime_summ">充電時に表示されるアニメーションの表示時間を設定できます</string>
     <string name="system_nolightuponcharges_title">接続または切断時に画面を自動点灯させない</string>
     <string name="system_nolightuponcharges_summ">充電器の接続、取り外した時に画面を自動で点灯させないようにします</string>
-    <string name="system_nolightuponheadset_title">ヘッドセットの接続時に画面を自動点灯させない</string>
-    <string name="system_nolightuponheadset_summ">ヘッドセットの接続時に画面を自動で点灯させないようにします</string>
     <string name="system_lstimeout_title">ロック画面消灯までのタイムアウト</string>
     <string name="system_dimtime_title">画面を薄暗くする</string>
     <string name="system_dimtime_summ">自動消灯をするまでのロック画面の表示時間を設定します (消灯のタイムアウトの合計に対する割合になります)</string>
@@ -254,7 +241,6 @@
     <string name="system_vibration_amp_period_title">時間帯</string>
     <string name="system_vibration_title">バイブレーションのブロック</string>
     <string name="system_vibration_summ">選択をしたアプリのバイブレーションをブロックします</string>
-    <string name="system_volume">システム</string>
     <string name="system_scramblepin_title">スクランブルPIN</string>
     <string name="system_scramblepin_summ">PINボタンの配列をランダムに変更します</string>
     <string name="system_securelock_title">ロック画面の強化</string>
@@ -428,7 +414,6 @@
     <string name="system_applock_skip_title">アプリロックをスキップする</string>
     <string name="system_applock_skip_summ">選択をしたアクティビティでアプリロックをスキップします</string>
     <string name="system_applock_activities">選択されたアクティビティ</string>
-    <string name="system_mods_qs">クイック設定</string>
     <string name="system_mods_cc">コントロールセンター</string>
     <string name="system_qsgridcolumns_title">カラムの数</string>
     <string name="system_qs_hideoperator_title">通信事業者名を非表示にする</string>
@@ -602,7 +587,6 @@
     <string name="various_batteryoptimization_title">バッテリーの最適化</string>
     <string name="various_memorystats_title">メモリの使用状況</string>
     <string name="various_appusagestats_title">使用統計情報</string>
-    <string name="various_aospsearch_title">検索</string>
     <string name="various_aospnotif_title">アプリと通知</string>
     <string name="various_aospnotiflog_title">通知ログ</string>
     <string name="various_miuiinstaller_summ">システムアプリのアップデートを許可する</string>
@@ -610,11 +594,9 @@
     <string name="various_installer_purify_title">パッケージインストーラーを浄化する</string>
     <string name="various_installappinfo_title">インストーラーにアプリ情報を追加する</string>
     <string name="various_installappinfo_summ">インストールされているアプリの情報を表示します</string>
-    <string name="various_installappinfo_package">パッケージ</string>
     <string name="various_installappinfo_vername">バージョン名</string>
     <string name="various_installappinfo_vercode">バージョンコード</string>
     <string name="various_installappinfo_sdk">対応しているSDK</string>
-    <string name="various_installappinfo_current">現在</string>
     <string name="various_alarmcompat_title">アラーム時刻の互換性</string>
     <string name="various_alarmcompat_summ">HyperOSの時計アプリで設定した次のアラーム時刻を選択したアプリで正しく表示させます</string>
     <string name="various_gboardpadding_port_title">縦方向の下部のパディング</string>
@@ -661,8 +643,6 @@
     <string name="calls">通話</string>
     <string name="settings">設定</string>
     <string name="array_default">デフォルト</string>
-    <string name="array_allow">許可</string>
-    <string name="array_deny">拒否</string>
     <string name="array_system_default">システム</string>
     <string name="array_global_actions_none">アクションなし</string>
     <string name="array_global_actions_notif">通知シェードを展開する</string>
@@ -699,11 +679,6 @@
     <string name="array_global_toggle_rotation">自動回転</string>
     <string name="array_global_toggle_torch">懐中電灯</string>
     <string name="array_global_toggle_mobiledata">モバイルデータ</string>
-    <string name="array_global_toggle_zen">モバイルデータ</string>
-    <string name="array_toasts_icon">アイコン</string>
-    <string name="array_toasts_label">ラベル</string>
-    <string name="array_screen_anim_none">なし</string>
-    <string name="array_screen_anim_fade">フェード</string>
     <string name="array_media_none">変更しない</string>
     <string name="array_media_playpause">再生/一時停止</string>
     <string name="array_media_next">次のトラック</string>
@@ -720,7 +695,6 @@
     <string name="array_netspeedicons_no">アイコンなし</string>
     <string name="array_expandnotifs_allbutblack">リストアップしたものを除くすべてのアプリ</string>
     <string name="array_expandnotifs_whiteonly">リスト上のアプリのみ</string>
-    <string name="array_mobiletypeicon_connected">未接続時のみ非表示にする</string>
     <string name="array_mobiletypeicon_show_disconnected">未接続時に表示する</string>
     <string name="system_statusbar_mobile_digital_signal_title">信号の強度をdBmの形式で表示する</string>
     <string name="system_statusbar_mobile_digital_signal_in2rows_title">デバイスにデュアルSIM機能がある場合は2行で表示する</string>
@@ -733,10 +707,6 @@
     <string name="array_top">上部</string>
     <string name="array_middle">中央</string>
     <string name="array_bottom">下部</string>
-    <string name="array_max">最大</string>
-    <string name="array_large">大</string>
-    <string name="array_normal">普通</string>
-    <string name="array_small">小</string>
     <string name="array_low">低</string>
     <string name="array_average">平均値</string>
     <string name="array_high">高</string>
@@ -753,10 +723,6 @@
     <string name="array_bars_dashed">破線のバー</string>
     <string name="array_bars_circles">サークル</string>
     <string name="array_line">ライン</string>
-    <string name="array_never">しない</string>
-    <string name="array_1day">アップデート後、1日間</string>
-    <string name="array_3days">アップデート後、3日間</string>
-    <string name="array_week">アップデート後、1週間</string>
     <string name="array_always">常に表示する</string>
     <string name="array_image">画像</string>
     <string name="array_audio">オーディオ</string>
@@ -771,14 +737,6 @@
     <string name="array_incoming">着信中</string>
     <string name="array_outgoing">発信中</string>
     <string name="array_both">両方</string>
-    <string name="array_no_vibration">バイブレーションなし</string>
-    <string name="array_single_short">シングル (短い)</string>
-    <string name="array_single_long">シングル (長い)</string>
-    <string name="array_ticktock">Ticktock</string>
-    <string name="array_heartbeat">Heartbeat</string>
-    <string name="array_waltz">Waltz</string>
-    <string name="array_zig">Zig-zig-zig</string>
-    <string name="array_own">独自のパターン</string>
     <string name="array_scale_fit">画面に合わせる</string>
     <string name="array_scale_cover">画面全体を覆う</string>
     <string name="array_align_top">上</string>
@@ -791,25 +749,11 @@
     <string name="array_alarm_absolute">定時</string>
     <string name="array_alarm_relative">相対時間</string>
     <string name="array_alarm_both">定時と相対時間</string>
-    <string name="array_singletap">シングルタップ</string>
-    <string name="array_doubletap">ダブルタップ</string>
-    <string name="array_longpress">長押し</string>
-    <string name="array_newyear">新春</string>
-    <string name="array_lunarnewyear">春節</string>
-    <string name="array_displayonly">表示のみ</string>
-    <string name="array_hide">非表示</string>
     <string name="array_render_auto">自動的に検出</string>
     <string name="array_append">追加</string>
     <string name="array_prepend">先頭に追加</string>
     <string name="array_newline">改行として挿入</string>
     <string name="array_path">選択したパス</string>
-    <string name="array_collapse_initial">最初</string>
-    <string name="array_collapse_permanent">永久に保存</string>
-    <string name="array_second_beginning">秒の始点</string>
-    <string name="array_second_end">秒単位で終了</string>
-    <string name="array_keep">そのままにする</string>
-    <string name="array_turn_off">電源オフ</string>
-    <string name="array_turn_off_disable">電源オフと無効化</string>
     <string name="array_current">電流のみ</string>
     <string name="array_power">電力のみ</string>
     <string name="array_temp_current">温度と電流</string>
@@ -835,8 +779,6 @@
     <string name="toggle_autobright_off">自動明るさ調整を無効</string>
     <string name="toggle_autorotate_on">画面の自動回転を有効</string>
     <string name="toggle_autorotate_off">画面の自動回転を無効</string>
-    <string name="toggle_flash_off">懐中電灯: OFF</string>
-    <string name="toggle_flash_on">懐中電灯: ON</string>
     <string name="toggle_mobiledata_on">モバイルデータを有効</string>
     <string name="toggle_mobiledata_off">モバイルデータを無効</string>
     <string name="qs_toggle_autorotate">方向をロック</string>
@@ -847,8 +789,6 @@
     <string name="qs_toggle_fps">リフレッシュレート</string>
     <string name="qs_toggle_floatingtime">フローティング時間</string>
     <string name="miuizer">米客 A14 の設定</string>
-    <string name="miuizer_show_newmods_title">新しいModをマークする</string>
-    <string name="miuizer_show_newmods_summ">現在のバージョンで追加されたModのタイトルに\"New!\"とラベルを表示するようにします</string>
     <string name="miuizer_new_mod">New!</string>
     <string name="miuizer_show_launchericon_title">ランチャーアイコン</string>
     <string name="miuizer_show_launchericon_summ">ランチャーにアイコンを表示します</string>
@@ -856,14 +796,8 @@
     <string name="miuizer_show_settingsicon_summ">設定内にアイコンを表示します</string>
     <string name="miuizer_locale_title">インターフェースの言語</string>
     <string name="miuizer_locale_summ">選択された言語で常にモジュールのインターフェースを表示します</string>
-    <string name="troubleshoot">トラブルシューティング</string>
-    <string name="array_color_auto">自動</string>
-    <string name="array_color_dark">ダーク</string>
-    <string name="array_color_light">ライト</string>
     <string name="notselected">未選択</string>
     <string name="warning">警告!</string>
-    <string name="warning_unsupported_os">Android %1$sは非対応です。Modが正しく動作しない可能性があります。</string>
-    <string name="open_xposed">Xposedモジュールの管理</string>
     <string name="soft_reboot">ソフトリブート</string>
     <string name="soft_reboot_ask">今すぐ再起動をしますか?</string>
     <string name="restart_launcher">ランチャーを再起動</string>
@@ -880,7 +814,6 @@
     <string name="storage_cannot_restore">設定のバックアップがありません</string>
     <string name="backup_ok">設定のバックアップが完了しました!</string>
     <string name="restore_ok">設定の復元が完了しました!</string>
-    <string name="update_available">アップデートが可能です ⚠</string>
     <string name="select_app">アプリを選択</string>
     <string name="select_apps">アプリを選択</string>
     <string name="select_activity">アクティビティを選択</string>
@@ -897,7 +830,6 @@
     <string name="bt_category1">信頼されたデバイス</string>
     <string name="bt_category2">使用可能なデバイス</string>
     <string name="bt_devices">Bluetoothデバイス</string>
-    <string name="bt_not_supported">このデバイスはBluetoothに対応していません</string>
     <string name="request_bt">始めにBluetoothをONにしてください</string>
     <string name="request_wifi">始めにWi-FiをONにしてください</string>
     <string name="request_location">位置情報のアクセス権が許可されていないとスキャンできません</string>
@@ -906,15 +838,7 @@
     <string name="credentials_unlock">認証情報の解除</string>
     <string name="credentials_success">認証情報を解除しました!</string>
     <string name="module_not_active">モジュールは有効化されていません!\nLSPosedアプリを開き、モジュールを有効化後に再起動をしてください。</string>
-    <string name="no_browser">URLを開くにはブラウザアプリが必要です</string>
-    <string name="okay">OK</string>
-    <string name="cancel">キャンセル</string>
-    <string name="add">追加</string>
-    <string name="delete">削除</string>
     <string name="delete_item_info">削除する項目を長押しします</string>
-    <string name="change_icon">アイコンの変更</string>
-    <string name="guide_search">Modを名前で検索します。\n長押しで新しいModの一覧を表示します。</string>
-    <string name="guide_marknew">前回のアップデート以降のModは\nマークをする事でよりわかりやすくなります。</string>
     <string name="permission_scan">ネットワークまたはデバイスのリストを取得しますか?</string>
     <string name="permission_permanent">このオプションは手動で許可する必要があります。グッジョブ!!</string>
     <string name="format_d_ms">%d 秒</string>
@@ -924,23 +848,9 @@
     <string name="oneKBs">1 KB/s</string>
     <string name="Bs">B/s</string>
     <string name="speedunits">KMG</string>
-    <string name="lux">%s lux</string>
-    <string name="off">OFF</string>
-    <string name="time_30m">30分</string>
-    <string name="time_1h">1時間</string>
-    <string name="time_2h">2時間</string>
-    <string name="time_3h">3時間</string>
-    <string name="time_4h">4時間</string>
-    <string name="time_5h">5時間</string>
-    <string name="time_6h">6時間</string>
-    <string name="time_8h">8時間</string>
-    <string name="time_10h">10時間</string>
-    <string name="time_12h">12時間</string>
     <string name="white_color">ホワイト</string>
     <string name="black_color">ブラック</string>
     <string name="auto_color">ステータスバーの色</string>
-    <string name="type_file">ファイル</string>
-    <string name="type_res">リソース</string>
     <string name="system_statusbar_batterytempandcurrent_title">バッテリー情報の表示</string>
     <string name="system_statusbar_batterytempandcurrent_content_title">表示をする内容</string>
     <string name="system_statusbar_batterytempandcurrentatright_title">右側の表示</string>
@@ -1011,7 +921,6 @@
     <string name="system_cc_hide_edit_title">編集ボタンを非表示にする</string>
     <string name="system_cc_hide_profile_monitoring_title">セキュリティのヒントを非表示にする</string>
     <string name="system_cc_btandtorch_ascard_title">Bluetoothと懐中電灯のタイルをカードとして表示する</string>
-    <string name="system_cc_tile_roundedrect_inlinetext_title">インラインラベル</string>
     <string name="system_cc_enable_style_switch_title">強制的にCCスタイルの切り替えを有効化する</string>
     <string name="system_cc_volume_showpct_title">音量のパーセンテージを表示する</string>
     <string name="system_cc_collapse_after_clicked_title">タッチ後に折りたたむ</string>

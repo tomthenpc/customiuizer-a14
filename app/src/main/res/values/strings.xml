@@ -8,15 +8,9 @@
     <string name="about_unsupported">Mods marked with ⨯ are not supported on this device.</string>
     <string name="title_activity_main" translatable="false">@string/app_name</string>
 
-    <string name="menu_update">Update</string>
-
     <string name="mods">Mods</string>
     <string name="mods_actions">Actions</string>
-    <string name="value_is_empty">Value unconfigured</string>
-    <string name="value_is_set">Value configured</string>
-    <string name="clear_value">Clear</string>
     <string name="common_background_color">Background color</string>
-    <string name="common_text_color">Text color</string>
     <string name="common_icon_color">Icon color</string>
 
     <string name="enable_mod">Enable mod</string>
@@ -122,7 +116,6 @@
         \nmm - two-digit minute(09)
         \nss - two-digit second(09)
     </string>
-    <string name="system_clock_dualrow_title">Show in dual rows</string>
     <string name="system_clock_fixedwidth_title">Fix content width to prevent horizontal jitter</string>
     <string name="system_clock_fixedwidth_summ">Adjust width when seconds is displayed</string>
     <string name="system_statusbar_clock_align_title">Horizontal alignment</string>
@@ -162,7 +155,6 @@
     <string name="system_notif_disable_fold_title">Disable folding notifications</string>
     <string name="system_notif_disable_strong_toast_title">Disable device notifications</string>
     <string name="system_notif_disable_strong_toast_summ">Disable in the following scenarios</string>
-    <string name="system_notif_strong_toast_width_title">Device notifications with</string>
     <string name="system_morenotif_title">Remove the notification count limit per app</string>
     <string name="system_colorizenotiftitle_title">Colorize notification card</string>
     <string name="system_colorizenotiftitle_summ">Apply icon\'s color to card</string>
@@ -175,10 +167,6 @@
     <string name="system_drawer_remove_emptynotify_title">Hide no notifications tip</string>
     <string name="system_removedismiss_title">Hide clear button</string>
     <string name="system_removedismiss_summ">Remove button that clears all notifications</string>
-    <string name="system_showlux_title">Show illuminance level</string>
-    <string name="system_showlux_summ">Display ambient illuminance value in lux inside brightness slider</string>
-    <string name="system_showlux_style_title">Alternative style</string>
-    <string name="system_showlux_style_summ">Large semitransparent text</string>
     <string name="system_showpct_title">Show brightness percentage</string>
     <string name="system_showpct_summ">Display brightness level in percentages while dragging brightness slider</string>
     <string name="system_showpct_top_title">Percentages panel\'s top margin</string>
@@ -212,8 +200,6 @@
     <string name="system_chargeanimtime_summ">How long screen should be kept on after charging animation starts</string>
     <string name="system_nolightuponcharges_title">No screen light up on charge</string>
     <string name="system_nolightuponcharges_summ">Do not turn screen on when you connect or disconnect a charger</string>
-    <string name="system_nolightuponheadset_title">No screen light up on headset connection</string>
-    <string name="system_nolightuponheadset_summ">Do not turn screen on when you connect a headset</string>
     <string name="system_lstimeout_title">Screen off timeout on lock screen</string>
     <string name="system_dimtime_title">Dim duration</string>
     <string name="system_dimtime_summ">How long screen should remain dimmed before turning off automatically (in percentage of total screen off timeout)</string>
@@ -265,7 +251,6 @@
     <string name="system_vibration_amp_period_title">Time period</string>
     <string name="system_vibration_title">Block vibration</string>
     <string name="system_vibration_summ">Prevent selected apps from using vibration</string>
-    <string name="system_volume">System sounds</string>
     <string name="system_scramblepin_title">Scramble PIN</string>
     <string name="system_scramblepin_summ">Randomly change PIN buttons order</string>
     <string name="system_securelock_title">Enhanced screen lock</string>
@@ -439,7 +424,6 @@
     <string name="system_applock_skip_title">Skip app lock</string>
     <string name="system_applock_skip_summ">Allow selected activities to bypass app lock</string>
     <string name="system_applock_activities">Selected activities</string>
-    <string name="system_mods_qs">Quick Settings</string>
     <string name="system_mods_cc">Control Center</string>
     <string name="system_qsgridcolumns_title">Number of columns</string>
     <string name="system_qs_hideoperator_title">Hide carrier name</string>
@@ -616,7 +600,6 @@
     <string name="various_batteryoptimization_title">Battery optimization</string>
     <string name="various_memorystats_title">Memory statistics</string>
     <string name="various_appusagestats_title">Usage statistics</string>
-    <string name="various_aospsearch_title">Search</string>
     <string name="various_aospnotif_title">Apps &amp; notifications</string>
     <string name="various_aospnotiflog_title">Notification log</string>
     <string name="various_miuiinstaller_summ">Allow it to update system apps</string>
@@ -624,11 +607,9 @@
     <string name="various_installer_purify_title">Purify the package installer</string>
     <string name="various_installappinfo_title">App info in installer</string>
     <string name="various_installappinfo_summ">Display info about app that is being installed</string>
-    <string name="various_installappinfo_package">Package</string>
     <string name="various_installappinfo_vername">Version name</string>
     <string name="various_installappinfo_vercode">Version code</string>
     <string name="various_installappinfo_sdk">Supported SDK</string>
-    <string name="various_installappinfo_current">current</string>
     <string name="various_alarmcompat_title">Alarm clock compatibility</string>
     <string name="various_alarmcompat_summ">Make selected apps display correct next alarm time set by stock HyperOS Clock app</string>
     <string name="various_gboardpadding_port_title">Bottom padding in portrait</string>
@@ -678,8 +659,6 @@
     <string name="settings">Settings</string>
 
     <string name="array_default">Default</string>
-    <string name="array_allow">Allow</string>
-    <string name="array_deny">Deny</string>
     <string name="array_system_default">System</string>
     <string name="array_global_actions_none">No action</string>
     <string name="array_global_actions_notif">Expand notification drawer</string>
@@ -719,11 +698,6 @@
     <string name="array_global_toggle_rotation">Auto rotation</string>
     <string name="array_global_toggle_torch">Flashlight</string>
     <string name="array_global_toggle_mobiledata">Mobile data</string>
-    <string name="array_global_toggle_zen">Mobile data</string>
-    <string name="array_toasts_icon">Icon</string>
-    <string name="array_toasts_label">Label</string>
-    <string name="array_screen_anim_none">None</string>
-    <string name="array_screen_anim_fade">Fade</string>
     <string name="array_media_none">No change</string>
     <string name="array_media_playpause">Play/Pause</string>
     <string name="array_media_next">Next track</string>
@@ -742,7 +716,6 @@
     <string name="array_netspeedicons_bullets" translatable="false">☖ ☗ ⛉ ⛊</string>
     <string name="array_expandnotifs_allbutblack">For all apps except the listed ones</string>
     <string name="array_expandnotifs_whiteonly">For listed apps only</string>
-    <string name="array_mobiletypeicon_connected">Hide only when not connected</string>
     <string name="array_mobiletypeicon_show_disconnected">Show when not connected</string>
     <string name="system_statusbar_mobile_digital_signal_title">Display the signal strength in numeric dBm format</string>
     <string name="system_statusbar_mobile_digital_signal_in2rows_title">Display as dual rows when phone has dual SIM cards</string>
@@ -755,10 +728,6 @@
     <string name="array_top">Closer to the top</string>
     <string name="array_middle">In the middle</string>
     <string name="array_bottom">Near the bottom</string>
-    <string name="array_max">Maximum</string>
-    <string name="array_large">Large</string>
-    <string name="array_normal">Normal</string>
-    <string name="array_small">Small</string>
     <string name="array_low">Low</string>
     <string name="array_average">Average</string>
     <string name="array_high">High</string>
@@ -775,10 +744,6 @@
     <string name="array_bars_dashed">Dashed bars</string>
     <string name="array_bars_circles">Cirles</string>
     <string name="array_line">Line</string>
-    <string name="array_never">Never</string>
-    <string name="array_1day">For 1 day after update</string>
-    <string name="array_3days">For 3 days after update</string>
-    <string name="array_week">For a week after update</string>
     <string name="array_always">Always</string>
     <string name="array_image">Image</string>
     <string name="array_audio">Audio</string>
@@ -793,14 +758,6 @@
     <string name="array_incoming">Incoming</string>
     <string name="array_outgoing">Outgoing</string>
     <string name="array_both">Both</string>
-    <string name="array_no_vibration">No vibration</string>
-    <string name="array_single_short">Single (short)</string>
-    <string name="array_single_long">Single (long)</string>
-    <string name="array_ticktock">Ticktock</string>
-    <string name="array_heartbeat">Heartbeat</string>
-    <string name="array_waltz">Waltz</string>
-    <string name="array_zig">Zig-zig-zig</string>
-    <string name="array_own">Own pattern</string>
     <string name="array_scale_fit">Fit to screen</string>
     <string name="array_scale_cover">Cover whole screen</string>
     <string name="array_align_top">Top</string>
@@ -813,13 +770,6 @@
     <string name="array_alarm_absolute">Regular time</string>
     <string name="array_alarm_relative">Relative time</string>
     <string name="array_alarm_both">Regular and relative time</string>
-    <string name="array_singletap">Single tap</string>
-    <string name="array_doubletap">Double tap</string>
-    <string name="array_longpress">Long press</string>
-    <string name="array_newyear">New Year</string>
-    <string name="array_lunarnewyear">Chinese New Year</string>
-    <string name="array_displayonly">Display only</string>
-    <string name="array_hide">Hide</string>
     <string name="array_render_auto">Detect automatically</string>
     <string name="array_render_lines" translatable="false">drawLines</string>
     <string name="array_render_path" translatable="false">drawPath</string>
@@ -827,13 +777,6 @@
     <string name="array_prepend">Prepend</string>
     <string name="array_newline">Insert as new line</string>
     <string name="array_path">Selected path</string>
-    <string name="array_collapse_initial">Initially</string>
-    <string name="array_collapse_permanent">Permanently</string>
-    <string name="array_second_beginning">Beginning of a second</string>
-    <string name="array_second_end">End of a second</string>
-    <string name="array_keep">Keep as it is</string>
-    <string name="array_turn_off">Turn off</string>
-    <string name="array_turn_off_disable">Turn off and disable</string>
     <string name="array_current">Current Only</string>
     <string name="array_power">Power Only</string>
     <string name="array_temp_current">Temperature and Current</string>
@@ -861,8 +804,6 @@
     <string name="toggle_autobright_off">Auto brightness disabled</string>
     <string name="toggle_autorotate_on">Auto rotation enabled</string>
     <string name="toggle_autorotate_off">Auto rotation disabled</string>
-    <string name="toggle_flash_off">Flashlight: off</string>
-    <string name="toggle_flash_on">Flashlight: on</string>
     <string name="toggle_mobiledata_on">Mobile data enabled</string>
     <string name="toggle_mobiledata_off">Mobile data disabled</string>
     <string name="qs_toggle_autorotate">Rotation lock</string>
@@ -874,8 +815,6 @@
     <string name="qs_toggle_floatingtime">Floating time</string>
 
     <string name="miuizer">米客 A14 settings</string>
-    <string name="miuizer_show_newmods_title">Mark new mods</string>
-    <string name="miuizer_show_newmods_summ">Display \"New!\" label in title for mods added in current version</string>
     <string name="miuizer_new_mod">New!</string>
     <string name="miuizer_show_launchericon_title">Launcher icon</string>
     <string name="miuizer_show_launchericon_summ">Show icon in launchers</string>
@@ -884,16 +823,8 @@
     <string name="miuizer_locale_title">Interface language</string>
     <string name="miuizer_locale_summ">Always display module\'s interface in selected language</string>
 
-    <string name="troubleshoot">Troubleshooting</string>
-
-    <string name="array_color_auto">Automatic</string>
-    <string name="array_color_dark">Dark</string>
-    <string name="array_color_light">Light</string>
-
     <string name="notselected">Not selected</string>
     <string name="warning">Warning!</string>
-    <string name="warning_unsupported_os">Android %1$s is not supported, mods might not work properly.</string>
-    <string name="open_xposed">Manage Xposed modules</string>
     <string name="soft_reboot">Soft reboot</string>
     <string name="soft_reboot_ask">Perform reboot now?</string>
     <string name="restart_launcher">Restart launcher</string>
@@ -918,7 +849,6 @@
     <string name="storage_cannot_restore">No settings backup found</string>
     <string name="backup_ok">Settings were backed up successfully!</string>
     <string name="restore_ok">Settings were successfully restored!</string>
-    <string name="update_available">Update is available ⚠</string>
     <string name="select_app">Select app</string>
     <string name="select_apps">Select apps</string>
     <string name="select_activity">Select activity</string>
@@ -935,7 +865,6 @@
     <string name="bt_category1">Trusted devices</string>
     <string name="bt_category2">Available devices</string>
     <string name="bt_devices">Bluetooth devices</string>
-    <string name="bt_not_supported">Bluetooth is not supported on this device</string>
     <string name="request_bt">Turn on Bluetooth first</string>
     <string name="request_wifi">Turn on Wi-Fi first</string>
     <string name="request_location">Cannot scan without Location access</string>
@@ -945,17 +874,7 @@
     <string name="credentials_success">Credentials unlocked!</string>
 
     <string name="module_not_active">Module is not active!\nOpen LSPosed app, activate module and reboot.</string>
-    <string name="no_browser">Browser app is required to open URLs</string>
-    <string name="okay">Okay</string>
-    <string name="cancel">Cancel</string>
-    <string name="add">Add</string>
-    <string name="delete">Delete</string>
     <string name="delete_item_info">Long press item to delete</string>
-    <string name="change_icon">Change icon</string>
-
-    <string name="guide_search">Search mods by name.\nLong press to display a list of new mods.</string>
-    <string name="guide_marknew">New mods since previous update\ncan be marked for better visibility</string>
-
     <string name="permission_scan">Do you want to get a list of networks/devices or not?</string>
     <string name="permission_permanent">You\'ll have to manually enable permission for this option now. Good job!</string>
 
@@ -966,27 +885,9 @@
     <string name="oneKBs">1 KB/s</string>
     <string name="Bs">B/s</string>
     <string name="speedunits">KMG</string>
-    <string name="lux">%s lux</string>
-
-    <string name="off">Off</string>
-    <string name="time_30m">30 minutes</string>
-    <string name="time_1h">1 hour</string>
-    <string name="time_2h">2 hours</string>
-    <string name="time_3h">3 hours</string>
-    <string name="time_4h">4 hours</string>
-    <string name="time_5h">5 hours</string>
-    <string name="time_6h">6 hours</string>
-    <string name="time_8h">8 hours</string>
-    <string name="time_10h">10 hours</string>
-    <string name="time_12h">12 hours</string>
-    <string name="time_forever" translatable="false">∞</string>
-
     <string name="white_color">White</string>
     <string name="black_color">Black</string>
     <string name="auto_color">Statusbar color</string>
-
-    <string name="type_file">file</string>
-    <string name="type_res">resource</string>
 
     <string name="dummy" translatable="false" />
     <string name="system_statusbar_batterytempandcurrent_title">Display battery info</string>
@@ -1059,7 +960,6 @@
     <string name="system_cc_hide_edit_title">Hide edit button</string>
     <string name="system_cc_hide_profile_monitoring_title">Hide security tips</string>
     <string name="system_cc_btandtorch_ascard_title">Display bluetooth and flashlight tiles as cards</string>
-    <string name="system_cc_tile_roundedrect_inlinetext_title">Inline label</string>
     <string name="system_cc_enable_style_switch_title">Force Enable CC style switch</string>
     <string name="system_cc_volume_showpct_title">Show volume percentage</string>
     <string name="system_cc_collapse_after_clicked_title">Collapse after touch</string>

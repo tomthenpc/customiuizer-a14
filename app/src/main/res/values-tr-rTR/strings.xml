@@ -7,12 +7,8 @@
 	andheartman@gmail.com</string>
     <string name="about_dynamic">Genel olarak, modların etkinleştirilmesi veya devre dışı bırakılması için arayüz yeniden başlatma gerekir, ancak ⟲ ile işaretlenmiş olanlar, değerleri varsayılandan özel olana değiştirildikten sonra yalnızca bir kez arayüz yeniden başlatma gerektirir, sonraki değişiklikler hemen uygulanır.</string>
     <string name="about_unsupported">⨯ ile işaretlenmiş modlar bu cihazda desteklenmiyor.</string>
-    <string name="menu_update">Güncelleme</string>
     <string name="mods">Modlar</string>
     <string name="mods_actions">Hareketler</string>
-    <string name="value_is_empty">Yapılandırılmamış değer</string>
-    <string name="value_is_set">Yapılandırılan değer</string>
-    <string name="clear_value">Temizle</string>
     <string name="enable_mod">Modu etkinleştir Aşkım</string>
     <string name="system_mods">Sistem</string>
     <string name="system_mods_screen">Ekran</string>
@@ -94,7 +90,6 @@ hh - 12 saatlik iki basamaklı saat(09、02)
 h - 12 saatlik tek basamaklı saat(9、2) 
 mm - iki basamaklı dakika(09) 
 ss - iki basamaklı saniye(09)</string>
-    <string name="system_clock_dualrow_title">Çift sıra halinde göster</string>
     <string name="system_clock_fixedwidth_title">Yatay titremeyi önlemek için içerik genişliğini düzeltin</string>
     <string name="system_clock_fixedwidth_summ">Saniye görüntülendiğinde genişliği ayarlayın</string>
     <string name="system_statusbar_clock_align_title">Yatay hizalama</string>
@@ -134,10 +129,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_notifchannelsettings_summ">Bildirim menüsünden ayarların açılması, uygulamanın genel bildirim ayarları yerine kanal ayarlarına yönlendiriyor</string>
     <string name="system_removedismiss_title">Temizle düğmesini gizle</string>
     <string name="system_removedismiss_summ">Tüm bildirimleri temizleyen kaldır düğmesi</string>
-    <string name="system_showlux_title">Aydınlatma seviyesini göster</string>
-    <string name="system_showlux_summ">Ortam aydınlatma değerini parlaklık kaydırıcısının içinde lüks olarak görüntüle</string>
-    <string name="system_showlux_style_title">Alternatif stil</string>
-    <string name="system_showlux_style_summ">Büyük yarı saydam metin</string>
     <string name="system_showpct_title">Parlaklık yüzdesini göster</string>
     <string name="system_showpct_summ">Parlaklık kaydırıcısını sürüklerken parlaklık seviyesini yüzde olarak görüntüleyin</string>
     <string name="system_showpct_top_title">Yüzdeler panelinin üst kenar boşluğu</string>
@@ -170,8 +161,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_chargeanimtime_summ">Şarj animasyonu başladıktan sonra ekranın ne kadar süre açık kalması gerekir?</string>
     <string name="system_nolightuponcharges_title">Şarj olurken ekran ışığı yanmaz</string>
     <string name="system_nolightuponcharges_summ">Bir şarj cihazını bağladığınızda veya çıkardığınızda ekranı açmayın</string>
-    <string name="system_nolightuponheadset_title">Kulaklık bağlantısında ekran ışığı yanmaz</string>
-    <string name="system_nolightuponheadset_summ">Bir kulaklık bağladığınızda ekranı açmayın</string>
     <string name="system_lstimeout_title">Kilit ekranında ekran kapanma zaman aşımı</string>
     <string name="system_dimtime_title">Karartma süresi</string>
     <string name="system_dimtime_summ">Otomatik olarak kapanmadan önce ekran ne kadar süreyle soluk kalmalıdır (toplam ekran kapanma zaman aşımının yüzdesi olarak)</string>
@@ -222,7 +211,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_vibration_amp_period_title">Zaman aralığı</string>
     <string name="system_vibration_title">Titreşimi engelle</string>
     <string name="system_vibration_summ">Seçilen uygulamaların titreşimi kullanmasını engelle</string>
-    <string name="system_volume">Sistem sesleri</string>
     <string name="system_scramblepin_title">Şifreli PIN</string>
     <string name="system_scramblepin_summ">PIN düğmelerinin sırasını rastgele değiştir</string>
     <string name="system_securelock_title">Geliştirilmiş ekran kilidi</string>
@@ -378,7 +366,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_applock_skip_title">Uygulama kilidini atla</string>
     <string name="system_applock_skip_summ">Seçilen etkinliklerin uygulama kilidini atlamasına izin ver</string>
     <string name="system_applock_activities">Seçilmiş etkinlikler</string>
-    <string name="system_mods_qs">Hızlı Ayarlar</string>
     <string name="system_mods_cc">Kontrol Merkezi</string>
     <string name="system_qsgridcolumns_title">Sütun sayısı</string>
     <string name="system_qs_hideoperator_title">Taşıyıcı adını gizle</string>
@@ -541,17 +528,14 @@ ss - iki basamaklı saniye(09)</string>
     <string name="various_batteryoptimization_title">Pil optimizasyonu</string>
     <string name="various_memorystats_title">Bellek istatistikleri</string>
     <string name="various_appusagestats_title">Kullanım istatistikleri</string>
-    <string name="various_aospsearch_title">Arama</string>
     <string name="various_aospnotif_title">Uygulamalar &amp; bildirimler</string>
     <string name="various_aospnotiflog_title">Bildirim günlüğü</string>
     <string name="various_miuiinstaller_error">Gerekli uygulama yüklü veya devre dışı değil</string>
     <string name="various_installappinfo_title">Yükleyicideki uygulama bilgisi</string>
     <string name="various_installappinfo_summ">Yüklenmekte olan uygulama hakkında bilgi göster</string>
-    <string name="various_installappinfo_package">Paket</string>
     <string name="various_installappinfo_vername">Sürüm adı</string>
     <string name="various_installappinfo_vercode">Sürüm kodu</string>
     <string name="various_installappinfo_sdk">Desteklenen SDK</string>
-    <string name="various_installappinfo_current">şimdiki</string>
     <string name="various_alarmcompat_title">Çalar saat uyumluluğu</string>
     <string name="various_gboardpadding_port_title">Dikey olarak alt dolgu</string>
     <string name="various_gboardpadding_land_title">Yatayda alt dolgu</string>
@@ -600,8 +584,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="calls">Aramalar</string>
     <string name="settings">Ayarlar</string>
     <string name="array_default">Varsayılan</string>
-    <string name="array_allow">İzin vermek</string>
-    <string name="array_deny">Reddetmek</string>
     <string name="array_system_default">Sistem</string>
     <string name="array_global_actions_none">Eylem yok</string>
     <string name="array_global_actions_notif">Bildirim çekmecesini genişlet</string>
@@ -636,11 +618,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="array_global_toggle_rotation">Otomatik döndürme</string>
     <string name="array_global_toggle_torch">Fener</string>
     <string name="array_global_toggle_mobiledata">Mobil veri</string>
-    <string name="array_global_toggle_zen">Mobil veri</string>
-    <string name="array_toasts_icon">Simge</string>
-    <string name="array_toasts_label">Etiket</string>
-    <string name="array_screen_anim_none">Hiçbiri</string>
-    <string name="array_screen_anim_fade">Soluk</string>
     <string name="array_media_none">Değişiklik yok</string>
     <string name="array_media_playpause">Oynat/Duraklat</string>
     <string name="array_media_next">Sonraki parça</string>
@@ -656,7 +633,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="array_netspeedicons_no">Simge yok</string>
     <string name="array_expandnotifs_allbutblack">Listelenenler dışındaki tüm uygulamalar için</string>
     <string name="array_expandnotifs_whiteonly">Yalnızca listelenen uygulamalar için</string>
-    <string name="array_mobiletypeicon_connected">Yalnızca bağlı değilken gizle</string>
     <string name="array_mobiletypeicon_hide">Tamamen gizle</string>
     <string name="array_qshaptic_light">Hafif titreşim</string>
     <string name="array_qshaptic_strong">Güçlü titreşim</string>
@@ -665,10 +641,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="array_top">Tepeye daha yakın</string>
     <string name="array_middle">Ortada</string>
     <string name="array_bottom">Aşağıya yakın</string>
-    <string name="array_max">Maksimum</string>
-    <string name="array_large">Büyük</string>
-    <string name="array_normal">Normal</string>
-    <string name="array_small">Küçük</string>
     <string name="array_low">Düşük</string>
     <string name="array_average">Ortalama</string>
     <string name="array_high">Yüksek</string>
@@ -685,10 +657,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="array_bars_dashed">Kesik çubuklar</string>
     <string name="array_bars_circles">Daireler</string>
     <string name="array_line">Sıra</string>
-    <string name="array_never">Asla</string>
-    <string name="array_1day">Güncellemeden sonra 1 gün boyunca</string>
-    <string name="array_3days">Güncellemeden sonra 3 gün boyunca</string>
-    <string name="array_week">Güncellemeden sonraki bir hafta boyunca</string>
     <string name="array_always">Her zaman</string>
     <string name="array_image">Görüntü</string>
     <string name="array_audio">Ses</string>
@@ -703,14 +671,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="array_incoming">Gelen</string>
     <string name="array_outgoing">Dışa dönük</string>
     <string name="array_both">İkisi birden</string>
-    <string name="array_no_vibration">Titreşim yok</string>
-    <string name="array_single_short">Tek (kısa)</string>
-    <string name="array_single_long">Tek (uzun)</string>
-    <string name="array_ticktock">Tiktak</string>
-    <string name="array_heartbeat">KalpAtışı</string>
-    <string name="array_waltz">Vals</string>
-    <string name="array_zig">Zig-zig-zig</string>
-    <string name="array_own">Kendi deseni</string>
     <string name="array_scale_fit">Ekrana sığdır</string>
     <string name="array_scale_cover">Tüm ekranı kapla</string>
     <string name="array_align_top">Üst</string>
@@ -723,25 +683,11 @@ ss - iki basamaklı saniye(09)</string>
     <string name="array_alarm_absolute">Düzenli zaman</string>
     <string name="array_alarm_relative">Göreceli zaman</string>
     <string name="array_alarm_both">Düzenli ve göreceli zaman</string>
-    <string name="array_singletap">Tek dokunuş</string>
-    <string name="array_doubletap">Çift dokunma</string>
-    <string name="array_longpress">Uzun basma</string>
-    <string name="array_newyear">Yılbaşı</string>
-    <string name="array_lunarnewyear">Çin Yeni Yılı</string>
-    <string name="array_displayonly">Yalnızca görüntüleme</string>
-    <string name="array_hide">Gizle</string>
     <string name="array_render_auto">Otomatik olarak algıla</string>
     <string name="array_append">Eklemek</string>
     <string name="array_prepend">Başa ekle</string>
     <string name="array_newline">Yeni satır olarak ekle</string>
     <string name="array_path">Seçilen yol</string>
-    <string name="array_collapse_initial">Öncelikle</string>
-    <string name="array_collapse_permanent">Kalıcı olarak</string>
-    <string name="array_second_beginning">Bir saniyenin başlangıcı</string>
-    <string name="array_second_end">Bir saniyenin sonu</string>
-    <string name="array_keep">Olduğu gibi kal</string>
-    <string name="array_turn_off">Kapat</string>
-    <string name="array_turn_off_disable">Kapat ve devre dışı bırak</string>
     <string name="array_current">Yalnızca Geçerli</string>
     <string name="array_power">Güç tuşu</string>
     <string name="array_temp_current">Derece ve Nem</string>
@@ -767,8 +713,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="toggle_autobright_off">Otomatik parlaklık devre dışı</string>
     <string name="toggle_autorotate_on">Otomatik döndürme etkin</string>
     <string name="toggle_autorotate_off">Otomatik döndürme devre dışı</string>
-    <string name="toggle_flash_off">El feneri: kapalı</string>
-    <string name="toggle_flash_on">El feneri: açık</string>
     <string name="toggle_mobiledata_on">Mobil veri etkin</string>
     <string name="toggle_mobiledata_off">Mobil veri devre dışı</string>
     <string name="qs_toggle_autorotate">Döndürme kilidi</string>
@@ -777,8 +721,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="qs_toggle_autorotate_landscape">Manzara</string>
     <string name="qs_toggle_5g">5G Ağı</string>
     <string name="qs_toggle_fps">Yenileme hızı</string>
-    <string name="miuizer_show_newmods_title">Yeni modları işaretle</string>
-    <string name="miuizer_show_newmods_summ">Geçerli sürümde eklenen modlar için başlıkta \"Yeni!\" etiketini görüntüleyin</string>
     <string name="miuizer_new_mod">Yeni!</string>
     <string name="miuizer_show_launchericon_title">Başlatıcı simgesi</string>
     <string name="miuizer_show_launchericon_summ">Başlatıcılarda simge göster</string>
@@ -786,14 +728,8 @@ ss - iki basamaklı saniye(09)</string>
     <string name="miuizer_show_settingsicon_summ">Ayarlarda simge göster</string>
     <string name="miuizer_locale_title">Arayüz dili</string>
     <string name="miuizer_locale_summ">Modülün arayüzünü her zaman seçilen dilde görüntüle</string>
-    <string name="troubleshoot">Sorun giderme</string>
-    <string name="array_color_auto">Otomatik</string>
-    <string name="array_color_dark">Karanlık</string>
-    <string name="array_color_light">Işık</string>
     <string name="notselected">Seçilmemiş</string>
     <string name="warning">Uyarı!</string>
-    <string name="warning_unsupported_os">Android %1$s desteklemiyor, modlar düzgün çalışmayabilir.</string>
-    <string name="open_xposed">Xposed modüllerini yönetin</string>
     <string name="soft_reboot">Sistemi yeniden başlat</string>
     <string name="restart_launcher">Başlatıcıyı yeniden başlat</string>
     <string name="restart_systemui">Arayüzü yeniden başlat</string>
@@ -806,7 +742,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="storage_cannot_restore">Ayarlar yedeği bulunamadı</string>
     <string name="backup_ok">Ayarlar başarıyla yedeklendi!</string>
     <string name="restore_ok">Ayarlar başarıyla geri yüklendi!</string>
-    <string name="update_available">Güncelleme mevcut ⚠</string>
     <string name="select_app">Uygulamayı seç</string>
     <string name="select_apps">Uygulamaları seç</string>
     <string name="select_activity">Etkinlik seç</string>
@@ -823,7 +758,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="bt_category1">Güvenilir cihazlar</string>
     <string name="bt_category2">Kullanılabilir cihazlar</string>
     <string name="bt_devices">Bluetooth cihazları</string>
-    <string name="bt_not_supported">Bluetooth bu cihazda desteklenmiyor</string>
     <string name="request_bt">Önce Bluetooth u açın</string>
     <string name="request_wifi">Önce WiFi yi açın</string>
     <string name="request_location">Konum erişimi olmadan tarama yapılamıyor</string>
@@ -831,17 +765,7 @@ ss - iki basamaklı saniye(09)</string>
     <string name="credentials_ok">Kimlik bilgilerinin kilidi zaten açık</string>
     <string name="credentials_unlock">Kimlik bilgilerinin kilidini aç</string>
     <string name="credentials_success">Kimlik bilgilerinin kilidi açıldı!</string>
-    <string name="no_browser">URLleri açmak için tarayıcı uygulaması gereklidir</string>
-    <string name="okay">Tamam</string>
-    <string name="cancel">İptal et</string>
-    <string name="add">Ekle</string>
-    <string name="delete">Sil</string>
     <string name="delete_item_info">Silmek için öğeye uzun basın</string>
-    <string name="change_icon">Simgeyi değiştir</string>
-    <string name="guide_search">Modları ada göre arayın.
-Yeni modların listesini görüntülemek için uzun basın.</string>
-    <string name="guide_marknew">Önceki güncellemeden bu yana yeni modlar
-daha iyi görünürlük için işaretlenebilir</string>
     <string name="permission_scan">Ağların/cihazların bir listesini almak istiyor musunuz, istemiyor musunuz?</string>
     <string name="permission_permanent">Bu seçenek için izni şimdi manuel olarak etkinleştirmeniz gerekecek. Aferin Aşkım!</string>
     <string name="format_d_ms">%d ms</string>
@@ -851,23 +775,9 @@ daha iyi görünürlük için işaretlenebilir</string>
     <string name="oneKBs">1 KB/s</string>
     <string name="Bs">B/s</string>
     <string name="speedunits">KMG</string>
-    <string name="lux">%s lux</string>
-    <string name="off">Kapalı</string>
-    <string name="time_30m">30 dakika</string>
-    <string name="time_1h">1 saat</string>
-    <string name="time_2h">2 saat</string>
-    <string name="time_3h">3 saat</string>
-    <string name="time_4h">4 saat</string>
-    <string name="time_5h">5 saat</string>
-    <string name="time_6h">6 saat</string>
-    <string name="time_8h">8 saat</string>
-    <string name="time_10h">10 saat</string>
-    <string name="time_12h">12 saat</string>
     <string name="white_color">Beyaz</string>
     <string name="black_color">Siyah</string>
     <string name="auto_color">Durum çubuğu rengi</string>
-    <string name="type_file">dosya</string>
-    <string name="type_res">kaynak</string>
     <string name="system_statusbar_batterytempandcurrent_title">Pil sıcaklığını ve akımını göster</string>
     <string name="system_statusbar_batterytempandcurrent_content_title">İçeriği Görüntüle</string>
     <string name="system_statusbar_batterytempandcurrentatright_title">Sağda görüntüle</string>
