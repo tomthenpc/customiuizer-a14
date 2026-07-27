@@ -1,266 +1,64 @@
 # DEVIN A14 CHECKPOINT
 
-> 本文件记录当前开发分支的真实状态，不是长期规则。
-> 开始任务时必须用本地 Git 和远端分支重新核对。
-> 每完成一个代码、构建、Git 或实机闭环，立即替换更新；不要追加命令流水账。
+> 此文件记录当前开发线的已验证状态和下一步，不替代源码、Git、构建产物或实机证据。
+> 每次继续工作前，必须重新核对本地分支、远端分支、工作区和 Release。
 
-## 当前唯一主目标
+## 当前状态
 
-发布 `r14.13.4` 正式版：完成源码仓库与 LSPosed 模块仓库双仓库 tag、Release、APK 上传和文档同步。版本线 `r14.13` 由 `r14.13.4` 正式收口；不创建 `r14.14` 或新开发分支。
-
-## 当前 Git 基线
-
-- Repository: `tomthenpc/customiuizer-a14`
-- Active branch: `devin/r14.13-kotlin-refactor`
-- Local HEAD: `6a5c8642`（version bump to `r14.13.4` / 182）
-- HEAD subject: `chore: prepare r14.13.4 release`
-- Base branch: `main`
-- Merge base / main HEAD: `8e596881419938d0edb96a8e466dc8e1e970894a`
-- Working tree：文档修改待提交（`CHANGELOG.md`、`README.md`、`README_EN.md`、`docs/VERIFICATION.md`、`docs/REFACTOR_PROGRESS.md`、`docs/RELEASE_ARCHIVE.md` 等）
-- Branch status：发布前最终整理阶段；下一步合并 `main`、构建、打 tag、创建 Release
-
-## 当前构建身份
-
-- versionName: `r14.13.4`
-- versionCode: `182`
-- applicationId: `tv.withaibuild.customiuizer.r14`
-- namespace: `tv.withaibuild.customiuizer`
-- Platform: HyperOS 1 / Android 14 / SDK 34
-- minSdk / targetSdk: 34 / 34
-- compileSdk / Build Tools: 37 / 37.0.0
-- ABI: `arm64-v8a`
-- libxposed: min 101 / target 102
-- Hot Reload: disabled
-- Legacy Xposed runtime API: forbidden
-
-## 签名状态
-
-当前 `app/build.gradle.kts`：
-
-- 从仓库外部 `../keystore.properties` 读取正式签名配置
-- 文件缺失时配置阶段直接抛出 `GradleException`
-- `develop` 和 `release` 都固定使用正式 `v2` signingConfig
-- 已取消缺少正式配置时回退 Debug 证书的行为
-
-要求：
-
-- 不得继续引用“无 keystore 时 Release 使用 Debug 签名”的旧结论
-- 每个候选 APK 必须检查实际证书 SHA-256
-- `r14.13.4` 正式版使用新签名证书 SHA-256：
-  `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
-- `r14.12.0` 及更早版本旧私钥已遗失；新签名不能覆盖旧签名安装
-- 升级文档必须要求备份设置、卸载旧版、安装新版
-
-## 最终发布状态
-
+- 仓库：`tomthenpc/customiuizer-a14`
+- 正式发布版本：`r14.13.4` / versionCode `182`
+- 正式发布日期：2026-07-28
 - 源码仓库 tag：`r14.13.4` → `73ea3415`
-- 源码仓库 main HEAD：`73ea3415`
-- 源码仓库 Release：`https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4`
-- 模块仓库 tag：`182-r14.13.4` → `67e7d36`
-- 模块仓库 main HEAD：`67e7d36`
-- 模块仓库 Release：`https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/182-r14.13.4`
-- 两个 Release 上传的是同一份 APK：
-  - APK：`CustoMIUIzer-A14-r14.13.4.apk`
-  - 大小：3,032,173 bytes
-  - SHA-256：`E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C`
-  - 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
-  - APK Signature Scheme v2，1 个签名者
-- 旧 `r14.12.0` 及更早公开版本签名私钥已遗失；`r14.13.4` 使用新证书，不能直接覆盖安装旧公开版本。
-- API 102 独立框架实机验证仍为待完成项。
+- 源码仓库 Release：[r14.13.4](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4)
+- LSPosed 模块仓库 tag：`182-r14.13.4` → `67e7d36`
+- LSPosed 模块仓库 Release：[r14.13.4](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/182-r14.13.4)
+- 两个 Release 均上传同一份正式 APK；当前 `main` 已包含正式发布提交。
 
-## 已完成：Phase 0–5
+## 当前开发分支
 
-### Phase 0
-- `r14.12.0` 基线建立
-- 全量测试、Lint、Debug/Release 和 `lintVitalRelease` 通过
+- 分支：`devin/r14.13-kotlin-refactor`
+- 最近基线：`c075c26c`（记录最终发布状态）
+- 本次文档整理开始时与 `origin/main` 的关系：ahead 1 / behind 0；merge base `73ea3415`
+- 当前任务：统一公开文档格式和版本表述；不得将仅含维护文档的开发分支合回 `main`。
 
-### Phase 1–3
-- 修复 BitmapCachedLoader threadCount 边界并新增 3 个回归测试
-- 恢复振动函数 `Context?` 宽容语义
-- 合并四个应用列表构建路径
-- 清理设置层重复 Java 风格代码和已证明无引用的死代码
-- 未改变 Hook target、注册顺序或兼容 fallback
+## 发布产物与签名
 
-### Phase 4
-- 评估并保留 3 个 Java 边界：
-  - `MainModule.java`
-  - `XposedHelpers.java`
-  - `MemberUtilsX.java`
-- 不再以 100% Kotlin 为目标
+| 项目 | 值 |
+| --- | --- |
+| APK | `CustoMIUIzer-A14-r14.13.4.apk` |
+| 大小 | 3,032,173 bytes |
+| APK SHA-256 | `E8A2BD362C0540972441B8D1DE0BCACE8FE85FEF71F31406F3B4DA1A4027D26C` |
+| 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
+| 签名 | APK Signature Scheme v2，1 个签名者 |
+| applicationId | `tv.withaibuild.customiuizer.r14` |
+| ABI | `arm64-v8a` |
+| SDK | min/target `34 / 34` |
+| libxposed | min API `101` / target API `102` / `staticScope=false` |
 
-### Phase 5
-- 网络速度格式化使用 `Locale.ROOT`
-- StatusBarGesturesHook 缓存 DisplayManager/displayId，减少移动事件重复反射
-- 其他热路径没有明确低风险收益时不强行修改
-- 阶段收尾记录：36 个单元测试、88 个 Kotlin、3 个 Java
-- 阶段 5 全量测试、Lint、Debug/Release 通过
-- 上述性能结论主要是静态路径判断，未做同条件 systrace/功耗量化
+`r14.12.0` 及更早公开版本的旧签名私钥已经遗失。它们不能直接覆盖安装
+`r14.13.4`；升级时必须备份设置、卸载旧版、安装新版、重新启用作用域、恢复设置并完整重启。
 
-## Phase 5 后新增工作
+## 已验证
 
-### RC1 与日志审计
-- 生成并审计 `r14.13.0-rc1`
-- 日志文件：17,707,825 bytes / 120,759 行
-- 日志 SHA-256：
-  `5889427B742A95FEFD69E33570D7DC6E5F8964073AD7C836D2F27D9C3CE03646`
-- 未发现可归因于模块的 P0/P1/P2 异常、Hook 失败、RemotePreferences 异常或模块崩溃
-- 限制：日志仅明确观察到模块在 `com.android.settings` 加载；SystemUI 与 Launcher 没有在日志期间重新加载
-- 该日志只证明 rc1 对应范围，不能证明当前 `r14.13.3` HEAD
+- 正式构建：JDK 17、Gradle 9.6.1、AGP 9.2.1、Kotlin 2.3.21。
+- `clean test lint lintRelease lintVitalRelease assembleDebug assembleDevelop assembleRelease` 退出码 0。
+- 45 个单元测试通过；Lint / `lintRelease` / `lintVitalRelease` 为 0 errors（107 个依赖弃用 warnings）。
+- Release R8、资源压缩、zipalign、APK v2 签名、APK 元数据与 Xposed metadata 均已检查。
+- API 101 完整重启日志审计未发现可归因于模块的崩溃、ANR、入口、Hook 安装或链接错误。
 
-### 应用内语言
-- 语言选项移到主设置页
-- 支持英文、简中、繁中、俄语、日语、越南语、捷克语、葡萄牙语、土耳其语、西班牙语和跟随系统
-- 使用 `AppCompatDelegate.setApplicationLocales`
-- Locale/configuration 变化时重新加载 Preference
-- `MainActivity` 处理 `locale|layoutDirection|uiMode`
-- Locale key 不同步到 Xposed RemotePreferences
+完整命令、产物边界和日志结论见[验证记录](VERIFICATION.md)。构建或 API 101 日志不构成
+API 102 的实机证明。
 
-### 设置应用行为修复
-- 搜索结果进入功能后，返回主页面而不是重新展开搜索
-- 保存并恢复搜索状态，避免 Fragment 重建状态错乱
-- Launcher、SystemUI、Security Center 重启改为后台 Root shell 命令
-- 增加无 Root、目标未运行和失败反馈
-- Root 命令尚需当前 HEAD 实机覆盖成功与失败路径
+## 仍需实机验证
 
-### UI、主题与资源
-- 恢复日间/夜间状态栏和导航栏图标明暗
-- 调整 Toolbar、Preference、About 页面、弹窗、颜色、间距和圆角
-- Preference title 最大行数调整为 2
-- 清理 70+ 已判定未使用的字符串及数组资源
-- 修改过的 XML 行尾统一为 LF
+- API 102 独立框架环境：冷启动、RemotePreferences、`system_server`、SystemUI、Launcher。
+- 设置应用：日间/夜间主题、系统栏图标、语言切换/跟随系统、搜索返回和 Fragment 重建。
+- Root 重启：有/无 Root、目标未运行、多 PID、失败输出和退出页面后的 UI 安全。
+- SystemUI/Launcher：状态栏文本图标在主题、密度、折叠和重启后的显示与更新；资源替换、BT/WiFi 列表及 `包名|活动` 解析。
 
-### 版本推进
-- `r14.13.0-rc2` / code 176
-- `r14.13.0-rc3` / code 177
-- `r14.13.0` / code 178
-- 当前 `r14.13.3` / code 181
+## 维护规则
 
-## 当前文档冲突
-
-### `CHANGELOG.md`
-- 顶部仍写 `r14.13.0-rc1 - Unreleased`
-- 未覆盖 rc2、rc3、r14.13.0、r14.13.3 以及后续 UI/Locale/Root 重启/资源清理
-- 当前不能作为 `r14.13.3` 完整变更说明
-
-### `docs/REFACTOR_PROGRESS.md`
-- 本轮已同步：保留 Phase 0–5 历史，新增 Phase 5+（RC1 日志、应用内语言、搜索状态、Root 重启、UI/主题、Preference 两行标题、资源清理、XML LF、r14.13.3 推进），修正签名表述，更新 HEAD、构建产物与待验证清单。
-- 状态：已更新，待 commit。
-
-### `docs/REFACTOR_PLAN_r14.13.md`
-- 本轮已同步：保留原始计划，新增“状态说明”与“实际执行结果与计划偏移”，说明 Manifest、版本线、签名、Locale、Root 重启和 UI 工作超出最初计划的原因。
-- 状态：已更新，待 commit。
-
-### `docs/VERIFICATION.md`
-- 正式验证主体仍对应 `r14.12.0`
-- 不得把其 API 101 实机结果直接套用到当前分支
-
-## 最新绿色验证
-
-### 架构审计轮次证据（`58b21260` + 未提交工作树）
-
-- 构建命令：`$env:JAVA_HOME='C:\Program Files\Java\jdk-17'; .\gradlew --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease`
-- 退出码：`0`（`BUILD SUCCESSFUL in 3m 20s`）
-- 单元测试：36 通过 / 0 失败
-- Lint / `lintRelease` / `lintVitalRelease`：通过
-- Release R8、资源压缩、zipalign：通过
-- `apksigner verify -v --print-certs`：仅 V2 方案，1 个签名者
-- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
-- Release APK：`CustoMIUIzer-A14-r14.13.3.apk`（未 bump 版本，仍为 181 / `r14.13.3`）
-- APK 大小：3,032,173 bytes（对比同版本上一轮 3,039,311 bytes，-7,138）
-- APK SHA-256：`BFBE1676DA7693AB4B26066817CEBF9451E16321FB85AB0EB6E84AB3FC3D27BC`
-- 剩余 Gradle 弃用告警来自插件侧（`Using a Project object as a dependency notation`），本仓库构建脚本已无自有弃用属性
-
-### 上一轮 HEAD 证据（`b63ec5f`，保留对照）
-
-- 同一构建矩阵通过，36 个单元测试
-- Release APK：3,039,311 bytes，SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`
-- `aapt2 dump badging` 确认 `applicationId='tv.withaibuild.customiuizer.r14'`，`versionCode=181`，`versionName='r14.13.3'`，`minSdk=34`，`targetSdk=34`
-- `module.prop` 与 `META-INF/xposed/java_init.list` 元数据正确（R8 `-adaptresourcefilecontents` 会更新入口类名）
-
-### LSPosed 日志审计（r14.13.3 重启日志）
-
-- 日志路径：`C:\Users\tv\Downloads\Peengeek\LSPosed_log\r14\r14.13.3\LSPosed_2026-07-27T20_48_50.619383`
-- 未在 `full.log`、`modules_*.log` 及 `tombstones` 中发现模块包名与崩溃/ANR/Hook 失败/RemotePreferences 异常的直接关联
-- 模块在 system_server、com.android.settings、com.miui.home 等目标作用域成功加载
-- R8 混淆后入口类在 LSPosed 日志中显示为 `class cp`，属 `-repackageclasses` 与 `-adaptresourcefilecontents` 的预期行为
-- 大量 `SmartPower.DisplayPolicy`、`PackageConfigPersister` 等系统侧日志含模块包名，但均为 ROM 正常组件信息/配置查询，非模块异常
-
-### 仍需补充
-
-- 设置 UI/Locale/About 主题 实机回归；
-- Root 重启功能 实机回归；
-- SystemUI/Launcher Hook 实机日志；
-- API 102 独立环境验证。
-
-## 当前待验证清单
-
-### 构建与产物
-- 正式签名环境下运行完整测试、Lint、Debug、Release、R8、resource shrink
-- 核对 versionName/versionCode、Xposed metadata、scope、ABI、zipalign
-- 记录 APK 文件名、大小、SHA-256 和签名证书 SHA-256
-- 确认资源删除没有导致 Release 资源缺失
-
-### 设置应用
-- 日间/夜间主题和系统栏图标
-- 主页面、子页面、搜索、返回栈、旋转和重建
-- Locale 切换与跟随系统，不出现空白、重复、旧语言残留或循环重建
-- Preference title 两行、summary、Switch、弹窗和 About 页面
-- 普通/分享/打开方式选择器
-- BT/WiFi 列表刷新和点击
-- 备份/恢复和重置设置
-
-### Root 重启
-- 有 Root：Launcher、SystemUI、Security Center
-- 无 Root
-- 目标进程未运行
-- 多 PID
-- 命令失败和错误输出
-- Fragment/Activity 退出时不回调失效 UI
-
-### Hook 与日志
-- 完整重启后采集模块、system_server、SystemUI、Launcher 日志
-- 网络速度在非英语 Locale 下不使用逗号小数点
-- 状态栏滑动调节亮度/音量、长按、双击
-- 无重复 Hook、Receiver、Observer、Coroutine 或初始化
-- 无模块崩溃、ANR、链接错误和 RemotePreferences 异常
-
-### 架构审计轮次专项（新增）
-- 状态栏电池详情 / 设备温度文本图标：切换日夜主题、字体大小、折叠展开、重启 SystemUI 后图标仍正常显示与更新，且不出现重复图标
-- 设备温度读数：确认取到的 CPU thermal zone 数值合理（本轮恢复为“首个匹配 zone”，与上游 Java 语义一致）
-- 资源替换类功能：自定义磁贴名称、锁屏/状态栏字符串与 drawable 替换、布局替换仍生效
-- 可信 WiFi/蓝牙（`system_noscreenlock`）与应用锁跳过活动列表匹配仍正确
-- BT/WiFi 选择列表滚动与勾选状态正确
-- 全局操作里的“打开应用/活动/快捷方式”仍能正确解析 `包名|活动` 配置
-
-### API 102
-- 独立 API 102 框架环境验证
-- 不以 API 101 结果替代
-
-## 当前阻塞
-
-- 架构审计轮次修改已通过完整构建矩阵，但**尚未提交**，也没有实机证据
-- 缺少实机安装、整机重启和 LSPosed/Vector 完整日志审计
-- 当前 `r14.13.3` 缺少完整设置 UI/Locale/Root 重启实机回归
-- API 102 实机环境仍未确认
-- 由于缺少实机闭环，暂不 bump 到 `r14.13.4/182`
-
-## 下一步
-
-1. 由用户确认后再提交本轮架构审计修改（建议按 6 个独立 commit 拆分：SystemUI 图标注册表 / ResourceHooks 热路径 / thermal zone 回归 / 分隔符与正则 / ClassLoader 记忆化 / 构建属性）；
-2. 安装 `app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.3.apk`（SHA-256 `BFBE1676DA7693AB4B26066817CEBF9451E16321FB85AB0EB6E84AB3FC3D27BC`）完成实机回归，重点覆盖上文“架构审计轮次专项”；
-3. 整机重启后采集 LSPosed/Vector `full.log` 和 `modules_*.log`，确认 SystemUI / Launcher / Settings / system_server 中模块加载与 Hook 行为正常；
-4. 完成 API 102 框架环境独立验证；
-5. 实机验证全部通过后，再决定 bump 到 `r14.13.4/182` 并重新构建；
-6. 全部验证通过后再考虑 PR / 合并 `main` / tag / Release。
-
-任何一步失败都先修根因，不得继续版本 bump 或准备发布。
-
-## 发布状态
-
-- 当前分支已合并 main：否
-- 当前分支相对 main：ahead 39 / behind 0
-- `r14.13.3` tag：未创建（仅工作区候选构建）
-- `r14.13.3` GitHub Release：未创建
-- 当前工作树正式 APK：已构建，SHA-256 `BFBE1676DA7693AB4B26066817CEBF9451E16321FB85AB0EB6E84AB3FC3D27BC`，V2 签名正确
-- 可以称为公开稳定版：否（缺少实机回归与 API 102 验证）
-- 当前公开稳定基线仍应以 `r14.12.0` 及其已发布证据为准
+- 非 API 迁移任务不得改变 API 101/102、Hot Reload 关闭或 Legacy Xposed API 禁止边界。
+- 只有取得新的代码、构建或实机证据后，才更新版本结论和验证状态。
+- 不提交 keystore、密码、APK、私人日志、缓存或机器专属数据。
+- 当前公开 Release 已完成；未获用户单独要求时，不创建新 tag、Release、PR 或修改 `main`。

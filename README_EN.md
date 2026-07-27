@@ -21,7 +21,7 @@ release.
 | libxposed API | min 101 / target 102 |
 | Hot Reload | Disabled |
 | Build | Kotlin DSL / version catalog / R8 |
-| Download | [GitHub Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4) |
+| Download | [Source Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4) · [LSPosed listing](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/182-r14.13.4) |
 
 ## r14.13.4 Highlights
 
@@ -191,7 +191,7 @@ The public Releases page keeps four key versions:
 
 | Version | Purpose |
 | --- | --- |
-| `r14.12.0` | Current stable release |
+| `r14.12.0` | Previous stable release; old signature, so back up and reinstall when upgrading |
 | `r14.8.0` | Kotlin infrastructure fallback |
 | `r14.7.4` | Consolidated r14.7.x Kotlin/coroutine migration |
 | `r14.5.0` | Independent package, signing, and release baseline |

@@ -20,7 +20,7 @@
 | libxposed API | min 101 / target 102 |
 | Hot Reload | 关闭 |
 | 构建 | Kotlin DSL / version catalog / R8 |
-| 下载 | [GitHub Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4) |
+| 下载 | [源码 Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.4) · [LSPosed 模块页](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/182-r14.13.4) |
 
 ## r14.13.4 亮点
 
@@ -174,7 +174,7 @@
 
 | 版本 | 定位 |
 | --- | --- |
-| `r14.12.0` | 当前稳定版 |
+| `r14.12.0` | 上一稳定版；旧签名，升级时须备份并重装 |
 | `r14.8.0` | Kotlin 基础设施回退点 |
 | `r14.7.4` | r14.7.x Kotlin/Coroutine 合并版 |
 | `r14.5.0` | 独立包名、签名与发布路径基线 |

@@ -3,6 +3,19 @@
 本文件记录公开版本的用户可见变化、兼容边界、验证结论和回退价值。内部迁移批次、
 Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为 Release changelog。
 
+## 公开 Release
+
+| 版本 | 日期 | 定位 |
+| --- | --- | --- |
+| `r14.13.4` | 2026-07-28 | 当前稳定版；设置/Locale、生命周期、资源 Hook 与迁移回归治理 |
+| `r14.12.0` | 2026-07-26 | 上一稳定版；旧签名，升级到新版本前必须备份并重装 |
+| `r14.8.0` | 2026-07-25 | Kotlin 基础设施回退点 |
+| `r14.7.4` | 2026-07-25 | r14.7.x Kotlin/Coroutine 迁移合并版 |
+| `r14.5.0` | 2026-07-24 | 独立包名、签名和发布路径基线 |
+
+Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
+[历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
+
 ## [r14.13.4] - 2026-07-28
 
 ### 版本定位
@@ -56,7 +69,7 @@ API 101/102 单 APK 兼容边界。
 - 新签名证书 SHA-256：
   `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
 
-### Verification
+### 验证
 
 - 单元测试：45 tests, 0 failures, 0 skipped。
 - Lint / `lintRelease` / `lintVitalRelease`：通过，107 deprecation warnings，0 errors。
@@ -87,7 +100,7 @@ API 101/102 单 APK 兼容边界。
 
 针对 UI/Locale/About 页面、主题重建、LSPosed 日志审计和 DexKitBridge 初始化的维护性修复与文档同步候选。
 
-### Fixed
+### 修复
 
 - 清理设置首页重复语言入口，集中到 About 页面并启用 `valueAsSummary`。
 - About 页面拆分为 maintainer、based_on、version 三行信息。
@@ -95,7 +108,7 @@ API 101/102 单 APK 兼容边界。
 - `XposedHelpers.createBridge` 增加非空守护，避免 DexKitBridge 重复创建。
 - 补充 `prefs_about.xml` 缺失的 `xmlns:miuizer` 命名空间，修复 Release 资源合并。
 
-### Verification
+### 验证
 
 - 构建：单元测试、Lint、`lintRelease`、`lintVitalRelease`、Debug/Release 全部通过。
 - APK：`CustoMIUIzer-A14-r14.13.3.apk`，3,039,311 bytes，SHA-256 `FCF048906551ED6BFEC903B1FFCD44796A2A5B777D0327CC5EC16FE520381927`，APK Signature Scheme v2 签名。
@@ -104,7 +117,7 @@ API 101/102 单 APK 兼容边界。
 - `apksigner verify -v` 与 `aapt2 dump badging` 确认 applicationId、versionCode/versionName、`minSdk`/`targetSdk`、`module.prop` 元数据正确。
 - 实机 UI/Locale/Hook 回归与 API 102 环境独立验证尚未完成。
 
-### Signing
+### 签名
 
 - 从 `r14.13.0-rc1` 开始更换 APK 签名证书；`r14.13.3` 继续使用该新证书。
 - 原 `r14.12.0` 及更早版本使用的签名私钥已经遗失，无法继续用于后续构建。
@@ -117,40 +130,29 @@ API 101/102 单 APK 兼容边界。
 - 实机设置应用、日间/夜间主题、语言切换、Root 重启反馈仍需验证。
 - API 102 独立框架环境尚未验证。
 
-## [r14.13.0-rc1] - Unreleased
+## [r14.13.0-rc1] - 非公开候选
 
-### Refactored
+> 该候选版本未单独公开发布；相关工作已由 `r14.13.4` 正式版收口。
+
+### 重构
 
 - 完成 r14.13 第一阶段 Kotlin 与设置层代码整理。
 - 完成 Java/Kotlin 边界与核心热路径审计。
 
-### Fixed
+### 修复
 
 - 修复 Bitmap 缓存线程池线程数边界计算。
 - 恢复振动辅助函数的可空 Context 容错语义。
 - 网络速度格式化固定使用 `Locale.ROOT`。
 
-### Performance
+### 性能
 
 - 缓存状态栏手势路径使用的 DisplayManager 与 displayId，减少高频反射和重复查询。
 
-### Verification
+### 验证
 
 - 单元测试、Lint、Debug 和 Release 构建通过。
 - 尚需用户完成长期实机回归和 LSPosed/Vector 日志审计。
-
-## 当前公开版本
-
-| 版本 | 日期 | 定位 |
-| --- | --- | --- |
-| `r14.13.4` | 2026-07-28 | 当前稳定版；设置/Locale、生命周期、资源 Hook 与迁移回归治理 |
-| `r14.12.0` | 2026-07-26 | 旧签名稳定版；升级到新版本前必须备份并重装 |
-| `r14.8.0` | 2026-07-25 | Kotlin 基础设施回退点 |
-| `r14.7.4` | 2026-07-25 | r14.7.x Kotlin/Coroutine 迁移合并版 |
-| `r14.5.0` | 2026-07-24 | 独立包名、签名和发布路径基线 |
-
-Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
-[历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
 
 ## [r14.12.0] - 2026-07-26
 
