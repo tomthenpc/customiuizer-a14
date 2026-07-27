@@ -41,13 +41,30 @@
 		android:textColor="@color/preference_primary_text_color" />
 
 	<TextView
-		android:id="@+id/about_dev"
+		android:id="@+id/about_maintainer"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
 		android:layout_marginTop="4dp"
+		android:ellipsize="end"
 		android:gravity="center"
 		android:maxLines="1"
-		android:text="@string/about_dev"
+		android:paddingStart="@dimen/preference_item_child_padding"
+		android:paddingEnd="@dimen/preference_item_child_padding"
+		android:text="@string/about_maintainer"
+		android:textColor="@color/color_on_surface_variant"
+		android:textSize="@dimen/secondary_text_size" />
+
+	<TextView
+		android:id="@+id/about_based_on"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_marginTop="4dp"
+		android:ellipsize="end"
+		android:gravity="center"
+		android:maxLines="1"
+		android:paddingStart="@dimen/preference_item_child_padding"
+		android:paddingEnd="@dimen/preference_item_child_padding"
+		android:text="@string/about_based_on"
 		android:textColor="@color/color_on_surface_variant"
 		android:textSize="@dimen/secondary_text_size" />
 
@@ -57,8 +74,11 @@
 		android:layout_height="wrap_content"
 		android:layout_marginTop="4dp"
 		android:layout_marginBottom="@dimen/preference_screen_padding_bottom"
+		android:ellipsize="end"
 		android:gravity="center"
 		android:maxLines="1"
+		android:paddingStart="@dimen/preference_item_child_padding"
+		android:paddingEnd="@dimen/preference_item_child_padding"
 		android:text="@string/about_version"
 		android:textColor="@color/color_on_surface_variant"
 		android:textSize="@dimen/secondary_text_size" />

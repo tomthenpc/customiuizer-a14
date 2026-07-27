@@ -2,7 +2,8 @@
 <resources>
     <string name="app_about">Sobre</string>
     <string name="about_version">Versão %1$s</string>
-    <string name="about_dev">Mantido por tomthenpc · Baseado no trabalho de Mikanoshi e MonwF</string>
+        <string name="about_maintainer">Mantido por tomthenpc</string>
+    <string name="about_based_on">Baseado no trabalho de Mikanoshi e MonwF</string>
     <string name="about_dynamic">Geralmente, os mods exigem reinicialização suave para serem ativados ou desativados, mas aqueles marcados com ⟲ requerem apenas uma reinicialização suave depois que seu valor for alterado de padrão para personalizado, as alterações subsequentes são aplicadas imediatamente.</string>
     <string name="about_unsupported">Mods marcados com ⨯ não são suportados neste dispositivo.</string>
     <string name="mods">Mods</string>

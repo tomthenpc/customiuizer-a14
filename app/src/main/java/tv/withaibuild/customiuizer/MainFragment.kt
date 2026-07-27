@@ -21,7 +21,6 @@ import androidx.appcompat.widget.SearchView
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
 import androidx.lifecycle.lifecycleScope
-import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
 import androidx.recyclerview.widget.RecyclerView
 
 import kotlinx.coroutines.Dispatchers
@@ -233,10 +232,6 @@ class MainFragment : PreferenceFragmentBase() {
                 pm.setComponentEnabledSetting(component, PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP)
             }
             true
-        }
-
-        findPreference<ListPreferenceEx>("pref_key_miuizer_locale")?.let { locale ->
-            AppHelper.setupLocalePreference(locale)
         }
     }
 

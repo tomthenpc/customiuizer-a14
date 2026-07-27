@@ -47,7 +47,7 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme"
             android:launchMode="singleTop"
-            android:configChanges="locale|layoutDirection|uiMode"
+            android:configChanges="locale|layoutDirection"
             android:alwaysRetainTaskState="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

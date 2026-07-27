@@ -26,30 +26,34 @@ class AboutFragment : SubFragment() {
         }
     }
 
-    override fun onActivityCreated(savedInstanceState: Bundle?) {
-        super.onActivityCreated(savedInstanceState)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
 
         findPreference<ListPreferenceEx>("pref_key_miuizer_locale")?.let { locale ->
             AppHelper.setupLocalePreference(locale)
         }
 
-        // Add version name to support title
-        val view = view
-        if (view != null) try {
-            val version = view.findViewById<TextView>(R.id.about_version)
-            val validContext = getValidContext()
-            val versionName = validContext.packageManager.getPackageInfo(validContext.packageName, 0).versionName
-            version?.text = String.format(Locale.US, getString(R.string.about_version), versionName)
-        } catch (e: Throwable) {
-            // Shouldn't happen...
-            e.printStackTrace()
-        }
+        updateHeadViews(resources.configuration)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
-        if (view == null) return
-        view?.findViewById<View>(R.id.miuizer_icon)?.visibility =
-            if (newConfig.orientation == Configuration.ORIENTATION_LANDSCAPE) View.GONE else View.VISIBLE
         super.onConfigurationChanged(newConfig)
+        if (view == null) return
+        updateHeadViews(newConfig)
+    }
+
+    private fun updateHeadViews(config: Configuration) {
+        val root = view ?: return
+        root.findViewById<View>(R.id.miuizer_icon)?.visibility =
+            if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) View.GONE else View.VISIBLE
+
+        val versionView = root.findViewById<TextView>(R.id.about_version)
+        if (versionView != null) try {
+            val validContext = getValidContext()
+            val versionName = validContext.packageManager.getPackageInfo(validContext.packageName, 0).versionName
+            versionView.text = String.format(Locale.US, getString(R.string.about_version), versionName)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
     }
 }

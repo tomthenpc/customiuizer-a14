@@ -2,8 +2,8 @@
 <resources>
     <string name="app_about">O modulu</string>
     <string name="about_version">Verze %1$s</string>
-    <string name="about_dev">Spravuje tomthenpc · založeno na práci Mikanoshi a MonwF
-Překlad S11V3R 🇨🇿</string>
+        <string name="about_maintainer">Spravuje tomthenpc</string>
+    <string name="about_based_on">založeno na práci Mikanoshi a MonwF (Překlad S11V3R 🇨🇿)</string>
     <string name="about_dynamic">Obecně platí, že změny vyžadují k aktivaci nebo deaktivaci měkký restart, ale změny označené symbolem ⟲ vyžadují pouze jeden měkký restart poté, co byla jejich hodnota změněna z výchozí na vlastní, další změny se použijí okamžitě.</string>
     <string name="about_unsupported">Modifikace označené ⨯ nejsou v tomto zařízení podporovány.</string>
     <string name="mods">Modifikace</string>

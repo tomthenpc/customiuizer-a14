@@ -2,7 +2,8 @@
 <resources>
     <string name="app_about">О приложении</string>
     <string name="about_version">Версия %1$s</string>
-    <string name="about_dev">Поддержка: tomthenpc · На основе работ Mikanoshi и MonwF</string>
+        <string name="about_maintainer">Поддержка: tomthenpc</string>
+    <string name="about_based_on">На основе работ Mikanoshi и MonwF</string>
     <string name="about_dynamic">Для активации или деактивации большинства модов требуется быстрая перезагрузка устройства. Но для модов, помеченных ⟲, перезагрузка требуется только один раз — после смены значения со стандартного на модифицированное, а последующие изменения будут применяться сразу.</string>
     <string name="about_unsupported">Моды, помеченные ⨯, несовместимы с данным устройством.</string>
     <string name="mods">Моды</string>

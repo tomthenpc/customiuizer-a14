@@ -2,7 +2,8 @@
 <resources>
     <string name="app_about">このアプリについて</string>
     <string name="about_version">バージョン %1$s</string>
-    <string name="about_dev">保守：tomthenpc · Mikanoshi / MonwF のオープンソースを基盤に開発</string>
+        <string name="about_maintainer">保守：tomthenpc</string>
+    <string name="about_based_on">Mikanoshi / MonwF のオープンソースを基盤に開発</string>
     <string name="about_dynamic">一般的なModの有効化/無効化にはソフトリブートが必要です。⟲のマークがある物は値の変更後、ソフトリブートすることで設定が適用されます。</string>
     <string name="about_unsupported">⨯の付いたModは使用中のデバイスに対応していません。</string>
     <string name="mods">Mod</string>
