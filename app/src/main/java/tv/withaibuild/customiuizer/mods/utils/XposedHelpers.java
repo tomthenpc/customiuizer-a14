@@ -1933,12 +1933,15 @@ public final class XposedHelpers {
     }
 
     public static void createBridge(String apkPath) {
+        if (bridge != null) return;
         bridge = DexKitBridge.create(apkPath);
     }
 
     public static void closeBridge() {
-        bridge.close();
-        bridge = null;
+        if (bridge != null) {
+            bridge.close();
+            bridge = null;
+        }
     }
 
 }
