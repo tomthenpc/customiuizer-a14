@@ -1,10 +1,12 @@
 package tv.withaibuild.customiuizer.utils
 
+import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
-import android.content.res.Configuration
 import android.content.res.Resources
-import android.text.SpannableString
+import android.os.Handler
+import android.os.Looper
+import android.os.Process
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -17,13 +19,17 @@ import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
  * Single owner for the application locale setting.
  *
  * The only persisted user choice is the value of [LOCALE_PREF_KEY]. Everything else
- * (AppCompat application locales, Context configuration, [Locale.getDefault()]) is a
- * derived, re-creatable state computed from that single source and the current system
- * locale.
+ * (AppCompat application locales, [Locale.getDefault()]) is a derived, re-creatable
+ * state computed from that single source and the current system locale.
+ *
+ * Locale changes are deferred: the user confirms once, the choice is persisted
+ * synchronously, the settings application exits, and the new language takes effect
+ * the next time the application is opened.
  */
 object AppLocaleController {
 
     const val LOCALE_PREF_KEY = "pref_key_miuizer_locale"
+    const val LOCALE_RECONCILE_PENDING = "pref_key_miuizer_locale_reconcile_pending"
     private const val LEGACY_AUTO = "1"
     private const val TAG = "AppLocaleController"
 
@@ -33,16 +39,26 @@ object AppLocaleController {
     )
 
     /**
-     * Seam for unit tests and non-Android environments.
-     * Production code leaves this null so [AppCompatDelegate.setApplicationLocales] is used.
+     * Seam for unit tests. Production code leaves this null so
+     * [AppCompatDelegate.setApplicationLocales] is used.
      */
     @JvmField
     var applicationLocaleApplier: ((LocaleListCompat) -> Unit)? = null
 
     /**
+     * Seam for unit tests. Production code leaves this null so
+     * [AppCompatDelegate.getApplicationLocales] is used.
+     */
+    @JvmField
+    var applicationLocaleProvider: (() -> LocaleListCompat)? = null
+
+    /** Seam for unit tests. */
+    @JvmField
+    var processKiller: (() -> Unit)? = null
+
+    /**
      * Normalize a raw user selection or a persisted value.
      *
-     * Accepts:
      * - `null`, empty, or unknown values -> `auto`
      * - legacy `"1"` -> `auto`
      * - any supported tag as-is
@@ -61,36 +77,76 @@ object AppLocaleController {
     fun getUserLocale(prefs: SharedPreferences?): String =
         normalizeLocaleTag(prefs?.getString(LOCALE_PREF_KEY, "auto"))
 
+    /** Whether a locale reconcile has been requested but not yet completed. */
+    @JvmStatic
+    fun isReconcilePending(prefs: SharedPreferences?): Boolean =
+        prefs?.getBoolean(LOCALE_RECONCILE_PENDING, false) ?: false
+
     /**
-     * Persist a new user selection synchronously and then apply it.
+     * Persist a new user selection synchronously and mark that a reconcile is pending.
      *
-     * The synchronous [commit] guarantees the next Activity/Fragment recreation reads the
-     * same value. Language switching is a low-frequency cold path, so the blocking I/O is
-     * acceptable here.
+     * The application is expected to exit immediately after a successful commit.
+     * On the next start the new locale is applied exactly once.
      */
     @JvmStatic
     fun setUserLocale(prefs: SharedPreferences, tag: String): Boolean {
         val normalized = normalizeLocaleTag(tag)
-        val written = prefs.edit().putString(LOCALE_PREF_KEY, normalized).commit()
+        val written = prefs.edit()
+            .putString(LOCALE_PREF_KEY, normalized)
+            .putBoolean(LOCALE_RECONCILE_PENDING, true)
+            .commit()
         if (!written) {
             Log.e(TAG, "setUserLocale commit failed for tag: $normalized")
             return false
         }
-        applyLocale(normalized)
+        return true
+    }
+
+    /** Clear the reconcile-pending flag synchronously. */
+    @JvmStatic
+    fun clearReconcilePending(prefs: SharedPreferences): Boolean {
+        val written = prefs.edit().putBoolean(LOCALE_RECONCILE_PENDING, false).commit()
+        if (!written) {
+            Log.e(TAG, "clearReconcilePending commit failed")
+            return false
+        }
         return true
     }
 
     /**
-     * Apply the normalized tag without writing.
+     * Apply the stored user locale if it differs from the current runtime state.
      *
-     * Used at application start-up, where the persisted value is already the source of truth.
+     * This is called once during application start-up. It avoids unconditional calls
+     * to [AppCompatDelegate.setApplicationLocales] and prevents apply/restart loops.
      */
     @JvmStatic
-    fun applyLocale(tag: String) {
-        val normalized = normalizeLocaleTag(tag)
-        val effective = getEffectiveLocale(normalized) { getSystemLocale() }
-        Locale.setDefault(effective)
-        applyToAppCompat(normalized, effective)
+    fun reconcileAndApply(prefs: SharedPreferences?): Boolean {
+        val tag = getUserLocale(prefs)
+        val pending = isReconcilePending(prefs)
+        val targetLocaleList = toLocaleListCompat(tag)
+        val currentLocaleList = getCurrentApplicationLocales()
+        val effective = getEffectiveLocale(tag)
+        val currentDefault = Locale.getDefault()
+
+        val appLocaleChanged = pending || !areLocaleListsEqual(currentLocaleList, targetLocaleList)
+        val defaultChanged = currentDefault != effective
+
+        if (defaultChanged) {
+            Locale.setDefault(effective)
+        }
+
+        if (appLocaleChanged) {
+            Log.i(TAG, "Reconciling locale: tag=$tag, pending=$pending")
+            (applicationLocaleApplier ?: { AppCompatDelegate.setApplicationLocales(it) })(targetLocaleList)
+        }
+
+        // Any of these paths means we have processed a locale decision. If the pending
+        // flag was set, clear it so the next start does not re-apply the same value.
+        if ((appLocaleChanged || pending || defaultChanged) && prefs != null) {
+            clearReconcilePending(prefs)
+        }
+
+        return appLocaleChanged
     }
 
     /**
@@ -126,17 +182,11 @@ object AppLocaleController {
     fun toLocaleListCompat(tag: String): LocaleListCompat = try {
         when (normalizeLocaleTag(tag)) {
             "auto" -> LocaleListCompat.getEmptyLocaleList()
-            else -> try {
-                val locale = Locale.forLanguageTag(tag)
-                LocaleListCompat.create(locale)
-            } catch (t: Throwable) {
-                LocaleListCompat.getEmptyLocaleList()
-            }
+            else -> LocaleListCompat.forLanguageTags(normalizeLocaleTag(tag))
         }
     } catch (t: Throwable) {
-        // LocaleListCompat may not be fully initialised in JVM unit tests.
-        Log.w(TAG, "toLocaleListCompat failed: ${t.message}")
-        throw t
+        Log.w(TAG, "toLocaleListCompat failed: ${t.message}; returning empty list")
+        LocaleListCompat.getEmptyLocaleList()
     }
 
     /** Current system primary locale. */
@@ -147,22 +197,6 @@ object AppLocaleController {
     } catch (t: Throwable) {
         Log.w(TAG, "getSystemLocale failed: ${t.message}; falling back to JVM default")
         Locale.getDefault()
-    }
-
-    /**
-     * Return a [Context] with the user-selected locale applied.
-     *
-     * This is a fallback for non-AppCompat contexts (e.g. device-protected storage
-     * contexts). Activities should rely on [AppCompatDelegate.setApplicationLocales] instead.
-     */
-    @JvmStatic
-    fun getLocaleContext(base: Context, prefs: SharedPreferences?): Context {
-        val tag = getUserLocale(prefs)
-        val locale = getEffectiveLocale(tag)
-        Locale.setDefault(locale)
-        val config = Configuration(base.resources.configuration)
-        config.setLocale(locale)
-        return base.createConfigurationContext(config)
     }
 
     /**
@@ -202,13 +236,16 @@ object AppLocaleController {
     }
 
     /**
-     * Bind the language [ListPreferenceEx] to the single source of truth.
+     * Prepare the language [ListPreferenceEx] with stable entries and values.
      *
      * - Sets stable [entries] and [entryValues] before any value is restored.
      * - Disables the preference's own persistence so only [setUserLocale] writes.
-     * - Normalizes every change and applies it synchronously.
      * - Defensively falls back to `auto` if the current persisted value is missing from the
      *   supported set.
+     *
+     * The caller (usually [AboutFragment]) is responsible for installing the
+     * [androidx.preference.Preference.OnPreferenceChangeListener] that shows the
+     * confirmation dialog and exits the application.
      */
     @JvmStatic
     fun setupLocalePreference(pref: ListPreferenceEx?, prefs: SharedPreferences?) {
@@ -231,36 +268,55 @@ object AppLocaleController {
         pref.isPersistent = false
 
         val current = getUserLocale(prefs)
-        pref.value = if (entryValues.contains(current)) current else "auto"
+        val safeValue = if (entryValues.contains(current)) current else "auto"
+        if (safeValue != current) {
+            Log.e(TAG, "Invalid persisted locale '$current'; falling back to 'auto'")
+            // Repair the persisted value without marking a pending reconcile. The
+            // application will apply this value on the next start through [reconcileAndApply].
+            prefs.edit().putString(LOCALE_PREF_KEY, safeValue).apply()
+        }
 
-        pref.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
-            val tag = normalizeLocaleTag(newValue as? String)
-            if (!entryValues.contains(tag)) {
-                Log.w(TAG, "Rejected unknown locale tag: $newValue")
-                return@OnPreferenceChangeListener false
-            }
-            // Update the preference display first so the UI is consistent even if the
-            // Activity is recreated immediately after the locale is applied.
-            pref.value = tag
-            setUserLocale(prefs, tag)
+        pref.value = safeValue
+
+        // The value must resolve to a non-null entry for the summary.
+        if (pref.entry.isNullOrEmpty()) {
+            Log.e(TAG, "Locale preference summary resolved to empty for value: $safeValue")
+            pref.value = "auto"
         }
     }
 
-    private fun applyToAppCompat(tag: String, effective: Locale) {
-        try {
-            val localeList = if (tag == "auto") {
-                LocaleListCompat.getEmptyLocaleList()
-            } else {
-                try {
-                    LocaleListCompat.create(effective)
-                } catch (t: Throwable) {
-                    LocaleListCompat.getEmptyLocaleList()
-                }
-            }
-            (applicationLocaleApplier ?: { AppCompatDelegate.setApplicationLocales(it) })(localeList)
-        } catch (t: Throwable) {
-            // AppCompat may not be initialized in unit tests or very early process state.
-            Log.w(TAG, "applyToAppCompat skipped: ${t.message}")
+    /** Exit the settings application after a successful locale save. */
+    @JvmStatic
+    fun exitApplicationAfterLocaleSave(activity: Activity) {
+        activity.finishAffinity()
+        Handler(Looper.getMainLooper()).post {
+            (processKiller ?: { Process.killProcess(Process.myPid()) })()
         }
+    }
+
+    /** Current AppCompat application locales, with a test seam. */
+    @JvmStatic
+    private fun getCurrentApplicationLocales(): LocaleListCompat = try {
+        applicationLocaleProvider?.invoke()
+            ?: AppCompatDelegate.getApplicationLocales()
+            ?: LocaleListCompat.getEmptyLocaleList()
+    } catch (t: Throwable) {
+        Log.w(TAG, "getCurrentApplicationLocales failed: ${t.message}; returning empty list")
+        LocaleListCompat.getEmptyLocaleList()
+    }
+
+    /** Compare two [LocaleListCompat] by their language tags. */
+    @JvmStatic
+    private fun areLocaleListsEqual(a: LocaleListCompat, b: LocaleListCompat): Boolean {
+        if (a.isEmpty && b.isEmpty) return true
+        return toLanguageTags(a) == toLanguageTags(b)
+    }
+
+    /** Return the language tags string, or `null` if it cannot be read. */
+    @JvmStatic
+    private fun toLanguageTags(list: LocaleListCompat): String? = try {
+        list.toLanguageTags()
+    } catch (t: Throwable) {
+        null
     }
 }

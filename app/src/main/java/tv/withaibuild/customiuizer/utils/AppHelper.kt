@@ -17,7 +17,6 @@ import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
-import java.util.Locale
 
 object AppHelper {
     const val prefsName = "customiuizer_prefs"
@@ -109,27 +108,16 @@ object AppHelper {
     }
 
     @JvmStatic
-    @Synchronized
-    fun getLocaleContext(context: Context): Context =
-        AppLocaleController.getLocaleContext(context, appPrefs)
-
-    @JvmStatic
-    fun applyLocaleChange(context: Context, localeTag: String?) {
-        AppLocaleController.applyLocale(localeTag ?: "auto")
-    }
-
-    @JvmStatic
     fun setupLocalePreference(localePref: ListPreferenceEx?) {
         AppLocaleController.setupLocalePreference(localePref, appPrefs)
     }
 
     @JvmStatic
     @JvmOverloads
-    @Synchronized
     fun getProtectedContext(context: Context, config: Configuration? = null): Context {
         return try {
             val mContext = if (context.isDeviceProtectedStorage) context else context.createDeviceProtectedStorageContext()
-            getLocaleContext(if (config == null) mContext else mContext.createConfigurationContext(config))
+            if (config == null) mContext else mContext.createConfigurationContext(config)
         } catch (t: Throwable) {
             context
         }
