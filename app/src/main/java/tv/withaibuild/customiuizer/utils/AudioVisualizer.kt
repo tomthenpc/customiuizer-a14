@@ -1,7 +1,6 @@
 package tv.withaibuild.customiuizer.utils
 
 import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
@@ -17,6 +16,7 @@ import android.graphics.Path
 import android.graphics.Shader
 import android.media.audiofx.Visualizer
 import android.util.AttributeSet
+import android.view.Choreographer
 import android.view.View
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
@@ -62,7 +62,6 @@ class AudioVisualizer @JvmOverloads constructor(
     private var mVisualizerColorAnimator: ObjectAnimator? = null
     private var mVisualizerGlowColorAnimator: ObjectAnimator? = null
 
-    private val mValueAnimators: Array<ValueAnimator>
     private val mFFTPoints = FloatArray(128)
     private val mBands = floatArrayOf(
         50f, 90f, 130f, 180f, 220f, 260f, 320f, 380f, 430f, 520f, 610f, 700f, 770f, 920f, 1080f,
@@ -71,6 +70,11 @@ class AudioVisualizer @JvmOverloads constructor(
     )
     private var maxDb = 50f
     private val maxDp = 280
+    private val mBandsNum = 31
+    private val mBandStarts = FloatArray(mBandsNum) { Float.MAX_VALUE }
+    private val mBandTargets = FloatArray(mBandsNum) { Float.MAX_VALUE }
+    private val mPendingTargets = FloatArray(mBandsNum) { Float.MAX_VALUE }
+    private val mFrameLock = Any()
 
     private var isMusicPlaying = false
     @JvmField
@@ -86,13 +90,72 @@ class AudioVisualizer @JvmOverloads constructor(
     private var mArt: Bitmap? = null
     private var mProcessedArt: Bitmap? = null
 
-    private val mBandsNum = 31
     private val mRainbow = IntArray(mBandsNum)
     private val mRainbowVertical = IntArray(mBandsNum)
     private val mPositions = FloatArray(mBandsNum)
     private val mLinePath = Path()
     private val mHsv = FloatArray(3)
     private val mDashIntervals = FloatArray(2)
+
+    @Volatile
+    private var mNewDataPending = false
+    private var mFrameStartTime = 0L
+    private var mFrameCallbackScheduled = false
+    private val mFrameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (detached || !mDisplaying) {
+                mFrameCallbackScheduled = false
+                return
+            }
+            if (mNewDataPending) {
+                applyNewData(frameTimeNanos)
+            }
+            val elapsedMs = (frameTimeNanos - mFrameStartTime) / 1_000_000f
+            val fraction = (elapsedMs / animDur).coerceIn(0f, 1f)
+            var needsInvalidate = false
+            for (i in 0 until mBandsNum) {
+                val start = mBandStarts[i]
+                val target = mBandTargets[i]
+                if (start == Float.MAX_VALUE || target == Float.MAX_VALUE) continue
+                val interp = if (target < start) decel.getInterpolation(fraction) else accel.getInterpolation(fraction)
+                val newVal = start + (target - start) * interp
+                if (mFFTPoints[i * 4 + 3] != newVal) {
+                    mFFTPoints[i * 4 + 3] = newVal
+                    needsInvalidate = true
+                }
+            }
+            if (needsInvalidate) postInvalidateOnAnimation()
+            if (mDisplaying) {
+                Choreographer.getInstance().postFrameCallback(this)
+            } else {
+                mFrameCallbackScheduled = false
+            }
+        }
+    }
+
+    private fun applyNewData(frameTimeNanos: Long) {
+        synchronized(mFrameLock) {
+            if (mNewDataPending) {
+                System.arraycopy(mPendingTargets, 0, mBandTargets, 0, mBandsNum)
+                mNewDataPending = false
+            }
+        }
+        for (i in 0 until mBandsNum) {
+            mBandStarts[i] = mFFTPoints[i * 4 + 3]
+        }
+        mFrameStartTime = frameTimeNanos
+    }
+
+    private fun startFrameScheduler() {
+        if (mFrameCallbackScheduled) return
+        mFrameCallbackScheduled = true
+        Choreographer.getInstance().postFrameCallback(mFrameCallback)
+    }
+
+    private fun stopFrameScheduler() {
+        mFrameCallbackScheduled = false
+        Choreographer.getInstance().removeFrameCallback(mFrameCallback)
+    }
 
     @JvmField
     var showOnCustom = false
@@ -132,12 +195,8 @@ class AudioVisualizer @JvmOverloads constructor(
             if (detached) return
             try {
                 when (key) {
-                    "pref_key_system_visualizer_animdur" -> {
+                    "pref_key_system_visualizer_animdur" ->
                         animDur = MainModule.mPrefs.getInt("system_visualizer_animdur", 65)
-                        for (i in 0 until mBandsNum) {
-                            mValueAnimators[i].duration = animDur.toLong()
-                        }
-                    }
                     "pref_key_system_visualizer_transp" -> {
                         transparency = (255f - 255f * MainModule.mPrefs.getInt("system_visualizer_transp", 40) / 100f).roundToInt()
                         setColor(mOpaqueColor)
@@ -203,15 +262,10 @@ class AudioVisualizer @JvmOverloads constructor(
         }
 
         animDur = MainModule.mPrefs.getInt("system_visualizer_animdur", 65)
-        mValueAnimators = Array(mBandsNum) { i ->
-            val j = i * 4 + 3
-            ValueAnimator().apply {
-                duration = animDur.toLong()
-                addUpdateListener { animation ->
-                    mFFTPoints[j] = animation.animatedValue as Float
-                    postInvalidate()
-                }
-            }
+        for (i in 0 until mBandsNum) {
+            mBandStarts[i] = mHeight.toFloat()
+            mBandTargets[i] = mHeight.toFloat()
+            mPendingTargets[i] = mHeight.toFloat()
         }
 
         for (i in 0 until mBandsNum) {
@@ -246,6 +300,8 @@ class AudioVisualizer @JvmOverloads constructor(
 
         override fun onFftDataCapture(visualizer: Visualizer, fft: ByteArray, samplingRate: Int) {
             try {
+                if (detached || !mDisplaying) return
+
                 val bandWidth = samplingRate.toFloat() / fft.size
                 val silentFrame = allZeros(fft)
                 var band = 0
@@ -266,15 +322,20 @@ class AudioVisualizer @JvmOverloads constructor(
 
                     dbValue = if (magnitude > 0) (10 * log10(magnitude)).toInt() else 0
                     maxDb = max(maxDb, dbValue.toFloat())
-                    val oldVal = mFFTPoints[band * 4 + 3]
                     val newVal = mFFTPoints[band * 4 + 1] - maxHeight * dbValue / maxDb
 
-                    mValueAnimators[band].cancel()
-                    mValueAnimators[band].interpolator = if (newVal < oldVal) decel else accel
-                    mValueAnimators[band].setFloatValues(oldVal, newVal)
-                    mValueAnimators[band].start()
+                    synchronized(mFrameLock) {
+                        mPendingTargets[band] = newVal
+                        mNewDataPending = true
+                    }
 
                     band++
+                }
+
+                // Make sure the frame scheduler is running. Choreographer must be used
+                // from the main thread, so post to the view's handler.
+                if (!mFrameCallbackScheduled) {
+                    post { startFrameScheduler() }
                 }
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
@@ -452,10 +513,11 @@ class AudioVisualizer @JvmOverloads constructor(
             current
         }
         releaseVisualizer(visualizer)
+        stopFrameScheduler()
+        mDisplaying = false
         animate().cancel()
         mVisualizerColorAnimator?.cancel()
         mVisualizerGlowColorAnimator?.cancel()
-        for (animator in mValueAnimators) animator.cancel()
         randomizeColorJob?.cancel()
         mArt = null
         mProcessedArt = null
@@ -480,6 +542,9 @@ class AudioVisualizer @JvmOverloads constructor(
             mFFTPoints[i * 4 + 1] = h.toFloat()
             mFFTPoints[i * 4 + 2] = mFFTPoints[i * 4]
             mFFTPoints[i * 4 + 3] = h.toFloat()
+            mBandStarts[i] = h.toFloat()
+            mBandTargets[i] = h.toFloat()
+            mPendingTargets[i] = h.toFloat()
         }
     }
 
@@ -625,6 +690,7 @@ class AudioVisualizer @JvmOverloads constructor(
         if (mPlaying) {
             if (!mDisplaying) {
                 mDisplaying = true
+                startFrameScheduler()
                 viewScope.launch { linkVisualizer() }
                 randomizeColorJob?.cancel()
                 randomizeColorJob = viewScope.launch { runRandomizeColor() }
@@ -633,6 +699,7 @@ class AudioVisualizer @JvmOverloads constructor(
         } else {
             if (mDisplaying) {
                 mDisplaying = false
+                stopFrameScheduler()
                 randomizeColorJob?.cancel()
                 if (isOnKeyguard) {
                     animate()
