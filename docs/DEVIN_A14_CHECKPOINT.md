@@ -98,13 +98,29 @@
    `AdditionalInstanceFieldTest` 11 个用例，并**对旧实现做了负向验证**：
    `distinctButEqualObjectsDoNotShareFields` 与 `fieldSurvivesMutationOfTheOwnersHash` 在旧实现上失败。
 
+### 第四轮：`mods/System.kt` 按功能域拆分（2026-07-28，同分支）
+
+10. **4898 行 → 593 行 + 7 个功能域**
+    此前一直挂着"要等有实机回归能力"。实际卡住的**不是设备，是验证手段**：
+    hook 注册顺序是 `MainModule` 调用序列的属性，与被调用者在哪个文件无关，
+    所以只需机械证明两件事 —— 成员文本逐字节不变、调用序列不变，两条都能脚本化。
+    先量耦合：94 个 public 入口全部且仅被 `MainModule` 调用，19 个私有辅助各自只被同域调用，
+    **零 public→public 调用**，16 处共享状态每处只有 1–2 个使用者且都在同一域内。
+    `MainModule` 改为直接调用各域对象，顺带删掉早期拆分留下的 10 个转发桩。
+    `proguard-rules.pro` 无需改动（keep 规则已按 `mods.**` 通配）。
+    工具与方法见 `docs/RUNTIME_INVARIANTS.md` §8。
+
 ### 本轮验证
 
-- `python tools/check-invariants.py` → 96 files, 8 条规则, no violations
+- `python tools/check-invariants.py` → 103 files, 8 条规则, no violations
 - `./gradlew clean test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease` → 退出码 0
 - 单元测试 117 个, 0 失败; lint / lintRelease 均 0 errors
 - 全部 Kotlin 转换都是编译期可验证的（被写入 / 被 `*args` 展开 / 被当 `Array<Any?>` 传出的
   参数数组，改成 List 或单值访问后一定编译失败）
+- 拆分证据：119/119 成员逐字节一致且无遗漏；`System.kt` diff 为纯删除（新增 0 行）；
+  `MainModule` 前后各 268 个调用点、序列完全一致；R8 保留方法数前后均 7887，
+  唯一 15 处差异是 `access$` 桥接方法参数类型随宿主类变更、一一对应；
+  Release APK 3,065,633 字节与拆分前完全相同
 
 ### 待实机验证
 

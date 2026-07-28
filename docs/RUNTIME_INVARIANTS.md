@@ -250,3 +250,62 @@ Launcher 的重命名功能就是这个形状：在 `ShortcutInfo` 上存 `mLabe
 - 多屏 / 折叠 / 主题切换下的真实生命周期
 
 **Gradle 退出码 0 不等于设备上行为正确。**
+
+---
+
+## 8. 大文件按功能域拆分：怎么做才是可证明安全的
+
+`mods/System.kt` 曾经是 4898 行 / 129 个成员。此前一直没做，理由写的是"要等有实机回归能力"。
+实际卡住的**不是设备，是验证手段**。
+
+关键认识：**hook 注册顺序是 `MainModule` 调用序列的属性，与被调用者在哪个文件无关。**
+所以一次拆分只需要机械证明两件事：
+
+1. 每个被搬动的成员，文本逐字节不变；
+2. `MainModule` 的有序调用序列不变。
+
+两条都能脚本化，都不需要设备。
+
+### 先量，再动
+
+拆之前先量耦合，`System.kt` 的实际结果比它的行数好得多：
+
+- 94 个 public 入口，**全部且仅**被 `MainModule` 调用；
+- 19 个私有辅助函数，每个只被**同域**函数调用；
+- **零 public→public 调用**；
+- 16 处共享状态，每处只被 1–2 个函数使用，且都落在同一个域内。
+
+没有任何东西跨域。**如果这几项不成立，就不要拆** —— `tools/split-hook-domain.py` 会直接拒绝
+（检查"留下的成员是否还引用被搬走的"以及反向）。
+
+### 工具与保证
+
+| 工具 | 保证 |
+| --- | --- |
+| `tools/split-hook-domain.py` | 域不自足就拒绝执行；源文件按行区间**原样删除**而不是重新拼接（否则会重排保留成员之间的空行，diff 就不再是纯删除）；搬移后逐成员比对文本 |
+| `tools/repoint-hook-calls.py` | 只改接收者类型；改完比对**有序调用序列**，不一致就拒绝写入 |
+
+### 本次证据
+
+- 119/119 个成员逐字节一致，无遗漏；`System.kt` 的 diff 是**纯删除，新增 0 行**
+- `MainModule` 前后各 268 个调用点，85 个接收者变化，**序列完全一致**
+- R8 保留方法数前后均 **7887**；唯一的 15 处差异是 Kotlin `access$` 桥接方法的参数类型
+  从 `mods.System` 变成新的宿主类，一一对应。**没有方法丢失，没有入口不可达**
+- Release APK **3,065,633 字节，与拆分前完全相同**；`META-INF/xposed` 完好
+- `proguard-rules.pro` 无需改动：`-keepclassmembers class tv.withaibuild.customiuizer.mods.**` 是通配的
+
+### 结果
+
+```
+System.kt              4898 -> 593
+SystemLockScreenHooks       1445   锁屏 / 解锁 / 应用锁
+SystemNotificationHooks      730   通知栏 / 悬浮通知
+SystemAudioHooks             634   可视化 / 媒体会话 / 振动
+SystemWindowHooks            566   旋转 / 小窗 / 分屏 / 覆盖层
+SystemDisplayHooks           534   息屏动画 / 亮度 / 壁纸
+SystemShareMenuHooks         288   分享面板 / 打开方式
+SystemSecurityHooks          243   签名 / 完整性 / FLAG_SECURE
+```
+
+`SystemUI.kt`（3681 行）和 `Launcher.kt` 可以用同一套工具照做，但**必须先量耦合**，
+不要假定它们和 `System.kt` 一样干净。

@@ -101,7 +101,7 @@ packaging: merges META-INF/xposed/*
 | P6 | 数据竞争（潜在） | `mods/utils/ResourceHooks.kt` | `fakes: SparseIntArray` 与替换表原先在注册线程写、在任意 UI 线程读，`SparseIntArray` 非线程安全且无安全发布。 | **本轮已修复**（copy-on-write + volatile） |
 | P7 | 构建配置过期 | `gradle.properties` | `org.gradle.unsafe.configuration-cache` 为已废弃属性名；`android.enableResourceOptimizations` 在 AGP 8+ 已移除。 | **本轮已修复** |
 | P8 | 息屏仍以 2s 周期唤醒 | `mods/SystemUIMonitorAndTileHooks.kt` `MonitorDeviceInfoHook` | 息屏时回调内不做任何工作，但仍固定 2 秒重投消息。可改为息屏退避 + `ACTION_SCREEN_ON` 立即恢复，但会引入新的接收器与生命周期，且亮屏后首次刷新延迟属于用户可见行为。 | **候选项，需实机验证后再做** |
-| P9 | 单文件职责过载 | `mods/System.kt` 4401 行 / `mods/SystemUI.kt` 3675 行 / `mods/Launcher.kt` 2678 行 | 影响可维护性，不影响运行时（Kotlin `object` 的方法不会因为同文件而额外加载）。拆分收益是人的收益，风险是 hook 注册顺序与 R8 可达性变化。 | **不在本轮实施**，见 §5 |
+| P9 | 单文件职责过载 | `mods/System.kt` / `mods/SystemUI.kt` / `mods/Launcher.kt` | 影响可维护性，不影响运行时（Kotlin `object` 的方法不会因为同文件而额外加载）。拆分收益是人的收益，风险是 hook 注册顺序与 R8 可达性变化。 | `System.kt` **已拆分**（4898 → 593 行，7 个功能域），见 `docs/RUNTIME_INVARIANTS.md` §8。`SystemUI.kt`、`Launcher.kt` 仍未拆。 |
 | P10 | `initPrefs()` 空快照会被永久固化 | `MainModule.java` | `mPrefsLoaded` 在 `getAll()` 返回空时同样置 true，若 system_server 启动早于 provider 可用则该进程整轮运行在空配置上（仅打印 `Empty preferences!`）。此为上游既有行为。 | **仅记录**，改动需实机覆盖直到解锁前的启动窗口 |
 
 ## 4. 本轮实施的修改
@@ -143,7 +143,10 @@ packaging: merges META-INF/xposed/*
 ### 5.2 建议的下一阶段（按收益/风险排序）
 
 1. **P8 息屏退避**：需要实机确认亮屏后首帧刷新延迟可接受，再实施。
-2. **`mods/System.kt` 按功能域垂直拆分**：只有在具备实机回归能力时才做，且必须一次只搬一个功能域，保持 hook 注册顺序，配合 Release R8 产物 diff 验证方法数与入口可达性。
+2. ~~**`mods/System.kt` 按功能域垂直拆分**~~ —— **已完成**。当初判断"只有在具备实机回归能力时才做"，
+   实际卡住的是**验证手段**而不是设备：注册顺序是 `MainModule` 调用序列的属性，与被调用者在哪个文件无关，
+   因此只需机械证明两件事（成员文本逐字节不变 + 调用序列不变）。做法与证据见
+   `docs/RUNTIME_INVARIANTS.md` §8。`SystemUI.kt`（3681 行）与 `Launcher.kt` 可用同一套工具照做。
 3. **配置类型化**：把高频 `mPrefs.getBoolean("...")` 字符串键收敛为常量或值类，收益是编译期防错，代价接近零；但改动面覆盖全部 mods，建议在拆分之前单独成阶段。
 4. **实机可测量的性能基线**：当前所有性能结论都是机制推导，缺少同条件 systrace/Profiler。建议先建立"SystemUI 冷启动 + 状态栏 1 分钟"的固定采样脚本，再谈进一步优化。
 
