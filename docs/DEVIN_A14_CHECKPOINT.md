@@ -85,11 +85,24 @@
    （移掉一处 guard 会触发）。同时修正了两条第一轮误报（注释里的 `Handler()`、
    `"\s+".toRegex()` 这类真正的多字符模式）。
 
+### 第三轮：`setAdditionalInstanceField` 后端重写（2026-07-28，同分支）
+
+9. **实例级状态按 `equals` 存 → 值会丢**
+   后端原本是 `WeakHashMap` + 一把全局锁。去看它是为了那把锁，但**键的语义才是真 bug**：
+   `WeakHashMap` 按 `equals`/`hashCode` 找键，而"additional **instance** field"的含义是按实例。
+   两个不同但 `equals` 的对象会共用字段表；改动参与 `hashCode` 的字段后条目直接找不回来。
+   Launcher 重命名正是这个形状：在 `ShortcutInfo` 上存 `mLabelOrig`，改写同一对象的 `mLabel`，
+   之后再读回来恢复原名。
+   改为按身份比较的弱引用键；读路径无锁零分配（线程内复用探针，用完释放）；
+   引用队列在写入时清理；`null` 仍是可存值（哨兵）。
+   `AdditionalInstanceFieldTest` 11 个用例，并**对旧实现做了负向验证**：
+   `distinctButEqualObjectsDoNotShareFields` 与 `fieldSurvivesMutationOfTheOwnersHash` 在旧实现上失败。
+
 ### 本轮验证
 
 - `python tools/check-invariants.py` → 96 files, 8 条规则, no violations
 - `./gradlew clean test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease` → 退出码 0
-- 单元测试 106 个, 0 失败; lint / lintRelease 均 0 errors
+- 单元测试 117 个, 0 失败; lint / lintRelease 均 0 errors
 - 全部 Kotlin 转换都是编译期可验证的（被写入 / 被 `*args` 展开 / 被当 `Array<Any?>` 传出的
   参数数组，改成 List 或单值访问后一定编译失败）
 
@@ -99,6 +112,7 @@
 - 状态栏电池温度与电流读数在缺少 `POWER_SUPPLY_TEMP` 的机型上降级而不是崩溃
 - 锁屏手电筒长按、PIP 截图隐藏、侧边栏、freeform 相关广播动作行为不变
 - 时钟秒针在 `TIME_SET` 后仍然重新初始化（多时钟控制器共存场景）
+- Launcher 应用重命名：设置自定义名称、清空恢复原名、重启 Launcher 后仍正确
 
 ## 发布产物与签名
 

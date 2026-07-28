@@ -216,6 +216,29 @@ Java 的 `String.split("\\|")` 走单字符快路径，不碰正则引擎。
 
 ---
 
+## 6b. 实例级状态必须按身份存，不能按 `equals`
+
+`setAdditionalInstanceField` 原来的后端是 `WeakHashMap` + 一把全局锁。锁是我去看它的原因，
+**键的语义才是真正的 bug**。
+
+`WeakHashMap` 按 `equals`/`hashCode` 找键。而"additional **instance** field"的含义是按实例。
+对任何有值语义的被 hook 类：
+
+- 两个不同但 `equals` 的对象会**共用同一份字段表**；
+- 一旦改动了参与 `hashCode` 的字段，该对象的条目就落到别的桶里、**永远找不回来**，存进去的值直接丢。
+
+Launcher 的重命名功能就是这个形状：在 `ShortcutInfo` 上存 `mLabelOrig`（`Launcher.kt:511`），
+然后改写同一个对象的 `mLabel`（`Launcher.kt:456`），之后再读回 `mLabelOrig` 来恢复原名
+（`Launcher.kt:453`）。这段能不能读到，取决于 ROM 的 `ShortcutInfo` 是否用 label 算 hash ——
+模块不该依赖这种事。
+
+现在的实现：键是**按身份比较的弱引用**，读路径无锁、零分配（线程内复用探针，用完即释放，
+否则每个线程会钉住一个对象），引用队列在写入时清理（写入正是旧实例被替换的时刻）。
+`null` 仍然是可存的值（调用方用它清槽位），通过哨兵绕过 `ConcurrentHashMap` 不接受 null 的限制。
+
+**可复用结论**：需要"每个实例一份"的状态时，用身份比较；`WeakHashMap`、`HashMap`、
+`HashSet` 都是 `equals` 语义，对可变的 ROM 对象都不安全。
+
 ## 7. 门禁覆盖不到的东西
 
 静态检查只能拦住已知形状的缺陷。以下仍然只能靠人和实机：
