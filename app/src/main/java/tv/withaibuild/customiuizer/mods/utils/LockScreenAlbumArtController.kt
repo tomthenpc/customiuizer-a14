@@ -253,8 +253,8 @@ object LockScreenAlbumArtController {
         }
         val xTranslation = (width - originalWidth * scale) / 2.0f
         val yTranslation = (height - originalHeight * scale) / 2.0f
-        transformation.postTranslate(xTranslation, yTranslation)
-        transformation.preScale(scale, scale)
+        transformation.setScale(scale, scale)
+        transformation.preTranslate(xTranslation, yTranslation)
 
         val processed = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(processed)
