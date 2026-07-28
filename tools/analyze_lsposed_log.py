@@ -170,6 +170,31 @@ def discover_process(rec: dict, pid_map: Dict[int, str]) -> Optional[str]:
 # Anchors and context extraction
 # ---------------------------------------------------------------------------
 
+MODULE_LOG_TAGS = ("LSPosed-Bridge", "LSPosed", "CustoMIUIzer")
+
+
+def module_evidence(text: str, tag: str, source_package: str, application_id: str) -> str:
+    """How strongly a piece of text implicates the module's own code.
+
+    The distinction that matters: the ROM writes our applicationId into its own logs
+    constantly — activity starts, SmartPower, the package manager, recents. Treating
+    that as evidence buries the real findings under hundreds of routine lines, which
+    is what made triage slow. Our *code* being named is evidence; our *package* being
+    mentioned is only context.
+
+    Returns one of "code", "log", "mention", "none", strongest first.
+    """
+    if re.search(r"\bat\s+" + re.escape(source_package) + r"[\w.$]*", text):
+        return "code"
+    if re.search(r"\b" + re.escape(source_package) + r"\.[A-Za-z]\w*\.[A-Za-z]\w*\s*\(", text):
+        return "code"
+    if any(t in tag for t in MODULE_LOG_TAGS) and (source_package in text or "CustoMIUIzer" in text):
+        return "log"
+    if source_package in text or application_id in text:
+        return "mention"
+    return "none"
+
+
 def is_anchor(rec: dict, module_markers: List[str]) -> Tuple[bool, bool]:
     msg = rec["message"]
     tag = rec["tag"]
@@ -265,19 +290,36 @@ class Candidate:
         )
 
 
-def score_context(ctx: List[str], rec: dict, module_markers: List[str]) -> int:
+def score_context(ctx: List[str], rec: dict, module_markers: List[str], profile: dict) -> int:
     score = 0
     msg = rec["message"]
     tag = rec["tag"]
     proc = rec.get("process") or "unknown"
+    source_package = profile["source_package"]
+    application_id = profile["application_id"]
 
-    module_hit = any(m in msg or m in tag for m in module_markers)
     severe = any(a in msg or a in tag for a in SEVERE_ANCHORS)
     hook = any(a in msg or a in tag for a in HOOK_ANCHORS)
     exc = any(a in msg for a in EXCEPTION_CLASSES)
 
-    if module_hit:
-        score += 100
+    # Strongest evidence wins, taken over the whole context so a stack trace a few
+    # lines below the anchor still counts.
+    evidence = module_evidence(msg, tag, source_package, application_id)
+    if evidence != "code":
+        for line in ctx:
+            if module_evidence(line, tag, source_package, application_id) == "code":
+                evidence = "code"
+                break
+
+    if evidence == "code":
+        score += 140
+    elif evidence == "log":
+        score += 80
+    elif evidence == "mention":
+        # Our applicationId appearing in someone else's message is context, not a
+        # finding. It must not on its own reach any actionable priority.
+        score += 10
+
     if severe:
         score += 90
     if hook:
@@ -292,16 +334,12 @@ def score_context(ctx: List[str], rec: dict, module_markers: List[str]) -> int:
             score += 40
 
     # suppress plain E/W without exception/severity/module
-    if rec["level"] in ("E", "W") and not (module_hit or severe or exc or hook):
+    if rec["level"] in ("E", "W") and not (evidence in ("code", "log") or severe or exc or hook):
         score -= 60
     if tag in NOISE_TAGS:
         score -= 50
     if any(ns in msg for ns in NOISE_MESSAGES):
         score -= 30
-
-    # boost if context contains module stack
-    if any(f"at {module_markers[0].split('.')[0]}" in line for line in ctx):
-        score += 50
 
     return max(score, 0)
 
@@ -341,7 +379,7 @@ def analyze(log_path: str, profile: dict, args: argparse.Namespace) -> Tuple[Dic
     pending_ctx: List[str] = []
 
     candidates: Dict[str, Candidate] = {}
-    contexts: List[str] = []
+    contexts: List[Tuple[str, List[str]]] = []
 
     with open(log_path, "r", encoding="utf-8", errors="replace") as f:
         for line_no, raw in enumerate(f, start=1):
@@ -376,7 +414,7 @@ def analyze(log_path: str, profile: dict, args: argparse.Namespace) -> Tuple[Dic
                 if len(pending_ctx) - len(window) >= args.context_after:
                     # finalize
                     _finalize_candidate(
-                        anchor_rec, anchor_off, pending_ctx, window, candidates, profile["source_package"], stats, contexts
+                        anchor_rec, anchor_off, pending_ctx, window, candidates, profile["source_package"], stats, contexts, profile
                     )
                     pending_anchor = None
                     pending_ctx = []
@@ -384,7 +422,7 @@ def analyze(log_path: str, profile: dict, args: argparse.Namespace) -> Tuple[Dic
                 elif is_anch and not rec["raw"].startswith(" ") and rec["level"] in "EW":
                     # new anchor, finalize previous
                     _finalize_candidate(
-                        anchor_rec, anchor_off, pending_ctx, window, candidates, profile["source_package"], stats, contexts
+                        anchor_rec, anchor_off, pending_ctx, window, candidates, profile["source_package"], stats, contexts, profile
                     )
                     pending_anchor = None
                     pending_ctx = []
@@ -404,13 +442,13 @@ def analyze(log_path: str, profile: dict, args: argparse.Namespace) -> Tuple[Dic
     if pending_anchor is not None:
         anchor_rec, anchor_off, _ = pending_anchor
         _finalize_candidate(
-            anchor_rec, anchor_off, pending_ctx, window, candidates, profile["source_package"], stats, contexts
+            anchor_rec, anchor_off, pending_ctx, window, candidates, profile["source_package"], stats, contexts, profile
         )
 
-    # repeat bonus and priority
+    # Priority is severity, not frequency. A repeated benign line is still benign and
+    # a crash that happened once is still a crash; `count` carries the frequency.
+    # Repetition only breaks ties between findings of the same severity.
     for c in candidates.values():
-        if c.count >= 3:
-            c.score += 25
         c.score = max(0, c.score)
         c.priority = priority_from_score(c.score)
 
@@ -419,7 +457,9 @@ def analyze(log_path: str, profile: dict, args: argparse.Namespace) -> Tuple[Dic
 
 def _finalize_candidate(
     rec: dict, offset: int, ctx: List[str], window: deque,
-    candidates: Dict[str, Candidate], module_pkg: str, stats: dict, contexts: List[str]
+    candidates: Dict[str, Candidate], module_pkg: str, stats: dict,
+    contexts: List[Tuple[str, List[str]]],
+    profile: dict
 ) -> None:
     fp = fingerprint_from_context(ctx, rec, module_pkg)
     if fp not in candidates:
@@ -434,7 +474,10 @@ def _finalize_candidate(
         )
     c = candidates[fp]
     c.count += 1
-    c.score += score_context(ctx, rec, module_pkg.split(".")[:-1])  # use source package markers list approximation
+    # Worst single observation, not the sum over occurrences. Summing let a benign
+    # line that repeats 200 times outrank a crash that happened once; how often a
+    # finding occurred is reported in `count`, it is not evidence of severity.
+    c.score = max(c.score, score_context(ctx, rec, profile["module_markers"], profile))
     if not c.first_time:
         c.first_time = rec["time"]
     c.last_time = rec["time"]
@@ -444,7 +487,9 @@ def _finalize_candidate(
     if len(c.sample_offsets) < 3:
         c.sample_offsets.append(offset)
         c.sample_messages.append(rec["raw"])
-        contexts.append(_format_context(fp, c, ctx))
+        # Keep the raw context; format it at write time. The priority is not known
+        # until every occurrence of this fingerprint has been scored.
+        contexts.append((fp, list(ctx)))
 
 
 def _format_context(fp: str, c: Candidate, ctx: List[str]) -> str:
@@ -462,7 +507,7 @@ def _format_context(fp: str, c: Candidate, ctx: List[str]) -> str:
 
 def write_outputs(
     output_dir: str, log_path: str, profile_name: str,
-    candidates: Dict[str, Candidate], contexts: List[str], stats: dict, module_loads: List[dict]
+    candidates: Dict[str, Candidate], contexts: List[Tuple[str, List[str]]], stats: dict, module_loads: List[dict]
 ) -> None:
     os.makedirs(output_dir, exist_ok=True)
 
@@ -535,8 +580,20 @@ def write_outputs(
         for c in sorted(candidates.values(), key=lambda x: (x.priority, -x.score, -x.count)):
             f.write(c.to_tsv() + "\n")
 
+    # Only actionable priorities get a context dump. Emitting one for every P3/P4
+    # line produced a file too large to read, which pushes the reader back to the raw
+    # log - the exact thing this tool exists to prevent.
     with open(os.path.join(output_dir, "contexts.log"), "w", encoding="utf-8") as f:
-        f.write("\n".join(contexts))
+        written = 0
+        for fp, ctx in contexts:
+            c = candidates.get(fp)
+            if c is None or c.priority not in ("P0", "P1", "P2"):
+                continue
+            f.write(_format_context(fp, c, ctx))
+            f.write(chr(10))
+            written += 1
+        if written == 0:
+            f.write("No P0/P1/P2 candidates: nothing needs to be read by hand." + chr(10))
 
     noise = sorted((c for c in candidates.values() if c.priority in ("P3", "P4")), key=lambda x: -x.count)[:50]
     with open(os.path.join(output_dir, "noise-stats.tsv"), "w", encoding="utf-8") as f:

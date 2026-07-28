@@ -71,6 +71,12 @@ public class MainModule extends XposedModule {
     public void onModuleLoaded(@NonNull XposedModuleInterface.ModuleLoadedParam param) {
         processName = param.getProcessName();
         XposedHelpers.moduleInst = this;
+        // Stamp the build into every process's log. Without it a captured LSPosed log
+        // cannot be told apart from one produced by a different build of the same
+        // version, which is the first thing anyone reading the log needs to know.
+        // Once per process, on the coldest path there is.
+        XposedHelpers.log("CustoMIUIzer " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE
+                + ") loaded in " + processName);
     }
 
     private boolean isSupportedAndroidVersion() {

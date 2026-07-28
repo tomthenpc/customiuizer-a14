@@ -256,6 +256,19 @@ Android 15/16 适配、无证据的全仓重构或微优化。
 
 ---
 
+## 7.1 拿到 LSPosed 日志时
+
+**不要用 `Read` 打开 `full.log`。** 十万行日志读进上下文只会烧光余量，还看不全。
+
+```bash
+python tools/analyze_lsposed_log.py "<full.log>" --profile a14 --repo-root . --output "build/log-analysis/<标签>"
+```
+
+先读 `summary.md`（约 25 行）。P0/P1 都是 0 就结束。完整规程见 `docs/LOG_TRIAGE.md`。
+
+关键判据：**包名出现不是证据**。ROM 每天都在自己的日志里写我们的 applicationId。
+栈帧里有 `at tv.withaibuild.customiuizer.…` 才说明我们的代码在栈上。
+
 ## 8. 验证
 
 按风险覆盖，用仓库里**实际存在**的任务，不伪造结果：
