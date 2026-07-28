@@ -122,6 +122,25 @@
   唯一 15 处差异是 `access$` 桥接方法参数类型随宿主类变更、一一对应；
   Release APK 3,065,633 字节与拆分前完全相同
 
+### 待实机验证的候选 APK（2026-07-29）
+
+| 项 | 值 |
+| --- | --- |
+| 路径 | `C:\Users\tv\Downloads\Peengeek\out\CustoMIUIzer-A14-r14.13.5.apk` |
+| 构建自 | `fa9489e8`（分支 `devin/r14.13-kotlin-refactor`） |
+| APK SHA-256 | `1FFAB36A6E7F250CCD63B6883B8F5D97F6707EA8EC400F0D39C1A6ABDD99C2BF` |
+| 大小 | 3,082,129 bytes |
+| 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`（v2，1 个签名者） |
+| 版本 | `r14.13.5` / `183`（未改版本线） |
+| Xposed metadata | `minApiVersion=101` / `targetApiVersion=102` / `staticScope=false`，11 条 scope |
+
+证书与 `r14.13.5` 正式版是同一把，可直接覆盖安装，无需卸载。
+两次独立 `assembleRelease` 产出字节相同的 APK（SHA 一致），构建可复现。
+
+模块现在会在每个进程打一行 `CustoMIUIzer r14.13.5 (183) loaded in <进程>`，
+已确认该字面量存在于 `classes.dex`（R8 把拼接折叠成了单条常量）。
+拿到日志先看这一行，确认是这个构建再往下分析 —— 规程见 `docs/LOG_TRIAGE.md`。
+
 ### 待实机验证
 
 - SystemUI 多次主题 / 密度 / 折叠态切换后，receiver 与偏好观察者数量不再增长
