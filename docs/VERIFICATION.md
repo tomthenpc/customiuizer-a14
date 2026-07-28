@@ -70,6 +70,37 @@ r14.12.0 发布前已完成：
 - APK 中 `module.prop`：`minApiVersion=101`、`targetApiVersion=102`、`staticScope=false`
 - APK 中 `META-INF/xposed/java_init.list`：`cp`（R8 `-repackageclasses` 混淆后的入口类名）
 
+## r14.13.5 + Locale 状态稳定化 静态验证
+
+当前工作区（`devin/r14.13-kotlin-refactor`）已完成语言切换状态稳定化构建：
+
+- 构建命令：`.\gradlew.bat --no-daemon clean lintDebug lintRelease lintVitalRelease assembleDebug assembleDevelop assembleRelease`
+- 退出码：`0`（`BUILD SUCCESSFUL in 4m 10s`）
+- JDK：`17`
+- Gradle：`9.6.1`
+- AGP：`9.2.1`
+- Kotlin：`2.3.21`
+- 单元测试：> 80 tests, 0 failures, 0 skipped
+- Lint / `lintRelease` / `lintVitalRelease`：通过，依赖弃用 warnings 不变，0 errors
+- Debug / Develop / Release、R8、资源压缩、zipalign、APK Signature Scheme v2：通过
+- 产物：`app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.5.apk`
+- `apksigner verify --print-certs` 确认 Release APK 由 V2 签名，1 个签名者
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+
+### 语言切换关键静态检查
+
+- `AppLocaleController` 唯一状态源：`LOCALE_PREF_KEY` 为唯一持久值；`LOCALE_RECONCILE_PENDING` 标记对账；`setUserLocale` 仅同步写入并标记；`reconcileAndApply` 在 `MainApplication` 启动时只应用一次。
+- 确认弹窗资源：`R.string.dialog_change_locale_title`、`R.string.dialog_change_locale_message`、`R.string.dialog_change_locale_confirm`、`R.string.dialog_change_locale_save_failed` 已定义。
+- `AboutFragment` 使用 `Preference.OnPreferenceChangeListener` 拦截选择，返回 `false` 阻止 `ListPreference` 自动持久化；确认后调用 `setUserLocale` + `exitApplicationAfterLocaleSave`。
+- 移除手动 Context Locale：`AppLocaleController.getLocaleContext`、`AppHelper.getLocaleContext`、`AppHelper.applyLocaleChange` 已删除。
+- 回归测试覆盖：空/非法/旧值归一化、entries 稳定性、pending 对账、commit 失败不退出、重复对账不循环、状态矩阵 `auto → zh-CN → en → auto`。
+
+### 尚未实机验证
+
+- 20 轮语言切换（跟随系统 / 简体中文 / English / 跟随系统）的实机验收。
+- 强制停止、清理任务、设备重启、日间/夜间、横竖屏、返回栈重复进入后的语言状态。
+- 确认取消后 Preference summary 不丢失、列表不消失。
+
 ## r14.13.3 候选构建静态验证
 
 > 非公开候选版本；相关改动已由 `r14.13.4` 正式版收口发布。

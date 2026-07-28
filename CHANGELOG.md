@@ -19,6 +19,22 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
 [历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
 
+## 开发中（未发布）
+
+### 状态稳定化：界面语言切换
+
+- 统一语言设置状态所有者到 `AppLocaleController`。
+- 用户切换语言时弹出确认框；取消不保存、不退出、不改变 Preference。
+- 确认后同步 `commit()` 保存选择，标记 `pref_key_miuizer_locale_reconcile_pending`。
+- 保存成功后调用 `finishAffinity()` 并结束设置应用自身进程；不重启 SystemUI/Launcher/设备。
+- 下次启动 `MainApplication` 时执行一次 Locale 对账，与当前 AppCompat 应用 locale 比较，仅在不一致时应用。
+- 移除 `MainActivity.attachBaseContext` 手动 `createConfigurationContext`； Activities 统一由 AppCompat 处理。
+- 移除 `AppHelper.getLocaleContext()` 与 `AppHelper.applyLocaleChange()`，不再维护双重 Locale 控制。
+- `ListPreferenceEx` 增加 entries/values 不匹配与 value 不在 entryValues 中的防御性回退。
+- 新增 `RestartRequirement` 生效等级枚举。
+- 新增回归测试：`AppLocaleNormalizationTest`、`AppLocaleEntryTest`、`AppLocaleReconcileTest`、`RestartRequirementTest`。
+- 未完成实机 20 轮语言切换验收前不创建新 Release。
+
 ## [r14.13.5] - 2026-07-28
 
 ### 版本定位

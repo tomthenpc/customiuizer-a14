@@ -21,6 +21,31 @@ Release titles contain only the version number. Asset names, sizes, and SHA-256 
 removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the
 corresponding source remains available through Git tags.
 
+## Unreleased
+
+### State stabilization: UI language switching
+
+- Unified the language setting state owner into `AppLocaleController`.
+- A confirmation dialog is shown when the user changes the UI language. Canceling does not
+  save, exit, or change the Preference.
+- After confirming, the choice is saved with a synchronous `commit()` and
+  `pref_key_miuizer_locale_reconcile_pending` is set.
+- On successful save the settings app calls `finishAffinity()` and ends its own process;
+  it does not restart SystemUI, the Launcher, or the device.
+- On the next launch, `MainApplication` performs one locale reconcile, compares the target
+  with the current AppCompat application locales, and only applies if they differ.
+- Removed the manual `createConfigurationContext` in `MainActivity.attachBaseContext`;
+  Activities are now handled by AppCompat.
+- Removed `AppHelper.getLocaleContext()` and `AppHelper.applyLocaleChange()` so the app no
+  longer maintains two independent locale control paths.
+- `ListPreferenceEx` now defensively falls back if `entries`/`entryValues` are mismatched
+  or the current value is not in `entryValues`.
+- Added the `RestartRequirement` effect-level enum.
+- Added regression tests: `AppLocaleNormalizationTest`, `AppLocaleEntryTest`,
+  `AppLocaleReconcileTest`, and `RestartRequirementTest`.
+- No new Release will be created until the 20-round language-switching acceptance test is
+  completed on a real device.
+
 ## [r14.13.5] - 2026-07-28
 
 ### Release scope

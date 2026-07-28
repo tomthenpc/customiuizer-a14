@@ -19,9 +19,9 @@
 ## 当前开发分支
 
 - 分支：`devin/r14.13-kotlin-refactor`
-- 最近基线：`321081d2`（r14.13.5 + Locale 状态修复 + 状态回归/内存审计）
-- 与 `origin/main` 的关系：ahead 3（r14.13.5 发布后新增 Locale 状态修复与审计文档）
-- 当前任务：`r14.13.5` 发布后停止功能与 Kotlin 迁移，优先完成 Locale 状态回归审计、状态/内存对照实验。
+- 最近基线：当前 HEAD（r14.13.5 + 状态稳定化：语言切换确认、退出后生效与 Locale 对账）
+- 与 `origin/main` 的关系：ahead 若干（r14.13.5 发布后新增 Locale 状态稳定化）
+- 当前任务：完成 `A14 设置状态稳定化：语言切换确认、退出后生效与重启策略统一`。
 
 ## 发布产物与签名
 
@@ -44,11 +44,16 @@
 
 - 正式构建：JDK 17、Gradle 9.6.1、AGP 9.2.1、Kotlin 2.3.21。
 - `clean test lintDebug lintRelease lintVitalRelease assembleDebug assembleDevelop assembleRelease` 退出码 0。
-- 新增 `AppLocaleControllerTest` 23 个测试通过；原有测试继续通过，总测试数 > 60。
+- 新增 `AppLocaleNormalizationTest`、`AppLocaleEntryTest`、`AppLocaleReconcileTest`、`RestartRequirementTest`；原有测试继续通过，总测试数 > 80。
 - Lint / `lintRelease` / `lintVitalRelease` 为 0 errors（依赖弃用 warnings 不变）。
 - Release R8、资源压缩、zipalign、APK v2 签名、APK 元数据与 Xposed metadata 均已检查。
-- `AppLocaleController` 建立单一状态源：SharedPreferences 写路径使用 `commit()`；`ListPreference` 自动持久化关闭；`MainActivity` 移除手动 Context 包装；`auto` 语义保持。
-- 新增 `tools/capture-memory-baseline.ps1`、`tools/compare-memory-baseline.py`、`docs/LOCALE_STATE_MACHINE.md`、`docs/STATE_REGRESSION_AUDIT_r14.13.md`、`docs/MEMORY_AUDIT_r14.13.md`。
+- `AppLocaleController` 作为唯一状态源：
+  - `setUserLocale` 同步 `commit()` 保存选择并设置 `LOCALE_RECONCILE_PENDING`；
+  - 确认后 `AboutFragment` 调用 `exitApplicationAfterLocaleSave()` 结束设置应用；
+  - `MainApplication` 启动时 `reconcileAndApply()` 只与当前 AppCompat 应用 locale 比较一次，不一致才应用；
+  - `ListPreference` 自动持久化关闭，确认弹窗是唯一切换路径；
+  - 移除 `MainActivity.attachBaseContext` 手动 `createConfigurationContext`、`AppHelper.getLocaleContext()`、`AppHelper.applyLocaleChange()` 双重控制。
+- 新增 `RestartRequirement` 生效等级枚举。
 
 完整命令、产物边界和日志结论见[验证记录](VERIFICATION.md)。构建或 API 101 日志不构成
 API 102 的实机证明。

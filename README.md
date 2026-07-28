@@ -22,6 +22,13 @@
 | 构建 | Kotlin DSL / version catalog / R8 |
 | 下载 | [源码 Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5) · [LSPosed 模块页](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5) |
 
+## 开发中（未发布）
+
+- **界面语言切换状态稳定化**：统一 `AppLocaleController` 作为唯一状态源。
+- **切换语言后确认退出**：用户在 About → 界面语言 选择不同语言后，弹出确认框；取消不保存、不退出；确认后同步保存并结束设置应用进程，重新打开应用后生效。
+- **启动时一次 Locale 对账**：`MainApplication` 启动时只与当前 AppCompat 应用语言比较一次，不一致才应用，避免循环重建。
+- 相关回归测试：`AppLocaleNormalizationTest`、`AppLocaleEntryTest`、`AppLocaleReconcileTest`、`RestartRequirementTest`。
+
 ## r14.13.5 亮点
 
 - **修复首页搜索导航回归**：`Various` 搜索结果与子分类项点击后不再立即返回首页，目标

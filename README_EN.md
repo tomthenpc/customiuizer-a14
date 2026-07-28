@@ -23,6 +23,19 @@ release.
 | Build | Kotlin DSL / version catalog / R8 |
 | Download | [Source Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5) · [LSPosed listing](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5) |
 
+## Unreleased
+
+- **Locale switching state stabilization**: unified `AppLocaleController` as the single state owner.
+- **Confirm-and-exit language change**: when the user picks a different language in
+  About → Interface language, a confirmation dialog appears. Canceling does not save,
+  exit, or change the Preference. Confirming saves synchronously and ends the settings
+  app process; the new language takes effect after the user reopens the app.
+- **One-shot locale reconcile on startup**: `MainApplication` compares the saved choice
+  with the current AppCompat application locale once at startup and only applies when they
+  differ, preventing a recreate loop.
+- Regression tests: `AppLocaleNormalizationTest`, `AppLocaleEntryTest`,
+  `AppLocaleReconcileTest`, `RestartRequirementTest`.
+
 ## r14.13.5 Highlights
 
 - **Fixes search navigation regression**: `Various` search results and sub-category items no longer
