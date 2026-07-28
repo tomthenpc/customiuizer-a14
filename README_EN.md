@@ -14,27 +14,35 @@ release.
 
 | Item | Status |
 | --- | --- |
-| Stable version | `r14.13.5` |
+| Stable version | `r14.13.6` |
 | Supported system | HyperOS 1 / Android 14 (SDK 34) |
 | ABI | `arm64-v8a` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | libxposed API | min 101 / target 102 |
 | Hot Reload | Disabled |
 | Build | Kotlin DSL / version catalog / R8 |
-| Download | [Source Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5) · [LSPosed listing](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5) |
+| Download | [Source Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.6) · [LSPosed listing](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/184-r14.13.6) |
 
-## Unreleased
+## r14.13.6 Highlights
 
-- **Locale switching state stabilization**: unified `AppLocaleController` as the single state owner.
-- **Confirm-and-exit language change**: when the user picks a different language in
-  About → Interface language, a confirmation dialog appears. Canceling does not save,
-  exit, or change the Preference. Confirming saves synchronously and ends the settings
-  app process; the new language takes effect after the user reopens the app.
-- **One-shot locale reconcile on startup**: `MainApplication` compares the saved choice
-  with the current AppCompat application locale once at startup and only applies when they
-  differ, preventing a recreate loop.
-- Regression tests: `AppLocaleNormalizationTest`, `AppLocaleEntryTest`,
-  `AppLocaleReconcileTest`, `RestartRequirementTest`.
+- **Changing the interface language finally works.** `AppCompatDelegate.setApplicationLocales()`
+  is a silent no-op during application start-up — on API 33+ it needs a live Activity to resolve
+  `LocaleManager` — so the saved choice was never applied. It now calls the framework
+  `LocaleManager` directly.
+- **The language row no longer breaks the settings screen** and no longer overwrites the saved
+  language with the XML placeholder: binding is read-only with respect to preference state.
+- **No more spurious "module not active" warning**: "we stopped waiting" is now distinct from
+  "proven disconnected", and a timeout gets one further wait before anything is reported.
+- **A toggle opened from search updates immediately**: the search highlight is one-shot again and
+  no longer permanently replaces the row's background.
+- **System-process robustness**: every callback the module registers from a hook is now isolated,
+  including two that run inside `system_server`; coroutine scopes carry a failure handler.
+- **Registrations and memory**: receiver and observer cleanup is bound to an owner, fixing several
+  cleanup paths that never ran; additional instance fields are stored by identity.
+- **Performance**: hook arguments are no longer copied and re-marshalled per invocation;
+  reflection cache hits do not allocate; the main-screen search is a single allocation-free scan.
+- **Structure**: the three oversized hook files are split into 18 domain files. Every moved member
+  was verified byte-identical; hook registration order and the R8 method set are unchanged.
 
 ## r14.13.5 Highlights
 
@@ -52,17 +60,18 @@ release.
 - **One API 101/102 APK**: retains HyperOS 1 / Android 14 support, R8, resource shrinking,
   zipalign, and APK Signature Scheme v2.
 
-## r14.13.4 Note
+## Verification status of this release
 
-`r14.13.4` has a search navigation regression and is superseded by `r14.13.5`. `r14.13.5` is signed
-with the same new official certificate as `r14.13.4`, so users on `r14.13.4` can update in place
-without uninstalling.
+`r14.13.6` passes check-invariants (113 files, 8 rules, no violations), 122 unit tests,
+lint / lintRelease / lintVitalRelease with 0 errors, and both debug and release builds — but it
+has **not completed on-device acceptance**. It is signed with the same certificate as `r14.13.5`,
+so it installs in place, and `r14.13.5` remains available as a source tag to roll back to.
 
 ## Download and Verification
 
-- APK: `CustoMIUIzer-A14-r14.13.5.apk`
-- Size: 3,032,173 bytes
-- SHA-256: `89AE5046564F69D491DC44F7B853443113FEC7100FE997ABA9984181C4983EA5`
+- APK: `CustoMIUIzer-A14-r14.13.6.apk`
+- Size: 3,082,129 bytes
+- SHA-256: `35AEE1FEA1D7B38D967267210B7C272340B56B580ED49BEF4945AA9FC6F2ED96`
 - Signing certificate SHA-256:
   `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
 
@@ -73,15 +82,15 @@ removing an older installation.
 ## Important: Back Up and Reinstall
 
 The private signing key used by the public `r14.12.0` release and earlier releases has been lost.
-`r14.13.5` is signed with the new official certificate and cannot be installed as an in-place
-update over those older public builds, but it can be installed over `r14.13.4`.
+`r14.13.6` is signed with the new official certificate and cannot be installed as an in-place
+update over those older public builds, but it can be installed over `r14.13.5`.
 
 Upgrade steps:
 
 1. Back up the module settings in the old installation.
 2. Record the current LSPosed/Vector scope.
 3. Uninstall the old version.
-4. Install `CustoMIUIzer-A14-r14.13.5.apk`.
+4. Install `CustoMIUIzer-A14-r14.13.6.apk`.
 5. Re-enable the module and restore the original scope.
 6. Restore the settings.
 7. Fully reboot the device.
@@ -211,8 +220,8 @@ The public Releases page keeps the following key versions:
 
 | Version | Purpose |
 | --- | --- |
-| `r14.13.5` | Current stable release |
-| `r14.13.4` | Withdrawn; superseded by `r14.13.5` |
+| `r14.13.6` | Current stable release |
+| `r14.13.5` | Previous release; source tag kept, Release removed |
 | `r14.12.0` | Previous stable release; old signature, so back up and reinstall when upgrading |
 | `r14.8.0` | Kotlin infrastructure fallback |
 | `r14.7.4` | Consolidated r14.7.x Kotlin/coroutine migration |

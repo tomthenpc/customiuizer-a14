@@ -9,8 +9,7 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 | 版本 | 日期 | 定位 |
 | --- | --- | --- |
-| `r14.13.5` | 2026-07-28 | 当前稳定版；修复 r14.13.4 首页搜索导航回归 |
-| `r14.13.4` | 2026-07-28 | 已撤回；首页搜索导航回归，由 `r14.13.5` 取代 |
+| `r14.13.6` | 2026-07-29 | 当前稳定版；运行期健壮性加固、界面语言修复、hook 文件按功能域拆分 |
 | `r14.12.0` | 2026-07-26 | 上一稳定版；旧签名，升级到新版本前必须备份并重装 |
 | `r14.8.0` | 2026-07-25 | Kotlin 基础设施回退点 |
 | `r14.7.4` | 2026-07-25 | r14.7.x Kotlin/Coroutine 迁移合并版 |
@@ -19,21 +18,50 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
 [历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
 
-## 开发中（未发布）
+## [r14.13.6] - 2026-07-29
 
-### 状态稳定化：界面语言切换
+### 版本定位
 
-- 统一语言设置状态所有者到 `AppLocaleController`。
-- 用户切换语言时弹出确认框；取消不保存、不退出、不改变 Preference。
-- 确认后同步 `commit()` 保存选择，标记 `pref_key_miuizer_locale_reconcile_pending`。
-- 保存成功后调用 `finishAffinity()` 并结束设置应用自身进程；不重启 SystemUI/Launcher/设备。
-- 下次启动 `MainApplication` 时执行一次 Locale 对账，与当前 AppCompat 应用 locale 比较，仅在不一致时应用。
-- 移除 `MainActivity.attachBaseContext` 手动 `createConfigurationContext`； Activities 统一由 AppCompat 处理。
-- 移除 `AppHelper.getLocaleContext()` 与 `AppHelper.applyLocaleChange()`，不再维护双重 Locale 控制。
-- `ListPreferenceEx` 增加 entries/values 不匹配与 value 不在 entryValues 中的防御性回退。
-- 新增 `RestartRequirement` 生效等级枚举。
-- 新增回归测试：`AppLocaleNormalizationTest`、`AppLocaleEntryTest`、`AppLocaleReconcileTest`、`RestartRequirementTest`。
-- 未完成实机 20 轮语言切换验收前不创建新 Release。
+在 `r14.13.5` 之后的一轮运行期健壮性与性能加固。修复三类会实际影响使用的缺陷，
+并把三个超大 hook 文件按功能域拆开。用户可见行为除界面语言外保持不变。
+
+### 修复
+
+- **界面语言切换不生效**。`AppCompatDelegate.setApplicationLocales()` 在 `Application.onCreate`
+  阶段是静默空操作 —— 它在 API 33+ 上通过「存活的 AppCompat Activity 委托集合」解析
+  `LocaleManager`，而那时一个 Activity 都还没有。语言选择被正确保存，然后什么也没发生。
+  改为直接调用框架的 `android.app.LocaleManager`。
+- **关于页语言项会让设置界面报错、语言静默回退**。绑定期间写入 Preference 值，会在
+  RecyclerView 布局过程中触发 `notifyItemChanged`，并把 XML 里的占位值持久化覆盖掉用户的语言。
+  绑定现在对偏好状态只读。
+- **误报「模块未被激活」**。「等待超时」与「确认未连接」原本是同一个状态值，且 UI 的等待时间
+  比服务自身的判定窗口更短。二者现已区分，超时后会再等一轮才下结论。
+- **搜索结果跳转后开关状态不立即刷新**。搜索高亮本应一次性播放，实际每次 bind 都重放，
+  并且动画会把行原有的背景（含按下态）永久替换掉。
+- **系统进程内的未保护回调**。模块在 hook 里注册出去的回调不在 `MethodHook` 的 try/catch 里；
+  其中两处 `Runnable` 运行在 `system_server` 内，抛异常等于设备重启。共加固 23 处。
+- **注册泄漏**。清理逻辑以被 hook 实例为键，而每次都是新实例，因此从未生效。
+  受影响的包括一个监听 `TIME_TICK` 的 receiver（每分钟一次无用唤醒）。
+- **实例级附加字段按 `equals` 存储**。两个不同但相等的对象会共用字段表；改动参与 `hashCode`
+  的字段后条目会永久丢失。改为按身份比较的弱引用键。
+
+### 性能
+
+- Hook 参数不再逐次复制与重新编排（117 处只读参数的调用点）。
+- 反射缓存命中不再分配（字段查找 616 处调用点，无参方法查找 137 处）。
+- 主界面搜索改为单次线性扫描，零分配；排序移到建索引时一次完成。
+
+### 结构
+
+- `mods/System.kt` 4898 → 593 行，`mods/SystemUI.kt` 3682 → 205 行，
+  `mods/Launcher.kt` 2960 → 405 行，拆为 18 个按功能域组织的文件。
+  搬移经逐字节比对，`MainModule` 调用序列不变，R8 保留方法数不变。
+
+### 验证
+
+- `check-invariants` 113 文件 8 规则 0 违规；122 单元测试 0 失败；
+  lint / lintRelease / lintVitalRelease 0 errors；Debug/Release 构建通过。
+- **未完成实机验收即发布**：本版本的改动尚未在设备上运行过。
 
 ## [r14.13.5] - 2026-07-28
 

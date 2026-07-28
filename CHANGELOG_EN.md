@@ -10,8 +10,7 @@ and performance figures without same-condition measurements are not release chan
 
 | Version | Date | Purpose |
 | --- | --- | --- |
-| `r14.13.5` | 2026-07-28 | Current stable release; fixes r14.13.4 home search navigation regression |
-| `r14.13.4` | 2026-07-28 | Withdrawn; home search navigation regression, superseded by `r14.13.5` |
+| `r14.13.6` | 2026-07-29 | Current stable release; runtime hardening, language fix, hook files split by domain |
 | `r14.12.0` | 2026-07-26 | Previous stable release; old signature, so back up and reinstall before upgrading |
 | `r14.8.0` | 2026-07-25 | Kotlin infrastructure rollback point |
 | `r14.7.4` | 2026-07-25 | Consolidated r14.7.x Kotlin/coroutine migration release |
@@ -21,30 +20,57 @@ Release titles contain only the version number. Asset names, sizes, and SHA-256 
 removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the
 corresponding source remains available through Git tags.
 
-## Unreleased
+## [r14.13.6] - 2026-07-29
 
-### State stabilization: UI language switching
+### Purpose
 
-- Unified the language setting state owner into `AppLocaleController`.
-- A confirmation dialog is shown when the user changes the UI language. Canceling does not
-  save, exit, or change the Preference.
-- After confirming, the choice is saved with a synchronous `commit()` and
-  `pref_key_miuizer_locale_reconcile_pending` is set.
-- On successful save the settings app calls `finishAffinity()` and ends its own process;
-  it does not restart SystemUI, the Launcher, or the device.
-- On the next launch, `MainApplication` performs one locale reconcile, compares the target
-  with the current AppCompat application locales, and only applies if they differ.
-- Removed the manual `createConfigurationContext` in `MainActivity.attachBaseContext`;
-  Activities are now handled by AppCompat.
-- Removed `AppHelper.getLocaleContext()` and `AppHelper.applyLocaleChange()` so the app no
-  longer maintains two independent locale control paths.
-- `ListPreferenceEx` now defensively falls back if `entries`/`entryValues` are mismatched
-  or the current value is not in `entryValues`.
-- Added the `RestartRequirement` effect-level enum.
-- Added regression tests: `AppLocaleNormalizationTest`, `AppLocaleEntryTest`,
-  `AppLocaleReconcileTest`, and `RestartRequirementTest`.
-- No new Release will be created until the 20-round language-switching acceptance test is
-  completed on a real device.
+A round of runtime robustness and performance work after `r14.13.5`. It fixes defects that
+affect real use and splits the three oversized hook files by functional domain. User-visible
+behaviour is unchanged apart from the interface language.
+
+### Fixed
+
+- **Changing the interface language did nothing.** `AppCompatDelegate.setApplicationLocales()`
+  is a silent no-op from `Application.onCreate`: on API 33+ it resolves `LocaleManager` through
+  the set of *live AppCompat Activity delegates*, and no Activity exists that early. The choice
+  was saved correctly and then ignored. It now calls `android.app.LocaleManager` directly.
+- **The language row could break the settings screen and silently revert the language.** Writing
+  a preference value during binding triggered `notifyItemChanged` while the RecyclerView was
+  laying out, and persisted the XML placeholder over the user's language. Binding is now
+  read-only with respect to preference state.
+- **Spurious "module not active" warning.** "We stopped waiting" and "proven disconnected" were
+  the same state value, and the UI waited less time than the service takes to decide. They are
+  now distinct, and a timeout gets one further wait before anything is reported.
+- **A toggle opened from search did not update until the screen was left and re-entered.** The
+  search highlight was meant to play once but replayed on every bind, and the animation
+  permanently replaced the row's background, including its pressed state.
+- **Unguarded callbacks inside system processes.** Callbacks the module registers from hooks are
+  outside `MethodHook`'s try/catch; two of them run on a `system_server` handler, where a throw
+  reboots the device. 23 sites hardened.
+- **Leaked registrations.** Cleanup was keyed on the hooked instance, which is new every time,
+  so it never ran. One leaked receiver listens for `TIME_TICK` — a wasted wakeup every minute.
+- **Additional instance fields were keyed by `equals`.** Two distinct-but-equal objects shared
+  one field map, and mutating a field the hash derives from lost the entry permanently. Keys are
+  now weak references compared by identity.
+
+### Performance
+
+- Hook arguments are no longer copied and re-marshalled per invocation (117 read-only sites).
+- Reflection cache hits no longer allocate (616 field lookups, 137 no-argument method lookups).
+- The main-screen search is a single allocation-free scan; sorting happens once at index build.
+
+### Structure
+
+- `mods/System.kt` 4898 -> 593 lines, `mods/SystemUI.kt` 3682 -> 205,
+  `mods/Launcher.kt` 2960 -> 405, split into 18 domain files. Every moved member was verified
+  byte-identical, MainModule's call sequence is unchanged, and R8 keeps the same method set.
+
+### Verification
+
+- check-invariants: 113 files, 8 rules, no violations. 122 unit tests, 0 failures.
+  lint / lintRelease / lintVitalRelease: 0 errors. Debug and release builds green.
+- **Published without on-device acceptance**: the changes in this release have not been run on
+  a device.
 
 ## [r14.13.5] - 2026-07-28
 

@@ -6,16 +6,16 @@
 ## 当前状态
 
 - 仓库：`tomthenpc/customiuizer-a14`
-- 正式发布版本：`r14.13.5` / versionCode `183`
-- 正式发布日期：2026-07-28
+- 正式发布版本：`r14.13.6` / versionCode `184`
+- 正式发布日期：2026-07-29
 - 正式 tag：`r14.13.5` → `4225d80e95ed9965ab68a09b575aff4046666a5d`
-- 当前正式源码基线：`main` / `r14.13.5`
+- 当前正式源码基线：`main` / `r14.13.6`
 - 源码仓库 Release：[r14.13.5](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5)
-- LSPosed 模块仓库 tag：`183-r14.13.5`
+- LSPosed 模块仓库 tag：`184-r14.13.6`
 - LSPosed 模块仓库 Release：[183-r14.13.5](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5)
 - `r14.13.4` 已撤回；其 GitHub Release 与 tag 已删除，历史资产信息见
   [RELEASE_ARCHIVE.md](RELEASE_ARCHIVE.md)。
-- 当前 `main` 承载 `r14.13.5` 正式发布提交。
+- 当前 `main` 承载 `r14.13.6` 正式发布提交。
 
 ## 当前活跃开发分支
 
@@ -153,9 +153,9 @@
 
 | 项目 | 值 |
 | --- | --- |
-| APK | `CustoMIUIzer-A14-r14.13.5.apk` |
-| 大小 | 3,032,173 bytes |
-| APK SHA-256 | `89AE5046564F69D491DC44F7B853443113FEC7100FE997ABA9984181C4983EA5` |
+| APK | `CustoMIUIzer-A14-r14.13.6.apk` |
+| 大小 | 3,082,129 bytes |
+| APK SHA-256 | `35AEE1FEA1D7B38D967267210B7C272340B56B580ED49BEF4945AA9FC6F2ED96` |
 | 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
 | 签名 | APK Signature Scheme v2，1 个签名者 |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
