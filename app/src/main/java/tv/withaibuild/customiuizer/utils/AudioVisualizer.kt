@@ -3,6 +3,9 @@ package tv.withaibuild.customiuizer.utils
 import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.res.Configuration
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
@@ -29,6 +32,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 import tv.withaibuild.customiuizer.MainModule
@@ -54,6 +59,11 @@ class AudioVisualizer @JvmOverloads constructor(
     @Volatile
     private var mVisualizer: Visualizer? = null
     private val visualizerLock = Any()
+    private val visualizerMutex = Mutex()
+    @Volatile
+    private var visualizerGeneration: Long = 0
+    @Volatile
+    private var viewAttached = false
     @Volatile
     private var detached = false
     internal val isDisposed: Boolean
@@ -515,6 +525,12 @@ class AudioVisualizer @JvmOverloads constructor(
         updateGlowPaint()
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        viewAttached = true
+        checkStateChanged()
+    }
+
     public override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         dispose()
@@ -523,15 +539,19 @@ class AudioVisualizer @JvmOverloads constructor(
     internal fun dispose() {
         if (detached) return
         detached = true
+        viewAttached = false
+        mDisplaying = false
         ModuleHelper.removePreferenceObserver(this)
+        stopFrameScheduler()
         val visualizer = synchronized(visualizerLock) {
             val current = mVisualizer
             mVisualizer = null
             current
         }
-        releaseVisualizer(visualizer)
-        stopFrameScheduler()
-        mDisplaying = false
+        viewScope.launch {
+            releaseVisualizer(visualizer)
+        }
+        resetBandsToBaseline()
         animate().cancel()
         mVisualizerColorAnimator?.cancel()
         mVisualizerGlowColorAnimator?.cancel()
@@ -621,47 +641,102 @@ class AudioVisualizer @JvmOverloads constructor(
         }
     }
 
-    private suspend fun linkVisualizer() = withContext(Dispatchers.IO) {
-        var visualizer: Visualizer? = null
+    private suspend fun linkVisualizer(generation: Long) = withContext(Dispatchers.IO) {
+        val candidate = createAndEnableVisualizer(resolveMediaAudioSessionIds())
+
+        visualizerMutex.withLock {
+            if (detached || !mDisplaying || generation != visualizerGeneration) {
+                releaseVisualizer(candidate)
+                return@withLock
+            }
+            val previous = synchronized(visualizerLock) {
+                val current = mVisualizer
+                mVisualizer = candidate
+                current
+            }
+            if (previous !== candidate) releaseVisualizer(previous)
+        }
+    }
+
+    private fun resolveMediaAudioSessionIds(): List<Int> {
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager?
+            ?: return listOf(0)
         try {
-            visualizer = Visualizer(0)
-            visualizer.enabled = false
-            visualizer.captureSize = Visualizer.getCaptureSizeRange()[1]
-            visualizer.scalingMode = Visualizer.SCALING_MODE_NORMALIZED
-            visualizer.setDataCaptureListener(mVisualizerListener, Visualizer.getMaxCaptureRate(), false, true)
-            visualizer.enabled = true
-            var previous: Visualizer? = null
-            val installed = synchronized(visualizerLock) {
-                if (detached) {
-                    false
-                } else {
-                    previous = mVisualizer
-                    mVisualizer = visualizer
-                    true
+            val configs = am.activePlaybackConfigurations
+            if (configs.isNullOrEmpty()) return listOf(0)
+
+            val result = ArrayList<Int>(configs.size + 1)
+            for (config in configs) {
+                if (!isConfigActive(config)) continue
+                val usage = try {
+                    config.audioAttributes.usage
+                } catch (_: Throwable) {
+                    continue
+                }
+                if (usage == AudioAttributes.USAGE_MEDIA || usage == AudioAttributes.USAGE_GAME) {
+                    val sessionId = getConfigSessionId(config)
+                    if (sessionId > 0) result.add(sessionId)
                 }
             }
-            if (installed) {
-                if (previous !== visualizer) releaseVisualizer(previous)
-                visualizer = null
-            }
+            if (result.isEmpty()) result.add(0)
+            return result
         } catch (t: Throwable) {
-            XposedHelpers.log(t)
-        } finally {
-            releaseVisualizer(visualizer)
+            XposedHelpers.log("AudioVisualizer", t)
+            return listOf(0)
         }
     }
 
-    private suspend fun unlinkVisualizer() = withContext(Dispatchers.IO) {
-        val visualizer = synchronized(visualizerLock) {
-            val current = mVisualizer
-            mVisualizer = null
-            current
+    private fun createAndEnableVisualizer(sessionIds: List<Int>): Visualizer? {
+        val sessionsToTry = sessionIds.toMutableList()
+        if (!sessionsToTry.contains(0)) sessionsToTry.add(0)
+
+        for (session in sessionsToTry) {
+            var visualizer: Visualizer? = null
+            try {
+                visualizer = Visualizer(session)
+                visualizer.enabled = false
+                visualizer.captureSize = Visualizer.getCaptureSizeRange()[1]
+                visualizer.scalingMode = Visualizer.SCALING_MODE_NORMALIZED
+                visualizer.setDataCaptureListener(mVisualizerListener, Visualizer.getMaxCaptureRate(), false, true)
+                visualizer.enabled = true
+                return visualizer
+            } catch (t: Throwable) {
+                XposedHelpers.log("AudioVisualizer create session=$session failed: ${t.message}")
+                try {
+                    visualizer?.release()
+                } catch (_: Throwable) {
+                }
+            }
         }
-        releaseVisualizer(visualizer)
+        return null
     }
 
-    private fun releaseVisualizer(visualizer: Visualizer?) {
-        if (visualizer == null) return
+    private fun isConfigActive(config: AudioPlaybackConfiguration): Boolean = try {
+        config.javaClass.getDeclaredMethod("isActive").apply { isAccessible = true }.invoke(config) as Boolean
+    } catch (t: Throwable) {
+        true
+    }
+
+    private fun getConfigSessionId(config: AudioPlaybackConfiguration): Int = try {
+        config.javaClass.getDeclaredMethod("getSessionId").apply { isAccessible = true }.invoke(config) as Int
+    } catch (t: Throwable) {
+        0
+    }
+
+    private fun resetBandsToBaseline() {
+        val baseline = mHeight.toFloat()
+        for (i in 0 until mBandsNum) {
+            mBandStarts[i] = baseline
+            mBandTargets[i] = baseline
+            mPendingTargets[i] = baseline
+            mFFTPoints[i * 4 + 1] = baseline
+            mFFTPoints[i * 4 + 3] = baseline
+        }
+        postInvalidateOnAnimation()
+    }
+
+    private suspend fun releaseVisualizer(visualizer: Visualizer?) = withContext(Dispatchers.IO) {
+        if (visualizer == null) return@withContext
         try {
             visualizer.enabled = false
         } catch (t: Throwable) {
@@ -705,11 +780,14 @@ class AudioVisualizer @JvmOverloads constructor(
 
     private fun checkStateChanged() {
         if (detached) return
-        if (mPlaying) {
+        val shouldDisplay = viewAttached && mPlaying
+        if (shouldDisplay) {
             if (!mDisplaying) {
                 mDisplaying = true
                 startFrameScheduler()
-                viewScope.launch { linkVisualizer() }
+                resetBandsToBaseline()
+                val generation = ++visualizerGeneration
+                viewScope.launch { linkVisualizer(generation) }
                 randomizeColorJob?.cancel()
                 randomizeColorJob = viewScope.launch { runRandomizeColor() }
                 animate().alpha(1.0f).withEndAction(null).setDuration((800 * animDur / 65f).roundToInt().toLong())
@@ -719,15 +797,14 @@ class AudioVisualizer @JvmOverloads constructor(
                 mDisplaying = false
                 stopFrameScheduler()
                 randomizeColorJob?.cancel()
-                if (isOnKeyguard) {
-                    animate()
-                        .alpha(0.0f)
-                        .withEndAction { viewScope.launch { unlinkVisualizer() } }
-                        .setDuration((600 * animDur / 65f).roundToInt().toLong())
-                } else {
-                    alpha = 0.0f
-                    viewScope.launch { unlinkVisualizer() }
+                resetBandsToBaseline()
+                val visualizer = synchronized(visualizerLock) {
+                    val current = mVisualizer
+                    mVisualizer = null
+                    current
                 }
+                viewScope.launch { releaseVisualizer(visualizer) }
+                animate().alpha(0.0f).withEndAction(null).setDuration((600 * animDur / 65f).roundToInt().toLong())
             }
         }
     }
