@@ -116,8 +116,8 @@ object Helpers {
     var appContentResolver: ContentResolver? = null
 
     private val ICON_CACHE_KB = (
-        Runtime.getRuntime().maxMemory() / 1024 / 8
-        ).toInt().coerceIn(1024, 16 * 1024)
+        Runtime.getRuntime().maxMemory() / 1024 / 16
+        ).toInt().coerceIn(512, 8 * 1024)
 
     @JvmField
     val memoryCache: LruCache<String, Bitmap> = object : LruCache<String, Bitmap>(ICON_CACHE_KB) {

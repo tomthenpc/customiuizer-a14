@@ -229,22 +229,32 @@ open class SubFragment : PreferenceFragmentBase() {
             return
         }
         val nViews = Helpers.getChildViewsRecursive(root.findViewById(R.id.container), false)
+        val editor = AppHelper.appPrefs?.edit() ?: return
+        var dirty = false
         for (nView in nViews) {
             if (nView != null) try {
                 if (nView.tag != null) {
                     when (nView) {
-                        is TextView -> AppHelper.appPrefs!!.edit().putString(nView.tag as String, nView.text.toString()).apply()
+                        is TextView -> {
+                            editor.putString(nView.tag as String, nView.text.toString())
+                            dirty = true
+                        }
                         is SpinnerExFake -> {
-                            AppHelper.appPrefs!!.edit().putString(nView.tag as String, nView.value).apply()
+                            editor.putString(nView.tag as String, nView.value)
+                            dirty = true
                             nView.applyOthers()
                         }
-                        is SpinnerEx -> AppHelper.appPrefs!!.edit().putInt(nView.tag as String, nView.getSelectedArrayValue()).apply()
+                        is SpinnerEx -> {
+                            editor.putInt(nView.tag as String, nView.getSelectedArrayValue())
+                            dirty = true
+                        }
                     }
                 }
             } catch (e: Throwable) {
                 Log.e("miuizer", "Cannot save sub preference!")
             }
         }
+        if (dirty) editor.apply()
     }
 
     open fun loadSharedPrefs() {

@@ -3,7 +3,11 @@ package tv.withaibuild.customiuizer
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Build
 import tv.withaibuild.customiuizer.utils.AppHelper
@@ -28,6 +32,41 @@ class MainApplication : Application() {
             nm?.createNotificationChannel(
                 NotificationChannel("customiuizer_default", getString(R.string.app_name), NotificationManager.IMPORTANCE_LOW)
             )
+        }
+        registerPackageChangeReceiver()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+            clearAppListsAndIconCache()
+        }
+    }
+
+    private fun registerPackageChangeReceiver() {
+        try {
+            val filter = IntentFilter().apply {
+                addAction(Intent.ACTION_PACKAGE_ADDED)
+                addAction(Intent.ACTION_PACKAGE_REMOVED)
+                addAction(Intent.ACTION_PACKAGE_REPLACED)
+                addDataScheme("package")
+            }
+            registerReceiver(packageChangeReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun clearAppListsAndIconCache() {
+        Helpers.memoryCache.evictAll()
+        AppHelper.installedAppsList = null
+        Helpers.shareAppsList = null
+        Helpers.openWithAppsList = null
+        Helpers.launchableAppsList = null
+    }
+
+    private val packageChangeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            clearAppListsAndIconCache()
         }
     }
 }

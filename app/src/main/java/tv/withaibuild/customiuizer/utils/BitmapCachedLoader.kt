@@ -31,26 +31,48 @@ class BitmapCachedLoader(
     private val appInfo = WeakReference(info)
     private val ctx = context.applicationContext
     private val theTag = (target.tag as? Int) ?: -1
+    private var iconKey: String = ""
 
     fun execute() {
+        val ad = appInfo.get() ?: return
+        iconKey = ad.iconKey
+        if (iconKey.isEmpty()) return
+
+        val isLeader = synchronized(inFlightLock) {
+            val list = inFlight.getOrPut(iconKey) { mutableListOf() }
+            list.add(this)
+            list.size == 1
+        }
+        if (!isLeader) return
+
         loaderScope.launch(loaderDispatcher) {
             val bitmap = loadBitmap()
             if (bitmap != null) {
-                withContext(Dispatchers.Main) { applyBitmap(bitmap) }
+                withContext(Dispatchers.Main) {
+                    applyToTarget(bitmap)
+                    dispatchToWaiters(bitmap)
+                }
+            } else {
+                releaseWaiters()
             }
         }
     }
 
     private fun loadBitmap(): Bitmap? {
         var icon: android.graphics.drawable.Drawable? = null
-        var cacheKey: String? = null
 
         val ad = appInfo.get() ?: return null
+        if (iconKey.isEmpty()) return null
+
+        // If another loader finished while we were queued, return the cached bitmap
+        val existing = Helpers.memoryCache.get(iconKey)
+        if (existing != null) return existing
+
         try {
-            if ((ad.pkgName == null || ad.pkgName.isEmpty()) && (ad.actName == null || ad.actName.isEmpty())) return null
+            if (ad.pkgName.isEmpty() && ad.actName.isEmpty()) return null
 
             val pkgMgr = ctx.packageManager
-            if (ad.pkgName != null && ad.actName != null && ad.actName != "-") {
+            if (ad.actName.isNotEmpty() && ad.actName != "-") {
                 val component = ComponentName(ad.pkgName, ad.actName)
                 try {
                     if (pkgMgr.getActivityInfo(component, PackageManager.MATCH_ALL).icon != 0) {
@@ -59,14 +81,9 @@ class BitmapCachedLoader(
                 } catch (ignored: PackageManager.NameNotFoundException) {
                 }
             }
-            if (icon == null && ad.pkgName != null
-                && pkgMgr.getApplicationInfo(ad.pkgName, PackageManager.MATCH_DISABLED_COMPONENTS).icon != 0
-            ) {
+            if (icon == null && pkgMgr.getApplicationInfo(ad.pkgName, PackageManager.MATCH_DISABLED_COMPONENTS).icon != 0) {
                 icon = pkgMgr.getApplicationIcon(ad.pkgName)
             }
-
-            if (ad.pkgName != null) cacheKey = ad.pkgName
-            if (cacheKey != null && ad.actName != null) cacheKey += "|" + ad.actName
         } catch (t: Throwable) {
             Log.w(TAG, "Unable to load app icon", t)
         }
@@ -78,18 +95,36 @@ class BitmapCachedLoader(
         icon.setBounds(0, 0, newIconSize, newIconSize)
         icon.draw(canvas)
 
-        if (cacheKey != null) Helpers.memoryCache.put(cacheKey, bmp)
+        Helpers.memoryCache.put(iconKey, bmp)
 
         return bmp
     }
 
-    private fun applyBitmap(bmp: Bitmap) {
+    private fun applyToTarget(bmp: Bitmap) {
         val itemIcon = targetRef.get() ?: return
         val tag = itemIcon.tag
         if (tag is Int && theTag == tag && itemIcon.drawable is TransitionDrawable) {
             val crossfader = itemIcon.drawable as TransitionDrawable
             crossfader.addLayer(BitmapDrawable(ctx.resources, bmp))
             crossfader.startTransition(200)
+        }
+    }
+
+    private fun dispatchToWaiters(bmp: Bitmap) {
+        val waiters: List<BitmapCachedLoader>
+        synchronized(inFlightLock) {
+            waiters = inFlight.remove(iconKey)?.toList() ?: return
+        }
+        // The leader (this) is in the list; skip it to avoid reapplying to its own view.
+        for (loader in waiters) {
+            if (loader === this) continue
+            loader.applyToTarget(bmp)
+        }
+    }
+
+    private fun releaseWaiters() {
+        synchronized(inFlightLock) {
+            inFlight.remove(iconKey)
         }
     }
 
@@ -118,5 +153,8 @@ class BitmapCachedLoader(
 
         private val loaderDispatcher = executor.asCoroutineDispatcher()
         private val loaderScope = CoroutineScope(SupervisorJob())
+
+        private val inFlightLock = Any()
+        private val inFlight = mutableMapOf<String, MutableList<BitmapCachedLoader>>()
     }
 }

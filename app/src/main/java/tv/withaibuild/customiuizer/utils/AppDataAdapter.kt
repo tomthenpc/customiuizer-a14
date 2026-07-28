@@ -18,7 +18,6 @@ import android.widget.TextView
 import tv.withaibuild.customiuizer.R
 import java.util.ArrayList
 import java.util.Locale
-import java.util.concurrent.CopyOnWriteArrayList
 
 class AppDataAdapter(
     private val ctx: Context,
@@ -31,7 +30,7 @@ class AppDataAdapter(
     private val inflater: LayoutInflater = LayoutInflater.from(ctx)
     private val filter = ItemFilter()
     private val originalAppList = ArrayList<AppData>(arr)
-    private val filteredAppList = CopyOnWriteArrayList<AppData>(arr)
+    private val filteredAppList = ArrayList<AppData>(arr)
     private var selectedApp = ""
     private var selectedUser = 0
     private var selectedApps: MutableSet<String> = linkedSetOf()
@@ -77,7 +76,20 @@ class AppDataAdapter(
             }
             else -> {}
         }
+        refreshSearchKeys()
         sortList()
+    }
+
+    private fun refreshSearchKeys() {
+        for (app in originalAppList) {
+            app.labelLower = app.label.lowercase(Locale.ROOT)
+            app.actNameLower = app.actName.lowercase(Locale.ROOT)
+            app.iconKey = buildIconKey(app)
+        }
+    }
+
+    private fun buildIconKey(app: AppData): String {
+        return if (app.actName.isNotEmpty()) "${app.pkgName}|${app.actName}" else app.pkgName
     }
 
     private fun removeDualUsers() {
@@ -136,7 +148,7 @@ class AppDataAdapter(
                     }
                 }
                 AppHelper.AppAdapterType.Activities -> {
-                    app1.actName.lowercase(Locale.ROOT).compareTo(app2.actName.lowercase(Locale.ROOT))
+                    app1.actNameLower.compareTo(app2.actNameLower)
                 }
                 else -> 0
             }
@@ -171,7 +183,7 @@ class AppDataAdapter(
             }
         } else {
             holder.icon.tag = position
-            val icon = Helpers.memoryCache[ad.pkgName + "|" + ad.actName]
+            val icon = Helpers.memoryCache[ad.iconKey]
             if (icon == null) {
                 val dualIcon = arrayOf(ctx.resources.getDrawable(R.drawable.card_icon_default, ctx.theme))
                 val crossfader = TransitionDrawable(dualIcon)
@@ -247,10 +259,10 @@ class AppDataAdapter(
             val nlist = ArrayList<AppData>()
 
             for (app in originalAppList) {
-                if (aType == AppHelper.AppAdapterType.Activities && app.actName.lowercase(Locale.ROOT).contains(filterString)) {
+                if (aType == AppHelper.AppAdapterType.Activities && app.actNameLower.contains(filterString)) {
                     nlist.add(app)
                 } else if ((aType == AppHelper.AppAdapterType.Standalone && app.pkgName == "" && app.actName == "") ||
-                    app.label.lowercase(Locale.ROOT).contains(filterString)) {
+                    app.labelLower.contains(filterString)) {
                     nlist.add(app)
                 }
             }
