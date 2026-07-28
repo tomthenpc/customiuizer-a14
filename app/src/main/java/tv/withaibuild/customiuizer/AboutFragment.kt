@@ -80,10 +80,9 @@ class AboutFragment : SubFragment() {
                     ).show()
                     return@setPositiveButton
                 }
-                // Apply the new locale immediately so the running AppCompat process picks it
-                // up before the activity finishes. On the next launch (or process restart)
-                // the locale is already active and MainApplication.apply() is a no-op.
-                AppLocaleController.apply(prefs)
+                // Persist and exit. The locale is applied on the next process start
+                // (MainApplication.apply), and the process is killed so the user gets a
+                // clean cold start.
                 AppLocaleController.exitApplicationAfterLocaleSave(requireActivity())
             }
             .setOnDismissListener {

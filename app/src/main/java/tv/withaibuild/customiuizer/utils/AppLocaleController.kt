@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Resources
+import android.os.Process
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
@@ -256,6 +257,7 @@ object AppLocaleController {
     @JvmStatic
     fun exitApplicationAfterLocaleSave(activity: Activity) {
         activity.finishAffinity()
+        Process.killProcess(Process.myPid())
     }
 
     /** Current AppCompat application locales, with a test seam. */
