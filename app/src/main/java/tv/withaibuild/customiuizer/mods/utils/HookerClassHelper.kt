@@ -53,6 +53,21 @@ class HookerClassHelper private constructor() {
             return args!!
         }
 
+        /**
+         * Reads one argument without materializing the argument array.
+         *
+         * Calling [getArgs] copies the whole argument list, and [intercept] must then hand that
+         * copy to `Chain.proceed(args)`, which re-marshals every argument — including unboxing
+         * each primitive. A hook that only inspects arguments should use this instead so the
+         * chain continues through the zero-copy `Chain.proceed()`.
+         *
+         * Use [getArgs] only when the hook rewrites an argument.
+         */
+        fun getArg(index: Int): Any? {
+            val materialized = args
+            return if (materialized != null) materialized[index] else chain.getArg(index)
+        }
+
         internal fun hasMaterializedArgs(): Boolean = args != null
 
         fun returnAndSkip(returnValue: Any?) {

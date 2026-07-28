@@ -227,14 +227,14 @@ object DeviceInfoMonitor {
             object : MethodHook() {
                 override fun before(param: BeforeHookCallback) {
                     if (param.getArgs().size != 4) return
-                    val iconHolder = param.getArgs()[3]
+                    val iconHolder = param.getArg(3)
                     val type = XposedHelpers.getIntField(iconHolder, "mType")
                     if (type != 91 && type != 92) return
 
                     val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
                     val lp = XposedHelpers.callMethod(param.getThisObject(), "onCreateLayoutParams") as LinearLayout.LayoutParams
                     val iconView = SystemUI.createStatusbarTextIcon(mContext, lp, type, true)
-                    val i = param.getArgs()[0] as Int
+                    val i = param.getArg(0) as Int
                     val mGroup = XposedHelpers.getObjectField(param.getThisObject(), "mGroup") as ViewGroup
                     mGroup.addView(iconView, i)
                     SystemUI.registerStatusbarTextIcon(iconView)

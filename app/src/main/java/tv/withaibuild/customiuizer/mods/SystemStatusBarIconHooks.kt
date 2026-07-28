@@ -184,7 +184,6 @@ object SystemStatusBarIconHooks {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
 
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
@@ -269,19 +268,18 @@ object SystemStatusBarIconHooks {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val wifiState = args[0]
+                    val wifiState = chain.getArg(0)
                     if (wifiState != null) {
                         val opt = MainModule.mPrefs.getStringAsInt("system_statusbaricons_wifistandard", 1)
-                        if (opt == 1) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                        if (opt == 1) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                         val wifiStandard = XposedHelpers.getObjectField(wifiState, "wifiStandard") as Int
                         XposedHelpers.setObjectField(wifiState, "showWifiStandard", opt == 2 && wifiStandard > 0)
                     }
 
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null

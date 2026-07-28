@@ -65,12 +65,12 @@ object Launcher {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 val thisObject = chain.getThisObject()
                 try {
                     if (XposedHelpers.callMethod(thisObject, "isInNormalEditingMode") as Boolean) {
                         if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                        return XposedHelpers.proceedOrThrow(chain, args, throwable)
+                        return XposedHelpers.proceedOrThrow(chain, throwable)
                     }
                     var key: String? = null
                     val helperContext = (thisObject as ViewGroup).context
@@ -87,7 +87,7 @@ object Launcher {
                         }
                     }
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -267,7 +267,6 @@ object Launcher {
                 }
                 try {
                     val thisObject = chain.getThisObject()
-                    val args = XposedHelpers.getArgsArray(chain)
 
                     val canInterceptTouch = result as Boolean
                     if (canInterceptTouch) {
@@ -275,7 +274,7 @@ object Launcher {
                         val mLauncher = XposedHelpers.getObjectField(thisObject, "mLauncher")
                         val mHotSeats = XposedHelpers.callMethod(mLauncher, "getHotSeats") as FrameLayout
                         mHotSeats.getHitRect(rect)
-                        val motionEvent = args[0] as MotionEvent
+                        val motionEvent = chain.getArg(0) as MotionEvent
                         if (rect.contains(motionEvent.x.toInt(), motionEvent.y.toInt())) {
                             result = false
                             throwable = null
@@ -292,19 +291,18 @@ object Launcher {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.getThisObject()
                 try {
 
-                    val ev = args[0] as MotionEvent?
-                    if (ev == null) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    val ev = chain.getArg(0) as MotionEvent?
+                    if (ev == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
 
                     val hotSeat = thisObject as ViewGroup
                     val helperContext = hotSeat.context
                     if (mDetectorHorizontal == null) mDetectorHorizontal = GestureDetector(helperContext, SwipeListenerHorizontal(hotSeat))
                     mDetectorHorizontal?.onTouchEvent(ev)
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -508,7 +506,7 @@ object Launcher {
                 }
                 try {
                     val thisObject = chain.getThisObject()
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     XposedHelpers.setAdditionalInstanceField(thisObject, "mLabelOrig", XposedHelpers.getObjectField(thisObject, "mLabel"))
                     if (args.size > 0) modifyTitle(thisObject)
@@ -555,9 +553,8 @@ object Launcher {
                 }
                 try {
                     val thisObject = chain.getThisObject()
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    XposedHelpers.setAdditionalInstanceField(thisObject, "mLabelOrig", args[0])
+                    XposedHelpers.setAdditionalInstanceField(thisObject, "mLabelOrig", chain.getArg(0))
                     modifyTitle(thisObject)
 
                 } catch (t: Throwable) {
@@ -708,9 +705,8 @@ object Launcher {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    if (args[1] != "force_fsg_nav_bar") { return XposedHelpers.throwOrReturn(throwable, result) }
+                    if (chain.getArg(1) != "force_fsg_nav_bar") { return XposedHelpers.throwOrReturn(throwable, result) }
 
                     for (el in Thread.currentThread().stackTrace) {
                         if ("com.miui.home.recents.BaseRecentsImpl" == el.className) {
@@ -737,13 +733,12 @@ object Launcher {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val event = args[0] as MotionEvent
+                    val event = chain.getArg(0) as MotionEvent
                     if (event.action != MotionEvent.ACTION_DOWN) {
                         if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                        return XposedHelpers.proceedOrThrow(chain, args, throwable)
+                        return XposedHelpers.proceedOrThrow(chain, throwable)
                     }
                     val foregroundInfo = ProcessManager.getForegroundInfo()
                     if (foregroundInfo != null) {
@@ -752,7 +747,7 @@ object Launcher {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -824,7 +819,7 @@ object Launcher {
                 }
                 try {
                     val thisObject = chain.getThisObject()
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     if (args.size != 3) { return XposedHelpers.throwOrReturn(throwable, result) }
                     var mDoubleTapControllerEx = XposedHelpers.getAdditionalInstanceField(thisObject, "mDoubleTapControllerEx")
@@ -843,20 +838,19 @@ object Launcher {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.getThisObject()
                 try {
 
                     val mDoubleTapControllerEx = XposedHelpers.getAdditionalInstanceField(thisObject, "mDoubleTapControllerEx") as? DoubleTapController
-                    if (mDoubleTapControllerEx == null) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    if (!mDoubleTapControllerEx.isDoubleTapEvent(args[0] as MotionEvent)) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (mDoubleTapControllerEx == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
+                    if (!mDoubleTapControllerEx.isDoubleTapEvent(chain.getArg(0) as MotionEvent)) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     val mCurrentScreenIndex = XposedHelpers.getIntField(thisObject, if (lpparam.packageName == "com.miui.home") "mCurrentScreenIndex" else "mCurrentScreen")
                     val cellLayout = XposedHelpers.callMethod(thisObject, "getCellLayout", mCurrentScreenIndex)
-                    if (XposedHelpers.callMethod(cellLayout, "lastDownOnOccupiedCell") as Boolean) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    if (XposedHelpers.callMethod(thisObject, "isInNormalEditingMode") as Boolean) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (XposedHelpers.callMethod(cellLayout, "lastDownOnOccupiedCell") as Boolean) { return XposedHelpers.proceedOrThrow(chain, throwable) }
+                    if (XposedHelpers.callMethod(thisObject, "isInNormalEditingMode") as Boolean) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     mDoubleTapControllerEx.onDoubleTapEvent()
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -964,19 +958,18 @@ object Launcher {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.getThisObject()
                 try {
 
                     val mIsInFsMode = XposedHelpers.getBooleanField(thisObject, "mIsInFsMode")
                     if (!mIsInFsMode) {
-                        val motionEvent = args[0] as MotionEvent
+                        val motionEvent = chain.getArg(0) as MotionEvent
                         if (motionEvent.action == 0) {
                             XposedHelpers.setObjectField(thisObject, "mHideGestureLine", true)
                         }
                     }
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1079,7 +1072,7 @@ object Launcher {
                 }
                 try {
                     val thisObject = chain.getThisObject()
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     if (args[0] != result) { return XposedHelpers.throwOrReturn(throwable, result) }
                     val screenCount = XposedHelpers.callMethod(thisObject, "getScreenCount") as Int
@@ -1551,7 +1544,7 @@ object Launcher {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     val buddyIcon = XposedHelpers.callMethod(args[3], "getBuddyIconView", args[2])
                     if (buddyIcon == null) { return XposedHelpers.throwOrReturn(throwable, result) }
@@ -1600,9 +1593,8 @@ object Launcher {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    val mTitle = args[1] as? TextView
+                    val mTitle = chain.getArg(1) as? TextView
                     if (mTitle != null && mTitle.id == mTitle.resources.getIdentifier("icon_title", "id", "com.miui.home"))
                         mTitle.setTextSize(TypedValue.COMPLEX_UNIT_SP, MainModule.mPrefs.getInt("launcher_titlefontsize", 5).toFloat())
 
@@ -1824,10 +1816,9 @@ object Launcher {
                     var skipped = false
                     var result: Any? = null
                     var throwable: Throwable? = null
-                    val args = XposedHelpers.getArgsArray(chain)
                     try {
 
-                        val isFolderShowing = XposedHelpers.callMethod(args[0], "isFolderShowing") as Boolean
+                        val isFolderShowing = XposedHelpers.callMethod(chain.getArg(0), "isFolderShowing") as Boolean
                         if (isFolderShowing) {
                             val blurPct = MainModule.mPrefs.getInt("launcher_folderblur_opacity", 0)
                             val blurRatio = blurPct / 100f
@@ -1837,7 +1828,7 @@ object Launcher {
                         }
 
                         if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                        result = chain.proceed(args)
+                        result = chain.proceed()
                     } catch (t: Throwable) {
                         throwable = t
                         result = null
@@ -1884,10 +1875,9 @@ object Launcher {
                     }
                     try {
                         val thisObject = chain.getThisObject()
-                        val args = XposedHelpers.getArgsArray(chain)
 
                         val launcher = XposedHelpers.getObjectField(thisObject, "mLauncher") as Activity
-                        XposedHelpers.callStaticMethod(BlurUtils, "fastBlur", 0f, launcher.window, args[0])
+                        XposedHelpers.callStaticMethod(BlurUtils, "fastBlur", 0f, launcher.window, chain.getArg(0))
 
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
@@ -2097,10 +2087,9 @@ object Launcher {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val resKey = args[1] as String
+                    val resKey = chain.getArg(1) as String
                     if ("slide_bar_margin_top" == resKey) {
                         skipped = true
                         result = Math.round(Helpers.dp2px(opt.toFloat()))
@@ -2112,7 +2101,7 @@ object Launcher {
                     result = null
                 }
                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                return try { chain.proceed(args) } catch (t: Throwable) { XposedHelpers.throwOrReturn(t, null) }
+                return try { chain.proceed() } catch (t: Throwable) { XposedHelpers.throwOrReturn(t, null) }
             }
         })
     }
@@ -2130,7 +2119,7 @@ object Launcher {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     if (args.size < 4) { return XposedHelpers.throwOrReturn(throwable, result) }
                     val spec = result as Long
@@ -2177,13 +2166,13 @@ object Launcher {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
 
                     val component = XposedHelpers.callMethod(args[0], "getComponentName") as ComponentName?
-                    if (component == null) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (component == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     val view = args[1] as View?
-                    if (view == null) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (view == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     val userHandle = XposedHelpers.callMethod(args[0], "getUserHandle") as UserHandle?
                     ModuleHelper.openAppInfo(view.context, component.packageName, userHandle?.hashCode() ?: 0)
                     skipped = true
@@ -2195,7 +2184,7 @@ object Launcher {
                     result = null
                 }
                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                result = chain.proceed(args)
+                result = chain.proceed()
                 return XposedHelpers.throwOrReturn(throwable, result)
             }
         })
@@ -2284,10 +2273,9 @@ object Launcher {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    if (args[0] != null) {
-                        val mainTask = XposedHelpers.getObjectField(args[0], "mMainTaskInfo")
+                    if (chain.getArg(0) != null) {
+                        val mainTask = XposedHelpers.getObjectField(chain.getArg(0), "mMainTaskInfo")
                         var componentName = XposedHelpers.getObjectField(mainTask, "topActivity") as ComponentName?
                         var pkgName: String? = null
                         if (componentName != null) {
@@ -2333,7 +2321,7 @@ object Launcher {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
 
                     val mIsFromFsGesture = XposedHelpers.getBooleanField(args[1], "mIsFromFsGesture")
@@ -2347,7 +2335,7 @@ object Launcher {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2463,7 +2451,7 @@ object Launcher {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 val thisObject = chain.getThisObject()
                 try {
 
@@ -2484,7 +2472,7 @@ object Launcher {
                     throwable = null
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2507,9 +2495,8 @@ object Launcher {
                 }
                 try {
                     val thisObject = chain.getThisObject()
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    val motionEvent = args[0] as MotionEvent
+                    val motionEvent = chain.getArg(0) as MotionEvent
                     if (motionEvent.action == 0) {
                         val mDownX = XposedHelpers.getFloatField(thisObject, "mDownX")
                         val mAssistantWidth = XposedHelpers.getIntField(thisObject, "mAssistantWidth")
@@ -2527,13 +2514,12 @@ object Launcher {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val bundle = args[0] as Bundle
+                    val bundle = chain.getArg(0) as Bundle
                     bundle.putInt("inDirection", inDirection[0])
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2561,12 +2547,11 @@ object Launcher {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.getThisObject()
                 try {
 
                     val mReadyState = XposedHelpers.getObjectField(thisObject, "mReadyState")
-                    val readyState = args[0]
+                    val readyState = chain.getArg(0)
                     if (readyState != mReadyState) {
                         val disableVibrate = MainModule.mPrefs.getBoolean("controls_fsg_swipeandstop_disablevibrate")
                         val view = thisObject as View
@@ -2584,7 +2569,7 @@ object Launcher {
                         XposedHelpers.setObjectField(view, "mReadyState", readyState)
                     }
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2616,11 +2601,10 @@ object Launcher {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.getThisObject()
                 try {
 
-                    val isFinished = args[0] as Boolean
+                    val isFinished = chain.getArg(0) as Boolean
                     if (isFinished) {
                         val outerThis = XposedHelpers.getSurroundingThis(thisObject)
                         gestureStubViews[0] = outerThis
@@ -2631,14 +2615,14 @@ object Launcher {
                 }
 
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
                 }
                 try {
 
-                    val isFinished = args[0] as Boolean
+                    val isFinished = chain.getArg(0) as Boolean
                     if (isFinished) {
                         gestureStubViews[0] = null
                     }
@@ -2660,7 +2644,7 @@ object Launcher {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     val nextTaskInfo = args[1] as Boolean
                     if (!nextTaskInfo || gestureStubViews[0] == null) { return XposedHelpers.throwOrReturn(throwable, result) }
@@ -2750,17 +2734,16 @@ object Launcher {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.getThisObject()
                 try {
 
-                    val dampingScale = XposedHelpers.callMethod(thisObject, "getDampingScale", args[0]) as Float
+                    val dampingScale = XposedHelpers.callMethod(thisObject, "getDampingScale", chain.getArg(0)) as Float
                     val screenScaleRatio = XposedHelpers.callMethod(thisObject, "getScreenScaleRatio") as Float
                     if (dampingScale < screenScaleRatio)
                         if (MainModule.mPrefs.getInt("launcher_pinch_action", 1) > 1) { skipped = true; result = false; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2774,11 +2757,10 @@ object Launcher {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.getThisObject()
                 try {
 
-                    val dampingScale = XposedHelpers.callMethod(thisObject, "getDampingScale", args[0]) as Float
+                    val dampingScale = XposedHelpers.callMethod(thisObject, "getDampingScale", chain.getArg(0)) as Float
                     val screenScaleRatio = XposedHelpers.callMethod(thisObject, "getScreenScaleRatio") as Float
                     if (dampingScale < screenScaleRatio)
                         if (GlobalActions.handleAction((thisObject as View).context, "launcher_pinch")) {
@@ -2792,7 +2774,7 @@ object Launcher {
                             XposedHelpers.setObjectField(thisObject, "mState", stateFollow)
                             if (mState == stateReadyToEdit)
                                 XposedHelpers.callMethod(XposedHelpers.getObjectField(thisObject, "mLauncher"), "changeEditingEntryViewToHotseats")
-                            XposedHelpers.callMethod(thisObject, "resetCellScreenScale", args[0])
+                            XposedHelpers.callMethod(thisObject, "resetCellScreenScale", chain.getArg(0))
 
                             skipped = true
                             result = null
@@ -2800,7 +2782,7 @@ object Launcher {
                         }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null

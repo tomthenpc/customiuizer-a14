@@ -175,15 +175,14 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.thisObject
                 try {
 
-                    XposedHelpers.callMethod(thisObject, "declineRequest", args[0])
+                    XposedHelpers.callMethod(thisObject, "declineRequest", chain.getArg(0))
                     skipped = true; result = null; throwable = null
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -200,11 +199,10 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val reason = args[3] as String?
-                    if (reason == null) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    val reason = chain.getArg(3) as String?
+                    if (reason == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     if (
                         reason.startsWith("android.server.power:PLUGGED")
                         || reason == "com.android.systemui:RAPID_CHARGE"
@@ -213,7 +211,7 @@ object System {
                     ) { skipped = true; result = null; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -656,9 +654,8 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    val mContext = args[0] as Context
+                    val mContext = chain.getArg(0) as Context
                     val oldfetchCachedDevicesReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "fetchCachedDevicesReceiver")
                     if (oldfetchCachedDevicesReceiver is BroadcastReceiver) {
                         try { mContext.unregisterReceiver(oldfetchCachedDevicesReceiver) } catch (ignore: Throwable) {}
@@ -866,11 +863,10 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.thisObject
                 try {
 
-                    val wifiEntry = args[0]
+                    val wifiEntry = chain.getArg(0)
                     val canShare = XposedHelpers.callMethod(wifiEntry, "canShare") as Boolean
                     if (canShare) {
                         if (passwordTitle[0] == null) {
@@ -890,14 +886,14 @@ object System {
                 }
 
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
                 }
                 try {
 
-                    val wifiEntry = args[0]
+                    val wifiEntry = chain.getArg(0)
                     val canShare = XposedHelpers.callMethod(wifiEntry, "canShare") as Boolean
                     if (canShare) {
                         wifiSharedKey[0] = null
@@ -964,10 +960,9 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
                     val mOnKeyguard = XposedHelpers.getBooleanField(thisObject, "mOnKeyguard")
-                    val showHeadsUp = args[0] as Boolean
+                    val showHeadsUp = chain.getArg(0) as Boolean
                     if (!mOnKeyguard && showHeadsUp) {
                         val notifyRow = thisObject as View
                         val notification = XposedHelpers.getObjectField(XposedHelpers.callMethod(thisObject, "getEntry"), "mSbn")
@@ -1237,7 +1232,7 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 val thisObject = chain.thisObject
                 try {
 
@@ -1257,7 +1252,7 @@ object System {
                 }
 
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1413,13 +1408,12 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val notification = XposedHelpers.getObjectField(args[0], "mSbn")
+                    val notification = XposedHelpers.getObjectField(chain.getArg(0), "mSbn")
                     XposedHelpers.setObjectField(notification, "mHasShownAfterUnlock", false)
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1607,16 +1601,15 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.thisObject
                 try {
 
-                    val pkgName = args[1] as String?
-                    if (pkgName == null) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    val pkgName = chain.getArg(1) as String?
+                    if (pkgName == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     if (checkVibration(pkgName, thisObject)) { skipped = true; result = null; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1633,13 +1626,12 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    if ((args[0] as Int) == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) { skipped = true; result = null; throwable = null }
+                    if ((chain.getArg(0) as Int) == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) { skipped = true; result = null; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1664,7 +1656,7 @@ object System {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     if ((args[0] as Int) == -1) {
                         val opt = MainModule.mPrefs.getInt("qs_autorotate_state", 0)
@@ -1751,15 +1743,14 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val pkgName = XposedHelpers.getObjectField(args[0], "pkg") as String?
-                    if (pkgName == null) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    val pkgName = XposedHelpers.getObjectField(chain.getArg(0), "pkg") as String?
+                    if (pkgName == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     if (checkToast(pkgName)) { skipped = true; result = false; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1827,7 +1818,7 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     try {
                         if (args[0] == null) { return XposedHelpers.throwOrReturn(throwable, result) }
@@ -1982,7 +1973,7 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     try {
                         if (args[0] == null) { return XposedHelpers.throwOrReturn(throwable, result) }
@@ -2037,16 +2028,16 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 val thisObject = chain.thisObject
                 try {
 
-                    if (args[1] != "*") { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (args[1] != "*") { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     val mode = XposedHelpers.callMethod(thisObject, "getAccessControlLockMode", args[0]) as Int
                     if (mode != 1) { skipped = true; result = null; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2094,7 +2085,7 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 val thisObject = chain.thisObject
                 try {
 
@@ -2105,7 +2096,7 @@ object System {
                 }
 
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2125,7 +2116,7 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 val thisObject = chain.thisObject
                 try {
 
@@ -2136,7 +2127,7 @@ object System {
                 }
 
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2156,11 +2147,10 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.thisObject
                 try {
 
-                    val intent = args[0] as Intent
+                    val intent = chain.getArg(0) as Intent
                     if (intent.component != null)
                         saveLastCheck(thisObject, intent.component?.packageName, 0)
 
@@ -2169,14 +2159,14 @@ object System {
                 }
 
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
                 }
                 try {
 
-                    val intent = args[0] as Intent
+                    val intent = chain.getArg(0) as Intent
                     if (intent.component != null)
                         checkLastCheck(thisObject, 0)
 
@@ -2373,9 +2363,8 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    val isKeyguardShowingNew = args[0] as Boolean
+                    val isKeyguardShowingNew = chain.getArg(0) as Boolean
                     if (isKeyguardShowing != isKeyguardShowingNew) {
                         isKeyguardShowing = isKeyguardShowingNew
                         isNotificationPanelExpanded = false
@@ -2483,7 +2472,7 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
 
                     if (args[4] == "AudioFocus_For_Phone_Ring_And_Calls" && audioFocusPkg != null && MainModule.mPrefs.getStringSet("system_ignorecalls_apps")?.contains(audioFocusPkg) == true)
@@ -2494,7 +2483,7 @@ object System {
                 }
                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2732,7 +2721,6 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
                     val pref = XposedHelpers.callMethod(thisObject, "findPreference", "importance")
                     XposedHelpers.setObjectField(thisObject, "mImportance", pref)
@@ -2789,9 +2777,8 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
-                    val visibility = args[0] as Int
+                    val visibility = chain.getArg(0) as Int
                     if (visibility == View.VISIBLE && !mToAod[0]) {
                         skipped = true; result = null; throwable = null
                     }
@@ -2800,7 +2787,7 @@ object System {
                 }
                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2832,10 +2819,9 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.thisObject
                 try {
-                    mToAod[0] = args[0] as Boolean
+                    mToAod[0] = chain.getArg(0) as Boolean
                     if (mToAod[0]) {
                         XposedHelpers.callMethod(thisObject, "setVisibility", View.VISIBLE)
                     }
@@ -2843,13 +2829,13 @@ object System {
                     XposedHelpers.log(t)
                 }
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
                 }
                 try {
-                    val mToAodLocal = args[0] as Boolean
+                    val mToAodLocal = chain.getArg(0) as Boolean
                     if (!mToAodLocal) {
                         XposedHelpers.callMethod(thisObject, "setVisibility", View.GONE)
                     }
@@ -2875,7 +2861,7 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     val streamType = args[0] as Int
                     if (streamType != AudioManager.STREAM_MUSIC) { return XposedHelpers.throwOrReturn(throwable, result) }
@@ -2907,7 +2893,7 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 val thisObject = chain.thisObject
                 try {
 
@@ -2918,7 +2904,7 @@ object System {
                     if (flags != 4) { skipped = true; result = true; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2956,7 +2942,7 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
 
                     val packageName = XposedHelpers.callMethod(args[1], "getPackageName") as String
@@ -2966,7 +2952,7 @@ object System {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -2980,16 +2966,15 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val isSystem = XposedHelpers.callMethod(args[0], "isSystem") as Boolean
+                    val isSystem = XposedHelpers.callMethod(chain.getArg(0), "isSystem") as Boolean
                     if (isSystem) {
                         skipped = true; result = true; throwable = null
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -3403,10 +3388,9 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
                     val mTopIndicationView = ModuleHelper.getObjectFieldByPath(thisObject, "mKeyguardIndicationInjector.mKeyguardIndicationController.mTopIndicationView") as TextView
-                    val showTips = args[0] as Boolean
+                    val showTips = chain.getArg(0) as Boolean
                     if (showTips) {
                         mTopIndicationView.visibility = View.GONE
                     } else {
@@ -3427,10 +3411,10 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
 
-                    if (args.size != 4) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (args.size != 4) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     val contentValues = args[1] as ContentValues
                     var displayName = contentValues.getAsString("_display_name")
                     if (displayName != null && displayName.contains("Screenshot")) {
@@ -3441,7 +3425,7 @@ object System {
                         contentValues.put("_display_name", displayName)
                     }
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -3453,7 +3437,7 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
 
                     val imgUri = args[0] as Uri
@@ -3479,7 +3463,7 @@ object System {
                         contentValues.put("_display_name", displayName)
                     }
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -3606,7 +3590,7 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 val thisObject = chain.thisObject
                 try {
 
@@ -3618,7 +3602,7 @@ object System {
                 }
 
                 try {
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -3689,9 +3673,8 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    val event = args[0] as MotionEvent
+                    val event = chain.getArg(0) as MotionEvent
                     if (event.pointerCount > 1) { return XposedHelpers.throwOrReturn(throwable, result) }
                     val action = event.actionMasked
                     if (action != MotionEvent.ACTION_DOWN && action != MotionEvent.ACTION_UP) { return XposedHelpers.throwOrReturn(throwable, result) }
@@ -3847,9 +3830,8 @@ object System {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    val charge = args[0] as Int
+                    val charge = chain.getArg(0) as Int
                     val hint = result as String?
 
                     if (charge <= 100 && hint != null && isKeyguardIndicationCaller()) {
@@ -3983,9 +3965,8 @@ object System {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    XposedHelpers.callMethod(args[0], "setShowInSettings", true)
+                    XposedHelpers.callMethod(chain.getArg(0), "setShowInSettings", true)
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
@@ -4028,19 +4009,18 @@ object System {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    if (args[0] == null) {
+                    if (chain.getArg(0) == null) {
                         return XposedHelpers.throwOrReturn(null, false)
                     }
-                    val applicationInfo = args[0] as ApplicationInfo
+                    val applicationInfo = chain.getArg(0) as ApplicationInfo
                     val flags = applicationInfo.flags
                     val systemApp = (flags and 1) != 0 || (flags and 128) != 0 || applicationInfo.uid < 10000
                     skipped = true; result = !systemApp; throwable = null
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -4124,7 +4104,7 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     val expanded = args[1] as Boolean
                     val mKeyguardStateController = XposedHelpers.getObjectField(thisObject, "mKeyguardStateController")
@@ -4346,7 +4326,7 @@ object System {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     if (freeformCallingPackage == null || "SkipCheck" == freeformCallingPackage) {
                         return XposedHelpers.throwOrReturn(throwable, result)
@@ -4375,7 +4355,7 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
 
                     if (args[1] != null) {
@@ -4384,13 +4364,13 @@ object System {
                             val ao = XposedHelpers.getObjectField(safeOptions, "mOriginalOptions") as ActivityOptions?
                             if (ao != null && XposedHelpers.getIntField(ao, "mLaunchWindowingMode") == 5) {
                                 freeformCallingPackage = "SkipCheck"
-                                return XposedHelpers.proceedOrThrow(chain, args, throwable)
+                                return XposedHelpers.proceedOrThrow(chain, throwable)
                             }
                         }
                         freeformCallingPackage = args[6] as String
                     }
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -4465,7 +4445,7 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     if (args.size != 3) { return XposedHelpers.throwOrReturn(throwable, result) }
                     val expandableRow = XposedHelpers.getObjectField(args[0], "row")
@@ -4557,9 +4537,8 @@ object System {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    val intent = args[0] as Intent?
+                    val intent = chain.getArg(0) as Intent?
                     if (intent == null || intent.component == null) { return XposedHelpers.throwOrReturn(throwable, result) }
                     val pkgName = intent.component!!.packageName
                     val actName = intent.component!!.className
@@ -4696,7 +4675,7 @@ object System {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     if (throwable != null || result == null || args[5] as Int == 1 || "com.android.thememanager" == args[1]) { return XposedHelpers.throwOrReturn(throwable, result) }
 
@@ -4801,9 +4780,8 @@ object System {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    val context = args[0] as Context
+                    val context = chain.getArg(0) as Context
                     val resources = context.resources
                     if (mHeadsUpPaddingTop == 0) {
                         val dimId = Helpers.getResId(resources, "heads_up_status_bar_padding", "dimen", "com.android.systemui")

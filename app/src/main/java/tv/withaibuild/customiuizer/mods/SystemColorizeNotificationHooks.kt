@@ -48,10 +48,9 @@ object SystemColorizeNotificationHooks {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    if (args[1] != null) {
-                        val mN = args[1] as Notification
+                    if (chain.getArg(1) != null) {
+                        val mN = chain.getArg(1) as Notification
                         if (XposedHelpers.getAdditionalInstanceField(mN, "mPrimaryTextColor") != null) {
                             val builder = thisObject
                             val mParams = XposedHelpers.getObjectField(builder, "mParams")
@@ -132,15 +131,14 @@ object SystemColorizeNotificationHooks {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    if ((args[0] as Int) == 0) {
+                    if ((chain.getArg(0) as Int) == 0) {
                         skipped = true; result = null; throwable = null
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -209,16 +207,16 @@ object SystemColorizeNotificationHooks {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
 
                     val builder = args[0] as Notification.Builder
                     val mN = XposedHelpers.getObjectField(builder, "mN") as Notification
-                    if (XposedHelpers.callMethod(mN, "isColorized") as Boolean) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    if (XposedHelpers.callMethod(mN, "isMediaNotification") as Boolean) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (XposedHelpers.callMethod(mN, "isColorized") as Boolean) { return XposedHelpers.proceedOrThrow(chain, throwable) }
+                    if (XposedHelpers.callMethod(mN, "isMediaNotification") as Boolean) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     val applicationInfo = mN.extras.getParcelable("android.appInfo") as ApplicationInfo?
                     if (applicationInfo == null) {
-                        return XposedHelpers.proceedOrThrow(chain, args, throwable)
+                        return XposedHelpers.proceedOrThrow(chain, throwable)
                     }
                     val mContext = args[1] as Context
                     val pkgName = applicationInfo.packageName
@@ -268,7 +266,7 @@ object SystemColorizeNotificationHooks {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -290,7 +288,7 @@ object SystemColorizeNotificationHooks {
                     result = null
                 }
                 try {
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     val NotificationHelper = XposedHelpers.findClass("com.android.systemui.statusbar.notification.NotificationSettingsHelper", lpparam.classLoader)
                     var miuiStyle = false

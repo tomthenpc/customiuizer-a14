@@ -124,7 +124,6 @@ object Various {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
                     val handler = Handler(Looper.getMainLooper())
                     handler.post {
@@ -340,14 +339,13 @@ object Various {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
-                    if (!MIUI_CORE_APPS.contains(args[0] as String)) {
+                    if (!MIUI_CORE_APPS.contains(chain.getArg(0) as String)) {
                         skipped = true; result = null; throwable = null
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -371,10 +369,9 @@ object Various {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
                     val act = thisObject as Activity
-                    val menu = args[0] as Menu
+                    val menu = chain.getArg(0) as Menu
                     val dis = menu.add(0, 666, 1, act.resources.getIdentifier("app_manager_disable_text", "string", lpparam.packageName))
                     dis.setIcon(act.resources.getIdentifier("action_button_stop", "drawable", lpparam.packageName))
                     dis.isEnabled = true
@@ -412,9 +409,8 @@ object Various {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    val item = args[0] as MenuItem
+                    val item = chain.getArg(0) as MenuItem
                     if (item.itemId != 666) { return XposedHelpers.throwOrReturn(throwable, result) }
 
                     val act = thisObject as Activity
@@ -494,7 +490,7 @@ object Various {
                         result = null
                     }
                     try {
-                        val args = XposedHelpers.getArgsArray(chain)
+                        val args = chain.args
                         if ((args[3] as Int) == 128 && (args[4] as Int) == 0) {
                             val appInfo = result as ApplicationInfo
                             appInfo.flags = appInfo.flags and ApplicationInfo.FLAG_SYSTEM.inv()
@@ -568,15 +564,14 @@ object Various {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
-                    val addWhiteList = args[1] as Boolean
+                    val addWhiteList = chain.getArg(1) as Boolean
                     if (addWhiteList) {
                         skipped = true; result = null; throwable = null
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -643,11 +638,10 @@ object Various {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
                     if (!isHooked[0]) {
                         isHooked[0] = true
-                        val view = args[0] as View
+                        val view = chain.getArg(0) as View
                         if (originDockLocation == -1) {
                             originDockLocation = view.context.getSharedPreferences("sp_video_box", 0).getInt("dock_line_location", 0)
                         }
@@ -738,12 +732,11 @@ object Various {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
                     isHooked[0] = false
                     val showReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "showReceiver") as BroadcastReceiver?
                     if (showReceiver != null) {
-                        val view = args[0] as View
+                        val view = chain.getArg(0) as View
                         view.context.unregisterReceiver(showReceiver)
                         XposedHelpers.removeAdditionalInstanceField(thisObject, "showReceiver")
                     }
@@ -868,7 +861,7 @@ object Various {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
                     if ((args[1] as? String) == "callPreference" && (args[2] as? String) == "GET") {
                         val extras = args[3] as Bundle?
@@ -880,7 +873,7 @@ object Various {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -918,14 +911,13 @@ object Various {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
-                    val key = args[1] as String
+                    val key = chain.getArg(1) as String
                     if ("low_battery_dialog_disabled" == key) { skipped = true; result = 1; throwable = null }
                     else if ("low_battery_sound" == key) { skipped = true; result = null; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1031,7 +1023,7 @@ object Various {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
                     if ((args[1] as? String) == "callPreference" && (args[2] as? String) == "GET") {
                         val extras = args[3] as Bundle?
@@ -1043,7 +1035,7 @@ object Various {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1124,9 +1116,8 @@ object Various {
                     }
                     try {
                         val thisObject = chain.thisObject
-                        val args = XposedHelpers.getArgsArray(chain)
 
-                        val msg = args[0] as Message
+                        val msg = chain.getArg(0) as Message
                         if (msg.what == 1) {
                             val wk = XposedHelpers.getObjectField(thisObject, finalFieldName)
                             val frag = XposedHelpers.callMethod(wk, "get")
@@ -1215,9 +1206,8 @@ object Various {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    if ((args[0] as Int) != 500) { return XposedHelpers.throwOrReturn(throwable, result) }
+                    if ((chain.getArg(0) as Int) != 500) { return XposedHelpers.throwOrReturn(throwable, result) }
 
                     val mContext = XposedHelpers.callMethod(thisObject, "getContext") as Context?
                     if (mContext == null) {
@@ -1320,9 +1310,8 @@ object Various {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
 
-                    if (!(result as Boolean) || args[0].toString() != "INCOMING") { return XposedHelpers.throwOrReturn(throwable, result) }
+                    if (!(result as Boolean) || chain.getArg(0).toString() != "INCOMING") { return XposedHelpers.throwOrReturn(throwable, result) }
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     if (MainModule.mPrefs.getStringAsInt("various_showcallui", 0) == 3) {
                         val topPackage = Settings.Global.getString(mContext.contentResolver, Helpers.modulePkg + ".foreground.package")
@@ -1467,9 +1456,8 @@ object Various {
                     }
                     try {
                         val thisObject = chain.thisObject
-                        val args = XposedHelpers.getArgsArray(chain)
 
-                        val viewHolder = args[0] ?: return XposedHelpers.throwOrReturn(throwable, result)
+                        val viewHolder = chain.getArg(0) ?: return XposedHelpers.throwOrReturn(throwable, result)
                         val tvAppVersion = XposedHelpers.callMethod(viewHolder, "getTvDes") as TextView?
                         val tvAppSize = XposedHelpers.callMethod(viewHolder, "getAppSize") as TextView?
                         val tvAppName = XposedHelpers.callMethod(viewHolder, "getTvAppName") as TextView?
@@ -1542,9 +1530,8 @@ object Various {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
-                    val prefKey = args[0] as String
+                    val prefKey = chain.getArg(0) as String
                     if (prefKey == "ads_enable" || prefKey == "app_store_recommend" || prefKey == "secure_verify_enable") {
                         skipped = true; result = false; throwable = null
                     } else if (prefKey == "secure_verify_cloud_once") {
@@ -1552,7 +1539,7 @@ object Various {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1565,15 +1552,14 @@ object Various {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
-                    val prefKey = args[1] as String
+                    val prefKey = chain.getArg(1) as String
                     if (prefKey == "virus_scan_install") {
                         skipped = true; result = 0; throwable = null
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1586,15 +1572,14 @@ object Various {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
-                    val prefKey = args[1] as String
+                    val prefKey = chain.getArg(1) as String
                     if (prefKey == "miui_safe_mode") {
                         skipped = true; result = 0; throwable = null
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1638,9 +1623,8 @@ object Various {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
-                    val key = args[0] as String
+                    val key = chain.getArg(0) as String
                     if (key == "ro.com.google.ime.kb_pad_port_b") {
                         val opt = MainModule.mPrefs.getInt("various_gboardpadding_port", 0)
                         if (opt > 0) { skipped = true; result = opt.toString(); throwable = null }
@@ -1650,7 +1634,7 @@ object Various {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null

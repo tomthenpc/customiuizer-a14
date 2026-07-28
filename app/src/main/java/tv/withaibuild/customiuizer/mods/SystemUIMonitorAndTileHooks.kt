@@ -68,7 +68,7 @@ object SystemUIMonitorAndTileHooks {
         val ResourceIconClass = XposedHelpers.findClass("com.android.systemui.qs.tileimpl.QSTileImpl\$ResourceIcon", lpparam.classLoader)
         ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.MiuiQSFactory", lpparam.classLoader, "createTile", String::class.java, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val tileName = param.getArgs()[0] as String
+                val tileName = param.getArg(0) as String
                 if (tileName.startsWith("custom_")) {
                     val nfcField = "nfcTileProvider"
                     val provider = XposedHelpers.getObjectField(param.getThisObject(), nfcField)
@@ -113,7 +113,7 @@ object SystemUIMonitorAndTileHooks {
                 val tileName = XposedHelpers.getAdditionalInstanceField(param.getThisObject(), "customName") as String?
                 if (tileName != null) {
                     val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
-                    val mListening = param.getArgs()[0] as Boolean
+                    val mListening = param.getArg(0) as Boolean
                     when (tileName) {
                         "custom_5G" -> {
                             val resolver = mContext.contentResolver
@@ -261,7 +261,7 @@ object SystemUIMonitorAndTileHooks {
                         }
                     }
                     if (tileName.startsWith("custom_")) {
-                        val booleanState = param.getArgs()[0]
+                        val booleanState = param.getArg(0)
                         XposedHelpers.setObjectField(booleanState, "value", isEnable)
                         XposedHelpers.setObjectField(booleanState, "state", if (isEnable) 2 else 1)
                         val tileLabel = XposedHelpers.callMethod(param.getThisObject(), "getTileLabel") as String

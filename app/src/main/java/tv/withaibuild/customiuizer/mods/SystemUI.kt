@@ -482,7 +482,7 @@ object SystemUI {
         val mCallback = XposedHelpers.findField(MobileStatusTrackerClass, "mCallback")
         ModuleHelper.findAndHookMethod(mCallback.type, "onMobileStatusChanged", Boolean::class.javaPrimitiveType!!, "com.android.systemui.statusbar.mobile.MobileStatusTracker\$MobileStatus", object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val mobileStatus = param.getArgs()[1]
+                val mobileStatus = param.getArg(1)
                 val mobileSignalController = XposedHelpers.getSurroundingThis(param.getThisObject())
                 val subscriptionInfo = XposedHelpers.getObjectField(mobileSignalController, "mSubscriptionInfo") as SubscriptionInfo
                 val sid = subscriptionInfo.subscriptionId
@@ -1161,7 +1161,7 @@ object SystemUI {
         val mBgHandlerField = XposedHelpers.findField(NetworkSpeedController, "mBgHandler")
         ModuleHelper.findAndHookMethod(mBgHandlerField.type, "handleMessage", Message::class.java, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val message = param.getArgs()[0] as Message
+                val message = param.getArg(0) as Message
                 if (message.what == 200001) {
                     val thisObect = XposedHelpers.getSurroundingThis(param.getThisObject())
                     var isConnected = false
@@ -1398,7 +1398,7 @@ object SystemUI {
             private var initAction = false
 
             override fun before(param: BeforeHookCallback) {
-                XposedHelpers.setObjectField(param.getArgs()[0], "showMobileDataTypeSingle", true)
+                XposedHelpers.setObjectField(param.getArg(0), "showMobileDataTypeSingle", true)
                 if (param.getMember().name == "updateState") {
                     return
                 }
@@ -1792,11 +1792,11 @@ object SystemUI {
 
         ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelController", pluginLoader, "setUseSeparatedPanels", Boolean::class.java, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                if (param.getArgs()[0] == null) {
+                if (param.getArg(0) == null) {
                     param.returnAndSkip(null)
                     return
                 }
-                val bool = param.getArgs()[0] as Boolean
+                val bool = param.getArg(0) as Boolean
                 val oldVal = XposedHelpers.getObjectField(param.getThisObject(), "useSeparatedPanels")
                 if (bool == oldVal) {
                     param.returnAndSkip(null)
@@ -1878,7 +1878,7 @@ object SystemUI {
                 if (leftAdapter) {
                     val companion = XposedHelpers.getStaticObjectField(MainPanelAdapter, "Companion")
                     val contentMap = XposedHelpers.getObjectField(adapter, "contentMap")
-                    val panelItem = XposedHelpers.callMethod(companion, "getItem", contentMap, param.getArgs()[0])
+                    val panelItem = XposedHelpers.callMethod(companion, "getItem", contentMap, param.getArg(0))
                     if (panelItem == null) {
                         param.returnAndSkip(cols)
                     } else {
@@ -2212,7 +2212,7 @@ object SystemUI {
                 val clsName = param.getThisObject()!!.javaClass.simpleName
                 val isInControlCenter = "ControlCenterWindowViewImpl" == clsName
                 if (isInControlCenter) {
-                    if (param.getArgs().size == 2 && (param.getArgs()[1] as Boolean)) {
+                    if (param.getArgs().size == 2 && (param.getArg(1) as Boolean)) {
                         return
                     }
                     val statusBarStateController = XposedHelpers.getObjectField(param.getThisObject(), "statusBarStateController")
@@ -2226,7 +2226,7 @@ object SystemUI {
                 if (sbHeight == -1) {
                     sbHeight = res.getDimensionPixelSize(res.getIdentifier("status_bar_height_default", "dimen", "android"))
                 }
-                val event = param.getArgs()[0] as MotionEvent
+                val event = param.getArg(0) as MotionEvent
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         tapStartX = event.x
@@ -2373,7 +2373,7 @@ object SystemUI {
         })
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiKeyguardStatusBarView", lpparam.classLoader, "updateViewStatusBarPaddingTop", View::class.java, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val view = param.getArgs()[0] as View?
+                val view = param.getArg(0) as View?
                 if (view != null) {
                     view.setPadding(view.paddingLeft, statusBarPaddingTop[0], view.paddingRight, view.paddingBottom)
                     param.returnAndSkip(null)
@@ -2400,7 +2400,7 @@ object SystemUI {
     fun HideIconsSignalHook(lpparam: PackageReadyParam) {
         val stateHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val mobileIconState = param.getArgs()[0]
+                val mobileIconState = param.getArg(0)
                 var shouldUpdate = "updateState" == param.getMember().name
                 if (!shouldUpdate) {
                     val mState = XposedHelpers.getObjectField(param.getThisObject(), "mState")
@@ -2478,14 +2478,14 @@ object SystemUI {
     fun HideIconsFromSystemManager(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.CommandQueue", lpparam.classLoader, "setIcon", String::class.java, "com.android.internal.statusbar.StatusBarIcon", object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val slotName = param.getArgs()[0] as String
+                val slotName = param.getArg(0) as String
                 if (("stealth" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_privacy"))
                     || ("mute" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_mute"))
                     || ("speakerphone" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_speaker"))
                     || ("call_record" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_record"))
                     || ("wireless_headset" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_wireless_headset"))
                 ) {
-                    XposedHelpers.setObjectField(param.getArgs()[1], "visible", false)
+                    XposedHelpers.setObjectField(param.getArg(1), "visible", false)
                 }
             }
         })
@@ -2948,7 +2948,7 @@ object SystemUI {
 
         ModuleHelper.findAndHookMethod("com.android.systemui.plugins.PluginEnablerImpl", lpparam.classLoader, "isEnabled", ComponentName::class.java, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val componentName = param.getArgs()[0] as ComponentName
+                val componentName = param.getArg(0) as ComponentName
                 if (componentName.className.contains("GlobalActions")) {
                     param.returnAndSkip(false)
                 }
@@ -3172,7 +3172,7 @@ object SystemUI {
         })
         ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.StatusBarNotificationActivityStarter", lpparam.classLoader, "onNotificationClicked", object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val notificationEntry = param.getArgs()[0]
+                val notificationEntry = param.getArg(0)
                 val mSbn = XposedHelpers.getObjectField(notificationEntry, "mSbn")
                 val notify = XposedHelpers.callMethod(mSbn, "getNotification") as Notification
                 val pendingIntent = notify.contentIntent ?: return
@@ -3540,7 +3540,7 @@ object SystemUI {
                 if (useCC) {
                     val bar = param.getThisObject() as FrameLayout
                     val mControlPanelWindowManager = XposedHelpers.getObjectField(param.getThisObject(), "mControlPanelWindowManager")
-                    val dispatchToControlPanel = XposedHelpers.callMethod(mControlPanelWindowManager, "dispatchToControlPanel", param.getArgs()[0], bar.width) as Boolean
+                    val dispatchToControlPanel = XposedHelpers.callMethod(mControlPanelWindowManager, "dispatchToControlPanel", param.getArg(0), bar.width) as Boolean
                     XposedHelpers.callMethod(mControlPanelWindowManager, "setTransToControlPanel", dispatchToControlPanel)
                     param.returnAndSkip(dispatchToControlPanel)
                     return
@@ -3555,7 +3555,7 @@ object SystemUI {
                     val controlCenterController = XposedHelpers.getObjectField(param.getThisObject(), "controlCenterController")
                     val useCC = XposedHelpers.getBooleanField(controlCenterController, "useControlCenter")
                     if (useCC) {
-                        val motionEvent = param.getArgs()[0] as MotionEvent
+                        val motionEvent = param.getArg(0) as MotionEvent
                         if (motionEvent.actionMasked == MotionEvent.ACTION_DOWN) {
                             XposedHelpers.setObjectField(param.getThisObject(), "mDownX", motionEvent.rawX)
                         }
@@ -3564,7 +3564,7 @@ object SystemUI {
                             param.returnAndSkip(false)
                         } else {
                             val mDownX = XposedHelpers.getFloatField(param.getThisObject(), "downX")
-                            val width = param.getArgs()[1] as Float
+                            val width = param.getArg(1) as Float
                             if (mDownX < width / 2.0f) {
                                 param.returnAndSkip(XposedHelpers.callMethod(controlCenterWindowView, "handleMotionEvent", motionEvent, true))
                             } else {

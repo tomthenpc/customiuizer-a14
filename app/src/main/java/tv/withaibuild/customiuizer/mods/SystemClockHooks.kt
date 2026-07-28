@@ -313,7 +313,7 @@ object SystemClockHooks {
                 }
                 try {
                     val thisObject = chain.thisObject
-                    val args = XposedHelpers.getArgsArray(chain)
+                    val args = chain.args
 
                     val clock = thisObject as TextView
                     if (args.size != 3) { return XposedHelpers.throwOrReturn(throwable, result) }

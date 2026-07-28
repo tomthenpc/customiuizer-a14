@@ -104,26 +104,25 @@ object Controls {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
                     val thisObject = chain.thisObject
 
                     // Power and volkeys are pressed at the same time
-                    if (isVolumePressed) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    val keyEvent = args[0] as KeyEvent
+                    if (isVolumePressed) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
+                    val keyEvent = chain.getArg(0) as KeyEvent
 
                     val keycode = keyEvent.keyCode
                     val action = keyEvent.action
                     val flags = keyEvent.flags
 
                     // Ignore repeated KeyEvents simulated on Power Key Up
-                    if ((flags and KeyEvent.FLAG_VIRTUAL_HARD_KEY) == KeyEvent.FLAG_VIRTUAL_HARD_KEY) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    if ((flags and KeyEvent.FLAG_FROM_SYSTEM) != KeyEvent.FLAG_FROM_SYSTEM || keycode != KeyEvent.KEYCODE_POWER) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if ((flags and KeyEvent.FLAG_VIRTUAL_HARD_KEY) == KeyEvent.FLAG_VIRTUAL_HARD_KEY) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
+                    if ((flags and KeyEvent.FLAG_FROM_SYSTEM) != KeyEvent.FLAG_FROM_SYSTEM || keycode != KeyEvent.KEYCODE_POWER) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
 
                     // Power long press
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     val mPowerManager = XposedHelpers.getObjectField(thisObject, "mPowerManager") as PowerManager
-                    if (mPowerManager.isInteractive) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (mPowerManager.isInteractive) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
                     if (action == KeyEvent.ACTION_DOWN) {
                         isPowerPressed = true
                         isPowerLongPressed = false
@@ -177,7 +176,7 @@ object Controls {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -195,26 +194,25 @@ object Controls {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
                     val thisObject = chain.thisObject
 
                     // Power and volkeys are pressed at the same time
-                    if (isPowerPressed) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    val keyEvent = args[0] as KeyEvent
+                    if (isPowerPressed) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
+                    val keyEvent = chain.getArg(0) as KeyEvent
 
                     val keycode = keyEvent.keyCode
                     val action = keyEvent.action
                     val flags = keyEvent.flags
 
                     // Ignore repeated KeyEvents simulated on volume Key Up
-                    if ((flags and KeyEvent.FLAG_VIRTUAL_HARD_KEY) == KeyEvent.FLAG_VIRTUAL_HARD_KEY) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    if ((flags and KeyEvent.FLAG_FROM_SYSTEM) != KeyEvent.FLAG_FROM_SYSTEM || (keycode != KeyEvent.KEYCODE_VOLUME_UP && keycode != KeyEvent.KEYCODE_VOLUME_DOWN)) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if ((flags and KeyEvent.FLAG_VIRTUAL_HARD_KEY) == KeyEvent.FLAG_VIRTUAL_HARD_KEY) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
+                    if ((flags and KeyEvent.FLAG_FROM_SYSTEM) != KeyEvent.FLAG_FROM_SYSTEM || (keycode != KeyEvent.KEYCODE_VOLUME_UP && keycode != KeyEvent.KEYCODE_VOLUME_DOWN)) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
 
                     // Volume long press
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     val mPowerManager = XposedHelpers.getObjectField(thisObject, "mPowerManager") as PowerManager
-                    if (mPowerManager.isInteractive) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (mPowerManager.isInteractive) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
                     if (action == KeyEvent.ACTION_DOWN) {
                         isVolumePressed = true
                         isVolumeLongPressed = false
@@ -271,7 +269,7 @@ object Controls {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -316,22 +314,21 @@ object Controls {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
                     val thisObject = chain.thisObject
 
                     val ims = thisObject as InputMethodService
-                    val code = args[0] as Int
+                    val code = chain.getArg(0) as Int
                     if ((code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN) && ims.isInputViewShown) {
                         val pkgName = Settings.Global.getString(ims.contentResolver, Helpers.modulePkg + ".foreground.package")
-                        if (pkgName != null && MainModule.mPrefs.getStringSet("controls_volumecursor_apps").contains(pkgName)) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                        if (pkgName != null && MainModule.mPrefs.getStringSet("controls_volumecursor_apps").contains(pkgName)) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
                         val swapDir = MainModule.mPrefs.getBoolean("controls_volumecursor_reverse")
                         ims.sendDownUpKeyEvents(if (code == (if (swapDir) KeyEvent.KEYCODE_VOLUME_DOWN else KeyEvent.KEYCODE_VOLUME_UP)) KeyEvent.KEYCODE_DPAD_LEFT else KeyEvent.KEYCODE_DPAD_RIGHT)
                         skipped = true; result = true; throwable = null
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -345,12 +342,11 @@ object Controls {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
                     val thisObject = chain.thisObject
 
                     val ims = thisObject as InputMethodService
-                    val code = args[0] as Int
+                    val code = chain.getArg(0) as Int
                     if ((code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN) && ims.isInputViewShown) {
                         val pkgName = Settings.Global.getString(ims.contentResolver, Helpers.modulePkg + ".foreground.package")
                         if (pkgName == null || !MainModule.mPrefs.getStringSet("controls_volumecursor_apps").contains(pkgName)) {
@@ -359,7 +355,7 @@ object Controls {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -668,7 +664,6 @@ object Controls {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
                     val thisObject = chain.thisObject
 
@@ -678,7 +673,7 @@ object Controls {
 
                     val mHandler = XposedHelpers.getObjectField(thisObject, "mHandler") as Handler
 
-                    val key = args[0] as Int
+                    val key = chain.getArg(0) as Int
                     if (key == KeyEvent.KEYCODE_BACK && MainModule.mPrefs.getInt("controls_backlong_action", 1) > 1) {
                         mHandler.removeCallbacks(mBackLongPressAction)
                         mHandler.postDelayed(mBackLongPressAction, ViewConfiguration.getLongPressTimeout().toLong())
@@ -694,7 +689,7 @@ object Controls {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -707,11 +702,10 @@ object Controls {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
                     val thisObject = chain.thisObject
 
-                    val key = args[0] as Int
+                    val key = chain.getArg(0) as Int
                     val mHandler = XposedHelpers.getObjectField(thisObject, "mHandler") as Handler
                     if (key == KeyEvent.KEYCODE_BACK)
                         mHandler.removeCallbacks(mBackLongPressAction)
@@ -720,7 +714,7 @@ object Controls {
                     else if (key == KeyEvent.KEYCODE_APP_SWITCH)
                         mHandler.removeCallbacks(mMenuLongPressAction)
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -937,14 +931,14 @@ object Controls {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
+                val args = chain.args
                 try {
                     if (args.size >= 3) {
                         skipped = true; result = null; throwable = null
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -999,13 +993,12 @@ object Controls {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
-                    val isScreenOn = args[1] as Boolean
+                    val isScreenOn = chain.getArg(1) as Boolean
                     if (!isScreenOn) { skipped = true; result = null; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -1022,12 +1015,11 @@ object Controls {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
                     val thisObject = chain.thisObject
 
-                    val bundle = args[0] as Bundle?
-                    if (bundle == null || bundle.getInt("triggered_by", 0) != 83 || bundle.getInt("invocation_type", 0) != 1) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    val bundle = chain.getArg(0) as Bundle?
+                    if (bundle == null || bundle.getInt("triggered_by", 0) != 83 || bundle.getInt("invocation_type", 0) != 1) { return if (skipped) XposedHelpers.throwOrReturn(throwable, result) else XposedHelpers.proceedOrThrow(chain, throwable) }
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     val pos = if (bundle.getInt("inDirection", 0) == 1) "right" else "left"
                     if (GlobalActions.handleAction(mContext, "controls_fsg_assist_$pos", false, bundle)) {
@@ -1036,7 +1028,7 @@ object Controls {
                     }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null

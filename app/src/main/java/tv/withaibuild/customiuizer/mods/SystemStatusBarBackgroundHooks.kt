@@ -110,13 +110,12 @@ object SystemStatusBarBackgroundHooks {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.thisObject
                 try {
 
-                    hookToolbar(thisObject, args[0] as Drawable?)
+                    hookToolbar(thisObject, chain.getArg(0) as Drawable?)
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -129,13 +128,12 @@ object SystemStatusBarBackgroundHooks {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.thisObject
                 try {
 
-                    hookWindowDecor(thisObject, args[0] as Drawable?)
+                    hookWindowDecor(thisObject, chain.getArg(0) as Drawable?)
 
-                    result = chain.proceed(args)
+                    result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t
                     result = null
@@ -158,13 +156,12 @@ object SystemStatusBarBackgroundHooks {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var result: Any? = null
                     var throwable: Throwable? = null
-                    val args = XposedHelpers.getArgsArray(chain)
                     val thisObject = chain.thisObject
                     try {
 
-                        hookToolbar(thisObject, args[0] as Drawable?)
+                        hookToolbar(thisObject, chain.getArg(0) as Drawable?)
 
-                        result = chain.proceed(args)
+                        result = chain.proceed()
                     } catch (t: Throwable) {
                         throwable = t
                         result = null
@@ -182,13 +179,12 @@ object SystemStatusBarBackgroundHooks {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var result: Any? = null
                     var throwable: Throwable? = null
-                    val args = XposedHelpers.getArgsArray(chain)
                     val thisObject = chain.thisObject
                     try {
 
-                        hookWindowDecor(thisObject, args[0] as Drawable?)
+                        hookWindowDecor(thisObject, chain.getArg(0) as Drawable?)
 
-                        result = chain.proceed(args)
+                        result = chain.proceed()
                     } catch (t: Throwable) {
                         throwable = t
                         result = null
@@ -206,13 +202,12 @@ object SystemStatusBarBackgroundHooks {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
                         var result: Any? = null
                         var throwable: Throwable? = null
-                        val args = XposedHelpers.getArgsArray(chain)
                         val thisObject = chain.thisObject
                         try {
 
-                            hookToolbar(thisObject, args[0] as Drawable?)
+                            hookToolbar(thisObject, chain.getArg(0) as Drawable?)
 
-                            result = chain.proceed(args)
+                            result = chain.proceed()
                         } catch (t: Throwable) {
                             throwable = t
                             result = null
@@ -229,13 +224,12 @@ object SystemStatusBarBackgroundHooks {
                     override fun intercept(chain: XposedInterface.Chain): Any? {
                         var result: Any? = null
                         var throwable: Throwable? = null
-                        val args = XposedHelpers.getArgsArray(chain)
                         val thisObject = chain.thisObject
                         try {
 
-                            hookWindowDecor(thisObject, args[0] as Drawable?)
+                            hookWindowDecor(thisObject, chain.getArg(0) as Drawable?)
 
-                            result = chain.proceed(args)
+                            result = chain.proceed()
                         } catch (t: Throwable) {
                             throwable = t
                             result = null
