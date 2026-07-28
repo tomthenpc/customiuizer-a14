@@ -95,11 +95,22 @@ class ListPreferenceEx(context: Context, attrs: AttributeSet?) : ListPreference(
             (holder.itemView as? ViewGroup)?.addView(valSummary, 2)
         }
 
-        // Defensive: if entries and values are out of sync, the ListPreference cannot
-        // resolve the summary. Fall back to the raw value rather than showing an empty
-        // summary and log the inconsistency so it is visible in tests/development.
+        // Defensive: if entries and values are out of sync, or the value is not
+        // present in entryValues, the ListPreference cannot resolve the summary.
+        // Fall back to the first entry (the fallback/default value) and log the
+        // inconsistency so it is visible in tests/development.
         if (entries != null && entryValues != null && entries.size != entryValues.size) {
             android.util.Log.e("ListPreferenceEx", "entries/entryValues size mismatch: ${entries.size} vs ${entryValues.size}")
+        }
+
+        if (entryValues != null && value != null && !entryValues.contains(value)) {
+            android.util.Log.e("ListPreferenceEx", "value '$value' not in entryValues; falling back to '${entryValues[0]}'")
+            // Temporarily detach any change listener to avoid triggering confirmation
+            // dialogs or other side effects while repairing the value during bind.
+            val listener = onPreferenceChangeListener
+            onPreferenceChangeListener = null
+            setValue(entryValues[0].toString())
+            onPreferenceChangeListener = listener
         }
 
         getView(holder.itemView)
