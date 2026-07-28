@@ -7,7 +7,6 @@ import android.content.IntentFilter
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
-import android.os.Looper
 import android.text.format.DateFormat
 import android.util.TypedValue
 import android.view.Gravity

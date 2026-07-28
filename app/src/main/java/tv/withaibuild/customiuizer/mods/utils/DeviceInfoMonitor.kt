@@ -14,7 +14,7 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
-import tv.withaibuild.customiuizer.mods.SystemUI
+import tv.withaibuild.customiuizer.mods.SystemUIStatusBarHooks
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
@@ -207,7 +207,7 @@ object DeviceInfoMonitor {
                         "mStatusBarIconList"
                     )
                     for (iconType in cfg.customIconTypes) {
-                        val slot = SystemUI.getSlotNameByType(iconType)
+                        val slot = SystemUIStatusBarHooks.getSlotNameByType(iconType)
                         val mStatusBarIconList = XposedHelpers.getObjectField(iconController, "mStatusBarIconList")
                         var iconHolder = XposedHelpers.callMethod(mStatusBarIconList, "getIconHolder", 0, slot)
                         if (iconHolder == null) {
@@ -233,11 +233,11 @@ object DeviceInfoMonitor {
 
                     val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
                     val lp = XposedHelpers.callMethod(param.getThisObject(), "onCreateLayoutParams") as LinearLayout.LayoutParams
-                    val iconView = SystemUI.createStatusbarTextIcon(mContext, lp, type, true)
+                    val iconView = SystemUIStatusBarHooks.createStatusbarTextIcon(mContext, lp, type, true)
                     val i = param.getArg(0) as Int
                     val mGroup = XposedHelpers.getObjectField(param.getThisObject(), "mGroup") as ViewGroup
                     mGroup.addView(iconView, i)
-                    SystemUI.registerStatusbarTextIcon(iconView)
+                    SystemUIStatusBarHooks.registerStatusbarTextIcon(iconView)
                     param.returnAndSkip(iconView)
                 }
             }
@@ -252,9 +252,9 @@ object DeviceInfoMonitor {
             object : MethodHook() {
                 override fun before(param: BeforeHookCallback) {
                     val nsView = param.getThisObject() as View
-                    val tagData = nsView.getTag(SystemUI.textIconTagId)
+                    val tagData = nsView.getTag(SystemUIStatusBarHooks.textIconTagId)
                     if (tagData != null) {
-                        param.returnAndSkip(SystemUI.getSlotNameByType(tagData as Int))
+                        param.returnAndSkip(SystemUIStatusBarHooks.getSlotNameByType(tagData as Int))
                     }
                 }
             }
@@ -280,7 +280,7 @@ object DeviceInfoMonitor {
                             override fun handleMessage(msg: Message) = ModuleHelper.guarded {
                                 if (msg.what == UPDATE_MESSAGE) {
                                     val update = msg.obj as? IconUpdate ?: return@guarded
-                                    SystemUI.updateStatusbarTextIcons(update.type, update.show, update.text)
+                                    SystemUIStatusBarHooks.updateStatusbarTextIcons(update.type, update.show, update.text)
                                 }
                             }
                         }

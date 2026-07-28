@@ -2,22 +2,15 @@ package tv.withaibuild.customiuizer.mods
 
 import android.annotation.SuppressLint
 import android.content.ComponentName
-import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.database.ContentObserver
 import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
-import android.os.Message
 import android.os.Parcel
-import android.os.PowerManager
 import android.provider.Settings
-import android.text.TextUtils
 import android.util.ArrayMap
 import android.view.View
-import android.view.ViewGroup
-import android.widget.LinearLayout
 import android.widget.Switch
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import miui.telephony.TelephonyManager
@@ -30,10 +23,6 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.DeviceInfoMonitor
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.PrefMap
-import java.io.FileInputStream
-import java.io.RandomAccessFile
-import java.util.Locale
-import java.util.Properties
 
 @Suppress("MemberVisibilityCanBePrivate")
 object SystemUIMonitorAndTileHooks {
