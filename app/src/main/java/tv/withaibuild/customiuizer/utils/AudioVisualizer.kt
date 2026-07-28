@@ -71,6 +71,8 @@ class AudioVisualizer @JvmOverloads constructor(
     private var maxDb = 50f
     private val maxDp = 280
     private val mBandsNum = 31
+    private var mFftSize = 0
+    private val mBandBinLimits = IntArray(mBandsNum) { Int.MAX_VALUE }
     private val mBandStarts = FloatArray(mBandsNum) { Float.MAX_VALUE }
     private val mBandTargets = FloatArray(mBandsNum) { Float.MAX_VALUE }
     private val mPendingTargets = FloatArray(mBandsNum) { Float.MAX_VALUE }
@@ -177,6 +179,7 @@ class AudioVisualizer @JvmOverloads constructor(
 
     private val viewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var randomizeColorJob: Job? = null
+    private var paletteGenerationJob: Job? = null
 
     enum class BarStyle {
         DUMMY, SOLID, SOLID_ROUNDED, DASHED, CIRCLES, LINE
@@ -302,17 +305,20 @@ class AudioVisualizer @JvmOverloads constructor(
             try {
                 if (detached || !mDisplaying) return
 
-                val bandWidth = samplingRate.toFloat() / fft.size
+                if (mFftSize != fft.size) {
+                    computeBandBinLimits(fft.size)
+                }
+
                 val silentFrame = allZeros(fft)
                 var band = 0
                 var i = 1
                 val maxHeight = min(0.85f * maxDp * mDensity, mHeight / 2.0f)
 
-                while (band < mBandsNum && i < fft.size / 2) {
+                while (band < mBandsNum && i < mFftSize / 2) {
                     magnitude = 0f
 
                     if (!silentFrame) {
-                        while (i < fft.size / 2 && (i * bandWidth <= mBands[band] * samplingRate / 44100f)) {
+                        while (i < mBandBinLimits[band]) {
                             real = fft[i * 2]
                             imaginary = fft[i * 2 + 1]
                             magnitude = max(magnitude, (real * real + imaginary * imaginary).toFloat())
@@ -340,6 +346,15 @@ class AudioVisualizer @JvmOverloads constructor(
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
             }
+        }
+    }
+
+    private fun computeBandBinLimits(fftSize: Int) {
+        mFftSize = fftSize
+        val half = fftSize / 2
+        for (band in 0 until mBandsNum) {
+            val limit = (mBands[band] * fftSize / 44100f).toInt()
+            mBandBinLimits[band] = if (limit < half) limit else half
         }
     }
 
@@ -386,8 +401,10 @@ class AudioVisualizer @JvmOverloads constructor(
             mProcessedArt = mArt
             val art = mProcessedArt
             if (art != null) {
-                viewScope.launch {
+                paletteGenerationJob?.cancel()
+                paletteGenerationJob = viewScope.launch {
                     val palette = withContext(Dispatchers.Default) { Palette.from(art).generate() }
+                    if (!isActive) return@launch
                     onPaletteGenerated(palette)
                 }
             } else {
@@ -519,6 +536,7 @@ class AudioVisualizer @JvmOverloads constructor(
         mVisualizerColorAnimator?.cancel()
         mVisualizerGlowColorAnimator?.cancel()
         randomizeColorJob?.cancel()
+        paletteGenerationJob?.cancel()
         mArt = null
         mProcessedArt = null
         viewScope.cancel()
