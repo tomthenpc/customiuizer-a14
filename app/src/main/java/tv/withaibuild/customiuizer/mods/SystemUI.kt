@@ -79,6 +79,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
+import tv.withaibuild.customiuizer.mods.utils.LockScreenAlbumArtController
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
 import tv.withaibuild.customiuizer.mods.utils.StepCounterController
@@ -2529,53 +2530,6 @@ object SystemUI {
         })
     }
 
-    private fun processAlbumArt(context: Context?, bitmap: Bitmap?): Bitmap? {
-        if (context == null || bitmap == null) return bitmap
-        val rescale = MainModule.mPrefs.getStringAsInt("system_albumartonlock_scale", 1)
-        val grayscale = MainModule.mPrefs.getBoolean("system_albumartonlock_gray")
-        if (rescale == 1 && !grayscale) return bitmap
-
-        val paint = Paint()
-        val transformation = Matrix()
-        var width = 0
-        var height = 0
-
-        if (grayscale) {
-            width = bitmap.width
-            height = bitmap.height
-            val matrix = ColorMatrix()
-            matrix.setSaturation(0f)
-            paint.colorFilter = ColorMatrixColorFilter(matrix)
-        }
-
-        if (rescale != 1) {
-            val display = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay
-            val point = Point()
-            display.getRealSize(point)
-            width = point.x
-            height = point.y
-
-            val originalWidth = bitmap.width.toFloat()
-            val originalHeight = bitmap.height.toFloat()
-            val scale = if (rescale == 2) {
-                Math.min(width / originalWidth, height / originalHeight)
-            } else {
-                Math.max(width / originalWidth, height / originalHeight)
-            }
-            val xTranslation = (width - originalWidth * scale) / 2.0f
-            val yTranslation = (height - originalHeight * scale) / 2.0f
-
-            transformation.postTranslate(xTranslation, yTranslation)
-            transformation.preScale(scale, scale)
-            paint.isFilterBitmap = true
-        }
-
-        val processed = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(processed)
-        canvas.drawBitmap(bitmap, transformation, paint)
-        return processed
-    }
-
     private var lockScreenAlbumArtController: WeakReference<Any>? = null
     private var lockScreenAlbumArtReceiverRegistered = false
     private val lockScreenAlbumArtReceiver = object : BroadcastReceiver() {
@@ -2604,6 +2558,7 @@ object SystemUI {
     @JvmStatic
     fun LockScreenAlbumArtHook(lpparam: PackageReadyParam) {
         val MiuiThemeUtilsClass = XposedHelpers.findClassIfExists("com.android.keyguard.utils.MiuiKeyguardUtils", lpparam.classLoader)
+        LockScreenAlbumArtController.setMiuiThemeUtilsClass(MiuiThemeUtilsClass)
 
         ModuleHelper.hookAllConstructors("com.android.systemui.shade.MiuiNotificationPanelViewController", lpparam.classLoader, object : MethodHook() {
             override fun after(param: AfterHookCallback) {
@@ -2645,6 +2600,7 @@ object SystemUI {
             override fun after(param: AfterHookCallback) {
                 val screenOn = param.getArgs()[0] as Boolean
                 screenStates[0] = !screenOn
+                LockScreenAlbumArtController.setAod(!screenOn)
                 XposedHelpers.callMethod(param.getThisObject(), "updateThemeBackgroundVisibility")
             }
         })
@@ -2664,30 +2620,10 @@ object SystemUI {
                     if (art == null) art = mMediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
                     if (art == null) art = mMediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
                 }
-                val mAlbumArt = XposedHelpers.getAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArtSource") as Bitmap?
-                try {
-                    if (art == null && mAlbumArt == null) return
-                    if (art != null && art.sameAs(mAlbumArt)) return
-                } catch (ignore: Throwable) {
-                }
-                XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArtSource", art)
-
                 val blur = MainModule.mPrefs.getInt("system_albumartonlock_blur", 0)
-                val blurArt = processAlbumArt(mContext, if (art != null && blur > 0) Helpers.fastBlur(art, blur + 1) else art)
-                XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArt", blurArt)
-
-                val updateAlbumWallpaper = Intent(GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART")
-                updateAlbumWallpaper.setPackage("com.android.systemui")
-                mContext.sendBroadcast(updateAlbumWallpaper)
-
-                if (blurArt != null) {
-                    val updateFakeWallpaper = Intent("miui.intent.action.LOCK_WALLPAPER_CHANGED")
-                    updateFakeWallpaper.setPackage("com.android.systemui")
-                    val fromBitmap = WallpaperColors.fromBitmap(blurArt)
-                    val isWallpaperColorLight = (fromBitmap.colorHints and 1) == 1
-                    updateFakeWallpaper.putExtra("is_wallpaper_color_light", isWallpaperColorLight)
-                    mContext.sendBroadcast(updateFakeWallpaper)
-                }
+                val rescale = MainModule.mPrefs.getStringAsInt("system_albumartonlock_scale", 1)
+                val grayscale = MainModule.mPrefs.getBoolean("system_albumartonlock_gray")
+                LockScreenAlbumArtController.updateMediaMetaData(mContext, art, blur, rescale, grayscale)
             }
         })
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.NotificationMediaManager", lpparam.classLoader, "dispatchUpdateMediaMetaData", Boolean::class.javaPrimitiveType!!, object : MethodHook() {
@@ -2695,14 +2631,10 @@ object SystemUI {
                 val isDefaultLockScreenTheme = XposedHelpers.callStaticMethod(MiuiThemeUtilsClass, "isDefaultKeyguardNotTheme") as Boolean
                 if (isDefaultLockScreenTheme) {
                     val mMediaController = XposedHelpers.getObjectField(param.getThisObject(), "mMediaController")
-                    if (mMediaController == null) {
-                        XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArtSource", null)
-                        XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArt", null)
-                    }
                     val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
-                    val updateAlbumWallpaper = Intent(GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART")
-                    updateAlbumWallpaper.setPackage("com.android.systemui")
-                    mContext.sendBroadcast(updateAlbumWallpaper)
+                    if (mMediaController == null) {
+                        LockScreenAlbumArtController.updateMediaMetaData(mContext, null, 0, 1, false)
+                    }
                 }
             }
         })
