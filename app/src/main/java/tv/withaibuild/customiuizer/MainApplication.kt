@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.os.Build
 import tv.withaibuild.customiuizer.utils.AppHelper
+import tv.withaibuild.customiuizer.utils.AppLocaleController
 import tv.withaibuild.customiuizer.utils.Helpers
 
 class MainApplication : Application() {
@@ -21,7 +22,7 @@ class MainApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        AppHelper.applyLocaleChange(this, AppHelper.appPrefs?.getString("pref_key_miuizer_locale", "auto"))
+        AppHelper.appPrefs?.let { AppLocaleController.applyLocale(AppLocaleController.getUserLocale(it)) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             nm?.createNotificationChannel(

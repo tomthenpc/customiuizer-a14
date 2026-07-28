@@ -5,16 +5,12 @@ import android.content.SharedPreferences
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.text.InputType
-import android.text.SpannableString
 import android.util.Log
 import android.util.Pair
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
-import androidx.preference.Preference
 import io.github.libxposed.service.RemotePreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -114,78 +110,17 @@ object AppHelper {
 
     @JvmStatic
     @Synchronized
-    fun getLocaleContext(context: Context): Context {
-        val prefs = appPrefs ?: return context
-        val localeTag = prefs.getString("pref_key_miuizer_locale", "auto") ?: "auto"
-        val targetLocale = when (localeTag) {
-            "auto", "1" -> {
-                val sysLocales = Resources.getSystem().configuration.locales
-                if (sysLocales.isEmpty) Locale.getDefault() else sysLocales[0]
-            }
-            else -> Locale.forLanguageTag(localeTag)
-        }
-        Locale.setDefault(targetLocale)
-        val config = Configuration(context.resources.configuration)
-        config.setLocale(targetLocale)
-        return context.createConfigurationContext(config)
-    }
+    fun getLocaleContext(context: Context): Context =
+        AppLocaleController.getLocaleContext(context, appPrefs)
 
     @JvmStatic
     fun applyLocaleChange(context: Context, localeTag: String?) {
-        val prefs = appPrefs ?: return
-        val tag = localeTag ?: "auto"
-        if (tag.isNotEmpty()) {
-            prefs.edit().putString("pref_key_miuizer_locale", tag).apply()
-        }
-        val targetLocale = when (tag) {
-            "auto", "1" -> {
-                val sysLocales = Resources.getSystem().configuration.locales
-                if (sysLocales.isEmpty) Locale.getDefault() else sysLocales[0]
-            }
-            else -> try {
-                Locale.forLanguageTag(tag)
-            } catch (t: Throwable) {
-                t.printStackTrace()
-                Locale.getDefault()
-            }
-        }
-        Locale.setDefault(targetLocale)
-        val localeList = when (tag) {
-            "auto", "1" -> LocaleListCompat.getEmptyLocaleList()
-            else -> LocaleListCompat.create(targetLocale)
-        }
-        AppCompatDelegate.setApplicationLocales(localeList)
+        AppLocaleController.applyLocale(localeTag ?: "auto")
     }
 
     @JvmStatic
     fun setupLocalePreference(localePref: ListPreferenceEx?) {
-        if (localePref == null) return
-        val locales = arrayOf("zh-CN", "zh-TW", "ru-RU", "ja-JP", "vi-VN", "cs-CZ", "pt-BR", "tr-TR", "es-ES")
-        val localesArr = ArrayList<String>(locales.asList())
-        val localeNames = ArrayList<SpannableString>()
-        localesArr.add(0, "en")
-        for (locale in localesArr) try {
-            val loc = Locale.forLanguageTag(locale)
-            val locStr: StringBuilder = if (locale == "zh-TW") {
-                StringBuilder("繁體中文 (台灣)")
-            } else {
-                val sb = StringBuilder(loc.getDisplayLanguage(loc))
-                if (sb.isNotEmpty()) sb.setCharAt(0, Character.toUpperCase(sb[0]))
-                if (locale == "pt-BR") sb.append(" (Brasil)")
-                sb
-            }
-            localeNames.add(SpannableString(locStr.toString()))
-        } catch (t: Throwable) {
-            localeNames.add(SpannableString(Locale.getDefault().getDisplayLanguage(Locale.getDefault())))
-        }
-        localesArr.add(0, "auto")
-        localeNames.add(0, SpannableString(localePref.context.getString(R.string.array_system_default)))
-        localePref.entries = localeNames.toTypedArray()
-        localePref.entryValues = localesArr.toTypedArray()
-        localePref.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
-            applyLocaleChange(localePref.context, newValue as? String)
-            true
-        }
+        AppLocaleController.setupLocalePreference(localePref, appPrefs)
     }
 
     @JvmStatic

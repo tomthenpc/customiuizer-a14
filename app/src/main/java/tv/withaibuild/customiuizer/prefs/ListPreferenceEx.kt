@@ -60,7 +60,10 @@ class ListPreferenceEx(context: Context, attrs: AttributeSet?) : ListPreference(
 
         summary?.visibility = if (valueAsSummary || summary.text.isNullOrEmpty()) View.GONE else View.VISIBLE
         valSummary?.visibility = if (valueAsSummary) View.VISIBLE else View.GONE
-        valSummary?.text = if (valueAsSummary) entry else ""
+        valSummary?.text = if (valueAsSummary) {
+            val resolved = entry
+            if (resolved.isNullOrEmpty()) value ?: "" else resolved
+        } else ""
         if (valueAsSummary) {
             val disableColor = res.getColor(R.color.preference_primary_text_disable, context.theme)
             val secondary = res.getColor(R.color.preference_secondary_text, context.theme)
@@ -90,6 +93,13 @@ class ListPreferenceEx(context: Context, attrs: AttributeSet?) : ListPreference(
                 id = android.R.id.hint
             }
             (holder.itemView as? ViewGroup)?.addView(valSummary, 2)
+        }
+
+        // Defensive: if entries and values are out of sync, the ListPreference cannot
+        // resolve the summary. Fall back to the raw value rather than showing an empty
+        // summary and log the inconsistency so it is visible in tests/development.
+        if (entries != null && entryValues != null && entries.size != entryValues.size) {
+            android.util.Log.e("ListPreferenceEx", "entries/entryValues size mismatch: ${entries.size} vs ${entryValues.size}")
         }
 
         getView(holder.itemView)

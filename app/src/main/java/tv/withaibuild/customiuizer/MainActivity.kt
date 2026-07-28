@@ -62,15 +62,6 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    override fun attachBaseContext(base: Context) {
-        try {
-            super.attachBaseContext(AppHelper.getLocaleContext(base) ?: base)
-        } catch (t: Throwable) {
-            t.printStackTrace()
-            super.attachBaseContext(base)
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
