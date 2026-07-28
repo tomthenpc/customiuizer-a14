@@ -21,6 +21,17 @@ import tv.withaibuild.customiuizer.mods.Controls;
 import tv.withaibuild.customiuizer.mods.GlobalActions;
 import tv.withaibuild.customiuizer.mods.Launcher;
 import tv.withaibuild.customiuizer.mods.PackagePermissions;
+import tv.withaibuild.customiuizer.mods.SystemSecurityHooks;
+import tv.withaibuild.customiuizer.mods.SystemShareMenuHooks;
+import tv.withaibuild.customiuizer.mods.SystemLockScreenHooks;
+import tv.withaibuild.customiuizer.mods.SystemNotificationHooks;
+import tv.withaibuild.customiuizer.mods.SystemAudioHooks;
+import tv.withaibuild.customiuizer.mods.SystemDisplayHooks;
+import tv.withaibuild.customiuizer.mods.SystemWindowHooks;
+import tv.withaibuild.customiuizer.mods.SystemClockHooks;
+import tv.withaibuild.customiuizer.mods.SystemStatusBarIconHooks;
+import tv.withaibuild.customiuizer.mods.SystemStatusBarBackgroundHooks;
+import tv.withaibuild.customiuizer.mods.SystemColorizeNotificationHooks;
 import tv.withaibuild.customiuizer.mods.System;
 import tv.withaibuild.customiuizer.mods.SystemUI;
 import tv.withaibuild.customiuizer.mods.Various;
@@ -143,7 +154,7 @@ public class MainModule extends XposedModule {
         if (GlobalActions.hasCustomActions()) GlobalActions.setupGlobalActions(lpparam);
 
         if (mPrefs.getBoolean("system_screenshot_overlay")) {
-            System.TempHideOverlayAppHook(lpparam);
+            SystemWindowHooks.TempHideOverlayAppHook(lpparam);
         }
 
         if (mPrefs.getBoolean("system_notify_openinfw")
@@ -151,62 +162,62 @@ public class MainModule extends XposedModule {
             || mPrefs.getBoolean("system_betterpopups_allowfloat")
             || mPrefs.getBoolean("system_cc_freeform_when_longclick")
         ) {
-            System.OpenAppInFreeFormHook(lpparam);
+            SystemWindowHooks.OpenAppInFreeFormHook(lpparam);
         }
 
         if (mPrefs.getInt("controls_backlong_action", 1) > 1 ||
             mPrefs.getInt("controls_homelong_action", 1) > 1 ||
             mPrefs.getInt("controls_menulong_action", 1) > 1) Controls.NavBarActionsHook(lpparam);
         if (mPrefs.getInt("controls_powerdt_action", 1) > 1 || mPrefs.getBoolean("controls_volumedowndt_torch")) Controls.PowerDoubleTapActionHook(lpparam);
-        if (mPrefs.getInt("system_screenanim_duration", 0) > 0) System.ScreenAnimHook(lpparam);
-        if (mPrefs.getInt("system_applock_timeout", 1) > 1) System.AppLockTimeoutHook(lpparam);
-        if (mPrefs.getInt("system_dimtime", 0) > 0) System.ScreenDimTimeHook(lpparam);
+        if (mPrefs.getInt("system_screenanim_duration", 0) > 0) SystemDisplayHooks.ScreenAnimHook(lpparam);
+        if (mPrefs.getInt("system_applock_timeout", 1) > 1) SystemLockScreenHooks.AppLockTimeoutHook(lpparam);
+        if (mPrefs.getInt("system_dimtime", 0) > 0) SystemDisplayHooks.ScreenDimTimeHook(lpparam);
         if (mPrefs.getInt("system_toasttime", 0) > 0) System.ToastTimeHook(lpparam);
-        if (mPrefs.getBoolean("system_removesecure")) System.RemoveSecureHook(lpparam);
-        if (mPrefs.getBoolean("system_remove_startactconfirm")) System.RemoveActStartConfirmHook(lpparam);
-        if (mPrefs.getBoolean("system_securelock")) System.EnhancedSecurityHook(lpparam);
-        if (mPrefs.getBoolean("system_downgrade")) System.NoVersionCheckHook(lpparam);
-        if (mPrefs.getBoolean("system_orientationlock")) System.OrientationLockHook(lpparam);
-        if (mPrefs.getBoolean("system_noducking")) System.NoDuckingHook(lpparam);
-        if (mPrefs.getBoolean("system_cleanshare")) System.CleanShareMenuServiceHook(lpparam);
-        if (mPrefs.getBoolean("system_cleanopenwith")) System.CleanOpenWithMenuServiceHook(lpparam);
-        if (mPrefs.getBoolean("system_autobrightness")) System.AutoBrightnessRangeHook(lpparam);
-        if (mPrefs.getBoolean("system_autobrightness_reset_when_screenoff")) System.AutoBrightnessAfterScreenOffHook(lpparam);
-        if (mPrefs.getBoolean("system_lockscreen_disable_strongauth_72h")) System.Disable72hStrongAuthHook(lpparam);
-        if (mPrefs.getBoolean("system_applock")) System.AppLockHook(lpparam);
-        if (mPrefs.getBoolean("system_applock_skip")) System.SkipAppLockHook(lpparam);
+        if (mPrefs.getBoolean("system_removesecure")) SystemSecurityHooks.RemoveSecureHook(lpparam);
+        if (mPrefs.getBoolean("system_remove_startactconfirm")) SystemSecurityHooks.RemoveActStartConfirmHook(lpparam);
+        if (mPrefs.getBoolean("system_securelock")) SystemLockScreenHooks.EnhancedSecurityHook(lpparam);
+        if (mPrefs.getBoolean("system_downgrade")) SystemSecurityHooks.NoVersionCheckHook(lpparam);
+        if (mPrefs.getBoolean("system_orientationlock")) SystemWindowHooks.OrientationLockHook(lpparam);
+        if (mPrefs.getBoolean("system_noducking")) SystemAudioHooks.NoDuckingHook(lpparam);
+        if (mPrefs.getBoolean("system_cleanshare")) SystemShareMenuHooks.CleanShareMenuServiceHook(lpparam);
+        if (mPrefs.getBoolean("system_cleanopenwith")) SystemShareMenuHooks.CleanOpenWithMenuServiceHook(lpparam);
+        if (mPrefs.getBoolean("system_autobrightness")) SystemDisplayHooks.AutoBrightnessRangeHook(lpparam);
+        if (mPrefs.getBoolean("system_autobrightness_reset_when_screenoff")) SystemDisplayHooks.AutoBrightnessAfterScreenOffHook(lpparam);
+        if (mPrefs.getBoolean("system_lockscreen_disable_strongauth_72h")) SystemLockScreenHooks.Disable72hStrongAuthHook(lpparam);
+        if (mPrefs.getBoolean("system_applock")) SystemLockScreenHooks.AppLockHook(lpparam);
+        if (mPrefs.getBoolean("system_applock_skip")) SystemLockScreenHooks.SkipAppLockHook(lpparam);
         if (mPrefs.getBoolean("various_alarmcompat")) Various.AlarmCompatServiceHook(lpparam);
-        if (mPrefs.getBoolean("system_ignorecalls")) System.NoCallInterruptionHook(lpparam);
+        if (mPrefs.getBoolean("system_ignorecalls")) SystemAudioHooks.NoCallInterruptionHook(lpparam);
         if (mPrefs.getBoolean("system_forceclose")) System.ForceCloseHook(lpparam);
         if (mPrefs.getBoolean("system_hideproxywarn")) System.HideProximityWarningHook(lpparam);
-        if (mPrefs.getBoolean("system_firstpress")) System.FirstVolumePressHook(lpparam);
-        if (mPrefs.getBoolean("system_apksign")) System.NoSignatureVerifyServiceHook(lpparam);
-        if (mPrefs.getBoolean("system_disableintegrity")) System.DisableSystemIntegrityHook(lpparam);
-        if (mPrefs.getBoolean("system_vibration_amp")) System.MuffledVibrationHook(lpparam);
+        if (mPrefs.getBoolean("system_firstpress")) SystemAudioHooks.FirstVolumePressHook(lpparam);
+        if (mPrefs.getBoolean("system_apksign")) SystemSecurityHooks.NoSignatureVerifyServiceHook(lpparam);
+        if (mPrefs.getBoolean("system_disableintegrity")) SystemSecurityHooks.DisableSystemIntegrityHook(lpparam);
+        if (mPrefs.getBoolean("system_vibration_amp")) SystemAudioHooks.MuffledVibrationHook(lpparam);
         if (mPrefs.getBoolean("system_clearalltasks")) System.ClearAllTasksHook(lpparam);
-        if (mPrefs.getBoolean("system_force_darken_allapps")) System.ForceDarkAllAppsHook(lpparam);
-        if (mPrefs.getBoolean("system_lswallpaper")) System.SetLockscreenWallpaperHook(lpparam);
+        if (mPrefs.getBoolean("system_force_darken_allapps")) SystemDisplayHooks.ForceDarkAllAppsHook(lpparam);
+        if (mPrefs.getBoolean("system_lswallpaper")) SystemLockScreenHooks.SetLockscreenWallpaperHook(lpparam);
         if (mPrefs.getBoolean("controls_powerflash")) Controls.PowerKeyHook(lpparam);
         if (mPrefs.getBoolean("controls_fingerprintfailure")) Controls.FingerprintHapticFailureHook(lpparam);
         if (mPrefs.getBoolean("controls_fingerprintscreen")) Controls.FingerprintScreenOnHook(lpparam);
         if (mPrefs.getBoolean("controls_fingerprintwake")) Controls.NoFingerprintWakeHook(lpparam);
         if (mPrefs.getBoolean("various_disableapp")) Various.AppsDisableServiceHook(lpparam);
-        if (mPrefs.getBoolean("system_disableanynotif")) System.DisableAnyNotificationBlockHook(lpparam);
-        if (mPrefs.getStringAsInt("system_allrotations2", 1) > 1) System.AllRotationsHook(lpparam);
-        if (mPrefs.getStringAsInt("system_nolightuponcharges", 1) == 2) System.NoLightUpOnChargeHook(lpparam);
-        if (mPrefs.getStringAsInt("system_vibration", 1) > 1) System.SelectiveVibrationHook(lpparam);
+        if (mPrefs.getBoolean("system_disableanynotif")) SystemNotificationHooks.DisableAnyNotificationBlockHook(lpparam);
+        if (mPrefs.getStringAsInt("system_allrotations2", 1) > 1) SystemWindowHooks.AllRotationsHook(lpparam);
+        if (mPrefs.getStringAsInt("system_nolightuponcharges", 1) == 2) SystemDisplayHooks.NoLightUpOnChargeHook(lpparam);
+        if (mPrefs.getStringAsInt("system_vibration", 1) > 1) SystemAudioHooks.SelectiveVibrationHook(lpparam);
         if (mPrefs.getStringAsInt("system_blocktoasts", 1) > 1) System.SelectiveToastsHook(lpparam);
         if (mPrefs.getStringAsInt("controls_fingerprintsuccess", 1) > 1) Controls.FingerprintHapticSuccessHook(lpparam);
         if (mPrefs.getStringAsInt("controls_volumemedia_up", 0) > 0 ||
             mPrefs.getStringAsInt("controls_volumemedia_down", 0) > 0) Controls.VolumeMediaButtonsHook(lpparam);
 
-        if (mPrefs.getBoolean("system_fw_splitscreen")) System.MultiWindowPlusHook(lpparam);
-        if (mPrefs.getBoolean("system_fw_noblacklist")) System.NoFloatingWindowBlacklistHook(lpparam);
+        if (mPrefs.getBoolean("system_fw_splitscreen")) SystemWindowHooks.MultiWindowPlusHook(lpparam);
+        if (mPrefs.getBoolean("system_fw_noblacklist")) SystemWindowHooks.NoFloatingWindowBlacklistHook(lpparam);
         if (mPrefs.getBoolean("various_disable_access_devicelogs")) {
-            System.NoAccessDeviceLogsRequest(lpparam);
+            SystemSecurityHooks.NoAccessDeviceLogsRequest(lpparam);
         }
-        if (mPrefs.getInt("system_other_wallpaper_scale", 6) > 6) System.WallpaperScaleLevelHook(lpparam);
-        if (mPrefs.getBoolean("various_allow_untrusted_touch")) System.AllowUntrustedTouchHook(lpparam);
+        if (mPrefs.getInt("system_other_wallpaper_scale", 6) > 6) SystemDisplayHooks.WallpaperScaleLevelHook(lpparam);
+        if (mPrefs.getBoolean("various_allow_untrusted_touch")) SystemWindowHooks.AllowUntrustedTouchHook(lpparam);
 
         watchPreferenceChange();
     }
@@ -230,8 +241,8 @@ public class MainModule extends XposedModule {
         initPrefs();
 
         if (pkg.equals("android")) {
-            if (mPrefs.getBoolean("system_cleanshare")) System.CleanShareMenuHook(lpparam);
-            if (mPrefs.getBoolean("system_cleanopenwith")) System.CleanOpenWithMenuHook(lpparam);
+            if (mPrefs.getBoolean("system_cleanshare")) SystemShareMenuHooks.CleanShareMenuHook(lpparam);
+            if (mPrefs.getBoolean("system_cleanopenwith")) SystemShareMenuHooks.CleanOpenWithMenuHook(lpparam);
             if (mPrefs.getStringAsInt("system_allrotations2", 1) > 1) {
                 MainModule.resHooks.setThemeValueReplacement("android", "bool", "config_allowAllRotations", mPrefs.getStringAsInt("system_allrotations2", 1) == 2);
             }
@@ -317,9 +328,9 @@ public class MainModule extends XposedModule {
 
             if (mPrefs.getBoolean("system_networkindicator_wifi")) System.NetworkIndicatorWifi(lpparam);
 
-            if (mPrefs.getInt("system_drawer_blur", 100) < 100) System.DrawerBlurRatioHook(lpparam);
-            if (mPrefs.getInt("system_chargeanimtime", 20) < 20) System.ChargeAnimationHook(lpparam);
-            if (mPrefs.getInt("system_betterpopups_delay", 0) > 0 && !mPrefs.getBoolean("system_betterpopups_nohide")) System.BetterPopupsHideDelayHook(lpparam);
+            if (mPrefs.getInt("system_drawer_blur", 100) < 100) SystemDisplayHooks.DrawerBlurRatioHook(lpparam);
+            if (mPrefs.getInt("system_chargeanimtime", 20) < 20) SystemDisplayHooks.ChargeAnimationHook(lpparam);
+            if (mPrefs.getInt("system_betterpopups_delay", 0) > 0 && !mPrefs.getBoolean("system_betterpopups_nohide")) SystemNotificationHooks.BetterPopupsHideDelayHook(lpparam);
             if (mPrefs.getInt("controls_fsg_assist_left_action", 1) > 1
                 || mPrefs.getInt("controls_fsg_assist_right_action", 1) > 1
             ) Controls.AssistGestureActionHook(lpparam);
@@ -327,8 +338,8 @@ public class MainModule extends XposedModule {
                     mPrefs.getInt("controls_navbarleftlong_action", 1) > 1 ||
                     mPrefs.getInt("controls_navbarright_action", 1) > 1 ||
                     mPrefs.getInt("controls_navbarrightlong_action", 1) > 1) Controls.NavBarButtonsHook(lpparam);
-            if (mPrefs.getBoolean("system_scramblepin")) System.ScramblePINHook(lpparam);
-            if (mPrefs.getBoolean("system_dttosleep")) System.DoubleTapToSleepHook(lpparam);
+            if (mPrefs.getBoolean("system_scramblepin")) SystemLockScreenHooks.ScramblePINHook(lpparam);
+            if (mPrefs.getBoolean("system_dttosleep")) SystemLockScreenHooks.DoubleTapToSleepHook(lpparam);
             if (mPrefs.getBoolean("system_statusbar_clocktweak")
                 || mPrefs.getBoolean("system_cc_clocktweak")
                 || mPrefs.getBoolean("system_cc_hidedate")
@@ -336,33 +347,33 @@ public class MainModule extends XposedModule {
                 || mPrefs.getBoolean("system_statusbaricons_clock")
                 || mPrefs.getString("system_cc_dateformat", "").length() > 0
                 || mPrefs.getString("system_drawer_dateformat", "").length() > 0
-            ) System.StatusBarClockTweakHook(lpparam);
+            ) SystemClockHooks.StatusBarClockTweakHook(lpparam);
             if (mPrefs.getBoolean("system_cc_clocktweak")
                 || mPrefs.getBoolean("system_qs_force_systemfonts")
-            ) System.CCClockTweakHook(lpparam);
+            ) SystemClockHooks.CCClockTweakHook(lpparam);
             if (mPrefs.getBoolean("system_qs_disable_fakeclock_anim")) {
                 SystemUI.DisableFakeClockAnimHook(lpparam);
             }
             if (
                 mPrefs.getBoolean("system_cc_clock_centeralign")
                 || (!mPrefs.getBoolean("system_drawer_hidedate") && mPrefs.getBoolean("system_drawer_date_centeralign"))
-            ) System.CCClockCenterAlignHook(lpparam);
-            if (mPrefs.getBoolean("system_noscreenlock_act")) System.NoScreenLockHook(lpparam);
+            ) SystemClockHooks.CCClockCenterAlignHook(lpparam);
+            if (mPrefs.getBoolean("system_noscreenlock_act")) SystemLockScreenHooks.NoScreenLockHook(lpparam);
             if (mPrefs.getBoolean("system_albumartonlock")) SystemUI.LockScreenAlbumArtHook(lpparam);
-            if (mPrefs.getStringAsInt("system_expandheadups", 1) > 1) System.ExpandHeadsUpHook(lpparam);
-            if (mPrefs.getBoolean("system_betterpopups_nohide")) System.BetterPopupsNoHideHook(lpparam);
-            if (mPrefs.getBoolean("system_betterpopups_center")) System.BetterPopupsCenteredHook(lpparam);
-            if (mPrefs.getBoolean("system_notifafterunlock")) System.ShowNotificationsAfterUnlockHook(lpparam);
-            if (mPrefs.getBoolean("system_notifrowmenu")) System.NotificationRowMenuHook(lpparam);
+            if (mPrefs.getStringAsInt("system_expandheadups", 1) > 1) SystemNotificationHooks.ExpandHeadsUpHook(lpparam);
+            if (mPrefs.getBoolean("system_betterpopups_nohide")) SystemNotificationHooks.BetterPopupsNoHideHook(lpparam);
+            if (mPrefs.getBoolean("system_betterpopups_center")) SystemNotificationHooks.BetterPopupsCenteredHook(lpparam);
+            if (mPrefs.getBoolean("system_notifafterunlock")) SystemLockScreenHooks.ShowNotificationsAfterUnlockHook(lpparam);
+            if (mPrefs.getBoolean("system_notifrowmenu")) SystemNotificationHooks.NotificationRowMenuHook(lpparam);
             if (mPrefs.getBoolean("system_removedismiss")) SystemUI.HideDismissViewHook(lpparam);
             if (mPrefs.getBoolean("system_drawer_removeshortcut")) SystemUI.HideNoficationAccessIconHook(lpparam);
             if (mPrefs.getBoolean("system_drawer_remove_emptynotify")) SystemUI.HideNoNotificationsHook(lpparam);
             if (mPrefs.getBoolean("controls_nonavbar")) Controls.HideNavBarHook(lpparam);
             else if (mPrefs.getBoolean("controls_hidenavbar_whenscreenshot")) SystemUI.HideNavBarBeforeScreenshotHook(lpparam);
-            if (mPrefs.getBoolean("system_visualizer")) System.AudioVisualizerHook(lpparam);
+            if (mPrefs.getBoolean("system_visualizer")) SystemAudioHooks.AudioVisualizerHook(lpparam);
             if (SystemUI.hasControlCenterModifications()) SystemUI.ControlCenterPluginHook(lpparam);
             if (mPrefs.getBoolean("system_batteryindicator")) SystemUI.BatteryIndicatorHook(lpparam);
-            if (mPrefs.getBoolean("system_disableanynotif")) System.DisableAnyNotificationHook(lpparam);
+            if (mPrefs.getBoolean("system_disableanynotif")) SystemNotificationHooks.DisableAnyNotificationHook(lpparam);
             if (mPrefs.getBoolean("system_lockscreenshortcuts")) SystemUI.LockScreenShortcutHook(lpparam);
             if (mPrefs.getBoolean("system_4gtolte")
                 || (mPrefs.getBoolean("system_statusbar_mobiletype_single")
@@ -409,13 +420,13 @@ public class MainModule extends XposedModule {
             if (mPrefs.getBoolean("system_statusbar_topmargin") && mPrefs.getBoolean("system_statusbar_topmargin_unset_lockscreen")) SystemUI.LockScreenTopMarginHook(lpparam);
             if (mPrefs.getBoolean("system_statusbar_horizmargin")) SystemUI.HorizMarginHook(lpparam);
             if (mPrefs.getBoolean("system_showpct")) SystemUI.BrightnessPctHook(lpparam);
-            if (mPrefs.getBoolean("system_hidelsstatusbar")) System.HideLockScreenStatusBarHook(lpparam);
-            if (mPrefs.getBoolean("system_hidelsclock")) System.HideLockScreenClockHook(lpparam);
+            if (mPrefs.getBoolean("system_hidelsstatusbar")) SystemLockScreenHooks.HideLockScreenStatusBarHook(lpparam);
+            if (mPrefs.getBoolean("system_hidelsclock")) SystemLockScreenHooks.HideLockScreenClockHook(lpparam);
             if (mPrefs.getBoolean("system_ls_force_systemfonts")) SystemUI.ForceClockUseSystemFontsHook(lpparam);
-            if (mPrefs.getBoolean("system_hidelshint")) System.HideLockScreenHintHook(lpparam);
-            if (mPrefs.getBoolean("system_allownotifonkeyguard")) System.AllowAllKeyguardHook(lpparam);
-            if (mPrefs.getBoolean("system_allownotiffloat")) System.AllowAllFloatHook(lpparam);
-            if (mPrefs.getBoolean("system_lsalarm")) System.LockScreenAlarmHook(lpparam);
+            if (mPrefs.getBoolean("system_hidelshint")) SystemLockScreenHooks.HideLockScreenHintHook(lpparam);
+            if (mPrefs.getBoolean("system_allownotifonkeyguard")) SystemLockScreenHooks.AllowAllKeyguardHook(lpparam);
+            if (mPrefs.getBoolean("system_allownotiffloat")) SystemWindowHooks.AllowAllFloatHook(lpparam);
+            if (mPrefs.getBoolean("system_lsalarm")) SystemLockScreenHooks.LockScreenAlarmHook(lpparam);
             if (mPrefs.getBoolean("system_statusbarcontrols")) SystemUI.StatusBarGesturesHook(lpparam);
             if (mPrefs.getInt("system_netspeedinterval", 4) != 4) SystemUI.NetSpeedIntervalHook(lpparam);
             if (mPrefs.getStringAsInt("system_detailednetspeed_style", 1) > 1) SystemUI.DetailedNetSpeedHook(lpparam);
@@ -431,21 +442,21 @@ public class MainModule extends XposedModule {
             ) {
                 SystemUI.NetSpeedStyleHook(lpparam);
             }
-            if (mPrefs.getBoolean("system_taptounlock")) System.TapToUnlockHook(lpparam);
-            if (mPrefs.getBoolean("system_nosos")) System.NoSOSHook(lpparam);
+            if (mPrefs.getBoolean("system_taptounlock")) SystemLockScreenHooks.TapToUnlockHook(lpparam);
+            if (mPrefs.getBoolean("system_nosos")) SystemLockScreenHooks.NoSOSHook(lpparam);
             if (mPrefs.getBoolean("system_morenotif")) SystemUI.RemovePackageNotificationsLimitHook(lpparam);
             if (mPrefs.getBoolean("system_notif_disable_fold")) SystemUI.DisableFoldNotificationsHook(lpparam);
             if (mPrefs.getBoolean("system_notif_disable_strong_toast")) SystemUI.DisableStrongToastHook(lpparam);
 //            if (mPrefs.getInt("system_notif_strong_toast_width", 100) < 100) SystemUI.TweakStrongToastHook(lpparam);
-            if (mPrefs.getBoolean("system_charginginfo")) System.ChargingInfoHook(lpparam);
+            if (mPrefs.getBoolean("system_charginginfo")) SystemLockScreenHooks.ChargingInfoHook(lpparam);
             if (mPrefs.getBoolean("system_secureqs")) SystemUI.SecureQSTilesHook(lpparam);
-            if (mPrefs.getBoolean("system_mutevisiblenotif")) System.MuteVisibleNotificationsHook(lpparam);
-            if (mPrefs.getBoolean("system_statusbaricons_battery1")) System.HideIconsBattery1Hook(lpparam);
+            if (mPrefs.getBoolean("system_mutevisiblenotif")) SystemNotificationHooks.MuteVisibleNotificationsHook(lpparam);
+            if (mPrefs.getBoolean("system_statusbaricons_battery1")) SystemStatusBarIconHooks.HideIconsBattery1Hook(lpparam);
             if (mPrefs.getBoolean("system_statusbaricons_battery3")
                 || mPrefs.getBoolean("system_statusbaricons_battery4")
                 || mPrefs.getBoolean("system_statusbaricons_battery2")
-            ) System.HideIconsBattery2Hook(lpparam);
-            if (mPrefs.getStringAsInt("system_statusbaricons_wifistandard", 1) > 1) System.DisplayWifiStandardHook(lpparam);
+            ) SystemStatusBarIconHooks.HideIconsBattery2Hook(lpparam);
+            if (mPrefs.getStringAsInt("system_statusbaricons_wifistandard", 1) > 1) SystemStatusBarIconHooks.DisplayWifiStandardHook(lpparam);
             if (mPrefs.getBoolean("system_statusbaricons_privacy_prompt")) SystemUI.HidePrivacyIndicatorHook(lpparam);
             if (mPrefs.getBoolean("system_statusbaricons_signal")
                 || mPrefs.getBoolean("system_statusbaricons_sim1")
@@ -455,15 +466,15 @@ public class MainModule extends XposedModule {
                 || mPrefs.getBoolean("system_statusbaricons_volte")
             ) SystemUI.HideIconsSignalHook(lpparam);
             if (mPrefs.getBoolean("system_statusbaricons_vowifi")) SystemUI.HideIconsVoWiFiHook(lpparam);
-            if (!mPrefs.getBoolean("system_statusbaricons_alarm") && mPrefs.getInt("system_statusbaricons_alarmn", 0) > 0) System.HideIconsSelectiveAlarmHook(lpparam);
+            if (!mPrefs.getBoolean("system_statusbaricons_alarm") && mPrefs.getInt("system_statusbaricons_alarmn", 0) > 0) SystemStatusBarIconHooks.HideIconsSelectiveAlarmHook(lpparam);
             if (!mPrefs.getString("system_shortcut_app", "").equals("")
                 || !mPrefs.getString("system_calendar_app", "").equals("")
                 || !mPrefs.getString("system_clock_app", "").equals("")) SystemUI.ReplaceShortcutAppHook(lpparam);
-            if (mPrefs.getStringAsInt("system_qshaptics", 1) > 1) System.QSHapticHook(lpparam);
+            if (mPrefs.getStringAsInt("system_qshaptics", 1) > 1) SystemAudioHooks.QSHapticHook(lpparam);
             if (mPrefs.getBoolean("system_cc_collapse_after_clicked")) SystemUI.CollapseCCAfterClickHook(lpparam);
             if (mPrefs.getBoolean("system_cc_freeform_when_longclick")) SystemUI.LongClickTileOpenInFreeFormHook(lpparam);
             if (mPrefs.getBoolean("system_cc_switch_qsandnotification")) SystemUI.SwitchCCAndNotificationHook(lpparam);
-            if (mPrefs.getStringAsInt("system_expandnotifs", 1) > 1) System.ExpandNotificationsHook(lpparam);
+            if (mPrefs.getStringAsInt("system_expandnotifs", 1) > 1) SystemNotificationHooks.ExpandNotificationsHook(lpparam);
             if (mPrefs.getStringAsInt("system_mobiletypeicon", 1) > 1
                 || mPrefs.getBoolean("system_networkindicator_mobile")
                 || mPrefs.getBoolean("system_statusbar_mobiletype_show_wificonnected")
@@ -500,12 +511,12 @@ public class MainModule extends XposedModule {
                 || mPrefs.getBoolean("system_statusbaricons_record")
                 || mPrefs.getBoolean("system_statusbaricons_wireless_headset")
             ) SystemUI.HideIconsFromSystemManager(lpparam);
-            if (mPrefs.getBoolean("system_betterpopups_allowfloat")) System.BetterPopupsAllowFloatHook(lpparam);
-            if (mPrefs.getBoolean("system_betterpopups_autoclose_expanded")) System.AutoDismissExpandedPopupsHook(lpparam);
+            if (mPrefs.getBoolean("system_betterpopups_allowfloat")) SystemWindowHooks.BetterPopupsAllowFloatHook(lpparam);
+            if (mPrefs.getBoolean("system_betterpopups_autoclose_expanded")) SystemNotificationHooks.AutoDismissExpandedPopupsHook(lpparam);
             if (mPrefs.getBoolean("system_betterpopups_disablewhenmute")) SystemUI.DisableHeadsUpWhenMuteHook(lpparam);
-            if (mPrefs.getBoolean("system_minimalnotifview")) System.MinimalNotificationViewHook(lpparam);
-            if (mPrefs.getBoolean("system_notifchannelsettings")) System.NotificationChannelSettingsHook(lpparam);
-            if (mPrefs.getStringAsInt("system_maxsbicons", 0) != 0) System.MaxNotificationIconsHook(lpparam);
+            if (mPrefs.getBoolean("system_minimalnotifview")) SystemNotificationHooks.MinimalNotificationViewHook(lpparam);
+            if (mPrefs.getBoolean("system_notifchannelsettings")) SystemNotificationHooks.NotificationChannelSettingsHook(lpparam);
+            if (mPrefs.getStringAsInt("system_maxsbicons", 0) != 0) SystemNotificationHooks.MaxNotificationIconsHook(lpparam);
             if (mPrefs.getBoolean("system_statusbar_mobiletype_single")) {
                 SystemUI.MobileTypeSingleHook(lpparam);
             }
@@ -518,9 +529,9 @@ public class MainModule extends XposedModule {
             if (dualRows) {
                 SystemUI.DualRowsStatusbarHook(lpparam);
             }
-            if (mPrefs.getStringAsInt("system_colorizenotifs", 1) > 1) System.ColorizeNotificationCardHook(lpparam);
+            if (mPrefs.getStringAsInt("system_colorizenotifs", 1) > 1) SystemColorizeNotificationHooks.ColorizeNotificationCardHook(lpparam);
             if (mPrefs.getBoolean("system_notify_openinfw")) SystemUI.OpenNotifyInFloatingWindowHook(lpparam);
-            if (mPrefs.getBoolean("system_fw_noblacklist")) System.DisableSideBarSuggestionHook(lpparam);
+            if (mPrefs.getBoolean("system_fw_noblacklist")) SystemWindowHooks.DisableSideBarSuggestionHook(lpparam);
 
             if (mPrefs.getBoolean("system_nosafevolume")) {
                 SystemUI.HideSafeVolumeDlgHook(lpparam);
@@ -531,7 +542,7 @@ public class MainModule extends XposedModule {
             if (mPrefs.getBoolean("system_lockscreen_disable_edit")) {
                 SystemUI.DisableKeyguardEditorHook(lpparam);
             }
-            if (mPrefs.getBoolean("system_nopassword")) System.NoPasswordHook(lpparam);
+            if (mPrefs.getBoolean("system_nopassword")) SystemLockScreenHooks.NoPasswordHook(lpparam);
 
             if (mPrefs.getBoolean("system_notifimportance")) {
                 SystemUI.NotificationImportanceHook(lpparam);
@@ -559,13 +570,13 @@ public class MainModule extends XposedModule {
             if (mPrefs.getBoolean("various_disableapp")) Various.AppsDisableHook(lpparam);
             if (mPrefs.getBoolean("various_restrictapp")) Various.AppsRestrictHook(lpparam);
             if (mPrefs.getBoolean("various_hide_report_ondetails")) Various.HideReportButtonHook(lpparam);
-            if (mPrefs.getBoolean("system_applock_scramblepin")) System.ScrambleAppLockPINHook(lpparam);
+            if (mPrefs.getBoolean("system_applock_scramblepin")) SystemLockScreenHooks.ScrambleAppLockPINHook(lpparam);
             if (mPrefs.getStringAsInt("various_appsort", 1) > 1) Various.AppsDefaultSortHook(lpparam);
             if (mPrefs.getBoolean("various_skip_interceptperm")) Various.InterceptPermHook(lpparam);
             if (mPrefs.getBoolean("various_replace_defaultopen_with_openbydefault")) Various.OpenByDefaultHook(lpparam);
             if (mPrefs.getBoolean("various_skip_securityscan")) Various.SkipSecurityScanHook(lpparam);
             if (mPrefs.getBoolean("various_show_battery_temperature")) Various.ShowTempInBatteryHook(lpparam);
-            if (mPrefs.getBoolean("various_disable_freeform_suggest_blacklist")) System.DisableSideBarSuggestionHook(lpparam);
+            if (mPrefs.getBoolean("various_disable_freeform_suggest_blacklist")) SystemWindowHooks.DisableSideBarSuggestionHook(lpparam);
             if (mPrefs.getBoolean("various_disable_dock_suggest")) Various.DisableDockSuggestHook(lpparam);
             if ("com.miui.securitycenter:ui".equals(processName)
                 && mPrefs.getBoolean("various_enable_expand_sidebar")) {
@@ -592,11 +603,11 @@ public class MainModule extends XposedModule {
                 GlobalActions.miuizerSettingsHook(lpparam);
             }
             if (mPrefs.getBoolean("system_disableanynotif")) {
-                System.DisableAnyNotificationHook(lpparam);
-                System.DisableAnyNotificationBlockHook(lpparam);
+                SystemNotificationHooks.DisableAnyNotificationHook(lpparam);
+                SystemNotificationHooks.DisableAnyNotificationBlockHook(lpparam);
             }
             if (mPrefs.getBoolean("system_notifimportance")) {
-                System.NotificationImportanceHook(lpparam);
+                SystemNotificationHooks.NotificationImportanceHook(lpparam);
             }
             if (mPrefs.getBoolean("system_wifipassword")) {
                 System.ViewWifiPasswordHook(lpparam);
@@ -659,10 +670,10 @@ public class MainModule extends XposedModule {
                 protected void after(AfterHookCallback param) throws Throwable {
                     if (isLauncherPkg) handleLoadLauncher(lpparam);
                     if (isStatusBarColor) {
-                        System.StatusBarBackgroundCompatHook(lpparam);
-                        System.StatusBarBackgroundHook(lpparam);
+                        SystemStatusBarBackgroundHooks.StatusBarBackgroundCompatHook(lpparam);
+                        SystemStatusBarBackgroundHooks.StatusBarBackgroundHook(lpparam);
                     }
-                    if (isNoOverscroll) System.NoOverscrollAppHook(lpparam);
+                    if (isNoOverscroll) SystemWindowHooks.NoOverscrollAppHook(lpparam);
                     if (controlMedia) Controls.VolumeMediaPlayerHook(lpparam);
                 }
             });
@@ -702,7 +713,7 @@ public class MainModule extends XposedModule {
         if (mPrefs.getBoolean("system_removecleaner")) System.HideMemoryCleanHook(lpparam, true);
         if (mPrefs.getBoolean("system_recents_disable_wallpaperscale") || mPrefs.getBoolean("launcher_disable_wallpaperscale")) Launcher.DisableLauncherWallpaperScale(lpparam);
         if (mPrefs.getBoolean("system_recents_hide_statusbar")) Launcher.HideStatusBarInRecentsHook(lpparam);
-        if (mPrefs.getBoolean("system_fw_splitscreen")) System.MultiWindowPlusHook(lpparam);
+        if (mPrefs.getBoolean("system_fw_splitscreen")) SystemWindowHooks.MultiWindowPlusHook(lpparam);
         if (mPrefs.getBoolean("launcher_fixanim")) Launcher.FixAnimHook(lpparam);
         if (mPrefs.getBoolean("launcher_hideseekpoints")) Launcher.HideSeekPointsHook(lpparam);
         if (mPrefs.getBoolean("launcher_privacyapps_gest")
