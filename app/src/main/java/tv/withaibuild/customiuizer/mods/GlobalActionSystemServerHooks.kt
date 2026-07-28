@@ -263,10 +263,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                        val oldReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "customiuizer_receiver") as BroadcastReceiver?
-                        if (oldReceiver != null) try { mContext.unregisterReceiver(oldReceiver) } catch (ignore: Throwable) {}
-                        XposedHelpers.setAdditionalInstanceField(thisObject, "customiuizer_receiver", mFreeFormReceiver)
-                        mContext.registerReceiver(mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
+                        ModuleHelper.registerModuleReceiver(mContext, "freeformModeReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
                     }
@@ -323,10 +320,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                        val oldReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "customiuizer_receiver") as BroadcastReceiver?
-                        if (oldReceiver != null) try { mContext.unregisterReceiver(oldReceiver) } catch (ignore: Throwable) {}
-                        XposedHelpers.setAdditionalInstanceField(thisObject, "customiuizer_receiver", mFreeFormReceiver)
-                        mContext.registerReceiver(mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
+                        ModuleHelper.registerModuleReceiver(mContext, "soScSplitScreenReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
                     }
@@ -371,10 +365,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                        val oldReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "customiuizer_receiver") as BroadcastReceiver?
-                        if (oldReceiver != null) try { mContext.unregisterReceiver(oldReceiver) } catch (ignore: Throwable) {}
-                        XposedHelpers.setAdditionalInstanceField(thisObject, "customiuizer_receiver", mFreeFormReceiver)
-                        mContext.registerReceiver(mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
+                        ModuleHelper.registerModuleReceiver(mContext, "autoBrightnessReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
                     }

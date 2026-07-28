@@ -488,7 +488,13 @@ object System {
                         }
                     }
                     XposedHelpers.setAdditionalInstanceField(thisObject, "unlockStrongAuthReceiver", unlockStrongAuthReceiver)
-                    mContext.registerReceiver(unlockStrongAuthReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "UnlockStrongAuth"), Context.RECEIVER_NOT_EXPORTED)
+                    ModuleHelper.registerModuleReceiver(
+                        mContext,
+                        "unlockStrongAuthReceiver",
+                        unlockStrongAuthReceiver,
+                        IntentFilter(GlobalActions.ACTION_PREFIX + "UnlockStrongAuth"),
+                        Context.RECEIVER_NOT_EXPORTED
+                    )
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
@@ -594,7 +600,7 @@ object System {
                         }
                     }
                     XposedHelpers.setAdditionalInstanceField(thisObject, "noScreenLockReceiver", noScreenLockReceiver)
-                    mContext.registerReceiver(noScreenLockReceiver, filter, Context.RECEIVER_EXPORTED)
+                    ModuleHelper.registerModuleReceiver(mContext, "noScreenLockReceiver", noScreenLockReceiver, filter, Context.RECEIVER_EXPORTED)
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
@@ -656,10 +662,6 @@ object System {
                     val thisObject = chain.thisObject
 
                     val mContext = chain.getArg(0) as Context
-                    val oldfetchCachedDevicesReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "fetchCachedDevicesReceiver")
-                    if (oldfetchCachedDevicesReceiver is BroadcastReceiver) {
-                        try { mContext.unregisterReceiver(oldfetchCachedDevicesReceiver) } catch (ignore: Throwable) {}
-                    }
                     val fetchCachedDevicesReceiver = object : BroadcastReceiver() {
                         override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                             val deviceList = ArrayList<BluetoothDevice>()
@@ -676,8 +678,13 @@ object System {
                             mContext.sendBroadcast(updateIntent)
                         }
                     }
-                    XposedHelpers.setAdditionalInstanceField(thisObject, "fetchCachedDevicesReceiver", fetchCachedDevicesReceiver)
-                    mContext.registerReceiver(fetchCachedDevicesReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "FetchCachedDevices"), Context.RECEIVER_EXPORTED)
+                    ModuleHelper.registerModuleReceiver(
+                        mContext,
+                        "fetchCachedDevicesReceiver",
+                        fetchCachedDevicesReceiver,
+                        IntentFilter(GlobalActions.ACTION_PREFIX + "FetchCachedDevices"),
+                        Context.RECEIVER_EXPORTED
+                    )
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)

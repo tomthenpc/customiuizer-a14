@@ -277,17 +277,21 @@ object SystemClockHooks {
                     initSecondTicker(thisObject)
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     if (getShowSeconds() || getCCShowSeconds()) {
-                        val oldReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "customiuizer_timeSetReceiver") as BroadcastReceiver?
-                        if (oldReceiver != null) try { mContext.unregisterReceiver(oldReceiver) } catch (ignore: Throwable) {}
                         val mUpdateTimeReceiver = object : BroadcastReceiver() {
                             override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                                 initSecondTicker(thisObject)
                             }
                         }
-                        XposedHelpers.setAdditionalInstanceField(thisObject, "customiuizer_timeSetReceiver", mUpdateTimeReceiver)
                         val timeSetIntent = IntentFilter()
                         timeSetIntent.addAction("android.intent.action.TIME_SET")
-                        mContext.registerReceiver(mUpdateTimeReceiver, timeSetIntent, Context.RECEIVER_NOT_EXPORTED)
+                        ModuleHelper.registerOwnedReceiver(
+                            mContext,
+                            thisObject,
+                            "clockTimeSetReceiver",
+                            mUpdateTimeReceiver,
+                            timeSetIntent,
+                            Context.RECEIVER_NOT_EXPORTED
+                        )
                     }
 
                 } catch (t: Throwable) {

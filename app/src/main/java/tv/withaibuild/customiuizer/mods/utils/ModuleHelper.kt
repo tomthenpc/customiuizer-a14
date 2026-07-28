@@ -4,8 +4,10 @@ import android.annotation.SuppressLint
 import android.app.ActivityOptions
 import android.app.Application
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.net.Uri
@@ -410,6 +412,125 @@ class ModuleHelper private constructor() {
                 }
             }
             if (sawCleared) dropOwnedObserver(null)
+        }
+
+        private class ReceiverRegistration(
+            val contextRef: WeakReference<Context>,
+            val receiver: BroadcastReceiver
+        )
+
+        private val moduleReceivers = ConcurrentHashMap<String, ReceiverRegistration>()
+
+        /**
+         * Registers [receiver] under [key], replacing whatever the module last registered there.
+         *
+         * Hook targets are recreated while the process lives: a new `BluetoothControllerImpl`, a
+         * new keyguard controller after a theme change, a new Launcher after a rotation. Every
+         * recreation runs the constructor or init hook again. Cleanup keyed on the hooked instance
+         * cannot see the previous registration — that instance is gone — so each recreation used
+         * to leave one more live receiver behind. The module then did the same work N times per
+         * broadcast and pinned N dead Contexts.
+         *
+         * A process-scoped key keeps exactly one live receiver per logical registration,
+         * regardless of how many times the hook fires.
+         */
+        @JvmStatic
+        fun registerModuleReceiver(
+            context: Context,
+            key: String,
+            receiver: BroadcastReceiver,
+            filter: IntentFilter,
+            flags: Int
+        ) {
+            unregisterModuleReceiver(key)
+            try {
+                context.registerReceiver(receiver, filter, flags)
+                moduleReceivers[key] = ReceiverRegistration(WeakReference(context), receiver)
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+            }
+        }
+
+        /** Unregisters the receiver held under [key], if the module still has one. */
+        @JvmStatic
+        fun unregisterModuleReceiver(key: String) {
+            val previous = moduleReceivers.remove(key) ?: return
+            releaseReceiver(previous.contextRef, previous.receiver)
+        }
+
+        private class OwnedReceiver(
+            val ownerRef: WeakReference<Any>,
+            val contextRef: WeakReference<Context>,
+            val receiver: BroadcastReceiver
+        )
+
+        private val ownedReceivers = ConcurrentHashMap<String, CopyOnWriteArrayList<OwnedReceiver>>()
+
+        /**
+         * Registers [receiver] on behalf of [owner], and unregisters the receivers of owners that
+         * have since been collected.
+         *
+         * Use this instead of [registerModuleReceiver] when several hook targets can legitimately
+         * be alive at once — two clock controllers, one status bar per display — so a single
+         * process-wide slot would silently disable all but the newest.
+         *
+         * Every recreation of a hook target runs the registration again, which is exactly when the
+         * sweep runs, so dead owners are collected promptly. Cleanup keyed on the hooked instance
+         * cannot do this: the new instance never sees the old instance's field.
+         */
+        @JvmStatic
+        fun registerOwnedReceiver(
+            context: Context,
+            owner: Any,
+            key: String,
+            receiver: BroadcastReceiver,
+            filter: IntentFilter,
+            flags: Int
+        ) {
+            val registrations = ownedReceivers.computeIfAbsent(key) { CopyOnWriteArrayList() }
+            registrations.removeIf { registration ->
+                val registrationOwner = registration.ownerRef.get()
+                if (registrationOwner != null && registrationOwner !== owner) return@removeIf false
+                releaseReceiver(registration.contextRef, registration.receiver)
+                true
+            }
+            try {
+                context.registerReceiver(receiver, filter, flags)
+                registrations.add(OwnedReceiver(WeakReference(owner), WeakReference(context), receiver))
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+            }
+        }
+
+        private val moduleRegistrations = ConcurrentHashMap<String, Runnable>()
+
+        /**
+         * Records [cleanup] under [key] and runs whatever cleanup was recorded there before.
+         *
+         * The general form of [registerModuleReceiver], for registrations that are not broadcast
+         * receivers — content observers, listeners added to ROM objects. Call it immediately after
+         * registering, passing the action that undoes that registration.
+         *
+         * The same reason applies: a hook target that gets recreated cannot see the registration
+         * its predecessor made, so per-instance cleanup silently accumulates live registrations.
+         */
+        @JvmStatic
+        fun replaceModuleRegistration(key: String, cleanup: Runnable) {
+            val previous = moduleRegistrations.put(key, cleanup) ?: return
+            try {
+                previous.run()
+            } catch (_: Throwable) {
+                // The previous owner is already gone.
+            }
+        }
+
+        private fun releaseReceiver(contextRef: WeakReference<Context>, receiver: BroadcastReceiver) {
+            val context = contextRef.get() ?: return
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (_: Throwable) {
+                // Already gone with its context, or never completed registration.
+            }
         }
 
         /**

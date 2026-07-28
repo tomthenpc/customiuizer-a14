@@ -91,7 +91,7 @@ object Controls {
                 try {
                     val thisObject = chain.thisObject
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
-                    mContext.registerReceiver(mScreenOnReceiver, IntentFilter(Intent.ACTION_SCREEN_ON), Context.RECEIVER_NOT_EXPORTED)
+                    ModuleHelper.registerModuleReceiver(mContext, "torchScreenOnReceiver", mScreenOnReceiver, IntentFilter(Intent.ACTION_SCREEN_ON), Context.RECEIVER_NOT_EXPORTED)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }

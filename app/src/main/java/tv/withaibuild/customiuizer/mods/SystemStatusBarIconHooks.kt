@@ -192,17 +192,21 @@ object SystemStatusBarIconHooks {
                     filter.addAction("android.intent.action.TIME_SET")
                     filter.addAction("android.intent.action.TIMEZONE_CHANGED")
                     filter.addAction("android.intent.action.LOCALE_CHANGED")
-                    val oldalarmTimeReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "alarmTimeReceiver")
-                    if (oldalarmTimeReceiver is BroadcastReceiver) {
-                        try { mContext.unregisterReceiver(oldalarmTimeReceiver) } catch (ignore: Throwable) {}
-                    }
                     val alarmTimeReceiver = object : BroadcastReceiver() {
                         override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                             updateAlarmVisibility(thisObject)
                         }
                     }
-                    XposedHelpers.setAdditionalInstanceField(thisObject, "alarmTimeReceiver", alarmTimeReceiver)
-                    mContext.registerReceiver(alarmTimeReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+                    // TIME_TICK fires every minute; a leaked receiver keeps waking the process to
+                    // run reflection against a detached policy object.
+                    ModuleHelper.registerOwnedReceiver(
+                        mContext,
+                        thisObject,
+                        "alarmTimeReceiver",
+                        alarmTimeReceiver,
+                        filter,
+                        Context.RECEIVER_NOT_EXPORTED
+                    )
 
                     val mNextAlarmCallback = XposedHelpers.getObjectField(thisObject, "mNextAlarmCallback")
                     ModuleHelper.findAndHookMethod(mNextAlarmCallback.javaClass, "onAlarmChanged", Boolean::class.javaPrimitiveType!!, object : MethodHook() {

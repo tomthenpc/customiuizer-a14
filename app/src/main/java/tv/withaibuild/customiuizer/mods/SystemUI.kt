@@ -2700,10 +2700,6 @@ object SystemUI {
                 override fun after(param: AfterHookCallback) {
                     val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
                     val resolver = mContext.contentResolver
-                    val oldObserver = XposedHelpers.getAdditionalInstanceField(param.getThisObject(), "torchListener") as ContentObserver?
-                    if (oldObserver != null) {
-                        resolver.unregisterContentObserver(oldObserver)
-                    }
                     // Handler() without a Looper binds to whichever thread ran the constructor
                     // hook and throws outright when that thread has no Looper.
                     val torchObserver = object : ContentObserver(Handler(mContext.mainLooper)) {
@@ -2713,7 +2709,9 @@ object SystemUI {
                         }
                     }
                     resolver.registerContentObserver(Settings.Global.getUriFor("torch_state"), false, torchObserver)
-                    XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "torchListener", torchObserver)
+                    ModuleHelper.replaceModuleRegistration("keyguardTorchObserver") {
+                        resolver.unregisterContentObserver(torchObserver)
+                    }
                 }
             })
         }
