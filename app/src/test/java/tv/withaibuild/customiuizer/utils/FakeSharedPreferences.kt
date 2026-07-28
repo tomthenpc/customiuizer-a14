@@ -6,6 +6,9 @@ class FakeSharedPreferences : SharedPreferences {
 
     private val values = HashMap<String, Any?>()
 
+    /** Set to false to simulate a failing [commit]/[apply]. */
+    var commitShouldSucceed = true
+
     fun put(key: String, value: Any?) {
         values[key] = value
     }
@@ -51,50 +54,85 @@ class FakeSharedPreferences : SharedPreferences {
 
     override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {}
 
-    class FakeEditor(private val values: MutableMap<String, Any?>) : SharedPreferences.Editor {
+    inner class FakeEditor(private val values: MutableMap<String, Any?>) : SharedPreferences.Editor {
+
+        private val staging = HashMap<String, Any?>()
+        private var clearOnApply = false
 
         override fun putString(key: String, value: String?): SharedPreferences.Editor {
-            if (value != null) values[key] = value
+            if (value == null) {
+                staging[key] = RemoveMarker
+            } else {
+                staging[key] = value
+            }
             return this
         }
 
         override fun putStringSet(key: String, values: Set<String>?): SharedPreferences.Editor {
-            if (values != null) this.values[key] = values
+            if (values == null) {
+                staging[key] = RemoveMarker
+            } else {
+                staging[key] = values
+            }
             return this
         }
 
         override fun putInt(key: String, value: Int): SharedPreferences.Editor {
-            values[key] = value
+            staging[key] = value
             return this
         }
 
         override fun putLong(key: String, value: Long): SharedPreferences.Editor {
-            values[key] = value
+            staging[key] = value
             return this
         }
 
         override fun putFloat(key: String, value: Float): SharedPreferences.Editor {
-            values[key] = value
+            staging[key] = value
             return this
         }
 
         override fun putBoolean(key: String, value: Boolean): SharedPreferences.Editor {
-            values[key] = value
+            staging[key] = value
             return this
         }
 
         override fun remove(key: String): SharedPreferences.Editor {
-            values.remove(key)
+            staging[key] = RemoveMarker
             return this
         }
 
         override fun clear(): SharedPreferences.Editor {
-            values.clear()
+            clearOnApply = true
+            staging.clear()
             return this
         }
 
-        override fun commit(): Boolean = true
+        override fun commit(): Boolean {
+            if (!this@FakeSharedPreferences.commitShouldSucceed) return false
+            applyStaged()
+            return true
+        }
 
-        override fun apply() {}
+        override fun apply() {
+            applyStaged()
+        }
+
+        private fun applyStaged() {
+            if (clearOnApply) values.clear()
+            for ((key, value) in staging) {
+                if (value === RemoveMarker) {
+                    values.remove(key)
+                } else {
+                    values[key] = value
+                }
+            }
+            staging.clear()
+            clearOnApply = false
+        }
+    }
+
+    private companion object {
+        private val RemoveMarker = Any()
     }
 }
