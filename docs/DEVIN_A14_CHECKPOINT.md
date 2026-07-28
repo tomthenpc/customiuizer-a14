@@ -17,11 +17,60 @@
   [RELEASE_ARCHIVE.md](RELEASE_ARCHIVE.md)。
 - 当前 `main` 承载 `r14.13.5` 正式发布提交。
 
-## 开发分支（历史）
+## 当前活跃开发分支
 
 - 分支：`devin/r14.13-kotlin-refactor`
-- 说明：该分支已完成 `A14 设置状态稳定化：语言切换确认、退出后生效与重启策略统一`，并合并到 `main`/`r14.13.5` 正式基线；不再作为当前活跃分支。
-- 当前工作应以 `main` / tag `r14.13.5` / commit `4225d80e` 为准。
+- 分支基点：`064ba854`（与 `main` 相同），当前 ahead 4 / behind 0
+- 正在进行：**运行期健壮性与热路径加固**（尚未发版，版本号仍为 `r14.13.5` / `183`）
+
+该分支此前完成的 `A14 设置状态稳定化：语言切换确认、退出后生效与重启策略统一`
+已经合并进 `main` / `r14.13.5` 正式基线。之后该分支重新启用，承载下述加固工作。
+
+### 本轮加固（2026-07-28）
+
+来源：对全部 109 个 Kotlin 文件做的证据驱动审计，不是文档推导。
+每一项都是编译通过、lint 通过、单元测试通过，但会在设备上出问题的代码。
+
+1. **异常逃逸 → 系统进程崩溃**
+   模块在 hook 里注册出去的回调（`handleMessage` / `onReceive` / `onChange` / `run` /
+   `post{}` / `runOnUiThread{}` / 监听器 lambda）不在 `MethodHook` 的 try/catch 里。
+   新增 `ModuleHelper.guarded`（`inline`，零分配）并包住全部 30 处反射回调。
+   `handlePreferenceChanged` 改为逐个观察者隔离 —— 此前一个观察者抛异常，
+   既杀进程也让后续观察者静默收不到变更。
+   `DeviceInfoMonitor` 的 sysfs 解析改为全函数（不再 `NumberFormatException`），
+   并把 `scheduleNextTick()` 移进 `finally`，ticker 不会再永久停摆。
+
+2. **注册泄漏 → 内存与耗电**
+   原来的清理逻辑把上一个 receiver 存在被 hook 实例的字段上，而 `hookAllConstructors`
+   每次都是新实例，**这段清理从未生效**。`MiuiPhoneStatusBarPolicy` 的泄漏 receiver 监听
+   `TIME_TICK`，即每分钟 N 次无用唤醒。
+   新增 `registerModuleReceiver` / `registerOwnedReceiver` / `replaceModuleRegistration`；
+   偏好观察者改为弱引用持有，强引用挂在 owner 上随 owner 消亡。
+
+3. **热路径参数编排**
+   `getArgsArray` 每次分配两次，`proceed(args)` 让框架重新 marshal 全部参数。
+   117 个只读参数的 `intercept` 改用 `Chain.getArg(i)` / `Chain.getArgs()` + `Chain.proceed()`；
+   新增 `BeforeHookCallback.getArg(i)` 让 17 个 `before()` 走零拷贝分支。
+   真正改写参数的 41 处保持原样。`Chain.getArg` 在 API 101 已存在，运行基线不变。
+
+4. **静态门禁**
+   `tools/check-invariants.py`：6 条规则，每条对应上面一个真实缺陷。
+   全量扫描 96 个文件，0 违规。规则说明见 `docs/RUNTIME_INVARIANTS.md`。
+   `AGENTS.md` 重写为可执行、可校验的形式。
+
+### 本轮验证
+
+- `python tools/check-invariants.py` → 96 files, no violations
+- `./gradlew test lintVitalRelease assembleDebug assembleRelease` → 退出码 0
+- 全部 Kotlin 转换都是编译期可验证的（被写入 / 被 `*args` 展开 / 被当 `Array<Any?>` 传出的
+  参数数组，改成 List 或单值访问后一定编译失败）
+
+### 待实机验证
+
+- SystemUI 多次主题 / 密度 / 折叠态切换后，receiver 与偏好观察者数量不再增长
+- 状态栏电池温度与电流读数在缺少 `POWER_SUPPLY_TEMP` 的机型上降级而不是崩溃
+- 锁屏手电筒长按、PIP 截图隐藏、侧边栏、freeform 相关广播动作行为不变
+- 时钟秒针在 `TIME_SET` 后仍然重新初始化（多时钟控制器共存场景）
 
 ## 发布产物与签名
 

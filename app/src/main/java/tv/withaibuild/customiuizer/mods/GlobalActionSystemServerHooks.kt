@@ -46,7 +46,7 @@ object GlobalActionSystemServerHooks {
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "ForceClose")
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "ToggleColorInversion")
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "SwitchToPrevApp")
-                    mContext.registerReceiver(object : BroadcastReceiver() {
+                    ModuleHelper.registerModuleReceiver(mContext, "phoneWindowManagerActionReceiver", object : BroadcastReceiver() {
                         @SuppressLint("MissingPermission")
                         override fun onReceive(context: Context, intent: Intent) {
                             val action = intent.action
@@ -194,7 +194,7 @@ object GlobalActionSystemServerHooks {
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "LaunchIntent")
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "SaveLastMusicPausedTime")
 
-                    mContext.registerReceiver(GlobalActions.mSBReceiver, intentfilter, Context.RECEIVER_EXPORTED)
+                    ModuleHelper.registerModuleReceiver(mContext, "statusBarActionReceiver", GlobalActions.mSBReceiver, intentfilter, Context.RECEIVER_EXPORTED)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }

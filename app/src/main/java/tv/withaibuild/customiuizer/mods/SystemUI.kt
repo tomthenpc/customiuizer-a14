@@ -2507,7 +2507,7 @@ object SystemUI {
                     val intentFilter = IntentFilter()
                     intentFilter.addAction("miui.intent.TAKE_SCREENSHOT")
                     val thisObject = param.getThisObject()
-                    mContext.registerReceiver(object : BroadcastReceiver() {
+                    ModuleHelper.registerModuleReceiver(mContext, "pipScreenshotReceiver", object : BroadcastReceiver() {
                         override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                             val action = intent.action ?: return@guarded
                             if (action == "miui.intent.TAKE_SCREENSHOT") {
@@ -2546,7 +2546,9 @@ object SystemUI {
     private fun registerLockScreenAlbumArtReceiver(context: Context, controller: Any) {
         lockScreenAlbumArtController = WeakReference(controller)
         if (lockScreenAlbumArtReceiverRegistered) return
-        context.applicationContext.registerReceiver(
+        ModuleHelper.registerModuleReceiver(
+            context.applicationContext,
+            "lockScreenAlbumArtReceiver",
             lockScreenAlbumArtReceiver,
             IntentFilter(GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART"),
             Context.RECEIVER_NOT_EXPORTED

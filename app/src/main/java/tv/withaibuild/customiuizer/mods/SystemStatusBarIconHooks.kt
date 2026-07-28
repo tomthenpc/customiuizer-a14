@@ -214,17 +214,16 @@ object SystemStatusBarIconHooks {
                             var skipped = false
                             var result: Any? = null
                             var throwable: Throwable? = null
-                            val args2 = XposedHelpers.getArgsArray(chain)
                             val thisObject2 = chain.thisObject
                             try {
 
-                                lastState = args2[0] as Boolean
+                                lastState = chain.getArg(0) as Boolean
                                 mNextAlarmTime = ModuleHelper.getNextMIUIAlarmTime(mContext)
                                 updateAlarmVisibility(thisObject2)
                                 skipped = true; result = null; throwable = null
 
                                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                                result = chain.proceed(args2)
+                                result = chain.proceed()
                             } catch (t: Throwable) {
                                 throwable = t
                                 result = null
@@ -237,11 +236,10 @@ object SystemStatusBarIconHooks {
                             var skipped = false
                             var result: Any? = null
                             var throwable: Throwable? = null
-                            val args2 = XposedHelpers.getArgsArray(chain)
                             val thisObject2 = chain.thisObject
                             try {
 
-                                if (args2[0] == null) {
+                                if (chain.getArg(0) == null) {
                                     lastState = false
                                 }
                                 mNextAlarmTime = ModuleHelper.getNextMIUIAlarmTime(mContext)
@@ -249,7 +247,7 @@ object SystemStatusBarIconHooks {
                                 skipped = true; result = null; throwable = null
 
                                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                                result = chain.proceed(args2)
+                                result = chain.proceed()
                             } catch (t: Throwable) {
                                 throwable = t
                                 result = null

@@ -1684,7 +1684,7 @@ object Launcher {
                             }
                         }
                         XposedHelpers.setAdditionalInstanceField(thisObject, "secretCodeReceiver", secretCodeReceiver)
-                        act.registerReceiver(secretCodeReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+                        ModuleHelper.registerOwnedReceiver(act, act, "secretCodeReceiver", secretCodeReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
 
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
@@ -2924,7 +2924,7 @@ object Launcher {
                         }
                     }
                     XposedHelpers.setAdditionalInstanceField(thisObject, "fetchAppConfigReceiver", fetchAppConfigReceiver)
-                    act.registerReceiver(fetchAppConfigReceiver, intentFilter, Context.RECEIVER_EXPORTED)
+                    ModuleHelper.registerOwnedReceiver(act, act, "fetchAppConfigReceiver", fetchAppConfigReceiver, intentFilter, Context.RECEIVER_EXPORTED)
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)

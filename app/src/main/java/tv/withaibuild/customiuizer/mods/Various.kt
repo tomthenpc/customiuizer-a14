@@ -171,11 +171,10 @@ object Various {
                                 var skipped = false
                                 var result: Any? = null
                                 var throwable: Throwable? = null
-                                val args2 = XposedHelpers.getArgsArray(chain)
                                 val thisObject2 = chain.thisObject
                                 try {
-                                    val key = XposedHelpers.callMethod(args2[0], "getKey") as String
-                                    val title = XposedHelpers.callMethod(args2[0], "getTitle") as String
+                                    val key = XposedHelpers.callMethod(chain.getArg(0), "getKey") as String
+                                    val title = XposedHelpers.callMethod(chain.getArg(0), "getTitle") as String
                                     val pkgInfo = mLastPackageInfo!!
                                     when (key) {
                                         "apk_filename" -> {
@@ -229,7 +228,7 @@ object Various {
                                     }
 
                                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                                    result = chain.proceed(args2)
+                                    result = chain.proceed()
                                 } catch (t: Throwable) {
                                     throwable = t
                                     result = null
@@ -458,7 +457,7 @@ object Various {
                     result = null
                 }
                 try {
-                    val menu = XposedHelpers.getArgsArray(chain)[0] as Menu
+                    val menu = chain.args[0] as Menu
                     val reportMenu = menu.findItem(4)
                     reportMenu?.isVisible = false
                 } catch (t: Throwable) {
@@ -656,7 +655,7 @@ object Various {
                                 showSideBar(view, pos)
                             }
                         }
-                        view.context.registerReceiver(showReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"), Context.RECEIVER_EXPORTED)
+                        ModuleHelper.registerModuleReceiver(view.context, "showSideBarReceiver", showReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"), Context.RECEIVER_EXPORTED)
                         XposedHelpers.setAdditionalInstanceField(thisObject, "showReceiver", showReceiver)
 
                         if (!isHooked[1]) {
@@ -672,15 +671,14 @@ object Various {
                                             var skipped = false
                                             var result: Any? = null
                                             var throwable: Throwable? = null
-                                            val args2 = XposedHelpers.getArgsArray(chain)
                                             try {
-                                                val me = args2[1] as MotionEvent
+                                                val me = chain.getArg(1) as MotionEvent
                                                 if (me.source != 9999) {
                                                     skipped = true; result = false; throwable = null
                                                 }
 
                                                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                                                result = chain.proceed(args2)
+                                                result = chain.proceed()
                                             } catch (t: Throwable) {
                                                 throwable = t
                                                 result = null
@@ -694,12 +692,11 @@ object Various {
                                             var skipped = false
                                             var result: Any? = null
                                             var throwable: Throwable? = null
-                                            val args2 = XposedHelpers.getArgsArray(chain)
                                             try {
                                                 skipped = true; result = null; throwable = null
 
                                                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                                                result = chain.proceed(args2)
+                                                result = chain.proceed()
                                             } catch (t: Throwable) {
                                                 throwable = t
                                                 result = null

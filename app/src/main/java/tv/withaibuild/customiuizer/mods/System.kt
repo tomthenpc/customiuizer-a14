@@ -4313,7 +4313,7 @@ object System {
                             }
                         }
                     }
-                    mContext.registerReceiver(mReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
+                    ModuleHelper.registerModuleReceiver(mContext, "setFreeFormPackageReceiver", mReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
