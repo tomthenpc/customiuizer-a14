@@ -109,6 +109,11 @@ android {
         // Supported translations intentionally fall back to the base strings when incomplete.
         warning += "MissingTranslation"
     }
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
     dependenciesInfo {
         // Disables dependency metadata when building APKs.
         includeInApk = false
