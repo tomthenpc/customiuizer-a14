@@ -66,7 +66,7 @@ object Controls {
     }
 
     private val mScreenOnReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
+        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
             if (isTorchEnabled(context)) setTorch(context, false)
             if (Helpers.mWakeLock != null && Helpers.mWakeLock!!.isHeld) Helpers.mWakeLock!!.release()
             if (wasRaise2WakeEnabled) {

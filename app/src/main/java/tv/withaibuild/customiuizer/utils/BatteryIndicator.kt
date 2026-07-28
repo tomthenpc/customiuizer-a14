@@ -88,7 +88,7 @@ class BatteryIndicator @JvmOverloads constructor(
     private val viewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var testJob: Job? = null
     private inner class IndicatorBroadcastReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
+        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
             if ("miui.intent.TAKE_SCREENSHOT" == intent.action) {
                 val finished = intent.getBooleanExtra("IsFinished", true)
                 updateScreenShotState(!finished)

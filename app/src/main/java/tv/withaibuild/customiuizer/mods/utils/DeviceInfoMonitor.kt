@@ -9,7 +9,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.os.PowerManager
-import android.text.TextUtils
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -278,16 +277,16 @@ object DeviceInfoMonitor {
                         stopScreenReceiverLocked()
 
                         activeMainHandler = object : Handler(Looper.getMainLooper()) {
-                            override fun handleMessage(msg: Message) {
+                            override fun handleMessage(msg: Message) = ModuleHelper.guarded {
                                 if (msg.what == UPDATE_MESSAGE) {
-                                    val update = msg.obj as? IconUpdate ?: return
+                                    val update = msg.obj as? IconUpdate ?: return@guarded
                                     SystemUI.updateStatusbarTextIcons(update.type, update.show, update.text)
                                 }
                             }
                         }
 
                         activeBgHandler = object : Handler(looper) {
-                            override fun handleMessage(msg: Message) {
+                            override fun handleMessage(msg: Message) = ModuleHelper.guarded {
                                 if (msg.what == MONITOR_MESSAGE) {
                                     doMonitorTick(mContext, cfg)
                                 }
@@ -310,7 +309,7 @@ object DeviceInfoMonitor {
     private fun startScreenReceiverLocked(context: Context) {
         if (screenReceiver != null) return
         screenReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
+            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                 when (intent.action) {
                     Intent.ACTION_SCREEN_ON -> {
                         screenOn = true
@@ -357,6 +356,13 @@ object DeviceInfoMonitor {
         }
     }
 
+    /**
+     * One monitor pass on the NetworkSpeedController background thread.
+     *
+     * The next tick is scheduled from `finally`: a sysfs read that returns an unexpected shape
+     * must degrade to "no reading this round", never to a ticker that stops for the rest of the
+     * process lifetime.
+     */
     private fun doMonitorTick(mContext: Context, cfg: ConfigSnapshot) {
         if (!screenOn) return
 
@@ -366,7 +372,14 @@ object DeviceInfoMonitor {
             return
         }
 
-        val data = readDeviceData(mContext, cfg)
+        try {
+            publishReadings(cfg, readDeviceData(mContext, cfg))
+        } finally {
+            scheduleNextTick()
+        }
+    }
+
+    private fun publishReadings(cfg: ConfigSnapshot, data: DeviceData?) {
         if (data != null) {
             if (cfg.showBatteryDetail &&
                 (data.batteryShow != batteryState.show || data.batteryText != batteryState.text)
@@ -387,8 +400,6 @@ object DeviceInfoMonitor {
                 }
             }
         }
-
-        scheduleNextTick()
     }
 
     private fun scheduleNextTick() {
@@ -471,13 +482,24 @@ object DeviceInfoMonitor {
         }
     }
 
+    /**
+     * Parses a sysfs value, falling back to [fallback].
+     *
+     * `/sys/class/power_supply/battery/uevent` is a vendor surface: keys go missing and values
+     * appear with signs, whitespace or units depending on the kernel. Parsing runs on the monitor
+     * thread every two seconds, so a malformed line must produce a wrong-but-harmless reading
+     * rather than an exception.
+     */
+    private fun parseSysfsInt(raw: String?, fallback: Int = 0): Int {
+        if (raw.isNullOrEmpty()) return fallback
+        return raw.trim().toIntOrNull() ?: fallback
+    }
+
     private fun buildBatteryInfo(cfg: ConfigSnapshot, props: Properties): String {
         val opt = cfg.batteryContentOpt
         var simpleTempVal = ""
         if (opt == 1 || opt == 4) {
-            val tempVal = if (!TextUtils.isEmpty(props.getProperty("POWER_SUPPLY_TEMP"))) {
-                Integer.parseInt(props.getProperty("POWER_SUPPLY_TEMP"))
-            } else 0
+            val tempVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_TEMP"))
             simpleTempVal = if (cfg.batteryTempDecimal) {
                 (tempVal / 10f).toString()
             } else {
@@ -486,9 +508,7 @@ object DeviceInfoMonitor {
         }
 
         val currentRatio = if (cfg.batteryFixCurrentRatio) 1f else 1000f
-        val curReadVal = if (!TextUtils.isEmpty(props.getProperty("POWER_SUPPLY_CURRENT_NOW"))) {
-            Integer.parseInt(props.getProperty("POWER_SUPPLY_CURRENT_NOW"))
-        } else 0
+        val curReadVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_CURRENT_NOW"))
         var rawCurr = -1 * Math.round(curReadVal / currentRatio)
 
         var currVal = ""
@@ -510,9 +530,7 @@ object DeviceInfoMonitor {
 
         var simpleWatt = ""
         if (opt == 2 || opt == 4 || opt == 5) {
-            val voltVal = if (!TextUtils.isEmpty(props.getProperty("POWER_SUPPLY_VOLTAGE_NOW"))) {
-                Integer.parseInt(props.getProperty("POWER_SUPPLY_VOLTAGE_NOW")) / 1000f / 1000f
-            } else 0f
+            val voltVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_VOLTAGE_NOW")) / 1000f / 1000f
             simpleWatt = String.format(Locale.ROOT, "%.2f", Math.abs(voltVal * rawCurr) / 1000)
         }
 
@@ -539,8 +557,8 @@ object DeviceInfoMonitor {
     }
 
     private fun buildDeviceInfo(cfg: ConfigSnapshot, props: Properties, cpuProps: String): String {
-        val batteryTempVal = Integer.parseInt(props.getProperty("POWER_SUPPLY_TEMP"))
-        val cpuTempVal = Integer.parseInt(cpuProps)
+        val batteryTempVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_TEMP"))
+        val cpuTempVal = parseSysfsInt(cpuProps)
         val simpleBatteryTemp = String.format(Locale.ROOT, "%.1f", batteryTempVal / 10f)
         val simpleCpuTemp = String.format(Locale.ROOT, "%.1f", cpuTempVal / 1000f)
         val opt = cfg.deviceTempContentOpt

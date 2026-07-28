@@ -24,8 +24,10 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.CustomMethodUnho
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.utils.Helpers
 import java.io.RandomAccessFile
+import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 
 class ModuleHelper private constructor() {
@@ -56,7 +58,19 @@ class ModuleHelper private constructor() {
         var cachedModuleConfig: Configuration? = null
 
         private val viewInfoTag = ResourceHooks.getFakeResId("view_info_tag")
+
+        /** Process-scoped observers. Owned by module singletons, never collected. */
         private val prefObservers = CopyOnWriteArraySet<PreferenceObserver>()
+
+        /**
+         * Observers whose lifetime is bound to a hooked object.
+         *
+         * The strong reference lives in the owner's additional instance field, which
+         * [XposedHelpers] keeps in a `WeakHashMap`. Holding only a weak reference here means a
+         * recreated hook target (theme change, density change, panel rebuild) drops its old
+         * observer instead of pinning the dead instance for the life of the process.
+         */
+        private val ownedPrefObservers = CopyOnWriteArrayList<WeakReference<PreferenceObserver>>()
         private const val PREF_OBSERVER_FIELD = "customiuizer_prefObserver"
 
         @JvmField
@@ -337,24 +351,80 @@ class ModuleHelper private constructor() {
             }
             val old = XposedHelpers.getAdditionalInstanceField(owner, PREF_OBSERVER_FIELD)
             if (old is PreferenceObserver) {
-                prefObservers.remove(old)
+                dropOwnedObserver(old)
             }
             XposedHelpers.setAdditionalInstanceField(owner, PREF_OBSERVER_FIELD, prefObserver)
-            prefObservers.add(prefObserver)
+            ownedPrefObservers.add(WeakReference(prefObserver))
         }
 
         @JvmStatic
         fun removePreferenceObserver(owner: Any?) {
             val old = XposedHelpers.removeAdditionalInstanceField(owner, PREF_OBSERVER_FIELD)
             if (old is PreferenceObserver) {
-                prefObservers.remove(old)
+                dropOwnedObserver(old)
             }
         }
 
+        /**
+         * Removes [observer] and every reference the garbage collector has already cleared.
+         *
+         * Uses [CopyOnWriteArrayList.removeIf], which performs one atomic array copy. The Kotlin
+         * `removeAll { }` extension would instead walk the list with indexed writes, copying the
+         * backing array once per removal and without atomicity.
+         */
+        private fun dropOwnedObserver(observer: PreferenceObserver?) {
+            ownedPrefObservers.removeIf { ref ->
+                val referent = ref.get()
+                referent == null || referent === observer
+            }
+        }
+
+        /**
+         * Fans a preference change out to every observer.
+         *
+         * Runs on the remote-preferences listener thread of system_server, SystemUI and Launcher.
+         * A throwing observer must neither kill that process nor stop the remaining observers from
+         * seeing the change, so each callback is isolated.
+         */
         @JvmStatic
         fun handlePreferenceChanged(key: String?) {
             for (prefObserver in prefObservers) {
-                prefObserver.onChange(key)
+                try {
+                    prefObserver.onChange(key)
+                } catch (t: Throwable) {
+                    XposedHelpers.log(t)
+                }
+            }
+            if (ownedPrefObservers.isEmpty()) return
+            var sawCleared = false
+            for (ref in ownedPrefObservers) {
+                val prefObserver = ref.get()
+                if (prefObserver == null) {
+                    sawCleared = true
+                    continue
+                }
+                try {
+                    prefObserver.onChange(key)
+                } catch (t: Throwable) {
+                    XposedHelpers.log(t)
+                }
+            }
+            if (sawCleared) dropOwnedObserver(null)
+        }
+
+        /**
+         * Runs [block], logging instead of propagating any failure.
+         *
+         * Framework-invoked callbacks — `Handler.handleMessage`, `BroadcastReceiver.onReceive`,
+         * `ContentObserver.onChange`, `Runnable.run` — execute outside the [MethodHook] try/catch.
+         * A throw there kills system_server, SystemUI or Launcher, so every such body is wrapped.
+         * The function is inline: no object is allocated and no frame is added on the hot path.
+         */
+        inline fun guarded(block: () -> Unit) {
+            try {
+                block()
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
             }
         }
 

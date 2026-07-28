@@ -664,7 +664,7 @@ object System {
                         try { mContext.unregisterReceiver(oldfetchCachedDevicesReceiver) } catch (ignore: Throwable) {}
                     }
                     val fetchCachedDevicesReceiver = object : BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
+                        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                             val deviceList = ArrayList<BluetoothDevice>()
                             val updateIntent = Intent(GlobalActions.EVENT_PREFIX + "CACHEDDEVICESUPDATE")
                             val cachedDevices = XposedHelpers.callMethod(thisObject, "getDevices") as Collection<*>?
@@ -4317,9 +4317,9 @@ object System {
                     val intentFilter = IntentFilter()
                     intentFilter.addAction(GlobalActions.ACTION_PREFIX + "SetFreeFormPackage")
                     val mReceiver = object : BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
+                        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                             val action = intent.action
-                            if (action == null) return
+                            if (action == null) return@guarded
 
                             if (action == GlobalActions.ACTION_PREFIX + "SetFreeFormPackage") {
                                 nextFreeformPackage = intent.getStringExtra("package") ?: ModuleHelper.NOT_EXIST_SYMBOL

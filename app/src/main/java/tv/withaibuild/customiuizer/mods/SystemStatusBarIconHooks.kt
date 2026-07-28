@@ -198,7 +198,7 @@ object SystemStatusBarIconHooks {
                         try { mContext.unregisterReceiver(oldalarmTimeReceiver) } catch (ignore: Throwable) {}
                     }
                     val alarmTimeReceiver = object : BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
+                        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                             updateAlarmVisibility(thisObject)
                         }
                     }

@@ -124,7 +124,7 @@ object SystemUIMonitorAndTileHooks {
                             }
                             if (mListening) {
                                 val contentObserver = object : ContentObserver(Handler(mContext.mainLooper)) {
-                                    override fun onChange(selfChange: Boolean) {
+                                    override fun onChange(selfChange: Boolean) = ModuleHelper.guarded {
                                         XposedHelpers.callMethod(param.getThisObject(), "refreshState")
                                     }
                                 }
@@ -151,7 +151,7 @@ object SystemUIMonitorAndTileHooks {
                             }
                             if (mListening) {
                                 val contentObserver = object : ContentObserver(Handler(mContext.mainLooper)) {
-                                    override fun onChange(selfChange: Boolean) {
+                                    override fun onChange(selfChange: Boolean) = ModuleHelper.guarded {
                                         XposedHelpers.callMethod(param.getThisObject(), "refreshState")
                                     }
                                 }

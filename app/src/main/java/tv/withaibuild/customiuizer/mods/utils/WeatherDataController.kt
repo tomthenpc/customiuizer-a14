@@ -127,8 +127,8 @@ object WeatherDataController : ScreenStateController.ScreenStateListener {
         ScreenStateController.addListener(context, this)
 
         timeTickReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                if (!ScreenStateController.isScreenOn()) return
+            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                if (!ScreenStateController.isScreenOn()) return@guarded
                 refreshWeatherData(false)
             }
         }

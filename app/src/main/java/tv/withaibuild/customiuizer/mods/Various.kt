@@ -652,7 +652,7 @@ object Various {
                             originDockLocation = view.context.getSharedPreferences("sp_video_box", 0).getInt("dock_line_location", 0)
                         }
                         val showReceiver = object : BroadcastReceiver() {
-                            override fun onReceive(context: Context, intent: Intent) {
+                            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                                 val bundle = intent.getBundleExtra("actionInfo")
                                 var pos = originDockLocation
                                 if (bundle != null) {
@@ -1230,8 +1230,8 @@ object Various {
                         resolver.unregisterContentObserver(oldObserver)
                     }
                     val alarmObserver = object : ContentObserver(Handler(mContext.mainLooper)) {
-                        override fun onChange(selfChange: Boolean) {
-                            if (selfChange) return
+                        override fun onChange(selfChange: Boolean) = ModuleHelper.guarded {
+                            if (selfChange) return@guarded
                             XposedHelpers.setAdditionalInstanceField(thisObject, "mNextAlarmTime", ModuleHelper.getNextMIUIAlarmTime(mContext))
                         }
                     }

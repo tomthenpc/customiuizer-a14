@@ -2508,8 +2508,8 @@ object SystemUI {
                     intentFilter.addAction("miui.intent.TAKE_SCREENSHOT")
                     val thisObject = param.getThisObject()
                     mContext.registerReceiver(object : BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
-                            val action = intent.action ?: return
+                        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                            val action = intent.action ?: return@guarded
                             if (action == "miui.intent.TAKE_SCREENSHOT") {
                                 val state = intent.getBooleanExtra("IsFinished", true)
                                 val mState = XposedHelpers.getObjectField(thisObject, "mPipTransitionState")
@@ -2704,9 +2704,11 @@ object SystemUI {
                     if (oldObserver != null) {
                         resolver.unregisterContentObserver(oldObserver)
                     }
-                    val torchObserver = object : ContentObserver(Handler()) {
-                        override fun onChange(selfChange: Boolean) {
-                            if (selfChange) return
+                    // Handler() without a Looper binds to whichever thread ran the constructor
+                    // hook and throws outright when that thread has no Looper.
+                    val torchObserver = object : ContentObserver(Handler(mContext.mainLooper)) {
+                        override fun onChange(selfChange: Boolean) = ModuleHelper.guarded {
+                            if (selfChange) return@guarded
                             XposedHelpers.callMethod(param.getThisObject(), "updateLeftIcon")
                         }
                     }
@@ -2746,10 +2748,12 @@ object SystemUI {
                         return
                     }
                     if (leftAction) {
-                        mLeftButton.setOnLongClickListener { v: View ->
-                            val mFlashlightController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.policy.FlashlightController")
-                            val z = !(XposedHelpers.callMethod(mFlashlightController, "isEnabled") as Boolean)
-                            XposedHelpers.callMethod(mFlashlightController, "setFlashlight", z)
+                        mLeftButton.setOnLongClickListener { _: View ->
+                            ModuleHelper.guarded {
+                                val mFlashlightController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.policy.FlashlightController")
+                                val z = !(XposedHelpers.callMethod(mFlashlightController, "isEnabled") as Boolean)
+                                XposedHelpers.callMethod(mFlashlightController, "setFlashlight", z)
+                            }
                             true
                         }
                         mLeftButton.setOnClickListener(null)
@@ -3090,8 +3094,8 @@ object SystemUI {
             view.addOnAttachStateChangeListener(this)
         }
 
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action != SCREENSHOT_ACTION) return
+        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+            if (intent.action != SCREENSHOT_ACTION) return@guarded
             val finished = intent.getBooleanExtra("IsFinished", true)
             if (restorePreviousVisibility) {
                 if (!finished) visibleState = view.visibility

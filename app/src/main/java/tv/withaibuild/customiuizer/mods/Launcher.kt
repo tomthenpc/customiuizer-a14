@@ -456,11 +456,13 @@ object Launcher {
                                             XposedHelpers.setObjectField(shortcutObj, "mLabel", newStr)
 
                                             act.runOnUiThread {
-                                                if (lpparam.packageName == "com.miui.home") {
-                                                    XposedHelpers.callMethod(shortcutObj, "updateBuddyIconView", act)
-                                                } else {
-                                                    val buddyIconView = XposedHelpers.callMethod(shortcutObj, "getBuddyIconView")
-                                                    if (buddyIconView != null) XposedHelpers.callMethod(buddyIconView, "updateInfo", thisObject, shortcutObj)
+                                                ModuleHelper.guarded {
+                                                    if (lpparam.packageName == "com.miui.home") {
+                                                        XposedHelpers.callMethod(shortcutObj, "updateBuddyIconView", act)
+                                                    } else {
+                                                        val buddyIconView = XposedHelpers.callMethod(shortcutObj, "getBuddyIconView")
+                                                        if (buddyIconView != null) XposedHelpers.callMethod(buddyIconView, "updateInfo", thisObject, shortcutObj)
+                                                    }
                                                 }
                                             }
                                             break
@@ -1026,10 +1028,12 @@ object Launcher {
                     if (mHandler == null) {
                         mHandler = Handler(mContext.mainLooper, object : Handler.Callback {
                             override fun handleMessage(msg: Message): Boolean {
-                                val seekBar = msg.obj as? View
-                                if (seekBar != null) {
-                                    seekBar.animate().alpha(0.0f).setDuration(300).withEndAction {
-                                        seekBar.visibility = View.GONE
+                                ModuleHelper.guarded {
+                                    val seekBar = msg.obj as? View
+                                    if (seekBar != null) {
+                                        seekBar.animate().alpha(0.0f).setDuration(300).withEndAction {
+                                            seekBar.visibility = View.GONE
+                                        }
                                     }
                                 }
                                 return true

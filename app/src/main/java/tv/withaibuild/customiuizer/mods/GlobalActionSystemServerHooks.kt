@@ -248,7 +248,7 @@ object GlobalActionSystemServerHooks {
                                                 XposedHelpers.callMethod(freeformController, "freeformFullscreenTask", taskId)
                                                 val myhandler = Handler(Looper.myLooper()!!)
                                                 val removeBg = object : Runnable {
-                                                    override fun run() {
+                                                    override fun run() = ModuleHelper.guarded {
                                                         myhandler.removeCallbacks(this)
                                                         XposedHelpers.callMethod(freeformController, "pinAllFreeForm")
                                                     }

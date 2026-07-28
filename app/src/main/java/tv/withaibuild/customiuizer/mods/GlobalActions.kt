@@ -242,30 +242,32 @@ object GlobalActions {
 
                         val mHandler = XposedHelpers.getObjectField(miuiVolumeDialog, "mHandler") as Handler
                         mHandler.post {
-                            val mShowing = XposedHelpers.getBooleanField(miuiVolumeDialog, "mShowing")
-                            val mExpanded = XposedHelpers.getBooleanField(miuiVolumeDialog, "mExpanded")
+                            ModuleHelper.guarded {
+                                val mShowing = XposedHelpers.getBooleanField(miuiVolumeDialog, "mShowing")
+                                val mExpanded = XposedHelpers.getBooleanField(miuiVolumeDialog, "mExpanded")
 
-                            val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                            val isInCall = am.mode == AudioManager.MODE_IN_CALL || am.mode == AudioManager.MODE_IN_COMMUNICATION
-                            if (mShowing) {
-                                if (mExpanded || isInCall) {
-                                    XposedHelpers.callMethod(miuiVolumeDialog, "dismissH", 1)
+                                val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                                val isInCall = am.mode == AudioManager.MODE_IN_CALL || am.mode == AudioManager.MODE_IN_COMMUNICATION
+                                if (mShowing) {
+                                    if (mExpanded || isInCall) {
+                                        XposedHelpers.callMethod(miuiVolumeDialog, "dismissH", 1)
+                                    } else {
+                                        val mDialogView = XposedHelpers.getObjectField(miuiVolumeDialog, "mDialogView")
+                                        val mExpandButton = XposedHelpers.getObjectField(mDialogView, "mExpandButton") as View
+                                        val mClickExpand = XposedHelpers.getObjectField(mDialogView, "expandListener") as View.OnClickListener
+                                        mClickExpand.onClick(mExpandButton)
+                                    }
                                 } else {
-                                    val mDialogView = XposedHelpers.getObjectField(miuiVolumeDialog, "mDialogView")
-                                    val mExpandButton = XposedHelpers.getObjectField(mDialogView, "mExpandButton") as View
-                                    val mClickExpand = XposedHelpers.getObjectField(mDialogView, "expandListener") as View.OnClickListener
-                                    mClickExpand.onClick(mExpandButton)
+                                    val mController = XposedHelpers.getObjectField(mVolumeDialogPlugin, "mController")
+                                    if (isInCall) {
+                                        XposedHelpers.callMethod(mController, "setActiveStream", 0)
+                                        XposedHelpers.setBooleanField(miuiVolumeDialog, "mNeedReInit", true)
+                                    } else if (am.isMusicActive()) {
+                                        XposedHelpers.callMethod(mController, "setActiveStream", 3)
+                                        XposedHelpers.setBooleanField(miuiVolumeDialog, "mNeedReInit", true)
+                                    }
+                                    XposedHelpers.callMethod(miuiVolumeDialog, "showH", 1)
                                 }
-                            } else {
-                                val mController = XposedHelpers.getObjectField(mVolumeDialogPlugin, "mController")
-                                if (isInCall) {
-                                    XposedHelpers.callMethod(mController, "setActiveStream", 0)
-                                    XposedHelpers.setBooleanField(miuiVolumeDialog, "mNeedReInit", true)
-                                } else if (am.isMusicActive()) {
-                                    XposedHelpers.callMethod(mController, "setActiveStream", 3)
-                                    XposedHelpers.setBooleanField(miuiVolumeDialog, "mNeedReInit", true)
-                                }
-                                XposedHelpers.callMethod(miuiVolumeDialog, "showH", 1)
                             }
                         }
                     }

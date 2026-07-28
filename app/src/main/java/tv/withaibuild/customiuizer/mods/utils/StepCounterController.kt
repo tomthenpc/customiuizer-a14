@@ -107,8 +107,8 @@ object StepCounterController : ScreenStateController.ScreenStateListener {
         // Receiver will be registered when the first view appears while the
         // screen is on; do not pay for TIME_TICK while no one is observing.
         timeTickReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                if (!ScreenStateController.isScreenOn()) return
+            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                if (!ScreenStateController.isScreenOn()) return@guarded
                 scope.launch { refreshSteps(context) }
             }
         }
