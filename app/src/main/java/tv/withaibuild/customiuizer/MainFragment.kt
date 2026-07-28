@@ -103,8 +103,10 @@ class MainFragment : PreferenceFragmentBase() {
 
     private fun checkModuleIsActive() {
         lifecycleScope.launch {
-            val maxWait = 3000L
-            val deadline = System.currentTimeMillis() + maxWait
+            // Wait on the service manager's own deadline rather than a second, shorter one
+            // of our own: giving up while the state is still UNKNOWN draws no conclusion
+            // here and defers the dialog to the next time this screen is entered.
+            val deadline = System.currentTimeMillis() + XposedServiceManager.BIND_DECISION_TIMEOUT_MS + 500L
             while (isActive && XposedServiceManager.state == XposedServiceManager.State.UNKNOWN && System.currentTimeMillis() < deadline) {
                 delay(100L)
             }

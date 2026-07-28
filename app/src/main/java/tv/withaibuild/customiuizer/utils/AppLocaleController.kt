@@ -217,12 +217,26 @@ object AppLocaleController {
      */
     @JvmStatic
     fun setupLocalePreference(pref: ListPreferenceEx?, prefs: SharedPreferences?) {
-        if (pref == null || prefs == null) return
+        if (pref == null) return
+
+        // Disable the preference's own persistence before anything that can fail.
+        // The XML declares a one-item placeholder entry list so the real languages can
+        // be built at runtime; if setup bails out after that placeholder is still in
+        // place, a persisting ListPreference would write the placeholder over the
+        // user's stored language. setUserLocale is the only writer.
+        pref.isPersistent = false
+
+        if (prefs == null) {
+            Log.e(TAG, "No preferences available; leaving the locale preference disabled")
+            pref.isEnabled = false
+            return
+        }
 
         val (displayEntries, entryValues) = try {
             buildLocaleDisplayData(pref.context)
         } catch (t: Throwable) {
             Log.e(TAG, "Cannot build locale display data", t)
+            pref.isEnabled = false
             return
         }
 

@@ -95,22 +95,28 @@ class ListPreferenceEx(context: Context, attrs: AttributeSet?) : ListPreference(
             (holder.itemView as? ViewGroup)?.addView(valSummary, 2)
         }
 
-        // Defensive: if entries and values are out of sync, or the value is not
-        // present in entryValues, the ListPreference cannot resolve the summary.
-        // Fall back to the first entry (the fallback/default value) and log the
-        // inconsistency so it is visible in tests/development.
-        if (entries != null && entryValues != null && entries.size != entryValues.size) {
-            android.util.Log.e("ListPreferenceEx", "entries/entryValues size mismatch: ${entries.size} vs ${entryValues.size}")
+        // Binding is read-only with respect to preference state.
+        //
+        // This used to "repair" a value that was missing from entryValues by calling
+        // setValue here. That is a write during onBindViewHolder, and it has three
+        // consequences, all of which were observed on the language preference:
+        //
+        //  - setValue -> notifyChanged -> notifyItemChanged while the RecyclerView is
+        //    laying out, which throws IllegalStateException and kills the screen;
+        //  - the repair persists the placeholder value from the XML, so the stored
+        //    language silently reverts;
+        //  - the row then renders the placeholder entry instead of a language.
+        //
+        // A mismatch is a setup bug, so log it and render what we have. The owner of
+        // the preference repairs the stored value at setup time, before the first bind
+        // (see AppLocaleController.setupLocalePreference).
+        val currentEntries = entries
+        val currentValues = entryValues
+        if (currentEntries != null && currentValues != null && currentEntries.size != currentValues.size) {
+            android.util.Log.e("ListPreferenceEx", "entries/entryValues size mismatch: ${currentEntries.size} vs ${currentValues.size}")
         }
-
-        if (entryValues != null && value != null && !entryValues.contains(value)) {
-            android.util.Log.e("ListPreferenceEx", "value '$value' not in entryValues; falling back to '${entryValues[0]}'")
-            // Temporarily detach any change listener to avoid triggering confirmation
-            // dialogs or other side effects while repairing the value during bind.
-            val listener = onPreferenceChangeListener
-            onPreferenceChangeListener = null
-            setValue(entryValues[0].toString())
-            onPreferenceChangeListener = listener
+        if (currentValues != null && value != null && !currentValues.contains(value)) {
+            android.util.Log.e("ListPreferenceEx", "value '$value' is not in entryValues; showing it verbatim")
         }
 
         getView(holder.itemView)

@@ -36,7 +36,17 @@ object XposedServiceManager {
     private var initialized = false
     private val handler = Handler(Looper.getMainLooper())
 
-    private const val BIND_TIMEOUT_MS = 3500L
+    /**
+     * Upper bound on how long [state] may stay [State.UNKNOWN].
+     *
+     * A caller that needs a decided state must not give up before this. It used to pick
+     * its own, shorter deadline, so it stopped waiting while the state was still UNKNOWN
+     * and drew no conclusion; the "module not active" dialog then appeared at whatever
+     * arbitrary later moment the screen was next entered — most visibly right after the
+     * cold restart that a language change forces, which is exactly when binding is
+     * slowest.
+     */
+    const val BIND_DECISION_TIMEOUT_MS = 3500L
 
     private val timeoutRunnable = Runnable {
         if (state == State.UNKNOWN) {
@@ -88,7 +98,7 @@ object XposedServiceManager {
         initialized = true
 
         handler.removeCallbacks(timeoutRunnable)
-        handler.postDelayed(timeoutRunnable, BIND_TIMEOUT_MS)
+        handler.postDelayed(timeoutRunnable, BIND_DECISION_TIMEOUT_MS)
 
         try {
             XposedServiceHelper.registerListener(object : XposedServiceHelper.OnServiceListener {
