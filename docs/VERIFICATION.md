@@ -50,7 +50,7 @@ r14.12.0 发布前已完成：
 
 ## r14.13.5 最终构建静态验证
 
-当前工作区（`devin/r14.13-kotlin-refactor`，最终合并前 HEAD）已完成正式构建：
+正式基线 `main` / tag `r14.13.5` / commit `4225d80e95ed9965ab68a09b575aff4046666a5d` 已完成正式构建：
 
 - 构建命令：`$env:JAVA_HOME='C:\Program Files\Java\jdk-17'; .\gradlew --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease`
 - 退出码：`0`（`BUILD SUCCESSFUL in 2m 8s`）
@@ -72,7 +72,7 @@ r14.12.0 发布前已完成：
 
 ## r14.13.5 + Locale 状态稳定化 静态验证
 
-当前工作区（`devin/r14.13-kotlin-refactor`）已完成语言切换状态稳定化构建：
+正式基线 `main` / tag `r14.13.5` / commit `4225d80e95ed9965ab68a09b575aff4046666a5d` 已完成语言切换状态稳定化构建：
 
 - 构建命令：`.\gradlew.bat --no-daemon clean lintDebug lintRelease lintVitalRelease assembleDebug assembleDevelop assembleRelease`
 - 退出码：`0`（`BUILD SUCCESSFUL in 4m 10s`）
@@ -103,9 +103,9 @@ r14.12.0 发布前已完成：
 
 ## r14.13.3 候选构建静态验证
 
-> 非公开候选版本；相关改动已由 `r14.13.4` 正式版收口发布。
+> 非公开候选版本；相关改动已由 `r14.13.5` 正式版收口发布。本段为历史记录，当前正式基线见 `main` / tag `r14.13.5` / commit `4225d80e95ed9965ab68a09b575aff4046666a5d`。
 
-当前工作区（`devin/r14.13-kotlin-refactor`，HEAD `b63ec5f`）已完成候选构建：
+> 历史工作区（`devin/r14.13-kotlin-refactor`，HEAD `b63ec5f`）已完成候选构建：
 
 - 构建命令：`$env:JAVA_HOME='C:\Program Files\Java\jdk-17'; .\gradlew --no-daemon clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease`
 - 退出码：`0`（`BUILD SUCCESSFUL in 2m 37s`）

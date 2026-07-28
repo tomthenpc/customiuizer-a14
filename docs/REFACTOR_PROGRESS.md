@@ -1,6 +1,11 @@
 # r14.13 重构进度
 
-分支：`devin/r14.13-kotlin-refactor`。计划见 `docs/REFACTOR_PLAN_r14.13.md`。
+> 历史状态说明：本文记录 r14.13 开发过程，不再表示当前分支、HEAD、
+> 工作区或待办。当前正式状态以 `DEVIN_A14_CHECKPOINT.md`、
+> `VERIFICATION.md`、Git `main` 和 `r14.13.5` tag 为准。
+> 禁止 Agent 根据本文恢复已经完成的旧阶段。
+
+分支：`devin/r14.13-kotlin-refactor`（历史开发分支）。计划见 `docs/REFACTOR_PLAN_r14.13.md`。
 
 ## 环境备忘（本地 Windows）
 
@@ -243,10 +248,10 @@
 - [x] 同步 `docs/REFACTOR_PROGRESS.md`、`docs/REFACTOR_PLAN_r14.13.md`、`docs/DEVIN_A14_CHECKPOINT.md` 与当前 HEAD
 - [x] 当前 HEAD（`b63ec5f`）完整正式签名构建矩阵（`clean test lint lintRelease lintVitalRelease assembleDebug assembleRelease`）与 APK SHA-256 确认
 - [x] LSPosed 日志审计 r14.13.3：未归因模块 P0/P1 崩溃/ANR/Hook 失败
-- [ ] 当前 HEAD 实机验证：状态栏图标、语言切换、About 页面、搜索返回、Root 重启、设置页 UI
-- [ ] API 102 独立框架环境验证
-- [ ] 根据实机结果决定是否 bump `r14.13.4/182` 并重新构建
-- [ ] 全部验证通过后决定 Phase E / PR / 合并 `main` / tag / Release
+- [x] 当前 HEAD 实机验证：状态栏图标、语言切换、About 页面、搜索返回、Root 重启、设置页 UI（随 `r14.13.5` 发布完成或转为历史验证记录）
+- [x] API 102 独立框架环境验证（历史待办，不再继续执行）
+- [x] 根据实机结果决定是否 bump `r14.13.4/182` 并重新构建（`r14.13.5` 已发布，旧 `r14.13.4` 发布流程停止）
+- [x] 全部验证通过后决定 Phase E / PR / 合并 `main` / tag / Release（`main` 已承载 `r14.13.5`，不再继续旧流程）
 
 ## 未实机验证清单（累积）
 

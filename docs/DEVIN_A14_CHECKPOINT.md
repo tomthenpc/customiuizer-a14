@@ -8,20 +8,20 @@
 - 仓库：`tomthenpc/customiuizer-a14`
 - 正式发布版本：`r14.13.5` / versionCode `183`
 - 正式发布日期：2026-07-28
-- 源码仓库 tag：`r14.13.5` → 提交 `4225d80e`
+- 正式 tag：`r14.13.5` → `4225d80e95ed9965ab68a09b575aff4046666a5d`
+- 当前正式源码基线：`main` / `r14.13.5`
 - 源码仓库 Release：[r14.13.5](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5)
 - LSPosed 模块仓库 tag：`183-r14.13.5`
 - LSPosed 模块仓库 Release：[183-r14.13.5](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5)
 - `r14.13.4` 已撤回；其 GitHub Release 与 tag 已删除，历史资产信息见
-  [RELEASE_ARCHIVE.md](docs/RELEASE_ARCHIVE.md)。
+  [RELEASE_ARCHIVE.md](RELEASE_ARCHIVE.md)。
 - 当前 `main` 承载 `r14.13.5` 正式发布提交。
 
-## 当前开发分支
+## 开发分支（历史）
 
 - 分支：`devin/r14.13-kotlin-refactor`
-- 最近基线：当前 HEAD（r14.13.5 + 状态稳定化：语言切换确认、退出后生效与 Locale 对账）
-- 与 `origin/main` 的关系：ahead 若干（r14.13.5 发布后新增 Locale 状态稳定化）
-- 当前任务：完成 `A14 设置状态稳定化：语言切换确认、退出后生效与重启策略统一`。
+- 说明：该分支已完成 `A14 设置状态稳定化：语言切换确认、退出后生效与重启策略统一`，并合并到 `main`/`r14.13.5` 正式基线；不再作为当前活跃分支。
+- 当前工作应以 `main` / tag `r14.13.5` / commit `4225d80e` 为准。
 
 ## 发布产物与签名
 
@@ -38,13 +38,13 @@
 | libxposed | min API `101` / target API `102` / `staticScope=false` |
 
 `r14.12.0` 及更早公开版本的旧签名私钥已经遗失。它们不能直接覆盖安装
-`r14.13.4`；升级时必须备份设置、卸载旧版、安装新版、重新启用作用域、恢复设置并完整重启。
+`r14.13.5`；升级时必须备份设置、卸载旧版、安装 `r14.13.5`、重新启用作用域、恢复设置并完整重启。
 
 ## 已验证
 
 - 正式构建：JDK 17、Gradle 9.6.1、AGP 9.2.1、Kotlin 2.3.21。
 - `clean test lintDebug lintRelease lintVitalRelease assembleDebug assembleDevelop assembleRelease` 退出码 0。
-- 新增 `AppLocaleNormalizationTest`、`AppLocaleEntryTest`、`AppLocaleReconcileTest`、`RestartRequirementTest`；原有测试继续通过，总测试数 > 80。
+- 新增 `AppLocaleNormalizationTest`、`AppLocaleEntryTest`、`AppLocaleReconcileTest`、`RestartRequirementTest`；原有测试继续通过，总测试数 68。
 - Lint / `lintRelease` / `lintVitalRelease` 为 0 errors（依赖弃用 warnings 不变）。
 - Release R8、资源压缩、zipalign、APK v2 签名、APK 元数据与 Xposed metadata 均已检查。
 - `AppLocaleController` 作为唯一状态源：
