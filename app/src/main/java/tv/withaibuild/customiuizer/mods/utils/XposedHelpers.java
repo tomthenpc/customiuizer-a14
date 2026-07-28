@@ -61,12 +61,37 @@ public final class XposedHelpers {
     }
 
     private static final Object NOT_FOUND = new Object();
-    private static final ConcurrentHashMap<MemberCacheKey.Field, Object> fieldCache = new ConcurrentHashMap<>();
+
+    /**
+     * Member caches nested by declaring class.
+     *
+     * The lookups that carry parameter types still need a structural {@link MemberCacheKey},
+     * but the two hottest ones do not: a field access and a no-argument call are fully
+     * identified by a class and a name. Building a key object for those meant every cache
+     * <em>hit</em> allocated, purely to probe a hash map. Hook bodies in SystemUI and Launcher
+     * perform hundreds of field reads per invocation, on paths that run at draw and scroll
+     * frequency, so the steady-state garbage was produced by the cache rather than by the work.
+     *
+     * <p>Nesting the maps makes a hit allocation-free: {@link Class} hashes by identity, and the
+     * member names are string literals with a cached hash. The strong reference to each class is
+     * the same one the old key objects held.
+     */
+    private static final ConcurrentHashMap<Class<?>, ConcurrentHashMap<String, Object>> fieldCache = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Class<?>, ConcurrentHashMap<String, Object>> noArgMethodCache = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<MemberCacheKey.Method, Object> methodCache = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<MemberCacheKey.Constructor, Object> constructorCache = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<ClassCacheKey, Object> classCache = new ConcurrentHashMap<>();
     private static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
     private static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
+
+    private static ConcurrentHashMap<String, Object> membersOf(
+            ConcurrentHashMap<Class<?>, ConcurrentHashMap<String, Object>> cache, Class<?> clazz) {
+        ConcurrentHashMap<String, Object> members = cache.get(clazz);
+        if (members != null) return members;
+        ConcurrentHashMap<String, Object> created = new ConcurrentHashMap<>();
+        ConcurrentHashMap<String, Object> raced = cache.putIfAbsent(clazz, created);
+        return raced != null ? raced : created;
+    }
 
     /** Returns the hooked method arguments as an array. */
     public static Object[] getArgsArray(XposedInterface.Chain chain) {
@@ -154,30 +179,8 @@ public final class XposedHelpers {
             }
         }
 
-        static final class Field extends MemberCacheKey {
-            private final Class<?> clazz;
-            private final String name;
-
-            public Field(Class<?> clazz, String name) {
-                super(Objects.hash(clazz, name));
-                this.clazz = clazz;
-                this.name = name;
-            }
-
-            @Override
-            public boolean equals(Object o) {
-                if (this == o) return true;
-                if (!(o instanceof Field)) return false;
-                Field field = (Field) o;
-                return Objects.equals(clazz, field.clazz) && Objects.equals(name, field.name);
-            }
-
-            @NonNull
-            @Override
-            public String toString() {
-                return clazz.getName() + "#" + name;
-            }
-        }
+        // The Field key that used to live here is gone: fields are cached by class and then by
+        // name, so the lookup no longer needs a key object. See fieldCache.
 
         static final class Method extends MemberCacheKey {
             private final Class<?> clazz;
@@ -363,23 +366,28 @@ public final class XposedHelpers {
      * @throws NoSuchFieldError In case the field was not found.
      */
     public static Field findField(Class<?> clazz, String fieldName) {
-        MemberCacheKey.Field key = new MemberCacheKey.Field(clazz, fieldName);
+        ConcurrentHashMap<String, Object> fields = membersOf(fieldCache, clazz);
 
-        Object cached = fieldCache.get(key);
+        Object cached = fields.get(fieldName);
         if (cached != null) {
-            if (cached == NOT_FOUND) throw new NoSuchFieldError(key.toString());
+            if (cached == NOT_FOUND) throw new NoSuchFieldError(fieldKeyName(clazz, fieldName));
             return (Field) cached;
         }
 
         try {
             Field newField = findFieldRecursiveImpl(clazz, fieldName);
             newField.setAccessible(true);
-            fieldCache.put(key, newField);
+            fields.put(fieldName, newField);
             return newField;
         } catch (NoSuchFieldException e) {
-            fieldCache.put(key, NOT_FOUND);
-            throw new NoSuchFieldError(key.toString());
+            fields.put(fieldName, NOT_FOUND);
+            throw new NoSuchFieldError(fieldKeyName(clazz, fieldName));
         }
+    }
+
+    /** Keeps the error text identical to the structural key's {@code toString()}. */
+    private static String fieldKeyName(Class<?> clazz, String fieldName) {
+        return clazz.getName() + "#" + fieldName;
     }
 
     /**
@@ -602,8 +610,33 @@ public final class XposedHelpers {
      * @return A reference to the best-matching method.
      * @throws NoSuchMethodError In case no suitable method was found.
      */
+    /**
+     * Resolves a no-argument method, without allocating on a cache hit.
+     *
+     * The general path builds one {@link MemberCacheKey.Method} for the exact lookup and, when
+     * the method is inherited rather than declared, a second one for the best-match lookup — two
+     * allocations per invocation for the most common shape of reflective call in this module.
+     * A class plus a name identifies a no-argument method completely, so it caches by name.
+     *
+     * <p>A miss delegates to the general path, which also throws the error for a negative
+     * result, so the exception text stays identical.
+     */
     public static Method findMethodBestMatch(Class<?> clazz, String methodName) {
-        return findMethodBestMatch(clazz, methodName, EMPTY_CLASS_ARRAY);
+        ConcurrentHashMap<String, Object> methods = membersOf(noArgMethodCache, clazz);
+
+        Object cached = methods.get(methodName);
+        if (cached != null && cached != NOT_FOUND) {
+            return (Method) cached;
+        }
+
+        try {
+            Method resolved = findMethodBestMatch(clazz, methodName, EMPTY_CLASS_ARRAY);
+            methods.put(methodName, resolved);
+            return resolved;
+        } catch (NoSuchMethodError e) {
+            methods.put(methodName, NOT_FOUND);
+            throw e;
+        }
     }
 
     public static Method findMethodBestMatch(Class<?> clazz, String methodName, Class<?>... parameterTypes) {
