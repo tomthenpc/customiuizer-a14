@@ -29,7 +29,6 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Point
 import android.graphics.Typeface
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.media.AudioManager
@@ -2586,11 +2585,8 @@ object SystemUI {
                 if (isOnShade || screenStates[0]) {
                     view.visibility = View.GONE
                 } else {
-                    val mAlbumArt = XposedHelpers.getAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArt")
-                    if (mAlbumArt != null) {
-                        view.background = BitmapDrawable(view.context.resources, mAlbumArt as Bitmap)
-                    }
-                    view.visibility = if (mAlbumArt != null) View.VISIBLE else View.GONE
+                    val applied = LockScreenAlbumArtController.applyTo(view)
+                    view.visibility = if (applied) View.VISIBLE else View.GONE
                 }
                 param.returnAndSkip(null)
             }
