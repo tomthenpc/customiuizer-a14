@@ -30,6 +30,9 @@ import org.luckypray.dexkit.DexKitBridge;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -37,13 +40,11 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import io.github.libxposed.api.XposedInterface;
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.CustomMethodUnhooker;
@@ -121,7 +122,141 @@ public final class XposedHelpers {
         return chain.proceed();
     }
 
-    private static final WeakHashMap<Object, HashMap<String, Object>> additionalFields = new WeakHashMap<>();
+    /**
+     * Backing store for the simulated instance fields.
+     *
+     * <p>The previous implementation was a {@code WeakHashMap} behind one global monitor. Three
+     * things were wrong with it, in descending order of severity:
+     *
+     * <ol>
+     * <li><b>It keyed by {@code equals}/{@code hashCode}, not identity.</b> "Additional
+     *     <em>instance</em> field" means per instance. For any hooked class with value semantics,
+     *     two distinct-but-equal objects silently shared one field map. Worse, mutating a field
+     *     the object derives its hash from moved it to a different bucket and made its entry
+     *     unreachable — the stored value was lost and the entry lingered. The Launcher rename
+     *     feature does exactly that: it stashes {@code mLabelOrig} on a {@code ShortcutInfo} and
+     *     then rewrites {@code mLabel} on the same object.</li>
+     * <li><b>Every read took a process-wide lock.</b> Hook bodies read these fields from the
+     *     main, binder and background threads of SystemUI, Launcher and system_server.</li>
+     * <li><b>Every read allocated nothing but serialised everything</b>, which is the wrong
+     *     trade for a structure consulted this often.</li>
+     * </ol>
+     *
+     * <p>Keys are weak references compared by identity, so the store never keeps a hooked object
+     * alive and never confuses two of them. Reads are lock-free and allocation-free: they probe
+     * with a thread-confined key that is bound and released around the lookup.
+     *
+     * <p>{@code null} is a legal value here — callers store it to clear a slot — so it travels as
+     * {@link #NULL_VALUE}, because {@link ConcurrentHashMap} forbids null.
+     */
+    private static final Object NULL_VALUE = new Object();
+
+    private interface InstanceKey {
+        Object target();
+    }
+
+    private static final class WeakInstanceKey extends WeakReference<Object> implements InstanceKey {
+        private final int hash;
+
+        WeakInstanceKey(Object target, ReferenceQueue<Object> queue) {
+            super(target, queue);
+            this.hash = System.identityHashCode(target);
+        }
+
+        @Override
+        public Object target() {
+            return get();
+        }
+
+        @Override
+        public int hashCode() {
+            // Captured at construction so the key stays findable after the referent is cleared,
+            // which is what lets the reference queue remove it.
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof InstanceKey)) return false;
+            Object mine = get();
+            return mine != null && mine == ((InstanceKey) o).target();
+        }
+    }
+
+    /** Thread-confined probe, so a lookup costs no allocation. Bound and released per call. */
+    private static final class LookupInstanceKey implements InstanceKey {
+        private Object target;
+        private int hash;
+
+        void bind(Object target) {
+            this.target = target;
+            this.hash = System.identityHashCode(target);
+        }
+
+        void release() {
+            // Leaving the referent bound would pin one hooked object per thread.
+            this.target = null;
+        }
+
+        @Override
+        public Object target() {
+            return target;
+        }
+
+        @Override
+        public int hashCode() {
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof InstanceKey)) return false;
+            Object mine = target;
+            return mine != null && mine == ((InstanceKey) o).target();
+        }
+    }
+
+    private static final ConcurrentHashMap<InstanceKey, ConcurrentHashMap<String, Object>> additionalFields = new ConcurrentHashMap<>();
+    private static final ReferenceQueue<Object> additionalFieldsQueue = new ReferenceQueue<>();
+    private static final ThreadLocal<LookupInstanceKey> additionalFieldProbe =
+            ThreadLocal.withInitial(LookupInstanceKey::new);
+
+    private static ConcurrentHashMap<String, Object> findAdditionalFields(Object obj) {
+        LookupInstanceKey probe = additionalFieldProbe.get();
+        probe.bind(obj);
+        try {
+            return additionalFields.get(probe);
+        } finally {
+            probe.release();
+        }
+    }
+
+    private static ConcurrentHashMap<String, Object> openAdditionalFields(Object obj) {
+        ConcurrentHashMap<String, Object> existing = findAdditionalFields(obj);
+        if (existing != null) return existing;
+
+        ConcurrentHashMap<String, Object> created = new ConcurrentHashMap<>();
+        ConcurrentHashMap<String, Object> raced =
+                additionalFields.putIfAbsent(new WeakInstanceKey(obj, additionalFieldsQueue), created);
+        return raced != null ? raced : created;
+    }
+
+    /**
+     * Drops the entries whose owner has been collected.
+     *
+     * <p>Called from the writing paths only. Reads stay free of it because
+     * {@link ReferenceQueue#poll()} takes the queue lock, and writes are exactly when owners are
+     * being replaced — which is when their predecessors become collectable.
+     */
+    private static void expungeStaleAdditionalFields() {
+        Reference<?> stale;
+        while ((stale = additionalFieldsQueue.poll()) != null) {
+            // Removal matches on identity inside the map, so a cleared key is still removable.
+            additionalFields.remove(stale);
+        }
+    }
 
     /**
      * Note that we use object key instead of string here, because string calculation will lose all
@@ -1848,18 +1983,9 @@ public final class XposedHelpers {
         if (key == null)
             throw new NullPointerException("key must not be null");
 
-        HashMap<String, Object> objectFields;
-        synchronized (additionalFields) {
-            objectFields = additionalFields.get(obj);
-            if (objectFields == null) {
-                objectFields = new HashMap<>();
-                additionalFields.put(obj, objectFields);
-            }
-        }
-
-        synchronized (objectFields) {
-            return objectFields.put(key, value);
-        }
+        expungeStaleAdditionalFields();
+        Object previous = openAdditionalFields(obj).put(key, value == null ? NULL_VALUE : value);
+        return previous == NULL_VALUE ? null : previous;
     }
 
     /**
@@ -1875,16 +2001,10 @@ public final class XposedHelpers {
         if (key == null)
             throw new NullPointerException("key must not be null");
 
-        HashMap<String, Object> objectFields;
-        synchronized (additionalFields) {
-            objectFields = additionalFields.get(obj);
-            if (objectFields == null)
-                return null;
-        }
-
-        synchronized (objectFields) {
-            return objectFields.get(key);
-        }
+        ConcurrentHashMap<String, Object> objectFields = findAdditionalFields(obj);
+        if (objectFields == null) return null;
+        Object value = objectFields.get(key);
+        return value == NULL_VALUE ? null : value;
     }
 
     /**
@@ -1900,16 +2020,11 @@ public final class XposedHelpers {
         if (key == null)
             throw new NullPointerException("key must not be null");
 
-        HashMap<String, Object> objectFields;
-        synchronized (additionalFields) {
-            objectFields = additionalFields.get(obj);
-            if (objectFields == null)
-                return null;
-        }
-
-        synchronized (objectFields) {
-            return objectFields.remove(key);
-        }
+        expungeStaleAdditionalFields();
+        ConcurrentHashMap<String, Object> objectFields = findAdditionalFields(obj);
+        if (objectFields == null) return null;
+        Object previous = objectFields.remove(key);
+        return previous == NULL_VALUE ? null : previous;
     }
 
     /**
