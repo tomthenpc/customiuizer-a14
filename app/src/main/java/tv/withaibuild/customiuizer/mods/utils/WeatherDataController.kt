@@ -13,10 +13,24 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 
-object WeatherDataController {
+/**
+ * Weather data cache for the status bar clock.
+ *
+ * - The context and update runnable are held as weak references so a destroyed
+ *   clock controller does not keep SystemUI objects alive.
+ * - The ContentProvider query is protected by a Mutex so ticks do not pile up
+ *   while a query is already in flight.
+ * - TIME_TICK is only registered while the screen is on; screen off stops both
+ *   the receiver and any delayed refresh job.
+ * - A missed force refresh is remembered and executed when the screen turns
+ *   back on.
+ */
+object WeatherDataController : ScreenStateController.ScreenStateListener {
 
     @JvmField
     var weatherInfo: String = ""
@@ -26,17 +40,31 @@ object WeatherDataController {
     private var timeTickReceiver: BroadcastReceiver? = null
     private var context: Context? = null
 
-    private val lock = Any()
     private var controllerScope = newScope()
+    private val queryMutex = Mutex()
+    private var timeTickRegistered = false
+    private var pendingForceRefresh = false
 
     private fun newScope(): CoroutineScope =
         CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
-    private fun queryWeather() {
-        val ctx: Context
-        synchronized(lock) {
-            ctx = weakReferenceContext?.get() ?: return
+    override fun onScreenStateChanged(isOn: Boolean) {
+        val ctx = context ?: return
+        if (isOn) {
+            ensureTickRegistered(ctx)
+            if (pendingForceRefresh) {
+                pendingForceRefresh = false
+                refreshWeatherData(true)
+            }
+        } else {
+            controllerScope.cancel()
+            controllerScope = newScope()
+            unregisterTick(ctx)
         }
+    }
+
+    private fun queryWeather() {
+        val ctx = weakReferenceContext?.get() ?: return
 
         var cursor: Cursor? = null
         try {
@@ -64,15 +92,19 @@ object WeatherDataController {
 
     @JvmStatic
     fun refreshWeatherData(forceRefresh: Boolean) {
+        if (!ScreenStateController.isScreenOn()) {
+            if (forceRefresh) pendingForceRefresh = true
+            return
+        }
+
+        if (forceRefresh) pendingForceRefresh = false
+
         controllerScope.launch {
-            withContext(Dispatchers.IO) { queryWeather() }
+            withContext(Dispatchers.IO) {
+                queryMutex.withLock { queryWeather() }
+            }
             if (forceRefresh) {
-                val r: Runnable?
-                synchronized(lock) {
-                    r = weakReferenceRunnable
-                    weakReferenceRunnable = null
-                }
-                r?.run()
+                weakReferenceRunnable?.run()
             }
         }
     }
@@ -80,43 +112,61 @@ object WeatherDataController {
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @JvmStatic
     fun initContext(context: Context, updateTimeRunnable: Runnable) {
-        synchronized(lock) {
-            weakReferenceContext = WeakReference(context)
-            weakReferenceRunnable = updateTimeRunnable
-        }
-
         // Cancel any pending work from a previous context and start fresh.
         controllerScope.cancel()
         controllerScope = newScope()
+        pendingForceRefresh = false
 
-        val oldContext: Context?
-        val oldReceiver: BroadcastReceiver?
-        synchronized(lock) {
-            oldContext = this.context
-            oldReceiver = timeTickReceiver
-        }
-        oldReceiver?.let {
-            try {
-                oldContext?.unregisterReceiver(it)
-            } catch (ignored: Throwable) {
-            }
-        }
+        val oldContext = this.context
+        oldContext?.let { unregisterTick(it) }
 
+        weakReferenceContext = WeakReference(context)
+        weakReferenceRunnable = updateTimeRunnable
         this.context = context
+
+        ScreenStateController.addListener(context, this)
+
         timeTickReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                if (!ScreenStateController.isScreenOn()) return
                 refreshWeatherData(false)
             }
         }
-        context.registerReceiver(
-            timeTickReceiver,
-            IntentFilter("android.intent.action.TIME_TICK"),
-            Context.RECEIVER_NOT_EXPORTED
-        )
 
-        controllerScope.launch {
-            delay(1800)
-            refreshWeatherData(true)
+        if (ScreenStateController.isScreenOn()) {
+            ensureTickRegistered(context)
+            controllerScope.launch {
+                delay(1800)
+                if (ScreenStateController.isScreenOn()) refreshWeatherData(true)
+            }
+        } else {
+            // No need to query while the screen is off.
+            pendingForceRefresh = true
+        }
+    }
+
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private fun ensureTickRegistered(ctx: Context) {
+        if (timeTickRegistered || timeTickReceiver == null) return
+        try {
+            ctx.registerReceiver(
+                timeTickReceiver,
+                IntentFilter("android.intent.action.TIME_TICK"),
+                Context.RECEIVER_NOT_EXPORTED
+            )
+            timeTickRegistered = true
+        } catch (t: Throwable) {
+            XposedHelpers.log(t)
+        }
+    }
+
+    private fun unregisterTick(ctx: Context) {
+        if (!timeTickRegistered) return
+        timeTickRegistered = false
+        val receiver = timeTickReceiver ?: return
+        try {
+            ctx.unregisterReceiver(receiver)
+        } catch (ignored: Throwable) {
         }
     }
 }

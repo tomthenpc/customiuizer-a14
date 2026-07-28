@@ -20,6 +20,7 @@ import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
+import tv.withaibuild.customiuizer.mods.utils.ScreenStateController
 import tv.withaibuild.customiuizer.mods.utils.WeatherDataController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
@@ -145,11 +146,23 @@ object SystemClockHooks {
         return customFormat.contains("ss")
     }
 
-    private class SecondTicker(private val clockController: Any, private val context: Context) : Runnable {
+    private class SecondTicker(
+        private val clockController: Any,
+        private val context: Context
+    ) : Runnable, ScreenStateController.ScreenStateListener {
         private val handler = Handler(context.mainLooper)
         private var running = false
+        private var screenStateRegistered = false
 
         fun start() {
+            if (running) return
+            if (!screenStateRegistered) {
+                screenStateRegistered = true
+                ScreenStateController.addListener(context, this)
+                // addListener may synchronously trigger onScreenStateChanged -> start(),
+                // in which case running is already true and we should not schedule again.
+                if (running) return
+            }
             running = true
             scheduleNextTick()
         }
@@ -157,6 +170,18 @@ object SystemClockHooks {
         fun stop() {
             running = false
             handler.removeCallbacks(this)
+        }
+
+        fun dispose() {
+            stop()
+            if (screenStateRegistered) {
+                screenStateRegistered = false
+                ScreenStateController.removeListener(this)
+            }
+        }
+
+        override fun onScreenStateChanged(isOn: Boolean) {
+            if (isOn) start() else stop()
         }
 
         override fun run() {
@@ -191,7 +216,7 @@ object SystemClockHooks {
         val mContext = XposedHelpers.getObjectField(clockController, "mContext") as Context
         val previousTicker = XposedHelpers.getAdditionalInstanceField(clockController, "secondTicker") as SecondTicker?
         if (previousTicker != null) {
-            previousTicker.stop()
+            previousTicker.dispose()
             XposedHelpers.removeAdditionalInstanceField(clockController, "secondTicker")
         }
         if (ccShowSeconds || finalSbShowSeconds) {
