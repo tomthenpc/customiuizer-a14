@@ -44,6 +44,21 @@ ROM 每天都在自己的日志里写我们的 applicationId —— 启动 Activ
 `contexts.log` 现在**只写 P0/P1/P2**。干净日志下它只有一行 `No P0/P1/P2 candidates`（59 字节）；
 有真实发现时也只有几十 KB。**如果它很大，说明真的有很多待查项，不是噪声。**
 
+### 导出包里有三处日志，别只看一个
+
+LSPosed 导出的是一个**目录**，不是单个文件：
+
+| 文件 | 内容 | 什么时候看 |
+| --- | --- | --- |
+| `full.log` | 完整 logcat。**模块自己 `XposedHelpers.log()` 的输出在这里**（tag `LSPosed-Bridge`，前缀 `[Pengeek]`） | 主要分析对象，喂给脚本 |
+| `log/modules_*.log` | LSPosed 自己记录的模块加载事件（`Loading module …` / `Loaded module … successfully`） | 确认模块被加载进了哪些进程 |
+| `log.old/` | 上一次会话 | 需要对比历史时 |
+
+脚本只吃 `full.log`。**`模块加载: 未检测到` 不代表模块没加载** —— 去 `log/modules_*.log` 看
+`Loaded module tv.withaibuild.customiuizer.r14 successfully` 有几条。
+
+分析产物**不要写进 `build/`**，`gradlew clean` 会连同结果一起删掉。
+
 ### 先确认这份日志来自哪个构建
 
 模块在每个进程加载时会打一行：
@@ -52,7 +67,9 @@ ROM 每天都在自己的日志里写我们的 applicationId —— 启动 Activ
 CustoMIUIzer r14.13.5 (183) loaded in com.android.systemui
 ```
 
-**没有这一行 = 模块没加载进那个进程**，先查作用域和 LSPosed 启用状态，不要往下分析业务问题。
+**`full.log` 里没有这一行，但 `log/modules_*.log` 显示加载成功 = 装的不是这个构建。**
+（这条戳第一次实战就抓到了一次"测了旧版"。）
+两处都没有 = 模块没加载进那个进程，先查作用域和 LSPosed 启用状态，不要往下分析业务问题。
 版本号对不上你正在改的代码，说明用户装的不是这个构建，**先说清楚再分析**。
 
 ---

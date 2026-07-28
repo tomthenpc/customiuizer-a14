@@ -27,7 +27,9 @@ class MainApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        AppHelper.appPrefs?.let { AppLocaleController.apply(it) }
+        // Pass the Application context: without it the locale is applied through
+        // AppCompat, which silently does nothing this early. See AppLocaleController.
+        AppHelper.appPrefs?.let { AppLocaleController.apply(it, this) }
         XposedServiceManager.init(AppHelper.appPrefs)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager

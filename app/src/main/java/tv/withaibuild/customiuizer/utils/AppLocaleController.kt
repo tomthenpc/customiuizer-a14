@@ -1,9 +1,11 @@
 package tv.withaibuild.customiuizer.utils
 
 import android.app.Activity
+import android.app.LocaleManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Resources
+import android.os.LocaleList
 import android.os.Process
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
@@ -16,8 +18,8 @@ import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
  * Single owner for the application locale setting.
  *
  * The only persisted user choice is the value of [LOCALE_PREF_KEY]. Everything else
- * (AppCompat application locales, [Locale.getDefault()]) is a derived, re-creatable
- * state computed from that single source and the current system locale.
+ * (the framework's per-application locale, [Locale.getDefault()]) is a derived,
+ * re-creatable state computed from that single source and the current system locale.
  *
  * Locale changes are deferred: the user confirms once, the choice is persisted
  * synchronously, the settings application exits, and the new language takes effect
@@ -35,15 +37,15 @@ object AppLocaleController {
     )
 
     /**
-     * Seam for unit tests. Production code leaves this null so
-     * [AppCompatDelegate.setApplicationLocales] is used.
+     * Seam for unit tests. Production code leaves this null so the locale is applied
+     * through the framework's `LocaleManager` - see [setFrameworkApplicationLocales].
      */
     @JvmField
     var applicationLocaleApplier: ((LocaleListCompat) -> Unit)? = null
 
     /**
-     * Seam for unit tests. Production code leaves this null so
-     * [AppCompatDelegate.getApplicationLocales] is used.
+     * Seam for unit tests. Production code leaves this null so the current locale is read
+     * from the same place [apply] writes it.
      */
     @JvmField
     var applicationLocaleProvider: (() -> LocaleListCompat)? = null
@@ -91,14 +93,16 @@ object AppLocaleController {
     /**
      * Apply the stored user locale if it differs from the current runtime state.
      *
-     * This is called once during application start-up. It avoids unconditional calls
-     * to [AppCompatDelegate.setApplicationLocales] and prevents apply/restart loops.
+     * Called once during application start-up. [context] is required in production: without
+     * it there is no way to reach the framework locale service, and the call cannot do
+     * anything. Only the unit-test seams may leave it null.
      */
     @JvmStatic
-    fun apply(prefs: SharedPreferences?): Boolean {
+    @JvmOverloads
+    fun apply(prefs: SharedPreferences?, context: Context? = null): Boolean {
         val tag = getUserLocale(prefs)
         val targetLocaleList = toLocaleListCompat(tag)
-        val currentLocaleList = getCurrentApplicationLocales()
+        val currentLocaleList = getCurrentApplicationLocales(context)
         val effective = getEffectiveLocale(tag)
         val currentDefault = Locale.getDefault()
 
@@ -111,10 +115,43 @@ object AppLocaleController {
 
         if (appLocaleChanged) {
             Log.i(TAG, "Applying locale: tag=$tag")
-            (applicationLocaleApplier ?: { AppCompatDelegate.setApplicationLocales(it) })(targetLocaleList)
+            val applier = applicationLocaleApplier
+            when {
+                applier != null -> applier(targetLocaleList)
+                context != null -> setFrameworkApplicationLocales(context, targetLocaleList)
+                else -> {
+                    Log.e(TAG, "apply() without a Context: the locale cannot be applied")
+                    return false
+                }
+            }
         }
 
         return appLocaleChanged
+    }
+
+    /**
+     * Applies the locale through the framework rather than through AppCompat.
+     *
+     * [AppCompatDelegate.setApplicationLocales] is a silent no-op from here. On API 33+ it
+     * resolves `LocaleManager` by walking the set of **live AppCompat Activity delegates**
+     * (`getLocaleManagerForApplication`), and returns without doing anything when that set
+     * is empty. This runs from `Application.onCreate`, before any Activity exists, so the
+     * set is always empty and the user's language was never applied — the setting appeared
+     * to save and then do nothing.
+     *
+     * `LocaleManager` is API 33 and `minSdk` is 34, so it is always present.
+     */
+    private fun setFrameworkApplicationLocales(context: Context, locales: LocaleListCompat) {
+        val manager = context.getSystemService(LocaleManager::class.java)
+        if (manager == null) {
+            Log.e(TAG, "LocaleManager unavailable; locale not applied")
+            return
+        }
+        try {
+            manager.applicationLocales = LocaleList.forLanguageTags(locales.toLanguageTags())
+        } catch (t: Throwable) {
+            Log.e(TAG, "LocaleManager rejected the locale list", t)
+        }
     }
 
     /**
@@ -274,12 +311,25 @@ object AppLocaleController {
         Process.killProcess(Process.myPid())
     }
 
-    /** Current AppCompat application locales, with a test seam. */
+    /**
+     * The locale list currently in force, read from the same place [apply] writes to.
+     *
+     * Reading through AppCompat has the same blind spot as writing through it: with no live
+     * Activity delegate it reports an empty list, so the comparison in [apply] would think
+     * nothing is set and re-apply on every start.
+     */
     @JvmStatic
-    private fun getCurrentApplicationLocales(): LocaleListCompat = try {
-        applicationLocaleProvider?.invoke()
-            ?: AppCompatDelegate.getApplicationLocales()
-            ?: LocaleListCompat.getEmptyLocaleList()
+    private fun getCurrentApplicationLocales(context: Context?): LocaleListCompat = try {
+        val provider = applicationLocaleProvider
+        when {
+            provider != null -> provider()
+            context != null -> {
+                val manager = context.getSystemService(LocaleManager::class.java)
+                if (manager == null) LocaleListCompat.getEmptyLocaleList()
+                else LocaleListCompat.wrap(manager.applicationLocales)
+            }
+            else -> AppCompatDelegate.getApplicationLocales() ?: LocaleListCompat.getEmptyLocaleList()
+        }
     } catch (t: Throwable) {
         Log.w(TAG, "getCurrentApplicationLocales failed: ${t.message}; returning empty list")
         LocaleListCompat.getEmptyLocaleList()

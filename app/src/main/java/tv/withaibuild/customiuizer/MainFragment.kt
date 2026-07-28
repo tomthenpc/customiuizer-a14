@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -106,16 +107,38 @@ class MainFragment : PreferenceFragmentBase() {
             // Wait on the service manager's own deadline rather than a second, shorter one
             // of our own: giving up while the state is still UNKNOWN draws no conclusion
             // here and defers the dialog to the next time this screen is entered.
-            val deadline = System.currentTimeMillis() + XposedServiceManager.BIND_DECISION_TIMEOUT_MS + 500L
-            while (isActive && XposedServiceManager.state == XposedServiceManager.State.UNKNOWN && System.currentTimeMillis() < deadline) {
-                delay(100L)
+            if (!awaitDecision(XposedServiceManager.BIND_DECISION_TIMEOUT_MS + 500L)) return@launch
+
+            // A timeout is not proof. Only onServiceDied is. Binding is slowest right after
+            // this process was restarted - which is exactly when the user is most likely to
+            // be looking at this screen - so give it one more window before saying anything.
+            if (XposedServiceManager.state == XposedServiceManager.State.TIMED_OUT) {
+                if (!awaitDecision(XposedServiceManager.BIND_DECISION_TIMEOUT_MS)) return@launch
             }
-            if (!isActive) return@launch
+
             val act = activity as? AppCompatActivity ?: return@launch
-            if (isFragmentReady(act) && XposedServiceManager.state == XposedServiceManager.State.DISCONNECTED) {
+            val state = XposedServiceManager.state
+            if (isFragmentReady(act) &&
+                (state == XposedServiceManager.State.DISCONNECTED || state == XposedServiceManager.State.TIMED_OUT)
+            ) {
                 showXposedDialog(act)
             }
         }
+    }
+
+    /**
+     * Waits up to [timeoutMs] for the service state to stop being provisional.
+     * Returns false if the coroutine was cancelled, in which case the caller must stop.
+     */
+    private suspend fun awaitDecision(timeoutMs: Long): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (XposedServiceManager.state == XposedServiceManager.State.UNKNOWN &&
+            System.currentTimeMillis() < deadline
+        ) {
+            if (!coroutineContext.isActive) return false
+            delay(100L)
+        }
+        return coroutineContext.isActive
     }
 
     override fun onCreatePreferences(@Nullable savedInstanceState: Bundle?, @Nullable rootKey: String?) {

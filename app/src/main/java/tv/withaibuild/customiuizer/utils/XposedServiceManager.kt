@@ -10,18 +10,24 @@ import io.github.libxposed.service.XposedServiceHelper
 /**
  * Single application-level owner for the LSPosed/Vector service connection.
  *
- * State transitions:
- * - UNKNOWN: registration has been attempted, no callback received yet.
- * - BOUND: [onServiceBind] received; [remotePrefs] is available.
- * - DISCONNECTED: [onServiceDied] received or the binding timeout elapsed.
- *
- * UI code must not treat [UNKNOWN] as "not active"; only [DISCONNECTED]
- * is a proven inactive state. [AppHelper.moduleActive] is kept in sync for
- * existing call sites.
+ * UI code must not treat a provisional state as "not active": see [State].
+ * [AppHelper.moduleActive] is kept in sync for existing call sites.
  */
 object XposedServiceManager {
 
-    enum class State { UNKNOWN, BOUND, DISCONNECTED }
+    /**
+     * - [UNKNOWN]: registration attempted, no callback yet.
+     * - [BOUND]: the service is connected.
+     * - [TIMED_OUT]: we stopped waiting. **This is not proof of anything.** The service can
+     *   still bind afterwards, and on a device that has just restarted this process it often
+     *   does — a captured log showed LSPosed service transactions taking up to 1.7 s while
+     *   the settings app was being killed and relaunched repeatedly.
+     * - [DISCONNECTED]: `onServiceDied`, or registration threw. A proven negative.
+     *
+     * Only [DISCONNECTED] justifies telling the user the module is not active without
+     * further waiting.
+     */
+    enum class State { UNKNOWN, BOUND, TIMED_OUT, DISCONNECTED }
 
     @JvmField
     @Volatile
@@ -50,7 +56,9 @@ object XposedServiceManager {
 
     private val timeoutRunnable = Runnable {
         if (state == State.UNKNOWN) {
-            state = State.DISCONNECTED
+            // Give up waiting, but do not claim the module is inactive: the listener stays
+            // registered and a later bind still promotes this to BOUND.
+            state = State.TIMED_OUT
             AppHelper.moduleActive = false
         }
     }
