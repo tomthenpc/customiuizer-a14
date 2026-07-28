@@ -179,4 +179,38 @@ Hot Reload 保持关闭，不属于 r14.12.0 验收范围。
 - 性能和省电收益没有同设备、同设置的量化对照，不声明固定百分比；
 - 后续只在出现可归因、可复现的证据时进入针对性修复。
 
+## 性能/内存/省电专项优化静态验证
+
+本次在 `devin/r14.13-kotlin-refactor` 分支上完成针对 DeviceInfo、时钟/天气/计步、AudioVisualizer、锁屏专辑图和设置应用的资源与生命周期优化。相关提交清单见 `REFACTOR_PROGRESS.md`。
+
+- 构建命令：`$env:JAVA_HOME='C:\Program Files\Java\jdk-17'; .\gradlew.bat --no-daemon test lint assembleDebug assembleDevelop assembleRelease`
+- 退出码：`0`
+- JDK：`17`
+- Gradle：`9.6.1`
+- AGP：`9.2.1`
+- Kotlin：`2.3.21`
+- 单元测试：通过，0 failures
+- Lint / `lintDebug` / `lintVitalAnalyzeDevelop`：通过，0 errors
+- Debug / Develop / Release 全量构建：通过
+- R8 资源压缩、zipalign：通过（`develop`、`release`）
+- 产物大小（本地 Debug 证书签名，仅用于对照）：
+  - Debug：`app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.13.5.apk`，13,468,213 bytes
+  - Develop：`app/build/outputs/apk/develop/CustoMIUIzer-A14-r14.13.5.apk`，3,065,718 bytes
+  - Release：`app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.5.apk`，3,065,633 bytes
+
+### 主要变更范围
+
+- `DeviceInfoMonitor`：状态栏电量/温度监控集中化，屏关暂停，sysfs 退避读取，配置快照。
+- `ScreenStateController` + `StepCounterController` / `WeatherDataController` / `SystemClockHooks`：秒针/步数/天气按屏幕状态懒注册，弱引用清理。
+- `AudioVisualizer`：31 个 `ValueAnimator` 替换为单个 `Choreographer` 帧调度，FFT band/bin 预计算，Palette 只提交最新结果，View 不可见/息屏/无音乐时停止采样。
+- `LockScreenAlbumArtController`：锁屏专辑图缩放/灰度/模糊移出主线程，单协程取消只保留最新请求，先降采样再模糊，AOD/息屏暂停。
+- 设置应用 `AppDataAdapter` / `BitmapCachedLoader`：`CopyOnWriteArrayList` 替换为 `ArrayList`，预计算搜索/图标 key，图标加载 in-flight 去重，图标缓存预算减半，`SubFragment.saveSharedPrefs` 批量 `apply`，`MainApplication.onTrimMemory` 与安装包变化时清理图标和应用列表缓存。
+
+### 仍需实机验证
+
+- 状态栏监控、步数/天气/秒针在 AOD/息屏/亮屏切换下的刷新行为与 CPU 抖动。
+- AudioVisualizer 在播放、暂停、切歌、息屏和面板展开/收起时的动画与内存占用。
+- 锁屏专辑图在高分辨率封面、不同 `scale`/`blur`/`grayscale` 组合下的正确性与卡顿。
+- 设置应用列表滑动、搜索、图标加载和安装/卸载应用后的缓存失效。
+
 AI 工作顺序和文档职责见[AI 维护入口](AI_MAINTENANCE_GUIDE.md)。

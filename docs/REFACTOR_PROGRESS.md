@@ -274,3 +274,39 @@
 - 阶段 5+ Preference 两行标题与 About/Tail 页面：需要实机确认长标题显示两行、About 页面布局正常。
 - 阶段 5+ 资源清理：需要实机确认设置页、弹窗、BT/WiFi 列表等无资源缺失或崩溃。
 - 阶段 5+ XML 行尾规范化：已通过 `git diff --check`；行为不变，无需单独实机测试。
+
+## 性能/内存/省电专项优化（已完成，构建通过，待实机）
+
+目标：优化 `DeviceInfoMonitor`、步数/天气/秒针、`AudioVisualizer`、锁屏专辑图和设置应用 `AppDataAdapter` 的 CPU、内存与功耗，遵循 "功能关时接近零成本、热路径避免分配/反射、息屏/无订阅时停止无效工作" 原则。
+
+### 新增/重构文件
+
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ScreenStateController.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/StepCounterController.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/WeatherDataController.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/LockScreenAlbumArtController.kt`
+
+### 提交记录
+
+| # | commit | 内容 | 验证 |
+| --- | --- | --- | --- |
+| P3 | `17423649` | 提取 `DeviceInfoMonitor`：快照、退避、屏关暂停、弱引用 | `assembleDebug` / `assembleRelease` 通过 |
+| P4 | `f8cd2c8d` | `ScreenStateController` + 步数/天气/秒针屏关懒注册 | `assembleDebug` / `assembleRelease` 通过 |
+| P5 | `00bd1685` | `AudioVisualizer`：31 `ValueAnimator` → 单 `Choreographer` 帧调度 | `assembleDebug` / `assembleRelease` 通过 |
+| P5 | `40ef26aa` | `AudioVisualizer`：Palette 只提交最新结果、FFT band/bin 预计算 | `assembleDebug` / `assembleRelease` 通过 |
+| P6 | `7892a5c6` | `LockScreenAlbumArtController`：离线程、取消、先降采样再模糊 | `assembleDebug` / `assembleRelease` 通过 |
+| P7 | `296ee977` | `AppDataAdapter` / `BitmapCachedLoader`：搜索/图标 key 预计算、`CopyOnWriteArrayList` → `ArrayList`、in-flight 去重、图标缓存减半、批量 `apply`、`onTrimMemory` 与包变化清理 | `test` / `lint` / `assembleDebug` / `assembleDevelop` / `assembleRelease` 通过 |
+
+### 构建验证
+
+- `test` / `lint` / `assembleDebug` / `assembleDevelop` / `assembleRelease` 退出码 0。
+- 产物：`Debug 13,468,213 bytes`，`Develop 3,065,718 bytes`，`Release 3,065,633 bytes`。
+- R8 / 资源压缩在 `develop`、`release` 下均通过，0 Lint errors。
+
+### 未实机验证
+
+- 状态栏监控、步数/天气/秒针在 AOD/息屏/亮屏切换下的 CPU 抖动与数据准确性。
+- `AudioVisualizer` 在播放、暂停、切歌、息屏/面板切换时的动画、内存与 CPU。
+- 锁屏专辑图在不同分辨率封面、scale/blur/grayscale 组合下的视觉正确性与延迟。
+- 设置应用列表滑动、搜索、图标加载和安装/卸载后的缓存失效行为。
