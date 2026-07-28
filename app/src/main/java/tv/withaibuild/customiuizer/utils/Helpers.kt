@@ -1,6 +1,8 @@
 package tv.withaibuild.customiuizer.utils
 
 import android.Manifest
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ArgbEvaluator
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
@@ -330,14 +332,46 @@ object Helpers {
         title.text = ssb
     }
 
+    /**
+     * Flashes a row to point out the item the user arrived at from search.
+     *
+     * This used to animate the view's own `backgroundColor` property. That is destructive:
+     * `View.setBackgroundColor` replaces whatever background the row had — for a preference
+     * row, the selectable background that draws its pressed state — with a flat
+     * `ColorDrawable`, and the animation ends on `TRANSPARENT`, so the row is left with no
+     * touch feedback at all. The caller must also treat the flash as one-shot, because a
+     * row that restarts it on every bind restarts it on the rebind that its own state change
+     * causes.
+     *
+     * The flash now runs on a private overlay drawable, the original background is put back
+     * when it ends, and a flash already running on this view is cancelled first — item views
+     * are recycled, so the same view can be handed a second highlight.
+     */
     @JvmStatic
     fun applySearchItemHighlight(finalView: View) {
+        (finalView.getTag(R.id.search_highlight_animator) as? Animator)?.cancel()
+
+        val original = finalView.getTag(R.id.search_highlight_background) as? Drawable
+            ?: finalView.background
+        val overlay = ColorDrawable(Color.TRANSPARENT)
+        finalView.setTag(R.id.search_highlight_background, original)
+        finalView.background = overlay
+
         val highColor = finalView.resources.getColor(R.color.color_popup_background, finalView.context.theme)
-        val colorAnim = ObjectAnimator.ofInt(finalView, "backgroundColor", highColor, Color.TRANSPARENT)
+        val colorAnim = ObjectAnimator.ofInt(overlay, "color", highColor, Color.TRANSPARENT)
         colorAnim.duration = 1200
         colorAnim.setEvaluator(ArgbEvaluator())
         colorAnim.repeatCount = 1
         colorAnim.startDelay = 300
+        colorAnim.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                if (finalView.getTag(R.id.search_highlight_animator) !== animation) return
+                finalView.background = original
+                finalView.setTag(R.id.search_highlight_animator, null)
+                finalView.setTag(R.id.search_highlight_background, null)
+            }
+        })
+        finalView.setTag(R.id.search_highlight_animator, colorAnim)
         colorAnim.start()
     }
 

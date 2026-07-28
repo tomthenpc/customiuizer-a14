@@ -93,7 +93,12 @@ class SeekBarPreference @JvmOverloads constructor(
         mTitle?.text = Helpers.appendStatusMarker(title, unsupported, dynamic)
         seekBar?.alpha = if (isEnabled) 1.0f else 0.75f
         if (newmod) mTitle?.let { Helpers.applyNewMod(it) }
-        if (highlight) Helpers.applySearchItemHighlight(finalView)
+        if (highlight) {
+            // One-shot: the row rebinds whenever its own state changes, and a flash
+            // restarted on every bind never lets the row settle.
+            highlight = false
+            Helpers.applySearchItemHighlight(finalView)
+        }
 
         val childPadding = context.resources.getDimensionPixelSize(R.dimen.preference_item_child_padding)
         val hrzPadding = (indentLevel + 1) * childPadding

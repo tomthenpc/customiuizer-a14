@@ -30,7 +30,12 @@ class EditTextPreferenceEx(context: Context, attrs: AttributeSet?) : EditTextPre
         val title = finalView.findViewById<TextView>(android.R.id.title)
         title?.text = (title?.text?.toString() ?: "") + if (unsupported) " ⨯" else if (dynamic) " ⟲" else ""
         if (newmod) title?.let { Helpers.applyNewMod(it) }
-        if (highlight) Helpers.applySearchItemHighlight(finalView)
+        if (highlight) {
+            // One-shot: the row rebinds whenever its own state changes, and a flash
+            // restarted on every bind never lets the row settle.
+            highlight = false
+            Helpers.applySearchItemHighlight(finalView)
+        }
         val childPadding = context.resources.getDimensionPixelSize(R.dimen.preference_item_child_padding)
         val hrzPadding = (indentLevel + 1) * childPadding
         finalView.setPadding(hrzPadding, 0, childPadding, 0)

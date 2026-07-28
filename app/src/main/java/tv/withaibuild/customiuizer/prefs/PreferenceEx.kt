@@ -65,7 +65,12 @@ open class PreferenceEx(context: Context, attrs: AttributeSet?) : Preference(con
         }
         title?.text = Helpers.appendStatusMarker(title?.text, unsupported, dynamic)
         if (newmod) title?.let { Helpers.applyNewMod(it) }
-        if (highlight) Helpers.applySearchItemHighlight(finalView)
+        if (highlight) {
+            // One-shot: the row rebinds whenever its own state changes, and a flash
+            // restarted on every bind never lets the row settle.
+            highlight = false
+            Helpers.applySearchItemHighlight(finalView)
+        }
 
         val childPadding = res.getDimensionPixelSize(R.dimen.preference_item_child_padding)
         val hrzPadding = (indentLevel + 1) * childPadding

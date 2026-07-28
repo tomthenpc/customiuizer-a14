@@ -62,7 +62,12 @@ class DropDownPreferenceEx(context: Context, attrs: AttributeSet?) : DropDownPre
         title?.setTextColor(if (isEnabled) primary else secondary)
         title?.text = Helpers.appendStatusMarker(title?.text, unsupported, dynamic)
         if (newmod) title?.let { Helpers.applyNewMod(it) }
-        if (highlight) Helpers.applySearchItemHighlight(finalView)
+        if (highlight) {
+            // One-shot: the row rebinds whenever its own state changes, and a flash
+            // restarted on every bind never lets the row settle.
+            highlight = false
+            Helpers.applySearchItemHighlight(finalView)
+        }
         val hrzPadding = (indentLevel + 1) * childPadding
         finalView.setPadding(hrzPadding, 0, childPadding, 0)
     }
