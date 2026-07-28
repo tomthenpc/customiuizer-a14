@@ -139,6 +139,74 @@ def check_guard_framework_callbacks(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+DEFERRED_CALLBACKS = (
+    r"\bRunnable\s*\(?\s*\{",
+    r"\b(?:post|postDelayed|postAtTime|postOnAnimation|runOnUiThread)\s*\(\s*\{",
+    r"\bThread\s*\(\s*\{",
+    r"\bset(?:On\w+Listener)\s*\{",
+    r"\b(?:withEndAction|doOnLayout|addUpdateListener|postFrameCallback)\s*\(?\s*\{",
+)
+
+
+def check_guard_deferred_callbacks(path: Path, text: str) -> list[Finding]:
+    """Lambdas that run later are outside the hook's try/catch, exactly like named callbacks.
+
+    The round-one rule only matched `override fun run()` and friends, so
+    `postDelayed(Runnable { ... })` slipped through — including two bodies posted
+    to the PhoneWindowManager handler inside system_server, where an uncaught
+    throw reboots the device rather than restarting an app.
+
+    Anything deferred from `mods/` must be wrapped in ModuleHelper.guarded.
+    """
+    if "customiuizer/mods/" not in path.as_posix():
+        return []
+    findings = []
+    for pattern in DEFERRED_CALLBACKS:
+        for match in re.finditer(pattern, text):
+            body, start = block_at(text, match.end() - 1)
+            if "guarded" in body or "try" in body or "runCatching" in body:
+                continue
+            # An empty lambda cannot throw; it is a deliberate no-op replacement.
+            if not body.strip("{} \n\t"):
+                continue
+            findings.append(
+                Finding(
+                    "guard-deferred-callbacks",
+                    path,
+                    line_of(text, match.start()),
+                    "deferred body runs outside the hook try/catch; wrap it in ModuleHelper.guarded",
+                )
+            )
+    return findings
+
+
+def check_coroutine_scopes_handle_failure(path: Path, text: str) -> list[Finding]:
+    """A SupervisorJob does not swallow failures, it only stops them cascading.
+
+    An uncaught exception in `launch` still reaches the thread's default handler,
+    which inside SystemUI or Launcher kills the process. Every scope the module
+    runs in a host process must carry ModuleHelper.coroutineFailureHandler, so a
+    coroutine added later cannot forget it.
+    """
+    if "customiuizer/mods/" not in path.as_posix():
+        return []
+    findings = []
+    for match in re.finditer(r"CoroutineScope\(", text):
+        end = text.find("\n", match.start())
+        statement = text[match.start() : end if end != -1 else len(text)]
+        if "coroutineFailureHandler" in statement:
+            continue
+        findings.append(
+            Finding(
+                "coroutine-scopes-handle-failure",
+                path,
+                line_of(text, match.start()),
+                "add + ModuleHelper.coroutineFailureHandler to this scope",
+            )
+        )
+    return findings
+
+
 def check_no_raw_register_receiver(path: Path, text: str) -> list[Finding]:
     """Receivers registered straight on a Context outlive their hook target.
 
@@ -275,6 +343,8 @@ def check_no_regex_split_on_literal(path: Path, text: str) -> list[Finding]:
 
 RULES = (
     check_guard_framework_callbacks,
+    check_guard_deferred_callbacks,
+    check_coroutine_scopes_handle_failure,
     check_no_raw_register_receiver,
     check_no_looperless_handler,
     check_no_redundant_arg_marshalling,

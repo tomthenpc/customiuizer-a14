@@ -18,6 +18,7 @@ import android.provider.Settings
 import android.util.MiuiMultiWindowUtils
 import android.view.View
 import io.github.libxposed.api.XposedModuleInterface
+import kotlinx.coroutines.CoroutineExceptionHandler
 import miui.app.MiuiFreeFormManager
 import miui.process.ForegroundInfo
 import miui.process.ProcessManager
@@ -534,6 +535,19 @@ class ModuleHelper private constructor() {
         }
 
         /**
+         * Exception handler for every coroutine scope the module runs inside a host process.
+         *
+         * A `SupervisorJob` stops one child's failure from cancelling its siblings; it does not
+         * stop the failure itself. Without a handler an uncaught exception in `launch` reaches
+         * the thread's default handler, which in SystemUI or Launcher means the process dies.
+         * Attach this to the scope rather than wrapping each `launch` body, so a coroutine added
+         * later cannot forget it.
+         */
+        @JvmField
+        val coroutineFailureHandler: CoroutineExceptionHandler =
+            CoroutineExceptionHandler { _, throwable -> XposedHelpers.log(throwable) }
+
+        /**
          * Runs [block], logging instead of propagating any failure.
          *
          * Framework-invoked callbacks — `Handler.handleMessage`, `BroadcastReceiver.onReceive`,
@@ -546,6 +560,21 @@ class ModuleHelper private constructor() {
                 block()
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
+            }
+        }
+
+        /**
+         * [guarded] for a callback that has to return a value, such as `OnLongClickListener`.
+         *
+         * [fallback] is what the framework sees when the body fails, so it must be the answer
+         * that leaves the host's own behavior intact — usually "not consumed".
+         */
+        inline fun <T> guarded(fallback: T, block: () -> T): T {
+            return try {
+                block()
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
+                fallback
             }
         }
 

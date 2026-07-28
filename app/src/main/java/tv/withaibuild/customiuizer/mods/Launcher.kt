@@ -1025,7 +1025,7 @@ object Launcher {
                                     val seekBar = msg.obj as? View
                                     if (seekBar != null) {
                                         seekBar.animate().alpha(0.0f).setDuration(300).withEndAction {
-                                            seekBar.visibility = View.GONE
+                                            ModuleHelper.guarded { seekBar.visibility = View.GONE }
                                         }
                                     }
                                 }

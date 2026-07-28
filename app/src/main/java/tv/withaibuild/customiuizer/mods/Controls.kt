@@ -132,20 +132,24 @@ object Controls {
                         val longPressDelay = (if (MainModule.mPrefs.getBoolean("controls_powerflash_delay")) ViewConfiguration.getLongPressTimeout() * 3 else ViewConfiguration.getLongPressTimeout()) + 500
                         // Post only one delayed runnable that waits for long press timeout
                         if (!isWaitingForPowerLongPressed) {
+                            // Runs on the PhoneWindowManager handler inside system_server, outside
+                            // this hook's try/catch. An unguarded throw here reboots the device.
                             mHandler!!.postDelayed(Runnable {
-                                if (isPowerPressed) {
-                                    isPowerLongPressed = true
+                                ModuleHelper.guarded {
+                                    if (isPowerPressed) {
+                                        isPowerLongPressed = true
 
-                                    if (Helpers.mWakeLock == null) {
-                                        Helpers.mWakeLock = mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "miuizer:flashlight")
-                                    }
+                                        val wakeLock = Helpers.mWakeLock
+                                            ?: mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "miuizer:flashlight")
+                                                .also { Helpers.mWakeLock = it }
 
-                                    if (!isTorchEnabled(mContext) || !Helpers.mWakeLock!!.isHeld) {
-                                        setTorch(mContext, true)
-                                        if (!Helpers.mWakeLock!!.isHeld) Helpers.mWakeLock!!.acquire(600000L)
-                                    } else {
-                                        setTorch(mContext, true)
-                                        if (Helpers.mWakeLock!!.isHeld) Helpers.mWakeLock!!.release()
+                                        if (!isTorchEnabled(mContext) || !wakeLock.isHeld) {
+                                            setTorch(mContext, true)
+                                            if (!wakeLock.isHeld) wakeLock.acquire(600000L)
+                                        } else {
+                                            setTorch(mContext, true)
+                                            if (wakeLock.isHeld) wakeLock.release()
+                                        }
                                     }
                                 }
                                 isPowerPressed = false
@@ -221,17 +225,21 @@ object Controls {
 
                         // Post only one delayed runnable that waits for long press timeout
                         if (mHandler != null && !isWaitingForVolumeLongPressed) {
+                            // Runs on the PhoneWindowManager handler inside system_server, outside
+                            // this hook's try/catch. An unguarded throw here reboots the device.
                             mHandler!!.postDelayed(Runnable {
-                                if (isVolumePressed && GlobalActions.isMediaActionsAllowed(mContext)) {
-                                    isVolumeLongPressed = true
-                                    when (keyEvent.keyCode) {
-                                        KeyEvent.KEYCODE_VOLUME_UP -> {
-                                            val pref_mediaUp = MainModule.mPrefs.getStringAsInt("controls_volumemedia_up", 0)
-                                            if (pref_mediaUp != 0) GlobalActions.sendDownUpKeyEvent(mContext, pref_mediaUp, true)
-                                        }
-                                        KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                                            val pref_mediaDown = MainModule.mPrefs.getStringAsInt("controls_volumemedia_down", 0)
-                                            if (pref_mediaDown != 0) GlobalActions.sendDownUpKeyEvent(mContext, pref_mediaDown, true)
+                                ModuleHelper.guarded {
+                                    if (isVolumePressed && GlobalActions.isMediaActionsAllowed(mContext)) {
+                                        isVolumeLongPressed = true
+                                        when (keyEvent.keyCode) {
+                                            KeyEvent.KEYCODE_VOLUME_UP -> {
+                                                val pref_mediaUp = MainModule.mPrefs.getStringAsInt("controls_volumemedia_up", 0)
+                                                if (pref_mediaUp != 0) GlobalActions.sendDownUpKeyEvent(mContext, pref_mediaUp, true)
+                                            }
+                                            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                                                val pref_mediaDown = MainModule.mPrefs.getStringAsInt("controls_volumemedia_down", 0)
+                                                if (pref_mediaDown != 0) GlobalActions.sendDownUpKeyEvent(mContext, pref_mediaDown, true)
+                                            }
                                         }
                                     }
                                 }
@@ -472,8 +480,12 @@ object Controls {
         }
         leftbtn.isClickable = true
         leftbtn.isHapticFeedbackEnabled = true
-        leftbtn.setOnClickListener { handleNavBarAction(it.context, "controls_navbarleft") }
-        leftbtn.setOnLongClickListener { handleNavBarAction(it.context, "controls_navbarleftlong") }
+        leftbtn.setOnClickListener { view -> ModuleHelper.guarded { handleNavBarAction(view.context, "controls_navbarleft") } }
+        // handleNavBarAction returns false when no action is configured, which lets the
+        // ROM keep its own long-press behavior. Propagate it instead of consuming.
+        leftbtn.setOnLongClickListener { view ->
+            ModuleHelper.guarded(false) { handleNavBarAction(view.context, "controls_navbarleftlong") }
+        }
         leftbtn.addView(left)
 
         val rightbtn = LinearLayout(mContext)
@@ -495,8 +507,12 @@ object Controls {
         }
         rightbtn.isClickable = true
         rightbtn.isHapticFeedbackEnabled = true
-        rightbtn.setOnClickListener { handleNavBarAction(it.context, "controls_navbarright") }
-        rightbtn.setOnLongClickListener { handleNavBarAction(it.context, "controls_navbarrightlong") }
+        rightbtn.setOnClickListener { view -> ModuleHelper.guarded { handleNavBarAction(view.context, "controls_navbarright") } }
+        // handleNavBarAction returns false when no action is configured, which lets the
+        // ROM keep its own long-press behavior. Propagate it instead of consuming.
+        rightbtn.setOnLongClickListener { view ->
+            ModuleHelper.guarded(false) { handleNavBarAction(view.context, "controls_navbarrightlong") }
+        }
         rightbtn.addView(right)
 
         val hasLeftAction = MainModule.mPrefs.getInt("controls_navbarleft_action", 1) > 1 || MainModule.mPrefs.getInt("controls_navbarleftlong_action", 1) > 1

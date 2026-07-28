@@ -740,26 +740,27 @@ object System {
                     ModuleHelper.setViewInfo(view, "currentTouchY", 0F)
 
                     view.setOnTouchListener { v, event ->
-                        if (event.action != MotionEvent.ACTION_DOWN) return@setOnTouchListener false
+                        ModuleHelper.guarded {
+                            if (event.action != MotionEvent.ACTION_DOWN) return@guarded
 
-                        val lastTouchTime = ModuleHelper.getViewInfo(view, "currentTouchTime") as Long
-                        val lastTouchX = ModuleHelper.getViewInfo(view, "currentTouchX") as Float
-                        val lastTouchY = ModuleHelper.getViewInfo(view, "currentTouchY") as Float
+                            val lastTouchTime = ModuleHelper.getViewInfo(view, "currentTouchTime") as Long
+                            val lastTouchX = ModuleHelper.getViewInfo(view, "currentTouchX") as Float
+                            val lastTouchY = ModuleHelper.getViewInfo(view, "currentTouchY") as Float
 
-                        var currentTouchTime = java.lang.System.currentTimeMillis()
-                        val currentTouchX = event.x
-                        val currentTouchY = event.y
+                            var currentTouchTime = java.lang.System.currentTimeMillis()
+                            val currentTouchX = event.x
+                            val currentTouchY = event.y
 
-                        if (currentTouchTime - lastTouchTime < 250L && Math.abs(currentTouchX - lastTouchX) < 100F && Math.abs(currentTouchY - lastTouchY) < 100F) {
-                            val keyguardMgr = v.context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-                            if (keyguardMgr.isKeyguardLocked) GlobalActions.commonSendAction(v.context, "GoToSleep")
-                            currentTouchTime = 0L
+                            if (currentTouchTime - lastTouchTime < 250L && Math.abs(currentTouchX - lastTouchX) < 100F && Math.abs(currentTouchY - lastTouchY) < 100F) {
+                                val keyguardMgr = v.context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+                                if (keyguardMgr.isKeyguardLocked) GlobalActions.commonSendAction(v.context, "GoToSleep")
+                                currentTouchTime = 0L
+                            }
+
+                            ModuleHelper.setViewInfo(view, "currentTouchTime", currentTouchTime)
+                            ModuleHelper.setViewInfo(view, "currentTouchX", currentTouchX)
+                            ModuleHelper.setViewInfo(view, "currentTouchY", currentTouchY)
                         }
-
-                        ModuleHelper.setViewInfo(view, "currentTouchTime", currentTouchTime)
-                        ModuleHelper.setViewInfo(view, "currentTouchX", currentTouchX)
-                        ModuleHelper.setViewInfo(view, "currentTouchY", currentTouchY)
-
                         false
                     }
 
@@ -980,8 +981,10 @@ object System {
                             val oldExpandNotify = XposedHelpers.getAdditionalInstanceField(thisObject, "expandNotifyRunnable") as Runnable?
                             if (oldExpandNotify != null) notifyRow.removeCallbacks(oldExpandNotify)
                             val expandNotify = Runnable {
-                                val mExpandClickListener = XposedHelpers.getObjectField(thisObject, "mExpandClickListener") as View.OnClickListener
-                                mExpandClickListener.onClick(notifyRow)
+                                ModuleHelper.guarded {
+                                    val mExpandClickListener = XposedHelpers.getObjectField(thisObject, "mExpandClickListener") as View.OnClickListener
+                                    mExpandClickListener.onClick(notifyRow)
+                                }
                             }
                             XposedHelpers.setAdditionalInstanceField(thisObject, "expandNotifyRunnable", expandNotify)
                             notifyRow.postDelayed(expandNotify, 60)
@@ -4419,12 +4422,14 @@ object System {
                         val oldMultiWindowEnableRunnable = XposedHelpers.getAdditionalInstanceField(thisObject, "multiWindowEnableRunnable") as Runnable?
                         if (oldMultiWindowEnableRunnable != null) mHandler.removeCallbacks(oldMultiWindowEnableRunnable)
                         val multiWindowEnableRunnable = Runnable {
-                            val mMenuItemMultiWindow = XposedHelpers.getObjectField(thisObject, "mMenuItemMultiWindow") as ImageView
-                            val mMenuItemSmallWindow = XposedHelpers.getObjectField(thisObject, "mMenuItemSmallWindow") as ImageView
-                            mMenuItemMultiWindow.isEnabled = true
-                            mMenuItemMultiWindow.imageAlpha = 255
-                            mMenuItemSmallWindow.isEnabled = true
-                            mMenuItemSmallWindow.imageAlpha = 255
+                            ModuleHelper.guarded {
+                                val mMenuItemMultiWindow = XposedHelpers.getObjectField(thisObject, "mMenuItemMultiWindow") as ImageView
+                                val mMenuItemSmallWindow = XposedHelpers.getObjectField(thisObject, "mMenuItemSmallWindow") as ImageView
+                                mMenuItemMultiWindow.isEnabled = true
+                                mMenuItemMultiWindow.imageAlpha = 255
+                                mMenuItemSmallWindow.isEnabled = true
+                                mMenuItemSmallWindow.imageAlpha = 255
+                            }
                         }
                         XposedHelpers.setAdditionalInstanceField(thisObject, "multiWindowEnableRunnable", multiWindowEnableRunnable)
                         mHandler.postDelayed(multiWindowEnableRunnable, 200)

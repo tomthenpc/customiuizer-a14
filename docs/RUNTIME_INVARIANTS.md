@@ -49,6 +49,48 @@ override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded 
 
 ---
 
+## 1b. `guard-deferred-callbacks`（第一轮漏掉的形状）
+
+第一轮的规则只匹配 `override fun run()` 这类**具名**回调，于是漏掉了 lambda 形状：
+
+```kotlin
+mHandler!!.postDelayed(Runnable {   // 不是 override fun run()，规则看不见
+    ...
+}, delay)
+```
+
+漏掉的两处就在 `Controls.kt` 的电源键与音量键长按里，`mHandler` 取自
+`MiuiPhoneWindowManager`，也就是说这两个 Runnable 跑在 **`system_server`** 的 handler 上。
+里面有 `newWakeLock`、`sendBroadcast`、`GlobalActions.sendDownUpKeyEvent` 的反射，
+以及 `mPrefs.getStringAsInt` 的 `toInt()`（偏好里存了非数字就抛 `NumberFormatException`）。
+
+**在 `system_server` 里抛异常不是应用崩溃，是设备重启。** 这是整个仓库里最高危的一类。
+
+规则现在覆盖：`Runnable {}`、`post/postDelayed/postAtTime/postOnAnimation/runOnUiThread {}`、
+`Thread {}`、`setOnXxxListener {}`、`withEndAction/doOnLayout/addUpdateListener/postFrameCallback {}`。
+`mods/` 下这些形状一律要 `ModuleHelper.guarded`。空 lambda 除外（不可能抛）。
+
+需要返回值的回调用带兜底值的重载：
+
+```kotlin
+// handleNavBarAction 在未配置动作时返回 false，让 ROM 保留自己的长按行为。
+// 兜底值必须是"不消费"，否则失败时会把宿主的默认行为一起吞掉。
+view.setOnLongClickListener { v ->
+    ModuleHelper.guarded(false) { handleNavBarAction(v.context, key) }
+}
+```
+
+## 1c. `coroutine-scopes-handle-failure`
+
+`SupervisorJob()` 只保证一个子协程失败不会连坐取消兄弟协程，**它不吞异常**。
+`launch` 里未捕获的异常仍然会走到线程的默认异常处理器——在 SystemUI / Launcher 里就是进程死亡。
+
+`StepCounterController`、`WeatherDataController`、`LockScreenAlbumArtController` 三个 scope
+原本都只有 `SupervisorJob()`。
+
+契约：`mods/` 下每个 `CoroutineScope(...)` 都要带 `+ ModuleHelper.coroutineFailureHandler`。
+挂在 scope 上而不是包住每个 `launch`，这样以后新增的协程不可能忘。
+
 ## 2. `no-raw-register-receiver`
 
 ### 缺陷

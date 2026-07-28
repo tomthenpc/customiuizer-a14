@@ -1319,7 +1319,7 @@ object SystemUI {
                 val tag = speedView.tag as? String
                 if (inited == null && tag != "slot_text_icon") {
                     speedView.setTag(viewInitedTag, true)
-                    speedView.postDelayed({ initNetSpeedStyle(speedView) }, 200)
+                    speedView.postDelayed({ ModuleHelper.guarded { initNetSpeedStyle(speedView) } }, 200)
                 }
             }
         })
@@ -2761,7 +2761,9 @@ object SystemUI {
                     if (rightAction) {
                         val mRightButton = XposedHelpers.getObjectField(param.getThisObject(), "mRightButton") as View
                         mRightButton.setOnLongClickListener { v: View ->
-                            GlobalActions.handleAction(v.context, "system_lockscreenshortcuts_right", true)
+                            ModuleHelper.guarded {
+                                GlobalActions.handleAction(v.context, "system_lockscreenshortcuts_right", true)
+                            }
                             true
                         }
                         mRightButton.setOnClickListener(null)
@@ -2863,14 +2865,18 @@ object SystemUI {
                     if (!kgMgr.isKeyguardLocked || !kgMgr.isKeyguardSecure) return
                     val activityStater = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.plugins.ActivityStarter")
                     XposedHelpers.callMethod(activityStater, "postQSRunnableDismissingKeyguard", true, Runnable {
-                        val keepOpened = MainModule.mPrefs.getBoolean("system_secureqs_keepopened")
-                        if (keepOpened) {
-                            val handler = Handler(mContext.mainLooper)
-                            handler.postDelayed({
-                                val openCCIntent = Intent(GlobalActions.ACTION_PREFIX + "ExpandSettings")
-                                openCCIntent.setPackage("com.android.systemui")
-                                mContext.sendBroadcast(openCCIntent)
-                            }, 800)
+                        ModuleHelper.guarded {
+                            val keepOpened = MainModule.mPrefs.getBoolean("system_secureqs_keepopened")
+                            if (keepOpened) {
+                                val handler = Handler(mContext.mainLooper)
+                                handler.postDelayed({
+                                    ModuleHelper.guarded {
+                                        val openCCIntent = Intent(GlobalActions.ACTION_PREFIX + "ExpandSettings")
+                                        openCCIntent.setPackage("com.android.systemui")
+                                        mContext.sendBroadcast(openCCIntent)
+                                    }
+                                }, 800)
+                            }
                         }
                     })
                     val mStatusBar = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.CommandQueue")

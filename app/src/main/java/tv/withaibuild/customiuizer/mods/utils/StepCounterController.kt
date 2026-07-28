@@ -45,7 +45,7 @@ object StepCounterController : ScreenStateController.ScreenStateListener {
     private val queryMutex = Mutex()
 
     private fun newScope(): CoroutineScope =
-        CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+        CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + ModuleHelper.coroutineFailureHandler)
 
     override fun onScreenStateChanged(isOn: Boolean) {
         val ctx = context ?: return

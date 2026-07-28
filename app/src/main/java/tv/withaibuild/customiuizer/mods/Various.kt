@@ -325,7 +325,7 @@ object Various {
             } else {
                 Toast.makeText(act, ModuleHelper.getModuleRes(act)!!.getString(R.string.disable_app_fail), Toast.LENGTH_LONG).show()
             }
-            Handler(Looper.getMainLooper()).postDelayed({ act.invalidateOptionsMenu() }, 500)
+            Handler(Looper.getMainLooper()).postDelayed({ ModuleHelper.guarded { act.invalidateOptionsMenu() } }, 500)
         } catch (t: Throwable) {
             XposedHelpers.log(t)
         }
@@ -963,10 +963,12 @@ object Various {
                         defaultView.gravity = Gravity.CENTER_VERTICAL
 
                         defaultView.setOnClickListener {
-                            val intent = Intent("android.settings.APP_OPEN_BY_DEFAULT_SETTINGS")
-                            val pkgName = act.intent.getStringExtra("package_name")
-                            intent.data = Uri.parse("package:$pkgName")
-                            act.startActivity(intent)
+                            ModuleHelper.guarded {
+                                val intent = Intent("android.settings.APP_OPEN_BY_DEFAULT_SETTINGS")
+                                val pkgName = act.intent.getStringExtra("package_name")
+                                intent.data = Uri.parse("package:$pkgName")
+                                act.startActivity(intent)
+                            }
                         }
                     }
 

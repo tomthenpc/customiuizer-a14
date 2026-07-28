@@ -68,7 +68,7 @@ object LockScreenAlbumArtController {
     private var pendingRescale: Int = 1
     private var pendingGrayscale: Boolean = false
 
-    private val controllerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
+    private val controllerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1) + ModuleHelper.coroutineFailureHandler)
     private var generationJob: Job? = null
 
     @JvmStatic

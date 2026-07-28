@@ -80,6 +80,31 @@ override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded 
 
 `ModuleHelper.guarded` 是 `inline` 的：不分配对象、不增加栈帧。没有理由不用。
 
+**lambda 形状同样算数**，而且更容易漏：
+
+```kotlin
+// mHandler 来自 MiuiPhoneWindowManager —— 这个 Runnable 跑在 system_server 里。
+// 这里抛异常不是应用崩溃，是设备重启。
+mHandler.postDelayed(Runnable {
+    ModuleHelper.guarded { ... }
+}, delay)
+```
+
+覆盖：`Runnable {}`、`post/postDelayed/runOnUiThread {}`、`Thread {}`、
+`setOnXxxListener {}`、`withEndAction/doOnLayout/addUpdateListener {}`。
+
+需要返回值时用带兜底值的重载，**兜底值必须是"不消费"**，否则失败时会把宿主自己的行为一起吞掉：
+
+```kotlin
+view.setOnLongClickListener { v ->
+    ModuleHelper.guarded(false) { handleNavBarAction(v.context, key) }
+}
+```
+
+协程：`SupervisorJob()` 只防连坐，**不吞异常**。`launch` 里未捕获的异常会走到线程默认处理器，
+在 SystemUI / Launcher 里就是进程死亡。`mods/` 下每个 scope 都要带
+`+ ModuleHelper.coroutineFailureHandler`（挂在 scope 上，不要包每个 `launch`，否则以后新增的会忘）。
+
 **唯一豁免**：`ModuleHelper.PreferenceObserver.onChange` —— `handlePreferenceChanged` 已经逐个隔离。
 
 ### 3.2 参数：不改就不要复制
