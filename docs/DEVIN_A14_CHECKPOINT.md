@@ -8,7 +8,7 @@
 - 仓库：`tomthenpc/customiuizer-a14`
 - 正式发布版本：`r14.13.5` / versionCode `183`
 - 正式发布日期：2026-07-28
-- 源码仓库 tag：`r14.13.5` → `TBD`（`main` 合并后 tag）
+- 源码仓库 tag：`r14.13.5` → 提交 `4225d80e`
 - 源码仓库 Release：[r14.13.5](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5)
 - LSPosed 模块仓库 tag：`183-r14.13.5`
 - LSPosed 模块仓库 Release：[183-r14.13.5](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5)
@@ -19,8 +19,8 @@
 ## 当前开发分支
 
 - 分支：`devin/r14.13-kotlin-refactor`
-- 最近基线：`TBD`（r14.13.5 发布合并提交）
-- 与 `origin/main` 的关系：ahead 6 / behind 0；merge base `73ea3415`
+- 最近基线：`4225d80e`（r14.13.5 发布合并提交）
+- 与 `origin/main` 的关系：同步（与 `main` 同为 `4225d80e`）
 - 当前任务：`r14.13.5` 正式发布已完成，`main` 承载发布 tag `r14.13.5`。
 
 ## 发布产物与签名
