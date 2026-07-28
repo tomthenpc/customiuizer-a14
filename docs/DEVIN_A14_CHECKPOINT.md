@@ -58,10 +58,38 @@
    全量扫描 96 个文件，0 违规。规则说明见 `docs/RUNTIME_INVARIANTS.md`。
    `AGENTS.md` 重写为可执行、可校验的形式。
 
+### 第二轮加固（2026-07-28，同分支）
+
+5. **`system_server` 里的未保护 lambda（最高危）**
+   第一轮的门禁规则只匹配 `override fun run()` 这类具名回调，漏掉了
+   `postDelayed(Runnable { ... })` 的 lambda 形状。`Controls.kt` 电源键与音量键长按的两个
+   Runnable 跑在 `MiuiPhoneWindowManager` 的 handler 上，也就是 **`system_server` 进程内**，
+   里面有 `newWakeLock`、`sendBroadcast`、反射按键注入和 `getStringAsInt` 的 `toInt()`。
+   在这里抛异常不是应用崩溃，是设备重启。共加固 `mods/` 下 23 处 deferred 回调。
+
+6. **协程 scope 未处理失败**
+   `SupervisorJob()` 只防连坐，不吞异常；`launch` 里未捕获的异常仍会走到线程默认处理器，
+   在 SystemUI / Launcher 中即进程死亡。三个 scope 全部加上
+   `ModuleHelper.coroutineFailureHandler`（挂 scope 而非包 `launch`）。
+
+7. **反射缓存命中仍在分配**
+   `findField` 每次调用都 `new MemberCacheKey.Field(...)` 才去查表——命中也要分配。
+   模块 hook 体内共 616 处字段访问，跑在绘制与滚动频率上。无参 `callMethod` 更差：
+   `findMethodExact` 失败后 `findMethodBestMatch` 再建一个 key，继承方法上每次调用两次分配。
+   两者改为 `Class -> name -> member` 两级嵌套，命中零分配；带参数类型的查找保留结构化 key。
+   `ReflectionCacheAllocationTest` 用 HotSpot 线程分配计数器断言 <1 byte/call，并有对照测试
+   防止计数器失效导致断言空过。
+
+8. **门禁扩到 8 条规则**
+   新增 `guard-deferred-callbacks`、`coroutine-scopes-handle-failure`，并做了负向验证
+   （移掉一处 guard 会触发）。同时修正了两条第一轮误报（注释里的 `Handler()`、
+   `"\s+".toRegex()` 这类真正的多字符模式）。
+
 ### 本轮验证
 
-- `python tools/check-invariants.py` → 96 files, no violations
-- `./gradlew test lintVitalRelease assembleDebug assembleRelease` → 退出码 0
+- `python tools/check-invariants.py` → 96 files, 8 条规则, no violations
+- `./gradlew clean test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease` → 退出码 0
+- 单元测试 106 个, 0 失败; lint / lintRelease 均 0 errors
 - 全部 Kotlin 转换都是编译期可验证的（被写入 / 被 `*args` 展开 / 被当 `Array<Any?>` 传出的
   参数数组，改成 List 或单值访问后一定编译失败）
 
