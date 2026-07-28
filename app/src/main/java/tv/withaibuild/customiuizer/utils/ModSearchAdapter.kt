@@ -1,6 +1,5 @@
 package tv.withaibuild.customiuizer.utils
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.text.Spannable
 import android.text.SpannableString
@@ -14,26 +13,22 @@ import android.widget.Filterable
 import android.widget.TextView
 import tv.withaibuild.customiuizer.R
 import java.util.Locale
-import java.util.concurrent.CopyOnWriteArrayList
 
 class ModSearchAdapter(context: Context) : BaseAdapter(), Filterable {
 
     private val mInflater: LayoutInflater = LayoutInflater.from(context)
     private val mFilter = ItemFilter()
-    private val modsList = CopyOnWriteArrayList<ModData>()
+
+    /**
+     * Mutated only in [ItemFilter.publishResults] and read only in [getView], both on the
+     * main thread, so a plain list is correct. It used to be a CopyOnWriteArrayList, which
+     * copied the whole array on clear, on addAll and again on sort — three copies per
+     * keystroke — for concurrency that never happens.
+     */
+    private val modsList = ArrayList<ModData>()
+
+    /** The query the currently published results were produced from. Main thread only. */
     private var filterString = ""
-
-    init {
-        @SuppressLint("WrongConstant")
-        val unused = 0
-    }
-
-    private fun sortList() {
-        modsList.sortWith { app1, app2 ->
-            val breadcrumbs = app1.breadcrumbs.compareTo(app2.breadcrumbs, ignoreCase = true)
-            if (breadcrumbs == 0) app1.title.compareTo(app2.title, ignoreCase = true) else breadcrumbs
-        }
-    }
 
     override fun getCount(): Int = modsList.size
 
@@ -49,7 +44,7 @@ class ModSearchAdapter(context: Context) : BaseAdapter(), Filterable {
 
         val ad = getItem(position)
 
-        val start = ad.title.lowercase(Locale.ROOT).indexOf(filterString)
+        val start = ad.titleLower.indexOf(filterString)
         if (start >= 0) {
             val spannable = SpannableString(ad.title)
             spannable.setSpan(
@@ -68,31 +63,43 @@ class ModSearchAdapter(context: Context) : BaseAdapter(), Filterable {
     }
 
     private inner class ItemFilter : Filter() {
-        override fun performFiltering(constraint: CharSequence?): FilterResults {
-            filterString = constraint.toString().lowercase(Locale.ROOT)
-            val nlist = ArrayList<ModData>()
 
-            for (filterableData in Helpers.allModsList) {
-                if (constraint.toString() == Helpers.NEW_MODS_SEARCH_QUERY) {
-                    if (Helpers.newMods.contains(filterableData.key)) nlist.add(filterableData)
-                } else if (filterableData.title.lowercase(Locale.ROOT).contains(filterString)) {
-                    nlist.add(filterableData)
-                }
+        /**
+         * Runs on the filter's worker thread, so it reads the index and touches no adapter
+         * state. Both the query comparison and the lowered query are loop-invariant and are
+         * computed once; the per-mod lowered title comes from the index.
+         *
+         * The results keep the index order, which [Helpers.getAllMods] already sorted, so
+         * there is nothing left to sort here.
+         */
+        override fun performFiltering(constraint: CharSequence?): FilterResults {
+            val query = constraint?.toString().orEmpty()
+            val loweredQuery = query.lowercase(Locale.ROOT)
+            val newModsOnly = query == Helpers.NEW_MODS_SEARCH_QUERY
+            val source = Helpers.allModsList
+
+            val matches = ArrayList<ModData>(if (loweredQuery.isEmpty()) source.size else 16)
+            for (mod in source) {
+                val matched =
+                    if (newModsOnly) Helpers.newMods.contains(mod.key)
+                    else mod.titleLower.contains(loweredQuery)
+                if (matched) matches.add(mod)
             }
 
             return FilterResults().apply {
-                values = nlist
-                count = nlist.size
+                values = matches
+                count = matches.size
             }
         }
 
         @Suppress("UNCHECKED_CAST")
         override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+            // Adopt the query these results came from rather than the latest one typed:
+            // performFiltering runs on a worker thread, so a newer query can already be in
+            // flight, and the highlight span must match the rows actually being shown.
+            filterString = constraint?.toString()?.lowercase(Locale.ROOT).orEmpty()
             modsList.clear()
-            if (results != null && results.count > 0 && results.values != null) {
-                modsList.addAll(results.values as ArrayList<ModData>)
-            }
-            sortList()
+            (results?.values as? ArrayList<ModData>)?.let { modsList.addAll(it) }
             notifyDataSetChanged()
         }
     }

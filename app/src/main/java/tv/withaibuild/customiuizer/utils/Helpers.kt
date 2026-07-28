@@ -763,6 +763,14 @@ object Helpers {
         }
     }
 
+    /**
+     * Builds the searchable index of every mod, in the order the search results are shown.
+     *
+     * Sorting here rather than after each filter pass is what lets the filter be a single
+     * linear scan: a subsequence of a sorted list is still sorted, so filtering preserves
+     * the order. The list is rebuilt only on an explicit reload, while the filter runs on
+     * every keystroke.
+     */
     @JvmStatic
     fun getAllMods(context: Context, force: Boolean) {
         if (force) allModsList.clear()
@@ -771,6 +779,14 @@ object Helpers {
         parsePrefXml(context, R.xml.prefs_launcher)
         parsePrefXml(context, R.xml.prefs_controls)
         parsePrefXml(context, R.xml.prefs_various)
+        allModsList.sortWith(MOD_DISPLAY_ORDER)
+    }
+
+    /** Breadcrumb first, then title; both case-insensitive. */
+    @JvmField
+    val MOD_DISPLAY_ORDER = Comparator<ModData> { a, b ->
+        val byBreadcrumbs = a.breadcrumbs.compareTo(b.breadcrumbs, ignoreCase = true)
+        if (byBreadcrumbs != 0) byBreadcrumbs else a.title.compareTo(b.title, ignoreCase = true)
     }
 
     @JvmStatic
