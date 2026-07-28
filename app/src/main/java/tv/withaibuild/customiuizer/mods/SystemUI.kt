@@ -2559,81 +2559,118 @@ object SystemUI {
         val MiuiThemeUtilsClass = XposedHelpers.findClassIfExists("com.android.keyguard.utils.MiuiKeyguardUtils", lpparam.classLoader)
         LockScreenAlbumArtController.setMiuiThemeUtilsClass(MiuiThemeUtilsClass)
 
-        ModuleHelper.hookAllConstructors("com.android.systemui.shade.MiuiNotificationPanelViewController", lpparam.classLoader, object : MethodHook() {
-            override fun after(param: AfterHookCallback) {
-                val isDefaultLockScreenTheme = XposedHelpers.callStaticMethod(MiuiThemeUtilsClass, "isDefaultKeyguardNotTheme") as Boolean
-                if (isDefaultLockScreenTheme) {
-                    val mBlurRatioChangedListener = XposedHelpers.getObjectField(param.getThisObject(), "mBlurRatioChangedListener")
-                    val notificationShadeDepthController = XposedHelpers.getObjectField(param.getThisObject(), "mDepthController")
-                    val listeners = XposedHelpers.getObjectField(notificationShadeDepthController, "listeners") as ArrayList<Any>
-                    listeners.remove(mBlurRatioChangedListener)
-                    val view = XposedHelpers.getObjectField(param.getThisObject(), "mThemeBackgroundView") as View
-                    view.alpha = 1.0f
-                    registerLockScreenAlbumArtReceiver(view.context, param.getThisObject() ?: return)
+        val panelClassNames = arrayOf(
+            "com.android.systemui.statusbar.phone.MiuiNotificationPanelViewController",
+            "com.android.systemui.shade.MiuiNotificationPanelViewController"
+        )
+
+        for (panelClassName in panelClassNames) {
+            val panelClass = XposedHelpers.findClassIfExists(panelClassName, lpparam.classLoader) ?: continue
+            val screenStates = booleanArrayOf(false) // isAod
+
+            ModuleHelper.hookAllConstructors(panelClass, object : MethodHook() {
+                override fun after(param: AfterHookCallback) {
+                    try {
+                        if (!isDefaultLockScreenTheme(MiuiThemeUtilsClass)) return
+                        val mBlurRatioChangedListener = XposedHelpers.getObjectField(param.getThisObject(), "mBlurRatioChangedListener")
+                        val notificationShadeDepthController = XposedHelpers.getObjectField(param.getThisObject(), "mDepthController")
+                        val listeners = XposedHelpers.getObjectField(notificationShadeDepthController, "listeners") as ArrayList<Any>
+                        listeners.remove(mBlurRatioChangedListener)
+                        val view = XposedHelpers.getObjectField(param.getThisObject(), "mThemeBackgroundView") as View
+                        view.alpha = 1.0f
+                        registerLockScreenAlbumArtReceiver(view.context, param.getThisObject() ?: return)
+                    } catch (t: Throwable) {
+                        XposedHelpers.log(t)
+                    }
                 }
-            }
-        })
-        val screenStates = booleanArrayOf(false) // isAod
-        val updateLockscreenHook = object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                val isDefaultLockScreenTheme = XposedHelpers.callStaticMethod(MiuiThemeUtilsClass, "isDefaultKeyguardNotTheme") as Boolean
-                if (!isDefaultLockScreenTheme) {
-                    return
-                }
-                val view = XposedHelpers.getObjectField(param.getThisObject(), "mThemeBackgroundView") as View
-                val isOnShade = XposedHelpers.callMethod(param.getThisObject(), "isOnShade") as Boolean
-                if (isOnShade || screenStates[0]) {
-                    view.visibility = View.GONE
-                } else {
-                    val applied = LockScreenAlbumArtController.applyTo(view)
-                    view.visibility = if (applied) View.VISIBLE else View.GONE
-                }
-                param.returnAndSkip(null)
-            }
-        }
-        ModuleHelper.findAndHookMethod("com.android.systemui.shade.MiuiNotificationPanelViewController", lpparam.classLoader, "updateThemeBackgroundVisibility", updateLockscreenHook)
-        ModuleHelper.findAndHookMethod("com.android.systemui.shade.MiuiNotificationPanelViewController", lpparam.classLoader, "linkageViewAnim", Boolean::class.javaPrimitiveType!!, object : MethodHook() {
-            override fun after(param: AfterHookCallback) {
-                val screenOn = param.getArgs()[0] as Boolean
-                screenStates[0] = !screenOn
-                LockScreenAlbumArtController.setAod(!screenOn)
-                XposedHelpers.callMethod(param.getThisObject(), "updateThemeBackgroundVisibility")
-            }
-        })
-        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.NotificationMediaManager", lpparam.classLoader, "updateMediaMetaData", Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
-            override fun after(param: AfterHookCallback) {
-                val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
-                val isDefaultLockScreenTheme = XposedHelpers.callStaticMethod(MiuiThemeUtilsClass, "isDefaultKeyguardNotTheme") as Boolean
-                if (!isDefaultLockScreenTheme) {
-                    XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArtSource", null)
-                    XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArt", null)
-                    return
-                }
-                val mMediaMetadata = XposedHelpers.getObjectField(param.getThisObject(), "mMediaMetadata") as MediaMetadata?
-                var art: Bitmap? = null
-                if (mMediaMetadata != null) {
-                    art = mMediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
-                    if (art == null) art = mMediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
-                    if (art == null) art = mMediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
-                }
-                val blur = MainModule.mPrefs.getInt("system_albumartonlock_blur", 0)
-                val rescale = MainModule.mPrefs.getStringAsInt("system_albumartonlock_scale", 1)
-                val grayscale = MainModule.mPrefs.getBoolean("system_albumartonlock_gray")
-                LockScreenAlbumArtController.updateMediaMetaData(mContext, art, blur, rescale, grayscale)
-            }
-        })
-        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.NotificationMediaManager", lpparam.classLoader, "dispatchUpdateMediaMetaData", Boolean::class.javaPrimitiveType!!, object : MethodHook() {
-            override fun after(param: AfterHookCallback) {
-                val isDefaultLockScreenTheme = XposedHelpers.callStaticMethod(MiuiThemeUtilsClass, "isDefaultKeyguardNotTheme") as Boolean
-                if (isDefaultLockScreenTheme) {
-                    val mMediaController = XposedHelpers.getObjectField(param.getThisObject(), "mMediaController")
-                    val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
-                    if (mMediaController == null) {
-                        LockScreenAlbumArtController.updateMediaMetaData(mContext, null, 0, 1, false)
+            })
+
+            val updateLockscreenHook = object : MethodHook() {
+                override fun before(param: BeforeHookCallback) {
+                    try {
+                        if (!isDefaultLockScreenTheme(MiuiThemeUtilsClass)) return
+                        val view = XposedHelpers.getObjectField(param.getThisObject(), "mThemeBackgroundView") as View
+                        val isOnShade = XposedHelpers.callMethod(param.getThisObject(), "isOnShade") as Boolean
+                        if (isOnShade || screenStates[0]) {
+                            view.visibility = View.GONE
+                        } else {
+                            val applied = LockScreenAlbumArtController.applyTo(view)
+                            view.visibility = if (applied) View.VISIBLE else View.GONE
+                        }
+                        param.returnAndSkip(null)
+                    } catch (t: Throwable) {
+                        XposedHelpers.log(t)
                     }
                 }
             }
+            ModuleHelper.findAndHookMethodSilently(panelClass, "updateThemeBackground", updateLockscreenHook)
+            ModuleHelper.findAndHookMethodSilently(panelClass, "updateThemeBackgroundVisibility", updateLockscreenHook)
+
+            ModuleHelper.findAndHookMethodSilently(panelClass, "linkageViewAnim", Boolean::class.javaPrimitiveType!!, object : MethodHook() {
+                override fun after(param: AfterHookCallback) {
+                    try {
+                        val screenOn = param.getArgs()[0] as Boolean
+                        screenStates[0] = !screenOn
+                        LockScreenAlbumArtController.setAod(!screenOn)
+                        XposedHelpers.callMethod(param.getThisObject(), "updateThemeBackgroundVisibility")
+                    } catch (t: Throwable) {
+                        XposedHelpers.log(t)
+                    }
+                }
+            })
+        }
+
+        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.NotificationMediaManager", lpparam.classLoader, "updateMediaMetaData", Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
+            override fun after(param: AfterHookCallback) {
+                try {
+                    val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
+                    if (!isDefaultLockScreenTheme(MiuiThemeUtilsClass)) {
+                        XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArtSource", null)
+                        XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArt", null)
+                        return
+                    }
+                    val mMediaMetadata = XposedHelpers.getObjectField(param.getThisObject(), "mMediaMetadata") as MediaMetadata?
+                    var art: Bitmap? = null
+                    if (mMediaMetadata != null) {
+                        art = mMediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                        if (art == null) art = mMediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                        if (art == null) art = mMediaMetadata.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON)
+                    }
+                    val blur = MainModule.mPrefs.getInt("system_albumartonlock_blur", 0)
+                    val rescale = MainModule.mPrefs.getStringAsInt("system_albumartonlock_scale", 1)
+                    val grayscale = MainModule.mPrefs.getBoolean("system_albumartonlock_gray")
+                    LockScreenAlbumArtController.updateMediaMetaData(mContext, art, blur, rescale, grayscale)
+                } catch (t: Throwable) {
+                    XposedHelpers.log(t)
+                }
+            }
         })
+
+        ModuleHelper.findAndHookMethodSilently("com.android.systemui.statusbar.NotificationMediaManager", lpparam.classLoader, "clearCurrentMediaNotification", object : MethodHook() {
+            override fun after(param: AfterHookCallback) {
+                try {
+                    val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
+                    if (isDefaultLockScreenTheme(MiuiThemeUtilsClass)) {
+                        LockScreenAlbumArtController.updateMediaMetaData(mContext, null, 0, 1, false)
+                    }
+                } catch (t: Throwable) {
+                    XposedHelpers.log(t)
+                }
+            }
+        })
+    }
+
+    private fun isDefaultLockScreenTheme(cls: Class<*>?): Boolean {
+        if (cls == null) return false
+        return try {
+            XposedHelpers.callStaticMethod(cls, "isDefaultLockScreenTheme") as Boolean
+        } catch (_: Throwable) {
+            try {
+                XposedHelpers.callStaticMethod(cls, "isDefaultKeyguardNotTheme") as Boolean
+            } catch (_: Throwable) {
+                false
+            }
+        }
     }
 
     @JvmStatic
