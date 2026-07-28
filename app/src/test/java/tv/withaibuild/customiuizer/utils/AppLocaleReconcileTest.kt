@@ -27,7 +27,6 @@ class AppLocaleReconcileTest {
 
         AppLocaleController.applicationLocaleApplier = { appliedLocaleLists.add(it) }
         AppLocaleController.applicationLocaleProvider = { currentApplicationLocales }
-        AppLocaleController.processKiller = null
     }
 
     @After
@@ -35,27 +34,22 @@ class AppLocaleReconcileTest {
         Locale.setDefault(originalDefaultLocale)
         AppLocaleController.applicationLocaleApplier = null
         AppLocaleController.applicationLocaleProvider = null
-        AppLocaleController.processKiller = null
         appliedLocaleLists.clear()
     }
 
     @Test
-    fun setUserLocaleSavesAndMarksPending() {
+    fun setUserLocaleSavesNormalized() {
         val success = AppLocaleController.setUserLocale(fakePrefs, "en")
 
         assertTrue("setUserLocale should succeed", success)
         assertEquals("en", fakePrefs.getString(AppLocaleController.LOCALE_PREF_KEY, null))
-        assertTrue(
-            "reconcile pending flag should be set",
-            AppLocaleController.isReconcilePending(fakePrefs)
-        )
     }
 
     @Test
     fun setUserLocaleDoesNotApplyImmediately() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
 
-        // The applier is only invoked during reconcileAndApply, never from setUserLocale.
+        // The applier is only invoked during apply(), never from setUserLocale.
         assertTrue("applier should not be called from setUserLocale", appliedLocaleLists.isEmpty())
         assertEquals(Locale.getDefault(), originalDefaultLocale)
     }
@@ -68,89 +62,73 @@ class AppLocaleReconcileTest {
 
         assertFalse("setUserLocale should fail when commit fails", success)
         assertNull(fakePrefs.getString(AppLocaleController.LOCALE_PREF_KEY, null))
-        assertFalse(AppLocaleController.isReconcilePending(fakePrefs))
     }
 
     @Test
     fun setUserLocaleSameValueIsIdempotent() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
-        appliedLocaleLists.clear()
 
         val success = AppLocaleController.setUserLocale(fakePrefs, "en")
 
         assertTrue(success)
-        // Writing the same value again is allowed; the pending flag remains set.
         assertEquals("en", fakePrefs.getString(AppLocaleController.LOCALE_PREF_KEY, null))
-        assertTrue(AppLocaleController.isReconcilePending(fakePrefs))
     }
 
     @Test
-    fun reconcileAndApplyAppliesWhenPendingFlagSet() {
+    fun applyAppliesWhenDifferentFromCurrent() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
 
-        val changed = AppLocaleController.reconcileAndApply(fakePrefs)
+        val changed = AppLocaleController.apply(fakePrefs)
 
-        assertTrue("reconcile should apply when pending flag is set", changed)
+        assertTrue("apply should change locale when target differs", changed)
         assertEquals(Locale.ENGLISH, Locale.getDefault())
         assertEquals(1, appliedLocaleLists.size)
         assertNotNull(appliedLocaleLists[0])
     }
 
     @Test
-    fun reconcileAndApplyClearsPending() {
-        AppLocaleController.setUserLocale(fakePrefs, "en")
-        AppLocaleController.reconcileAndApply(fakePrefs)
-
-        assertFalse(
-            "reconcile pending should be cleared after successful reconcile",
-            AppLocaleController.isReconcilePending(fakePrefs)
-        )
-    }
-
-    @Test
-    fun reconcileAndApplyIsIdempotentAfterFirstApply() {
+    fun applyIsIdempotentAfterFirstApply() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
 
-        // First reconcile: app locale changed, applier invoked.
-        AppLocaleController.reconcileAndApply(fakePrefs)
+        // First apply: app locale changed, applier invoked.
+        AppLocaleController.apply(fakePrefs)
 
         // Simulate the system having now adopted the target locale.
         currentApplicationLocales = appliedLocaleLists.last() ?: LocaleListCompat.getEmptyLocaleList()
         appliedLocaleLists.clear()
 
-        // Second reconcile: nothing changed, applier must not be called again.
-        val changedAgain = AppLocaleController.reconcileAndApply(fakePrefs)
+        // Second apply: nothing changed, applier must not be called again.
+        val changedAgain = AppLocaleController.apply(fakePrefs)
 
-        assertFalse("second reconcile should not re-apply", changedAgain)
+        assertFalse("second apply should not re-apply", changedAgain)
         assertTrue("applier should not be called again", appliedLocaleLists.isEmpty())
     }
 
     @Test
-    fun reconcileAndApplyDoesNothingWhenAlreadyMatchingAndNoPending() {
-        // No pending flag, current application locales equal the target (both empty for auto).
-        val changed = AppLocaleController.reconcileAndApply(fakePrefs)
+    fun applyDoesNothingWhenAlreadyMatching() {
+        // Current application locales equal the target (both empty for auto).
+        val changed = AppLocaleController.apply(fakePrefs)
 
         assertFalse(changed)
         assertTrue(appliedLocaleLists.isEmpty())
     }
 
     @Test
-    fun reconcileAndApplySetsDefaultLocaleForAuto() {
-        // Pick an explicit language first, then switch back to auto. The reconcile
+    fun applySetsDefaultLocaleForAuto() {
+        // Pick an explicit language first, then switch back to auto. apply()
         // should set the JVM default back to whatever the (fake) system locale resolves
         // to, demonstrating that auto still derives from the system.
         Locale.setDefault(Locale.ENGLISH)
         AppLocaleController.setUserLocale(fakePrefs, "en")
-        AppLocaleController.reconcileAndApply(fakePrefs)
+        AppLocaleController.apply(fakePrefs)
 
         AppLocaleController.setUserLocale(fakePrefs, "auto")
-        AppLocaleController.reconcileAndApply(fakePrefs)
+        AppLocaleController.apply(fakePrefs)
 
         // In a JVM without Android Resources the system locale falls back to the
         // current default, so the test simply checks the process completes and the
         // value is auto.
         assertEquals("auto", AppLocaleController.getUserLocale(fakePrefs))
-        assertFalse(AppLocaleController.isReconcilePending(fakePrefs))
     }
 
     @Test
@@ -196,10 +174,10 @@ class AppLocaleReconcileTest {
     }
 
     @Test
-    fun stateTransitionMatrixThroughReconcile() {
+    fun stateTransitionMatrixThroughApply() {
         // auto -> zh-CN
         assertTrue(AppLocaleController.setUserLocale(fakePrefs, "zh-CN"))
-        assertTrue(AppLocaleController.reconcileAndApply(fakePrefs))
+        assertTrue(AppLocaleController.apply(fakePrefs))
         assertEquals(Locale.SIMPLIFIED_CHINESE, Locale.getDefault())
 
         // Simulate the system now reporting the new list.
@@ -208,15 +186,15 @@ class AppLocaleReconcileTest {
 
         // zh-CN -> en
         assertTrue(AppLocaleController.setUserLocale(fakePrefs, "en"))
-        assertTrue(AppLocaleController.reconcileAndApply(fakePrefs))
+        assertTrue(AppLocaleController.apply(fakePrefs))
         assertEquals(Locale.ENGLISH, Locale.getDefault())
 
         // en -> auto
         assertTrue(AppLocaleController.setUserLocale(fakePrefs, "auto"))
-        assertTrue(AppLocaleController.reconcileAndApply(fakePrefs))
+        assertTrue(AppLocaleController.apply(fakePrefs))
         assertEquals("auto", AppLocaleController.getUserLocale(fakePrefs))
 
-        // After auto reconcile the default locale is the system locale; we only
+        // After auto apply the default locale is the system locale; we only
         // assert that it is a defined non-null value.
         assertNotNull(Locale.getDefault())
     }

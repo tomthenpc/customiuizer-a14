@@ -1,13 +1,10 @@
 package tv.withaibuild.customiuizer
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
-import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.os.Bundle
-import android.os.Process
 import android.view.KeyEvent
 import android.view.MenuItem
 import android.widget.Toast
@@ -16,9 +13,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.appcompat.widget.Toolbar
 import androidx.fragment.app.Fragment
-import io.github.libxposed.service.RemotePreferences
-import io.github.libxposed.service.XposedService
-import io.github.libxposed.service.XposedServiceHelper
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.Helpers
 
@@ -26,62 +20,12 @@ class MainActivity : AppCompatActivity() {
 
     private var mainFrag: MainFragment? = null
     private var windowInsetsController: WindowInsetsControllerCompat? = null
-    private val prefsChanged = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
-        if (AppHelper.remotePrefs == null) return@OnSharedPreferenceChangeListener
-        if (key == null) {
-            val prefEdit = AppHelper.remotePrefs!!.edit()
-            for (remoteKey in AppHelper.remotePrefs!!.all.keys) {
-                prefEdit.remove(remoteKey)
-            }
-            prefEdit.apply()
-            return@OnSharedPreferenceChangeListener
-        }
-        if (IGNORE_KEYS.contains(key)) return@OnSharedPreferenceChangeListener
-        val value = sharedPreferences.all[key] ?: run {
-            AppHelper.remotePrefs!!.edit().remove(key).apply()
-            return@OnSharedPreferenceChangeListener
-        }
-        val prefEdit = AppHelper.remotePrefs!!.edit()
-        when (value) {
-            is Boolean -> prefEdit.putBoolean(key, value)
-            is Float -> prefEdit.putFloat(key, value)
-            is Int -> prefEdit.putInt(key, value)
-            is Long -> prefEdit.putLong(key, value)
-            is String -> prefEdit.putString(key, value)
-            is Set<*> -> @Suppress("UNCHECKED_CAST") prefEdit.putStringSet(key, value as Set<String>)
-        }
-        prefEdit.apply()
-    }
-
-    companion object {
-        private var serviceListenerRegistered = false
-        private val IGNORE_KEYS = setOf(
-            "pref_key_miuizer_locale",
-            "pref_key_miuizer_launchericon",
-            "pref_key_miuizer_synced_from_lsposed"
-        )
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         windowInsetsController = WindowInsetsControllerCompat(window, window.decorView)
         applySystemBarsAppearance()
-
-        if (AppHelper.remotePrefs == null && !serviceListenerRegistered) {
-            XposedServiceHelper.registerListener(object : XposedServiceHelper.OnServiceListener {
-                override fun onServiceBind(service: XposedService) {
-                    AppHelper.moduleActive = true
-                    AppHelper.remotePrefs = service.getRemotePreferences(AppHelper.prefsName + "_remote") as RemotePreferences
-                }
-
-                override fun onServiceDied(service: XposedService) {
-                    AppHelper.moduleActive = false
-                    AppHelper.remotePrefs = null
-                }
-            })
-            serviceListenerRegistered = true
-        }
 
         val myToolbar = findViewById<Toolbar>(R.id.mainActionBar)
         setSupportActionBar(myToolbar)
@@ -95,7 +39,6 @@ class MainActivity : AppCompatActivity() {
                 .commit()
         }
 
-        AppHelper.appPrefs?.registerOnSharedPreferenceChangeListener(prefsChanged)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -143,13 +86,7 @@ class MainActivity : AppCompatActivity() {
         super.onSaveInstanceState(outState)
     }
 
-    @SuppressLint("ApplySharedPref")
     override fun onDestroy() {
-        try {
-            AppHelper.appPrefs?.unregisterOnSharedPreferenceChangeListener(prefsChanged)
-        } catch (t: Throwable) {
-            t.printStackTrace()
-        }
         super.onDestroy()
     }
 
@@ -183,7 +120,7 @@ class MainActivity : AppCompatActivity() {
                     .setTitle(R.string.reset_settings_done)
                     .setCancelable(true)
                     .setPositiveButton(android.R.string.ok) { _, _ ->
-                        Process.killProcess(Process.myPid())
+                        finishAffinity()
                     }
                     .show()
             }

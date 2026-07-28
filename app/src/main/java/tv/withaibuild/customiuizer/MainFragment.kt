@@ -40,6 +40,7 @@ import tv.withaibuild.customiuizer.utils.ModData
 import tv.withaibuild.customiuizer.utils.ModSearchAdapter
 import tv.withaibuild.customiuizer.utils.SearchRouteResolver
 import tv.withaibuild.customiuizer.utils.SearchStateMachine
+import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
 class MainFragment : PreferenceFragmentBase() {
 
@@ -102,10 +103,14 @@ class MainFragment : PreferenceFragmentBase() {
 
     private fun checkModuleIsActive() {
         lifecycleScope.launch {
-            delay(800L)
+            val maxWait = 3000L
+            val deadline = System.currentTimeMillis() + maxWait
+            while (isActive && XposedServiceManager.state == XposedServiceManager.State.UNKNOWN && System.currentTimeMillis() < deadline) {
+                delay(100L)
+            }
             if (!isActive) return@launch
             val act = activity as? AppCompatActivity ?: return@launch
-            if (isFragmentReady(act) && !AppHelper.moduleActive) {
+            if (isFragmentReady(act) && XposedServiceManager.state == XposedServiceManager.State.DISCONNECTED) {
                 showXposedDialog(act)
             }
         }

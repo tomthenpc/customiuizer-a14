@@ -4,13 +4,9 @@ import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.Resources
-import android.os.Handler
-import android.os.Looper
-import android.os.Process
 import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
-import androidx.preference.Preference
 import java.util.Locale
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
@@ -29,7 +25,6 @@ import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
 object AppLocaleController {
 
     const val LOCALE_PREF_KEY = "pref_key_miuizer_locale"
-    const val LOCALE_RECONCILE_PENDING = "pref_key_miuizer_locale_reconcile_pending"
     private const val LEGACY_AUTO = "1"
     private const val TAG = "AppLocaleController"
 
@@ -52,10 +47,6 @@ object AppLocaleController {
     @JvmField
     var applicationLocaleProvider: (() -> LocaleListCompat)? = null
 
-    /** Seam for unit tests. */
-    @JvmField
-    var processKiller: (() -> Unit)? = null
-
     /**
      * Normalize a raw user selection or a persisted value.
      *
@@ -77,37 +68,20 @@ object AppLocaleController {
     fun getUserLocale(prefs: SharedPreferences?): String =
         normalizeLocaleTag(prefs?.getString(LOCALE_PREF_KEY, "auto"))
 
-    /** Whether a locale reconcile has been requested but not yet completed. */
-    @JvmStatic
-    fun isReconcilePending(prefs: SharedPreferences?): Boolean =
-        prefs?.getBoolean(LOCALE_RECONCILE_PENDING, false) ?: false
-
     /**
-     * Persist a new user selection synchronously and mark that a reconcile is pending.
+     * Persist a new user selection synchronously.
      *
-     * The application is expected to exit immediately after a successful commit.
-     * On the next start the new locale is applied exactly once.
+     * The only persisted source of truth is [LOCALE_PREF_KEY]. The application exits
+     * after a successful commit and the next start applies the new locale.
      */
     @JvmStatic
     fun setUserLocale(prefs: SharedPreferences, tag: String): Boolean {
         val normalized = normalizeLocaleTag(tag)
         val written = prefs.edit()
             .putString(LOCALE_PREF_KEY, normalized)
-            .putBoolean(LOCALE_RECONCILE_PENDING, true)
             .commit()
         if (!written) {
             Log.e(TAG, "setUserLocale commit failed for tag: $normalized")
-            return false
-        }
-        return true
-    }
-
-    /** Clear the reconcile-pending flag synchronously. */
-    @JvmStatic
-    fun clearReconcilePending(prefs: SharedPreferences): Boolean {
-        val written = prefs.edit().putBoolean(LOCALE_RECONCILE_PENDING, false).commit()
-        if (!written) {
-            Log.e(TAG, "clearReconcilePending commit failed")
             return false
         }
         return true
@@ -120,15 +94,14 @@ object AppLocaleController {
      * to [AppCompatDelegate.setApplicationLocales] and prevents apply/restart loops.
      */
     @JvmStatic
-    fun reconcileAndApply(prefs: SharedPreferences?): Boolean {
+    fun apply(prefs: SharedPreferences?): Boolean {
         val tag = getUserLocale(prefs)
-        val pending = isReconcilePending(prefs)
         val targetLocaleList = toLocaleListCompat(tag)
         val currentLocaleList = getCurrentApplicationLocales()
         val effective = getEffectiveLocale(tag)
         val currentDefault = Locale.getDefault()
 
-        val appLocaleChanged = pending || !areLocaleListsEqual(currentLocaleList, targetLocaleList)
+        val appLocaleChanged = !areLocaleListsEqual(currentLocaleList, targetLocaleList)
         val defaultChanged = currentDefault != effective
 
         if (defaultChanged) {
@@ -136,14 +109,8 @@ object AppLocaleController {
         }
 
         if (appLocaleChanged) {
-            Log.i(TAG, "Reconciling locale: tag=$tag, pending=$pending")
+            Log.i(TAG, "Applying locale: tag=$tag")
             (applicationLocaleApplier ?: { AppCompatDelegate.setApplicationLocales(it) })(targetLocaleList)
-        }
-
-        // Any of these paths means we have processed a locale decision. If the pending
-        // flag was set, clear it so the next start does not re-apply the same value.
-        if ((appLocaleChanged || pending || defaultChanged) && prefs != null) {
-            clearReconcilePending(prefs)
         }
 
         return appLocaleChanged
@@ -271,8 +238,8 @@ object AppLocaleController {
         val safeValue = if (entryValues.contains(current)) current else "auto"
         if (safeValue != current) {
             Log.e(TAG, "Invalid persisted locale '$current'; falling back to 'auto'")
-            // Repair the persisted value without marking a pending reconcile. The
-            // application will apply this value on the next start through [reconcileAndApply].
+            // Repair the persisted value. The
+            // application will apply this value on the next start through [apply].
             prefs.edit().putString(LOCALE_PREF_KEY, safeValue).apply()
         }
 
@@ -289,9 +256,6 @@ object AppLocaleController {
     @JvmStatic
     fun exitApplicationAfterLocaleSave(activity: Activity) {
         activity.finishAffinity()
-        Handler(Looper.getMainLooper()).post {
-            (processKiller ?: { Process.killProcess(Process.myPid()) })()
-        }
     }
 
     /** Current AppCompat application locales, with a test seam. */
