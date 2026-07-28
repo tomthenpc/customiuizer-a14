@@ -95,6 +95,7 @@ class AudioVisualizer @JvmOverloads constructor(
     private var isExpandedPanel = false
     private var isOnCustomLockScreen = false
     private var mPlaying = false
+    @Volatile
     private var mDisplaying = false
     private var mOpaqueColor = Color.TRANSPARENT
     private var mColor = Color.TRANSPARENT
@@ -112,6 +113,7 @@ class AudioVisualizer @JvmOverloads constructor(
     @Volatile
     private var mNewDataPending = false
     private var mFrameStartTime = 0L
+    @Volatile
     private var mFrameCallbackScheduled = false
     private val mFrameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
@@ -363,8 +365,11 @@ class AudioVisualizer @JvmOverloads constructor(
         mFftSize = fftSize
         val half = fftSize / 2
         for (band in 0 until mBandsNum) {
-            val limit = (mBands[band] * fftSize / 44100f).toInt()
-            mBandBinLimits[band] = if (limit < half) limit else half
+            // FFT data contains fftSize/2 complex bins, so bin limits must be computed
+            // against the usable half. +1 converts the inclusive frequency bound to the
+            // exclusive bin index used by the inner while loop, matching the original <= logic.
+            val limit = ((mBands[band] * half / 22050f).toInt() + 1).coerceAtMost(half)
+            mBandBinLimits[band] = if (limit > 0) limit else 1
         }
     }
 
@@ -591,6 +596,7 @@ class AudioVisualizer @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
 
+        if (!mDisplaying) return
         try {
             if (mVisualizer?.enabled != true) return
         } catch (t: Throwable) {
