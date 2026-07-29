@@ -222,8 +222,8 @@ The public Releases page keeps the following key versions:
 | --- | --- |
 | `r14.13.6` | Current stable release |
 | `r14.13.5` | Previous release; source tag kept, Release removed |
-| `r14.12.0` | Previous stable release; old signature, so back up and reinstall when upgrading |
-| `r14.8.0` | Kotlin infrastructure fallback |
+| `r14.12.0` | Source tag kept, Release removed |
+| `r14.8.0` | Old-signature fallback; back up and reinstall when upgrading |
 | `r14.7.4` | Consolidated r14.7.x Kotlin/coroutine migration |
 | `r14.5.0` | Independent package, signing, and release baseline |
 

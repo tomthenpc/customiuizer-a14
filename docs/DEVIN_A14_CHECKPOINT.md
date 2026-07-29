@@ -16,6 +16,8 @@
 - `r14.13.5` 的两个 Release 条目已移除（**非撤回**，无已知缺陷；仅保留 r14.13 系列最新一个），
   Git tag 与源码保留，资产信息见 [RELEASE_ARCHIVE.md](RELEASE_ARCHIVE.md)。
 - `r14.13.4` 已撤回；其 Release 与 tag 已删除。
+- `r14.12.0` 的两个 Release 条目已移除（非撤回）；它是最后一个旧签名公开稳定版，
+  与 `r14.13.x` 无法直接覆盖安装，保留下载入口意义有限。Git tag 与源码保留。
 - 当前 `main` 承载 `r14.13.6` 正式发布提交；开发分支 `devin/r14.13-kotlin-refactor` 与 `main` 同点。
 
 ## ⚠️ 本版本的验证状态
