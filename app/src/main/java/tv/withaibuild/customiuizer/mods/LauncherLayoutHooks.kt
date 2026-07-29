@@ -16,7 +16,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * Workspace layout hooks.
@@ -310,7 +310,7 @@ object LauncherLayoutHooks {
                 try {
 
                     skipped = true
-                    result = Math.round(Helpers.dp2px(opt.toFloat()))
+                    result = Math.round(HookUtils.dp2px(opt.toFloat()))
                     throwable = null
 
                 } catch (t: Throwable) {
@@ -334,7 +334,7 @@ object LauncherLayoutHooks {
                 try {
 
                     skipped = true
-                    result = Math.round(Helpers.dp2px(opt.toFloat()))
+                    result = Math.round(HookUtils.dp2px(opt.toFloat()))
                     throwable = null
 
                 } catch (t: Throwable) {
@@ -358,7 +358,7 @@ object LauncherLayoutHooks {
                 try {
 
                     skipped = true
-                    result = Math.round(Helpers.dp2px(dockHeight.toFloat()))
+                    result = Math.round(HookUtils.dp2px(dockHeight.toFloat()))
                     throwable = null
 
                 } catch (t: Throwable) {
@@ -382,7 +382,7 @@ object LauncherLayoutHooks {
                 try {
 
                     skipped = true
-                    result = Math.round(Helpers.dp2px(opt.toFloat()))
+                    result = Math.round(HookUtils.dp2px(opt.toFloat()))
                     throwable = null
 
                 } catch (t: Throwable) {
@@ -414,7 +414,7 @@ object LauncherLayoutHooks {
                     val resKey = chain.getArg(1) as String
                     if ("slide_bar_margin_top" == resKey) {
                         skipped = true
-                        result = Math.round(Helpers.dp2px(opt.toFloat()))
+                        result = Math.round(HookUtils.dp2px(opt.toFloat()))
                         throwable = null
                     }
 

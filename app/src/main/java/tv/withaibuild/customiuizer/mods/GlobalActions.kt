@@ -43,6 +43,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 object GlobalActions {
 
@@ -769,7 +770,7 @@ object GlobalActions {
         am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
 
         if (vibrate && MainModule.mPrefs.getBoolean("controls_volumemedia_vibrate", true)) {
-            Helpers.performStrongVibration(mContext, MainModule.mPrefs.getBoolean("controls_volumemedia_vibrate_ignore"))
+            HookUtils.performStrongVibration(mContext, MainModule.mPrefs.getBoolean("controls_volumemedia_vibrate_ignore"))
         }
     }
 }

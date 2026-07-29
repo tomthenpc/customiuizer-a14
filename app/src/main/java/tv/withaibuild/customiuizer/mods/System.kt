@@ -25,11 +25,11 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.ArrayList
 import java.util.HashSet
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 object System {
 
@@ -51,7 +51,7 @@ object System {
                     val thisObject = chain.thisObject
 
                     val view = XposedHelpers.getObjectField(thisObject, "mView") as View
-                    val btnId = Helpers.getResId(view.resources, "btn_delete", "id", "com.android.settings")
+                    val btnId = HookUtils.getResId(view.resources, "btn_delete", "id", "com.android.settings")
                     val button = view.findViewById<Button>(btnId)
                     button.setText(titleId)
 

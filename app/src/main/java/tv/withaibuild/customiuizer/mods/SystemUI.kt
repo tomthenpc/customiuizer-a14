@@ -19,8 +19,8 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallba
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
 import java.util.ArrayList
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * SystemUI hooks that belong to no larger surface.
@@ -142,7 +142,7 @@ object SystemUI {
             ModuleHelper.findAndHookMethod("com.android.systemui.toast.MIUIStrongToast", lpparam.classLoader, "getWindowParam", object : MethodHook() {
                 override fun after(param: AfterHookCallback) {
                     val lp = param.getResult() as WindowManager.LayoutParams
-                    lp.width = Helpers.dp2px(3.2f * toastWidth).toInt()
+                    lp.width = HookUtils.dp2px(3.2f * toastWidth).toInt()
                     param.setResult(lp)
                 }
             })

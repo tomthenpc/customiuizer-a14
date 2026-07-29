@@ -67,6 +67,7 @@ import java.util.Date
 import java.util.HashMap
 import java.util.Locale
 import java.util.TimeZone
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 object Various {
 
@@ -840,7 +841,7 @@ object Various {
                     val gridView = act.findViewById<GridView>(gridViewId)
                     gridView.numColumns = 4
                     val params = gridView.layoutParams as LinearLayout.LayoutParams
-                    params.rightMargin = Helpers.dp2px(16f).toInt()
+                    params.rightMargin = HookUtils.dp2px(16f).toInt()
                     params.leftMargin = params.rightMargin
                     gridView.layoutParams = params
                 } catch (t: Throwable) {

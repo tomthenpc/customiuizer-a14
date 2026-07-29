@@ -23,7 +23,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ShakeManager
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * Home screen gesture hooks.
@@ -718,7 +718,7 @@ object LauncherGestureHooks {
                             val mScale = XposedHelpers.getFloatField(view, "mScale")
                             XposedHelpers.callMethod(view, "changeScale", mScale, 1.17f, 200, false)
                             if (!disableVibrate) {
-                                Helpers.performStrongVibration(view.context, true)
+                                HookUtils.performStrongVibration(view.context, true)
                             }
                         } else if (mReadyState == finalRecentState) {
                             val mScale = XposedHelpers.getFloatField(view, "mScale")

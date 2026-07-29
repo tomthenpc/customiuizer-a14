@@ -16,7 +16,7 @@ import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 object SystemColorizeNotificationHooks {
 
@@ -305,8 +305,8 @@ object SystemColorizeNotificationHooks {
                         val inflationProgress = result
                         val mContext = args[args.size - 1] as Context
                         if (titleResId == 0) {
-                            titleResId = Helpers.getResId(mContext.resources, "title", "id", "com.android.systemui")
-                            subTextResId = Helpers.getResId(mContext.resources, "text", "id", "com.android.systemui")
+                            titleResId = HookUtils.getResId(mContext.resources, "title", "id", "com.android.systemui")
+                            subTextResId = HookUtils.getResId(mContext.resources, "text", "id", "com.android.systemui")
                         }
                         val contents = listOf("newPublicView", "newContentView", "newExpandedView")
                         for (contentType in contents) {

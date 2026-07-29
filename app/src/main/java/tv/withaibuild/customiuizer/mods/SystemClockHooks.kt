@@ -22,7 +22,7 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ScreenStateController
 import tv.withaibuild.customiuizer.mods.utils.WeatherDataController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 object SystemClockHooks {
 
@@ -52,13 +52,13 @@ object SystemClockHooks {
                 mClock.typeface = Typeface.DEFAULT_BOLD
             }
             var leftMargin = MainModule.mPrefs.getInt("system_statusbar_clock_leftmargin", 0)
-            leftMargin = Helpers.dp2px(leftMargin * dimStep).toInt()
+            leftMargin = HookUtils.dp2px(leftMargin * dimStep).toInt()
             var rightMargin = MainModule.mPrefs.getInt("system_statusbar_clock_rightmargin", 0)
-            rightMargin = Helpers.dp2px(rightMargin * dimStep).toInt()
+            rightMargin = HookUtils.dp2px(rightMargin * dimStep).toInt()
             val defaultVerticalOffset = 8
             val verticalOffset = MainModule.mPrefs.getInt("system_statusbar_clock_verticaloffset", defaultVerticalOffset)
             if (verticalOffset != defaultVerticalOffset) {
-                val marginTop = Helpers.dp2px((verticalOffset - defaultVerticalOffset) * dimStep)
+                val marginTop = HookUtils.dp2px((verticalOffset - defaultVerticalOffset) * dimStep)
                 mClock.translationY = marginTop
             }
 
@@ -322,10 +322,10 @@ object SystemClockHooks {
 
                     val clock = thisObject as TextView
                     if (args.size != 3) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    val clockId = Helpers.getResId(clock.resources, "clock", "id", "com.android.systemui")
-                    val bigClockId = Helpers.getResId(clock.resources, "big_time", "id", "com.android.systemui")
-                    val dateClockId = Helpers.getResId(clock.resources, "date_time", "id", "com.android.systemui")
-                    val horizDateClockId = Helpers.getResId(clock.resources, "horizontal_date_time", "id", "com.android.systemui")
+                    val clockId = HookUtils.getResId(clock.resources, "clock", "id", "com.android.systemui")
+                    val bigClockId = HookUtils.getResId(clock.resources, "big_time", "id", "com.android.systemui")
+                    val dateClockId = HookUtils.getResId(clock.resources, "date_time", "id", "com.android.systemui")
+                    val horizDateClockId = HookUtils.getResId(clock.resources, "horizontal_date_time", "id", "com.android.systemui")
                     val thisClockId = clock.id
                     if (clockId == thisClockId) {
                         ModuleHelper.setViewInfo(clock, "clockName", "clock")
@@ -419,7 +419,7 @@ object SystemClockHooks {
                             val showAmpm = MainModule.mPrefs.getBoolean("system_statusbar_clock_show_ampm")
                             val hourIn2d = MainModule.mPrefs.getBoolean("system_statusbar_clock_leadingzero")
                             val fmt = if (showAmpm) "fmt_time_12hour_minute_pm" else "fmt_time_12hour_minute"
-                            val fmtResId = Helpers.getResId(mContext.resources, fmt, "string", "com.android.systemui")
+                            val fmtResId = HookUtils.getResId(mContext.resources, fmt, "string", "com.android.systemui")
                             timeFmt = mContext.getString(fmtResId)
                             if (showSeconds) {
                                 val mmIdx = timeFmt.indexOf(":mm")
@@ -590,7 +590,7 @@ object SystemClockHooks {
                         val defaultVerticalOffset = 10
                         val verticalOffset = MainModule.mPrefs.getInt("system_cc_clock_verticaloffset", defaultVerticalOffset)
                         if (verticalOffset != defaultVerticalOffset) {
-                            val marginTop = Helpers.dp2px((verticalOffset - defaultVerticalOffset).toFloat())
+                            val marginTop = HookUtils.dp2px((verticalOffset - defaultVerticalOffset).toFloat())
                             clock.translationY = marginTop
                         }
                     }

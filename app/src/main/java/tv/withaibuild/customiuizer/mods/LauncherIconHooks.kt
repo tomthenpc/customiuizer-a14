@@ -23,7 +23,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * Icon and label hooks.
@@ -345,7 +345,7 @@ object LauncherIconHooks {
                         val mMessage = XposedHelpers.getObjectField(thisObject, "mMessage") as? TextView
                         if (mMessage != null) {
                             if (iconMessageMaxWidthResId == 0) {
-                                iconMessageMaxWidthResId = Helpers.getResId(
+                                iconMessageMaxWidthResId = HookUtils.getResId(
                                     mMessage.resources,
                                     "icon_message_max_width",
                                     "dimen",

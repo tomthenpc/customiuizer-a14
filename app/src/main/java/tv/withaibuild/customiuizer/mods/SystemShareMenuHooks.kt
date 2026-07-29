@@ -13,9 +13,9 @@ import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.Helpers.MimeType
 import java.util.List
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * Share sheet and open-with chooser hooks.
@@ -51,8 +51,8 @@ object SystemShareMenuHooks {
                     if (mAimPackageName == null) { return XposedHelpers.throwOrReturn(throwable, result) }
                     val selectedApps = MainModule.mPrefs.getStringSet("system_cleanshare_apps") ?: emptySet<String>()
                     val mRootView = XposedHelpers.getObjectField(thisObject, "mRootView") as View
-                    val appResId1 = Helpers.getResId(mContext.resources, "app1", "id", "android.miui")
-                    val appResId2 = Helpers.getResId(mContext.resources, "app2", "id", "android.miui")
+                    val appResId1 = HookUtils.getResId(mContext.resources, "app1", "id", "android.miui")
+                    val appResId2 = HookUtils.getResId(mContext.resources, "app2", "id", "android.miui")
                     val removeOriginal = selectedApps.contains(mAimPackageName) || selectedApps.contains(mAimPackageName + "|0")
                     val removeDual = selectedApps.contains(mAimPackageName + "|999")
                     val originalApp = mRootView.findViewById<View>(appResId1)
@@ -208,8 +208,8 @@ object SystemShareMenuHooks {
                     val isRemove = isRemoveApp(true, mContext, mAimPackageName, selectedApps, mimeType)
 
                     val mRootView = XposedHelpers.getObjectField(thisObject, "mRootView") as View
-                    val appResId1 = Helpers.getResId(mContext.resources, "app1", "id", "android.miui")
-                    val appResId2 = Helpers.getResId(mContext.resources, "app2", "id", "android.miui")
+                    val appResId1 = HookUtils.getResId(mContext.resources, "app1", "id", "android.miui")
+                    val appResId2 = HookUtils.getResId(mContext.resources, "app2", "id", "android.miui")
                     val originalApp = mRootView.findViewById<View>(appResId1)
                     val dualApp = mRootView.findViewById<View>(appResId2)
                     if (isRemove.first) dualApp?.performClick()
