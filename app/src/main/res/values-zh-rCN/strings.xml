@@ -811,6 +811,8 @@
     <string name="credentials_unlock">解锁证书</string>
     <string name="credentials_success">证书已解锁！</string>
     <string name="lsposed_not_connected">暂未连接到 LSPosed 服务。\n若模块尚未激活，请打开 LSPosed 应用，激活模块并重启。</string>
+    <string name="lsposed_changes_not_delivered">此后更改的设置尚未下发到模块，因此还未生效。设置已保存，连接恢复后会自动下发。</string>
+    <string name="needs_systemui_restart">重启 SystemUI 后生效</string>
     <string name="delete_item_info">长按要删除的项目</string>
     <string name="permission_scan">您是否要获取网络/设备列表?</string>
     <string name="permission_permanent">现在您必须手动启用此选项的权限。很好！</string>

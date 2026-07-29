@@ -165,6 +165,10 @@ object SystemUILockScreenHooks {
                     if (!isDefaultLockScreenTheme(MiuiThemeUtilsClass)) {
                         XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArtSource", null)
                         XposedHelpers.setAdditionalStaticField(MiuiThemeUtilsClass, "mAlbumArt", null)
+                        // The two fields above are only half of what is held: the controller
+                        // still has the source and a cache of full-screen frames it can no
+                        // longer draw on this theme.
+                        LockScreenAlbumArtController.clear()
                         return
                     }
                     val mMediaMetadata = XposedHelpers.getObjectField(param.getThisObject(), "mMediaMetadata") as MediaMetadata?

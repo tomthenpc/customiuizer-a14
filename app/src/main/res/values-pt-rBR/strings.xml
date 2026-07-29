@@ -839,6 +839,8 @@
     <string name="credentials_unlock">Desbloquear credenciais</string>
     <string name="credentials_success">Credenciais desbloqueadas!</string>
     <string name="lsposed_not_connected">Ainda não conectado ao serviço LSPosed.\nSe o módulo não estiver ativo, abra o LSPosed, ative-o e reinicie.</string>
+    <string name="lsposed_changes_not_delivered">As configurações alteradas desde então não chegaram ao módulo, portanto ainda não estão em vigor. Elas estão salvas e serão enviadas assim que a conexão voltar.</string>
+    <string name="needs_systemui_restart">Entra em vigor após reiniciar a SystemUI</string>
     <string name="delete_item_info">Pressione e segure o item para excluir</string>
     <string name="permission_scan">Deseja obter uma lista de redes/dispositivos ou não?</string>
     <string name="permission_permanent">Agora você precisará habilitar manualmente a permissão para esta opção. Bom trabalho!</string>
