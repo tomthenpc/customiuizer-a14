@@ -38,6 +38,7 @@ import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
 open class PreferenceFragmentBase : PreferenceFragmentCompat() {
 
@@ -120,7 +121,10 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
                 return true
             }
             R.id.softreboot -> {
-                if (!AppHelper.moduleActive) {
+                // Not `!AppHelper.moduleActive`: that flag is also false while the bind is
+                // merely still pending, so tapping this shortly after a process start
+                // claimed the module was inactive when nothing had been observed yet.
+                if (XposedServiceManager.shouldReportInactive(bindStillPending = true)) {
                     showXposedDialog(activity as AppCompatActivity?)
                     return true
                 }
