@@ -349,3 +349,120 @@ Comparator lambda 类。`Helpers` 还 import 了 `PrefsProvider` 和 `prefs.Pref
    扩大 keep 面，与本轮第二步踩到的是同一个坑。收益仅为命名整洁。
 3. **`mods.System` 重命名** —— 该 object 遮蔽 `java.lang.System`，导致仓库中 15 处必须写
    全限定名。重命名干净但会碰 13 个 Hook 入口并需重建 R8 基线，等有实机回归窗口再做。
+
+### 离线二进制审计（2026-07-29，同分支）
+
+因暂不具备安装测试条件，本轮补做一次纯离线二进制审计：在独立 worktree 中以修改前基线
+`d22fc1f2` 构建 Release APK，与当前 HEAD 的 Release APK 逐项对比。**全部为离线静态比对，
+不含任何设备运行。**
+
+#### 基线可信度
+
+基线 APK 的 SHA-256 为
+`11D01A737BED25C3C4D31153DE22CB918A651D0DD043D0374E2C0E41D32492CC`，
+与本文上文「公开发布线收束」记录的 `r14.13.7` 公开 Release APK 哈希**完全一致**，
+即基线构建逐字节复现了已发布产物，对比结果因此可信。
+
+#### 产物指纹
+
+| 项目 | 基线 `d22fc1f2` | 当前 HEAD |
+| --- | --- | --- |
+| APK SHA-256 | `11d01a73…92cc` | `ed806249…1ba2` |
+| APK 大小 | 3,084,589 bytes | 3,084,589 bytes |
+| `classes.dex` SHA-256 | `97275561…8b27` | `ad396f73…d664` |
+| `classes.dex` 大小 | 1,509,316 bytes | 1,509,064 bytes（−252） |
+| zip 条目数 | 536 | 536（集合完全一致） |
+
+536 个条目中**只有 4 个内容不同**：`classes.dex`、`assets/dexopt/baseline.prof`、
+`assets/dexopt/baseline.profm`（均由 DEX 派生）和 `META-INF/xposed/java_init.list`。
+其余 513 个文件逐字节相同。
+
+#### Manifest、资源、ABI 与身份
+
+- `AndroidManifest.xml`：**逐字节相同**（SHA-256 `98da2961…3efb`，14,424 bytes）
+- `resources.arsc`：**逐字节相同**（SHA-256 `bab17571…6830`，776,112 bytes）
+- `lib/arm64-v8a/libdexkit.so`：**逐字节相同**；ABI 仍为单一 `arm64-v8a`
+- `aapt dump badging` 两边一致：`applicationId=tv.withaibuild.customiuizer.r14`、
+  `versionCode=185`、`versionName=r14.13.7`、`sdkVersion=34`、`targetSdkVersion=34`
+- 签名：仅 v2（v1/v3/v3.1/v3.2/v4 均为 false），1 个签名者，证书 SHA-256 两边同为
+  `c0eff2dc…2e70`；`zipalign -c 4` 两边均通过
+
+#### `META-INF/xposed`
+
+- `module.prop`：**逐字节相同**（`minApiVersion=101` / `targetApiVersion=102` / `staticScope=false`）
+- `scope.list`：**逐字节相同**（12 个包，顺序不变）
+- `java_init.list`：`iq` → `jq`。这是 R8 混淆名位移，不是入口变更 ——
+  `mapping.txt` 显示基线 `MainModule -> iq`、HEAD `MainModule -> jq`，
+  `proguard-rules.pro` 的 `-adaptresourcefilecontents META-INF/xposed/java_init.list`
+  已同步改写该资源。两边入口都正确指向 `MainModule`，且各自 APK 内该名字唯一。
+
+#### R8 四件套
+
+| 文件 | 基线 | HEAD | 差异 |
+| --- | --- | --- | --- |
+| `configuration.txt` | 525 行 | 525 行 | **完全相同** |
+| `seeds.txt` | 3998 行 | 3992 行 | 仅删除的 6 个转发桩，无其他增删 |
+| `usage.txt` | 25,386 行 | 25,391 行 | 见下文 `HookUtils` |
+| `mapping.txt` | 1997 类 / 101,712 成员 | 1997 类 / 101,699 成员 | 类数不变 |
+
+#### `HookUtils` 的 R8 处置（重点核验项）
+
+1. **package 符合预期**：`tv.withaibuild.customiuizer.utils`，不在 `mods.**` 之下。
+2. **未被 keep 规则额外固定**：`HookUtils` 在 `seeds.txt` 中出现 **0 次**。
+3. **R8 可正常内联、合并与删除** —— `usage.txt` 记录了它实际被删掉的成员：
+   - 无用代码删除：`constrain(int,int,int)`、`lerp(int,int,float)`、`lerpInv`、
+     `lerpInvSat`、`saturate`
+   - 内联后删除：`INSTANCE` 字段、`performStrongVibration(Context)`
+
+   即 R8 对它拥有完全的优化自由。作为对照，此前放在 `mods/utils/` 时这 22 个 public
+   static 全部进入 seeds（3992 → 4014），R8 无法内联。
+
+#### 调用点、方法签名、参数类型与调用顺序
+
+用自建 DEX 解析器（`string_ids` / `method_ids` / `class_data` / `code_item`，
+按 `mapping.txt` 反混淆）逐方法提取 `invoke-*` 序列后比对：
+
+- **`MainModule`**：两边同为 7 个方法、**596 次调用**。差异**仅 2 处**（序列第 79 和 492 位），
+  方法名（`setupStatusBar` / `setupGlobalActions`）、参数类型（`PackageReadyParam` /
+  `SystemServerStartingParam`）、返回类型（`void`）全部相同，只有接收方由 `GlobalActions`
+  变为 `GlobalActionSystemServerHooks`。其余 594 次调用的目标、参数与顺序完全一致。
+- **全模块 2105 个共有方法**：把本分支认可的两类改写（`Helpers.X` → `HookUtils.X`、
+  `containsStringPair` → `PrefPair.containsFirst`）和 R8 水平合并宿主命名差异归一化后，
+  仍有差异的只剩 2 个：一个是混淆返回类型名位移（`hs[]` → `is[]`，同一方法），
+  另一个是 `Helpers.<clinit>` 由 12 次调用降为 11 次 —— 正是 `modulePkg` 改 `const val`
+  的预期结果。
+- **DEX 方法清单全量比对**：仅差 8 项 —— 删除 7 个（6 个 `GlobalActions` 转发桩 +
+  `Helpers.containsStringPair`），新增 1 个（`HookUtils.<clinit>`，即 `getResId` 的资源 id 缓存）。
+  其余 2,619 个方法签名两边完全对应。
+
+#### Hook 语义不变性
+
+- **Hook target 字符串**：DEX 字符串表 11,146 → 11,147 条，逐条比对后，
+  **所有发生变化的字符串都是混淆类型描述符或 R8 构建标记，无一条是有语义的字符串**。
+  分族集合相等：`com.android.*` 225 条、`com.miui.*` 112 条、`miui.*` 29 条、
+  `tv.withaibuild.customiuizer.mods.action./event.*` 54 条。
+- **priority**：`MethodHook.<init>()` 两边各 479 次、`MethodHook.<init>(int)` 两边各 7 次；
+  `returnConstant` 各 55 次、`DO_NOTHING` 各 2 次。两个 revision 的源码中所有
+  `PRIORITY_*` 表达式集合相同（仅一处行号因新增 import 位移 1 行，内容不变）。
+- **before / after / intercept**：DEX 中 `before` 66 个、`after` 87 个、`intercept` 340 个，
+  **两边完全相同**。
+- **`Chain.proceed()`**：两边各 **322** 次调用，参数类型一致；`unhook` 各 2 次。
+- **Hook 安装 API 调用数**：`XposedHelpers.findAndHookMethod` 6、`findAndHookConstructor` 2、
+  `hookAllMethods` 4、`hookAllConstructors` 2、`doHookMethod` 3、
+  `ModuleHelper.findAndHookMethod` 10、`ModuleHelper.hookAllMethods` 12 —— 全部两边相同。
+- **偏好键与默认值**：DEX 中 `system_|launcher_|controls_|various_|miuizer_` 前缀字符串
+  572 条、`pref_key*` 164 条，两边**集合完全相等**。整个源码 diff 中唯一出现偏好键的行是
+  `Helpers.performStrongVibration(...)` → `HookUtils.performStrongVibration(...)` 的接收方改写，
+  键名 `controls_volumemedia_vibrate_ignore` 与其默认值未动。
+- **进程作用域**：`scope.list` 逐字节相同；`onSystemServerStarting` 与 `onPackageReady`
+  的调用序列已由上述 596 次调用比对覆盖，进程分支条件未变。
+
+#### 离线审计结论
+
+- **静态与二进制审计已完成。** 上述全部差异均可逐项归因于本分支的两次改动，
+  无任何无法解释的二进制变化。
+- **尚未进行实机验证。** 本轮和前两步都没有在任何设备上运行过；二进制等价性不能替代
+  运行时验证。
+- **本分支不可发布。** 不得据此打 tag、创建 Release 或合并 `main`。
+- **后续必须在 Android 14 / HyperOS 1 设备上完成验收**，验收项即上文「⚠️ 尚未完成实机验证」
+  一节列出的 7 项。
