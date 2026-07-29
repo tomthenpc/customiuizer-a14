@@ -242,3 +242,110 @@ API 102 的实机证明。
 
 `r14.13.7` 的静态门禁、测试、lint、构建、产物和签名结论不变；本轮未新增实机证据，
 仍不得称为已完成实机验收的稳定版。
+
+## 结构整理（2026-07-29，`refactor/structure-tidy-r14.13.7`）
+
+来源：一次独立工程结构审计。结论是**小范围整理**，不是重构 —— 目录布局、单一 `:app`、
+`src/main/java` 混合 source set、剩余 3 个 Java 文件的边界全部判定为保持现状。
+本节记录审计中判定为"收益明确、风险可控"的两项，其余一律搁置。
+
+- 工作分支：`refactor/structure-tidy-r14.13.7`（基于 `main` / `d22fc1f2`）
+- 状态：**未合并 `main`**，未创建 tag 或 Release
+- 本节为当前活跃开发线，取代上文「当前活跃开发分支」中已完成的
+  `devin/r14.13-kotlin-refactor` 条目
+
+### 第一步：删除 `GlobalActions` 的 6 个转发桩（`b894af8e`）
+
+`mods/System.kt` 拆分（`fbc16798`）删掉了早期拆分留下的 10 个转发桩，`GlobalActions`
+自己的 6 个漏网。实测其中 4 个 —— `launchAppIntent`、`launchActivityIntent`、
+`launchShortcutIntent`、`launchIntent` —— **全仓库零调用者**：`GlobalActions.kt` 自身在
+`:93`、`:94`、`:105` 就直接调用 `GlobalActionsIntentHelper`。另外 2 个各有一个调用者，
+都在 `MainModule`，已改为直连 `GlobalActionSystemServerHooks`。
+
+副作用：`GlobalActions ↔ GlobalActionSystemServerHooks` 的引用环随之断开。
+`GlobalActions ↔ GlobalActionsIntentHelper` 保留 —— 其反向边全部是 `ACTION_PREFIX` /
+`EVENT_PREFIX`，`const val` 编译期内联，不产生运行期类初始化依赖。
+
+### 第二步：Hook 侧叶子工具函数拆分到 `utils/HookUtils.kt`（`d610e339`）
+
+`utils/Helpers.kt` 是设置应用的工具箱：93 个成员、1215 行。Hook 侧从 23 个文件伸手进去，
+但只用其中十几个叶子函数（`dp2px`、`getResId`、振动包装、`fastBlur`、`copyFile`、gamma 数学）。
+
+Kotlin `object` 在首次静态访问时跑 `<clinit>`，所以每一次这样的读取都要在 `system_server`、
+SystemUI 和 Launcher 里付整个 object 的初始化成本：一个按 `Runtime.maxMemory()` 定容的
+`LruCache` 子类、mod 列表、两个 Comparator、资源 id 表，外加加载 `AppData`、`ModData` 和两个
+Comparator lambda 类。`Helpers` 还 import 了 `PrefsProvider` 和 `prefs.PreferenceCategoryEx`，
+把设置应用的 UI 类拖进了 Hook 进程的依赖图。
+
+23 个叶子成员逐字移入 `utils/HookUtils.kt`（工具：`tools/split-hook-domain.py`），
+`Helpers.kt` 1215 行 → 869 行，`HookUtils.kt` 372 行。两个成员没有搬，而是就地处理：
+
+- `modulePkg` 由 `@JvmField val` 改为 `const val`。const 读取在调用点内联，12 个 Hook 侧
+  引用因此编译成字符串字面量，不再引用该类，**一个调用点都没改**。
+- `containsStringPair` 本身是 `PrefPair.containsFirst` 的一行转发桩，与第一步删掉的是同一
+  模式。4 个调用者改为直连 `PrefPair`，桩删除。
+
+### `HookUtils` 为什么最终放在 `utils/` 而不是 `mods/utils/`
+
+最初放在 `mods/utils/`。`proguard-rules.pro` 的
+
+```
+-keepclassmembers class tv.withaibuild.customiuizer.mods.** {
+    public static <methods>;
+    public <fields>;
+}
+```
+
+按**包前缀**匹配，于是把 `HookUtils` 的 22 个 public static 全部钉住：R8 seeds 由 **3992
+增加到 4014**，同时剥夺了 R8 在 88 个调用点内联 `dp2px`、`constrain` 这类四行函数的自由。
+
+该 keep 规则的存在理由是 `mods.**` 里的 Hook 入口由 `MainModule` 按名调用、不得被裁剪；
+`HookUtils` 是叶子工具，只被普通静态调用触达，不需要被 keep。把文件移到 `utils/`（与
+`PrefPair` 同处，后者已是"两侧都可用的小叶子类"的既有先例）后，**seeds 精确回到 3992、
+零差异**，keep 面未扩大。
+
+### 本轮验证（全部为静态与构建证据）
+
+- 单元测试 171 个，0 失败
+- `lintDebug` / `lintRelease` / `lintVitalRelease` 全部通过
+- `python tools/check-invariants.py` → 117 files, no violations
+- `MainModule` 前后各 **266 个调用点，方法名与顺序完全不变**，只有两处接收方改变
+- Release APK **两步前后均为 3,084,589 字节**
+- R8 seeds 的唯一变化是删除的 6 个转发桩：**3998 → 3992**；第二步相对第一步 seeds 零差异
+- 行级证明：HEAD 的 `Helpers.kt` 与（现 `Helpers.kt` + `HookUtils` 成员区）逐行比对，差异
+  只有删除的 `containsStringPair` 桩和 `modulePkg` 的 const 改动，其余全部对上
+- 字节码证明：改前 `mods/**` 大面积引用 `utils/Helpers`；改后只剩 2 个类，均为
+  `LauncherAnimationHooks$FixAnimHook` 内部类。46 个类改为引用 `HookUtils`
+- 结论：**`system_server` 与 SystemUI 已不再加载 `Helpers`**；Launcher 仍有 2 处
+  `Helpers.getAnimationScale`（见下文搁置说明）
+- 未改变：Hook target、priority、before/after/intercept 语义、`Chain.proceed()` 次数与参数、
+  异常传播、进程作用域、偏好键与默认值、API 101/102 边界、R8 keep 规则文本
+
+### ⚠️ 尚未完成实机验证
+
+**本轮没有在任何设备上运行过。** 上述全部是静态门禁、构建产物和字节码证据，
+不得据此描述为已实机验证。
+
+待实机验证项：
+
+- 冷启动
+- 完整重启
+- `system_server`、SystemUI、Launcher 三个进程的模块日志（先确认日志里有
+  `CustoMIUIzer r14.13.7 (185) loaded in <进程>`）
+- 状态栏图标位置（依赖 `getResId` / `dp2px`）
+- 锁屏元素边距（依赖 `dp2px`）
+- Launcher 图标缩放（依赖 `dp2px`）
+- 自定义全局操作可触发（第一步改动了其 `system_server` 与 SystemUI 安装入口的接收方）
+
+### 本轮明确搁置
+
+1. **`AnimationScale` 拆分** —— 剩余成本只影响 Launcher 的两个调用点，而拆分会触及
+   `getAppContentResolver`、`getAnimationScaleKey`、`setAnimationScale`、
+   `Helpers.appContentResolver`、`MainApplication` 启动路径和动画缩放设置页面。
+   这已经不是可以仅靠构建门禁证明等价的机械重构，收益不足以覆盖新增的设置应用与实机 UI
+   回归风险。
+2. **`AudioVisualizer` / `BatteryIndicator` 移动** —— 二者是纯 SystemUI Hook 组件，
+   放在 `utils/` 属历史遗留，但从 `utils/` 移入 `mods/` 会落进上文那条 keep 规则、
+   扩大 keep 面，与本轮第二步踩到的是同一个坑。收益仅为命名整洁。
+3. **`mods.System` 重命名** —— 该 object 遮蔽 `java.lang.System`，导致仓库中 15 处必须写
+   全限定名。重命名干净但会碰 13 个 Hook 入口并需重建 R8 基线，等有实机回归窗口再做。
