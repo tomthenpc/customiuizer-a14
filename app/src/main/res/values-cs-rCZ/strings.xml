@@ -833,7 +833,7 @@
     <string name="credentials_ok">Pověření jsou již odemčená</string>
     <string name="credentials_unlock">Odemknout pověření</string>
     <string name="credentials_success">Pověření odemčena!</string>
-    <string name="module_not_active">Modul není aktivní!\nOtevřete LSPosed aplikaci, aktivujte modul a restartujte.</string>
+    <string name="lsposed_not_connected">Zatím není připojeno ke službě LSPosed.\nPokud modul není aktivní, otevřete LSPosed, aktivujte jej a restartujte.</string>
     <string name="delete_item_info">Dlouhým stisknutím položky odstraníte</string>
     <string name="permission_scan">Chcete získat seznam sítí/zařízení, nebo ne\?</string>
     <string name="permission_permanent">Tuto možnost nyní musíte povolit ručně. Dobrá práce!</string>

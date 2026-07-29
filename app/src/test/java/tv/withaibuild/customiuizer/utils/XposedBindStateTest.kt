@@ -33,7 +33,11 @@ class XposedBindStateTest {
     }
 
     @Test
-    fun onlyDisconnectedReportsInactiveWithoutWaiting() {
+    fun disconnectedIsTheOnlyProvenNegative() {
+        // init() is never called in a unit test, so the budget has not elapsed: this is
+        // the "nothing has been observed yet" situation every caller starts in.
+        assertFalse(XposedServiceManager.decisionBudgetElapsed())
+
         assertTrue(XposedServiceManager.shouldReportInactive(State.DISCONNECTED))
         assertFalse(XposedServiceManager.shouldReportInactive(State.TIMED_OUT))
         assertFalse(XposedServiceManager.shouldReportInactive(State.UNKNOWN))
@@ -41,20 +45,48 @@ class XposedBindStateTest {
     }
 
     @Test
-    fun timedOutReportsInactiveOnlyAfterTheWholeBudgetIsSpent() {
-        assertFalse(XposedServiceManager.shouldReportInactive(State.TIMED_OUT, bindStillPending = false))
-        assertTrue(XposedServiceManager.shouldReportInactive(State.TIMED_OUT, bindStillPending = true))
+    fun timedOutIsNotReportableUntilTheBudgetElapses() {
+        // The regression guard for the soft-reboot menu item, which used to assert the
+        // budget was spent from a plain state read and so reported on TIMED_OUT at once.
+        assertFalse(XposedServiceManager.shouldReportInactive(State.TIMED_OUT))
     }
 
     @Test
-    fun aSpentBudgetNeverTurnsBoundIntoAnInactiveReport() {
-        assertFalse(XposedServiceManager.shouldReportInactive(State.BOUND, bindStillPending = true))
+    fun theBudgetSpansTwoBindWindows() {
+        // A single window is what expires into TIMED_OUT; the budget has to outlast it,
+        // or nothing would ever be waited out beyond the timeout that caused the bug.
+        assertTrue(
+            XposedServiceManager.FULL_DECISION_BUDGET_MS >
+                XposedServiceManager.BIND_DECISION_TIMEOUT_MS * 2
+        )
     }
 
     @Test
-    fun unknownIsNeverReportedInactive() {
-        // UNKNOWN can only survive a completed wait if the state machine was never
-        // started; that is not evidence of an inactive module either.
-        assertFalse(XposedServiceManager.shouldReportInactive(State.UNKNOWN, bindStillPending = true))
+    fun anUnstartedManagerNeverConcludesAnything() {
+        // Without init() there is no registration to time out, so a budget measured from
+        // it must not silently expire and turn UNKNOWN into a report.
+        assertFalse(XposedServiceManager.decisionBudgetElapsed())
+        assertFalse(XposedServiceManager.shouldReportInactive(State.UNKNOWN))
+    }
+
+    @Test
+    fun aDecidedStateIsDecidedRegardlessOfTheBudget() {
+        val original = XposedServiceManager.state
+        try {
+            XposedServiceManager.state = State.BOUND
+            assertTrue(XposedServiceManager.isDecided())
+
+            XposedServiceManager.state = State.DISCONNECTED
+            assertTrue(XposedServiceManager.isDecided())
+
+            // Provisional with an unstarted budget: callers must keep waiting.
+            XposedServiceManager.state = State.TIMED_OUT
+            assertFalse(XposedServiceManager.isDecided())
+
+            XposedServiceManager.state = State.UNKNOWN
+            assertFalse(XposedServiceManager.isDecided())
+        } finally {
+            XposedServiceManager.state = original
+        }
     }
 }
