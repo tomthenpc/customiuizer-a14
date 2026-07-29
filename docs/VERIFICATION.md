@@ -181,7 +181,7 @@ Hot Reload 保持关闭，不属于 r14.12.0 验收范围。
 
 ## 性能/内存/省电专项优化静态验证
 
-本次在 `devin/r14.13-kotlin-refactor` 分支上完成针对 DeviceInfo、时钟/天气/计步、AudioVisualizer、锁屏专辑图和设置应用的资源与生命周期优化。相关提交清单见 `REFACTOR_PROGRESS.md`。
+本次在 `devin/r14.13-kotlin-refactor` 分支上完成针对 DeviceInfo、时钟/天气/计步、AudioVisualizer、锁屏专辑图和设置应用的资源与生命周期优化。相关提交清单见 `docs/archive/REFACTOR_PROGRESS.md`。
 
 - 构建命令：`$env:JAVA_HOME='C:\Program Files\Java\jdk-17'; .\gradlew.bat --no-daemon test lint assembleDebug assembleDevelop assembleRelease`
 - 退出码：`0`

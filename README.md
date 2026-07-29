@@ -13,14 +13,32 @@
 
 | 项目 | 状态 |
 | --- | --- |
-| 稳定版本 | `r14.13.6` |
+| 稳定版本 | `r14.13.7` |
 | 支持系统 | HyperOS 1 / Android 14（SDK 34） |
 | ABI | `arm64-v8a` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | libxposed API | min 101 / target 102 |
 | Hot Reload | 关闭 |
 | 构建 | Kotlin DSL / version catalog / R8 |
-| 下载 | [源码 Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.6) · [LSPosed 模块页](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/184-r14.13.6) |
+| 下载 | [源码 Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.7) · [LSPosed 模块页](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/185-r14.13.7) |
+
+## r14.13.7 亮点
+
+- **未连接 LSPosed 服务时改的设置不再丢失**：设置应用与 LSPosed 服务断开期间，每一次偏好
+  改动过去都被直接丢弃，重新连上也不会补发。模块每个宿主进程只读一次快照并据此决定装哪些
+  hook，因此在断开期间打开的开关会永久无效 —— 「专辑封面设为壁纸」不生效就是这么来的。
+  现在连接建立时做一次全量对账，未下发的改动会在对话框里明确告知。
+- **快速重启不再被误判为不可用**：该功能是发广播给 SystemUI 里的模块，与设置应用自己有没有
+  连上服务无关。改为直接发送有序广播，只有确实无人处理时才提示。
+- **列表偏好损坏不再拖垮系统进程**：`getStringAsInt()` 遇到类型变化或非法字符串会抛异常，
+  而它的调用点在 SystemUI 和 `system_server` 的 hook 里。现在一律回退到调用方给的默认值。
+- **状态栏电池/温度显示的格式与单位无需重启即可生效**：ticker 过去一直读 hook 时捕获的旧
+  配置，偏好变更事件刷新的字段从来没人读。真正无法热更新的两个开关已在界面上标注。
+- **锁屏专辑封面的处理与缓存**：单消费者调度在内部又切回了无界线程池，快速切歌时可能并行
+  生成多张全屏图；缓存按「3 条」计数（长屏上约 31 MB），且 key 里 blur 恒为 0、用的是模糊
+  后的新对象，实际永远不命中。改为代次校验 + 按字节限额 + 正确的 key。
+- **图标加载队列饱和不再让图标永久空白**：被静默丢弃的任务不会释放在途标记，该图标此后再也
+  不会加载。
 
 ## r14.13.6 亮点
 
@@ -56,16 +74,19 @@
 
 ## 关于本次发布的验证状态
 
-`r14.13.6` 通过了 `check-invariants`（113 文件 / 8 规则 / 0 违规）、122 项单元测试、
+`r14.13.7` 通过了 `check-invariants`（116 文件 / 8 规则 / 0 违规）、171 项单元测试、
 lint / lintRelease / lintVitalRelease 0 errors 以及 Debug/Release 构建，
-但**尚未完成实机验收**。签名证书与 `r14.13.5` 相同，可直接覆盖安装，
-如遇问题可回退到 `r14.13.5`（源码 tag 仍在）。
+但**尚未完成实机验收**。
+
+本版本改动了运行在 SystemUI 内的锁屏专辑封面处理器与状态栏电池/温度 ticker，影响面
+比上一版更靠近系统进程。如遇 SystemUI 异常，请回退到 `r14.13.6`（源码 tag 与 Release
+仍在）。签名证书与 `r14.13.5`、`r14.13.6` 相同，两个方向都可直接覆盖安装。
 
 ## 下载与校验
 
-- APK：`CustoMIUIzer-A14-r14.13.6.apk`
-- 大小：3,082,129 bytes
-- SHA-256：`35AEE1FEA1D7B38D967267210B7C272340B56B580ED49BEF4945AA9FC6F2ED96`
+- APK：`CustoMIUIzer-A14-r14.13.7.apk`
+- 大小：3,084,589 bytes
+- SHA-256：`11D01A737BED25C3C4D31153DE22CB918A651D0DD043D0374E2C0E41D32492CC`
 - 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
 
 仅从本项目 Release 或对应的 LSPosed 模块仓库下载。不同签名可能无法覆盖安装，处理旧
@@ -73,15 +94,15 @@ lint / lintRelease / lintVitalRelease 0 errors 以及 Debug/Release 构建，
 
 ## 重要：旧版本需要备份后重装
 
-`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失。`r14.13.6` 使用新的正式签名，
-无法直接覆盖安装那些旧版本，但可直接覆盖安装 `r14.13.5`。
+`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失。`r14.13.7` 使用新的正式签名，
+无法直接覆盖安装那些旧版本，但可直接覆盖安装 `r14.13.5` 和 `r14.13.6`。
 
 升级步骤：
 
 1. 在旧版本模块中备份设置；
 2. 记录当前 LSPosed/Vector 作用域；
 3. 卸载旧版本；
-4. 安装 `CustoMIUIzer-A14-r14.13.6.apk`；
+4. 安装 `CustoMIUIzer-A14-r14.13.7.apk`；
 5. 重新启用模块和原有作用域；
 6. 恢复设置；
 7. 完整重启设备。
@@ -176,6 +197,7 @@ lint / lintRelease / lintVitalRelease 0 errors 以及 Debug/Release 构建，
 - [CHANGELOG](CHANGELOG.md)
 - [项目谱系](docs/PROJECT_LINEAGE.md)
 - [libxposed API 101/102 双兼容说明](docs/LIBXPOSED_API_101_102_COMPATIBILITY.md)
+- [LSPosed 服务 binder 投递路径与失败模式](docs/LSPOSED_BINDER_DELIVERY.md)
 - [验证记录](docs/VERIFICATION.md)
 - [工程方法](docs/ENGINEERING_METHOD.md)
 - [历史 Release 归档](docs/RELEASE_ARCHIVE.md)

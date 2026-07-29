@@ -10,13 +10,93 @@ and performance figures without same-condition measurements are not release chan
 
 | Version | Date | Purpose |
 | --- | --- | --- |
-| `r14.13.6` | 2026-07-29 | Current stable release; runtime hardening, language fix, hook files split by domain |
+| `r14.13.7` | 2026-07-29 | Current stable release; settings survive an unbound service, soft reboot un-gated, hot-path robustness |
+| `r14.13.6` | 2026-07-29 | Runtime hardening, language fix, hook files split by domain |
 | `r14.8.0` | 2026-07-25 | Old-signature rollback point; back up and reinstall before upgrading |
 | `r14.7.4` | 2026-07-25 | Consolidated r14.7.x Kotlin/coroutine migration release |
 
 Release titles contain only the version number. Asset names, sizes, and SHA-256 digests for
 removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the
 corresponding source remains available through Git tags.
+
+## [r14.13.7] - 2026-07-29
+
+### Purpose
+
+A reliability round after `r14.13.6`. Its centre is a long-standing defect that the previous
+release happened to expose: while the settings app is not bound to the LSPosed service, every
+setting the user changes is dropped and never resent. Four system-process defects found while
+auditing the same call chains are fixed alongside it. Nothing else about user-visible behaviour
+changes.
+
+### Root cause: the LSPosed service binder push
+
+A captured on-device log shows that after the settings process restarts rapidly four times, the
+LSPosed/Vector daemon **stops pushing the module binder to this module's `XposedProvider`**. Every
+later start still asks system_server's bridge for it, but the daemon's `Sent module binder` never
+appears again for the remaining 14 minutes and 15 process starts, with no error logged either.
+
+Decompiling `libxposed-service` 102.0.0 confirms the shape: the binder is *pushed* by the daemon
+(`XposedProvider.call("SendBinder")`), and `XposedServiceHelper.registerListener()` only parks a
+listener and drains a static cache. There is **no request or retry path**. Longer timeouts,
+re-registering and polling therefore cannot fix it; that part belongs to the framework and cannot
+be solved inside the app.
+
+What this release does is make that state stop costing data, stop breaking unrelated features, and
+stop being silent.
+
+### Fixed
+
+- **A setting changed while unbound is no longer lost.** The preference listener returned early when
+  `remotePrefs == null`, and `onServiceBind` only started listening from that point — it never
+  caught up. Since the module reads its snapshot once per hooked process and installs hooks from
+  it, a toggle flipped at the wrong moment stayed off permanently and silently. That is what
+  "album art as wallpaper does nothing" was; **the art processor itself was not at fault.** The
+  mirror now reconciles in full when the service binds, and the "not connected" dialog says so
+  while anything is still undelivered.
+- **Soft reboot is no longer gated on the settings app's bind state.** It broadcasts to the module
+  inside SystemUI, which is unrelated to whether this process holds a service binder. It is now
+  sent as an ordered broadcast addressed explicitly to `com.android.systemui`; SystemUI claims it
+  only after its reflection resolves, and the user is told only if nobody claimed it.
+- **`PrefMap.getStringAsInt()` no longer throws.** A changed stored type raised
+  `ClassCastException` and a damaged string raised `NumberFormatException`, from hooks running in
+  SystemUI and `system_server` — most of them while deciding which hooks to install at process
+  start. Unreadable values now fall back to the caller's default, and a failed parse is cached like
+  a successful one.
+- **Status bar battery/temperature formats and units apply without a SystemUI restart.** The ticker
+  used the config snapshot captured at hook time, so the `@Volatile` field that
+  `onConfigMayHaveChanged()` refreshed was never read. Each tick now takes one current snapshot.
+  What genuinely cannot hot-update is the icon slot itself (the master toggle and "on the right"),
+  and those two now say so in the settings screen.
+- **Lock-screen album art concurrency and cache.** The single-slot dispatcher opened
+  `withContext(Dispatchers.Default)` as its first statement, handing the work back to the unbounded
+  pool, so skipping tracks quickly could generate several full-screen ARGB_8888 frames at once. The
+  cache was bounded at three *entries* (~31 MB at 1080x2400) and its key recorded the blur radius
+  as a hard-coded 0 over the identity of the post-blur bitmap, so it could never hit. Now
+  generation-checked (cancelling cannot stop a CPU blur that has no suspension point), bounded by
+  `allocationByteCount`, and keyed on the source with the real parameters; the cache is released
+  when playback stops, the theme is unsupported, or the target size changes. CENTER_CROP/fit
+  geometry and output quality are unchanged.
+- **A saturated icon queue no longer blanks an icon permanently.** `DiscardOldestPolicy` dropped
+  queued tasks without releasing the in-flight marker, after which every loader for that key
+  decided someone else was already loading it and returned. It now uses `AbortPolicy` and handles
+  rejection explicitly at submission.
+
+### Verification
+
+- check-invariants: 116 files, 8 rules, no violations; 171 unit tests, 0 failures;
+  lint / lintRelease / lintVitalRelease with 0 errors; debug and release builds pass.
+- **Published without on-device acceptance.** This release changes the album art processor and the
+  status bar ticker, both of which run inside SystemUI, so it sits closer to a system process than
+  `r14.13.6` did. If SystemUI misbehaves, roll back to `r14.13.6`.
+
+### Artifact
+
+- APK: `CustoMIUIzer-A14-r14.13.7.apk`
+- Size: 3,084,589 bytes
+- SHA-256: `11D01A737BED25C3C4D31153DE22CB918A651D0DD043D0374E2C0E41D32492CC`
+- Signing certificate SHA-256: `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+- versionCode / versionName: `185 / r14.13.7`
 
 ## [r14.13.6] - 2026-07-29
 

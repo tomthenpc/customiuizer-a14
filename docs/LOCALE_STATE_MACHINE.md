@@ -176,7 +176,7 @@ MainApplication.onCreate()
   - `app/src/main/res/values/strings.xml`
   - `docs/LOCALE_STATE_MACHINE.md`
   - `docs/VERIFICATION.md`
-  - `docs/DEVIN_A14_CHECKPOINT.md`
+  - `docs/MAINTENANCE_CHECKPOINT.md`
 
 ## 5. 验收矩阵
 

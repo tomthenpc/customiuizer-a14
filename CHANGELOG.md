@@ -9,12 +9,77 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 | 版本 | 日期 | 定位 |
 | --- | --- | --- |
-| `r14.13.6` | 2026-07-29 | 当前稳定版；运行期健壮性加固、界面语言修复、hook 文件按功能域拆分 |
+| `r14.13.7` | 2026-07-29 | 当前稳定版；未连接期间的设置不再丢失、快速重启不再误判、系统进程热路径容错 |
+| `r14.13.6` | 2026-07-29 | 运行期健壮性加固、界面语言修复、hook 文件按功能域拆分 |
 | `r14.8.0` | 2026-07-25 | 旧签名回退点；升级到新版本前必须备份并重装 |
 | `r14.7.4` | 2026-07-25 | r14.7.x Kotlin/Coroutine 迁移合并版 |
 
 Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
 [历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
+
+## [r14.13.7] - 2026-07-29
+
+### 版本定位
+
+`r14.13.6` 之后的一轮可靠性修复。核心是一条一直存在、但被上一版暴露出来的缺陷：设置应用与
+LSPosed 服务断开期间，用户改的设置会被静默丢弃且永不补发。顺带修掉了在审查同一批调用链时
+发现的四处系统进程侧问题。用户可见行为除下述修复外保持不变。
+
+### 根因：LSPosed 服务的 binder 推送
+
+抓取的实机日志显示，设置应用连续快速重启四次之后，LSPosed/Vector 守护进程**不再向本模块的
+`XposedProvider` 推送 binder**：此后每次进程启动仍会向 system_server 的桥接请求，但守护进程
+侧的 `Sent module binder` 直到日志结束（14 分钟、15 次进程启动）再未出现，也没有任何错误行。
+
+反编译 `libxposed-service` 102.0.0 确认：binder 是守护进程**推**给应用的
+（`XposedProvider.call("SendBinder")`），`XposedServiceHelper.registerListener()` 只是存下
+listener 并排空静态缓存，**没有任何请求或重试路径**。因此加长超时、重复注册、轮询都无法解决，
+这一条属于框架侧问题，应用内无解。
+
+本版本做的是让这个状态不再造成数据丢失、不再误伤其他功能、并且明确告知用户。
+
+### 修复
+
+- **未连接期间的设置改动不再丢失**。偏好监听器过去在 `remotePrefs == null` 时直接 return，
+  而 `onServiceBind` 只注册增量监听、从不补齐。模块每个宿主进程只读一次远端快照并据此决定
+  装哪些 hook，所以断开期间打开的开关会永久无效且毫无提示 —— 「专辑封面设为壁纸」不生效
+  就是这个原因，**不是封面处理器本身的缺陷**。现在连接建立时做一次全量对账；仍未下发时，
+  「暂未连接」对话框会附带说明。
+- **快速重启不再被设置应用的绑定状态误判**。该功能是向 SystemUI 里的模块发广播，与设置应用
+  自己有没有拿到 service binder 无关。改为直接发送**有序广播**（显式限定
+  `com.android.systemui`），SystemUI 侧在反射解析成功后才认领，只有确实无人认领时才提示。
+- **`PrefMap.getStringAsInt()` 不再抛异常**。存储类型变化会抛 `ClassCastException`，
+  非法字符串会抛 `NumberFormatException`，而它的调用点在 SystemUI 与 `system_server` 的
+  hook 里、且多数在进程启动决定装哪些 hook 时执行。现在一律回退到调用方给的默认值，
+  失败结果同样进缓存，坏值只解析一次。
+- **状态栏电池/温度的格式与单位无需重启 SystemUI 即可生效**。ticker 一直使用 hook 时捕获的
+  配置快照，`onConfigMayHaveChanged()` 刷新的 `@Volatile` 字段从来没有被读过。现在每次 tick
+  读一次当前快照。真正无法热更新的是图标槽位本身（主开关与「显示在右侧」），这两项已在设置
+  界面标注需要重启 SystemUI。
+- **锁屏专辑封面的并发与缓存**。单槽调度器内部第一句就 `withContext(Dispatchers.Default)`，
+  把工作交回无界线程池，快速切歌时可能并行生成多张全屏 ARGB_8888；缓存按「3 条」计数
+  （1080×2400 下约 31 MB），且 cache key 里 blur 恒为 0、用的是模糊后新对象的 identity hash，
+  实际永远不可能命中。现改为代次校验（`cancel()` 停不了无挂起点的 CPU blur）、按
+  `allocationByteCount` 限额、按源图与真实参数建 key；音乐清空、主题不支持、目标尺寸变化时
+  释放缓存。CENTER_CROP / fit 几何与画质未改动。
+- **图标加载队列饱和不再让图标永久空白**。`DiscardOldestPolicy` 会静默丢弃已入队任务，而
+  对应的在途标记不会释放，此后该图标的每个加载者都判定「已有人在加载」直接返回。改为
+  `AbortPolicy` 并在提交处显式处理拒绝。
+
+### 验证
+
+- `check-invariants` 116 文件 / 8 规则 / 0 违规；171 项单元测试 0 失败；
+  lint / lintRelease / lintVitalRelease 0 errors；Debug / Release 构建通过。
+- **尚未完成实机验收即发布**：本版本改动了运行在 SystemUI 内的封面处理器与状态栏 ticker，
+  影响面比 `r14.13.6` 更靠近系统进程。如遇 SystemUI 异常请回退 `r14.13.6`。
+
+### 产物
+
+- APK：`CustoMIUIzer-A14-r14.13.7.apk`
+- 大小：3,084,589 bytes
+- SHA-256：`11D01A737BED25C3C4D31153DE22CB918A651D0DD043D0374E2C0E41D32492CC`
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+- versionCode / versionName：`185 / r14.13.7`
 
 ## [r14.13.6] - 2026-07-29
 

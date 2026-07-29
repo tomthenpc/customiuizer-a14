@@ -14,14 +14,37 @@ release.
 
 | Item | Status |
 | --- | --- |
-| Stable version | `r14.13.6` |
+| Stable version | `r14.13.7` |
 | Supported system | HyperOS 1 / Android 14 (SDK 34) |
 | ABI | `arm64-v8a` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | libxposed API | min 101 / target 102 |
 | Hot Reload | Disabled |
 | Build | Kotlin DSL / version catalog / R8 |
-| Download | [Source Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.6) · [LSPosed listing](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/184-r14.13.6) |
+| Download | [Source Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.7) · [LSPosed listing](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/185-r14.13.7) |
+
+## r14.13.7 Highlights
+
+- **A setting changed while the LSPosed service is unreachable is no longer lost.** Every
+  preference change made while unbound used to be dropped, and reconnecting did not resend it.
+  The module reads its snapshot once per hooked process and installs hooks from it, so a toggle
+  flipped at the wrong moment stayed off for good — which is what "album art as wallpaper does
+  nothing" was. The mirror now reconciles in full on bind, and says so when it cannot.
+- **Soft reboot is no longer refused on the wrong evidence.** It broadcasts to the module inside
+  SystemUI, which has nothing to do with whether the settings app holds a service binder. The
+  action is attempted as an ordered broadcast and reported only if nobody claims it.
+- **A damaged list preference no longer takes a system process down.** `getStringAsInt()` threw on
+  a changed stored type or a non-numeric string, from hooks running in SystemUI and
+  `system_server`. Unreadable values now fall back to the caller's default.
+- **Status bar battery/temperature formats apply without restarting SystemUI.** The ticker read the
+  config captured at hook time, so the field the preference listener refreshed was never read. The
+  two options that genuinely cannot hot-update now say so in the UI.
+- **Lock-screen album art processing and cache.** The single-consumer dispatcher handed its work
+  straight back to the unbounded pool, so skipping tracks quickly could run several full-screen
+  passes at once; the cache was bounded at three entries (~31 MB on a tall screen) and its key
+  could never hit. Now generation-checked, bounded in bytes, and correctly keyed.
+- **A saturated icon queue no longer blanks an icon permanently.** Silently discarded tasks never
+  released the in-flight marker, so that icon was never loaded again.
 
 ## r14.13.6 Highlights
 
@@ -62,16 +85,20 @@ release.
 
 ## Verification status of this release
 
-`r14.13.6` passes check-invariants (113 files, 8 rules, no violations), 122 unit tests,
+`r14.13.7` passes check-invariants (116 files, 8 rules, no violations), 171 unit tests,
 lint / lintRelease / lintVitalRelease with 0 errors, and both debug and release builds — but it
-has **not completed on-device acceptance**. It is signed with the same certificate as `r14.13.5`,
-so it installs in place, and `r14.13.5` remains available as a source tag to roll back to.
+has **not completed on-device acceptance**.
+
+This release changes the lock-screen album art processor and the status bar battery/temperature
+ticker, both of which run inside SystemUI, so it sits closer to a system process than the last one
+did. If SystemUI misbehaves, roll back to `r14.13.6` — its tag and Release are both still there.
+The signing certificate is unchanged since `r14.13.5`, so installing in either direction works.
 
 ## Download and Verification
 
-- APK: `CustoMIUIzer-A14-r14.13.6.apk`
-- Size: 3,082,129 bytes
-- SHA-256: `35AEE1FEA1D7B38D967267210B7C272340B56B580ED49BEF4945AA9FC6F2ED96`
+- APK: `CustoMIUIzer-A14-r14.13.7.apk`
+- Size: 3,084,589 bytes
+- SHA-256: `11D01A737BED25C3C4D31153DE22CB918A651D0DD043D0374E2C0E41D32492CC`
 - Signing certificate SHA-256:
   `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
 
@@ -82,15 +109,15 @@ removing an older installation.
 ## Important: Back Up and Reinstall
 
 The private signing key used by the public `r14.12.0` release and earlier releases has been lost.
-`r14.13.6` is signed with the new official certificate and cannot be installed as an in-place
-update over those older public builds, but it can be installed over `r14.13.5`.
+`r14.13.7` is signed with the new official certificate and cannot be installed as an in-place
+update over those older public builds, but it can be installed over `r14.13.5` and `r14.13.6`.
 
 Upgrade steps:
 
 1. Back up the module settings in the old installation.
 2. Record the current LSPosed/Vector scope.
 3. Uninstall the old version.
-4. Install `CustoMIUIzer-A14-r14.13.6.apk`.
+4. Install `CustoMIUIzer-A14-r14.13.7.apk`.
 5. Re-enable the module and restore the original scope.
 6. Restore the settings.
 7. Fully reboot the device.
@@ -194,6 +221,7 @@ Engineering and provenance documents:
 - [CHANGELOG](CHANGELOG_EN.md)
 - [Project lineage](docs/PROJECT_LINEAGE.md)
 - [libxposed API 101/102 compatibility](docs/LIBXPOSED_API_101_102_COMPATIBILITY.md)
+- [LSPosed service binder delivery and its failure mode](docs/LSPOSED_BINDER_DELIVERY.md)
 - [Verification](docs/VERIFICATION.md)
 - [Engineering method](docs/ENGINEERING_METHOD.md)
 - [Historical Release archive](docs/RELEASE_ARCHIVE.md)

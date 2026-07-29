@@ -318,7 +318,7 @@ force push、用远端旧状态覆盖未知本地改动、修改或合并 `main`
 用户目标、分支与起始 HEAD、已完成项、正在做的、未完成项、最后一条命令及退出码、
 已修改文件、已有验证证据、当前阻塞、下一条精确动作。
 
-任务闭环后把长期有效的结论同步到 `docs/DEVIN_A14_CHECKPOINT.md`，然后清空 `ACTIVE_TASK.md`。
+任务闭环后把长期有效的结论同步到 `docs/MAINTENANCE_CHECKPOINT.md`，然后清空 `ACTIVE_TASK.md`。
 
 **「完成」必须有工作区 diff、commit、构建产物、日志或实机结果支撑**，
 不得仅凭之前的计划文本或任务计数声称完成。
