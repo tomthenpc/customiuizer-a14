@@ -13,7 +13,6 @@ and performance figures without same-condition measurements are not release chan
 | `r14.13.6` | 2026-07-29 | Current stable release; runtime hardening, language fix, hook files split by domain |
 | `r14.8.0` | 2026-07-25 | Old-signature rollback point; back up and reinstall before upgrading |
 | `r14.7.4` | 2026-07-25 | Consolidated r14.7.x Kotlin/coroutine migration release |
-| `r14.5.0` | 2026-07-24 | Independent package, signing, and release-path baseline |
 
 Release titles contain only the version number. Asset names, sizes, and SHA-256 digests for
 removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the

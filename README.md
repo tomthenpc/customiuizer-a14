@@ -205,7 +205,7 @@ lint / lintRelease / lintVitalRelease 0 errors 以及 Debug/Release 构建，
 | `r14.12.0` | 源码 tag 保留，Release 已移除 |
 | `r14.8.0` | 旧签名回退点；升级时须备份并重装 |
 | `r14.7.4` | r14.7.x Kotlin/Coroutine 合并版 |
-| `r14.5.0` | 独立包名、签名与发布路径基线 |
+| `r14.5.0` | 源码 tag 保留，Release 已移除 |
 
 Release 标题只使用版本号。其余版本保留于 CHANGELOG、历史归档和 Git tag 中。
 
