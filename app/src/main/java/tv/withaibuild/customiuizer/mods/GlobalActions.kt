@@ -36,7 +36,6 @@ import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.Toast
 import io.github.libxposed.api.XposedInterface
-import io.github.libxposed.api.XposedModuleInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
@@ -697,28 +696,6 @@ object GlobalActions {
         ensureCustomActionMaps()
         return customToggleMap!!.get(what)
     }
-
-    @JvmStatic
-    fun setupGlobalActions(lpparam: XposedModuleInterface.SystemServerStartingParam) {
-        GlobalActionSystemServerHooks.setupGlobalActions(lpparam)
-    }
-
-    @JvmStatic
-    fun setupStatusBar(lpparam: PackageReadyParam) {
-        GlobalActionSystemServerHooks.setupStatusBar(lpparam)
-    }
-
-    @JvmStatic
-    fun launchAppIntent(context: Context, key: String, skipLock: Boolean): Boolean = GlobalActionsIntentHelper.launchAppIntent(context, key, skipLock)
-
-    @JvmStatic
-    fun launchActivityIntent(context: Context, key: String, skipLock: Boolean): Boolean = GlobalActionsIntentHelper.launchActivityIntent(context, key, skipLock)
-
-    @JvmStatic
-    fun launchShortcutIntent(context: Context, key: String, skipLock: Boolean): Boolean = GlobalActionsIntentHelper.launchShortcutIntent(context, key, skipLock)
-
-    @JvmStatic
-    fun launchIntent(context: Context, intent: Intent): Boolean = GlobalActionsIntentHelper.launchIntent(context, intent)
 
     private fun showSidebar(context: Context, bundle: Bundle?): Boolean {
         return try {

@@ -18,6 +18,7 @@ import io.github.libxposed.api.XposedModuleInterface;
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam;
 import tv.withaibuild.customiuizer.mods.Controls;
+import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks;
 import tv.withaibuild.customiuizer.mods.GlobalActions;
 import tv.withaibuild.customiuizer.mods.LauncherGestureHooks;
 import tv.withaibuild.customiuizer.mods.LauncherIconHooks;
@@ -167,7 +168,7 @@ public class MainModule extends XposedModule {
         ModuleHelper.currentPackageName = "android";
         initPrefs();
         PackagePermissions.hook(lpparam);
-        if (GlobalActions.hasCustomActions()) GlobalActions.setupGlobalActions(lpparam);
+        if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupGlobalActions(lpparam);
 
         if (mPrefs.getBoolean("system_screenshot_overlay")) {
             SystemWindowHooks.TempHideOverlayAppHook(lpparam);
@@ -316,7 +317,7 @@ public class MainModule extends XposedModule {
 
             ModuleHelper.findAndHookMethod("com.android.systemui.SystemUIInitializer", lpparam.getClassLoader(),
                 "init", boolean.class, initStatusBarHook);
-            if (GlobalActions.hasCustomActions()) GlobalActions.setupStatusBar(lpparam);
+            if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam);
 
             if (currentTime - restartTime < 10000) {
                 return;
