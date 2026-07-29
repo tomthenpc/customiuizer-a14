@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -162,31 +163,65 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         return coroutineContext.isActive
     }
 
+    /**
+     * Asks, then sends the soft reboot to the copy of the module living in SystemUI.
+     *
+     * Deliberately not gated on the bind state. The reboot is a broadcast to
+     * [GlobalActions.mSBReceiver], which the module registers inside SystemUI; whether *this*
+     * process holds an LSPosed service binder has no bearing on whether that receiver is
+     * there. Gating on it turned a settings app that had merely failed to bind - which a
+     * captured log shows can last for the whole life of the process - into a settings app
+     * that refused an action which would have worked.
+     *
+     * So the action is attempted, and the answer comes from the attempt: an ordered broadcast
+     * that nobody claims arrives back carrying [GlobalActions.ACTION_UNHANDLED], and only
+     * then is the user told anything. When it is claimed the device is already going down,
+     * so the result usually never arrives - which is the correct outcome, not a missing one.
+     *
+     * A SystemUI still running the previous build claims nothing, because the result code is
+     * new. The reported failure is then wrong, but it is also unreachable: the reboot has
+     * already started by the time the result comes back. It resolves itself as soon as
+     * SystemUI reloads the module.
+     */
     private fun confirmSoftReboot() {
         val act = activity as? AppCompatActivity ?: return
-        lifecycleScope.launch {
-            // Same rule as the module check on the main screen: a pending bind is not a
-            // negative, so wait for a decided state instead of reading it straight off.
-            // In practice the budget elapsed long before the user reached this menu, so
-            // this does not actually wait.
-            if (!awaitBindDecision()) return@launch
-            if (act.isFinishing || act.isDestroyed || !isAdded) return@launch
+        if (act.isFinishing || act.isDestroyed || !isAdded) return
 
-            if (XposedServiceManager.shouldReportInactive()) {
-                showXposedDialog(act)
-                return@launch
+        AlertDialog.Builder(getValidContext())
+            .setTitle(R.string.soft_reboot)
+            .setMessage(R.string.soft_reboot_ask)
+            .setPositiveButton(android.R.string.ok) { _, _ -> sendSoftReboot() }
+            .setNegativeButton(android.R.string.cancel) { _, _ -> }
+            .show()
+    }
+
+    private fun sendSoftReboot() {
+        val intent = Intent(GlobalActions.ACTION_PREFIX + "FastReboot")
+        // Explicitly addressed. An ordered broadcast with no package would be offered to
+        // every receiver on the device before this one, any of which could claim it.
+        intent.setPackage("com.android.systemui")
+
+        val notHandled = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, received: Intent) {
+                if (resultCode != GlobalActions.ACTION_UNHANDLED) return
+                // Resolved now, not captured at send time: the result can be up to the
+                // broadcast timeout late, and by then the Activity that opened the
+                // confirmation may be gone. Holding a reference to it would both leak it and
+                // risk showing a dialog on a destroyed window.
+                val current = activity as? AppCompatActivity ?: return
+                if (!isAdded) return
+                // Nothing in SystemUI claimed it, so the module is not loaded there. That is
+                // a different problem from this process not being bound, but the advice the
+                // user needs is the same, so reuse the dialog.
+                showXposedDialog(current)
             }
-            AlertDialog.Builder(getValidContext())
-                .setTitle(R.string.soft_reboot)
-                .setMessage(R.string.soft_reboot_ask)
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    val intent = Intent(GlobalActions.ACTION_PREFIX + "FastReboot")
-                    intent.setPackage("com.android.systemui")
-                    getValidContext().sendBroadcast(intent)
-                }
-                .setNegativeButton(android.R.string.cancel) { _, _ -> }
-                .show()
         }
+
+        // One-shot: this receiver is passed to the broadcast, never registered, so there is
+        // nothing to unregister and nothing left behind once the result comes back.
+        getValidContext().sendOrderedBroadcast(
+            intent, null, notHandled, null, GlobalActions.ACTION_UNHANDLED, null, null
+        )
     }
 
     /**
@@ -196,12 +231,23 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
      * gets here is usually [XposedServiceManager.State.TIMED_OUT], which is a bind that
      * has not arrived yet, not a bind that failed - an unusually slow one still binds
      * afterwards, and a dialog asserting the module is inactive would then be simply wrong.
+     *
+     * When settings have been changed since the mirror last reached the module, that is added
+     * to the message: it is the one consequence of an unbound service the user can see for
+     * themselves, and without it a toggle that quietly does nothing looks like a broken
+     * feature rather than a missing connection.
      */
     open fun showXposedDialog(act: AppCompatActivity?) {
         if (act == null || act.isFinishing || act.isDestroyed) return
+        val message = if (XposedServiceManager.hasUndeliveredChanges()) {
+            act.getString(R.string.lsposed_not_connected) + "\n\n" +
+                act.getString(R.string.lsposed_changes_not_delivered)
+        } else {
+            act.getString(R.string.lsposed_not_connected)
+        }
         AlertDialog.Builder(act)
             .setTitle(R.string.warning)
-            .setMessage(R.string.lsposed_not_connected)
+            .setMessage(message)
             .setCancelable(true)
             .setPositiveButton(android.R.string.ok) { _, _ -> }
             .show()

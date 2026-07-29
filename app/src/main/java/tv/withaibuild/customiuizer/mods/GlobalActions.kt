@@ -50,6 +50,18 @@ object GlobalActions {
     const val ACTION_PREFIX = "tv.withaibuild.customiuizer.mods.action."
     const val EVENT_PREFIX = "tv.withaibuild.customiuizer.mods.event."
 
+    /**
+     * Result codes for actions the settings app sends as an ordered broadcast.
+     *
+     * They exist so the settings app can tell "the module is not in the host" from "the
+     * module handled it", without asking a question the settings process cannot answer from
+     * its own LSPosed bind state. [mSBReceiver] sets [ACTION_HANDLED]; a broadcast no
+     * receiver claims arrives at the sender's result receiver still carrying
+     * [ACTION_UNHANDLED].
+     */
+    const val ACTION_UNHANDLED = Activity.RESULT_CANCELED
+    const val ACTION_HANDLED = Activity.RESULT_OK
+
     @JvmStatic
     fun handleAction(context: Context, key: String?): Boolean {
         return handleAction(context, key, false)
@@ -147,8 +159,18 @@ object GlobalActions {
                     ACTION_PREFIX + "RestartSystemUI" -> Process.killProcess(Process.myPid())
                     ACTION_PREFIX + "FastReboot" -> {
                         val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                        // Resolve first, claim second. On a ROM without this field the lookup
+                        // throws, and claiming the broadcast beforehand would have told the
+                        // sender the reboot was under way when nothing had happened.
                         val mService = XposedHelpers.getObjectField(pm, "mService")
-                        XposedHelpers.callMethod(mService, "reboot", false, null, false)
+                        if (isOrderedBroadcast) resultCode = ACTION_HANDLED
+                        try {
+                            // Does not return on success.
+                            XposedHelpers.callMethod(mService, "reboot", false, null, false)
+                        } catch (t: Throwable) {
+                            if (isOrderedBroadcast) resultCode = ACTION_UNHANDLED
+                            throw t
+                        }
                     }
                     ACTION_PREFIX + "ClearNotifications" -> {
                         val nms = XposedHelpers.callStaticMethod(NotificationManager::class.java, "getService")

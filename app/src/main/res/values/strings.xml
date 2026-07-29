@@ -875,6 +875,8 @@
     <string name="credentials_success">Credentials unlocked!</string>
 
     <string name="lsposed_not_connected">Not connected to the LSPosed service yet.\nIf the module is not activated, open LSPosed, activate it and reboot.</string>
+    <string name="lsposed_changes_not_delivered">Settings changed since then have not reached the module, so they are not in effect yet. They are saved and will be sent as soon as the connection is back.</string>
+    <string name="needs_systemui_restart">Takes effect after SystemUI is restarted</string>
     <string name="delete_item_info">Long press item to delete</string>
     <string name="permission_scan">Do you want to get a list of networks/devices or not?</string>
     <string name="permission_permanent">You\'ll have to manually enable permission for this option now. Good job!</string>

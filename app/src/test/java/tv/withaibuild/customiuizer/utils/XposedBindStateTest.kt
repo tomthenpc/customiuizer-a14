@@ -70,6 +70,13 @@ class XposedBindStateTest {
     }
 
     @Test
+    fun nothingIsUndeliveredBeforeAnythingHasBeenChanged() {
+        // A fresh process has mirrored nothing and missed nothing, so the dialog must not
+        // add the "your changes have not arrived" sentence to a first-run message.
+        assertFalse(XposedServiceManager.hasUndeliveredChanges())
+    }
+
+    @Test
     fun aDecidedStateIsDecidedRegardlessOfTheBudget() {
         val original = XposedServiceManager.state
         try {

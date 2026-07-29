@@ -834,6 +834,8 @@
     <string name="credentials_unlock">Odemknout pověření</string>
     <string name="credentials_success">Pověření odemčena!</string>
     <string name="lsposed_not_connected">Zatím není připojeno ke službě LSPosed.\nPokud modul není aktivní, otevřete LSPosed, aktivujte jej a restartujte.</string>
+    <string name="lsposed_changes_not_delivered">Nastavení změněná od té doby se k modulu nedostala, takže zatím neplatí. Jsou uložena a odešlou se, jakmile se spojení obnoví.</string>
+    <string name="needs_systemui_restart">Projeví se po restartu SystemUI</string>
     <string name="delete_item_info">Dlouhým stisknutím položky odstraníte</string>
     <string name="permission_scan">Chcete získat seznam sítí/zařízení, nebo ne\?</string>
     <string name="permission_permanent">Tuto možnost nyní musíte povolit ručně. Dobrá práce!</string>

@@ -17,7 +17,8 @@ class PrefMap : ConcurrentHashMap<String, Any>() {
         const val STORAGE_PREFIX = "pref_key_"
     }
 
-    private data class CachedInt(val raw: String, val value: Int)
+    /** A parse result. [value] is null when [raw] could not be read as an integer. */
+    private data class CachedInt(val raw: String, val value: Int?)
 
     private val parsedIntCache = ConcurrentHashMap<String, CachedInt>()
 
@@ -60,18 +61,31 @@ class PrefMap : ConcurrentHashMap<String, Any>() {
         return value as? String ?: defaultValue
     }
 
+    /**
+     * Reads a list preference, which the framework stores as a String.
+     *
+     * Every caller of this runs inside a hook, most of them in SystemUI or system_server,
+     * and most of them at process start while deciding which hooks to install. It therefore
+     * must not throw for any stored value: a restored backup from an older build, a key
+     * whose type changed between releases, or a String that is simply not a number used to
+     * escape as ClassCastException or NumberFormatException and take the host process with
+     * it. Anything unreadable is the caller's [defaultValue] instead.
+     *
+     * A failed parse is cached like a successful one so a bad value costs one parse rather
+     * than one per read on a two-second ticker.
+     */
     fun getStringAsInt(key: String, defaultValue: Int): Int {
         val value = getValue(key) ?: return defaultValue
         if (value is Number) return value.toInt()
+        if (value !is String) return defaultValue
 
-        val raw = value as String
         val normalized = normalizeStorageKey(key)
         val cached = parsedIntCache[normalized]
-        if (cached != null && cached.raw == raw) return cached.value
+        if (cached != null && cached.raw == value) return cached.value ?: defaultValue
 
-        val parsed = raw.toInt()
-        parsedIntCache[normalized] = CachedInt(raw, parsed)
-        return parsed
+        val parsed = value.toIntOrNull()
+        parsedIntCache[normalized] = CachedInt(value, parsed)
+        return parsed ?: defaultValue
     }
 
     @Suppress("UNCHECKED_CAST")

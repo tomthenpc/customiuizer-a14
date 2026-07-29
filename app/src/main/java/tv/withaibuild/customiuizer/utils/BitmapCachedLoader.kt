@@ -7,17 +7,14 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.TransitionDrawable
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.util.Log
 import android.widget.ImageView
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -33,6 +30,15 @@ class BitmapCachedLoader(
     private val theTag = (target.tag as? Int) ?: -1
     private var iconKey: String = ""
 
+    /**
+     * Queues this icon, or joins the load already running for the same key.
+     *
+     * Every exit from here has to end with the key's `inFlight` entry gone, or that key is
+     * permanently marked as loading and no later loader for it will ever start: each one
+     * finds a non-empty list, decides it is not the leader, and returns. That is what the
+     * queue's old DiscardOldestPolicy did - it dropped a queued task without telling anyone,
+     * leaving the entry behind - which is why rejection is now explicit and handled here.
+     */
     fun execute() {
         val ad = appInfo.get() ?: return
         iconKey = ad.iconKey
@@ -45,16 +51,39 @@ class BitmapCachedLoader(
         }
         if (!isLeader) return
 
-        loaderScope.launch(loaderDispatcher) {
-            val bitmap = loadBitmap()
-            if (bitmap != null) {
-                withContext(Dispatchers.Main) {
-                    applyToTarget(bitmap)
-                    dispatchToWaiters(bitmap)
-                }
-            } else {
-                releaseWaiters()
+        try {
+            executor.execute(LoadTask(this))
+        } catch (rejected: RejectedExecutionException) {
+            // The queue is full. Release the key so the next bind of this row can try again
+            // rather than inheriting a load that will never happen.
+            Log.w(TAG, "Icon load rejected, queue is full: $iconKey")
+            releaseWaiters()
+        }
+    }
+
+    /**
+     * The background half of a load.
+     *
+     * A plain Runnable rather than a coroutine: this needs a rejection to be an exception it
+     * can catch at submission time, and an executor-backed dispatcher instead reroutes a
+     * rejected task onto kotlinx's fallback executor, which is neither this pool nor
+     * observable from here.
+     */
+    private class LoadTask(private val loader: BitmapCachedLoader) : Runnable {
+        override fun run() {
+            val bitmap = try {
+                loader.loadBitmap()
+            } catch (t: Throwable) {
+                // Includes OutOfMemoryError from the icon allocation. Nothing here may reach
+                // the thread's default handler; the pool is shared by every icon on screen.
+                Log.w(TAG, "Icon load failed", t)
+                null
             }
+            if (bitmap == null) {
+                loader.releaseWaiters()
+                return
+            }
+            mainHandler.post { loader.publish(bitmap) }
         }
     }
 
@@ -110,15 +139,25 @@ class BitmapCachedLoader(
         }
     }
 
-    private fun dispatchToWaiters(bmp: Bitmap) {
+    /**
+     * Hands the bitmap to every view waiting on this key. Main thread.
+     *
+     * The key is released before any view is touched, so a throw from one target cannot
+     * leave the key marked as loading; and each target is applied independently, so one
+     * detached or recycled view cannot deprive the rest of their icon. The leader is in the
+     * list too, which is why it is not applied separately.
+     */
+    private fun publish(bmp: Bitmap) {
         val waiters: List<BitmapCachedLoader>
         synchronized(inFlightLock) {
             waiters = inFlight.remove(iconKey)?.toList() ?: return
         }
-        // The leader (this) is in the list; skip it to avoid reapplying to its own view.
         for (loader in waiters) {
-            if (loader === this) continue
-            loader.applyToTarget(bmp)
+            try {
+                loader.applyToTarget(bmp)
+            } catch (t: Throwable) {
+                Log.w(TAG, "Unable to apply app icon", t)
+            }
         }
     }
 
@@ -148,11 +187,14 @@ class BitmapCachedLoader(
                     runnable.run()
                 }, "Pengeek-IconLoader-${threadNumber.incrementAndGet()}")
             },
-            ThreadPoolExecutor.DiscardOldestPolicy()
+            // AbortPolicy, not DiscardOldest: a dropped task has to be visible to the caller
+            // so it can release the key. CallerRuns is not an option either - the caller is
+            // the UI thread binding a list row, and decoding an icon there is the stall this
+            // pool exists to avoid.
+            ThreadPoolExecutor.AbortPolicy()
         ).apply { allowCoreThreadTimeOut(true) }
 
-        private val loaderDispatcher = executor.asCoroutineDispatcher()
-        private val loaderScope = CoroutineScope(SupervisorJob())
+        private val mainHandler = Handler(Looper.getMainLooper())
 
         private val inFlightLock = Any()
         private val inFlight = mutableMapOf<String, MutableList<BitmapCachedLoader>>()

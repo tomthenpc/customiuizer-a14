@@ -839,6 +839,8 @@
     <string name="credentials_unlock">認証情報の解除</string>
     <string name="credentials_success">認証情報を解除しました!</string>
     <string name="lsposed_not_connected">LSPosed サービスにまだ接続できていません。\nモジュールが有効化されていない場合は、LSPosed アプリを開き、有効化してから再起動してください。</string>
+    <string name="lsposed_changes_not_delivered">それ以降に変更した設定はモジュールに届いていないため、まだ反映されていません。設定は保存済みで、接続が回復し次第そのまま送信されます。</string>
+    <string name="needs_systemui_restart">SystemUI の再起動後に反映されます</string>
     <string name="delete_item_info">削除する項目を長押しします</string>
     <string name="permission_scan">ネットワークまたはデバイスのリストを取得しますか?</string>
     <string name="permission_permanent">このオプションは手動で許可する必要があります。グッジョブ!!</string>

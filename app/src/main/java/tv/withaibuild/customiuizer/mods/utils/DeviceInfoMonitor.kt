@@ -132,9 +132,15 @@ object DeviceInfoMonitor {
             )
         }
 
+        // hookIconSlots is the one part that genuinely cannot follow a later change: it adds
+        // the icon slots as SystemUI builds its status bar, so which slots exist and which
+        // side they sit on are fixed for the life of this process. The two preferences that
+        // decide that - the master toggle and "on the right" - say so in their summary.
+        // Everything the ticker reads (formats, units, content options, the in-charge
+        // condition) is picked up on the next tick.
         hookIconSlots(lpparam, cfg)
         hookNetworkSpeedView(lpparam)
-        hookMonitor(lpparam, cfg)
+        hookMonitor(lpparam)
     }
 
     private fun buildConfig(mPrefs: PrefMap): ConfigSnapshot {
@@ -261,8 +267,18 @@ object DeviceInfoMonitor {
         )
     }
 
+    /**
+     * Installs the ticker.
+     *
+     * Deliberately takes no [ConfigSnapshot]. It used to capture the one built at hook time
+     * in the constructor hook's closure and hand it to every tick for the life of the
+     * process, so [onConfigMayHaveChanged] refreshed a `config` field that the ticker never
+     * read: changing the temperature format, the hide-unit option or the in-charge condition
+     * had no effect until SystemUI restarted, while the preference screen behaved as though
+     * it had. Each tick now takes one snapshot of the volatile field and uses that.
+     */
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
-    private fun hookMonitor(lpparam: PackageReadyParam, cfg: ConfigSnapshot) {
+    private fun hookMonitor(lpparam: PackageReadyParam) {
         ModuleHelper.hookAllConstructors(
             "com.android.systemui.statusbar.policy.NetworkSpeedController",
             lpparam.classLoader,
@@ -288,7 +304,11 @@ object DeviceInfoMonitor {
                         activeBgHandler = object : Handler(looper) {
                             override fun handleMessage(msg: Message) = ModuleHelper.guarded {
                                 if (msg.what == MONITOR_MESSAGE) {
-                                    doMonitorTick(mContext, cfg)
+                                    // One read of the volatile per tick, so the whole tick
+                                    // works from a single consistent snapshot even if a
+                                    // preference changes halfway through it.
+                                    val current = config ?: return@guarded
+                                    doMonitorTick(mContext, current)
                                 }
                             }
                         }

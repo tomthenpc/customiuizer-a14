@@ -78,6 +78,21 @@ object XposedServiceManager {
     fun isDecided(): Boolean = !state.isProvisional || decisionBudgetElapsed()
 
     /**
+     * Whether a setting the user changed has not reached the module.
+     *
+     * The mirror is the only way a setting gets to the module, so while this is true the
+     * settings screen is showing values the module is not running on. It is the part of an
+     * unbound service the user can actually observe - a toggle that appears to do nothing -
+     * so it is worth saying out loud rather than leaving them to conclude the feature is
+     * broken.
+     *
+     * Cleared by the next successful reconcile, which is why the flag needs no persistence:
+     * a restart re-mirrors everything from local anyway.
+     */
+    @JvmStatic
+    fun hasUndeliveredChanges(): Boolean = mirrorState.hasUndeliveredChanges
+
+    /**
      * Whether enough time has passed since [init] that a still-pending bind counts against
      * the module.
      *
@@ -105,12 +120,31 @@ object XposedServiceManager {
 
     private const val NOT_STARTED = 0L
 
+    private const val LOG_TAG = "XposedService"
+
     private var initialized = false
 
     /** [SystemClock.elapsedRealtime] at [init], or [NOT_STARTED]. */
     @Volatile
     private var initElapsedRealtime = NOT_STARTED
 
+    /** Bind-generation bookkeeping for the mirror; see [PrefsMirrorState]. */
+    private val mirrorState = PrefsMirrorState()
+
+    /**
+     * The mirror runs here, and it is deliberately the main looper rather than a worker.
+     *
+     * Both halves of a pass were checked against the libxposed 102.0.0 bytecode:
+     * `RemotePreferences.getAll` copies an in-memory map with no binder call at all, and
+     * `RemotePreferences.Editor.apply` updates that local map and then hands the one binder
+     * call to the library's own executor, so it does not block either. What is left on this
+     * thread is two map copies and a diff over a few hundred keys. The one call that *is*
+     * blocking - `getRemotePreferences` in [init] - already runs on the daemon's binder
+     * thread, where it always did.
+     *
+     * The rule this handler exists to keep is the other one: nothing reads or writes the
+     * mirror on the daemon's binder thread, because holding that up holds up the daemon.
+     */
     private val handler = Handler(Looper.getMainLooper())
 
     /**
@@ -136,12 +170,26 @@ object XposedServiceManager {
      */
     const val FULL_DECISION_BUDGET_MS = BIND_DECISION_TIMEOUT_MS * 2 + 500L
 
+    /**
+     * Delay before the single re-mirror attempt that follows a failed remote write.
+     *
+     * One shot, scheduled only after a failure, on the handler this object already owns - so
+     * a device where nothing ever fails posts nothing. Long enough that a service being
+     * replaced underneath us has finished, short enough that the user is plausibly still on
+     * the screen where they made the change.
+     */
+    private const val MIRROR_RETRY_DELAY_MS = 2000L
+
     private val timeoutRunnable = Runnable {
         if (state == State.UNKNOWN) {
             // Give up waiting, but do not claim the module is inactive: the listener stays
             // registered and a later bind still promotes this to BOUND.
             state = State.TIMED_OUT
             AppHelper.moduleActive = false
+            AppHelper.log(
+                LOG_TAG,
+                "no bind within ${BIND_DECISION_TIMEOUT_MS}ms; still waiting for the service"
+            )
         }
     }
 
@@ -153,33 +201,140 @@ object XposedServiceManager {
     )
 
     private val prefsChanged = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
-        val remote = remotePrefs ?: return@OnSharedPreferenceChangeListener
+        if (key != null && IGNORE_KEYS.contains(key)) return@OnSharedPreferenceChangeListener
+
+        val generation = mirrorState.currentGeneration
+        val remote = remotePrefs
+        if (remote == null || generation == PrefsMirrorState.NO_GENERATION) {
+            // The change is not lost - it is in the local preferences, and the pass that
+            // runs on the next bind pushes whatever is there. Recording it is what lets the
+            // UI say the module is not running on what the screen shows, instead of the
+            // user finding out by toggling something that does nothing.
+            markUndelivered("service not bound")
+            return@OnSharedPreferenceChangeListener
+        }
+
+        // True while a pass is in flight, in which case that pass may be about to write a
+        // snapshot taken before this change. The state machine has recorded it and will
+        // owe one follow-up pass, so this write does not have to be the last word.
+        mirrorState.onLocalChange()
 
         if (key == null) {
+            // A whole-file change (a restore, or a clear) cannot be mirrored key by key.
+            // It also must not be re-planned here: this listener runs on whichever thread
+            // committed the restore. Hand it to the pass, which owns the planning.
+            requestMirrorPass(generation, "bulk preference change")
+            return@OnSharedPreferenceChangeListener
+        }
+
+        val written = try {
+            val value = sharedPreferences.all[key]
             val edit = remote.edit()
-            for (remoteKey in remote.all.keys) edit.remove(remoteKey)
+            if (value == null) edit.remove(key) else putValue(edit, key, value)
             edit.apply()
-            return@OnSharedPreferenceChangeListener
+            true
+        } catch (t: Throwable) {
+            AppHelper.log(LOG_TAG, "remote write for '$key' failed: $t")
+            false
         }
 
-        if (IGNORE_KEYS.contains(key)) return@OnSharedPreferenceChangeListener
-
-        val value = sharedPreferences.all[key] ?: run {
-            remote.edit().remove(key).apply()
-            return@OnSharedPreferenceChangeListener
+        if (!written) {
+            markUndelivered("remote write failed")
+            scheduleMirrorRetry(generation)
         }
+    }
 
-        val edit = remote.edit()
+    /**
+     * Writes [value] under [key].
+     *
+     * String sets are copied. `SharedPreferences.getAll` hands out the set it stores, and
+     * both this and [PrefsMirror.plan] would otherwise put a live reference to it into the
+     * remote store, where a later local edit could mutate it behind the module's back.
+     */
+    private fun putValue(edit: SharedPreferences.Editor, key: String, value: Any) {
         when (value) {
             is Boolean -> edit.putBoolean(key, value)
             is Float -> edit.putFloat(key, value)
             is Int -> edit.putInt(key, value)
             is Long -> edit.putLong(key, value)
             is String -> edit.putString(key, value)
-            is Set<*> -> @Suppress("UNCHECKED_CAST") edit.putStringSet(key, value as Set<String>)
-            is MutableSet<*> -> @Suppress("UNCHECKED_CAST") edit.putStringSet(key, value as Set<String>)
+            is Set<*> -> @Suppress("UNCHECKED_CAST") edit.putStringSet(key, LinkedHashSet(value as Set<String>))
         }
-        edit.apply()
+    }
+
+    private fun markUndelivered(reason: String) {
+        // Logged once per stretch: a user working through a settings screen with no service
+        // would otherwise fill the log with identical lines.
+        if (mirrorState.markUndelivered()) {
+            AppHelper.log(LOG_TAG, "settings change not mirrored to the module ($reason)")
+        }
+    }
+
+    /** Queues a pass off the caller's thread. Stale generations are dropped by [runMirror]. */
+    private fun requestMirrorPass(generation: Long, reason: String) {
+        handler.post { runMirror(generation, reason) }
+    }
+
+    /**
+     * Re-mirrors once, a short while after a failed write.
+     *
+     * One attempt per bind: [PrefsMirrorState.claimRetry] refuses a second for the same
+     * generation, so a write that fails for good leaves the flag set instead of turning into
+     * a two-second poll. A new bind is a new generation and gets its own single retry.
+     */
+    private fun scheduleMirrorRetry(generation: Long) {
+        if (!mirrorState.claimRetry(generation)) return
+        handler.postDelayed({
+            if (mirrorState.isCurrent(generation)) {
+                runMirror(generation, "retry after a failed write")
+            }
+        }, MIRROR_RETRY_DELAY_MS)
+    }
+
+    /**
+     * Brings the remote snapshot in line with the local preferences.
+     *
+     * One pass, plus at most one more if a change landed while the first was reading. Any
+     * change that arrives after that leaves the mirror reported as incomplete rather than
+     * starting a third pass - the flag is recoverable, an unbounded loop is not.
+     */
+    private fun runMirror(generation: Long, reason: String) {
+        if (!mirrorState.beginPass(generation)) return
+
+        var complete = mirrorPass(generation, reason)
+        if (mirrorState.claimFollowUpPass(generation)) {
+            complete = mirrorPass(generation, "$reason, changed while mirroring") && complete
+        }
+
+        val settled = mirrorState.endPass(generation)
+        if (complete && settled) {
+            mirrorState.clearUndelivered(generation)
+        }
+    }
+
+    /** One pass. Returns true only if a plan was built and committed without throwing. */
+    private fun mirrorPass(generation: Long, reason: String): Boolean {
+        if (!mirrorState.isCurrent(generation)) return false
+        val remote = remotePrefs ?: return false
+        val local = AppHelper.appPrefs?.all ?: return false
+        return try {
+            val plan = PrefsMirror.plan(local, remote.all, IGNORE_KEYS)
+            if (!plan.isEmpty) {
+                // One editor for the whole plan: a per-key commit would be a binder call and
+                // a change callback in every hooked process for every single key.
+                val edit = remote.edit()
+                for ((planKey, planValue) in plan.puts) putValue(edit, planKey, planValue)
+                for (planKey in plan.removes) edit.remove(planKey)
+                edit.apply()
+                AppHelper.log(LOG_TAG, "mirrored ${plan.size} setting(s) to the module ($reason)")
+            }
+            true
+        } catch (t: Throwable) {
+            AppHelper.log(LOG_TAG, "mirror pass failed ($reason): $t")
+            markUndelivered("mirror pass failed")
+            scheduleMirrorRetry(generation)
+            false
+        }
     }
 
     @JvmStatic
@@ -201,7 +356,24 @@ object XposedServiceManager {
                     remotePrefs = s.getRemotePreferences(AppHelper.prefsName + "_remote") as RemotePreferences
                     AppHelper.remotePrefs = remotePrefs
                     AppHelper.moduleActive = true
+
+                    // Order matters. The listener goes on before the generation opens, so a
+                    // change made between the two cannot fall into a gap where neither the
+                    // listener nor the first pass would carry it. Re-registering the same
+                    // instance is a no-op in SharedPreferencesImpl, so a second bind does
+                    // not double up.
                     appPrefs?.registerOnSharedPreferenceChangeListener(prefsChanged)
+                    val generation = mirrorState.onBind()
+
+                    AppHelper.log(
+                        LOG_TAG,
+                        "service bound ${SystemClock.elapsedRealtime() - initElapsedRealtime}ms " +
+                            "after registration (generation $generation)"
+                    )
+                    // Whatever the incremental mirror missed while unbound is pushed by this
+                    // pass. Posted, never run inline: this callback arrives on the daemon's
+                    // binder thread. See handler.
+                    requestMirrorPass(generation, "service bound")
                 }
 
                 override fun onServiceDied(s: XposedService) {
@@ -211,6 +383,10 @@ object XposedServiceManager {
                     remotePrefs = null
                     AppHelper.remotePrefs = null
                     AppHelper.moduleActive = false
+                    // Ends the generation, which is what makes every queued pass and the
+                    // pending retry from this connection no-ops when they run.
+                    mirrorState.onUnbind()
+                    AppHelper.log(LOG_TAG, "service died")
                     try {
                         appPrefs?.unregisterOnSharedPreferenceChangeListener(prefsChanged)
                     } catch (_: Throwable) {
@@ -221,6 +397,7 @@ object XposedServiceManager {
             handler.removeCallbacks(timeoutRunnable)
             state = State.DISCONNECTED
             AppHelper.moduleActive = false
+            AppHelper.log(LOG_TAG, "registerListener threw, giving up: $t")
         }
     }
 }

@@ -18,35 +18,37 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.utils.Helpers
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.sqrt
 
 /**
  * Lock-screen album art processor.
  *
- * - Heavy blur / scale / grayscale work is moved off the main thread into a
- *   single cancellable coroutine pipeline. A new request cancels the previous
- *   one, and only the latest request's result is published.
- * - The input is downsampled before the CPU blur is applied, so fastBlur works
- *   on at most 0.25 MP instead of the original cover resolution.
- * - Processing is skipped while the screen is off/AOD; the raw source is
- *   cached and processed when the screen turns on.
- * - Generated bitmaps are sized to the target View, use CENTER_CROP by default,
- *   and cached/deduplicated by source identity, processing parameters, and
- *   target dimensions.
+ * One consumer, latest wins. Every request takes a generation number; the worker checks it
+ * between the expensive stages and again before publishing, so skipping through a playlist
+ * costs one visible result rather than one per track.
+ *
+ * The single-slot dispatcher is the whole concurrency model. The previous version had one
+ * too, and then opened `withContext(Dispatchers.Default)` as the first statement inside it,
+ * which handed the work straight back to the unbounded pool: two heavy passes really could
+ * run at once, each allocating a full-screen ARGB_8888 frame. Nothing below may reintroduce
+ * a dispatcher hop except the final one to Main, which does no work.
+ *
+ * Cancelling does not stop a running blur - fastBlur is a plain CPU loop with no suspension
+ * points - so cancellation is treated as advisory and the generation check is what actually
+ * keeps a stale frame off the screen.
  */
 object LockScreenAlbumArtController {
 
     private const val BLUR_MAX_PIXELS = 512 * 512
-    private const val CACHE_MAX_ENTRIES = 3
 
     private data class CacheKey(
-        val sourceHash: Int,
+        val sourceId: Int,
         val sourceWidth: Int,
         val sourceHeight: Int,
         val blur: Int,
@@ -56,7 +58,8 @@ object LockScreenAlbumArtController {
         val targetHeight: Int
     )
 
-    private val albumArtCache = LruCache<CacheKey, Bitmap>(CACHE_MAX_ENTRIES)
+    private var albumArtCache: LruCache<CacheKey, Bitmap>? = null
+    private var cacheBudgetBytes = 0
 
     private var miuiThemeUtilsClass: Class<*>? = null
     private var lastContextRef: WeakReference<Context>? = null
@@ -71,6 +74,9 @@ object LockScreenAlbumArtController {
     private val controllerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1) + ModuleHelper.coroutineFailureHandler)
     private var generationJob: Job? = null
 
+    /** Bumped by every new request; only the newest may publish. See [AlbumArtPolicy]. */
+    private val requestGeneration = AtomicLong()
+
     @JvmStatic
     fun setMiuiThemeUtilsClass(cls: Class<*>) {
         miuiThemeUtilsClass = cls
@@ -81,6 +87,22 @@ object LockScreenAlbumArtController {
         if (isAod == aod) return
         isAod = aod
         if (!isAod) processPending()
+    }
+
+    /**
+     * Drops everything held for the lock screen.
+     *
+     * Called when the feature cannot apply at all - no media, or a lock screen theme this
+     * mod does not draw on. Without it the processed frames stayed in the cache for the rest
+     * of the SystemUI process, which is the state the user spends most of the day in.
+     */
+    @JvmStatic
+    fun clear() {
+        requestGeneration.incrementAndGet()
+        generationJob?.cancel()
+        generationJob = null
+        pendingSource = null
+        albumArtCache?.evictAll()
     }
 
     @JvmStatic
@@ -101,6 +123,9 @@ object LockScreenAlbumArtController {
         XposedHelpers.setAdditionalStaticField(cls, "mAlbumArt", null)
 
         if (art == null) {
+            // Playback stopped. Nothing cached can be shown again, and every entry is a
+            // full-screen frame, so let go of them here rather than at the next track.
+            clear()
             sendUpdateBroadcast(context)
             return
         }
@@ -165,29 +190,103 @@ object LockScreenAlbumArtController {
         generate(context, source, pendingBlur, pendingRescale, pendingGrayscale, targetW, targetH)
     }
 
+    /**
+     * The cache for this target size, rebuilt when the size changes.
+     *
+     * Bounded by allocated bytes, not by entry count: three entries is three numbers on a
+     * small screen and 31 MB on a tall one, and it was the tall one that mattered.
+     */
+    private fun cacheFor(targetWidth: Int, targetHeight: Int): LruCache<CacheKey, Bitmap>? {
+        val budget = AlbumArtPolicy.cacheBudgetBytes(targetWidth, targetHeight)
+        if (budget <= 0) return null
+
+        val existing = albumArtCache
+        if (existing != null && !AlbumArtPolicy.shouldRebuildCache(cacheBudgetBytes, budget)) {
+            return existing
+        }
+        existing?.evictAll()
+        cacheBudgetBytes = budget
+        val rebuilt = object : LruCache<CacheKey, Bitmap>(budget) {
+            override fun sizeOf(key: CacheKey, value: Bitmap): Int = value.allocationByteCount
+        }
+        albumArtCache = rebuilt
+        return rebuilt
+    }
+
     private fun generate(context: Context, art: Bitmap, blur: Int, rescale: Int, grayscale: Boolean, targetWidth: Int, targetHeight: Int) {
+        val generation = requestGeneration.incrementAndGet()
         generationJob?.cancel()
         generationJob = controllerScope.launch {
-            val processed = withContext(Dispatchers.Default) {
-                process(context, art, blur, rescale, grayscale, targetWidth, targetHeight)
-            }
-            if (!isActive) return@launch
-            val wallpaperColors = if (processed != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-                withContext(Dispatchers.Default) {
-                    try { WallpaperColors.fromBitmap(processed) } catch (_: Throwable) { null }
+            val processed = process(context, art, blur, rescale, grayscale, targetWidth, targetHeight, generation)
+            if (processed == null || !isCurrent(generation)) return@launch
+
+            val wallpaperColors = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                try {
+                    WallpaperColors.fromBitmap(processed)
+                } catch (_: Throwable) {
+                    null
                 }
-            } else null
+            } else {
+                null
+            }
+            if (!isCurrent(generation)) return@launch
+
             withContext(Dispatchers.Main) {
-                applyResult(context, processed, wallpaperColors)
+                if (isCurrent(generation)) applyResult(context, processed, wallpaperColors)
             }
         }
     }
 
-    private fun process(context: Context, art: Bitmap, blur: Int, rescale: Int, grayscale: Boolean, targetWidth: Int, targetHeight: Int): Bitmap? {
-        val blurred = if (blur > 0) blurArt(art, blur) else art
+    private fun isCurrent(generation: Long): Boolean =
+        AlbumArtPolicy.shouldPublish(generation, requestGeneration.get())
+
+    /**
+     * Blur, scale and colour, checked for staleness between each stage.
+     *
+     * The checks are the only way out of a superseded request: each stage below is a plain
+     * loop over pixels with nothing for a coroutine to cancel at.
+     */
+    private fun process(
+        context: Context,
+        art: Bitmap,
+        blur: Int,
+        rescale: Int,
+        grayscale: Boolean,
+        targetWidth: Int,
+        targetHeight: Int,
+        generation: Long
+    ): Bitmap? {
+        if (!isCurrent(generation)) return null
+
         val width = if (targetWidth > 0) targetWidth else getDisplayWidth(context)
         val height = if (targetHeight > 0) targetHeight else getDisplayHeight(context)
-        return processAlbumArt(blurred, rescale, grayscale, width, height)
+        if (width <= 0 || height <= 0) return null
+
+        // Keyed on the source, not on the blurred intermediate. The old key hashed the
+        // bitmap that came out of the blur - a new object every time - and recorded the blur
+        // radius as a hard-coded 0, so it could never hit and the cache was pure cost.
+        val key = CacheKey(
+            sourceId = System.identityHashCode(art),
+            sourceWidth = art.width,
+            sourceHeight = art.height,
+            blur = blur,
+            rescale = rescale,
+            grayscale = grayscale,
+            targetWidth = width,
+            targetHeight = height
+        )
+        val cache = cacheFor(width, height)
+        cache?.get(key)?.let { return it }
+
+        if (!isCurrent(generation)) return null
+        val blurred = if (blur > 0) blurArt(art, blur) else art
+
+        if (!isCurrent(generation)) return null
+        val processed = drawAlbumArt(blurred, rescale, grayscale, width, height) ?: return null
+
+        if (!isCurrent(generation)) return null
+        cache?.put(key, processed)
+        return processed
     }
 
     private fun blurArt(art: Bitmap, blur: Int): Bitmap? {
@@ -218,21 +317,10 @@ object LockScreenAlbumArtController {
         return point.y
     }
 
-    private fun processAlbumArt(bitmap: Bitmap?, rescale: Int, grayscale: Boolean, width: Int, height: Int): Bitmap? {
+    /** Unchanged geometry: rescale 2 fits inside, everything else is CENTER_CROP. */
+    private fun drawAlbumArt(bitmap: Bitmap?, rescale: Int, grayscale: Boolean, width: Int, height: Int): Bitmap? {
         if (bitmap == null) return null
         if (width <= 0 || height <= 0) return bitmap
-
-        val key = CacheKey(
-            System.identityHashCode(bitmap),
-            bitmap.width,
-            bitmap.height,
-            0,
-            rescale,
-            grayscale,
-            width,
-            height
-        )
-        albumArtCache.get(key)?.let { return it }
 
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
         val transformation = Matrix()
@@ -259,7 +347,6 @@ object LockScreenAlbumArtController {
         val processed = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(processed)
         canvas.drawBitmap(bitmap, transformation, paint)
-        albumArtCache.put(key, processed)
         return processed
     }
 
