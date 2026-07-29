@@ -226,3 +226,19 @@ API 102 的实机证明。
 - 只有取得新的代码、构建或实机证据后，才更新版本结论和验证状态。
 - 不提交 keystore、密码、APK、私人日志、缓存或机器专属数据。
 - 当前公开 Release 已完成；未获用户单独要求时，不创建新 tag、Release、PR 或修改 `main`。
+
+## 公开发布线收束（2026-07-29）
+
+公开状态已统一到 `r14.13.7`：
+
+- `tomthenpc/customiuizer-a14` 只保留 `main` 分支、`r14.13.7` tag 和 `r14.13.7` Release；
+- `Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14` 只保留 `main` 分支、
+  `185-r14.13.7` tag 和 `r14.13.7` Release；
+- 两个 Release 的 APK 均为 `CustoMIUIzer-A14-r14.13.7.apk`，大小均为 3,084,589 bytes，
+  SHA-256 均为
+  `11D01A737BED25C3C4D31153DE22CB918A651D0DD043D0374E2C0E41D32492CC`；
+- 两边 Release 说明已统一，不再引用已删除的回退 Release 或 tag；
+- 历史版本只保留在 Git 提交历史、CHANGELOG 和工程记录中，不再作为公开下载入口。
+
+`r14.13.7` 的静态门禁、测试、lint、构建、产物和签名结论不变；本轮未新增实机证据，
+仍不得称为已完成实机验收的稳定版。
