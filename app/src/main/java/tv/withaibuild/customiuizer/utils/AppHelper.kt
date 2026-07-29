@@ -25,6 +25,14 @@ object AppHelper {
     @JvmField
     var appPrefs: SharedPreferences? = null
 
+    /**
+     * True only while the LSPosed service is bound right now.
+     *
+     * `false` is **not** evidence that the module is inactive: it is also false before the
+     * first bind and while a bind is still in flight. To tell the user the module is not
+     * active, use [XposedServiceManager.shouldReportInactive] after waiting for a decided
+     * state - see [XposedServiceManager.State.isProvisional].
+     */
     @JvmField
     var moduleActive = false
 

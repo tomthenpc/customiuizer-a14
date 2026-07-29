@@ -18,8 +18,9 @@ import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
  * Single owner for the application locale setting.
  *
  * The only persisted user choice is the value of [LOCALE_PREF_KEY]. Everything else
- * (the framework's per-application locale, [Locale.getDefault()]) is a derived,
- * re-creatable state computed from that single source and the current system locale.
+ * (the framework's per-application locale, [Locale.getDefault()], [APPLIED_LOCALE_PREF_KEY])
+ * is a derived, re-creatable state computed from that single source and the current
+ * system locale.
  *
  * Locale changes are deferred: the user confirms once, the choice is persisted
  * synchronously, the settings application exits, and the new language takes effect
@@ -28,6 +29,28 @@ import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
 object AppLocaleController {
 
     const val LOCALE_PREF_KEY = "pref_key_miuizer_locale"
+
+    /**
+     * The last tag this application actually pushed into the framework.
+     *
+     * This exists so that the overwhelmingly common case - the user never touched the
+     * language setting - costs nothing on start-up. Without it, [apply] cannot tell
+     * "auto, and we have never set anything" from "auto, but we previously set an explicit
+     * locale that must now be cleared", so it has to ask `LocaleManager` what the current
+     * application locales are on every single start just to find out there is nothing to do.
+     *
+     * Absent means the framework locale was never set by us, so `auto` needs no work.
+     */
+    const val APPLIED_LOCALE_PREF_KEY = "pref_key_miuizer_locale_applied"
+
+    private const val AUTO = "auto"
+
+    /**
+     * Marker value that names no locale: present, so the fast path is skipped, but not a
+     * tag, so nothing reads it as "this is what we applied". See [invalidateFastPath].
+     */
+    private const val RECONCILE_MARKER = ""
+
     private const val LEGACY_AUTO = "1"
     private const val TAG = "AppLocaleController"
 
@@ -59,11 +82,11 @@ object AppLocaleController {
      */
     @JvmStatic
     fun normalizeLocaleTag(tag: String?): String = when {
-        tag == null || tag.isBlank() -> "auto"
-        tag == LEGACY_AUTO -> "auto"
+        tag == null || tag.isBlank() -> AUTO
+        tag == LEGACY_AUTO -> AUTO
         SUPPORTED_LOCALE_TAGS.contains(tag) -> tag
-        tag.equals("auto", ignoreCase = true) -> "auto"
-        else -> "auto"
+        tag.equals(AUTO, ignoreCase = true) -> AUTO
+        else -> AUTO
     }
 
     /** Read the normalized user selection from the shared preferences. */
@@ -93,14 +116,27 @@ object AppLocaleController {
     /**
      * Apply the stored user locale if it differs from the current runtime state.
      *
-     * Called once during application start-up. [context] is required in production: without
-     * it there is no way to reach the framework locale service, and the call cannot do
-     * anything. Only the unit-test seams may leave it null.
+     * Called once during application start-up, so the switched-off case has to be cheap:
+     * a user on `auto` who has never had a locale applied returns immediately, without a
+     * single call into `LocaleManager` or `Resources.getSystem()`. See
+     * [APPLIED_LOCALE_PREF_KEY] for why that shortcut is safe.
+     *
+     * [context] is required in production: without it there is no way to reach the
+     * framework locale service, and the call cannot do anything. Only the unit-test seams
+     * may leave it null.
      */
     @JvmStatic
     @JvmOverloads
     fun apply(prefs: SharedPreferences?, context: Context? = null): Boolean {
         val tag = getUserLocale(prefs)
+
+        // Fast path for a feature that is switched off. `auto` with nothing ever applied
+        // by us means the framework locale is not ours to manage and the process default
+        // is already the system locale: there is nothing to reconcile, so do not reach for
+        // LocaleManager or Resources.getSystem() at all. This is the state every user who
+        // never opens the language setting is in, and it runs on every application start.
+        if (tag == AUTO && !hasAppliedLocale(prefs)) return false
+
         val targetLocaleList = toLocaleListCompat(tag)
         val currentLocaleList = getCurrentApplicationLocales(context)
         val effective = getEffectiveLocale(tag)
@@ -113,11 +149,15 @@ object AppLocaleController {
             Locale.setDefault(effective)
         }
 
+        var applied = true
         if (appLocaleChanged) {
             Log.i(TAG, "Applying locale: tag=$tag")
             val applier = applicationLocaleApplier
-            when {
-                applier != null -> applier(targetLocaleList)
+            applied = when {
+                applier != null -> {
+                    applier(targetLocaleList)
+                    true
+                }
                 context != null -> setFrameworkApplicationLocales(context, targetLocaleList)
                 else -> {
                     Log.e(TAG, "apply() without a Context: the locale cannot be applied")
@@ -126,7 +166,54 @@ object AppLocaleController {
             }
         }
 
+        // Keep the marker in step with what is now in force. This also runs when nothing
+        // changed, which is what migrates installs whose explicit locale was applied
+        // before the marker existed: without it their eventual switch back to `auto`
+        // would take the fast path and never clear the framework locale.
+        if (applied) syncAppliedMarker(prefs, tag)
+
         return appLocaleChanged
+    }
+
+    /**
+     * Whether this application currently has a locale of its own pushed into the framework.
+     *
+     * An absent marker means the framework locale is not ours to manage, so `auto` has
+     * nothing to undo.
+     */
+    private fun hasAppliedLocale(prefs: SharedPreferences?): Boolean =
+        prefs?.getString(APPLIED_LOCALE_PREF_KEY, null) != null
+
+    /**
+     * Force the next [apply] to take the full reconcile path.
+     *
+     * Restoring a settings backup replaces the whole preference file with values from
+     * another device, whose framework locale has nothing to do with this one's. The fast
+     * path would then trust a marker that describes the wrong device - or find no marker
+     * at all and leave a locale this app had set still in force - so drop the shortcut
+     * once and let the next start work it out from `LocaleManager`.
+     */
+    @JvmStatic
+    fun invalidateFastPath(prefs: SharedPreferences?) {
+        prefs?.edit()?.putString(APPLIED_LOCALE_PREF_KEY, RECONCILE_MARKER)?.apply()
+    }
+
+    /**
+     * Record what is now in force, so the next start can take the fast path.
+     *
+     * Writes only on an actual change: this runs on every start of an install that uses
+     * an explicit language, and there is no reason to touch storage each time.
+     */
+    private fun syncAppliedMarker(prefs: SharedPreferences?, tag: String) {
+        prefs ?: return
+        val stored = prefs.getString(APPLIED_LOCALE_PREF_KEY, null)
+        if (tag == AUTO) {
+            // Back under system control: drop the marker rather than store a value that
+            // only means "nothing".
+            if (stored != null) prefs.edit().remove(APPLIED_LOCALE_PREF_KEY).apply()
+        } else if (stored != tag) {
+            prefs.edit().putString(APPLIED_LOCALE_PREF_KEY, tag).apply()
+        }
     }
 
     /**
@@ -141,16 +228,18 @@ object AppLocaleController {
      *
      * `LocaleManager` is API 33 and `minSdk` is 34, so it is always present.
      */
-    private fun setFrameworkApplicationLocales(context: Context, locales: LocaleListCompat) {
+    private fun setFrameworkApplicationLocales(context: Context, locales: LocaleListCompat): Boolean {
         val manager = context.getSystemService(LocaleManager::class.java)
         if (manager == null) {
             Log.e(TAG, "LocaleManager unavailable; locale not applied")
-            return
+            return false
         }
-        try {
+        return try {
             manager.applicationLocales = LocaleList.forLanguageTags(locales.toLanguageTags())
+            true
         } catch (t: Throwable) {
             Log.e(TAG, "LocaleManager rejected the locale list", t)
+            false
         }
     }
 

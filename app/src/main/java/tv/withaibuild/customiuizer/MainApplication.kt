@@ -27,6 +27,8 @@ class MainApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Returns immediately unless the user actually chose a language: the language
+        // setting is optional, so it must not put work on the start-up path when it is off.
         // Pass the Application context: without it the locale is applied through
         // AppCompat, which silently does nothing this early. See AppLocaleController.
         AppHelper.appPrefs?.let { AppLocaleController.apply(it, this) }

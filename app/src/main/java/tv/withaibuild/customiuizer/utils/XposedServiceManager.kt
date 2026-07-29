@@ -27,7 +27,37 @@ object XposedServiceManager {
      * Only [DISCONNECTED] justifies telling the user the module is not active without
      * further waiting.
      */
-    enum class State { UNKNOWN, BOUND, TIMED_OUT, DISCONNECTED }
+    enum class State {
+        UNKNOWN, BOUND, TIMED_OUT, DISCONNECTED;
+
+        /**
+         * True while the state is still only provisional, i.e. the bind may yet succeed.
+         *
+         * [TIMED_OUT] is provisional for the same reason [UNKNOWN] is: nothing has been
+         * observed. A caller that waits only while the state is [UNKNOWN] stops the moment
+         * the timeout fires and then reads [TIMED_OUT] as a negative — the exact
+         * misjudgement that made "module not active" appear after a language change
+         * restarted this process.
+         */
+        val isProvisional: Boolean
+            get() = this == UNKNOWN || this == TIMED_OUT
+    }
+
+    /**
+     * Whether the module may be reported as inactive to the user.
+     *
+     * Only [State.DISCONNECTED] is a proven negative. [State.TIMED_OUT] qualifies solely
+     * because a caller that has already waited out its whole budget has to say something:
+     * pass `bindStillPending = true` only after such a wait, never straight off a state read.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun shouldReportInactive(current: State = state, bindStillPending: Boolean = false): Boolean =
+        when (current) {
+            State.DISCONNECTED -> true
+            State.TIMED_OUT -> bindStillPending
+            State.UNKNOWN, State.BOUND -> false
+        }
 
     @JvmField
     @Volatile
@@ -65,6 +95,7 @@ object XposedServiceManager {
 
     private val IGNORE_KEYS = setOf(
         "pref_key_miuizer_locale",
+        "pref_key_miuizer_locale_applied",
         "pref_key_miuizer_launchericon",
         "pref_key_miuizer_synced_from_lsposed"
     )
