@@ -33,6 +33,9 @@ import java.util.Date
 import java.util.HashMap
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.mods.GlobalActions
@@ -122,23 +125,7 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
                 return true
             }
             R.id.softreboot -> {
-                // Not `!AppHelper.moduleActive`: that flag is also false while the bind is
-                // merely still pending, so tapping this shortly after a process start
-                // claimed the module was inactive when nothing had been observed yet.
-                if (XposedServiceManager.shouldReportInactive(bindStillPending = true)) {
-                    showXposedDialog(activity as AppCompatActivity?)
-                    return true
-                }
-                AlertDialog.Builder(getValidContext())
-                    .setTitle(R.string.soft_reboot)
-                    .setMessage(R.string.soft_reboot_ask)
-                    .setPositiveButton(android.R.string.ok) { _, _ ->
-                        val intent = Intent(GlobalActions.ACTION_PREFIX + "FastReboot")
-                        intent.setPackage("com.android.systemui")
-                        getValidContext().sendBroadcast(intent)
-                    }
-                    .setNegativeButton(android.R.string.cancel) { _, _ -> }
-                    .show()
+                confirmSoftReboot()
                 return true
             }
             R.id.about -> {
@@ -156,11 +143,65 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         return false
     }
 
+    /**
+     * Waits until the bind state can no longer change the answer, i.e. the service bound,
+     * died, or [XposedServiceManager.FULL_DECISION_BUDGET_MS] elapsed since registration.
+     *
+     * Returns false if the coroutine was cancelled, in which case the caller must stop.
+     *
+     * The budget is measured from registration, not from this call, so on any screen
+     * opened more than a few seconds into the process this returns without waiting at all.
+     * The upper bound is a safety net for the case where the manager was never started.
+     */
+    protected suspend fun awaitBindDecision(): Boolean {
+        val deadline = System.currentTimeMillis() + XposedServiceManager.FULL_DECISION_BUDGET_MS
+        while (!XposedServiceManager.isDecided() && System.currentTimeMillis() < deadline) {
+            if (!coroutineContext.isActive) return false
+            delay(100L)
+        }
+        return coroutineContext.isActive
+    }
+
+    private fun confirmSoftReboot() {
+        val act = activity as? AppCompatActivity ?: return
+        lifecycleScope.launch {
+            // Same rule as the module check on the main screen: a pending bind is not a
+            // negative, so wait for a decided state instead of reading it straight off.
+            // In practice the budget elapsed long before the user reached this menu, so
+            // this does not actually wait.
+            if (!awaitBindDecision()) return@launch
+            if (act.isFinishing || act.isDestroyed || !isAdded) return@launch
+
+            if (XposedServiceManager.shouldReportInactive()) {
+                showXposedDialog(act)
+                return@launch
+            }
+            AlertDialog.Builder(getValidContext())
+                .setTitle(R.string.soft_reboot)
+                .setMessage(R.string.soft_reboot_ask)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    val intent = Intent(GlobalActions.ACTION_PREFIX + "FastReboot")
+                    intent.setPackage("com.android.systemui")
+                    getValidContext().sendBroadcast(intent)
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ -> }
+                .show()
+        }
+    }
+
+    /**
+     * Reports that the LSPosed service is not reachable.
+     *
+     * The wording deliberately stops short of "the module is not active". The state that
+     * gets here is usually [XposedServiceManager.State.TIMED_OUT], which is a bind that
+     * has not arrived yet, not a bind that failed - an unusually slow one still binds
+     * afterwards, and a dialog asserting the module is inactive would then be simply wrong.
+     */
     open fun showXposedDialog(act: AppCompatActivity?) {
         if (act == null || act.isFinishing || act.isDestroyed) return
         AlertDialog.Builder(act)
             .setTitle(R.string.warning)
-            .setMessage(R.string.module_not_active)
+            .setMessage(R.string.lsposed_not_connected)
             .setCancelable(true)
             .setPositiveButton(android.R.string.ok) { _, _ -> }
             .show()

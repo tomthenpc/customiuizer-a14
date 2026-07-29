@@ -838,7 +838,7 @@
     <string name="credentials_ok">As credenciais já estão desbloqueadas</string>
     <string name="credentials_unlock">Desbloquear credenciais</string>
     <string name="credentials_success">Credenciais desbloqueadas!</string>
-    <string name="module_not_active">O módulo não está ativo!\nAbra o LSPosed, ative o módulo e reinicie.</string>
+    <string name="lsposed_not_connected">Ainda não conectado ao serviço LSPosed.\nSe o módulo não estiver ativo, abra o LSPosed, ative-o e reinicie.</string>
     <string name="delete_item_info">Pressione e segure o item para excluir</string>
     <string name="permission_scan">Deseja obter uma lista de redes/dispositivos ou não?</string>
     <string name="permission_permanent">Agora você precisará habilitar manualmente a permissão para esta opção. Bom trabalho!</string>

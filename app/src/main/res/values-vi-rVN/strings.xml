@@ -838,7 +838,7 @@
     <string name="credentials_ok">Chứng chỉ đã được mở khóa</string>
     <string name="credentials_unlock">Mở khóa chứng chỉ</string>
     <string name="credentials_success">Chứng chỉ đã được mở khóa!</string>
-    <string name="module_not_active">Mô-đun không hoạt động!\nMở ứng dụng LSPosed, kích hoạt mô-đun và khởi động lại.</string>
+    <string name="lsposed_not_connected">Chưa kết nối được tới dịch vụ LSPosed.\nNếu mô-đun chưa được kích hoạt, hãy mở LSPosed, kích hoạt và khởi động lại.</string>
     <string name="delete_item_info">Nhấn và giữ để xóa</string>
     <string name="permission_scan">Bạn có muốn nhận danh sách mạng/thiết bị không?</string>
     <string name="permission_permanent">Bây giờ bạn phải bật quyền cho tùy chọn này theo cách thủ công. Tốt lắm!</string>

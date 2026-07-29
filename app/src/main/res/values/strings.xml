@@ -874,7 +874,7 @@
     <string name="credentials_unlock">Unlock credentials</string>
     <string name="credentials_success">Credentials unlocked!</string>
 
-    <string name="module_not_active">Module is not active!\nOpen LSPosed app, activate module and reboot.</string>
+    <string name="lsposed_not_connected">Not connected to the LSPosed service yet.\nIf the module is not activated, open LSPosed, activate it and reboot.</string>
     <string name="delete_item_info">Long press item to delete</string>
     <string name="permission_scan">Do you want to get a list of networks/devices or not?</string>
     <string name="permission_permanent">You\'ll have to manually enable permission for this option now. Good job!</string>

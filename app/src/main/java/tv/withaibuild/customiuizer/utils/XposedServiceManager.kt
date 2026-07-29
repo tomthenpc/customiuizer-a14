@@ -3,6 +3,7 @@ package tv.withaibuild.customiuizer.utils
 import android.content.SharedPreferences
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import io.github.libxposed.service.RemotePreferences
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
@@ -44,20 +45,53 @@ object XposedServiceManager {
     }
 
     /**
-     * Whether the module may be reported as inactive to the user.
+     * Whether the module may be reported as not connected to the user.
      *
-     * Only [State.DISCONNECTED] is a proven negative. [State.TIMED_OUT] qualifies solely
-     * because a caller that has already waited out its whole budget has to say something:
-     * pass `bindStillPending = true` only after such a wait, never straight off a state read.
+     * Only [State.DISCONNECTED] is a proven negative. [State.TIMED_OUT] qualifies only once
+     * [FULL_DECISION_BUDGET_MS] has elapsed since [init], because at that point a caller
+     * that keeps silent would never report a module that really is inactive.
+     *
+     * That elapsed check is deliberately owned here rather than passed in by callers. It
+     * used to be a `bindStillPending` flag, and the very first caller added after the
+     * flag - the soft-reboot menu item - passed `true` without waiting for anything,
+     * reintroducing the misjudgement the flag existed to prevent.
      */
     @JvmStatic
     @JvmOverloads
-    fun shouldReportInactive(current: State = state, bindStillPending: Boolean = false): Boolean =
+    fun shouldReportInactive(current: State = state): Boolean =
         when (current) {
             State.DISCONNECTED -> true
-            State.TIMED_OUT -> bindStillPending
+            State.TIMED_OUT -> decisionBudgetElapsed()
+            // UNKNOWN means the timeout has not even fired yet, so nothing has been
+            // observed and there is nothing to report.
             State.UNKNOWN, State.BOUND -> false
         }
+
+    /**
+     * Whether the bind state can still change the answer [shouldReportInactive] gives.
+     *
+     * A caller that is about to act on the state should wait for this, not for the state
+     * to stop being [State.isProvisional] - a bind that never arrives leaves the state
+     * provisional forever, and this is what puts a bound on the wait.
+     */
+    @JvmStatic
+    fun isDecided(): Boolean = !state.isProvisional || decisionBudgetElapsed()
+
+    /**
+     * Whether enough time has passed since [init] that a still-pending bind counts against
+     * the module.
+     *
+     * Measured from the registration attempt with [SystemClock.elapsedRealtime], so it is
+     * unaffected by the wall clock and by how long any particular screen has been open.
+     * Before [init] runs there is nothing to time, and nothing has been observed either,
+     * so the budget has not elapsed.
+     */
+    @JvmStatic
+    fun decisionBudgetElapsed(): Boolean {
+        val started = initElapsedRealtime
+        if (started == NOT_STARTED) return false
+        return SystemClock.elapsedRealtime() - started >= FULL_DECISION_BUDGET_MS
+    }
 
     @JvmField
     @Volatile
@@ -69,7 +103,14 @@ object XposedServiceManager {
     @JvmField
     var remotePrefs: RemotePreferences? = null
 
+    private const val NOT_STARTED = 0L
+
     private var initialized = false
+
+    /** [SystemClock.elapsedRealtime] at [init], or [NOT_STARTED]. */
+    @Volatile
+    private var initElapsedRealtime = NOT_STARTED
+
     private val handler = Handler(Looper.getMainLooper())
 
     /**
@@ -83,6 +124,17 @@ object XposedServiceManager {
      * slowest.
      */
     const val BIND_DECISION_TIMEOUT_MS = 3500L
+
+    /**
+     * Total time from [init] before a still-pending bind is allowed to count against the
+     * module. Two bind windows plus a margin: the first covers an ordinary start, the
+     * second covers a bind still in flight after a process restart - which is what a
+     * language change forces, and when binding is slowest.
+     *
+     * This lives here, not in a screen, so that every caller answers the question the same
+     * way regardless of when it happened to open.
+     */
+    const val FULL_DECISION_BUDGET_MS = BIND_DECISION_TIMEOUT_MS * 2 + 500L
 
     private val timeoutRunnable = Runnable {
         if (state == State.UNKNOWN) {
@@ -135,6 +187,7 @@ object XposedServiceManager {
     fun init(appPrefs: SharedPreferences?) {
         if (initialized) return
         initialized = true
+        initElapsedRealtime = SystemClock.elapsedRealtime()
 
         handler.removeCallbacks(timeoutRunnable)
         handler.postDelayed(timeoutRunnable, BIND_DECISION_TIMEOUT_MS)

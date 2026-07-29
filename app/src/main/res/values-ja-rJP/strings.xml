@@ -838,7 +838,7 @@
     <string name="credentials_ok">認証情報は既に解除されています。</string>
     <string name="credentials_unlock">認証情報の解除</string>
     <string name="credentials_success">認証情報を解除しました!</string>
-    <string name="module_not_active">モジュールは有効化されていません!\nLSPosedアプリを開き、モジュールを有効化後に再起動をしてください。</string>
+    <string name="lsposed_not_connected">LSPosed サービスにまだ接続できていません。\nモジュールが有効化されていない場合は、LSPosed アプリを開き、有効化してから再起動してください。</string>
     <string name="delete_item_info">削除する項目を長押しします</string>
     <string name="permission_scan">ネットワークまたはデバイスのリストを取得しますか?</string>
     <string name="permission_permanent">このオプションは手動で許可する必要があります。グッジョブ!!</string>

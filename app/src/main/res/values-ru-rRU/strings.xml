@@ -818,7 +818,7 @@
     <string name="credentials_ok">Учётные данные уже разблокированы</string>
     <string name="credentials_unlock">Разблокировать учётные данные</string>
     <string name="credentials_success">Учётные данные разблокированы!</string>
-    <string name="module_not_active">Модуль не активен!\nОткройте LSPosed, активируйте модуль и перезагрузите.</string>
+    <string name="lsposed_not_connected">Пока нет подключения к службе LSPosed.\nЕсли модуль не активирован, откройте LSPosed, активируйте его и перезагрузите.</string>
     <string name="delete_item_info">Используйте долгое нажатие для удаления</string>
     <string name="permission_scan">Вы хотите получить список сетей/устройств или нет?</string>
     <string name="permission_permanent">Теперь Вам придётся искать где вручную дать разрешение для данной функции. Так держать!</string>

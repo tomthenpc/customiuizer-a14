@@ -25,8 +25,6 @@ import androidx.recyclerview.widget.RecyclerView
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -44,17 +42,6 @@ import tv.withaibuild.customiuizer.utils.SearchStateMachine
 import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
 class MainFragment : PreferenceFragmentBase() {
-
-    private companion object {
-        /**
-         * Total time this screen waits for a decided bind state before it is willing to
-         * say the module is not active. Two of the service manager's own windows plus a
-         * margin: the first covers an ordinary start, the second covers a bind that is
-         * still in flight after a process restart.
-         */
-        const val MODULE_DECISION_BUDGET_MS =
-            XposedServiceManager.BIND_DECISION_TIMEOUT_MS * 2 + 500L
-    }
 
     private val catSelector = CategorySelector()
 
@@ -115,41 +102,20 @@ class MainFragment : PreferenceFragmentBase() {
 
     private fun checkModuleIsActive() {
         lifecycleScope.launch {
-            // Keep waiting across the service manager's own deadline. A timeout is not
+            // Keep waiting across the service manager's own bind deadline. A timeout is not
             // proof - only onServiceDied is - and the bind is slowest right after this
             // process was restarted, which is exactly when the user is looking at this
             // screen. The previous code stopped waiting as soon as the state left UNKNOWN,
             // so entering TIMED_OUT ended the wait immediately and was then read as a
             // negative; a language change, which kills and relaunches this process, made
             // that race visible as an intermittent "module not active".
-            if (!awaitDecision(MODULE_DECISION_BUDGET_MS)) return@launch
+            if (!awaitBindDecision()) return@launch
 
             val act = activity as? AppCompatActivity ?: return@launch
-            // The budget is spent, so a still-pending bind now counts as a negative -
-            // otherwise a genuinely inactive module would never be reported.
-            if (isFragmentReady(act) &&
-                XposedServiceManager.shouldReportInactive(bindStillPending = true)
-            ) {
+            if (isFragmentReady(act) && XposedServiceManager.shouldReportInactive()) {
                 showXposedDialog(act)
             }
         }
-    }
-
-    /**
-     * Waits up to [timeoutMs] for the service state to stop being provisional, i.e. to
-     * become BOUND or DISCONNECTED. UNKNOWN and TIMED_OUT are both provisional.
-     *
-     * Returns false if the coroutine was cancelled, in which case the caller must stop.
-     */
-    private suspend fun awaitDecision(timeoutMs: Long): Boolean {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (XposedServiceManager.state.isProvisional &&
-            System.currentTimeMillis() < deadline
-        ) {
-            if (!coroutineContext.isActive) return false
-            delay(100L)
-        }
-        return coroutineContext.isActive
     }
 
     override fun onCreatePreferences(@Nullable savedInstanceState: Bundle?, @Nullable rootKey: String?) {
