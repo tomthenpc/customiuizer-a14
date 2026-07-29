@@ -37,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.utils.AppHelper
+import tv.withaibuild.customiuizer.utils.AppLocaleController
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
@@ -490,6 +491,9 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
                 input.readObject() as Map<String, Any?>
             }
             AppHelper.syncPrefsToAnother(entries, AppHelper.appPrefs!!, 1, null, false)
+            // The restored file describes another device; its language marker says nothing
+            // about the framework locale in force here.
+            AppLocaleController.invalidateFastPath(AppHelper.appPrefs)
 
             AlertDialog.Builder(validAct)
                 .setTitle(R.string.do_restore)

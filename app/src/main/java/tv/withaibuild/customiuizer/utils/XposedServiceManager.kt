@@ -95,6 +95,7 @@ object XposedServiceManager {
 
     private val IGNORE_KEYS = setOf(
         "pref_key_miuizer_locale",
+        "pref_key_miuizer_locale_applied",
         "pref_key_miuizer_launchericon",
         "pref_key_miuizer_synced_from_lsposed"
     )
