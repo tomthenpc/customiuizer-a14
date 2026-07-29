@@ -8,23 +8,45 @@
 - 仓库：`tomthenpc/customiuizer-a14`
 - 正式发布版本：`r14.13.6` / versionCode `184`
 - 正式发布日期：2026-07-29
-- 正式 tag：`r14.13.5` → `4225d80e95ed9965ab68a09b575aff4046666a5d`
+- 正式 tag：`r14.13.6` → `be5191b5`
 - 当前正式源码基线：`main` / `r14.13.6`
-- 源码仓库 Release：[r14.13.5](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.5)
+- 源码仓库 Release：[r14.13.6](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.6)
 - LSPosed 模块仓库 tag：`184-r14.13.6`
-- LSPosed 模块仓库 Release：[183-r14.13.5](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/183-r14.13.5)
-- `r14.13.4` 已撤回；其 GitHub Release 与 tag 已删除，历史资产信息见
-  [RELEASE_ARCHIVE.md](RELEASE_ARCHIVE.md)。
-- 当前 `main` 承载 `r14.13.6` 正式发布提交。
+- LSPosed 模块仓库 Release：[184-r14.13.6](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/184-r14.13.6)
+- `r14.13.5` 的两个 Release 条目已移除（**非撤回**，无已知缺陷；仅保留 r14.13 系列最新一个），
+  Git tag 与源码保留，资产信息见 [RELEASE_ARCHIVE.md](RELEASE_ARCHIVE.md)。
+- `r14.13.4` 已撤回；其 Release 与 tag 已删除。
+- 当前 `main` 承载 `r14.13.6` 正式发布提交；开发分支 `devin/r14.13-kotlin-refactor` 与 `main` 同点。
+
+## ⚠️ 本版本的验证状态
+
+**`r14.13.6` 在未完成实机验收的情况下发布**（用户明确要求先发布再测试）。
+
+已通过：`check-invariants` 113 文件 / 8 规则 / 0 违规；122 项单元测试 0 失败；
+`lintDebug` / `lintRelease` / `lintVitalRelease` 均 0 errors；`assembleDebug` 与 `assembleRelease` 通过；
+APK v2 签名与 zipalign 校验通过；`META-INF/xposed` 元数据完好。
+
+**未做**：任何设备上的运行。下列全部待验：
+
+- 关于页切换界面语言 → 退出 → 重新进入，语言是否真的改变（含切回「跟随系统」）
+- 反复切语言 + 切浅色/深色后是否仍会弹「模块未被激活」
+- 搜索结果跳转后开关状态是否立即刷新；主界面搜索结果顺序与高亮
+- SystemUI 多次主题 / 密度 / 折叠态切换后，receiver 与偏好观察者数量不再增长
+- 状态栏电池温度与电流在缺少 `POWER_SUPPLY_TEMP` 的机型上降级而非崩溃
+- 电源键 / 音量键长按（手电筒、媒体控制）、导航栏左右键长按未配置动作时仍落到 ROM 默认行为
+- 锁屏手电筒长按、PIP 截图隐藏、侧边栏、freeform 广播动作
+- 时钟秒针在 `TIME_SET` 后重新初始化（多时钟控制器共存）
+- Launcher 应用重命名：设自定义名、清空恢复原名、重启 Launcher 后仍正确
+- 拆分过的各功能面（状态栏、控制中心、锁屏、通知、Launcher 手势/图标/文件夹/布局/动画）
+
+拿到实机日志后按 `docs/LOG_TRIAGE.md` 分诊。**先确认日志里有
+`CustoMIUIzer r14.13.6 (184) loaded in <进程>`**，否则说明装的不是这个构建。
 
 ## 当前活跃开发分支
 
 - 分支：`devin/r14.13-kotlin-refactor`
-- 分支基点：`064ba854`（与 `main` 相同），当前 ahead 4 / behind 0
-- 正在进行：**运行期健壮性与热路径加固**（尚未发版，版本号仍为 `r14.13.5` / `183`）
-
-该分支此前完成的 `A14 设置状态稳定化：语言切换确认、退出后生效与重启策略统一`
-已经合并进 `main` / `r14.13.5` 正式基线。之后该分支重新启用，承载下述加固工作。
+- 状态：全部工作已合并进 `main` 并发布为 `r14.13.6`，与 `main` 同点。
+- 下方各轮记录保留为改动依据；每一轮的结论以其中的验证证据为准。
 
 ### 本轮加固（2026-07-28）
 
@@ -122,25 +144,6 @@
   唯一 15 处差异是 `access$` 桥接方法参数类型随宿主类变更、一一对应；
   Release APK 3,065,633 字节与拆分前完全相同
 
-### 待实机验证的候选 APK（2026-07-29）
-
-| 项 | 值 |
-| --- | --- |
-| 路径 | `C:\Users\tv\Downloads\Peengeek\out\CustoMIUIzer-A14-r14.13.5.apk` |
-| 构建自 | `fa9489e8`（分支 `devin/r14.13-kotlin-refactor`） |
-| APK SHA-256 | `1FFAB36A6E7F250CCD63B6883B8F5D97F6707EA8EC400F0D39C1A6ABDD99C2BF` |
-| 大小 | 3,082,129 bytes |
-| 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`（v2，1 个签名者） |
-| 版本 | `r14.13.5` / `183`（未改版本线） |
-| Xposed metadata | `minApiVersion=101` / `targetApiVersion=102` / `staticScope=false`，11 条 scope |
-
-证书与 `r14.13.5` 正式版是同一把，可直接覆盖安装，无需卸载。
-两次独立 `assembleRelease` 产出字节相同的 APK（SHA 一致），构建可复现。
-
-模块现在会在每个进程打一行 `CustoMIUIzer r14.13.5 (183) loaded in <进程>`，
-已确认该字面量存在于 `classes.dex`（R8 把拼接折叠成了单条常量）。
-拿到日志先看这一行，确认是这个构建再往下分析 —— 规程见 `docs/LOG_TRIAGE.md`。
-
 ### 待实机验证
 
 - SystemUI 多次主题 / 密度 / 折叠态切换后，receiver 与偏好观察者数量不再增长
@@ -164,7 +167,8 @@
 | libxposed | min API `101` / target API `102` / `staticScope=false` |
 
 `r14.12.0` 及更早公开版本的旧签名私钥已经遗失。它们不能直接覆盖安装
-`r14.13.5`；升级时必须备份设置、卸载旧版、安装 `r14.13.5`、重新启用作用域、恢复设置并完整重启。
+`r14.13.6`；升级时必须备份设置、卸载旧版、安装 `r14.13.6`、重新启用作用域、恢复设置并完整重启。
+`r14.13.5` → `r14.13.6` 为同一签名，可直接覆盖。
 
 ## 已验证
 
