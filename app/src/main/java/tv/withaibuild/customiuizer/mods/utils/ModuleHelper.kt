@@ -618,11 +618,18 @@ class ModuleHelper private constructor() {
         fun isTrustedBroadcast(
             receiver: BroadcastReceiver,
             vararg allowedPackages: String,
-            allowNull: Boolean = false
+            allowNull: Boolean = false,
+            rejectionResultCode: Int? = null
         ): Boolean {
             val fromPackage = receiver.getSentFromPackage()
             if (fromPackage == null) return allowNull
-            return fromPackage in allowedPackages
+            if (fromPackage !in allowedPackages) {
+                if (rejectionResultCode != null && receiver.isOrderedBroadcast) {
+                    receiver.setResultCode(rejectionResultCode)
+                }
+                return false
+            }
+            return true
         }
 
         @JvmStatic

@@ -51,13 +51,14 @@ class BTList : SubFragment() {
         @Suppress("DEPRECATION")
         @SuppressLint("MissingPermission")
         override fun onReceive(context: Context, intent: Intent) {
-            if (getSentFromPackage() != "com.android.systemui") return
+            if (!ModuleHelper.isTrustedBroadcast(this, "com.android.systemui", rejectionResultCode = GlobalActions.ACTION_FAILED)) return
             val deviceList = intent.getParcelableArrayListExtra<BluetoothDevice>("device_list")
             btList.clear()
             deviceList?.forEach { btList.add(Pair(it.address, it.name)) }
             btAdapter1?.notifyDataSetChanged()
             btAdapter2?.notifyDataSetChanged()
             updateProgressBar()
+            if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
         }
     }
 

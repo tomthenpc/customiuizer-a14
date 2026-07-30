@@ -401,12 +401,16 @@ object SystemLockScreenHooks {
                     val noScreenLockReceiver = object : BroadcastReceiver() {
                         override fun onReceive(context: Context, intent: Intent) {
                             val action = intent.action ?: return
-                            val fromPackage = getSentFromPackage()
                             when (action) {
-                                GlobalActions.ACTION_PREFIX + "UnlockSetForced" -> if (fromPackage != Helpers.modulePkg) return
-                                GlobalActions.ACTION_PREFIX + "BTConnectionChanged" -> if (fromPackage != "com.android.systemui") return
+                                GlobalActions.ACTION_PREFIX + "UnlockSetForced" ->
+                                    if (!ModuleHelper.isTrustedBroadcast(this, Helpers.modulePkg, rejectionResultCode = GlobalActions.ACTION_FAILED)) return
+                                GlobalActions.ACTION_PREFIX + "BTConnectionChanged" ->
+                                    if (!ModuleHelper.isTrustedBroadcast(this, "com.android.systemui", rejectionResultCode = GlobalActions.ACTION_FAILED)) return
                                 WifiManager.NETWORK_STATE_CHANGED_ACTION -> { }
-                                else -> return
+                                else -> {
+                                    if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_FAILED)
+                                    return
+                                }
                             }
 
                             if (action == GlobalActions.ACTION_PREFIX + "UnlockSetForced")
@@ -445,6 +449,7 @@ object SystemLockScreenHooks {
                             } catch (t: Throwable) {
                                 XposedHelpers.log(t)
                             }
+                            if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
                         }
                     }
                     XposedHelpers.setAdditionalInstanceField(thisObject, "noScreenLockReceiver", noScreenLockReceiver)
@@ -512,7 +517,7 @@ object SystemLockScreenHooks {
                     val mContext = chain.getArg(0) as Context
                     val fetchCachedDevicesReceiver = object : BroadcastReceiver() {
                         override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
-                            if (getSentFromPackage() != Helpers.modulePkg) return@guarded
+                            if (!ModuleHelper.isTrustedBroadcast(this, Helpers.modulePkg, rejectionResultCode = GlobalActions.ACTION_FAILED)) return@guarded
                             val deviceList = ArrayList<BluetoothDevice>()
                             val updateIntent = Intent(GlobalActions.EVENT_PREFIX + "CACHEDDEVICESUPDATE")
                             val cachedDevices = XposedHelpers.callMethod(thisObject, "getDevices") as Collection<*>?
@@ -525,6 +530,7 @@ object SystemLockScreenHooks {
                             updateIntent.putParcelableArrayListExtra("device_list", deviceList)
                             updateIntent.setPackage(Helpers.modulePkg)
                             ModuleHelper.sendBroadcastWithIdentity(mContext, updateIntent)
+                            if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
                         }
                     }
                     ModuleHelper.registerModuleReceiver(

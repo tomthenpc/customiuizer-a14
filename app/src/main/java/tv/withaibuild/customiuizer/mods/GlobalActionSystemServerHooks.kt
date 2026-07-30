@@ -57,7 +57,8 @@ object GlobalActionSystemServerHooks {
                                     Helpers.modulePkg,
                                     "android",
                                     "com.android.systemui",
-                                    "com.miui.home"
+                                    "com.miui.home",
+                                    rejectionResultCode = GlobalActions.ACTION_FAILED
                                 )
                             ) return
 
@@ -134,6 +135,7 @@ object GlobalActionSystemServerHooks {
                                     }
                                 }
                             }
+                            if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
                         }
                     }, intentfilter, Context.RECEIVER_EXPORTED)
                 } catch (t: Throwable) {

@@ -652,7 +652,10 @@ object Various {
                                     fromPackage != "android" &&
                                     fromPackage != "com.android.systemui" &&
                                     fromPackage != "com.miui.home"
-                                ) return@guarded
+                                ) {
+                                    if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_FAILED)
+                                    return@guarded
+                                }
                                 val bundle = intent.getBundleExtra("actionInfo")
                                 var pos = originDockLocation
                                 if (bundle != null) {
@@ -660,6 +663,7 @@ object Various {
                                     view.context.getSharedPreferences("sp_video_box", 0).edit().putInt("dock_line_location", pos).apply()
                                 }
                                 showSideBar(view, pos)
+                                if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
                             }
                         }
                         ModuleHelper.registerModuleReceiver(view.context, "showSideBarReceiver", showReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"), Context.RECEIVER_EXPORTED)

@@ -192,7 +192,8 @@ object GlobalActions {
                         Helpers.modulePkg,
                         "android",
                         "com.android.systemui",
-                        "com.miui.home"
+                        "com.miui.home",
+                        rejectionResultCode = ACTION_FAILED
                     )
                 ) return
 
@@ -485,6 +486,7 @@ object GlobalActions {
                         Settings.System.putLong(context.contentResolver, "last_music_paused_time", java.lang.System.currentTimeMillis())
                     }
                 }
+                if (isOrderedBroadcast) resultCode = ACTION_HANDLED
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
             }

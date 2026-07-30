@@ -49,8 +49,11 @@ class AppSelector : SubFragmentWithSearch() {
 
     private val configReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action != GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG") return
-            if (getSentFromPackage() != "com.miui.home") return
+            if (intent.action != GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG") {
+                if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_FAILED)
+                return
+            }
+            if (!ModuleHelper.isTrustedBroadcast(this, "com.miui.home", rejectionResultCode = GlobalActions.ACTION_FAILED)) return
             val datatype = intent.getStringExtra("DATATYPE")
             if (datatype == "privacy") {
                 configFetched = true
@@ -60,6 +63,7 @@ class AppSelector : SubFragmentWithSearch() {
                     if (isAdded) setupList()
                 }
             }
+            if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
         }
     }
 

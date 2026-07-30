@@ -348,8 +348,11 @@ object Launcher {
                     val fetchAppConfigReceiver = object : BroadcastReceiver() {
                         override fun onReceive(context: Context, intent: Intent) {
                             try {
-                                if (intent.action == null) return
-                                if (getSentFromPackage() != Helpers.modulePkg) return
+                                if (intent.action == null) {
+                                    if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_FAILED)
+                                    return
+                                }
+                                if (!ModuleHelper.isTrustedBroadcast(this, Helpers.modulePkg, rejectionResultCode = GlobalActions.ACTION_FAILED)) return
                                 if ((GlobalActions.EVENT_PREFIX + "FETCHAPPCONFIG") == intent.action) {
                                     val pushIntent = Intent(GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG")
                                     pushIntent.setPackage(Helpers.modulePkg)
@@ -373,6 +376,7 @@ object Launcher {
                                         context.contentResolver.notifyChange(Uri.parse("content://com.miui.securitycenter.provider/update_privacyapps_icon"), null)
                                     }
                                 }
+                                if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
                             } catch (t: Throwable) {
                                 XposedHelpers.log(t)
                             }
