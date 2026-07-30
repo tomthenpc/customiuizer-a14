@@ -68,6 +68,7 @@ public class MainModule extends XposedModule {
     private static boolean mPrefsLoaded = false;
     private static boolean mPrefsWatcherRegistered = false;
     private static boolean mEmptyPrefsReported = false;
+    private static boolean mSystemServerLoadMarkerLogged = false;
 
     @Override
     public void onModuleLoaded(@NonNull XposedModuleInterface.ModuleLoadedParam param) {
@@ -208,6 +209,14 @@ public class MainModule extends XposedModule {
     public void onSystemServerStarting(final SystemServerStartingParam lpparam) {
         if (!isSupportedAndroidVersion()) return;
         ModuleHelper.currentPackageName = "android";
+        if (processName == null) {
+            processName = "system_server";
+            HookDiagnostics.currentProcessName = processName;
+        }
+        if (!mSystemServerLoadMarkerLogged) {
+            mSystemServerLoadMarkerLogged = true;
+            XposedHelpers.log("CustoMIUIzer " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ") loaded in " + processName);
+        }
         initPrefs();
         PackagePermissions.hook(lpparam);
         if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupGlobalActions(lpparam);
