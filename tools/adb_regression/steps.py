@@ -46,15 +46,21 @@ def _run_adb(ctx: dict[str, Any], args: list[str], timeout: int) -> tuple[int, s
 
 
 def _parse_log_timestamp(ts: str) -> datetime:
-    """Parse a MM-DD HH:MM:SS.mmm style timestamp as UTC today."""
-    date_part, time_part = ts.split(None, 1)
-    month, day = date_part.split("-", 1)
+    """Parse ADB logcat (MM-DD HH:MM:SS.mmm) or LSPosed verbose (YYYY-MM-DDTHH:MM:SS.mmm) timestamps as UTC."""
+    if "T" in ts:
+        # ISO-8601 style from LSPosed verbose logs: YYYY-MM-DDTHH:MM:SS.mmm
+        date_part, time_part = ts.split("T", 1)
+        year, month, day = date_part.split("-", 2)
+    else:
+        # ADB logcat style: MM-DD HH:MM:SS.mmm
+        date_part, time_part = ts.split(None, 1)
+        month, day = date_part.split("-", 1)
+        year = datetime.now(timezone.utc).year
     hms, ms = time_part.rsplit(".", 1)
     hour, minute, second = hms.split(":", 2)
-    year = datetime.now(timezone.utc).year
     micro = int(ms.ljust(6, "0")[:6])
     return datetime(
-        year, int(month), int(day), int(hour), int(minute), int(second), micro,
+        int(year), int(month), int(day), int(hour), int(minute), int(second), micro,
         tzinfo=timezone.utc,
     )
 

@@ -10,7 +10,7 @@ LOG_SOURCE_ADB = "ADB_LOGCAT"
 LOG_SOURCE_LSP = "LSPOSED_VERBOSE"
 
 _TIMESTAMP_RE = re.compile(
-    r"^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3,6})\b"
+    r"(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3,6}|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6})\b"
 )
 
 MODULE_LOAD_RE = re.compile(
