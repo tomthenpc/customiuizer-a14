@@ -297,6 +297,12 @@
     <string name="system_noscreenlock_force_unlocked">Force unlocked</string>
     <string name="system_noscreenlock_force_off">Do not force</string>
     <string name="unlock_token_missing">This saved Tasker/Locale task is missing a security token. Please re-save it to generate one.</string>
+    <string name="unlock_host_missing">No calling application was found. The plugin can only be configured from a host such as Tasker or Locale.</string>
+    <string name="unlock_host_untrusted">Could not verify the calling application: %1$s</string>
+    <string name="unlock_host_cert_mismatch">"%1$s" (%2$s) does not match the previously bound signing certificate.\nCurrent cert: %3$s</string>
+    <string name="unlock_host_summary">Host: %1$s\nPackage: %2$s\nCurrent certificate:\n%3$s\nCertificate history:\n%4$s</string>
+    <string name="unlock_host_first">%1$s\n\nTap OK to bind this host and issue a security token.</string>
+    <string name="unlock_host_reuse">%1$s\n\nThis host is already bound. The existing token will be reused.</string>
     <string name="system_screenanim_duration_title">Turning off animation</string>
     <string name="system_screenanim_duration_summ">Configure animation length</string>
     <string name="system_screenanim_desc">Very low values will practically disable animation</string>

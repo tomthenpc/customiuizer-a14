@@ -9,6 +9,16 @@
 	android:paddingLeft="@dimen/preference_item_child_padding"
 	tools:ignore="RtlHardcoded,RtlSymmetry">
 
+	<TextView
+		android:id="@+id/host_info"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:paddingLeft="@dimen/preference_item_child_padding"
+		android:paddingTop="8dp"
+		android:paddingRight="@dimen/preference_item_child_padding"
+		android:textIsSelectable="true"
+		android:visibility="visible" />
+
 	<RadioGroup
 		android:id="@+id/force_option"
 		android:layout_width="wrap_content"

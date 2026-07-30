@@ -40,7 +40,7 @@
 | `tv.withaibuild.customiuizer.mods.event.PUSHAPPCONFIG` | `com.miui.home` | `tv.withaibuild.customiuizer.r14`（AppSelector） | `identity` | Launcher 返回隐私应用配置；必须显式 `setPackage(modulePkg)` 并共享身份。 |
 | `tv.withaibuild.customiuizer.mods.action.FetchCachedDevices` | `tv.withaibuild.customiuizer.r14`（BTList） | `com.android.systemui` | `signature` | 模块请求 SystemUI 缓存的蓝牙设备。 |
 | `tv.withaibuild.customiuizer.mods.event.CACHEDDEVICESUPDATE` | `com.android.systemui` | `tv.withaibuild.customiuizer.r14`（BTList） | `identity` | SystemUI 返回蓝牙设备；必须共享身份。 |
-| `tv.withaibuild.customiuizer.mods.action.UnlockSetForced` | `tv.withaibuild.customiuizer.r14`（UnlockReceiver） | `com.android.systemui` | `identity` + `per-install token` | 强制设置解锁状态。从 Tasker / Locale 进入时，exported `UnlockReceiver` 先校验 per-install token，然后以 module 身份重新广播给 SystemUI；`noScreenLockReceiver` 再按 `getSentFromPackage() == modulePkg` 放行。 |
+| `tv.withaibuild.customiuizer.mods.action.UnlockSetForced` | `tv.withaibuild.customiuizer.r14`（UnlockReceiver） | `com.android.systemui` | `identity` + `per-host token` | 强制设置解锁状态。`UnlockSettings` 按调用方 package + 签名证书签发 per-host token；`UnlockReceiver` 校验 `getSentFromPackage()` 与 Bundle 中记录的 host 一致且该 host token 正确后，再以 module 身份重新广播给 SystemUI；`noScreenLockReceiver` 按 `getSentFromPackage() == modulePkg` 放行。 |
 | `tv.withaibuild.customiuizer.mods.action.BTConnectionChanged` | `com.android.systemui` | `com.android.systemui` | `identity` | 同进程，共享身份即可证明来源。 |
 | `android.net.wifi.STATE_CHANGE` | `android` (system) | `com.android.systemui` | `none` | 系统广播，身份不一定可获取；只做网络状态检查，不执行直接解锁。 |
 
@@ -48,7 +48,7 @@
 
 | action / 入口 | 当前状态 | 本轮策略 | 风险 |
 | --- | --- | --- | --- |
-| `com.twofortyfouram.locale.intent.action.FIRE_SETTING` | `UnlockReceiver` exported | `per-install token` | Tasker / Locale 插件保存配置时，将 per-install token 写入 Bundle。`UnlockReceiver` 在转发 `UnlockSetForced` 前验证 token；缺失、错误、空或异常时直接拒绝。老任务没有 token，重新保存后即可恢复。token 不依赖包名、不硬编码、不输出到日志或导出数据。 |
+| `com.twofortyfouram.locale.intent.action.FIRE_SETTING` | `UnlockReceiver` exported | `per-host token` | `UnlockSettings` 以 `getCallingPackage()` + 当前签名证书/历史签发 per-host token。插件 Bundle 携带 host package 与 token。`UnlockReceiver` 必须取得广播发送者身份（`getSentFromPackage()`），并与 Bundle 中记录的 host 比对；token 按 host 独立存储与校验。不同 host 不能共用 token，同一包名但签名不匹配会被拒绝，合法证书轮换可通过历史识别。旧的全局 token 已失效，老任务需重新保存。 |
 
 ## 不再使用的方案
 
