@@ -436,16 +436,18 @@ class ModuleHelper private constructor() {
          * regardless of how many times the hook fires.
          */
         @JvmStatic
+        @JvmOverloads
         fun registerModuleReceiver(
             context: Context,
             key: String,
             receiver: BroadcastReceiver,
             filter: IntentFilter,
-            flags: Int
+            flags: Int,
+            permission: String? = null
         ) {
             unregisterModuleReceiver(key)
             try {
-                context.registerReceiver(receiver, filter, flags)
+                context.registerReceiver(receiver, filter, permission, null, flags)
                 moduleReceivers[key] = ReceiverRegistration(WeakReference(context), receiver)
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
@@ -480,13 +482,15 @@ class ModuleHelper private constructor() {
          * cannot do this: the new instance never sees the old instance's field.
          */
         @JvmStatic
+        @JvmOverloads
         fun registerOwnedReceiver(
             context: Context,
             owner: Any,
             key: String,
             receiver: BroadcastReceiver,
             filter: IntentFilter,
-            flags: Int
+            flags: Int,
+            permission: String? = null
         ) {
             val registrations = ownedReceivers.computeIfAbsent(key) { CopyOnWriteArrayList() }
             registrations.removeIf { registration ->
@@ -496,7 +500,7 @@ class ModuleHelper private constructor() {
                 true
             }
             try {
-                context.registerReceiver(receiver, filter, flags)
+                context.registerReceiver(receiver, filter, permission, null, flags)
                 registrations.add(OwnedReceiver(WeakReference(owner), WeakReference(context), receiver))
             } catch (t: Throwable) {
                 XposedHelpers.log(t)

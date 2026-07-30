@@ -656,7 +656,7 @@ object Various {
                                 showSideBar(view, pos)
                             }
                         }
-                        ModuleHelper.registerModuleReceiver(view.context, "showSideBarReceiver", showReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"), Context.RECEIVER_EXPORTED)
+                        ModuleHelper.registerModuleReceiver(view.context, "showSideBarReceiver", showReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"), Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
                         XposedHelpers.setAdditionalInstanceField(thisObject, "showReceiver", showReceiver)
 
                         if (!isHooked[1]) {

@@ -126,7 +126,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                    }, intentfilter, Context.RECEIVER_EXPORTED)
+                    }, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
@@ -143,7 +143,8 @@ object GlobalActionSystemServerHooks {
             "fastRebootReceiver",
             GlobalActions.fastRebootReceiver,
             filter,
-            Context.RECEIVER_EXPORTED
+            Context.RECEIVER_EXPORTED,
+            GlobalActions.BROADCAST_PERMISSION
         )
     }
 
@@ -205,7 +206,7 @@ object GlobalActionSystemServerHooks {
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "LaunchIntent")
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "SaveLastMusicPausedTime")
 
-                    ModuleHelper.registerModuleReceiver(mContext, "statusBarActionReceiver", GlobalActions.mSBReceiver, intentfilter, Context.RECEIVER_EXPORTED)
+                    ModuleHelper.registerModuleReceiver(mContext, "statusBarActionReceiver", GlobalActions.mSBReceiver, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
@@ -274,7 +275,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                        ModuleHelper.registerModuleReceiver(mContext, "freeformModeReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
+                        ModuleHelper.registerModuleReceiver(mContext, "freeformModeReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
                     }
@@ -331,7 +332,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                        ModuleHelper.registerModuleReceiver(mContext, "soScSplitScreenReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
+                        ModuleHelper.registerModuleReceiver(mContext, "soScSplitScreenReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
                     }
@@ -376,7 +377,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                        ModuleHelper.registerModuleReceiver(mContext, "autoBrightnessReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
+                        ModuleHelper.registerModuleReceiver(mContext, "autoBrightnessReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
                     }

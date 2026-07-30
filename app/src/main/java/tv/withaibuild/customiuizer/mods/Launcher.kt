@@ -378,7 +378,7 @@ object Launcher {
                         }
                     }
                     XposedHelpers.setAdditionalInstanceField(thisObject, "fetchAppConfigReceiver", fetchAppConfigReceiver)
-                    ModuleHelper.registerOwnedReceiver(act, act, "fetchAppConfigReceiver", fetchAppConfigReceiver, intentFilter, Context.RECEIVER_EXPORTED)
+                    ModuleHelper.registerOwnedReceiver(act, act, "fetchAppConfigReceiver", fetchAppConfigReceiver, intentFilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)

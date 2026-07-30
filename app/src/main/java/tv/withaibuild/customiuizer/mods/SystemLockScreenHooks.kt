@@ -441,7 +441,7 @@ object SystemLockScreenHooks {
                         }
                     }
                     XposedHelpers.setAdditionalInstanceField(thisObject, "noScreenLockReceiver", noScreenLockReceiver)
-                    ModuleHelper.registerModuleReceiver(mContext, "noScreenLockReceiver", noScreenLockReceiver, filter, Context.RECEIVER_EXPORTED)
+                    ModuleHelper.registerModuleReceiver(mContext, "noScreenLockReceiver", noScreenLockReceiver, filter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
@@ -524,7 +524,8 @@ object SystemLockScreenHooks {
                         "fetchCachedDevicesReceiver",
                         fetchCachedDevicesReceiver,
                         IntentFilter(GlobalActions.ACTION_PREFIX + "FetchCachedDevices"),
-                        Context.RECEIVER_EXPORTED
+                        Context.RECEIVER_EXPORTED,
+                        GlobalActions.BROADCAST_PERMISSION
                     )
 
                 } catch (t: Throwable) {

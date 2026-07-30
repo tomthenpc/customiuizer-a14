@@ -284,7 +284,7 @@ class AppSelector : SubFragmentWithSearch() {
     private fun registerReceivers() {
         if (privacy) {
             val ctx = getValidContext()
-            ctx.registerReceiver(configReceiver, IntentFilter(GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG"), Context.RECEIVER_EXPORTED)
+            ctx.registerReceiver(configReceiver, IntentFilter(GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG"), GlobalActions.BROADCAST_PERMISSION, null, Context.RECEIVER_EXPORTED)
             val intent = Intent(GlobalActions.EVENT_PREFIX + "FETCHAPPCONFIG")
             intent.putExtra("DATATYPE", "privacy")
             intent.setPackage("com.miui.home")

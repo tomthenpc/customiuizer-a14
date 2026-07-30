@@ -25,6 +25,15 @@
         tools:ignore="ProtectedPermissions" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <permission
+        android:name="tv.withaibuild.customiuizer.r14.permission.BROADCAST"
+        android:label="@string/permission_broadcast_label"
+        android:description="@string/permission_broadcast_description"
+        android:protectionLevel="signatureOrSystem"
+        tools:ignore="SignatureOrSystemPermissions" />
+
+    <uses-permission android:name="tv.withaibuild.customiuizer.r14.permission.BROADCAST" />
+
     <application
         android:hasFragileUserData="true"
         android:hardwareAccelerated="true"

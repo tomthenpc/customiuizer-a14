@@ -51,6 +51,15 @@ object GlobalActions {
     const val EVENT_PREFIX = "tv.withaibuild.customiuizer.mods.event."
 
     /**
+     * Shared permission for all cross-process module broadcasts.
+     *
+     * The receiver is protected by this permission instead of only the action string,
+     * so a third-party app that knows the action cannot trigger high-privilege commands
+     * unless it is signed with the module certificate or is a trusted system component.
+     */
+    const val BROADCAST_PERMISSION = "tv.withaibuild.customiuizer.r14.permission.BROADCAST"
+
+    /**
      * Result codes for actions the settings app sends as an ordered broadcast.
      *
      * They exist so the settings app can tell "the module is not in the host" from "the
