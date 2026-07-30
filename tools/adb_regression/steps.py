@@ -229,12 +229,19 @@ def execute_logcat_assert(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str
     if not isinstance(expected, dict):
         expected = {}
     timeout = _timeout(step, ctx)
+    lsposed_text = ctx.get("lsposed_text", "")
+
+    # Always capture real logcat for crash detection and process state.
     try:
-        rc, text = _logcat(ctx, timeout)
+        rc, real_logcat = _logcat(ctx, timeout)
     except Exception as exc:
         return _result(step, "ERROR", f"logcat capture failed: {exc}")
     if rc == -1:
         return _result(step, "ERROR", "logcat timed out")
+
+    # When an LSPosed log is supplied, assertions and module markers use it;
+    # crash detection continues to use the live adb logcat.
+    text = lsposed_text if lsposed_text else real_logcat
 
     patterns = expected.get("patterns", [])
     absent = expected.get("absent", [])
@@ -250,7 +257,7 @@ def execute_logcat_assert(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str
     message = "; ".join(messages) if messages else "logcat ok"
 
     markers = parsers.parse_module_markers(text)
-    crashes = parsers.parse_crash_markers(text)
+    crashes = parsers.parse_crash_markers(real_logcat)
 
     for ef in step.get("evidenceFiles", []):
         path = ctx["out_dir"] / ef
@@ -281,8 +288,10 @@ def execute_hook_summary(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str,
         expected = {}
     timeout = _timeout(step, ctx)
     try:
-        # Logcat may already be in ctx from a previous step; otherwise fetch it.
-        if ctx.get("last_logcat"):
+        # Use an injected LSPosed log when available; otherwise use real logcat.
+        if ctx.get("lsposed_text"):
+            text = ctx["lsposed_text"]
+        elif ctx.get("last_logcat"):
             text = ctx["last_logcat"]
         else:
             rc, text = _logcat(ctx, timeout)

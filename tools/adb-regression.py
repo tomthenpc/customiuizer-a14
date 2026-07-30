@@ -365,7 +365,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     adb = find_adb(args.adb)
     serial, _ = _select_serial(adb, args.serial, args.timeout)
     preflight = _collect_preflight(adb, serial, args.timeout)
-    return runner.run(adb=adb, serial=serial, preflight=preflight, args=args)
+    return runner.run(adb=adb, serial=serial, preflight=preflight, args=args, lsposed_log=args.lsposed_log)
 
 
 def cmd_propose_evidence(args: argparse.Namespace) -> int:
@@ -395,6 +395,7 @@ def main() -> int:
     p.add_argument("--install", action="store_true", help="install the specified APK")
     p.add_argument("--allow-dangerous", action="store_true", help="allow dangerous steps")
     p.add_argument("--verbose", action="store_true", help="verbose output")
+    p.add_argument("--lsposed-log", type=_normalize_path, help="path to LSPosed verbose log file to use for assertions")
     p.set_defaults(func=cmd_run)
 
     p = sub.add_parser("propose-evidence", help="propose device evidence from a report", parents=[parent])

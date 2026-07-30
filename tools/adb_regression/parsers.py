@@ -60,19 +60,27 @@ def parse_module_markers(text: str) -> dict[str, str]:
 
 
 def _parse_kv_hook(line: str) -> dict[str, Any] | None:
-    """Parse a [HookSummary] key=value form of the summary line."""
+    """Parse a HookSummary key=value form of the summary line.
+
+    Handles the real LSPosed verbose format where the line is prefixed by a
+    timestamp and tag, e.g. ``[Pengeek] CustoMIUIzer HookSummary ...``.  Keys
+    may appear in any order and only the keys actually present are populated.
+    """
     if not HOOK_SUMMARY_KV_RE.search(line):
         return None
     keys = (
         "process", "stage", "installed", "classMissing", "memberMissing",
         "failed", "silentSkipped", "dexkitFailed", "dexkitNoMatch", "prefsUnavailable",
     )
-    record: dict[str, Any] = {}
+    defaults: dict[str, Any] = {"process": "", "stage": ""}
+    record: dict[str, Any] = {k: defaults.get(k, 0) for k in keys}
+    found_any = False
     for key in keys:
         pattern = rf"\b{key}=(\S+)"
         m = re.search(pattern, line, re.IGNORECASE)
         if not m:
-            return None
+            continue
+        found_any = True
         value = m.group(1).rstrip(";,")
         if key in ("process", "stage"):
             record[key] = value
@@ -81,6 +89,8 @@ def _parse_kv_hook(line: str) -> dict[str, Any] | None:
                 record[key] = int(value)
             except ValueError:
                 return None
+    if not found_any:
+        return None
     return record
 
 

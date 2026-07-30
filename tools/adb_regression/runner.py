@@ -79,6 +79,7 @@ def run(
     serial: str,
     preflight: dict[str, Any],
     args: Any,
+    lsposed_log: Path | None = None,
 ) -> int:
     """Run a regression plan.  Returns 0/1/2/3."""
     plan_path = Path(args.plan).expanduser().resolve()
@@ -107,6 +108,12 @@ def run(
     preflight_path = out_dir / "preflight.json"
     _write_json(preflight_path, preflight)
 
+    lsposed_text = ""
+    lsposed_log_lines: list[str] = []
+    if lsposed_log:
+        lsposed_text = lsposed_log.read_text(encoding="utf-8")
+        lsposed_log_lines = lsposed_text.splitlines()
+
     ctx: dict[str, Any] = {
         "adb": adb,
         "serial": serial,
@@ -122,6 +129,8 @@ def run(
         "snapshots": {},
         "last_logcat": "",
         "simulation": simulation,
+        "lsposed_log_lines": lsposed_log_lines,
+        "lsposed_text": lsposed_text,
     }
 
     step_results: list[dict[str, Any]] = []

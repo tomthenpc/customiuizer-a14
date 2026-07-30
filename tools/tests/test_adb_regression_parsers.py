@@ -137,6 +137,56 @@ class ParsersTest(unittest.TestCase):
         self.assertEqual(result["status"], "ERROR")
         self.assertIn("timed out", result["message"].lower())
 
+    def test_lsposed_module_marker(self) -> None:
+        text = (
+            "[Pengeek] CustoMIUIzer r14.13.8 (186) loaded in com.android.systemui\n"
+        )
+        markers = parsers.parse_module_markers(text)
+        self.assertIn("com.android.systemui", markers)
+        self.assertEqual(markers["com.android.systemui"], "r14.13.8 (186)")
+
+    def test_lsposed_module_marker_with_timestamp(self) -> None:
+        text = (
+            "06-01 12:00:00.000  1234  1234 I Pengeek: "
+            "[Pengeek] CustoMIUIzer r14.13.8 (186) loaded in com.android.systemui\n"
+        )
+        markers = parsers.parse_module_markers(text)
+        self.assertIn("com.android.systemui", markers)
+        self.assertEqual(markers["com.android.systemui"], "r14.13.8 (186)")
+
+    def test_lsposed_hook_summary_real(self) -> None:
+        text = (
+            "[Pengeek] CustoMIUIzer HookSummary "
+            "stage=onPackageReady process=com.android.systemui installed=43 "
+            "classMissing=0 memberMissing=0 failed=0 silentSkipped=0 "
+            "dexkitFailed=0 dexkitNoMatch=0 prefsUnavailable=0\n"
+        )
+        records = parsers.parse_hook_summary(text)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["process"], "com.android.systemui")
+        self.assertEqual(records[0]["stage"], "onPackageReady")
+        self.assertEqual(records[0]["installed"], 43)
+
+    def test_lsposed_hook_summary_reordered(self) -> None:
+        text = (
+            "[Pengeek] CustoMIUIzer HookSummary "
+            "installed=12 prefsUnavailable=1 process=system_server "
+            "failed=2 classMissing=3 silentSkipped=4 memberMissing=5 "
+            "dexkitFailed=6 dexkitNoMatch=7 stage=init\n"
+        )
+        records = parsers.parse_hook_summary(text)
+        self.assertEqual(len(records), 1)
+        self.assertEqual(records[0]["process"], "system_server")
+        self.assertEqual(records[0]["stage"], "init")
+        self.assertEqual(records[0]["installed"], 12)
+        self.assertEqual(records[0]["classMissing"], 3)
+        self.assertEqual(records[0]["memberMissing"], 5)
+        self.assertEqual(records[0]["failed"], 2)
+        self.assertEqual(records[0]["silentSkipped"], 4)
+        self.assertEqual(records[0]["dexkitFailed"], 6)
+        self.assertEqual(records[0]["dexkitNoMatch"], 7)
+        self.assertEqual(records[0]["prefsUnavailable"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
