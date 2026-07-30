@@ -24,6 +24,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).parent))
 
+import adb_regression.evidence as evidence
 import adb_regression.parsers as parsers
 import adb_regression.plan as plan
 import adb_regression.runner as runner
@@ -383,7 +384,11 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_propose_evidence(args: argparse.Namespace) -> int:
-    die("propose-evidence not yet implemented in this milestone", 2)
+    report_path = Path(args.report).expanduser().resolve()
+    output_path = Path(args.output).expanduser().resolve()
+    if output_path.is_dir() or not output_path.suffix == ".json":
+        output_path = output_path / "proposal.json"
+    return evidence.propose(report_path, output_path)
 
 
 def main() -> int:
