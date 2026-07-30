@@ -27,6 +27,10 @@ jobs:
           python-version: '3.12'
       - name: Run static invariant gate
         run: python tools/check-invariants.py
+      - name: Validate ADB regression smoke plan
+        run: python tools/adb-regression.py validate-plan --plan adb-regression/a14-smoke.json
+      - name: Validate ADB regression evidence schema
+        run: python -c "import json, pathlib; json.loads(pathlib.Path('adb-regression/evidence-schema.json').read_text(encoding='utf-8'))"
       - name: Run ROM scanner fixture tests
         run: python -m unittest discover -s tools/tests -p "test_*.py"
       - name: Audit feature semantics
