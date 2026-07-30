@@ -205,11 +205,11 @@
       ]
     },
     {
-      "target": "systemui",
+      "target": "system_server",
       "class": "Lcom/android/server/policy/PhoneWindowManager;",
       "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
       "sourceHookFunction": "EnhancedSecurityHook",
-      "targetProcessPackage": "com.android.systemui",
+      "targetProcessPackage": "android",
       "methods": [
         {
           "name": "showGlobalActions",

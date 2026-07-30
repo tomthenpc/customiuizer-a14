@@ -395,6 +395,7 @@ def staged_kotlin_files() -> list[Path]:
 
 
 MANIFEST = REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml"
+MAIN_MODULE = REPO_ROOT / "app" / "src" / "main" / "java" / "tv" / "withaibuild" / "customiuizer" / "MainModule.java"
 AUDIT_DOC = REPO_ROOT / "docs" / "EXPORTED_COMPONENTS.md"
 
 
@@ -476,6 +477,51 @@ def check_rom_contracts() -> list[Finding]:
 
             if source_hook and source_hook not in source_text:
                 findings.append(Finding("rom-contracts", contract_path, 0, f"sourceHookFunction '{source_hook}' not found in {target.get('sourceFile')}"))
+                continue
+
+            # Derive expected target from the install entry / parameter type.
+            if source_hook == "onSystemServerStarting" or source_hook == "onPackageReady":
+                method_match = re.search(
+                    rf"(?:public\s+void|fun)\s+{re.escape(source_hook)}\s*\(([^)]*)\)",
+                    MAIN_MODULE.read_text(encoding="utf-8") if source_file == MAIN_MODULE else source_text,
+                )
+                if method_match and "SystemServerStartingParam" in method_match.group(1):
+                    if target_name != "system_server" or pkg != "android":
+                        findings.append(
+                            Finding(
+                                "rom-contracts",
+                                contract_path,
+                                0,
+                                f"{source_hook} uses SystemServerStartingParam; target must be 'system_server' / 'android', got '{target_name}' / '{pkg}'",
+                            )
+                        )
+            else:
+                signature_match = re.search(
+                    rf"fun\s+{re.escape(source_hook)}\s*\(([^)]*)\)",
+                    source_text,
+                )
+                if signature_match:
+                    params = signature_match.group(1)
+                    if "SystemServerStartingParam" in params:
+                        if target_name != "system_server" or pkg != "android":
+                            findings.append(
+                                Finding(
+                                    "rom-contracts",
+                                    contract_path,
+                                    0,
+                                    f"{source_hook} uses SystemServerStartingParam; target must be 'system_server' / 'android', got '{target_name}' / '{pkg}'",
+                                )
+                            )
+                    elif "PackageReadyParam" in params:
+                        if target_name == "system_server":
+                            findings.append(
+                                Finding(
+                                    "rom-contracts",
+                                    contract_path,
+                                    0,
+                                    f"{source_hook} uses PackageReadyParam but is declared as '{target_name}'",
+                                )
+                            )
 
     return findings
 
