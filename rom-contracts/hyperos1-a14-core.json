@@ -1,0 +1,115 @@
+{
+  "schemaVersion": 1,
+  "contractName": "HyperOS 1 / Android 14 core hook contracts",
+  "romFamily": "HyperOS",
+  "androidApi": 34,
+  "coverage": {
+    "status": "partial",
+    "verifiedBy": "source-reference",
+    "totalPlanned": 30,
+    "totalInThisFile": 6,
+    "notes": [
+      "This is the baseline set. Remaining systemui / launcher / securitycenter contracts should be extracted after running javap/baksmali against a target ROM.",
+      "Methods marked optional have not yet had their exact return type verified on a real ROM."
+    ]
+  },
+  "targets": [
+    {
+      "target": "systemui",
+      "class": "Lcom/android/systemui/SystemUIInitializer;",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
+      "sourceHookFunction": "onPackageReady",
+      "targetProcessPackage": "com.android.systemui",
+      "methods": [
+        {
+          "name": "init",
+          "descriptor": "(Z)V",
+          "required": true,
+          "description": "Entry point for SystemUI initialization; used to install status-bar hooks."
+        }
+      ]
+    },
+    {
+      "target": "systemui",
+      "class": "Lcom/android/keyguard/KeyguardPINView;",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
+      "sourceHookFunction": "ScramblePINHook",
+      "targetProcessPackage": "com.android.systemui",
+      "methods": [
+        {
+          "name": "onFinishInflate",
+          "descriptor": "()V",
+          "required": true,
+          "description": "Used to re-order PIN buttons when scramble PIN is enabled."
+        }
+      ]
+    },
+    {
+      "target": "systemui",
+      "class": "Lcom/android/keyguard/KeyguardUpdateMonitor;",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
+      "sourceHookFunction": "EnhancedSecurityHook",
+      "targetProcessPackage": "com.android.systemui",
+      "methods": [
+        {
+          "name": "onFingerprintAuthenticated",
+          "descriptor": "(IZ)V",
+          "required": false,
+          "optional": true,
+          "description": "Candidate signature; verify on ROM before promoting to required."
+        }
+      ]
+    },
+    {
+      "target": "systemui",
+      "class": "Lcom/android/keyguard/clock/KeyguardClockContainer;",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
+      "sourceHookFunction": "HideLockscreenClockHook",
+      "targetProcessPackage": "com.android.systemui",
+      "methods": [
+        {
+          "name": "setVisibility",
+          "descriptor": "(I)V",
+          "required": false,
+          "optional": true,
+          "description": "Candidate; used to hide lock screen clock when configured."
+        }
+      ]
+    },
+    {
+      "target": "systemui",
+      "class": "Lcom/android/server/wallpaper/WallpaperManagerService;",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
+      "sourceHookFunction": "SetLockscreenWallpaperHook",
+      "targetProcessPackage": "com.android.systemui",
+      "methods": [
+        {
+          "name": "setWallpaper",
+          "descriptor": "(Ljava/lang/String;)Landroid/os/ParcelFileDescriptor;",
+          "required": false,
+          "optional": true,
+          "description": "Candidate signature; the actual overload is ROM-specific."
+        }
+      ]
+    },
+    {
+      "target": "launcher",
+      "class": "Landroid/app/Application;",
+      "anyOf": [
+        "Landroid/app/Application;",
+        "Landroid/app/ContextImpl;"
+      ],
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
+      "sourceHookFunction": "onPackageReady",
+      "targetProcessPackage": "com.miui.home",
+      "methods": [
+        {
+          "name": "attach",
+          "descriptor": "(Landroid/content/Context;)V",
+          "required": true,
+          "description": "Used to detect launcher process and load launcher gesture hooks."
+        }
+      ]
+    }
+  ]
+}
