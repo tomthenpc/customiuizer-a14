@@ -11,11 +11,11 @@
 
 | 项目 | 值 |
 | --- | --- |
-| 版本 | `r14.13.5` / versionCode 183 |
+| 版本 | `r14.13.8` / versionCode 186 |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
-| APK | `CustoMIUIzer-A14-r14.13.5.apk` |
-| 大小 | 3,032,173 bytes |
-| APK SHA-256 | `89AE5046564F69D491DC44F7B853443113FEC7100FE997ABA9984181C4983EA5` |
+| APK | `CustoMIUIzer-A14-r14.13.8.apk` |
+| 大小 | 3,085,209 bytes |
+| APK SHA-256 | `B0E7D4A3CB50E39748531D5B0FD3CB95F81C1F777DDAC9E346B8C8D67B8CBE62` |
 | 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
 | libxposed 元数据 | `minApiVersion=101`、`targetApiVersion=102`、`staticScope=false` |
 
@@ -33,6 +33,36 @@
 
 发布资产以 GitHub Release 中的文件和摘要为准。本仓库不提交 APK、keystore、密码、
 构建缓存或本地日志。
+
+## r14.13.8 最终验证
+
+正式基线为 `main` / tag `r14.13.8`。本版本只收口已冻结的结构整理和快速重启 Receiver
+修复，不改动 Toast 屏蔽、`AnimationScale`、Vector Binder 或其他无关功能。
+
+### 实机验收
+
+- 测试提交：`dcbbebc8bbb84710b998ee588171fb9d809d963d`
+- 环境：Android 14 / HyperOS 1、LSPosed 2.1.1（7790）
+- 日志分析：84,411 行，P0 = 0、P1 = 0
+- 模块在 SystemUI 与 Launcher 正常加载；`system_server` 完成启动广播，未发现模块加载失败。
+- 两次快速重启后系统均完成启动，未发现 SystemUI、Launcher 或 `system_server` 崩溃、
+  Hook 异常、Receiver 重复注册或快速重启相关异常。
+- 日志中的 LSPosed 启动期连接记录、其他模块异常和旧版 Dropbox 崩溃均已按进程、版本与
+  时间戳排除，未沿用 Vector 2.0 的 Binder 生命周期结论。
+
+### 构建与产物
+
+- JDK：`17.0.12`
+- Gradle：`9.6.1`
+- invariant、单元测试、`lintDebug`、`lintRelease`、`lintVitalRelease`、Debug / Release：
+  全部通过（176 tests，0 failures；Lint 0 errors；`BUILD SUCCESSFUL in 4m 15s`）
+- 产物：`app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.8.apk`
+- APK 大小：3,085,209 bytes
+- APK SHA-256：`B0E7D4A3CB50E39748531D5B0FD3CB95F81C1F777DDAC9E346B8C8D67B8CBE62`
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+- 身份：`tv.withaibuild.customiuizer.r14`，versionCode `186`，versionName `r14.13.8`，
+  minSdk / targetSdk `34 / 34`，ABI `arm64-v8a`
+- libxposed 元数据：`minApiVersion=101`、`targetApiVersion=102`、`staticScope=false`
 
 ## 静态与构建验证
 

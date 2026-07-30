@@ -10,6 +10,7 @@ and performance figures without same-condition measurements are not release chan
 
 | Version | Date | Purpose |
 | --- | --- | --- |
+| `r14.13.8` | 2026-07-30 | Current stable release; structure tidy-up, soft-reboot receiver fix, LSPosed 2.1.1 acceptance |
 | `r14.13.7` | 2026-07-29 | Current stable release; settings survive an unbound service, soft reboot un-gated, hot-path robustness |
 | `r14.13.6` | 2026-07-29 | Runtime hardening, language fix, hook files split by domain |
 | `r14.8.0` | 2026-07-25 | Old-signature rollback point; back up and reinstall before upgrading |
@@ -18,6 +19,45 @@ and performance figures without same-condition measurements are not release chan
 Release titles contain only the version number. Asset names, sizes, and SHA-256 digests for
 removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the
 corresponding source remains available through Git tags.
+
+## [r14.13.8] - 2026-07-30
+
+### Purpose
+
+Closes the structure-tidy round without changing existing feature semantics, then fixes the
+independent registration and result handling of the soft-reboot receiver. Toast suppression,
+`AnimationScale`, and unrelated features are unchanged.
+
+### Changes
+
+- Tightens the boundary between hook-process utilities and settings-app utilities by splitting
+  `HookUtils`, reducing unrelated class loading inside system processes.
+- Removes six obsolete GlobalActions forwarding stubs and calls their implementations directly.
+- Registers the soft-reboot receiver independently of custom actions. In-app "Reboot system" is
+  received and executed by SystemUI even when no custom action is configured.
+- Distinguishes an unclaimed broadcast from receiver-side execution failure. A failed soft reboot
+  is no longer misreported as "LSPosed service not connected"; custom-action behavior is unchanged.
+
+### On-device and static verification
+
+- Android 14 / HyperOS 1 with LSPosed 2.1.1 (7790): P0 and P1 were both zero; the module loaded in
+  SystemUI and Launcher, both reboot cycles completed, and no target-process crash, hook exception,
+  or duplicate receiver registration was found.
+- Full invariant checks, unit tests, `lintDebug`, `lintRelease`, `lintVitalRelease`, Debug /
+  Release builds, and production-signature verification all passed.
+
+### Known issue
+
+- System Toast suppression may still be ineffective; this release does not address that existing
+  issue.
+
+### Artifact
+
+- APK: `CustoMIUIzer-A14-r14.13.8.apk`
+- Size: 3,085,209 bytes
+- SHA-256: `B0E7D4A3CB50E39748531D5B0FD3CB95F81C1F777DDAC9E346B8C8D67B8CBE62`
+- Signing certificate SHA-256: `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+- versionCode / versionName: `186 / r14.13.8`
 
 ## [r14.13.7] - 2026-07-29
 

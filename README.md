@@ -10,47 +10,47 @@
 
 ## 当前版本
 
-**r14.13.7 是当前唯一公开版本。**
+**r14.13.8 是当前唯一公开版本。**
 
-- [源码仓库 Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.7)
-- [LSPosed 模块仓库 Release](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/185-r14.13.7)
+- [源码仓库 Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.8)
 
-两个入口提供同一份 APK：
+当前正式 APK：
 
 | 项目 | 值 |
 | --- | --- |
-| APK | `CustoMIUIzer-A14-r14.13.7.apk` |
-| versionCode / versionName | `185 / r14.13.7` |
+| APK | `CustoMIUIzer-A14-r14.13.8.apk` |
+| versionCode / versionName | `186 / r14.13.8` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | 系统 | HyperOS 1 / Android 14（SDK 34） |
 | ABI | `arm64-v8a` |
 | libxposed | 最低 API 101 / 目标 API 102 |
 | Hot Reload | 关闭 |
-| SHA-256 | `11D01A737BED25C3C4D31153DE22CB918A651D0DD043D0374E2C0E41D32492CC` |
+| SHA-256 | `B0E7D4A3CB50E39748531D5B0FD3CB95F81C1F777DDAC9E346B8C8D67B8CBE62` |
 | 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
 
-请只从上面两个官方入口下载。
+请只从上述官方入口下载。LSPosed 模块仓库镜像如未同步，以源码仓库 Release 为准。
 
-## r14.13.7 解决了什么
+## r14.13.8 解决了什么
 
-- LSPosed 服务暂时不可用时，设置改动不再被静默丢弃；重新连接后会进行一次完整对账。
-- 快速重启改为直接向 SystemUI 发送有序广播，不再依赖设置应用自身的 binder 状态。
-- 损坏或类型变化的列表偏好会回退到默认值，不再把异常带入 SystemUI 或 `system_server`。
-- 状态栏电池与温度的格式、单位变更可以即时生效；必须重启才能生效的选项已在界面标明。
-- 锁屏专辑封面处理改为代次校验、字节限额缓存和正确的缓存键，避免并发生成与无效缓存。
-- 图标加载队列饱和时会正确释放在途状态，不再让图标永久空白。
+- 优化 Hook 进程与设置应用工具代码的边界，减少无关类加载。
+- 清理 GlobalActions 遗留的 6 个转发桩，调用点直接使用实际实现。
+- 修复未配置任何自定义动作时，应用内“重启系统”无法执行的问题。
+- 区分快速重启广播无人接收与接收端执行失败，不再把后者误报为“未连接 LSPosed 服务”。
+- 已在 Android 14 / HyperOS 1 与 LSPosed 2.1.1（7790）上完成实机验收。
+
+已知问题：系统 Toast 屏蔽仍可能无效，本版本未改动相关逻辑。
 
 完整变更与历史记录见 [CHANGELOG](CHANGELOG.md)。
 
 ## 安装前必须知道
 
-`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失，无法直接覆盖安装 r14.13.7。
+`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失，无法直接覆盖安装 r14.13.8。
 如果正在使用这些旧版本：
 
 1. 在旧版模块中备份设置；
 2. 记录当前 LSPosed / Vector 作用域；
 3. 卸载旧版；
-4. 安装 `CustoMIUIzer-A14-r14.13.7.apk`；
+4. 安装 `CustoMIUIzer-A14-r14.13.8.apk`；
 5. 恢复作用域与设置；
 6. 完整重启设备。
 
@@ -78,12 +78,13 @@
 
 ## 验证边界
 
-r14.13.7 已通过仓库静态门禁、171 项单元测试、三档 lint，以及 Debug / Release 构建。
+r14.13.8 已通过仓库静态门禁、单元测试、三档 lint，以及 Debug / Release 构建。
 APK 已核对 R8、资源压缩、zipalign、v2 签名、包信息、SHA-256 与实际签名证书。
 
-**r14.13.7 尚未完成本轮完整实机验收，因此这里只称为当前公开版本，不称为已实机验证的稳定版。**
-涉及 SystemUI、Launcher、`system_server`、ROM 反射目标或 API 102 框架的行为，仍以对应设备上的
-加载日志和实际功能为准。详细证据与未验证边界见 [验证记录](docs/VERIFICATION.md)。
+快速重启修复已在 Android 14 / HyperOS 1、LSPosed 2.1.1（7790）上完成实机验收：
+模块在 SystemUI 与 Launcher 正常加载，两次快速重启后系统完成启动，未发现 P0/P1、
+目标进程崩溃、Hook 异常或 Receiver 重复注册。其他 ROM 与系统应用版本仍需分别验证。
+详细证据与边界见 [验证记录](docs/VERIFICATION.md)。
 
 ## 开发与构建
 
