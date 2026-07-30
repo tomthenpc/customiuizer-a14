@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "$schema": "./schema.json",
+  "title": "CustoMIUIzer A14 feature effect and restart semantics",
+  "type": "object",
+  "required": ["schemaVersion", "contractName", "romFamily", "androidApi", "exclusions", "entries"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "contractName": { "type": "string" },
+    "romFamily": { "type": "string" },
+    "androidApi": { "type": "integer" },
+    "exclusions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["preferenceKey", "reason"],
+        "properties": {
+          "preferenceKey": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/featureEntry" }
+    }
+  },
+  "definitions": {
+    "featureEntry": {
+      "type": "object",
+      "required": [
+        "featureId",
+        "featureName",
+        "preferenceKeys",
+        "sourceFile",
+        "installer",
+        "targetPackage",
+        "installPhase",
+        "runtimeReadMode",
+        "enableEffect",
+        "disableEffect",
+        "valueChangeEffect",
+        "restartTarget",
+        "hotReloadable",
+        "confidence",
+        "evidence"
+      ],
+      "properties": {
+        "featureId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "featureName": { "type": "string" },
+        "preferenceKeys": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1
+        },
+        "xmlSource": { "type": "string" },
+        "defaultValue": { "type": "string" },
+        "sourceFile": { "type": "string" },
+        "installer": { "type": "string" },
+        "targetPackage": { "type": "string" },
+        "installPhase": {
+          "type": "string",
+          "enum": [
+            "SYSTEM_SERVER_START",
+            "PACKAGE_READY",
+            "APPLICATION_ATTACH",
+            "SYSTEMUI_INIT",
+            "RESOURCE_INIT",
+            "RECEIVER_EVENT",
+            "DEXKIT_ONE_SHOT",
+            "APP_UI_ONLY",
+            "UNKNOWN"
+          ]
+        },
+        "runtimeReadMode": {
+          "type": "string",
+          "enum": [
+            "INSTALL_TIME_SNAPSHOT",
+            "CALLBACK_READ",
+            "OBSERVER_PUSH",
+            "CAPTURED_AT_INSTALL",
+            "RESOURCE_REPLACEMENT",
+            "ONE_SHOT",
+            "EXTERNAL_PLUGIN",
+            "UNKNOWN"
+          ]
+        },
+        "enableEffect": { "type": "string" },
+        "disableEffect": { "type": "string" },
+        "valueChangeEffect": { "type": "string" },
+        "restartTarget": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "SYSTEMUI",
+            "LAUNCHER",
+            "TARGET_APP",
+            "SYSTEM_SERVER",
+            "REBOOT",
+            "MODULE_REENABLE",
+            "TASKER_RESAVE",
+            "UNKNOWN"
+          ]
+        },
+        "hotReloadable": { "type": "boolean" },
+        "confidence": {
+          "type": "string",
+          "enum": ["CODE_VERIFIED", "DEVICE_VERIFIED", "INFERRED", "UNKNOWN"]
+        },
+        "evidence": { "type": "string" },
+        "notes": { "type": "string" },
+        "exclusions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["preferenceKey", "reason"],
+            "properties": {
+              "preferenceKey": { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
