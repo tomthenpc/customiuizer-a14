@@ -112,23 +112,22 @@ class UnlockTokenContractTest {
     }
 
     @Test
-    fun unlockReceiverSupportsIdentityAndExplicitFallback() {
+    fun unlockReceiverRequiresSenderIdentity() {
         assertTrue(
             "UnlockReceiver must read getSentFromPackage",
             unlockReceiver.contains("getSentFromPackage()")
         )
         assertTrue(
-            "UnlockReceiver must detect explicit component",
-            unlockReceiver.contains("isExplicitToThisComponent") ||
-                unlockReceiver.contains("intent.component")
-        )
-        assertTrue(
-            "UnlockReceiver must reject when neither identity nor explicit broadcast is available",
+            "UnlockReceiver must reject when sender identity is not shared",
             unlockReceiver.contains("identity-missing")
         )
         assertTrue(
-            "UnlockReceiver must verify token in both paths",
-            unlockReceiver.contains("verifyBundle(context, bundle, sender)") &&
+            "UnlockReceiver must verify token against the actual sender",
+            unlockReceiver.contains("verifyBundle(context, bundle, sender)")
+        )
+        assertFalse(
+            "UnlockReceiver must not fall back to explicit-component only verification",
+            unlockReceiver.contains("isExplicitToThisComponent") ||
                 unlockReceiver.contains("verifyBundle(context, bundle, null)")
         )
     }
