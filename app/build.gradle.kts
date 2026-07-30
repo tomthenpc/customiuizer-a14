@@ -5,10 +5,24 @@ plugins {
 }
 
 val keystorePropertiesFile = rootProject.file("../keystore.properties")
+val officialRelease = (project.findProperty("officialRelease")?.toString()?.toBoolean() ?: false)
+
 val keystoreProperties = Properties()
-val hasReleaseSigning = keystorePropertiesFile.isFile
-if (hasReleaseSigning) {
+if (officialRelease) {
+    if (!keystorePropertiesFile.isFile) {
+        throw GradleException("officialRelease=true but ../keystore.properties was not found")
+    }
     keystorePropertiesFile.inputStream().use(keystoreProperties::load)
+    val required = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    val missing = required.filter { keystoreProperties.getProperty(it).isNullOrEmpty() }
+    if (missing.isNotEmpty()) {
+        throw GradleException("officialRelease=true but ../keystore.properties is missing: ${missing.joinToString(", ")}")
+    }
+    val storeFileProp = keystoreProperties.getProperty("storeFile")!!
+    val storeFile = file(storeFileProp)
+    if (!storeFile.isFile) {
+        throw GradleException("officialRelease=true but keystore file does not exist: $storeFile")
+    }
 }
 
 val lastVersion = 186
@@ -31,7 +45,7 @@ android {
     buildToolsVersion = "37.0.0"
 
     signingConfigs {
-        if (hasReleaseSigning) {
+        if (officialRelease) {
             create("v2") {
                 storeFile = file(keystoreProperties.getProperty("storeFile"))
                 storePassword = keystoreProperties.getProperty("storePassword")
@@ -55,14 +69,14 @@ android {
         }
     }
 
-    val releaseSigning = if (hasReleaseSigning) signingConfigs.getByName("v2") else null
+    val officialSigning = if (officialRelease) signingConfigs.getByName("v2") else null
     buildTypes {
         create("develop") {
             isDebuggable = false
             isMinifyEnabled = true
             isShrinkResources = true
             isCrunchPngs = true
-            signingConfig = releaseSigning
+            signingConfig = officialSigning
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         release {
@@ -73,7 +87,7 @@ android {
                 // Keep release APKs reproducible; the Git revision is represented by the tag.
                 include = false
             }
-            signingConfig = releaseSigning
+            signingConfig = officialSigning
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
@@ -124,7 +138,12 @@ androidComponents {
     onVariants(selector().all()) { variant ->
         variant.androidResources.localeFilters.addAll(supportedLocales)
         variant.outputs.forEach { output ->
-            val suffix = if (variant.name == "release") "-unsigned-ci" else ""
+            val suffix = when (variant.name) {
+                "debug" -> "-debug"
+                "release" -> if (officialRelease) "" else "-unsigned-ci"
+                "develop" -> if (officialRelease) "-develop" else "-develop-unsigned-ci"
+                else -> ""
+            }
             output.outputFileName.set("CustoMIUIzer-A14-$lastVersionName$suffix.apk")
         }
     }
