@@ -40,7 +40,7 @@
 | `tv.withaibuild.customiuizer.mods.event.PUSHAPPCONFIG` | `com.miui.home` | `tv.withaibuild.customiuizer.r14`（AppSelector） | `identity` | Launcher 返回隐私应用配置；必须显式 `setPackage(modulePkg)` 并共享身份。 |
 | `tv.withaibuild.customiuizer.mods.action.FetchCachedDevices` | `tv.withaibuild.customiuizer.r14`（BTList） | `com.android.systemui` | `signature` | 模块请求 SystemUI 缓存的蓝牙设备。 |
 | `tv.withaibuild.customiuizer.mods.event.CACHEDDEVICESUPDATE` | `com.android.systemui` | `tv.withaibuild.customiuizer.r14`（BTList） | `identity` | SystemUI 返回蓝牙设备；必须共享身份。 |
-| `tv.withaibuild.customiuizer.mods.action.UnlockSetForced` | `tv.withaibuild.customiuizer.r14`（UnlockReceiver） | `com.android.systemui` | `identity` + `per-host token` | 强制设置解锁状态。`UnlockSettings` 按调用方 package + 签名证书签发 per-host token；`UnlockReceiver` 校验 `getSentFromPackage()` 与 Bundle 中记录的 host 一致且该 host token 正确后，再以 module 身份重新广播给 SystemUI；`noScreenLockReceiver` 按 `getSentFromPackage() == modulePkg` 放行。 |
+| `tv.withaibuild.customiuizer.mods.action.UnlockSetForced` | `tv.withaibuild.customiuizer.r14`（UnlockReceiver） | `com.android.systemui` | `identity` + `per-host token`（或 `explicit component` + `per-host token` fallback） | 强制设置解锁状态。`UnlockSettings` 打开时只读取调用方信息，用户点 OK 后才首次签发或复用 per-host token。`UnlockReceiver` 首选 `getSentFromPackage()` 与 Bundle host 比对；若宿主未共享身份但广播显式指向本组件，则以 256-bit per-host token 作为唯一认证继续；隐式广播且无身份则拒绝。验证通过后以 module 身份重新广播给 SystemUI。 |
 | `tv.withaibuild.customiuizer.mods.action.BTConnectionChanged` | `com.android.systemui` | `com.android.systemui` | `identity` | 同进程，共享身份即可证明来源。 |
 | `android.net.wifi.STATE_CHANGE` | `android` (system) | `com.android.systemui` | `none` | 系统广播，身份不一定可获取；只做网络状态检查，不执行直接解锁。 |
 
@@ -48,7 +48,7 @@
 
 | action / 入口 | 当前状态 | 本轮策略 | 风险 |
 | --- | --- | --- | --- |
-| `com.twofortyfouram.locale.intent.action.FIRE_SETTING` | `UnlockReceiver` exported | `per-host token` | `UnlockSettings` 以 `getCallingPackage()` + 当前签名证书/历史签发 per-host token。插件 Bundle 携带 host package 与 token。`UnlockReceiver` 必须取得广播发送者身份（`getSentFromPackage()`），并与 Bundle 中记录的 host 比对；token 按 host 独立存储与校验。不同 host 不能共用 token，同一包名但签名不匹配会被拒绝，合法证书轮换可通过历史识别。旧的全局 token 已失效，老任务需重新保存。 |
+| `com.twofortyfouram.locale.intent.action.FIRE_SETTING` | `UnlockReceiver` exported | `per-host token` | `UnlockSettings` 打开时只读取 `getCallingPackage()` 与签名证书历史，用户点 OK 后才首次签发或复用 per-host token；取消、返回或异常时不写入任何状态。插件 Bundle 携带 host package 与 token。`UnlockReceiver` 首选 `getSentFromPackage()` 并与 Bundle host 比对；若宿主未共享身份但广播显式指向本组件（`intent.component` 为本 Receiver），则以 per-host token 作为唯一认证继续；隐式广播且无身份则安全拒绝。不同 host 不能共用 token，同一包名但签名不匹配会被拒绝，合法证书轮换在确认后更新历史。旧的全局 token 已失效，老任务需重新保存。 |
 
 ## 不再使用的方案
 

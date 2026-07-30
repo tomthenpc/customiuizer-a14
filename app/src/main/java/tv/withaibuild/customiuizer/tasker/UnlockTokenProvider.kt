@@ -6,7 +6,6 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
@@ -14,18 +13,18 @@ import java.util.Base64
 /**
  * Per-host binding tokens for the Tasker / Locale UnlockReceiver plugin.
  *
- * When [UnlockSettings] is opened by a host app, it fetches the host's package name,
- * application label and signing certificate fingerprints. The host is bound on first
- * use by generating a random token and storing the host's certificate lineage.
- * Later invocations from the same package are accepted only if at least one current
- * certificate matches a previously recorded certificate, which allows legitimate
- * certificate rotation while preventing package-name spoofing with a mismatched
- * signature.
+ * The flow is intentionally split into two stages to avoid writing a token or
+ * updating certificate history before the user explicitly confirms the binding:
  *
- * The token is never written to logs, toasts or exported settings. It is returned
- * in the plugin Bundle together with the host package name. [UnlockReceiver] checks
- * both the actual broadcast sender ([getSentFromPackage]) and the stored token for
- * that specific host before forwarding the [UnlockSetForced] command.
+ * - [prepare] is read-only. It inspects the stored binding for the calling host
+ *   and returns whether the host is new, already bound, or has a mismatched
+ *   certificate. No SharedPreferences write happens here.
+ * - [bind] is called only when the user taps OK. It creates the token for a new
+ *   host, reuses it for an existing host, and updates the stored certificate
+ *   lineage only on successful confirmation.
+ *
+ * [verify] and [verifyBundle] are used by [UnlockReceiver] to check that the
+ *   Bundle's host package and token match a stored binding.
  */
 class UnlockTokenProvider {
 
@@ -46,20 +45,46 @@ class UnlockTokenProvider {
         val token: String
     )
 
-    /**
-     * Bind or re-bind a host and return its per-host token.
-     *
-     * - First call for a package: generate a new token and store the certificate lineage.
-     * - Re-binding: return the stored token if the current certificates share at least one
-     *   fingerprint with the stored history. The stored history is updated with any new
-     *   fingerprints.
-     * - Same package but no common certificate: return null (reject, do not reissue).
-     */
-    fun getOrCreateToken(context: Context, hostInfo: HostInfo): HostToken? {
-        return getOrCreateToken(getPrefs(context), hostInfo)
+    sealed class HostBindingStatus {
+        data class NewHost(val hostInfo: HostInfo) : HostBindingStatus()
+        data class Reuse(val hostToken: HostToken) : HostBindingStatus()
+        object Mismatch : HostBindingStatus()
     }
 
-    internal fun getOrCreateToken(prefs: SharedPreferences, hostInfo: HostInfo): HostToken? {
+    /**
+     * Read-only inspection of the host binding. Does **not** create or update
+     * any stored state.
+     */
+    fun prepare(context: Context, hostInfo: HostInfo): HostBindingStatus {
+        return prepare(getPrefs(context), hostInfo)
+    }
+
+    internal fun prepare(prefs: SharedPreferences, hostInfo: HostInfo): HostBindingStatus {
+        val storedToken = prefs.getString(tokenKey(hostInfo.packageName), null)
+        val storedCerts = getStoredCerts(prefs, hostInfo.packageName)
+
+        return if (storedToken.isNullOrEmpty() || storedCerts.isEmpty()) {
+            HostBindingStatus.NewHost(hostInfo)
+        } else if (hostInfo.certFingerprints.any { it in storedCerts }) {
+            HostBindingStatus.Reuse(HostToken(hostInfo.packageName, storedToken))
+        } else {
+            HostBindingStatus.Mismatch
+        }
+    }
+
+    /**
+     * Create or confirm the binding for [hostInfo]. This must only be called
+     * after the user explicitly confirms the dialog. It writes the token and
+     * certificate lineage to private SharedPreferences.
+     *
+     * Returns the [HostToken] on success, or `null` if the certificate does not
+     * match the stored lineage.
+     */
+    fun bind(context: Context, hostInfo: HostInfo): HostToken? {
+        return bind(getPrefs(context), hostInfo)
+    }
+
+    internal fun bind(prefs: SharedPreferences, hostInfo: HostInfo): HostToken? {
         val storedToken = prefs.getString(tokenKey(hostInfo.packageName), null)
         val storedCerts = getStoredCerts(prefs, hostInfo.packageName)
 
@@ -68,26 +93,13 @@ class UnlockTokenProvider {
             val token = generateToken()
             saveHostToken(prefs, hostInfo.packageName, token, hostInfo.certFingerprints)
             HostToken(hostInfo.packageName, token)
+        } else if (hostInfo.certFingerprints.any { it in storedCerts }) {
+            // Re-binding: update lineage with any new fingerprints, then return existing token.
+            saveCerts(prefs, hostInfo.packageName, hostInfo.certFingerprints union storedCerts)
+            HostToken(hostInfo.packageName, storedToken)
         } else {
-            // Re-binding: at least one current cert must be in the stored lineage.
-            val current = hostInfo.certFingerprints
-            if (current.any { it in storedCerts }) {
-                // Update lineage with any new fingerprints, then return existing token.
-                saveCerts(prefs, hostInfo.packageName, current union storedCerts)
-                HostToken(hostInfo.packageName, storedToken)
-            } else {
-                null
-            }
+            null
         }
-    }
-
-    fun getToken(context: Context, hostPackage: String): HostToken? {
-        return getToken(getPrefs(context), hostPackage)
-    }
-
-    internal fun getToken(prefs: SharedPreferences, hostPackage: String): HostToken? {
-        val token = prefs.getString(tokenKey(hostPackage), null)
-        return if (token.isNullOrEmpty()) null else HostToken(hostPackage, token)
     }
 
     fun verify(context: Context, hostPackage: String, token: String?): Boolean {
@@ -100,11 +112,11 @@ class UnlockTokenProvider {
         return !stored.isNullOrEmpty() && stored == token
     }
 
-    fun verifyBundle(context: Context, bundle: Bundle?, actualSender: String?): Boolean {
+    fun verifyBundle(context: Context, bundle: Bundle?, actualSender: String? = null): Boolean {
         return verifyBundle(getPrefs(context), bundle, actualSender)
     }
 
-    internal fun verifyBundle(prefs: SharedPreferences, bundle: Bundle?, actualSender: String?): Boolean {
+    internal fun verifyBundle(prefs: SharedPreferences, bundle: Bundle?, actualSender: String? = null): Boolean {
         if (bundle == null) return false
         val hostPackage = try {
             bundle.getString(BUNDLE_KEY_HOST_PACKAGE)
@@ -117,13 +129,14 @@ class UnlockTokenProvider {
             null
         }
         if (hostPackage.isNullOrEmpty() || token.isNullOrEmpty()) return false
-        if (hostPackage != actualSender) return false
+        // If a sender identity is available, it must match the host recorded in the Bundle.
+        if (actualSender != null && hostPackage != actualSender) return false
         return verify(prefs, hostPackage, token)
     }
 
     /**
-     * Look up host information for [packageName]. Returns null if the package is not
-     * installed or signing information cannot be read.
+     * Look up host information for [packageName]. Returns null if the package is
+     * not installed or signing information cannot be read.
      */
     fun getHostInfo(context: Context, packageName: String): HostInfo? {
         return try {
@@ -138,22 +151,12 @@ class UnlockTokenProvider {
         }
     }
 
-    /**
-     * Clears any legacy global token so that old Tasker / Locale tasks fail safely.
-     */
-    fun clearLegacyGlobalToken(context: Context) {
-        context.getSharedPreferences(LEGACY_PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .remove(LEGACY_TOKEN_KEY)
-            .apply()
-    }
-
     private fun getPrefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     private fun getStoredCerts(prefs: SharedPreferences, packageName: String): Set<String> {
-        return prefs.getStringSet(certsKey(packageName), emptySet()) ?: emptySet()
+        return prefs.getStringSet(certsKey(packageName), null) ?: emptySet()
     }
 
     private fun saveHostToken(prefs: SharedPreferences, packageName: String, token: String, certs: Set<String>) {
@@ -195,8 +198,6 @@ class UnlockTokenProvider {
 
     companion object {
         const val PREFS_NAME = "customiuizer_unlock_hosts"
-        const val LEGACY_PREFS_NAME = "customiuizer_unlock_token"
-        const val LEGACY_TOKEN_KEY = "unlock_token"
         const val BUNDLE_KEY_TOKEN = "customiuizer.unlock_token"
         const val BUNDLE_KEY_HOST_PACKAGE = "customiuizer.unlock_host_package"
         const val TOKEN_BYTES = 32

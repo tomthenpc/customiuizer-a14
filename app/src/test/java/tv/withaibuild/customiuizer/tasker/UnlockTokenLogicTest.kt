@@ -17,29 +17,50 @@ class UnlockTokenLogicTest {
     private fun hostB() = UnlockTokenProvider.HostInfo("com.host.b", "Host B", setOf("cert-b-1"))
 
     @Test
-    fun createsTokenForFirstHost() {
+    fun prepareDoesNotCreateToken() {
         val prefs = FakeSharedPreferences()
-        val host = hostA()
-        val token = provider.getOrCreateToken(prefs, host)
-        assertNotNull(token)
-        assertEquals(host.packageName, token?.hostPackage)
-        assertTrue(!token?.token.isNullOrEmpty())
-        assertEquals(token?.token, prefs.getString("host_token_com.host.a", null))
+        val status = provider.prepare(prefs, hostA())
+        assertTrue(status is UnlockTokenProvider.HostBindingStatus.NewHost)
+        assertNull(prefs.getString("host_token_com.host.a", null))
+        assertNull(prefs.getStringSet("host_certs_com.host.a", null))
     }
 
     @Test
-    fun samePackageAndCertReusesToken() {
+    fun cancelOrBackDoesNotWrite() {
         val prefs = FakeSharedPreferences()
-        val first = provider.getOrCreateToken(prefs, hostA())
-        val second = provider.getOrCreateToken(prefs, hostA())
-        assertEquals(first?.token, second?.token)
+        provider.prepare(prefs, hostA())
+        // No bind() call: nothing is written.
+        assertNull(prefs.getString("host_token_com.host.a", null))
+    }
+
+    @Test
+    fun bindCreatesToken() {
+        val prefs = FakeSharedPreferences()
+        val status = provider.prepare(prefs, hostA())
+        assertTrue(status is UnlockTokenProvider.HostBindingStatus.NewHost)
+
+        val token = provider.bind(prefs, hostA())
+        assertNotNull(token)
+        assertEquals("com.host.a", token?.hostPackage)
+        assertEquals(token?.token, prefs.getString("host_token_com.host.a", null))
+        assertEquals(setOf("cert-a-1", "cert-a-2"), prefs.getStringSet("host_certs_com.host.a", null))
+    }
+
+    @Test
+    fun secondPageShowsReuse() {
+        val prefs = FakeSharedPreferences()
+        provider.bind(prefs, hostA())
+        val status = provider.prepare(prefs, hostA())
+        assertTrue(status is UnlockTokenProvider.HostBindingStatus.Reuse)
+        val reuseToken = (status as UnlockTokenProvider.HostBindingStatus.Reuse).hostToken
+        assertEquals("com.host.a", reuseToken.hostPackage)
     }
 
     @Test
     fun differentHostsGetDifferentTokens() {
         val prefs = FakeSharedPreferences()
-        val a = provider.getOrCreateToken(prefs, hostA())
-        val b = provider.getOrCreateToken(prefs, hostB())
+        val a = provider.bind(prefs, hostA())
+        val b = provider.bind(prefs, hostB())
         assertNotNull(a)
         assertNotNull(b)
         assertNotEquals(a?.token, b?.token)
@@ -48,45 +69,49 @@ class UnlockTokenLogicTest {
     @Test
     fun samePackageDifferentCertIsRejected() {
         val prefs = FakeSharedPreferences()
-        provider.getOrCreateToken(prefs, hostA())
+        provider.bind(prefs, hostA())
         val attacker = UnlockTokenProvider.HostInfo("com.host.a", "Host A Fake", setOf("cert-fake"))
-        val token = provider.getOrCreateToken(prefs, attacker)
-        assertNull(token)
+        assertNull(provider.bind(prefs, attacker))
+        assertTrue(provider.prepare(prefs, attacker) is UnlockTokenProvider.HostBindingStatus.Mismatch)
     }
 
     @Test
-    fun certificateRotationIsAllowed() {
+    fun certificateRotationUpdatesOnBind() {
         val prefs = FakeSharedPreferences()
-        // First binding records the current cert.
         val initial = UnlockTokenProvider.HostInfo("com.host.a", "Host A", setOf("cert-a-1"))
-        val first = provider.getOrCreateToken(prefs, initial)
-        // Rotation: the new cert history still contains the previous cert (v3 signing lineage).
-        val rotated = UnlockTokenProvider.HostInfo("com.host.a", "Host A", setOf("cert-a-2", "cert-a-1"))
-        val second = provider.getOrCreateToken(prefs, rotated)
+        val first = provider.bind(prefs, initial)
+
+        // Prepare-only must not update lineage.
+        val rotated = UnlockTokenProvider.HostInfo("com.host.a", "Host A", setOf("cert-a-1", "cert-a-2"))
+        val prepareStatus = provider.prepare(prefs, rotated)
+        assertTrue(prepareStatus is UnlockTokenProvider.HostBindingStatus.Reuse)
+        assertEquals(setOf("cert-a-1"), prefs.getStringSet("host_certs_com.host.a", null))
+
+        // Bind updates lineage.
+        val second = provider.bind(prefs, rotated)
         assertNotNull(second)
         assertEquals(first?.token, second?.token)
+        assertEquals(setOf("cert-a-1", "cert-a-2"), prefs.getStringSet("host_certs_com.host.a", null))
     }
 
     @Test
     fun correctTokenVerifiedForCorrectHost() {
         val prefs = FakeSharedPreferences()
-        val token = provider.getOrCreateToken(prefs, hostA())
+        val token = provider.bind(prefs, hostA())
         assertTrue(provider.verify(prefs, "com.host.a", token?.token))
     }
 
     @Test
     fun aHostTokenCannotVerifyForBHost() {
         val prefs = FakeSharedPreferences()
-        val a = provider.getOrCreateToken(prefs, hostA())
+        val a = provider.bind(prefs, hostA())
         assertFalse(provider.verify(prefs, "com.host.b", a?.token))
     }
 
     @Test
-    fun mismatchedSenderOrHostIsRejected() {
+    fun bundleRejectsMismatchedOrMissingSender() {
         val prefs = FakeSharedPreferences()
-        val token = provider.getOrCreateToken(prefs, hostA())
-        // Bundle with mismatched sender/host is rejected (we cannot create a real Bundle in JVM,
-        // so we test the token/host lookup directly and the bundle null/empty cases).
+        val token = provider.bind(prefs, hostA())
         assertFalse(provider.verify(prefs, "com.host.b", token?.token))
         assertFalse(provider.verifyBundle(prefs, null, "com.host.a"))
         assertFalse(provider.verifyBundle(prefs, Bundle(), "com.host.a"))
@@ -95,7 +120,7 @@ class UnlockTokenLogicTest {
     @Test
     fun missingEmptyOrWrongTokenIsRejected() {
         val prefs = FakeSharedPreferences()
-        provider.getOrCreateToken(prefs, hostA())
+        provider.bind(prefs, hostA())
         assertFalse(provider.verify(prefs, "com.host.a", null))
         assertFalse(provider.verify(prefs, "com.host.a", ""))
         assertFalse(provider.verify(prefs, "com.host.a", "wrong-token"))
