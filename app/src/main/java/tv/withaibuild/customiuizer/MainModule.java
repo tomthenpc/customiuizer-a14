@@ -300,6 +300,7 @@ public class MainModule extends XposedModule {
         }
         if (pkg.equals("com.android.systemui")) {
             Context mContext = ModuleHelper.findContext(lpparam);
+            GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext);
             long restartTime = Settings.System.getLong(mContext.getContentResolver(), "systemui_restart_time", 0L);
             long currentTime = java.lang.System.currentTimeMillis();
             MethodHook initStatusBarHook = new MethodHook() {

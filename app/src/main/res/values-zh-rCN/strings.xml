@@ -775,6 +775,8 @@
     <string name="warning">警告！</string>
     <string name="soft_reboot">重启系统</string>
     <string name="soft_reboot_ask">现在执行重启吗？</string>
+    <string name="fast_reboot_not_received">快速重启命令未被 SystemUI 接收，请确认模块已启用并完整重启设备。</string>
+    <string name="fast_reboot_failed">SystemUI 已收到快速重启命令，但执行失败。</string>
     <string name="restart_launcher">重启桌面</string>
     <string name="backup_restore">备份与恢复</string>
     <string name="reset_settings">重置模块设置</string>

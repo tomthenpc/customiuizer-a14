@@ -167,11 +167,11 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
      * Asks, then sends the soft reboot to the copy of the module living in SystemUI.
      *
      * Deliberately not gated on the bind state. The reboot is a broadcast to
-     * [GlobalActions.mSBReceiver], which the module registers inside SystemUI; whether *this*
-     * process holds an LSPosed service binder has no bearing on whether that receiver is
-     * there. Gating on it turned a settings app that had merely failed to bind - which a
-     * captured log shows can last for the whole life of the process - into a settings app
-     * that refused an action which would have worked.
+     * [GlobalActions.fastRebootReceiver], which the module registers inside SystemUI;
+     * whether *this* process holds an LSPosed service binder has no bearing on whether that
+     * receiver is there. Gating on it turned a settings app that had merely failed to bind -
+     * which a captured log shows can last for the whole life of the process - into a settings
+     * app that refused an action which would have worked.
      *
      * So the action is attempted, and the answer comes from the attempt: an ordered broadcast
      * that nobody claims arrives back carrying [GlobalActions.ACTION_UNHANDLED], and only
@@ -201,27 +201,38 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         // every receiver on the device before this one, any of which could claim it.
         intent.setPackage("com.android.systemui")
 
-        val notHandled = object : BroadcastReceiver() {
+        val resultReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, received: Intent) {
-                if (resultCode != GlobalActions.ACTION_UNHANDLED) return
+                val message = when (resultCode) {
+                    GlobalActions.ACTION_UNHANDLED -> R.string.fast_reboot_not_received
+                    GlobalActions.ACTION_FAILED -> R.string.fast_reboot_failed
+                    else -> return
+                }
                 // Resolved now, not captured at send time: the result can be up to the
                 // broadcast timeout late, and by then the Activity that opened the
                 // confirmation may be gone. Holding a reference to it would both leak it and
                 // risk showing a dialog on a destroyed window.
                 val current = activity as? AppCompatActivity ?: return
                 if (!isAdded) return
-                // Nothing in SystemUI claimed it, so the module is not loaded there. That is
-                // a different problem from this process not being bound, but the advice the
-                // user needs is the same, so reuse the dialog.
-                showXposedDialog(current)
+                showFastRebootFailure(current, message)
             }
         }
 
         // One-shot: this receiver is passed to the broadcast, never registered, so there is
         // nothing to unregister and nothing left behind once the result comes back.
         getValidContext().sendOrderedBroadcast(
-            intent, null, notHandled, null, GlobalActions.ACTION_UNHANDLED, null, null
+            intent, null, resultReceiver, null, GlobalActions.ACTION_UNHANDLED, null, null
         )
+    }
+
+    private fun showFastRebootFailure(act: AppCompatActivity, message: Int) {
+        if (act.isFinishing || act.isDestroyed) return
+        AlertDialog.Builder(act)
+            .setTitle(R.string.warning)
+            .setMessage(message)
+            .setCancelable(true)
+            .setPositiveButton(android.R.string.ok) { _, _ -> }
+            .show()
     }
 
     /**
