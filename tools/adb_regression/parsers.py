@@ -58,6 +58,10 @@ STAGE_NORMALIZATION = {
     "post-attach": "post-attach",
 }
 
+PROCESS_NORMALIZATION = {
+    "system": "system_server",
+}
+
 
 def _parse_timestamp(line: str) -> str | None:
     m = _TIMESTAMP_RE.search(line)
@@ -68,10 +72,14 @@ def _normalize_stage(raw: str) -> str:
     return STAGE_NORMALIZATION.get(raw, raw)
 
 
+def _normalize_process(raw: str) -> str:
+    return PROCESS_NORMALIZATION.get(raw, raw)
+
+
 def _record(
     source: str,
     timestamp: str | None,
-    process: str,
+    raw_process: str,
     raw_stage: str,
     normalized_stage: str,
     **extra: Any,
@@ -79,7 +87,8 @@ def _record(
     return {
         "source": source,
         "timestamp": timestamp,
-        "process": process,
+        "process": _normalize_process(raw_process),
+        "rawProcess": raw_process,
         "rawStage": raw_stage,
         "normalizedStage": normalized_stage,
         **extra,
@@ -95,11 +104,11 @@ def parse_module_markers(text: str, source: str = LOG_SOURCE_ADB) -> list[dict[s
             continue
         version = m.group(1)
         code = m.group(2)
-        process = m.group(3).strip().rstrip(",;.")
+        raw_process = m.group(3).strip().rstrip(",;.")
         records.append(_record(
             source,
             _parse_timestamp(line),
-            process,
+            raw_process,
             "",
             "",
             version=version,
@@ -145,6 +154,9 @@ def _parse_kv_hook(line: str, source: str) -> dict[str, Any] | None:
                 return None
     if not found_any:
         return None
+    raw_process = record["process"]
+    record["process"] = _normalize_process(raw_process)
+    record["rawProcess"] = raw_process
     record["rawStage"] = raw_stage
     record["normalizedStage"] = record["stage"]
     record["source"] = source

@@ -496,7 +496,7 @@ def check_rom_contracts() -> list[Finding]:
                                 "rom-contracts",
                                 contract_path,
                                 0,
-                                f"{source_hook} uses SystemServerStartingParam; target must be 'system_server' / 'android', got '{target_name}' / '{pkg}'",
+                                f"{source_hook} uses SystemServerStartingParam; process target must be 'system_server' (LSPosed scope 'system'), got '{target_name}' / '{pkg}'",
                             )
                         )
             else:
@@ -513,7 +513,7 @@ def check_rom_contracts() -> list[Finding]:
                                     "rom-contracts",
                                     contract_path,
                                     0,
-                                    f"{source_hook} uses SystemServerStartingParam; target must be 'system_server' / 'android', got '{target_name}' / '{pkg}'",
+                                    f"{source_hook} uses SystemServerStartingParam; process target must be 'system_server' (LSPosed scope 'system'), got '{target_name}' / '{pkg}'",
                                 )
                             )
                     elif "PackageReadyParam" in params:
