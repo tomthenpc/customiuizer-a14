@@ -2,7 +2,7 @@
 
 简体中文 | [English](README_EN.md)
 
-面向 **HyperOS 1 / Android 14** 的 CustoMIUIzer 独立维护版。
+面向 **HyperOS 1 / Android 14** 的 CustoMIUIzer Kotlin 重构维护版。
 
 本项目以 [MonwF/customiuizer v24.10.12](https://github.com/MonwF/customiuizer/releases/tag/v24.10.12)
 作为 Android 14 功能语义参考，使用独立包名、版本线、签名与现代 libxposed API。

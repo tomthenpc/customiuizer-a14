@@ -2,7 +2,8 @@
 
 [简体中文](README.md) | English
 
-An independently maintained CustoMIUIzer build for **HyperOS 1 / Android 14**.
+A Kotlin-refactored, independently maintained CustoMIUIzer build for
+**HyperOS 1 / Android 14**.
 
 The project uses
 [MonwF/customiuizer v24.10.12](https://github.com/MonwF/customiuizer/releases/tag/v24.10.12)
