@@ -6,16 +6,23 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   invariants:
     name: Static Invariants
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4 # v4.2.2
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+        uses: actions/setup-python@v5 # v5.1.x
       - name: Run static invariant gate
         run: python tools/check-invariants.py
 
@@ -23,15 +30,19 @@ jobs:
     name: Test, Lint and Build
     runs-on: ubuntu-latest
     needs: invariants
+    timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4 # v4.2.2
+      - name: Validate Gradle wrapper
+        uses: gradle/wrapper-validation-action@v3 # v3
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v4 # v4.6.x
         with:
           java-version: '17'
           distribution: 'temurin'
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v3 # v3.5.x
         with:
           gradle-home-cache-cleanup: true
       - name: Make gradlew executable
@@ -40,20 +51,40 @@ jobs:
         run: ./gradlew test --no-daemon
       - name: Lint
         run: ./gradlew lintDebug lintRelease lintVitalRelease --no-daemon
-      - name: Build debug and unsigned release
-        run: ./gradlew assembleDebug assembleRelease --no-daemon
-      - name: Verify APK outputs exist
+      - name: Build debug, unsigned release and probe
+        run: ./gradlew assembleDebug assembleRelease :broadcast-probe:assembleDebug --no-daemon
+      - name: Verify APK signatures and file names
         shell: bash
         run: |
-          ls -l app/build/outputs/apk/debug/
-          ls -l app/build/outputs/apk/release/
+          python tools/verify-apk-signatures.py \
+            --debug-apk app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.13.8-debug.apk \
+            --release-apk app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.8-unsigned-ci.apk \
+            --release-kind ci
       - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4 # v4.6.x
+        if: always()
         with:
           name: debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-      - name: Upload Release APK
-        uses: actions/upload-artifact@v4
+          path: app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.13.8-debug.apk
+          retention-days: 7
+      - name: Upload Unsigned Release APK
+        uses: actions/upload-artifact@v4 # v4.6.x
+        if: always()
         with:
           name: unsigned-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.8-unsigned-ci.apk
+          retention-days: 7
+      - name: Upload Broadcast Probe Debug APK
+        uses: actions/upload-artifact@v4 # v4.6.x
+        if: always()
+        with:
+          name: broadcast-probe-debug-apk
+          path: tools/broadcast-probe/build/outputs/apk/debug/broadcast-probe-debug.apk
+          retention-days: 7
+      - name: Upload Lint reports on failure
+        uses: actions/upload-artifact@v4 # v4.6.x
+        if: failure()
+        with:
+          name: lint-reports
+          path: app/build/reports/lint-*.html
+          retention-days: 7
