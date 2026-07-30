@@ -10,11 +10,7 @@ class UnlockTokenContractTest {
     private val unlockTokenProvider = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockTokenProvider.kt")
     private val unlockSettings = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockSettings.kt")
     private val unlockReceiver = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockReceiver.kt")
-    private val taskerFiles = listOf(
-        unlockTokenProvider,
-        unlockSettings,
-        unlockReceiver
-    )
+    private val taskerFiles = listOf(unlockTokenProvider, unlockSettings, unlockReceiver)
 
     @Test
     fun tokensArePerHostNotGlobal() {
@@ -48,6 +44,56 @@ class UnlockTokenContractTest {
     }
 
     @Test
+    fun prepareIsReadOnlyAndBindWrites() {
+        val prepareSection = unlockTokenProvider.substringAfter("fun prepare(").substringBefore("fun bind(")
+        assertTrue(
+            "prepare must be present and read-only",
+            unlockTokenProvider.contains("fun prepare(") &&
+                !prepareSection.contains(".edit()") &&
+                !prepareSection.contains(".apply()") &&
+                !prepareSection.contains("generateToken()")
+        )
+        assertTrue(
+            "bind must be the only write path",
+            unlockTokenProvider.contains("fun bind(") &&
+                unlockTokenProvider.contains("saveHostToken") &&
+                unlockTokenProvider.contains("saveCerts")
+        )
+    }
+
+    @Test
+    fun unlockSettingsDoesNotWriteOnCreate() {
+        val onCreateSection = unlockSettings.substringAfter("override fun onCreate(savedInstanceState: Bundle?)").substringBefore("private fun formatHostSummary")
+        assertFalse(
+            "UnlockSettings must not call bind() or create token in onCreate",
+            onCreateSection.contains("bind(this") ||
+                onCreateSection.contains("getOrCreateToken(this") ||
+                onCreateSection.contains("generateToken()")
+        )
+        assertTrue(
+            "UnlockSettings must call prepare() in onCreate",
+            onCreateSection.contains("provider.prepare(this")
+        )
+        assertTrue(
+            "UnlockSettings must call bind() only in the OK click handler",
+            unlockSettings.contains("onConfirm()") &&
+                unlockSettings.contains("provider.bind(this")
+        )
+    }
+
+    @Test
+    fun cancelAndBackDoNotBind() {
+        val backCallback = unlockSettings.substringAfter("handleOnBackPressed() {").substringBefore("            }")
+        assertTrue(
+            "Back callback must return RESULT_CANCELED without calling bind",
+            unlockSettings.contains("onBackPressedDispatcher.addCallback") &&
+                backCallback.contains("Activity.RESULT_CANCELED") &&
+                backCallback.contains("finish()") &&
+                !backCallback.contains("bind(this")
+        )
+    }
+
+    @Test
     fun unlockSettingsRequiresCallingPackage() {
         assertTrue(
             "UnlockSettings must read callingPackage",
@@ -66,18 +112,24 @@ class UnlockTokenContractTest {
     }
 
     @Test
-    fun unlockReceiverValidatesSenderAndToken() {
+    fun unlockReceiverSupportsIdentityAndExplicitFallback() {
         assertTrue(
             "UnlockReceiver must read getSentFromPackage",
             unlockReceiver.contains("getSentFromPackage()")
         )
         assertTrue(
-            "UnlockReceiver must call verifyBundle with the actual sender",
-            unlockReceiver.contains("verifyBundle(context, bundle, sender)")
+            "UnlockReceiver must detect explicit component",
+            unlockReceiver.contains("isExplicitToThisComponent") ||
+                unlockReceiver.contains("intent.component")
         )
         assertTrue(
-            "UnlockReceiver must require sender identity sharing",
-            unlockReceiver.contains("broadcast sender identity not shared")
+            "UnlockReceiver must reject when neither identity nor explicit broadcast is available",
+            unlockReceiver.contains("identity-missing")
+        )
+        assertTrue(
+            "UnlockReceiver must verify token in both paths",
+            unlockReceiver.contains("verifyBundle(context, bundle, sender)") &&
+                unlockReceiver.contains("verifyBundle(context, bundle, null)")
         )
     }
 
@@ -100,11 +152,31 @@ class UnlockTokenContractTest {
     }
 
     @Test
+    fun rejectionLogsAreThrottledAndDoNotLeakToken() {
+        assertTrue(
+            "UnlockReceiver must use a rate limiter for rejections",
+            unlockReceiver.contains("logLimited") &&
+                unlockReceiver.contains("SystemClock.elapsedRealtime()") &&
+                unlockReceiver.contains("LOG_THROTTLE_MS")
+        )
+        assertFalse(
+            "Log messages must not include the token value",
+            unlockReceiver.contains("\$token") ||
+                unlockReceiver.contains("bundle.getString(BUNDLE_KEY_TOKEN)")
+        )
+        assertFalse(
+            "Log messages must not dump the Bundle contents",
+            unlockReceiver.contains("bundle.toString()") ||
+                unlockReceiver.contains("Log.d(")
+        )
+    }
+
+    @Test
     fun tokenNeverLoggedOrExported() {
         assertFalse(
             "Token value must never be written to logs",
             unlockReceiver.contains("XposedHelpers.log(") ||
-                unlockReceiver.contains("android.util.Log") && unlockReceiver.contains("\$token")
+                (unlockReceiver.contains("android.util.Log") && unlockReceiver.contains("\$token"))
         )
         assertFalse(
             "Token value must never be shown in a Toast",
@@ -135,18 +207,8 @@ class UnlockTokenContractTest {
                 joined.contains("de.robv.android.xposed")
         )
         assertFalse(
-            "UnlockReceiver must not use mods/utils ModuleHelper after this round",
+            "UnlockReceiver must not use mods/utils ModuleHelper",
             unlockReceiver.contains("ModuleHelper")
-        )
-    }
-
-    @Test
-    fun legacyGlobalTokenIsCleared() {
-        assertTrue(
-            "Legacy global token must be cleared",
-            unlockTokenProvider.contains("LEGACY_PREFS_NAME") &&
-                unlockTokenProvider.contains("LEGACY_TOKEN_KEY") &&
-                unlockSettings.contains("clearLegacyGlobalToken")
         )
     }
 

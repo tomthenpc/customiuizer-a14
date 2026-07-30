@@ -172,8 +172,12 @@ class BroadcastSecurityContractTest {
         val unlockTokenProvider = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockTokenProvider.kt")
         assertTrue(
             "UnlockReceiver must get and verify the actual broadcast sender",
-            unlockReceiver.contains("getSentFromPackage()") &&
-                unlockReceiver.contains("verifyBundle(")
+            unlockReceiver.contains("getSentFromPackage()")
+        )
+        assertTrue(
+            "UnlockReceiver must support an explicit-component fallback",
+            unlockReceiver.contains("isExplicitToThisComponent") ||
+                unlockReceiver.contains("intent.component")
         )
         assertTrue(
             "UnlockTokenProvider must use SecureRandom",
