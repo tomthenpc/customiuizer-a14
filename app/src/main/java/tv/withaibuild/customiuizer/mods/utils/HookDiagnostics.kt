@@ -209,7 +209,9 @@ object HookDiagnostics {
             targetClass = targetClass,
             targetMember = targetMember,
             descriptor = "",
-            status = if (noMatch) Status.DEXKIT_NO_MATCH else if (exceptionType.isEmpty()) Status.INSTALLED else Status.DEXKIT_FAILED,
+            status = if (exceptionType.isNotEmpty()) Status.DEXKIT_FAILED
+                else if (noMatch) Status.DEXKIT_NO_MATCH
+                else Status.INSTALLED,
             exceptionType = exceptionType,
         )
     }

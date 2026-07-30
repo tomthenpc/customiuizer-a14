@@ -2103,6 +2103,7 @@ public final class XposedHelpers {
         } catch (Throwable t) {
             HookDiagnostics.recordDexKit("DexKitBridge", "create", t.getClass().getName());
             log(t);
+            throw t;
         }
     }
 

@@ -376,17 +376,14 @@ object System {
                 HookDiagnostics.recordDexKit("com.miui.screenshot", "saveBitmapToUri", exceptionType = "bridge-null")
                 return
             }
-            val methodCandidates = try {
-                bridge.findMethod(FindMethod.create()
+            var methodCandidates: List<MethodData>? = null
+            try {
+                methodCandidates = bridge.findMethod(FindMethod.create()
                     .excludePackages("android", "androidx", "com.xiaomi", "com.google.json", "kotlin", "kotlinx.coroutines", "miuix")
                     .matcher(MethodMatcher.create().usingStrings("saveBitmapToUri: external storage"))
                 )
             } catch (t: Throwable) {
                 HookDiagnostics.recordDexKit("com.miui.screenshot", "saveBitmapToUri", exceptionType = t.javaClass.name)
-                null
-            }
-            if (methodCandidates == null) {
-                HookDiagnostics.recordDexKit("com.miui.screenshot", "saveBitmapToUri", noMatch = true)
                 return
             }
             var methodData: MethodData? = null

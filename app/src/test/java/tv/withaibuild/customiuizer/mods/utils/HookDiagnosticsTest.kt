@@ -161,6 +161,22 @@ class HookDiagnosticsTest {
     }
 
     @Test
+    fun recordDexKitFailedTakesPrecedence() {
+        HookDiagnostics.currentProcessName = "test"
+        // A bridge/query failure must never be counted as a no-match, even if noMatch is also set.
+        HookDiagnostics.recordDexKit("C", "m", exceptionType = "java.lang.IllegalStateException", noMatch = true)
+        assertEquals(1, HookDiagnostics.summary()[HookDiagnostics.Status.DEXKIT_FAILED])
+        assertEquals(null, HookDiagnostics.summary()[HookDiagnostics.Status.DEXKIT_NO_MATCH])
+    }
+
+    @Test
+    fun recordDexKitBridgeNullIsFailed() {
+        HookDiagnostics.currentProcessName = "test"
+        HookDiagnostics.recordDexKit("C", "m", exceptionType = "bridge-null")
+        assertEquals(1, HookDiagnostics.summary()[HookDiagnostics.Status.DEXKIT_FAILED])
+    }
+
+    @Test
     fun memberMissingExceptionDetected() {
         assertTrue(HookDiagnostics.isMemberMissingException(NoSuchMethodException("no method a")))
         assertTrue(HookDiagnostics.isMemberMissingException(NoSuchFieldException("no field")))

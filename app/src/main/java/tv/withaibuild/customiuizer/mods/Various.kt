@@ -1064,15 +1064,16 @@ object Various {
             HookDiagnostics.recordDexKit("com.miui.guardprovider", "AntiDefraudAppManager", exceptionType = "bridge-null")
             return
         }
-        val methodData = try {
-            bridge.findMethod(
+        var methodData: MethodData? = null
+        try {
+            methodData = bridge.findMethod(
                 FindMethod.create()
                     .excludePackages("tmsdk", "tmsdkobf", "xcrash", "com.tencent", "com.xiaomi")
                     .matcher(MethodMatcher.create().usingStrings("getUnSystemAppList error", "AntiDefraudAppManager"))
             ).singleOrNull()
         } catch (t: Throwable) {
             HookDiagnostics.recordDexKit("com.miui.guardprovider", "AntiDefraudAppManager", exceptionType = t.javaClass.name)
-            null
+            return
         }
 
         if (methodData == null) {
