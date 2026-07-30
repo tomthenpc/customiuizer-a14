@@ -31,6 +31,12 @@ ALLOWED = {
     "no-raw-register-receiver": {
         "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt",
     },
+    "no-direct-hook-installation": {
+        # The wrappers are the only place that may call the underlying Xposed
+        # helpers directly. Everyone else must go through ModuleHelper so that
+        # HookDiagnostics can record every install attempt.
+        "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt",
+    },
     "guard-framework-callbacks": {
         # The settings app is the module's own process. A throw there shows a
         # normal app crash dialog; it cannot take a system process down.
@@ -304,6 +310,23 @@ def check_no_redundant_arg_marshalling(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def check_no_direct_hook_installation(path: Path, text: str) -> list[Finding]:
+    """Hook installation must go through ModuleHelper so diagnostics are recorded."""
+    if is_allowed("no-direct-hook-installation", path):
+        return []
+    findings = []
+    for match in re.finditer(r"XposedHelpers\.(findAndHookMethod|findAndHookConstructor|hookAllMethods|hookAllConstructors)\s*\(", text):
+        findings.append(
+            Finding(
+                "no-direct-hook-installation",
+                path,
+                line_of(text, match.start()),
+                "hook installation bypasses ModuleHelper; route through ModuleHelper and add allowlist if truly unavoidable",
+            )
+        )
+    return findings
+
+
 def check_no_legacy_xposed(path: Path, text: str) -> list[Finding]:
     """The module runs on libxposed API 101/102 only."""
     findings = []
@@ -348,6 +371,7 @@ RULES = (
     check_no_raw_register_receiver,
     check_no_looperless_handler,
     check_no_redundant_arg_marshalling,
+    check_no_direct_hook_installation,
     check_no_legacy_xposed,
     check_no_regex_split_on_literal,
 )

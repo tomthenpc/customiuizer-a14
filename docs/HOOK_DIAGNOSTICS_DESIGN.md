@@ -4,79 +4,69 @@
 
 让 LSPosed/实机日志能区分以下状态，而不引入 Hook DSL、DI 或动态注册框架：
 
-1. 模块未加载 / 入口类未触发
-2. 目标类不存在 / 方法签名变化
-3. Hook 安装失败（异常、target 为空、版本不匹配）
-4. 偏好未生效（默认值 / 远程偏好不可读 / 监听未注册）
+1. 目标类不存在 / 方法签名变化；
+2. Hook 安装失败（异常、target 为空、版本不匹配）；
+3. 模块入口是否已加载、是否已处理到某个包；
+4. DexKit / RemotePreferences 等边界失败；
+5. 用户未开启的功能不记录为安装失败。
 
 ## 约束
 
-- 不分配对象在热路径。
+- 不分配对象在 Hook 回调热路径。
 - 不增加 hook 注册抽象层。
-- 诊断信息只在冷路径写入统一日志，或通过不抛出的 side channel 返回。
+- 诊断信息只在冷路径写入统一日志。
 - 保持现有 `MethodHook` 回调语义（before/after/intercept、proceed 次数）。
+- 记录容量有界，不引用 `Context`、`ClassLoader`、`MethodHook` 或用户数据。
 
 ## 设计
 
 ### 1. 状态枚举
 
-在 `mods/utils/ModuleHelper` 增加：
+`mods/utils/HookDiagnostics.kt`：
 
 ```kotlin
-enum class HookInstallStatus {
-    NOT_ATTEMPTED,
-    TARGET_CLASS_MISSING,
-    TARGET_METHOD_MISSING,
+enum class Status {
     INSTALLED,
+    TARGET_CLASS_MISSING,
+    TARGET_MEMBER_MISSING,
     INSTALL_FAILED,
-    PREF_DISABLED
+    SILENTLY_SKIPPED,
+    DEXKIT_FAILED,
+    PREFERENCES_UNAVAILABLE,
 }
 ```
 
-热路径上不创建该对象；仅在安装期返回给 `MainModule` 的汇总表。
+### 2. 收集器
 
-### 2. 包装入口
+单例 `HookDiagnostics`：
 
-```kotlin
-fun findAndHookMethodWithStatus(className: String, loader: ClassLoader, methodName: String, vararg args: Any): HookInstallStatus
+- 进程内唯一；
+- `ConcurrentHashMap` 去重，键为 `process|kind|class|member|descriptor|status`；
+- 256 条上限；
+- 暴露 `record()`、`summary()`、`snapshot()`、`reset()`、`printSummaryOnce()`。
+
+### 3. 包装入口
+
+`ModuleHelper` 中的 `findAndHookMethod*`、`hookAllMethods*`、`hookAllConstructors*`、`hookMethod` 均先定位 class，再尝试 hook，并按结果写入对应状态。
+
+- class 不存在 → `TARGET_CLASS_MISSING`；
+- class 存在但 member 找不到 → `TARGET_MEMBER_MISSING`；
+- 其他异常 → `INSTALL_FAILED`；
+- `*Silently` 失败 → `SILENTLY_SKIPPED`；
+- 成功 → `INSTALLED`。
+
+### 4. 入口汇总
+
+`MainModule.onSystemServerStarting()` 和 `MainModule.onPackageReady()` 结束时调用 `HookDiagnostics.printSummaryOnce()`，输出一行统计，如：
+
+```text
+CustoMIUIzer HookSummary process=com.android.systemui installed=42 classMissing=2 memberMissing=1 failed=0 silentSkipped=3
 ```
 
-内部先 `findClassIfExists`：
+### 5. 直接 hook 安装禁止
 
-- 不存在 → 记录一次 `HookInstallStatus.TARGET_CLASS_MISSING` 并返回。
-- 存在 → 尝试 `findAndHookMethod`：
-  - 找不到方法 → `TARGET_METHOD_MISSING`
-  - 成功 → `INSTALLED`
-  - 抛异常 → `INSTALL_FAILED`
+`tools/check-invariants.py` 新增 `no-direct-hook-installation`：除 `ModuleHelper.kt` 和 `XposedHelpers.java` 内部实现外，业务代码必须走 `ModuleHelper` 包装器，确保所有 hook 安装都被记录。
 
-### 3. 入口汇总
+### 6. 测试
 
-`MainModule.handleLoadPackage` 结束时，按进程打印一次汇总：
-
-```
-CustoMIUIzer-A14 [com.android.systemui] hooks: installed=42 classMissing=3 methodMissing=1 failed=0
-```
-
-失败的包含目标类名和方法名，方便 ROM 变动定位。
-
-### 4. 偏好生效诊断
-
-- 在 `MainModule.watchPreferenceChange` 注册后记录 `PreferenceObserver registered: count=N`。
-- 在 `MainModule.mPrefs` 首次读取时捕获 `RemotePreferences` 异常，若不可读则记录一次 `RemotePreferences unavailable`。
-- 每个 hook 的入口判断 `if (!mPrefs.getBoolean(...))` 时，若功能关闭则不视为失败。
-
-### 5. 日志级别
-
-- `d/`: 正常安装成功，限流，避免刷日志。
-- `e/`: 一次失败，包含完整 target 描述。
-- `w/`: class/method 不存在，记录一次，禁用单项功能。
-
-## 未实现原因
-
-本轮未直接落地，因为：
-
-- `findAndHookMethod` 被几十处直接调用，需要逐个确认返回值用法，属于一次较大的 hook 入口重构；
-- 诊断输出格式需与现有 `XposedHelpers.log` 和 LSPosed 日志规则协调，避免误判；
-- 需要与 `check-invariants.py` 新增规则同步，防止 `findAndHookMethod` 直接调用漏过。
-
-建议作为下一阶段 `diagnostics/a14` 独立分支实施，先在 1–2 个 hook 族（如 GlobalActions / SystemStatusBarIconHooks）试点。
+`HookDiagnosticsTest.kt` 覆盖安装、缺失、失败、去重、有界、异常分类等。
