@@ -35,3 +35,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "CustoMIUIzer-A14"
 include(":app")
+
+// Optional standalone third-party broadcast probe; built separately with :broadcast-probe:assembleDebug.
+if (file("tools/broadcast-probe/build.gradle.kts").exists()) {
+    include(":broadcast-probe")
+    project(":broadcast-probe").projectDir = file("tools/broadcast-probe")
+}
