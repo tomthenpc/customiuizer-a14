@@ -29,8 +29,7 @@
         android:name="tv.withaibuild.customiuizer.r14.permission.BROADCAST"
         android:label="@string/permission_broadcast_label"
         android:description="@string/permission_broadcast_description"
-        android:protectionLevel="signatureOrSystem"
-        tools:ignore="SignatureOrSystemPermissions" />
+        android:protectionLevel="signature" />
 
     <uses-permission android:name="tv.withaibuild.customiuizer.r14.permission.BROADCAST" />
 

@@ -647,6 +647,12 @@ object Various {
                         }
                         val showReceiver = object : BroadcastReceiver() {
                             override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                                val fromPackage = getSentFromPackage()
+                                if (fromPackage != Helpers.modulePkg &&
+                                    fromPackage != "android" &&
+                                    fromPackage != "com.android.systemui" &&
+                                    fromPackage != "com.miui.home"
+                                ) return@guarded
                                 val bundle = intent.getBundleExtra("actionInfo")
                                 var pos = originDockLocation
                                 if (bundle != null) {
@@ -656,7 +662,7 @@ object Various {
                                 showSideBar(view, pos)
                             }
                         }
-                        ModuleHelper.registerModuleReceiver(view.context, "showSideBarReceiver", showReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"), Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
+                        ModuleHelper.registerModuleReceiver(view.context, "showSideBarReceiver", showReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"), Context.RECEIVER_EXPORTED)
                         XposedHelpers.setAdditionalInstanceField(thisObject, "showReceiver", showReceiver)
 
                         if (!isHooked[1]) {

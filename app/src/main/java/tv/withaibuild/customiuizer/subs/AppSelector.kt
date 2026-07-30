@@ -23,6 +23,7 @@ import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.SubFragmentWithSearch
 import tv.withaibuild.customiuizer.mods.GlobalActions
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.utils.AppData
 import tv.withaibuild.customiuizer.utils.AppDataAdapter
 import tv.withaibuild.customiuizer.utils.AppHelper
@@ -49,6 +50,7 @@ class AppSelector : SubFragmentWithSearch() {
     private val configReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG") return
+            if (getSentFromPackage() != "com.miui.home") return
             val datatype = intent.getStringExtra("DATATYPE")
             if (datatype == "privacy") {
                 configFetched = true
@@ -284,11 +286,11 @@ class AppSelector : SubFragmentWithSearch() {
     private fun registerReceivers() {
         if (privacy) {
             val ctx = getValidContext()
-            ctx.registerReceiver(configReceiver, IntentFilter(GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG"), GlobalActions.BROADCAST_PERMISSION, null, Context.RECEIVER_EXPORTED)
+            ctx.registerReceiver(configReceiver, IntentFilter(GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG"), null, null, Context.RECEIVER_EXPORTED)
             val intent = Intent(GlobalActions.EVENT_PREFIX + "FETCHAPPCONFIG")
             intent.putExtra("DATATYPE", "privacy")
             intent.setPackage("com.miui.home")
-            ctx.sendBroadcast(intent)
+            ModuleHelper.sendBroadcastWithIdentity(ctx, intent)
         }
     }
 
@@ -327,6 +329,6 @@ class AppSelector : SubFragmentWithSearch() {
         intent.putExtra("userId", app.user)
         intent.putExtra("privacy", isPrivate)
         intent.setPackage("com.miui.home")
-        getValidContext().sendBroadcast(intent)
+        ModuleHelper.sendBroadcastWithIdentity(getValidContext(), intent)
     }
 }

@@ -20,6 +20,7 @@ import miui.process.ForegroundInfo
 import miui.process.ProcessManager
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
+import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 
@@ -51,6 +52,14 @@ object GlobalActionSystemServerHooks {
                         override fun onReceive(context: Context, intent: Intent) {
                             val action = intent.action
                             if (action == null) return
+                            if (!ModuleHelper.isTrustedBroadcast(
+                                    this,
+                                    Helpers.modulePkg,
+                                    "android",
+                                    "com.android.systemui",
+                                    "com.miui.home"
+                                )
+                            ) return
 
                             when (action) {
                                 GlobalActions.ACTION_PREFIX + "SimulateMenu" -> {
@@ -126,7 +135,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                    }, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
+                    }, intentfilter, Context.RECEIVER_EXPORTED)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
@@ -206,7 +215,7 @@ object GlobalActionSystemServerHooks {
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "LaunchIntent")
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "SaveLastMusicPausedTime")
 
-                    ModuleHelper.registerModuleReceiver(mContext, "statusBarActionReceiver", GlobalActions.mSBReceiver, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
+                    ModuleHelper.registerModuleReceiver(mContext, "statusBarActionReceiver", GlobalActions.mSBReceiver, intentfilter, Context.RECEIVER_EXPORTED)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
@@ -275,7 +284,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                        ModuleHelper.registerModuleReceiver(mContext, "freeformModeReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
+                        ModuleHelper.registerModuleReceiver(mContext, "freeformModeReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
                     }
@@ -332,7 +341,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                        ModuleHelper.registerModuleReceiver(mContext, "soScSplitScreenReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
+                        ModuleHelper.registerModuleReceiver(mContext, "soScSplitScreenReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
                     }
@@ -377,7 +386,7 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         }
-                        ModuleHelper.registerModuleReceiver(mContext, "autoBrightnessReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED, GlobalActions.BROADCAST_PERMISSION)
+                        ModuleHelper.registerModuleReceiver(mContext, "autoBrightnessReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)
                     }

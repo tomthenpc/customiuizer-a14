@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import tv.withaibuild.customiuizer.mods.GlobalActions
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 
 class UnlockReceiver : BroadcastReceiver() {
 
@@ -14,7 +15,7 @@ class UnlockReceiver : BroadcastReceiver() {
                 action = GlobalActions.ACTION_PREFIX + "UnlockSetForced"
                 putExtras(bundle)
             }
-            context.sendBroadcast(sendIntent)
+            ModuleHelper.sendBroadcastWithIdentity(context, sendIntent)
         }
     }
 }

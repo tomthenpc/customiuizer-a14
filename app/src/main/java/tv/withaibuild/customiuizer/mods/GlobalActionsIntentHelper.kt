@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.utils.PrefPair
 
 object GlobalActionsIntentHelper {
@@ -74,7 +75,7 @@ object GlobalActionsIntentHelper {
         if (intent == null) return false
         val bIntent = Intent(GlobalActions.ACTION_PREFIX + "LaunchIntent")
         bIntent.putExtra("intent", intent)
-        context.sendBroadcast(bIntent)
+        ModuleHelper.sendBroadcastWithIdentity(context, bIntent)
         return true
     }
 }

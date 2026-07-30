@@ -40,6 +40,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.mods.GlobalActions
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.AppLocaleController
 import tv.withaibuild.customiuizer.utils.Helpers
@@ -220,8 +221,15 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
 
         // One-shot: this receiver is passed to the broadcast, never registered, so there is
         // nothing to unregister and nothing left behind once the result comes back.
-        getValidContext().sendOrderedBroadcast(
-            intent, null, resultReceiver, null, GlobalActions.ACTION_UNHANDLED, null, null
+        ModuleHelper.sendOrderedBroadcastWithIdentity(
+            getValidContext(),
+            intent,
+            null,
+            resultReceiver,
+            null,
+            GlobalActions.ACTION_UNHANDLED,
+            null,
+            null
         )
     }
 

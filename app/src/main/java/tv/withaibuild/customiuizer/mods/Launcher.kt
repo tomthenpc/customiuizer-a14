@@ -349,6 +349,7 @@ object Launcher {
                         override fun onReceive(context: Context, intent: Intent) {
                             try {
                                 if (intent.action == null) return
+                                if (getSentFromPackage() != Helpers.modulePkg) return
                                 if ((GlobalActions.EVENT_PREFIX + "FETCHAPPCONFIG") == intent.action) {
                                     val pushIntent = Intent(GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG")
                                     pushIntent.setPackage(Helpers.modulePkg)
@@ -361,7 +362,7 @@ object Launcher {
                                         privacyAppsMap[0] = mSecurityManager.getAllPrivacyApps(0) as MutableList<String>
                                         privacyAppsMap[999] = mSecurityManager.getAllPrivacyApps(999) as MutableList<String>
                                         pushIntent.putExtra("privacyAppsMap", privacyAppsMap)
-                                        context.sendBroadcast(pushIntent)
+                                        ModuleHelper.sendBroadcastWithIdentity(context, pushIntent)
                                     } else if ("privacy_change" == datatype) {
                                         val userId = intent.getIntExtra("userId", 0)
                                         val pkgName = intent.getStringExtra("app")

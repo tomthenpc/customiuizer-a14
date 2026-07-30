@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.SubFragment
 import tv.withaibuild.customiuizer.mods.GlobalActions
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.PrefPair
 
@@ -50,6 +51,7 @@ class BTList : SubFragment() {
         @Suppress("DEPRECATION")
         @SuppressLint("MissingPermission")
         override fun onReceive(context: Context, intent: Intent) {
+            if (getSentFromPackage() != "com.android.systemui") return
             val deviceList = intent.getParcelableArrayListExtra<BluetoothDevice>("device_list")
             btList.clear()
             deviceList?.forEach { btList.add(Pair(it.address, it.name)) }
@@ -124,7 +126,7 @@ class BTList : SubFragment() {
     private fun fetchCachedDevices() {
         val intent = Intent(GlobalActions.ACTION_PREFIX + "FetchCachedDevices")
         intent.setPackage("com.android.systemui")
-        getValidContext().sendBroadcast(intent)
+        ModuleHelper.sendBroadcastWithIdentity(getValidContext(), intent)
     }
 
     fun updateProgressBar() {

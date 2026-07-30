@@ -3,6 +3,7 @@ package tv.withaibuild.customiuizer.mods.utils
 import android.annotation.SuppressLint
 import android.app.ActivityOptions
 import android.app.Application
+import android.app.BroadcastOptions
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -580,6 +581,48 @@ class ModuleHelper private constructor() {
                 XposedHelpers.log(t)
                 fallback
             }
+        }
+
+        /**
+         * Broadcast identity helpers.
+         *
+         * Android 14 lets a sender share its package/UID with the receiver via
+         * [BroadcastOptions.setShareIdentityEnabled]. Receivers that handle high-privilege
+         * commands use [isTrustedBroadcast] to verify the sender package against an
+         * action-specific whitelist. These functions are cold-path; one BroadcastOptions
+         * instance is allocated per user-triggered broadcast.
+         */
+
+        @JvmStatic
+        fun sendBroadcastWithIdentity(context: Context, intent: Intent, permission: String? = null) {
+            val options = BroadcastOptions.makeBasic().setShareIdentityEnabled(true).toBundle()
+            context.sendBroadcast(intent, permission, options)
+        }
+
+        @JvmStatic
+        fun sendOrderedBroadcastWithIdentity(
+            context: Context,
+            intent: Intent,
+            permission: String? = null,
+            resultReceiver: BroadcastReceiver? = null,
+            scheduler: android.os.Handler? = null,
+            initialCode: Int = 0,
+            initialData: String? = null,
+            initialExtras: Bundle? = null
+        ) {
+            val options = BroadcastOptions.makeBasic().setShareIdentityEnabled(true).toBundle()
+            context.sendOrderedBroadcast(intent, permission, options, resultReceiver, scheduler, initialCode, initialData, initialExtras)
+        }
+
+        @JvmStatic
+        fun isTrustedBroadcast(
+            receiver: BroadcastReceiver,
+            vararg allowedPackages: String,
+            allowNull: Boolean = false
+        ): Boolean {
+            val fromPackage = receiver.getSentFromPackage()
+            if (fromPackage == null) return allowNull
+            return fromPackage in allowedPackages
         }
 
         @JvmStatic

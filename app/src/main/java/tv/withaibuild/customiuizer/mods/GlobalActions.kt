@@ -51,11 +51,15 @@ object GlobalActions {
     const val EVENT_PREFIX = "tv.withaibuild.customiuizer.mods.event."
 
     /**
-     * Shared permission for all cross-process module broadcasts.
+     * Signature permission for module-to-host broadcasts.
      *
-     * The receiver is protected by this permission instead of only the action string,
-     * so a third-party app that knows the action cannot trigger high-privilege commands
-     * unless it is signed with the module certificate or is a trusted system component.
+     * Only the CustoMIUIzer module package holds this permission, so receivers that
+     * protect module-issued commands (FastReboot, FetchCachedDevices, FETCHAPPCONFIG)
+     * are not reachable from a third-party app that merely knows the action string.
+     *
+     * Host-to-host commands (RestartSystemUI, LockDevice, TakeScreenshot, etc.) use
+     * [android.app.BroadcastOptions] sender identity and action-specific package
+     * whitelists instead, because the host processes do not inherit the module signature.
      */
     const val BROADCAST_PERMISSION = "tv.withaibuild.customiuizer.r14.permission.BROADCAST"
 
@@ -183,6 +187,14 @@ object GlobalActions {
                 val modRes = ModuleHelper.getModuleRes(context)
                 val action = intent.action
                 if (action == null) return
+                if (!ModuleHelper.isTrustedBroadcast(
+                        this,
+                        Helpers.modulePkg,
+                        "android",
+                        "com.android.systemui",
+                        "com.miui.home"
+                    )
+                ) return
 
                 when (action) {
                     ACTION_PREFIX + "RestartSystemUI" -> Process.killProcess(Process.myPid())
@@ -719,7 +731,7 @@ object GlobalActions {
             if (bundle != null) {
                 showIntent.putExtra("actionInfo", bundle)
             }
-            context.sendBroadcast(showIntent)
+            ModuleHelper.sendBroadcastWithIdentity(context, showIntent)
             true
         } catch (t: Throwable) {
             XposedHelpers.log(t)
@@ -730,7 +742,7 @@ object GlobalActions {
     @JvmStatic
     fun commonSendAction(context: Context, action: String): Boolean {
         return try {
-            context.sendBroadcast(Intent(ACTION_PREFIX + action))
+            ModuleHelper.sendBroadcastWithIdentity(context, Intent(ACTION_PREFIX + action))
             true
         } catch (t: Throwable) {
             XposedHelpers.log(t)
