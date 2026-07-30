@@ -466,3 +466,99 @@ Comparator lambda 类。`Helpers` 还 import 了 `PrefsProvider` 和 `prefs.Pref
 - **本分支不可发布。** 不得据此打 tag、创建 Release 或合并 `main`。
 - **后续必须在 Android 14 / HyperOS 1 设备上完成验收**，验收项即上文「⚠️ 尚未完成实机验证」
   一节列出的 7 项。
+
+### 实机验收收口（2026-07-30）
+
+本节记录结构整理分支在真实设备上的验收结果，并取代上文「尚未进行实机验证」和
+「本分支不可合并 `main`」的阶段性结论。它只批准结构整理提交进入 `main`，不把本次发现的
+快速重启和 Toast 既有问题描述为已经修复，也不构成新版本发布批准。
+
+#### 测试信息
+
+- 日期：2026-07-30
+- 平台：Android 14 / HyperOS 1
+- 分支：`refactor/structure-tidy-r14.13.7`
+- 测试 HEAD：`bb7ce2bff7919f73f17956aa8ff08c23e777f49e`
+- 基线：`main` / `d22fc1f2e0fbe54b634acf7f3b0448e8af867d99`
+- 框架：Vector v2.0-3054 Release
+- Vector commit：`3d8090f3d5d4d960d6b5217f10db934b3c8404f8`
+- Vector Actions run：<https://github.com/JingMatrix/Vector/actions/runs/30457493179>
+- 日志目录：
+  `C:\Users\tv\Downloads\Peengeek\LSPosed_log\r14\r14.13.7\vector-logs-20260730-095851`
+
+新版 Vector 导出的日志不再沿用旧的单一文件布局。本轮递归扫描后按内容确认的结构为：
+
+- 根目录：`full.log`、`dmesg.log`、`modules_config.db`、`scopes.txt`
+- 当前会话：`log/verbose_*.log`、`log/modules_*.log`、`log/kmsg.log`、`log/props.txt`
+- 上一会话：`log.old/` 下的对应日志
+- 其他诊断材料：`anr/`、`tombstones/`、`modules/`、`proc/`
+
+#### 验收结果
+
+- 模块界面未发现异常。
+- 没有发现 CustoMIUIzer 导致的 `system_server`、SystemUI 或 Launcher 崩溃。
+- 仓库日志分析器结果为 P0=0、P1=0。
+- 没有证据表明 `HookUtils` 拆分或 `GlobalActions` 转发桩删除造成实机回归。
+- 结构整理已经完成静态门禁、离线二进制审计和本轮 Android 14 / HyperOS 1 实机验收。
+- `refactor/structure-tidy-r14.13.7` 允许按非 squash 合并进入 `main`。
+- 快速重启和 Toast 是尚未修复的 `r14.13.7` 基线既有问题，不属于本轮结构整理回归。
+- 本次验收只批准合并，不批准创建 tag、Release 或发布 APK。
+
+#### 快速重启既有问题
+
+设置应用发起快速重启的实际调用链为：
+
+```text
+PreferenceFragmentBase.onOptionsItemSelected
+→ confirmSoftReboot()
+→ sendSoftReboot()
+→ 向 com.android.systemui 发送有序广播
+→ GlobalActions.mSBReceiver
+→ PowerManager.mService.reboot(false, null, false)
+```
+
+快速重启命令直接发送到 SystemUI，并不依赖设置应用中的 `XposedServiceManager` Binder。
+失败根因是 SystemUI Receiver 的注册被错误绑定到是否存在自定义动作：
+
+```java
+if (GlobalActions.hasCustomActions()) {
+    GlobalActionSystemServerHooks.setupStatusBar(lpparam);
+}
+```
+
+`setupStatusBar()` 同时承担独立的 `FastReboot` Receiver 注册。没有配置自定义动作时，
+SystemUI 不执行该注册，有序广播无人处理，设置应用随后又错误复用了
+「暂未连接到 LSPosed 服务」提示。该条件和广播处理逻辑在结构整理基线中已经存在；
+本分支只把调用接收方从转发桩改为实际实现类，没有改变条件、方法签名或执行顺序。
+
+#### Vector Binder 独立问题
+
+- 前四次设置应用进程启动后，Vector daemon 均快速记录
+  `Sent module binder to tv.withaibuild.customiuizer.r14`，应用在 3–10 ms 内进入 `BOUND`。
+- 多次快速进程重建后，Vector 停止向后续设置应用进程投递 Binder。
+- 后续进程先记录 `no bind within 3500ms`，完整等待窗口结束后进入 `TIMED_OUT`。
+- 这不会阻止设置应用发送快速重启广播；快速重启失败有上节所述的独立 Receiver 注册根因。
+- 该现象属于 Vector 上游 UID/进程生命周期与 Binder 投递问题。本项目不通过轮询、
+  重复 `registerListener()`、无限重试或延长等待窗口掩盖它。
+
+#### Toast 既有问题（仅记录）
+
+Vector 导出的 `modules_config.db` 中，Remote Preferences 实际为：
+
+```text
+pref_key_system_blocktoasts = "3"
+pref_key_system_blocktoasts_apps 包含 com.odcloudtech.mobile
+```
+
+已确认：
+
+- 应用选择器保存的是精确包名 `com.odcloudtech.mobile`，没有 display name、component、
+  `|userId` 或空格混淆。
+- 「阻止所选应用」的 entry value 是 `3`，当前判断方向正确。
+- `full.log` 出现 `NotificationService: cancelToast pkg=com.odcloudtech.mobile`，
+  因此测试中看到的提示是真实系统 Toast，不是应用内自绘浮层、Dialog 或 Snackbar。
+- 当前日志仍不能证明本次 `system_server` 已成功加载 CustoMIUIzer 并安装
+  `SelectiveToastsHook`。
+- 后续应在设置完成后完整重启，单独复现一次，并核对当前 HyperOS ROM
+  `services.jar` 中 `NotificationManagerService.tryShowToast` 的实际重载、首参类型和
+  `ToastRecord.pkg` 字段；在取得这些证据前不修改 Toast 逻辑。
