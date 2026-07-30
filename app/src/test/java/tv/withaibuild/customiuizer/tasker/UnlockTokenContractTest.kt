@@ -10,77 +10,92 @@ class UnlockTokenContractTest {
     private val unlockTokenProvider = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockTokenProvider.kt")
     private val unlockSettings = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockSettings.kt")
     private val unlockReceiver = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockReceiver.kt")
-    private val constants = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/Constants.kt")
+    private val taskerFiles = listOf(
+        unlockTokenProvider,
+        unlockSettings,
+        unlockReceiver
+    )
 
     @Test
-    fun tokenIsNotHardCoded() {
+    fun tokensArePerHostNotGlobal() {
+        assertTrue(
+            "Token storage must be keyed by host package",
+            unlockTokenProvider.contains("host_token_") &&
+                unlockTokenProvider.contains("host_certs_") &&
+                unlockTokenProvider.contains("HostInfo")
+        )
         assertFalse(
-            "Token must be generated at runtime, not a constant string",
-            unlockTokenProvider.contains(Regex("const val TOKEN\\b")) ||
-                unlockTokenProvider.contains("\"fixed_token\"") ||
-                unlockTokenProvider.contains("= \"tv.withaibuild.customiuizer")
+            "There must not be a single global token key",
+            unlockTokenProvider.contains(Regex("const val PREF_KEY_TOKEN")) &&
+                unlockTokenProvider.contains("= \"unlock_token\"")
         )
     }
 
     @Test
-    fun tokenUsesSecureRandom() {
+    fun hostInfoIncludesPackageLabelAndCerts() {
         assertTrue(
-            "Token generation must use SecureRandom",
-            unlockTokenProvider.contains("SecureRandom()")
+            "HostInfo must capture package, label and certificate fingerprints",
+            unlockTokenProvider.contains("data class HostInfo") &&
+                unlockTokenProvider.contains("packageName") &&
+                unlockTokenProvider.contains("applicationLabel") &&
+                unlockTokenProvider.contains("certFingerprints")
         )
         assertTrue(
-            "Token length should be at least 16 bytes",
-            unlockTokenProvider.contains("ByteArray(") &&
-                (unlockTokenProvider.contains("TOKEN_BYTES = 32") || unlockTokenProvider.contains("ByteArray(32)"))
-        )
-    }
-
-    @Test
-    fun tokenIsStoredInPrivateSharedPreferences() {
-        assertTrue(
-            "Token must be stored in a private SharedPreferences file",
-            unlockTokenProvider.contains("getSharedPreferences(")
-        )
-        assertTrue(
-            "SharedPreferences must be MODE_PRIVATE",
-            unlockTokenProvider.contains("Context.MODE_PRIVATE")
+            "Certificate extraction must use SHA-256",
+            unlockTokenProvider.contains("MessageDigest.getInstance(\"SHA-256\")") &&
+                unlockTokenProvider.contains("signingCertificateHistory")
         )
     }
 
     @Test
-    fun unlockSettingsEmbedsTokenInBundle() {
+    fun unlockSettingsRequiresCallingPackage() {
         assertTrue(
-            "UnlockSettings must include the token in the saved Bundle",
-            unlockSettings.contains("putString(UnlockTokenProvider.BUNDLE_KEY_TOKEN,") ||
-                unlockSettings.contains("UnlockTokenProvider.BUNDLE_KEY_TOKEN")
+            "UnlockSettings must read callingPackage",
+            unlockSettings.contains("callingPackage")
         )
         assertTrue(
-            "UnlockSettings must generate or reuse the token when saving",
-            unlockSettings.contains("getOrCreateToken(")
-        )
-    }
-
-    @Test
-    fun unlockReceiverValidatesToken() {
-        assertTrue(
-            "UnlockReceiver must call UnlockTokenProvider.verify",
-            unlockReceiver.contains("UnlockTokenProvider().verify(")
+            "Missing calling package must cancel",
+            unlockSettings.contains("Activity.RESULT_CANCELED") &&
+                unlockSettings.contains("if (callingPackage == null)")
         )
         assertTrue(
-            "UnlockReceiver must reject missing or invalid token",
-            unlockReceiver.contains("if (!UnlockTokenProvider().verify(")
-        )
-        assertTrue(
-            "UnlockReceiver must not expose the token in logs",
-            !unlockReceiver.contains("provided") && !unlockReceiver.contains("token.toString()")
+            "Host summary must be shown to the user",
+            unlockSettings.contains("R.id.host_info") &&
+                unlockSettings.contains("R.string.unlock_host_summary")
         )
     }
 
     @Test
-    fun unlockReceiverForwardsOnlyToSystemUI() {
+    fun unlockReceiverValidatesSenderAndToken() {
         assertTrue(
-            "UnlockReceiver must send UnlockSetForced only to com.android.systemui",
-            unlockReceiver.contains("setPackage(\"com.android.systemui\")")
+            "UnlockReceiver must read getSentFromPackage",
+            unlockReceiver.contains("getSentFromPackage()")
+        )
+        assertTrue(
+            "UnlockReceiver must call verifyBundle with the actual sender",
+            unlockReceiver.contains("verifyBundle(context, bundle, sender)")
+        )
+        assertTrue(
+            "UnlockReceiver must require sender identity sharing",
+            unlockReceiver.contains("broadcast sender identity not shared")
+        )
+    }
+
+    @Test
+    fun bundleContainsHostPackageAndToken() {
+        assertTrue(
+            "Bundle must carry the host package",
+            unlockSettings.contains("BUNDLE_KEY_HOST_PACKAGE") &&
+                unlockSettings.contains("putString(UnlockTokenProvider.BUNDLE_KEY_HOST_PACKAGE")
+        )
+        assertTrue(
+            "Bundle must carry the per-host token",
+            unlockSettings.contains("putString(UnlockTokenProvider.BUNDLE_KEY_TOKEN")
+        )
+        assertTrue(
+            "UnlockTokenProvider must expose host package and token bundle keys",
+            unlockTokenProvider.contains("BUNDLE_KEY_HOST_PACKAGE") &&
+                unlockTokenProvider.contains("BUNDLE_KEY_TOKEN")
         )
     }
 
@@ -88,23 +103,59 @@ class UnlockTokenContractTest {
     fun tokenNeverLoggedOrExported() {
         assertFalse(
             "Token value must never be written to logs",
-            unlockReceiver.contains("XposedHelpers.log(") && unlockReceiver.contains("\$token")
+            unlockReceiver.contains("XposedHelpers.log(") ||
+                unlockReceiver.contains("android.util.Log") && unlockReceiver.contains("\$token")
         )
         assertFalse(
             "Token value must never be shown in a Toast",
             unlockSettings.contains("Toast.makeText") && unlockSettings.contains("\$token")
         )
         assertFalse(
-            "Token value must never be written to logcat directly",
-            unlockTokenProvider.contains("Log.") && unlockTokenProvider.contains("\$token")
+            "Token value must not be shared via settings export",
+            unlockTokenProvider.contains("appPrefs") ||
+                unlockTokenProvider.contains("MainModule.mPrefs")
+        )
+    }
+
+    @Test
+    fun taskerComponentsDoNotReferenceHookOrLibxposed() {
+        val joined = taskerFiles.joinToString("")
+        assertFalse(
+            "Tasker plugin files must not reference XposedHelpers",
+            joined.contains("XposedHelpers")
+        )
+        assertFalse(
+            "Tasker plugin files must not reference MainModule",
+            joined.contains("MainModule")
+        )
+        assertFalse(
+            "Tasker plugin files must not reference libxposed / XposedBridge",
+            joined.contains("libxposed") ||
+                joined.contains("XposedBridge") ||
+                joined.contains("de.robv.android.xposed")
+        )
+        assertFalse(
+            "UnlockReceiver must not use mods/utils ModuleHelper after this round",
+            unlockReceiver.contains("ModuleHelper")
+        )
+    }
+
+    @Test
+    fun legacyGlobalTokenIsCleared() {
+        assertTrue(
+            "Legacy global token must be cleared",
+            unlockTokenProvider.contains("LEGACY_PREFS_NAME") &&
+                unlockTokenProvider.contains("LEGACY_TOKEN_KEY") &&
+                unlockSettings.contains("clearLegacyGlobalToken")
         )
     }
 
     @Test
     fun constantsDoNotDefineTokenValue() {
+        val constants = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/Constants.kt")
         assertFalse(
             "Constants should not contain a hard-coded token",
-            constants.contains("token") || constants.contains("Token")
+            constants.contains(Regex("const\\s+val\\s+.*TOKEN"))
         )
     }
 

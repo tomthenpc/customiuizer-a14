@@ -167,12 +167,13 @@ class BroadcastSecurityContractTest {
     }
 
     @Test
-    fun unlockReceiverUsesPerInstallToken() {
+    fun unlockReceiverUsesPerHostToken() {
         val unlockReceiver = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockReceiver.kt")
         val unlockTokenProvider = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockTokenProvider.kt")
         assertTrue(
-            "UnlockReceiver must verify token before forwarding",
-            unlockReceiver.contains("UnlockTokenProvider().verify(")
+            "UnlockReceiver must get and verify the actual broadcast sender",
+            unlockReceiver.contains("getSentFromPackage()") &&
+                unlockReceiver.contains("verifyBundle(")
         )
         assertTrue(
             "UnlockTokenProvider must use SecureRandom",
@@ -184,9 +185,10 @@ class BroadcastSecurityContractTest {
                 !unlockTokenProvider.contains("\"fixed_token\"")
         )
         assertTrue(
-            "Token must be stored privately",
+            "Token must be stored privately and keyed by host package",
             unlockTokenProvider.contains("Context.MODE_PRIVATE") &&
-                unlockTokenProvider.contains("getSharedPreferences(")
+                unlockTokenProvider.contains("host_token_") &&
+                unlockTokenProvider.contains("host_certs_")
         )
     }
 

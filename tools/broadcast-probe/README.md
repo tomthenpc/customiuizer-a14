@@ -29,8 +29,11 @@ Each button sends an ordered broadcast to the exact target package defined in
 The probe uses `sendOrderedBroadcast(..., initialCode = 100)`. Receivers update the
 result code when they handle or explicitly reject a broadcast:
 
-- `100` **SENTINEL** — no matching receiver, permission not held, or the broadcast
-  was otherwise not delivered to a handler.
+- `100` **SENTINEL** — the broadcast was not received and explicitly handled by the
+  intended target Receiver. This covers: no matching receiver, the sender does not hold
+  the required permission, or a permission/whitelist check rejected the broadcast before
+  the Receiver's `onReceive` set a different code. SENTINEL by itself cannot distinguish
+  between those causes and must be interpreted together with the action and target.
 - `-1` **HANDLED** (`Activity.RESULT_OK`) — a receiver accepted and executed the
   action. This must **never** happen from this untrusted app.
 - `1` **FAILED** (`Activity.RESULT_FIRST_USER`) — a receiver received the broadcast

@@ -1,29 +1,40 @@
 package tv.withaibuild.customiuizer.tasker
 
+import android.app.BroadcastOptions
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import tv.withaibuild.customiuizer.mods.GlobalActions
-import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
-import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import android.os.Bundle
+import android.util.Log
 
 class UnlockReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        val bundle = intent.getBundleExtra(Constants.EXTRA_BUNDLE)
-        if (bundle == null) {
-            XposedHelpers.log("UnlockReceiver: rejected, missing bundle")
-            return
+        try {
+            val bundle = intent.getBundleExtra(Constants.EXTRA_BUNDLE)
+            val sender = getSentFromPackage()
+            if (sender == null) {
+                Log.w(TAG, "UnlockReceiver: rejected, broadcast sender identity not shared by the host")
+                return
+            }
+            if (!UnlockTokenProvider().verifyBundle(context, bundle, sender)) {
+                Log.w(TAG, "UnlockReceiver: rejected, missing or invalid host token / mismatched sender")
+                return
+            }
+            val sendIntent = Intent().apply {
+                action = UNLOCK_SET_FORCED
+                setPackage("com.android.systemui")
+                putExtras(bundle ?: Bundle())
+            }
+            val options = BroadcastOptions.makeBasic().setShareIdentityEnabled(true).toBundle()
+            context.sendBroadcast(sendIntent, null, options)
+        } catch (t: Throwable) {
+            Log.e(TAG, "UnlockReceiver: unexpected error", t)
         }
-        if (!UnlockTokenProvider().verify(context, bundle)) {
-            XposedHelpers.log("UnlockReceiver: rejected, missing or invalid token")
-            return
-        }
-        val sendIntent = Intent().apply {
-            action = GlobalActions.ACTION_PREFIX + "UnlockSetForced"
-            setPackage("com.android.systemui")
-            putExtras(bundle)
-        }
-        ModuleHelper.sendBroadcastWithIdentity(context, sendIntent)
+    }
+
+    companion object {
+        private const val TAG = "CustoMIUIzer-UnlockReceiver"
+        private const val UNLOCK_SET_FORCED = "tv.withaibuild.customiuizer.mods.action.UnlockSetForced"
     }
 }
