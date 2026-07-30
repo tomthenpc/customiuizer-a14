@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from . import parsers, redaction
+from . import broadcast, parsers, redaction, tasker
 from .safety import validate_command
 
 
@@ -428,10 +428,53 @@ def execute_hook_summary(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str,
 
 
 def execute_broadcast_probe(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str, Any]:
-    # Never execute arbitrary broadcasts.
-    if step.get("manual"):
-        return _result(step, "MANUAL_PENDING", "broadcast probe requires manual verification")
-    return _result(step, "SKIPPED", "arbitrary broadcasts are not executed")
+    expected = step.get("expected", {})
+    if not isinstance(expected, dict):
+        return _result(step, "ERROR", "broadcast_probe requires expected object")
+
+    kind = expected.get("broadcastKind") or step.get("broadcastKind")
+    if not kind:
+        return _result(step, "ERROR", "broadcast_probe requires broadcastKind")
+    if kind not in broadcast.BROADCAST_ACTIONS:
+        return _result(step, "ERROR", f"unknown broadcast kind: {kind}")
+
+    action = broadcast.action_for_kind(kind)
+    cmd = ["am", "broadcast", "-a", action]
+    ok, reason = validate_command(
+        cmd,
+        allow_dangerous=False,
+        expected_broadcast_action=action,
+    )
+    if not ok:
+        return _result(step, "ERROR", f"unsafe broadcast: {reason}")
+
+    rc, out, err, elapsed = _run_adb(ctx, ["shell"] + cmd, _timeout(step, ctx))
+    out = redaction.redact(out, serial=ctx.get("serial"))
+    err = redaction.redact(err, serial=ctx.get("serial"))
+    ctx.setdefault("commands", []).append({
+        "stepId": step["id"],
+        "args": ["shell"] + cmd,
+        "rc": rc,
+        "stdout": out,
+        "stderr": err,
+        "elapsed": round(elapsed, 3),
+    })
+
+    raw = f"{out}\n{err}" if (out or err) else ""
+    result = broadcast.parse_probe_output(raw)
+    status = broadcast.result_status(result)
+    message = f"{kind} -> {action}: {result}"
+
+    return _result(
+        step, status, message,
+        broadcastKind=kind,
+        action=action,
+        probeResult=result,
+        returnCode=rc,
+        stdout=out,
+        stderr=err,
+        elapsed=round(elapsed, 3),
+    )
 
 
 def execute_collect_diagnostics(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str, Any]:
@@ -478,17 +521,42 @@ def execute_collect_diagnostics(ctx: dict[str, Any], step: dict[str, Any]) -> di
 
 
 def execute_manual_checkpoint(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str, Any]:
-    data = {
-        "status": "MANUAL_PENDING",
-        "stepId": step["id"],
-        "description": step.get("description", ""),
-    }
-    for ef in step.get("evidenceFiles", []):
-        _write_json(ctx["out_dir"] / ef, data)
-    return _result(
-        step, "MANUAL_PENDING",
-        step.get("description", "manual checkpoint"),
-    )
+    step_id = step["id"]
+    results = ctx.get("manual_results", {})
+    found = results.get(step_id)
+
+    if found:
+        raw_status = found.get("status", "PENDING")
+        notes = found.get("notes", "")
+        status = "MANUAL_PENDING" if raw_status == "PENDING" else raw_status
+        data = {
+            "status": status,
+            "stepId": step_id,
+            "description": step.get("description", ""),
+            "notes": notes,
+        }
+        for ef in step.get("evidenceFiles", []):
+            _write_json(ctx["out_dir"] / ef, data)
+        return _result(
+            step, status, notes,
+            checkpoint=found.get("raw"),
+        )
+
+    required = step.get("required", step.get("manual", False))
+    if required:
+        data = {
+            "status": "MANUAL_PENDING",
+            "stepId": step_id,
+            "description": step.get("description", ""),
+        }
+        for ef in step.get("evidenceFiles", []):
+            _write_json(ctx["out_dir"] / ef, data)
+        return _result(
+            step, "MANUAL_PENDING",
+            step.get("description", "manual checkpoint pending"),
+        )
+
+    return _result(step, "SKIPPED", "manual checkpoint not required")
 
 
 STEP_HANDLERS: dict[str, Any] = {

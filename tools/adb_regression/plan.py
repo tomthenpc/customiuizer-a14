@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from . import broadcast
 from .safety import validate_command
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -92,7 +93,7 @@ def _validate_step(step: Any, seen_ids: set[str], serial: str | None = None) -> 
             errors.append(f"step {step.get('id')} {b} must be boolean")
 
     # shell command safety
-    if step.get("type") in ("shell", "broadcast_probe"):
+    if step.get("type") == "shell":
         cmd = step.get("command") or step.get("args") or []
         if isinstance(cmd, str):
             errors.append(f"step {step.get('id')} shell command must be an argument array")
@@ -102,6 +103,21 @@ def _validate_step(step: Any, seen_ids: set[str], serial: str | None = None) -> 
             ok, reason = validate_command(cmd, allow_dangerous=allow_dangerous, expected_broadcast_action=expected_action)
             if not ok:
                 errors.append(f"step {step.get('id')} unsafe shell: {reason}")
+
+    # broadcast probe validation
+    if step.get("type") == "broadcast_probe":
+        expected = step.get("expected", {})
+        if not isinstance(expected, dict):
+            errors.append(f"step {step.get('id')} broadcast_probe expected must be an object")
+        else:
+            kind = expected.get("broadcastKind") or step.get("broadcastKind")
+            if not kind:
+                errors.append(f"step {step.get('id')} broadcast_probe requires broadcastKind")
+            elif kind not in broadcast.BROADCAST_ACTIONS:
+                errors.append(f"step {step.get('id')} unknown broadcastKind: {kind}")
+            result = expected.get("result")
+            if result is not None and result not in broadcast.PERMITTED_RESULTS:
+                errors.append(f"step {step.get('id')} invalid broadcast result: {result}")
 
     # feature/preference links
     for fid in step.get("linkedFeatureIds", []):

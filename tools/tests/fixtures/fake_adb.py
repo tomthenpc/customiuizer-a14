@@ -154,6 +154,36 @@ def _logcat_output(scenario: str) -> list[str]:
     ]
 
 
+_FAKE_BROADCAST_RESULTS = {
+    "tv.withaibuild.customiuizer.r14.FAST_RESTART": "SENTINEL",
+    "tv.withaibuild.customiuizer.r14.RESTART_SYSTEMUI": "FAILED",
+    "tv.withaibuild.customiuizer.r14.RESTART_LAUNCHER": "SENTINEL",
+    "tv.withaibuild.customiuizer.r14.LOCK_DEVICE": "SENTINEL",
+    "tv.withaibuild.customiuizer.r14.TAKE_SCREENSHOT": "SENTINEL",
+    "tv.withaibuild.customiuizer.r14.FORCE_CLOSE": "SENTINEL",
+    "tv.withaibuild.customiuizer.r14.SIMULATE_MENU": "SENTINEL",
+    "tv.withaibuild.customiuizer.r14.FETCH_CACHED_DEVICES": "SENTINEL",
+    "tv.withaibuild.customiuizer.r14.PUSHAPPCONFIG": "SENTINEL",
+    # Negative-control probes: the framework must treat these as failures.
+    "tv.withaibuild.customiuizer.r14.WRONG_TARGET_PROBE": "HANDLED",
+    "tv.withaibuild.customiuizer.r14.UNREGISTERED_PROBE": "HANDLED",
+    "tv.withaibuild.customiuizer.r14.MISSING_TOKEN_PROBE": "HANDLED",
+    "tv.withaibuild.customiuizer.r14.MISSING_SENDER_PROBE": "HANDLED",
+}
+
+
+def _handle_broadcast(cmd: list[str]) -> int:
+    try:
+        idx = cmd.index("-a")
+        action = cmd[idx + 1]
+    except (ValueError, IndexError):
+        print("[BroadcastProbe] result=FAILED")
+        return 1
+    result = _FAKE_BROADCAST_RESULTS.get(action, "NOT_AVAILABLE")
+    print(f"[BroadcastProbe] result={result}")
+    return 0
+
+
 def main() -> int:
     state = os.environ.get("ADB_FAKE_STATE", "ok")
     scenario = os.environ.get("FAKE_ADB_SCENARIO", "ok")
@@ -219,6 +249,8 @@ def main() -> int:
             for pkg in ["tv.withaibuild.customiuizer.r14", "com.android.systemui", "com.miui.home", "org.lsposed.manager"]:
                 print(f"package:{pkg}")
             return 0
+        if len(cmd) >= 3 and cmd[0] == "shell" and cmd[1] == "am" and cmd[2] == "broadcast":
+            return _handle_broadcast(cmd)
 
     # Unknown command
     print(f"fake_adb: unhandled command: {args}", file=sys.stderr)

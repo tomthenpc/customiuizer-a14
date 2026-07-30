@@ -69,6 +69,19 @@ def _validate_lsposed_log(value: str) -> Path:
     return p
 
 
+def _validate_manual_results(value: str) -> Path:
+    p = Path(value).expanduser().resolve()
+    if not p.exists():
+        die(f"manual results not found: {p}", 2)
+    if p.is_dir():
+        die(f"manual results is a directory: {p}", 2)
+    if not p.is_file():
+        die(f"manual results is not a regular file: {p}", 2)
+    if p.stat().st_size > 100 * 1024 * 1024:
+        die(f"manual results exceeds 100 MB: {p}", 2)
+    return p
+
+
 def find_adb(override: str | None = None) -> Path:
     if override:
         p = Path(override).expanduser().resolve()
@@ -398,6 +411,7 @@ def main() -> int:
     p.add_argument("--verbose", action="store_true", help="verbose output")
     p.add_argument("--lsposed-log", type=_validate_lsposed_log, help="path to LSPosed verbose log file to use for assertions")
     p.add_argument("--allow-unverified-log", action="store_true", help="accept stale or unverifiable LSPosed verbose logs with UNVERIFIED confidence")
+    p.add_argument("--manual-results", type=_validate_manual_results, help="path to manual checkpoint results JSON")
     p.set_defaults(func=cmd_run)
 
     p = sub.add_parser("propose-evidence", help="propose device evidence from a report", parents=[parent])

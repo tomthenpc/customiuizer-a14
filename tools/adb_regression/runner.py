@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from . import plan, redaction, report, steps
+from . import plan, redaction, report, steps, tasker
 
 
 class RegressionError(Exception):
@@ -126,6 +126,14 @@ def run(
         lsposed_log_lines = lsposed_text.splitlines()
         lsposed_log_basename = lsposed_log.name
 
+    manual_results: dict[str, Any] = {}
+    manual_results_path = getattr(args, "manual_results", None)
+    if manual_results_path:
+        try:
+            manual_results = tasker.load_manual_results(manual_results_path)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            raise RegressionError(f"manual results invalid: {exc}", 2)
+
     ctx: dict[str, Any] = {
         "adb": adb,
         "serial": serial,
@@ -145,6 +153,7 @@ def run(
         "lsposed_text": lsposed_text,
         "lsposed_log_basename": lsposed_log_basename,
         "allow_unverified_log": bool(getattr(args, "allow_unverified_log", False)),
+        "manual_results": manual_results,
     }
 
     step_results: list[dict[str, Any]] = []
