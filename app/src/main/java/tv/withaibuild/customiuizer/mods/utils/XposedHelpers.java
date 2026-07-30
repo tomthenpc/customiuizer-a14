@@ -49,6 +49,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.libxposed.api.XposedInterface;
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.CustomMethodUnhooker;
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook;
+import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics;
 
 
 /**
@@ -2097,12 +2098,22 @@ public final class XposedHelpers {
 
     public static void createBridge(String apkPath) {
         if (bridge != null) return;
-        bridge = DexKitBridge.create(apkPath);
+        try {
+            bridge = DexKitBridge.create(apkPath);
+        } catch (Throwable t) {
+            HookDiagnostics.recordDexKit("DexKitBridge", "create", t.getClass().getName());
+            log(t);
+        }
     }
 
     public static void closeBridge() {
         if (bridge != null) {
-            bridge.close();
+            try {
+                bridge.close();
+            } catch (Throwable t) {
+                HookDiagnostics.recordDexKit("DexKitBridge", "close", t.getClass().getName());
+                log(t);
+            }
             bridge = null;
         }
     }

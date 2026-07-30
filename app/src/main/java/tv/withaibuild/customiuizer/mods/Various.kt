@@ -51,6 +51,7 @@ import org.luckypray.dexkit.query.matchers.MethodMatcher
 import org.luckypray.dexkit.result.MethodData
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
+import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
@@ -1058,14 +1059,28 @@ object Various {
 
     @JvmStatic
     fun DisableDefraudAppsCheck(lpparam: PackageReadyParam) {
-        val methodData = XposedHelpers.bridge.findMethod(
-            FindMethod.create()
-                .excludePackages("tmsdk", "tmsdkobf", "xcrash", "com.tencent", "com.xiaomi")
-                .matcher(MethodMatcher.create().usingStrings("getUnSystemAppList error", "AntiDefraudAppManager"))
-        ).singleOrNull()
+        val bridge = XposedHelpers.bridge
+        if (bridge == null) {
+            HookDiagnostics.recordDexKit("com.miui.guardprovider", "AntiDefraudAppManager", exceptionType = "bridge-null")
+            return
+        }
+        val methodData = try {
+            bridge.findMethod(
+                FindMethod.create()
+                    .excludePackages("tmsdk", "tmsdkobf", "xcrash", "com.tencent", "com.xiaomi")
+                    .matcher(MethodMatcher.create().usingStrings("getUnSystemAppList error", "AntiDefraudAppManager"))
+            ).singleOrNull()
+        } catch (t: Throwable) {
+            HookDiagnostics.recordDexKit("com.miui.guardprovider", "AntiDefraudAppManager", exceptionType = t.javaClass.name)
+            null
+        }
 
-        if (methodData != null) {
-            val fakeUserAppsHook = object : MethodHook() {
+        if (methodData == null) {
+            HookDiagnostics.recordDexKit("com.miui.guardprovider", "AntiDefraudAppManager", noMatch = true)
+            return
+        }
+
+        val fakeUserAppsHook = object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var skipped = false
                     var result: Any? = null
@@ -1087,7 +1102,6 @@ object Various {
                 ModuleHelper.hookMethod(method, fakeUserAppsHook)
             } catch (ign: Throwable) {
             }
-        }
     }
 
     @JvmStatic

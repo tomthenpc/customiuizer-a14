@@ -90,7 +90,9 @@ class ModuleHelper private constructor() {
 
         private var thermalIdScanned = false
 
-        private fun processName() = currentPackageName ?: android.os.Process.myPid().toString()
+        private fun processName() = HookDiagnostics.currentProcessName
+            ?: currentPackageName
+            ?: android.os.Process.myPid().toString()
 
         private fun argList(vararg args: Any?): String =
             args.toList().dropLast(1).joinToString(",") { it?.toString() ?: "" }

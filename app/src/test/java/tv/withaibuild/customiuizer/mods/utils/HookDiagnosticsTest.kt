@@ -125,7 +125,7 @@ class HookDiagnosticsTest {
 
     @Test
     fun summaryPrintedOnce() {
-        ModuleHelper.currentPackageName = "test"
+        HookDiagnostics.currentProcessName = "test"
         HookDiagnostics.record("test", HookDiagnostics.Kind.METHOD, "C", "m", "", HookDiagnostics.Status.INSTALLED)
 
         // printSummaryOnce can be called repeatedly without throwing; only one actual log is emitted.
@@ -133,6 +133,31 @@ class HookDiagnosticsTest {
         HookDiagnostics.printSummaryOnce()
         val s = HookDiagnostics.summary()
         assertEquals(1, s[HookDiagnostics.Status.INSTALLED])
+    }
+
+    @Test
+    fun printSummaryForStageIsStageSpecific() {
+        HookDiagnostics.currentProcessName = "test"
+        HookDiagnostics.record("test", HookDiagnostics.Kind.METHOD, "C", "m", "", HookDiagnostics.Status.INSTALLED)
+        HookDiagnostics.printSummaryForStage("stage-a")
+        HookDiagnostics.printSummaryForStage("stage-b")
+        // Repeating the same stage is a no-op.
+        HookDiagnostics.printSummaryForStage("stage-a")
+        assertEquals(1, HookDiagnostics.summary()[HookDiagnostics.Status.INSTALLED])
+    }
+
+    @Test
+    fun recordPreferencesUnavailable() {
+        HookDiagnostics.currentProcessName = "test"
+        HookDiagnostics.recordPreferencesUnavailable("java.lang.IllegalStateException", "getAll")
+        assertEquals(1, HookDiagnostics.summary()[HookDiagnostics.Status.PREFERENCES_UNAVAILABLE])
+    }
+
+    @Test
+    fun recordDexKitNoMatch() {
+        HookDiagnostics.currentProcessName = "test"
+        HookDiagnostics.recordDexKit("C", "m", noMatch = true)
+        assertEquals(1, HookDiagnostics.summary()[HookDiagnostics.Status.DEXKIT_NO_MATCH])
     }
 
     @Test

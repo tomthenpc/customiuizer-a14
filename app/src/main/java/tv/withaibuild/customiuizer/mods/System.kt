@@ -21,6 +21,7 @@ import org.luckypray.dexkit.query.matchers.MethodMatcher
 import org.luckypray.dexkit.result.MethodData
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
+import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
@@ -370,10 +371,24 @@ object System {
 
         val format = MainModule.mPrefs.getStringAsInt("system_screenshot_format", 2)
         if (format > 2) {
-            val methodCandidates = XposedHelpers.bridge.findMethod(FindMethod.create()
-                .excludePackages("android", "androidx", "com.xiaomi", "com.google.json", "kotlin", "kotlinx.coroutines", "miuix")
-                .matcher(MethodMatcher.create().usingStrings("saveBitmapToUri: external storage"))
-            )
+            val bridge = XposedHelpers.bridge
+            if (bridge == null) {
+                HookDiagnostics.recordDexKit("com.miui.screenshot", "saveBitmapToUri", exceptionType = "bridge-null")
+                return
+            }
+            val methodCandidates = try {
+                bridge.findMethod(FindMethod.create()
+                    .excludePackages("android", "androidx", "com.xiaomi", "com.google.json", "kotlin", "kotlinx.coroutines", "miuix")
+                    .matcher(MethodMatcher.create().usingStrings("saveBitmapToUri: external storage"))
+                )
+            } catch (t: Throwable) {
+                HookDiagnostics.recordDexKit("com.miui.screenshot", "saveBitmapToUri", exceptionType = t.javaClass.name)
+                null
+            }
+            if (methodCandidates == null) {
+                HookDiagnostics.recordDexKit("com.miui.screenshot", "saveBitmapToUri", noMatch = true)
+                return
+            }
             var methodData: MethodData? = null
             var compatibleCandidateCount = 0
             for (candidate in methodCandidates) {
@@ -386,6 +401,7 @@ object System {
             }
             if (compatibleCandidateCount != 1) {
                 XposedHelpers.log("ScreenshotConfigHook: expected one compatible save method, found $compatibleCandidateCount")
+                HookDiagnostics.recordDexKit("com.miui.screenshot", "saveBitmapToUri", noMatch = true)
                 methodData = null
             }
 

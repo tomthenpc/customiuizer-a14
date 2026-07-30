@@ -72,6 +72,7 @@ public class MainModule extends XposedModule {
     @Override
     public void onModuleLoaded(@NonNull XposedModuleInterface.ModuleLoadedParam param) {
         processName = param.getProcessName();
+        HookDiagnostics.currentProcessName = processName;
         XposedHelpers.moduleInst = this;
         // Stamp the build into every process's log. Without it a captured LSPosed log
         // cannot be told apart from one produced by a different build of the same
@@ -100,10 +101,26 @@ public class MainModule extends XposedModule {
     private void initPrefs() {
         if (mPrefsLoaded) return;
         if (remotePrefs == null) {
-            remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
+            try {
+                remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
+            } catch (Throwable t) {
+                HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getRemotePreferences");
+                return;
+            }
         }
-        Map<String, ?> allPrefs = remotePrefs.getAll();
+        if (remotePrefs == null) {
+            HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null");
+            return;
+        }
+        Map<String, ?> allPrefs;
+        try {
+            allPrefs = remotePrefs.getAll();
+        } catch (Throwable t) {
+            HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getAll");
+            return;
+        }
         if (allPrefs == null || allPrefs.isEmpty()) {
+            // Empty map is not a failure; the remote provider may simply have no values yet.
             if (!mEmptyPrefsReported) {
                 mEmptyPrefsReported = true;
                 XposedHelpers.log("Empty preferences!");
@@ -115,7 +132,13 @@ public class MainModule extends XposedModule {
     }
 
     private void loadDexKit() {
-        java.lang.System.loadLibrary("dexkit");
+        try {
+            java.lang.System.loadLibrary("dexkit");
+        } catch (Throwable t) {
+            HookDiagnostics.recordDexKit("dexkit", "loadLibrary", t.getClass().getName());
+            XposedHelpers.log(t);
+            throw t;
+        }
     }
 
     private void watchPreferenceChange() {
@@ -123,44 +146,62 @@ public class MainModule extends XposedModule {
         mListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
             @Override
             public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, @Nullable String key) {
-                if (key == null) return;
-                Object val;
-                if (sharedPreferences.contains(key)) {
-                    Object oldVal = mPrefs.get(key);
-                    if (oldVal instanceof Boolean) {
-                        val = sharedPreferences.getBoolean(key, false);
-                    } else if (oldVal instanceof Integer) {
-                        val = sharedPreferences.getInt(key, 0);
-                    } else if (oldVal instanceof Long) {
-                        val = sharedPreferences.getLong(key, 0L);
-                    } else if (oldVal instanceof Float) {
-                        val = sharedPreferences.getFloat(key, 0f);
-                    } else if (oldVal instanceof String) {
-                        val = sharedPreferences.getString(key, null);
-                    } else if (oldVal instanceof Set) {
-                        val = sharedPreferences.getStringSet(key, null);
+                if (sharedPreferences == null || key == null) return;
+                try {
+                    Object val;
+                    if (sharedPreferences.contains(key)) {
+                        Object oldVal = mPrefs.get(key);
+                        if (oldVal instanceof Boolean) {
+                            val = sharedPreferences.getBoolean(key, false);
+                        } else if (oldVal instanceof Integer) {
+                            val = sharedPreferences.getInt(key, 0);
+                        } else if (oldVal instanceof Long) {
+                            val = sharedPreferences.getLong(key, 0L);
+                        } else if (oldVal instanceof Float) {
+                            val = sharedPreferences.getFloat(key, 0f);
+                        } else if (oldVal instanceof String) {
+                            val = sharedPreferences.getString(key, null);
+                        } else if (oldVal instanceof Set) {
+                            val = sharedPreferences.getStringSet(key, null);
+                        } else {
+                            val = sharedPreferences.getAll().get(key);
+                        }
                     } else {
-                        val = sharedPreferences.getAll().get(key);
+                        val = null;
                     }
-                } else {
-                    val = null;
-                }
-                if (val == null) {
-                    mPrefs.remove(key);
-                }
-                else {
-                    mPrefs.put(key, val);
-                }
-                if (!"pref_key_systemui_restart_time".equals(key)) {
-                    ModuleHelper.handlePreferenceChanged(key);
+                    if (val == null) {
+                        mPrefs.remove(key);
+                    }
+                    else {
+                        mPrefs.put(key, val);
+                    }
+                    if (!"pref_key_systemui_restart_time".equals(key)) {
+                        ModuleHelper.handlePreferenceChanged(key);
+                    }
+                } catch (Throwable t) {
+                    // A failed preference update must not take down the host process.
+                    XposedHelpers.log(t);
                 }
             }
         };
         if (remotePrefs == null) {
-            remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
+            try {
+                remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
+            } catch (Throwable t) {
+                HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getRemotePreferences");
+                return;
+            }
         }
-        remotePrefs.registerOnSharedPreferenceChangeListener(mListener);
-        mPrefsWatcherRegistered = true;
+        if (remotePrefs == null) {
+            HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null");
+            return;
+        }
+        try {
+            remotePrefs.registerOnSharedPreferenceChangeListener(mListener);
+            mPrefsWatcherRegistered = true;
+        } catch (Throwable t) {
+            HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "registerOnSharedPreferenceChangeListener");
+        }
     }
 
     @Override
@@ -238,7 +279,7 @@ public class MainModule extends XposedModule {
         if (mPrefs.getBoolean("various_allow_untrusted_touch")) SystemWindowHooks.AllowUntrustedTouchHook(lpparam);
 
         watchPreferenceChange();
-        HookDiagnostics.printSummaryOnce();
+        HookDiagnostics.printSummaryForStage("onSystemServerStarting");
     }
 
     @Override
@@ -286,7 +327,7 @@ public class MainModule extends XposedModule {
             if (pkg.startsWith("com.google.android.inputmethod")) {
                 if (mPrefs.getInt("various_gboardpadding_port", 0) > 0 || mPrefs.getInt("various_gboardpadding_land", 0) > 0) Various.GboardPaddingHook(lpparam);
             }
-            HookDiagnostics.printSummaryOnce();
+            HookDiagnostics.printSummaryForStage("onPackageReady");
             return;
         }
 
@@ -315,6 +356,7 @@ public class MainModule extends XposedModule {
                         Context context = (Context) XposedHelpers.getObjectField(param.getThisObject(), "mContext");
                         SystemUIStatusBarHooks.setupStatusBar(context);
                         watchPreferenceChange();
+                        HookDiagnostics.printSummaryForStage("post-init");
                     }
                 }
             };
@@ -324,7 +366,7 @@ public class MainModule extends XposedModule {
             if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam);
 
             if (currentTime - restartTime < 10000) {
-                HookDiagnostics.printSummaryOnce();
+                HookDiagnostics.printSummaryForStage("onPackageReady");
                 return;
             }
 
@@ -574,10 +616,15 @@ public class MainModule extends XposedModule {
 
         if (pkg.equals("com.miui.guardprovider")) {
             if (mPrefs.getBoolean("various_disable_defraud_apps_detect")) {
-                loadDexKit();
-                XposedHelpers.createBridge(lpparam.getApplicationInfo().sourceDir);
-                Various.DisableDefraudAppsCheck(lpparam);
-                XposedHelpers.closeBridge();
+                try {
+                    loadDexKit();
+                    XposedHelpers.createBridge(lpparam.getApplicationInfo().sourceDir);
+                    Various.DisableDefraudAppsCheck(lpparam);
+                } catch (Throwable t) {
+                    XposedHelpers.log(t);
+                } finally {
+                    XposedHelpers.closeBridge();
+                }
             }
         }
 
@@ -644,10 +691,15 @@ public class MainModule extends XposedModule {
 
         if (pkg.equals("com.miui.screenshot")) {
             if (mPrefs.getBoolean("system_screenshot")) {
-                loadDexKit();
-                XposedHelpers.createBridge(lpparam.getApplicationInfo().sourceDir);
-                System.ScreenshotConfigHook(lpparam);
-                XposedHelpers.closeBridge();
+                try {
+                    loadDexKit();
+                    XposedHelpers.createBridge(lpparam.getApplicationInfo().sourceDir);
+                    System.ScreenshotConfigHook(lpparam);
+                } catch (Throwable t) {
+                    XposedHelpers.log(t);
+                } finally {
+                    XposedHelpers.closeBridge();
+                }
             }
         }
 
@@ -697,11 +749,12 @@ public class MainModule extends XposedModule {
                     }
                     if (isNoOverscroll) SystemWindowHooks.NoOverscrollAppHook(lpparam);
                     if (controlMedia) Controls.VolumeMediaPlayerHook(lpparam);
+                    HookDiagnostics.printSummaryForStage("post-attach");
                 }
             });
         }
 
-        HookDiagnostics.printSummaryOnce();
+        HookDiagnostics.printSummaryForStage("onPackageReady");
     }
 
     private void handleLoadLauncher(final PackageReadyParam lpparam) {
