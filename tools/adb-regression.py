@@ -25,6 +25,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).parent))
 
 import adb_regression.plan as plan
+import adb_regression.runner as runner
 
 MODULE_PACKAGE = "tv.withaibuild.customiuizer.r14"
 
@@ -361,7 +362,10 @@ def cmd_validate_plan(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    die("run command not yet implemented in this milestone", 2)
+    adb = find_adb(args.adb)
+    serial, _ = _select_serial(adb, args.serial, args.timeout)
+    preflight = _collect_preflight(adb, serial, args.timeout)
+    return runner.run(adb=adb, serial=serial, preflight=preflight, args=args)
 
 
 def cmd_propose_evidence(args: argparse.Namespace) -> int:

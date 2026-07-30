@@ -1,21 +1,11 @@
 #!/usr/bin/env python3
-"""Fake `adb` executable for ADB regression fixture tests.
+"""Fake `adb` executable for ADB regression fixture tests."""
 
-Reads ADB_FAKE_STATE env var to decide device state.
-Supported commands:
-  version
-  devices -l
-  -s <serial> shell getprop <key>
-  -s <serial> shell dumpsys package <pkg>
-  -s <serial> shell pidof <name>
-  -s <serial> shell su -c true
-  -s <serial> shell id
-  -s <serial> logcat -d -s -t <n>
-  -s <serial> shell pm list packages
-"""
+from __future__ import annotations
 
 import os
 import sys
+import time
 
 
 def _prop(key: str, state: str) -> str:
@@ -35,7 +25,7 @@ def _prop(key: str, state: str) -> str:
 
 
 def _dumpsys_package(pkg: str, state: str) -> str:
-    if state == "no_module":
+    if state == "no_module" and pkg == "tv.withaibuild.customiuizer.r14":
         return f"Unable to find package: {pkg}\n"
     installed = pkg in {
         "tv.withaibuild.customiuizer.r14",
@@ -55,17 +45,115 @@ def _dumpsys_package(pkg: str, state: str) -> str:
     )
 
 
-def _pidof(name: str, state: str) -> str:
+def _pidof(name: str, scenario: str) -> str:
     pids = {
         "system_server": "1234",
         "com.android.systemui": "2345",
         "com.miui.home": "3456",
     }
-    return pids.get(name, "")
+    base = pids.get(name, "")
+    if not base:
+        return ""
+    if scenario == "pid_changes":
+        offset = int(os.environ.get("FAKE_PID_OFFSET", "0"))
+        return str(int(base) + offset)
+    return base
+
+
+def _hook_line(
+    process: str,
+    stage: str,
+    installed: int = 100,
+    class_missing: int = 0,
+    member_missing: int = 0,
+    failed: int = 0,
+    silent_skipped: int = 0,
+    dexkit_failed: int = 0,
+    dexkit_no_match: int = 0,
+    prefs_unavailable: int = 0,
+) -> str:
+    return (
+        f"[HookSummary] process={process} stage={stage} installed={installed} "
+        f"classMissing={class_missing} memberMissing={member_missing} failed={failed} "
+        f"silentSkipped={silent_skipped} dexkitFailed={dexkit_failed} "
+        f"dexkitNoMatch={dexkit_no_match} prefsUnavailable={prefs_unavailable}"
+    )
+
+
+def _logcat_output(scenario: str) -> list[str]:
+    if scenario == "timeout":
+        time.sleep(20)
+        return []
+
+    if scenario == "module_markers":
+        return [
+            "06-01 12:00:00.000  1234  1234 I CustoMIUIzer: CustoMIUIzer 14.13.8 (14130800) loaded in system_server",
+            "06-01 12:00:01.000  2345  2345 I CustoMIUIzer: CustoMIUIzer 14.13.8 (14130800) loaded in com.android.systemui",
+            "06-01 12:00:02.000  3456  3456 I CustoMIUIzer: CustoMIUIzer 14.13.8 (14130800) loaded in com.miui.home",
+        ]
+
+    if scenario == "hook_summary_systemui":
+        return [
+            _hook_line("com.android.systemui", "init"),
+            _hook_line("com.android.systemui", "ready"),
+        ]
+
+    if scenario == "hook_summary_system_server":
+        return [
+            _hook_line("system_server", "init"),
+            _hook_line("system_server", "ready"),
+        ]
+
+    if scenario == "hook_summary_launcher":
+        return [
+            _hook_line("com.miui.home", "init"),
+            _hook_line("com.miui.home", "ready"),
+        ]
+
+    if scenario == "malformed_summary":
+        return [
+            "[HookSummary] process=com.android.systemui stage=init installed=100 "
+            "classMissing=zero memberMissing=0 failed=0",
+        ]
+
+    if scenario == "failed_gt_0":
+        return [_hook_line("com.android.systemui", "init", failed=1)]
+
+    if scenario == "prefs_unavailable_gt_0":
+        return [_hook_line("com.android.systemui", "init", prefs_unavailable=1)]
+
+    if scenario == "dexkit_failed_gt_0":
+        return [_hook_line("com.android.systemui", "init", dexkit_failed=1)]
+
+    if scenario == "dexkit_no_match_gt_0":
+        return [_hook_line("com.android.systemui", "init", dexkit_no_match=1)]
+
+    if scenario == "class_member_missing":
+        return [_hook_line("com.android.systemui", "init", class_missing=2, member_missing=3)]
+
+    if scenario == "crash":
+        return [
+            "06-01 12:00:00.000  1234  1234 E AndroidRuntime: FATAL EXCEPTION: main",
+            "06-01 12:00:01.000  1234  1234 E Watchdog: WATCHDOG: Killing system_server",
+            "06-01 12:00:02.000  1234  1234 E system_server: system_server crash",
+        ]
+
+    # Default / a14-smoke-pending: markers + hook summaries, no crash.
+    return [
+        "06-01 12:00:00.000  1234  1234 I CustoMIUIzer: CustoMIUIzer 14.13.8 (14130800) loaded in system_server",
+        "06-01 12:00:01.000  2345  2345 I CustoMIUIzer: CustoMIUIzer 14.13.8 (14130800) loaded in com.android.systemui",
+        "06-01 12:00:02.000  3456  3456 I CustoMIUIzer: CustoMIUIzer 14.13.8 (14130800) loaded in com.miui.home",
+        _hook_line("system_server", "init"),
+        _hook_line("system_server", "ready"),
+        _hook_line("com.android.systemui", "init"),
+        _hook_line("com.android.systemui", "ready"),
+        _hook_line("com.miui.home", "init"),
+    ]
 
 
 def main() -> int:
     state = os.environ.get("ADB_FAKE_STATE", "ok")
+    scenario = os.environ.get("FAKE_ADB_SCENARIO", "ok")
     args = sys.argv[1:]
     if not args:
         return 1
@@ -108,7 +196,7 @@ def main() -> int:
             print(out, end="")
             return 0
         if len(cmd) >= 3 and cmd[0] == "shell" and cmd[1] == "pidof" and len(cmd) == 3:
-            print(_pidof(cmd[2], state))
+            print(_pidof(cmd[2], scenario))
             return 0
         if cmd == ["shell", "su", "-c", "true"]:
             if state == "no_su":
@@ -121,9 +209,8 @@ def main() -> int:
                 print("uid=0(root) gid=0(root)")
             return 0
         if len(cmd) >= 2 and cmd[0] == "logcat" and any(x == "-d" for x in cmd):
-            if state == "with_markers":
-                print("06-01 12:00:00.000  1234  1234 I CustoMIUIzer: CustoMIUIzer 14.13.8 (14130800) loaded in system_server")
-                print("06-01 12:00:01.000  2345  2345 I CustoMIUIzer: CustoMIUIzer 14.13.8 (14130800) loaded in com.android.systemui")
+            for line in _logcat_output(scenario):
+                print(line)
             return 0
         if len(cmd) >= 2 and cmd[0] == "shell" and cmd[1] == "pm" and len(cmd) == 3 and cmd[2] == "list packages":
             for pkg in ["tv.withaibuild.customiuizer.r14", "com.android.systemui", "com.miui.home", "org.lsposed.manager"]:
