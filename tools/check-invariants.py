@@ -17,6 +17,7 @@ and with libxposed, not type errors.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -397,6 +398,88 @@ MANIFEST = REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml"
 AUDIT_DOC = REPO_ROOT / "docs" / "EXPORTED_COMPONENTS.md"
 
 
+CONTRACTS_DIR = REPO_ROOT / "rom-contracts"
+SCHEMA_FILE = CONTRACTS_DIR / "schema.json"
+
+EXPECTED_PROCESS_PACKAGE = {
+    "system_server": "android",
+    "systemui": "com.android.systemui",
+    "launcher": "com.miui.home",
+    "securitycenter": "com.miui.securitycenter",
+}
+
+FRAMEWORK_TARGETS = {"framework"}
+
+
+def smali_to_fqcn(class_desc: str) -> str:
+    return class_desc[1:-1].replace("/", ".")
+
+
+def check_rom_contracts() -> list[Finding]:
+    """Every ROM contract entry must be traceable to a real source file and consistent target."""
+    if not CONTRACTS_DIR.is_dir():
+        return []
+
+    findings: list[Finding] = []
+    for contract_path in CONTRACTS_DIR.glob("*.json"):
+        if contract_path.name == "schema.json":
+            continue
+
+        try:
+            contract = json.loads(contract_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as e:
+            findings.append(Finding("rom-contracts", contract_path, 0, f"invalid JSON: {e}"))
+            continue
+
+        if contract.get("schemaVersion") != 1:
+            findings.append(Finding("rom-contracts", contract_path, 0, "unsupported schemaVersion"))
+
+        for target in contract.get("targets", []):
+            target_name = target.get("target", "?")
+            pkg = target.get("targetProcessPackage", "")
+
+            if target_name not in FRAMEWORK_TARGETS:
+                expected = EXPECTED_PROCESS_PACKAGE.get(target_name)
+                if expected and pkg != expected:
+                    findings.append(
+                        Finding(
+                            "rom-contracts",
+                            contract_path,
+                            0,
+                            f"target '{target_name}' has targetProcessPackage '{pkg}', expected '{expected}'",
+                        )
+                    )
+
+            class_desc = target.get("class", "")
+            if not class_desc.startswith("L") or not class_desc.endswith(";"):
+                findings.append(Finding("rom-contracts", contract_path, 0, f"class '{class_desc}' is not a smali descriptor"))
+                continue
+
+            source_file = REPO_ROOT / target.get("sourceFile", "")
+            source_hook = target.get("sourceHookFunction", "")
+            if not source_file.is_file():
+                findings.append(Finding("rom-contracts", contract_path, 0, f"sourceFile {target.get('sourceFile')} does not exist"))
+                continue
+
+            source_text = source_file.read_text(encoding="utf-8")
+            fqcn = smali_to_fqcn(class_desc)
+            if fqcn not in source_text:
+                findings.append(Finding("rom-contracts", contract_path, 0, f"class {fqcn} not found in {target.get('sourceFile')}"))
+
+            for method in target.get("methods", []):
+                method_name = method.get("name", "")
+                if method_name and f'"{method_name}"' not in source_text:
+                    findings.append(Finding("rom-contracts", contract_path, 0, f"method '{method_name}' not referenced in {target.get('sourceFile')}"))
+
+                if method.get("required", True) and not method.get("descriptor"):
+                    findings.append(Finding("rom-contracts", contract_path, 0, f"required method '{method_name}' is missing descriptor"))
+
+            if source_hook and source_hook not in source_text:
+                findings.append(Finding("rom-contracts", contract_path, 0, f"sourceHookFunction '{source_hook}' not found in {target.get('sourceFile')}"))
+
+    return findings
+
+
 def check_exported_components_audited() -> list[Finding]:
     """Every android:exported="true" component must be documented."""
     if not MANIFEST.is_file() or not AUDIT_DOC.is_file():
@@ -439,6 +522,7 @@ def main() -> int:
             findings.extend(rule(path, text))
 
     findings.extend(check_exported_components_audited())
+    findings.extend(check_rom_contracts())
 
     if not findings:
         print(f"check-invariants: {len(files)} files, no violations")
@@ -449,10 +533,14 @@ def main() -> int:
         by_rule.setdefault(finding.rule, []).append(finding)
 
     for rule, items in sorted(by_rule.items()):
-        doc = next(r for r in RULES if r.__name__.replace("check_", "").replace("_", "-") == rule).__doc__
+        try:
+            doc = next(r for r in RULES if r.__name__.replace("check_", "").replace("_", "-") == rule).__doc__
+        except StopIteration:
+            doc = None
         print(f"\n=== {rule} ({len(items)}) ===")
-        print((doc or "").strip())
-        print()
+        if doc:
+            print((doc or "").strip())
+            print()
         for finding in items:
             print(f"  {finding}")
 

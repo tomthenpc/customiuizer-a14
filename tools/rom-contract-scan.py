@@ -115,12 +115,21 @@ def check_method(target_name: str, class_desc: str, method: dict[str, Any], inde
         return {"target": target_name, "kind": "method", "name": sig, "status": "target_not_supplied"}
     if class_desc not in index:
         return {"target": target_name, "kind": "method", "name": sig, "status": "missing"}
-    expected = f"{method['name']}{method.get('descriptor', '')}"
+    name = method["name"]
+    descriptor = method.get("descriptor", "")
+    # Optional entries may omit the descriptor and match any overload of the name.
+    if not descriptor:
+        if any(m.startswith(f"{name}(") for m in index[class_desc]["methods"]):
+            return {"target": target_name, "kind": "method", "name": sig, "status": "present"}
+        if method.get("required", True):
+            return {"target": target_name, "kind": "method", "name": sig, "status": "missing"}
+        return {"target": target_name, "kind": "method", "name": sig, "status": "optional_missing"}
+    expected = f"{name}{descriptor}"
     if expected in index[class_desc]["methods"]:
         return {"target": target_name, "kind": "method", "name": sig, "status": "present"}
     if "alternatives" in method:
         for alt in method["alternatives"]:
-            alt_sig = f"{method['name']}{alt}"
+            alt_sig = f"{name}{alt}"
             if alt_sig in index[class_desc]["methods"]:
                 return {"target": target_name, "kind": "method", "name": sig, "status": "alternative_matched", "matched": alt_sig}
     if method.get("required", True):
