@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "$schema": "./schema.json",
+  "title": "CustoMIUIzer A14 ADB regression test plan",
+  "type": "object",
+  "required": ["schemaVersion", "planId", "description", "supportedApi", "supportedRomFamily", "steps"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "planId": { "type": "string" },
+    "description": { "type": "string" },
+    "supportedApi": { "type": "array", "items": { "type": "integer" } },
+    "supportedRomFamily": { "type": "array", "items": { "type": "string" } },
+    "requiredPackages": { "type": "array", "items": { "type": "string" } },
+    "requiredPrivileges": { "type": "array", "items": { "type": "string" } },
+    "variables": { "type": "object" },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/step" }
+    },
+    "cleanup": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/step" }
+    },
+    "linkedFeatureIds": { "type": "array", "items": { "type": "string" } },
+    "linkedPreferenceKeys": { "type": "array", "items": { "type": "string" } },
+    "evidence": { "type": "string" }
+  },
+  "definitions": {
+    "step": {
+      "type": "object",
+      "required": ["id", "type", "description"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_-]+$" },
+        "type": {
+          "type": "string",
+          "enum": [
+            "shell", "sleep", "package_installed", "package_version",
+            "process_alive", "process_snapshot", "process_restart_observed",
+            "logcat_assert", "hook_summary", "broadcast_probe",
+            "collect_diagnostics", "manual_checkpoint"
+          ]
+        },
+        "description": { "type": "string" },
+        "timeoutSeconds": { "type": "integer", "minimum": 1, "default": 60 },
+        "dangerous": { "type": "boolean", "default": false },
+        "manual": { "type": "boolean", "default": false },
+        "continueOnFailure": { "type": "boolean", "default": false },
+        "command": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "expected": { "type": "object" },
+        "evidenceFiles": { "type": "array", "items": { "type": "string" } },
+        "linkedFeatureIds": { "type": "array", "items": { "type": "string" } },
+        "linkedPreferenceKeys": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}
