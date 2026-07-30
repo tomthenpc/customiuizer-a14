@@ -562,3 +562,58 @@ pref_key_system_blocktoasts_apps 包含 com.odcloudtech.mobile
 - 后续应在设置完成后完整重启，单独复现一次，并核对当前 HyperOS ROM
   `services.jar` 中 `NotificationManagerService.tryShowToast` 的实际重载、首参类型和
   `ToastRecord.pkg` 字段；在取得这些证据前不修改 Toast 逻辑。
+
+### 快速重启修复实机验收（2026-07-30）
+
+本节记录 `fix/fast-reboot-receiver-r14.13.7` 在真实设备上的验收结果，并批准该修复进入
+`main` 和 `r14.13.8`。测试框架已经从 Vector 更换为 LSPosed，以下结论不沿用此前
+Vector Binder 生命周期问题的归因。
+
+#### 测试信息
+
+- 平台：Android 14 / HyperOS 1
+- 测试提交：`dcbbebc8bbb84710b998ee588171fb9d809d963d`
+- 测试 APK SHA-256：
+  `773EA9D97879EB18F253293F26DD7D79D4E4371569BDFDE1E86A4974C84FDA1D`
+- 框架：LSPosed v2.1.1（7790）
+- 日志目录：
+  `C:\Users\tv\Downloads\Peengeek\LSPosed_log\r14\r14.13.7\LSPosed_20260730_110929`
+
+本轮先递归枚举文件，再按内容识别证据，不假定 Vector 或旧 LSPosed 的日志布局。诊断包包含
+根目录的 `full.log`、数据库与作用域导出，当前及上一会话的 `verbose_*.log`、
+`modules_*.log` 和 `kmsg.log`，以及 `anr/`、`dropbox/`、`tombstones/` 和模块信息。
+
+#### 日志结论
+
+- 仓库分析器处理 `full.log` 的结果为 P0=0、P1=0；没有识别到 `system_server`、
+  SystemUI、Launcher 崩溃或 Hook 失败。
+- LSPosed 当前会话明确记录 CustoMIUIzer r14.13.7（185）加载到
+  `com.android.systemui` 和 `com.miui.home`；模块数据库启用记录与作用域导出同时包含
+  `android`、`com.android.systemui` 和 `com.miui.home`。
+- `system_server` 的当前 LSPosed 日志没有单独输出 CustoMIUIzer 的 package-ready
+  加载行；完整日志确认其 PID 2884 完成 `LOCKED_BOOT_COMPLETED` 与 `BOOT_COMPLETED`，
+  后续没有进程死亡、模块栈帧或 Hook 异常。
+- 10:56:47 和 11:03:55 两次 `SYSTEM_BOOT` 记录与前后两组 LSPosed 会话相互对应；
+  重启后 SystemUI、Launcher 和模块设置进程均重新加载，快速重启链路没有失败记录。
+- 所有 21 条 `[Pengeek]` 记录均为正常加载、服务连接和设置镜像信息；没有异常、
+  Hook target 查找失败或快速重启失败提示。
+- 没有 `Receiver already registered`、`Receiver not registered`、
+  `IntentReceiverLeaked` 或其他指向 `fastRebootReceiver` 的异常。日志中唯一的
+  `IntentReceiverLeaked` 与动态 Receiver flag 警告均来自钉钉进程，与本模块无关。
+- Dropbox 中带 CustoMIUIzer 栈帧的崩溃发生于 2026-07-27 至 2026-07-28，版本分别为
+  r14.13.0、r14.13.4 和 r14.13.5；它们早于本次测试提交，不属于 r14.13.7 快速重启验收。
+- ANR 与 tombstone 均属于其他应用或更早日期，没有
+  `system_server`、SystemUI、Launcher 或本次测试版本的 CustoMIUIzer 记录。
+- LSPosed 启动初期两次 monitor 连接拒绝随后恢复并完成 bridge/service 建立；
+  其余 XSmsCode、MiCTS、ReVanced Xposed 报错属于其他模块，不能归因于 CustoMIUIzer。
+
+#### 验收决定
+
+- 未配置自定义动作时，应用内“重启系统”可以正常触发完整设备重启。
+- 快速重启失败路径不再错误复用“未连接 LSPosed 服务”提示。
+- 自定义动作 Receiver 仍保持原条件注册，未发现重复 FastReboot Receiver。
+- 没有发现本轮修复引起的 SystemUI、Launcher 或 `system_server` 回归。
+- `fix/fast-reboot-receiver-r14.13.7` 允许合并到 `main`，并允许作为 `r14.13.8`
+  的运行时代码。
+- Toast 屏蔽老问题仍仅作为已知问题记录；本轮不修改 Toast、`AnimationScale`、
+  Vector Binder 或其他无关逻辑。
