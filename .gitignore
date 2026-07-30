@@ -40,3 +40,6 @@ keystore.properties
 
 # Broadcast probe build outputs
 tools/broadcast-probe/build/
+
+# Python test cache
+tools/tests/__pycache__/

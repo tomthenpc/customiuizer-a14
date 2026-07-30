@@ -1,65 +1,54 @@
-# 离线 ROM 合约扫描工具可行性
+# ROM 合约扫描器
 
-## 目标
+`tools/rom-contract-scan.py` 用于在**离线环境**验证目标 ROM 是否包含模块 hook 所需的类、方法和字段。不联网、不修改 ROM、不依赖真实设备。
 
-在 ROM 升级后，离线检查 `services.jar`、SystemUI、Launcher 等目标中模块依赖的类、方法和字段是否仍然存在，避免升级后才发现 hook 点消失。
+## 准备 ROM 输入
 
-## 可行性结论
+1. 从手机提取目标 APK/JAR：
+   - `services.jar`（system_server）
+   - `SystemUI.apk`（或 `com.android.systemui`）
+   - `Launcher.apk`（`com.miui.home`）
+2. 使用 `baksmali`（`smali` 项目）反编译：
 
-可行，但需分阶段实现。推荐优先支持类/方法/字段存在性，DexKit 字符串稳定性可作为二期目标。
-
-## 基础扫描方案
-
-### 1. 反编译 ROM 目标
-
-- `services.jar` 使用 `baksmali disassemble classes.dex` → 得到 `smali`。
-- SystemUI (`com.android.systemui`) / Launcher (`com.miui.home`) APK → `apktool d` 或 `baksmali`。
-- 提取 `classes*.dex`。
-
-### 2. 合约清单来源
-
-从源码生成 `contract.json`：
-
-```json
-{
-  "com.android.server.policy.BaseMiuiPhoneWindowManager": {
-    "methods": ["initInternal", "closeApp"],
-    "fields": ["mContext", "mHandler"]
-  },
-  "com.android.systemui.statusbar.phone.CentralSurfacesImpl": {
-    "methods": ["start"],
-    "fields": ["mContext"]
-  }
-}
+```bash
+java -jar baksmali.jar disassemble services.jar -o rom-smali/system_server
+java -jar baksmali.jar disassemble SystemUI.apk -o rom-smali/systemui
+java -jar baksmali.jar disassemble Launcher.apk -o rom-smali/launcher
 ```
 
-### 3. 扫描实现
+多 dex APK 会生成 `smali`、`smali_classes2` 等目录；将每个目录都作为 `--target` 传入。
 
-- 对 `smali` 文件夹做字符串/类名查找即可判断类/成员是否存在。
-- 方法签名匹配：需要解析 `smali` 中 `L...;` 类型描述符，转换源码类型到 smali 类型。
-- 字段存在：直接搜索 `.field`。
+## 扫描
 
-### 4. 与项目集成
+```bash
+python tools/rom-contract-scan.py \
+  --contract rom-contracts/hyperos1-a14-core.json \
+  --schema rom-contracts/schema.json \
+  --target systemui=/path/to/systemui \
+  --target systemui=/path/to/systemui_classes2 \
+  --target system_server=/path/to/system_server \
+  --target launcher=/path/to/launcher \
+  --output-json build/rom-contract-report.json \
+  --output-markdown build/rom-contract-report.md
+```
 
-- 输出 JSON：对每个目标给出 `missing` / `present` / `ambiguous`。
-- CI 中作为可选步骤：上传 ROM 文件后运行，失败时不阻塞构建，仅生成报告。
+## 退出码
 
-## 工具草稿
+- `0`：所有已提供 target 的 `required` 合约满足
+- `1`：至少一个 `required` 合约缺失
+- `2`：输入、schema 或扫描错误
 
-见 `tools/rom-contract-scan.py`：
+## 合约格式
 
-- 输入：ROM 目录或 `services.jar`/APK 路径。
-- 输出：`build/rom-contract-report.json`。
-- 只依赖 `zipfile` 和 `pathlib`，不引入第三方反编译库；要求用户先准备 `baksmali`。
+见 `rom-contracts/schema.json`。关键字段：
 
-## 限制
+- `class`：完整 smali class descriptor，如 `Lcom/android/systemui/SystemUIInitializer;`
+- `anyOf`：备选 class descriptor
+- `methods[].descriptor`：完整 smali 方法 descriptor，如 `(Z)V`、`(Landroid/view/KeyEvent;Z)V`
+- `fields[].type`：字段完整 smali 类型
+- `required` / `optional`：区分必须与可选
+- `sourceFile` / `sourceHookFunction`：对应源码中的 hook 调用点
 
-- 不能验证 hook 语义（before/after 参数含义、调用顺序、返回值）。
-- 不能检测 ROM 内部私有 API 重命名导致的语义变化。
-- `DexKit` 字符串匹配无法通过反编译 `smali` 直接得到，需要额外在 `classes.dex` 中搜索常量池。
+## 覆盖率
 
-## 下一步
-
-1. 在分支 `feature/rom-contract-scan` 中，先生成第一批 `contract.json`（约 20 个核心入口类）。
-2. 对当前已验证的 HyperOS 1 ROM 跑一次基线，确认清单完整。
-3. 集成到 CI 作为 `workflow_dispatch` 手动任务。
+当前 `rom-contracts/hyperos1-a14-core.json` 仅包含 6 条已引用的示例合约，并标注 `coverage.status: partial`。完整合约需要对照目标 ROM 的 `javap`/baksmali 输出提取方法全签名后逐步补全。

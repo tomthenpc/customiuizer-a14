@@ -27,6 +27,8 @@ jobs:
           python-version: '3.12'
       - name: Run static invariant gate
         run: python tools/check-invariants.py
+      - name: Run ROM scanner fixture tests
+        run: python -m unittest discover -s tools/tests -p "test_*.py"
 
   test-lint-build:
     name: Test, Lint and Build
