@@ -19,6 +19,7 @@ import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam;
 import tv.withaibuild.customiuizer.mods.Controls;
 import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks;
+import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics;
 import tv.withaibuild.customiuizer.mods.GlobalActions;
 import tv.withaibuild.customiuizer.mods.LauncherGestureHooks;
 import tv.withaibuild.customiuizer.mods.LauncherIconHooks;
@@ -237,6 +238,7 @@ public class MainModule extends XposedModule {
         if (mPrefs.getBoolean("various_allow_untrusted_touch")) SystemWindowHooks.AllowUntrustedTouchHook(lpparam);
 
         watchPreferenceChange();
+        HookDiagnostics.printSummaryOnce();
     }
 
     @Override
@@ -284,6 +286,7 @@ public class MainModule extends XposedModule {
             if (pkg.startsWith("com.google.android.inputmethod")) {
                 if (mPrefs.getInt("various_gboardpadding_port", 0) > 0 || mPrefs.getInt("various_gboardpadding_land", 0) > 0) Various.GboardPaddingHook(lpparam);
             }
+            HookDiagnostics.printSummaryOnce();
             return;
         }
 
@@ -321,6 +324,7 @@ public class MainModule extends XposedModule {
             if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam);
 
             if (currentTime - restartTime < 10000) {
+                HookDiagnostics.printSummaryOnce();
                 return;
             }
 
@@ -696,6 +700,8 @@ public class MainModule extends XposedModule {
                 }
             });
         }
+
+        HookDiagnostics.printSummaryOnce();
     }
 
     private void handleLoadLauncher(final PackageReadyParam lpparam) {

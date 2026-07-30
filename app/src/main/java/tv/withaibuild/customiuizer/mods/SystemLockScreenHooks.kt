@@ -1020,7 +1020,7 @@ object SystemLockScreenHooks {
         }
 
         val mTouchHandlerField = XposedHelpers.findField(NotificationPanelController, "mTouchHandler")
-        XposedHelpers.findAndHookMethod(mTouchHandlerField.type, "handleMiuiTouch", MotionEvent::class.java, object : MethodHook() {
+        ModuleHelper.findAndHookMethod(mTouchHandlerField.type, "handleMiuiTouch", MotionEvent::class.java, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any?
                 var throwable: Throwable? = null
