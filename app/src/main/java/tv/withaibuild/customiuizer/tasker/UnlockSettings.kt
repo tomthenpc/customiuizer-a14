@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.RadioGroup
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import tv.withaibuild.customiuizer.R
 
@@ -30,10 +31,12 @@ class UnlockSettings : AppCompatActivity() {
                 else -> R.string.system_noscreenlock_force_off
             }
 
+            val token = UnlockTokenProvider().getOrCreateToken(this)
             val resultIntent = Intent().apply {
                 putExtra(Constants.EXTRA_STRING_BLURB, getString(stringRes))
                 val bundle = Bundle().apply {
                     putInt("system_noscreenlock_force", lockState)
+                    putString(UnlockTokenProvider.BUNDLE_KEY_TOKEN, token)
                 }
                 putExtra(Constants.EXTRA_BUNDLE, bundle)
             }
@@ -50,6 +53,9 @@ class UnlockSettings : AppCompatActivity() {
                 else -> R.id.force_off
             }
             findViewById<RadioGroup>(R.id.force_option).check(checkedId)
+        }
+        if (bundle == null || !bundle.containsKey(UnlockTokenProvider.BUNDLE_KEY_TOKEN)) {
+            Toast.makeText(this, R.string.unlock_token_missing, Toast.LENGTH_LONG).show()
         }
     }
 }

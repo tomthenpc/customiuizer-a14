@@ -296,6 +296,7 @@
     <string name="system_noscreenlock_force_locked">Force locked</string>
     <string name="system_noscreenlock_force_unlocked">Force unlocked</string>
     <string name="system_noscreenlock_force_off">Do not force</string>
+    <string name="unlock_token_missing">This saved Tasker/Locale task is missing a security token. Please re-save it to generate one.</string>
     <string name="system_screenanim_duration_title">Turning off animation</string>
     <string name="system_screenanim_duration_summ">Configure animation length</string>
     <string name="system_screenanim_desc">Very low values will practically disable animation</string>

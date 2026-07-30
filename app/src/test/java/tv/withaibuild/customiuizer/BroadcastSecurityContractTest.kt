@@ -84,9 +84,9 @@ class BroadcastSecurityContractTest {
             systemServerHooks.contains("ModuleHelper.isTrustedBroadcast(")
         )
         assertTrue(
-            "noScreenLockReceiver must verify getSentFromPackage",
-            systemLockScreenHooks.contains("getSentFromPackage()") &&
-                systemLockScreenHooks.contains("Helpers.modulePkg")
+            "noScreenLockReceiver must verify sender with isTrustedBroadcast",
+            systemLockScreenHooks.contains("ModuleHelper.isTrustedBroadcast(this, Helpers.modulePkg") &&
+                systemLockScreenHooks.contains("ModuleHelper.isTrustedBroadcast(this, \"com.android.systemui\"")
         )
     }
 
@@ -114,11 +114,13 @@ class BroadcastSecurityContractTest {
     fun hostToModuleDataReceiversCheckSpecificSenderPackage() {
         assertTrue(
             "PUSHAPPCONFIG receiver must accept only com.miui.home",
-            appSelector.contains("getSentFromPackage() != \"com.miui.home\"")
+            (appSelector.contains("isTrustedBroadcast") && appSelector.contains("\"com.miui.home\"")) ||
+                appSelector.contains("getSentFromPackage() != \"com.miui.home\"")
         )
         assertTrue(
             "CACHEDDEVICESUPDATE receiver must accept only com.android.systemui",
-            btList.contains("getSentFromPackage() != \"com.android.systemui\"")
+            (btList.contains("isTrustedBroadcast") && btList.contains("\"com.android.systemui\"")) ||
+                btList.contains("getSentFromPackage() != \"com.android.systemui\"")
         )
     }
 
@@ -161,6 +163,48 @@ class BroadcastSecurityContractTest {
         assertTrue(
             "Internal module senders must call identity-sharing helpers",
             identityCallers.size >= 6
+        )
+    }
+
+    @Test
+    fun unlockReceiverUsesPerInstallToken() {
+        val unlockReceiver = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockReceiver.kt")
+        val unlockTokenProvider = source("app/src/main/java/tv/withaibuild/customiuizer/tasker/UnlockTokenProvider.kt")
+        assertTrue(
+            "UnlockReceiver must verify token before forwarding",
+            unlockReceiver.contains("UnlockTokenProvider().verify(")
+        )
+        assertTrue(
+            "UnlockTokenProvider must use SecureRandom",
+            unlockTokenProvider.contains("SecureRandom()")
+        )
+        assertTrue(
+            "Token must not be hard-coded",
+            !unlockTokenProvider.contains(Regex("const val TOKEN\\b")) &&
+                !unlockTokenProvider.contains("\"fixed_token\"")
+        )
+        assertTrue(
+            "Token must be stored privately",
+            unlockTokenProvider.contains("Context.MODE_PRIVATE") &&
+                unlockTokenProvider.contains("getSharedPreferences(")
+        )
+    }
+
+    @Test
+    fun highPrivilegeReceiversReportResultCodes() {
+        assertTrue(
+            "mSBReceiver must set ACTION_HANDLED / ACTION_FAILED",
+            (globalActions.contains("setResultCode") || globalActions.contains("resultCode = ACTION_HANDLED")) &&
+                globalActions.contains("ACTION_HANDLED") &&
+                globalActions.contains("ACTION_FAILED")
+        )
+        assertTrue(
+            "phoneWindowManagerActionReceiver must set result codes",
+            systemServerHooks.contains("setResultCode")
+        )
+        assertTrue(
+            "ModuleHelper.isTrustedBroadcast must support rejectionResultCode",
+            moduleHelper.contains("rejectionResultCode")
         )
     }
 

@@ -40,15 +40,15 @@
 | `tv.withaibuild.customiuizer.mods.event.PUSHAPPCONFIG` | `com.miui.home` | `tv.withaibuild.customiuizer.r14`（AppSelector） | `identity` | Launcher 返回隐私应用配置；必须显式 `setPackage(modulePkg)` 并共享身份。 |
 | `tv.withaibuild.customiuizer.mods.action.FetchCachedDevices` | `tv.withaibuild.customiuizer.r14`（BTList） | `com.android.systemui` | `signature` | 模块请求 SystemUI 缓存的蓝牙设备。 |
 | `tv.withaibuild.customiuizer.mods.event.CACHEDDEVICESUPDATE` | `com.android.systemui` | `tv.withaibuild.customiuizer.r14`（BTList） | `identity` | SystemUI 返回蓝牙设备；必须共享身份。 |
-| `tv.withaibuild.customiuizer.mods.action.UnlockSetForced` | `tv.withaibuild.customiuizer.r14`（UnlockReceiver） / `com.android.systemui` | `com.android.systemui` | `identity` | 强制设置解锁状态；不采用 signature 以免 Tasker 路径受牵连。 |
+| `tv.withaibuild.customiuizer.mods.action.UnlockSetForced` | `tv.withaibuild.customiuizer.r14`（UnlockReceiver） | `com.android.systemui` | `identity` + `per-install token` | 强制设置解锁状态。从 Tasker / Locale 进入时，exported `UnlockReceiver` 先校验 per-install token，然后以 module 身份重新广播给 SystemUI；`noScreenLockReceiver` 再按 `getSentFromPackage() == modulePkg` 放行。 |
 | `tv.withaibuild.customiuizer.mods.action.BTConnectionChanged` | `com.android.systemui` | `com.android.systemui` | `identity` | 同进程，共享身份即可证明来源。 |
 | `android.net.wifi.STATE_CHANGE` | `android` (system) | `com.android.systemui` | `none` | 系统广播，身份不一定可获取；只做网络状态检查，不执行直接解锁。 |
 
-## 保留但不修改的入口
+## 兼容入口
 
 | action / 入口 | 当前状态 | 本轮策略 | 风险 |
 | --- | --- | --- | --- |
-| `com.twofortyfouram.locale.intent.action.FIRE_SETTING` | `UnlockReceiver` exported | `audit-only` | 任意应用可调用；receiver 触发 `UnlockSetForced` 的重新广播。若后续加强，必须保持 Tasker/Locale 兼容。 |
+| `com.twofortyfouram.locale.intent.action.FIRE_SETTING` | `UnlockReceiver` exported | `per-install token` | Tasker / Locale 插件保存配置时，将 per-install token 写入 Bundle。`UnlockReceiver` 在转发 `UnlockSetForced` 前验证 token；缺失、错误、空或异常时直接拒绝。老任务没有 token，重新保存后即可恢复。token 不依赖包名、不硬编码、不输出到日志或导出数据。 |
 
 ## 不再使用的方案
 

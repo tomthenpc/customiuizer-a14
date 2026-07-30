@@ -37,3 +37,6 @@ keystore.properties
 
 # Devin local task state and command logs
 /.devin/
+
+# Broadcast probe build outputs
+tools/broadcast-probe/build/
