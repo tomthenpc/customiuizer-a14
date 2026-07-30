@@ -166,7 +166,7 @@ class HookDiagnosticsTest {
         // A bridge/query failure must never be counted as a no-match, even if noMatch is also set.
         HookDiagnostics.recordDexKit("C", "m", exceptionType = "java.lang.IllegalStateException", noMatch = true)
         assertEquals(1, HookDiagnostics.summary()[HookDiagnostics.Status.DEXKIT_FAILED])
-        assertEquals(null, HookDiagnostics.summary()[HookDiagnostics.Status.DEXKIT_NO_MATCH])
+        assertEquals(0, HookDiagnostics.summary()[HookDiagnostics.Status.DEXKIT_NO_MATCH])
     }
 
     @Test
