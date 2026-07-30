@@ -85,15 +85,34 @@
       "evidenceFiles": ["crash-scan.json"]
     },
     {
-      "id": "broadcast-negative-placeholder",
-      "type": "manual_checkpoint",
-      "description": "Broadcast negative testing (manual / probe-assisted). Run broadcast-probe or inspect logs for SENTINEL/FAILED responses; no trusted token may be used.",
+      "id": "broadcast-fast-reboot",
+      "type": "broadcast_probe",
+      "description": "Negative broadcast probe for FastReboot without token (must be rejected)",
       "timeoutSeconds": 60,
       "dangerous": false,
-      "manual": true,
+      "manual": false,
       "continueOnFailure": false,
-      "evidenceFiles": ["broadcast-results.json"]
+      "expected": {
+        "broadcastKind": "FastReboot",
+        "result": "SENTINEL"
+      },
+      "evidenceFiles": ["broadcast-fast-reboot.json"]
     },
+    {
+      "id": "broadcast-restart-systemui",
+      "type": "broadcast_probe",
+      "description": "Negative broadcast probe for RestartSystemUI without token (must be rejected)",
+      "timeoutSeconds": 60,
+      "dangerous": false,
+      "manual": false,
+      "continueOnFailure": false,
+      "expected": {
+        "broadcastKind": "RestartSystemUI",
+        "result": "SENTINEL"
+      },
+      "evidenceFiles": ["broadcast-restart-systemui.json"]
+    },
+
     {
       "id": "tasker-manual-placeholder",
       "type": "manual_checkpoint",
