@@ -369,6 +369,39 @@ def staged_kotlin_files() -> list[Path]:
     return files
 
 
+MANIFEST = REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml"
+AUDIT_DOC = REPO_ROOT / "docs" / "EXPORTED_COMPONENTS.md"
+
+
+def check_exported_components_audited() -> list[Finding]:
+    """Every android:exported="true" component must be documented."""
+    if not MANIFEST.is_file() or not AUDIT_DOC.is_file():
+        return [Finding("exported-components-audited", MANIFEST if MANIFEST.is_file() else AUDIT_DOC, 0, "manifest or audit doc missing")]
+
+    manifest = MANIFEST.read_text(encoding="utf-8")
+    audit = AUDIT_DOC.read_text(encoding="utf-8")
+    findings: list[Finding] = []
+
+    # Open tags only; ignore attributes spread onto child lines.
+    tag_pattern = re.compile(r'<(activity|activity-alias|service|receiver|provider)\b[^>]*android:exported="true"[^>]*>', re.DOTALL)
+    for match in tag_pattern.finditer(manifest):
+        tag = match.group(0)
+        name_match = re.search(r'android:name="([^"]+)"', tag)
+        if not name_match:
+            continue
+        name = name_match.group(1)
+        if name not in audit:
+            findings.append(
+                Finding(
+                    "exported-components-audited",
+                    MANIFEST,
+                    line_of(manifest, match.start()),
+                    f"exported component {name} is not documented in docs/EXPORTED_COMPONENTS.md",
+                )
+            )
+    return findings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--staged", action="store_true", help="check only files staged in git")
@@ -380,6 +413,8 @@ def main() -> int:
         text = strip_comments(path.read_text(encoding="utf-8"))
         for rule in RULES:
             findings.extend(rule(path, text))
+
+    findings.extend(check_exported_components_audited())
 
     if not findings:
         print(f"check-invariants: {len(files)} files, no violations")
