@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "tv.withaibuild.customiuzer.broadcastprobe"
+    namespace = "tv.withaibuild.customiuizer.broadcastprobe"
     compileSdk = 37
 
     defaultConfig {
@@ -24,9 +24,5 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 }
