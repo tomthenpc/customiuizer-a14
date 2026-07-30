@@ -55,5 +55,5 @@ jobs:
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: unsigned-release-apk
           path: app/build/outputs/apk/release/*.apk

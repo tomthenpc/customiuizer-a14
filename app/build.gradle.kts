@@ -124,7 +124,8 @@ androidComponents {
     onVariants(selector().all()) { variant ->
         variant.androidResources.localeFilters.addAll(supportedLocales)
         variant.outputs.forEach { output ->
-            output.outputFileName.set("CustoMIUIzer-A14-$lastVersionName.apk")
+            val suffix = if (variant.name == "release") "-unsigned-ci" else ""
+            output.outputFileName.set("CustoMIUIzer-A14-$lastVersionName$suffix.apk")
         }
     }
 }
