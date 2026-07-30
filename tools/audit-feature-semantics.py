@@ -62,9 +62,9 @@ INSTALL_PHASE_BY_FUNCTION = {
 
 def _rel(repo_root: Path, target: Path) -> str:
     try:
-        return str(target.relative_to(repo_root))
+        return target.relative_to(repo_root).as_posix()
     except ValueError:
-        return str(target)
+        return target.as_posix()
 
 
 def _file_functions(text: str, language: str) -> list[tuple[int, str]]:
