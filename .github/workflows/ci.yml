@@ -29,6 +29,8 @@ jobs:
         run: python tools/check-invariants.py
       - name: Run ROM scanner fixture tests
         run: python -m unittest discover -s tools/tests -p "test_*.py"
+      - name: Audit feature semantics
+        run: python tools/audit-feature-semantics.py --validate
 
   test-lint-build:
     name: Test, Lint and Build

@@ -42,4 +42,5 @@ keystore.properties
 tools/broadcast-probe/build/
 
 # Python test cache
+tools/__pycache__/
 tools/tests/__pycache__/
