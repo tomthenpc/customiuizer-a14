@@ -25,11 +25,11 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
 import java.lang.reflect.InvocationHandler
 import java.lang.reflect.Proxy
 import java.util.ArrayList
 import java.util.HashSet
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * Notification shade and heads-up popup hooks.
@@ -298,7 +298,7 @@ object SystemNotificationHooks {
                         mMenuContainer.addView(mForceCloseBtn)
                     }
                     mMenuContainer.addView(mOpenFwBtn)
-                    val titleId = Helpers.getResId(mContext.resources, "modal_menu_title", "id", "com.android.systemui")
+                    val titleId = HookUtils.getResId(mContext.resources, "modal_menu_title", "id", "com.android.systemui")
                     val panelWidth = mContext.resources.displayMetrics.widthPixels
                     val menuWidth = (panelWidth / mMenuItems.size) - (menuMargin * 2)
                     mMenuItems.forEach { obj ->
@@ -708,9 +708,9 @@ object SystemNotificationHooks {
                     val context = chain.getArg(0) as Context
                     val resources = context.resources
                     if (mHeadsUpPaddingTop == 0) {
-                        val dimId = Helpers.getResId(resources, "heads_up_status_bar_padding", "dimen", "com.android.systemui")
+                        val dimId = HookUtils.getResId(resources, "heads_up_status_bar_padding", "dimen", "com.android.systemui")
                         mHeadsUpPaddingTop = resources.getDimensionPixelSize(dimId)
-                        mHeadsUpHeight = resources.getDimensionPixelSize(Helpers.getResId(resources, "notification_max_heads_up_height", "dimen", "com.android.systemui"))
+                        mHeadsUpHeight = resources.getDimensionPixelSize(HookUtils.getResId(resources, "notification_max_heads_up_height", "dimen", "com.android.systemui"))
                     }
                     if (resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE) {
                         val mHeadsUpInset = result as Int

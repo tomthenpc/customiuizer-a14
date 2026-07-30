@@ -242,3 +242,323 @@ API 102 的实机证明。
 
 `r14.13.7` 的静态门禁、测试、lint、构建、产物和签名结论不变；本轮未新增实机证据，
 仍不得称为已完成实机验收的稳定版。
+
+## 结构整理（2026-07-29，`refactor/structure-tidy-r14.13.7`）
+
+来源：一次独立工程结构审计。结论是**小范围整理**，不是重构 —— 目录布局、单一 `:app`、
+`src/main/java` 混合 source set、剩余 3 个 Java 文件的边界全部判定为保持现状。
+本节记录审计中判定为"收益明确、风险可控"的两项，其余一律搁置。
+
+- 工作分支：`refactor/structure-tidy-r14.13.7`（基于 `main` / `d22fc1f2`）
+- 状态：**未合并 `main`**，未创建 tag 或 Release
+- 本节为当前活跃开发线，取代上文「当前活跃开发分支」中已完成的
+  `devin/r14.13-kotlin-refactor` 条目
+
+### 第一步：删除 `GlobalActions` 的 6 个转发桩（`b894af8e`）
+
+`mods/System.kt` 拆分（`fbc16798`）删掉了早期拆分留下的 10 个转发桩，`GlobalActions`
+自己的 6 个漏网。实测其中 4 个 —— `launchAppIntent`、`launchActivityIntent`、
+`launchShortcutIntent`、`launchIntent` —— **全仓库零调用者**：`GlobalActions.kt` 自身在
+`:93`、`:94`、`:105` 就直接调用 `GlobalActionsIntentHelper`。另外 2 个各有一个调用者，
+都在 `MainModule`，已改为直连 `GlobalActionSystemServerHooks`。
+
+副作用：`GlobalActions ↔ GlobalActionSystemServerHooks` 的引用环随之断开。
+`GlobalActions ↔ GlobalActionsIntentHelper` 保留 —— 其反向边全部是 `ACTION_PREFIX` /
+`EVENT_PREFIX`，`const val` 编译期内联，不产生运行期类初始化依赖。
+
+### 第二步：Hook 侧叶子工具函数拆分到 `utils/HookUtils.kt`（`d610e339`）
+
+`utils/Helpers.kt` 是设置应用的工具箱：93 个成员、1215 行。Hook 侧从 23 个文件伸手进去，
+但只用其中十几个叶子函数（`dp2px`、`getResId`、振动包装、`fastBlur`、`copyFile`、gamma 数学）。
+
+Kotlin `object` 在首次静态访问时跑 `<clinit>`，所以每一次这样的读取都要在 `system_server`、
+SystemUI 和 Launcher 里付整个 object 的初始化成本：一个按 `Runtime.maxMemory()` 定容的
+`LruCache` 子类、mod 列表、两个 Comparator、资源 id 表，外加加载 `AppData`、`ModData` 和两个
+Comparator lambda 类。`Helpers` 还 import 了 `PrefsProvider` 和 `prefs.PreferenceCategoryEx`，
+把设置应用的 UI 类拖进了 Hook 进程的依赖图。
+
+23 个叶子成员逐字移入 `utils/HookUtils.kt`（工具：`tools/split-hook-domain.py`），
+`Helpers.kt` 1215 行 → 869 行，`HookUtils.kt` 372 行。两个成员没有搬，而是就地处理：
+
+- `modulePkg` 由 `@JvmField val` 改为 `const val`。const 读取在调用点内联，12 个 Hook 侧
+  引用因此编译成字符串字面量，不再引用该类，**一个调用点都没改**。
+- `containsStringPair` 本身是 `PrefPair.containsFirst` 的一行转发桩，与第一步删掉的是同一
+  模式。4 个调用者改为直连 `PrefPair`，桩删除。
+
+### `HookUtils` 为什么最终放在 `utils/` 而不是 `mods/utils/`
+
+最初放在 `mods/utils/`。`proguard-rules.pro` 的
+
+```
+-keepclassmembers class tv.withaibuild.customiuizer.mods.** {
+    public static <methods>;
+    public <fields>;
+}
+```
+
+按**包前缀**匹配，于是把 `HookUtils` 的 22 个 public static 全部钉住：R8 seeds 由 **3992
+增加到 4014**，同时剥夺了 R8 在 88 个调用点内联 `dp2px`、`constrain` 这类四行函数的自由。
+
+该 keep 规则的存在理由是 `mods.**` 里的 Hook 入口由 `MainModule` 按名调用、不得被裁剪；
+`HookUtils` 是叶子工具，只被普通静态调用触达，不需要被 keep。把文件移到 `utils/`（与
+`PrefPair` 同处，后者已是"两侧都可用的小叶子类"的既有先例）后，**seeds 精确回到 3992、
+零差异**，keep 面未扩大。
+
+### 本轮验证（全部为静态与构建证据）
+
+- 单元测试 171 个，0 失败
+- `lintDebug` / `lintRelease` / `lintVitalRelease` 全部通过
+- `python tools/check-invariants.py` → 117 files, no violations
+- `MainModule` 前后各 **266 个调用点，方法名与顺序完全不变**，只有两处接收方改变
+- Release APK **两步前后均为 3,084,589 字节**
+- R8 seeds 的唯一变化是删除的 6 个转发桩：**3998 → 3992**；第二步相对第一步 seeds 零差异
+- 行级证明：HEAD 的 `Helpers.kt` 与（现 `Helpers.kt` + `HookUtils` 成员区）逐行比对，差异
+  只有删除的 `containsStringPair` 桩和 `modulePkg` 的 const 改动，其余全部对上
+- 字节码证明：改前 `mods/**` 大面积引用 `utils/Helpers`；改后只剩 2 个类，均为
+  `LauncherAnimationHooks$FixAnimHook` 内部类。46 个类改为引用 `HookUtils`
+- 结论：**`system_server` 与 SystemUI 已不再加载 `Helpers`**；Launcher 仍有 2 处
+  `Helpers.getAnimationScale`（见下文搁置说明）
+- 未改变：Hook target、priority、before/after/intercept 语义、`Chain.proceed()` 次数与参数、
+  异常传播、进程作用域、偏好键与默认值、API 101/102 边界、R8 keep 规则文本
+
+### ⚠️ 尚未完成实机验证
+
+**本轮没有在任何设备上运行过。** 上述全部是静态门禁、构建产物和字节码证据，
+不得据此描述为已实机验证。
+
+待实机验证项：
+
+- 冷启动
+- 完整重启
+- `system_server`、SystemUI、Launcher 三个进程的模块日志（先确认日志里有
+  `CustoMIUIzer r14.13.7 (185) loaded in <进程>`）
+- 状态栏图标位置（依赖 `getResId` / `dp2px`）
+- 锁屏元素边距（依赖 `dp2px`）
+- Launcher 图标缩放（依赖 `dp2px`）
+- 自定义全局操作可触发（第一步改动了其 `system_server` 与 SystemUI 安装入口的接收方）
+
+### 本轮明确搁置
+
+1. **`AnimationScale` 拆分** —— 剩余成本只影响 Launcher 的两个调用点，而拆分会触及
+   `getAppContentResolver`、`getAnimationScaleKey`、`setAnimationScale`、
+   `Helpers.appContentResolver`、`MainApplication` 启动路径和动画缩放设置页面。
+   这已经不是可以仅靠构建门禁证明等价的机械重构，收益不足以覆盖新增的设置应用与实机 UI
+   回归风险。
+2. **`AudioVisualizer` / `BatteryIndicator` 移动** —— 二者是纯 SystemUI Hook 组件，
+   放在 `utils/` 属历史遗留，但从 `utils/` 移入 `mods/` 会落进上文那条 keep 规则、
+   扩大 keep 面，与本轮第二步踩到的是同一个坑。收益仅为命名整洁。
+3. **`mods.System` 重命名** —— 该 object 遮蔽 `java.lang.System`，导致仓库中 15 处必须写
+   全限定名。重命名干净但会碰 13 个 Hook 入口并需重建 R8 基线，等有实机回归窗口再做。
+
+### 离线二进制审计（2026-07-29，同分支）
+
+因暂不具备安装测试条件，本轮补做一次纯离线二进制审计：在独立 worktree 中以修改前基线
+`d22fc1f2` 构建 Release APK，与当前 HEAD 的 Release APK 逐项对比。**全部为离线静态比对，
+不含任何设备运行。**
+
+#### 基线可信度
+
+基线 APK 的 SHA-256 为
+`11D01A737BED25C3C4D31153DE22CB918A651D0DD043D0374E2C0E41D32492CC`，
+与本文上文「公开发布线收束」记录的 `r14.13.7` 公开 Release APK 哈希**完全一致**，
+即基线构建逐字节复现了已发布产物，对比结果因此可信。
+
+#### 产物指纹
+
+| 项目 | 基线 `d22fc1f2` | 当前 HEAD |
+| --- | --- | --- |
+| APK SHA-256 | `11d01a73…92cc` | `ed806249…1ba2` |
+| APK 大小 | 3,084,589 bytes | 3,084,589 bytes |
+| `classes.dex` SHA-256 | `97275561…8b27` | `ad396f73…d664` |
+| `classes.dex` 大小 | 1,509,316 bytes | 1,509,064 bytes（−252） |
+| zip 条目数 | 536 | 536（集合完全一致） |
+
+536 个条目中**只有 4 个内容不同**：`classes.dex`、`assets/dexopt/baseline.prof`、
+`assets/dexopt/baseline.profm`（均由 DEX 派生）和 `META-INF/xposed/java_init.list`。
+其余 513 个文件逐字节相同。
+
+#### Manifest、资源、ABI 与身份
+
+- `AndroidManifest.xml`：**逐字节相同**（SHA-256 `98da2961…3efb`，14,424 bytes）
+- `resources.arsc`：**逐字节相同**（SHA-256 `bab17571…6830`，776,112 bytes）
+- `lib/arm64-v8a/libdexkit.so`：**逐字节相同**；ABI 仍为单一 `arm64-v8a`
+- `aapt dump badging` 两边一致：`applicationId=tv.withaibuild.customiuizer.r14`、
+  `versionCode=185`、`versionName=r14.13.7`、`sdkVersion=34`、`targetSdkVersion=34`
+- 签名：仅 v2（v1/v3/v3.1/v3.2/v4 均为 false），1 个签名者，证书 SHA-256 两边同为
+  `c0eff2dc…2e70`；`zipalign -c 4` 两边均通过
+
+#### `META-INF/xposed`
+
+- `module.prop`：**逐字节相同**（`minApiVersion=101` / `targetApiVersion=102` / `staticScope=false`）
+- `scope.list`：**逐字节相同**（12 个包，顺序不变）
+- `java_init.list`：`iq` → `jq`。这是 R8 混淆名位移，不是入口变更 ——
+  `mapping.txt` 显示基线 `MainModule -> iq`、HEAD `MainModule -> jq`，
+  `proguard-rules.pro` 的 `-adaptresourcefilecontents META-INF/xposed/java_init.list`
+  已同步改写该资源。两边入口都正确指向 `MainModule`，且各自 APK 内该名字唯一。
+
+#### R8 四件套
+
+| 文件 | 基线 | HEAD | 差异 |
+| --- | --- | --- | --- |
+| `configuration.txt` | 525 行 | 525 行 | **完全相同** |
+| `seeds.txt` | 3998 行 | 3992 行 | 仅删除的 6 个转发桩，无其他增删 |
+| `usage.txt` | 25,386 行 | 25,391 行 | 见下文 `HookUtils` |
+| `mapping.txt` | 1997 类 / 101,712 成员 | 1997 类 / 101,699 成员 | 类数不变 |
+
+#### `HookUtils` 的 R8 处置（重点核验项）
+
+1. **package 符合预期**：`tv.withaibuild.customiuizer.utils`，不在 `mods.**` 之下。
+2. **未被 keep 规则额外固定**：`HookUtils` 在 `seeds.txt` 中出现 **0 次**。
+3. **R8 可正常内联、合并与删除** —— `usage.txt` 记录了它实际被删掉的成员：
+   - 无用代码删除：`constrain(int,int,int)`、`lerp(int,int,float)`、`lerpInv`、
+     `lerpInvSat`、`saturate`
+   - 内联后删除：`INSTANCE` 字段、`performStrongVibration(Context)`
+
+   即 R8 对它拥有完全的优化自由。作为对照，此前放在 `mods/utils/` 时这 22 个 public
+   static 全部进入 seeds（3992 → 4014），R8 无法内联。
+
+#### 调用点、方法签名、参数类型与调用顺序
+
+用自建 DEX 解析器（`string_ids` / `method_ids` / `class_data` / `code_item`，
+按 `mapping.txt` 反混淆）逐方法提取 `invoke-*` 序列后比对：
+
+- **`MainModule`**：两边同为 7 个方法、**596 次调用**。差异**仅 2 处**（序列第 79 和 492 位），
+  方法名（`setupStatusBar` / `setupGlobalActions`）、参数类型（`PackageReadyParam` /
+  `SystemServerStartingParam`）、返回类型（`void`）全部相同，只有接收方由 `GlobalActions`
+  变为 `GlobalActionSystemServerHooks`。其余 594 次调用的目标、参数与顺序完全一致。
+- **全模块 2105 个共有方法**：把本分支认可的两类改写（`Helpers.X` → `HookUtils.X`、
+  `containsStringPair` → `PrefPair.containsFirst`）和 R8 水平合并宿主命名差异归一化后，
+  仍有差异的只剩 2 个：一个是混淆返回类型名位移（`hs[]` → `is[]`，同一方法），
+  另一个是 `Helpers.<clinit>` 由 12 次调用降为 11 次 —— 正是 `modulePkg` 改 `const val`
+  的预期结果。
+- **DEX 方法清单全量比对**：仅差 8 项 —— 删除 7 个（6 个 `GlobalActions` 转发桩 +
+  `Helpers.containsStringPair`），新增 1 个（`HookUtils.<clinit>`，即 `getResId` 的资源 id 缓存）。
+  其余 2,619 个方法签名两边完全对应。
+
+#### Hook 语义不变性
+
+- **Hook target 字符串**：DEX 字符串表 11,146 → 11,147 条，逐条比对后，
+  **所有发生变化的字符串都是混淆类型描述符或 R8 构建标记，无一条是有语义的字符串**。
+  分族集合相等：`com.android.*` 225 条、`com.miui.*` 112 条、`miui.*` 29 条、
+  `tv.withaibuild.customiuizer.mods.action./event.*` 54 条。
+- **priority**：`MethodHook.<init>()` 两边各 479 次、`MethodHook.<init>(int)` 两边各 7 次；
+  `returnConstant` 各 55 次、`DO_NOTHING` 各 2 次。两个 revision 的源码中所有
+  `PRIORITY_*` 表达式集合相同（仅一处行号因新增 import 位移 1 行，内容不变）。
+- **before / after / intercept**：DEX 中 `before` 66 个、`after` 87 个、`intercept` 340 个，
+  **两边完全相同**。
+- **`Chain.proceed()`**：两边各 **322** 次调用，参数类型一致；`unhook` 各 2 次。
+- **Hook 安装 API 调用数**：`XposedHelpers.findAndHookMethod` 6、`findAndHookConstructor` 2、
+  `hookAllMethods` 4、`hookAllConstructors` 2、`doHookMethod` 3、
+  `ModuleHelper.findAndHookMethod` 10、`ModuleHelper.hookAllMethods` 12 —— 全部两边相同。
+- **偏好键与默认值**：DEX 中 `system_|launcher_|controls_|various_|miuizer_` 前缀字符串
+  572 条、`pref_key*` 164 条，两边**集合完全相等**。整个源码 diff 中唯一出现偏好键的行是
+  `Helpers.performStrongVibration(...)` → `HookUtils.performStrongVibration(...)` 的接收方改写，
+  键名 `controls_volumemedia_vibrate_ignore` 与其默认值未动。
+- **进程作用域**：`scope.list` 逐字节相同；`onSystemServerStarting` 与 `onPackageReady`
+  的调用序列已由上述 596 次调用比对覆盖，进程分支条件未变。
+
+#### 离线审计结论
+
+- **静态与二进制审计已完成。** 上述全部差异均可逐项归因于本分支的两次改动，
+  无任何无法解释的二进制变化。
+- **尚未进行实机验证。** 本轮和前两步都没有在任何设备上运行过；二进制等价性不能替代
+  运行时验证。
+- **本分支不可发布。** 不得据此打 tag、创建 Release 或合并 `main`。
+- **后续必须在 Android 14 / HyperOS 1 设备上完成验收**，验收项即上文「⚠️ 尚未完成实机验证」
+  一节列出的 7 项。
+
+### 实机验收收口（2026-07-30）
+
+本节记录结构整理分支在真实设备上的验收结果，并取代上文「尚未进行实机验证」和
+「本分支不可合并 `main`」的阶段性结论。它只批准结构整理提交进入 `main`，不把本次发现的
+快速重启和 Toast 既有问题描述为已经修复，也不构成新版本发布批准。
+
+#### 测试信息
+
+- 日期：2026-07-30
+- 平台：Android 14 / HyperOS 1
+- 分支：`refactor/structure-tidy-r14.13.7`
+- 测试 HEAD：`bb7ce2bff7919f73f17956aa8ff08c23e777f49e`
+- 基线：`main` / `d22fc1f2e0fbe54b634acf7f3b0448e8af867d99`
+- 框架：Vector v2.0-3054 Release
+- Vector commit：`3d8090f3d5d4d960d6b5217f10db934b3c8404f8`
+- Vector Actions run：<https://github.com/JingMatrix/Vector/actions/runs/30457493179>
+- 日志目录：
+  `C:\Users\tv\Downloads\Peengeek\LSPosed_log\r14\r14.13.7\vector-logs-20260730-095851`
+
+新版 Vector 导出的日志不再沿用旧的单一文件布局。本轮递归扫描后按内容确认的结构为：
+
+- 根目录：`full.log`、`dmesg.log`、`modules_config.db`、`scopes.txt`
+- 当前会话：`log/verbose_*.log`、`log/modules_*.log`、`log/kmsg.log`、`log/props.txt`
+- 上一会话：`log.old/` 下的对应日志
+- 其他诊断材料：`anr/`、`tombstones/`、`modules/`、`proc/`
+
+#### 验收结果
+
+- 模块界面未发现异常。
+- 没有发现 CustoMIUIzer 导致的 `system_server`、SystemUI 或 Launcher 崩溃。
+- 仓库日志分析器结果为 P0=0、P1=0。
+- 没有证据表明 `HookUtils` 拆分或 `GlobalActions` 转发桩删除造成实机回归。
+- 结构整理已经完成静态门禁、离线二进制审计和本轮 Android 14 / HyperOS 1 实机验收。
+- `refactor/structure-tidy-r14.13.7` 允许按非 squash 合并进入 `main`。
+- 快速重启和 Toast 是尚未修复的 `r14.13.7` 基线既有问题，不属于本轮结构整理回归。
+- 本次验收只批准合并，不批准创建 tag、Release 或发布 APK。
+
+#### 快速重启既有问题
+
+设置应用发起快速重启的实际调用链为：
+
+```text
+PreferenceFragmentBase.onOptionsItemSelected
+→ confirmSoftReboot()
+→ sendSoftReboot()
+→ 向 com.android.systemui 发送有序广播
+→ GlobalActions.mSBReceiver
+→ PowerManager.mService.reboot(false, null, false)
+```
+
+快速重启命令直接发送到 SystemUI，并不依赖设置应用中的 `XposedServiceManager` Binder。
+失败根因是 SystemUI Receiver 的注册被错误绑定到是否存在自定义动作：
+
+```java
+if (GlobalActions.hasCustomActions()) {
+    GlobalActionSystemServerHooks.setupStatusBar(lpparam);
+}
+```
+
+`setupStatusBar()` 同时承担独立的 `FastReboot` Receiver 注册。没有配置自定义动作时，
+SystemUI 不执行该注册，有序广播无人处理，设置应用随后又错误复用了
+「暂未连接到 LSPosed 服务」提示。该条件和广播处理逻辑在结构整理基线中已经存在；
+本分支只把调用接收方从转发桩改为实际实现类，没有改变条件、方法签名或执行顺序。
+
+#### Vector Binder 独立问题
+
+- 前四次设置应用进程启动后，Vector daemon 均快速记录
+  `Sent module binder to tv.withaibuild.customiuizer.r14`，应用在 3–10 ms 内进入 `BOUND`。
+- 多次快速进程重建后，Vector 停止向后续设置应用进程投递 Binder。
+- 后续进程先记录 `no bind within 3500ms`，完整等待窗口结束后进入 `TIMED_OUT`。
+- 这不会阻止设置应用发送快速重启广播；快速重启失败有上节所述的独立 Receiver 注册根因。
+- 该现象属于 Vector 上游 UID/进程生命周期与 Binder 投递问题。本项目不通过轮询、
+  重复 `registerListener()`、无限重试或延长等待窗口掩盖它。
+
+#### Toast 既有问题（仅记录）
+
+Vector 导出的 `modules_config.db` 中，Remote Preferences 实际为：
+
+```text
+pref_key_system_blocktoasts = "3"
+pref_key_system_blocktoasts_apps 包含 com.odcloudtech.mobile
+```
+
+已确认：
+
+- 应用选择器保存的是精确包名 `com.odcloudtech.mobile`，没有 display name、component、
+  `|userId` 或空格混淆。
+- 「阻止所选应用」的 entry value 是 `3`，当前判断方向正确。
+- `full.log` 出现 `NotificationService: cancelToast pkg=com.odcloudtech.mobile`，
+  因此测试中看到的提示是真实系统 Toast，不是应用内自绘浮层、Dialog 或 Snackbar。
+- 当前日志仍不能证明本次 `system_server` 已成功加载 CustoMIUIzer 并安装
+  `SelectiveToastsHook`。
+- 后续应在设置完成后完整重启，单独复现一次，并核对当前 HyperOS ROM
+  `services.jar` 中 `NotificationManagerService.tryShowToast` 的实际重载、首参类型和
+  `ToastRecord.pkg` 字段；在取得这些证据前不修改 Toast 逻辑。

@@ -38,6 +38,7 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
 import java.lang.reflect.Method
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 object Controls {
 
@@ -68,7 +69,7 @@ object Controls {
     private val mScreenOnReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
             if (isTorchEnabled(context)) setTorch(context, false)
-            if (Helpers.mWakeLock != null && Helpers.mWakeLock!!.isHeld) Helpers.mWakeLock!!.release()
+            if (HookUtils.mWakeLock != null && HookUtils.mWakeLock!!.isHeld) HookUtils.mWakeLock!!.release()
             if (wasRaise2WakeEnabled) {
                 wasRaise2WakeEnabled = false
                 Settings.System.putInt(context.contentResolver, "pick_up_gesture_wakeup_mode", 1)
@@ -139,9 +140,9 @@ object Controls {
                                     if (isPowerPressed) {
                                         isPowerLongPressed = true
 
-                                        val wakeLock = Helpers.mWakeLock
+                                        val wakeLock = HookUtils.mWakeLock
                                             ?: mPowerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "miuizer:flashlight")
-                                                .also { Helpers.mWakeLock = it }
+                                                .also { HookUtils.mWakeLock = it }
 
                                         if (!isTorchEnabled(mContext) || !wakeLock.isHeld) {
                                             setTorch(mContext, true)
@@ -165,7 +166,7 @@ object Controls {
                         if (isPowerPressed && !isPowerLongPressed) {
                             try {
                                 if (isTorchEnabled(mContext)) setTorch(mContext, false)
-                                if (Helpers.mWakeLock != null && Helpers.mWakeLock!!.isHeld) Helpers.mWakeLock!!.release()
+                                if (HookUtils.mWakeLock != null && HookUtils.mWakeLock!!.isHeld) HookUtils.mWakeLock!!.release()
                                 XposedHelpers.callMethod(mPowerManager, "wakeUp", SystemClock.uptimeMillis())
                                 skipped = true; result = 0; throwable = null
                             } catch (t: Throwable) {
@@ -648,7 +649,7 @@ object Controls {
     private val mBackLongPressAction = Runnable {
         try {
             if (basePWMContext == null || basePWMObject == null) return@Runnable
-            if (GlobalActions.handleAction(basePWMContext!!, "controls_backlong")) Helpers.performStrongVibration(basePWMContext!!)
+            if (GlobalActions.handleAction(basePWMContext!!, "controls_backlong")) HookUtils.performStrongVibration(basePWMContext!!)
             if (MainModule.mPrefs.getInt("controls_backlong_action", 1) != 1) markShortcutTriggered?.invoke(basePWMObject)
         } catch (t: Throwable) {
             XposedHelpers.log(t)
@@ -657,7 +658,7 @@ object Controls {
     private val mHomeLongPressAction = Runnable {
         try {
             if (basePWMContext == null || basePWMObject == null) return@Runnable
-            if (GlobalActions.handleAction(basePWMContext!!, "controls_homelong")) Helpers.performStrongVibration(basePWMContext!!)
+            if (GlobalActions.handleAction(basePWMContext!!, "controls_homelong")) HookUtils.performStrongVibration(basePWMContext!!)
             if (MainModule.mPrefs.getInt("controls_homelong_action", 1) != 1) markShortcutTriggered?.invoke(basePWMObject)
         } catch (t: Throwable) {
             XposedHelpers.log(t)
@@ -666,7 +667,7 @@ object Controls {
     private val mMenuLongPressAction = Runnable {
         try {
             if (basePWMContext == null || basePWMObject == null) return@Runnable
-            if (GlobalActions.handleAction(basePWMContext!!, "controls_menulong")) Helpers.performStrongVibration(basePWMContext!!)
+            if (GlobalActions.handleAction(basePWMContext!!, "controls_menulong")) HookUtils.performStrongVibration(basePWMContext!!)
             if (MainModule.mPrefs.getInt("controls_menulong_action", 1) != 1) markShortcutTriggered?.invoke(basePWMObject)
         } catch (t: Throwable) {
             XposedHelpers.log(t)
@@ -762,9 +763,9 @@ object Controls {
                     val ignoreSystem = MainModule.mPrefs.getBoolean("controls_fingerprintsuccess_ignore")
                     val opt = MainModule.mPrefs.getString("controls_fingerprintsuccess", "1").toInt()
                     if (opt == 2)
-                        Helpers.performLightVibration(mContext, ignoreSystem)
+                        HookUtils.performLightVibration(mContext, ignoreSystem)
                     else if (opt == 3)
-                        Helpers.performStrongVibration(mContext, ignoreSystem)
+                        HookUtils.performStrongVibration(mContext, ignoreSystem)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
@@ -1039,7 +1040,7 @@ object Controls {
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     val pos = if (bundle.getInt("inDirection", 0) == 1) "right" else "left"
                     if (GlobalActions.handleAction(mContext, "controls_fsg_assist_$pos", false, bundle)) {
-                        Helpers.performLightVibration(mContext)
+                        HookUtils.performLightVibration(mContext)
                         skipped = true; result = null; throwable = null
                     }
 

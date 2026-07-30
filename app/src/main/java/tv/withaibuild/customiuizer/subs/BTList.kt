@@ -30,7 +30,7 @@ import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.SubFragment
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.utils.AppHelper
-import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.PrefPair
 
 class BTList : SubFragment() {
 
@@ -193,7 +193,7 @@ class BTList : SubFragment() {
 
         @SuppressLint("MissingPermission")
         override fun isEnabled(position: Int): Boolean {
-            return isSelected || !Helpers.containsStringPair(addresses, getItem(position)?.first ?: "")
+            return isSelected || !PrefPair.containsFirst(addresses, getItem(position)?.first ?: "")
         }
 
         @SuppressLint("MissingPermission")

@@ -14,7 +14,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * Screen, brightness and wallpaper hooks.
@@ -234,8 +234,8 @@ object SystemDisplayHooks {
         val min_pct = MainModule.mPrefs.getInt("system_autobrightness_min", 25)
         val max_pct = MainModule.mPrefs.getInt("system_autobrightness_max", 75)
 
-        val min = Helpers.convertGammaToLinearFloat(min_pct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
-        val max = Helpers.convertGammaToLinearFloat(max_pct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
+        val min = HookUtils.convertGammaToLinearFloat(min_pct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
+        val max = HookUtils.convertGammaToLinearFloat(max_pct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
 
         if (limitmin && newVal < min) newVal = min
         if (limitmax && newVal > max) newVal = max
@@ -324,9 +324,9 @@ object SystemDisplayHooks {
                 try {
 
                     val res = Resources.getSystem()
-                    val minBrightnessLevel = res.getInteger(Helpers.getResId(res, "config_screenBrightnessSettingMinimum", "integer", "android"))
-                    val maxBrightnessLevel = res.getInteger(Helpers.getResId(res, "config_screenBrightnessSettingMaximum", "integer", "android"))
-                    val backlightBit = res.getInteger(Helpers.getResId(res, "config_backlightBit", "integer", "android.miui"))
+                    val minBrightnessLevel = res.getInteger(HookUtils.getResId(res, "config_screenBrightnessSettingMinimum", "integer", "android"))
+                    val maxBrightnessLevel = res.getInteger(HookUtils.getResId(res, "config_screenBrightnessSettingMaximum", "integer", "android"))
+                    val backlightBit = res.getInteger(HookUtils.getResId(res, "config_backlightBit", "integer", "android.miui"))
                     backlightMaxLevel = (1 shl backlightBit) - 1
                     mMinimumBacklight = (minBrightnessLevel - 1) * 1.0f / (backlightMaxLevel - 1)
                     mMaximumBacklight = (maxBrightnessLevel - 1) * 1.0f / (backlightMaxLevel - 1)

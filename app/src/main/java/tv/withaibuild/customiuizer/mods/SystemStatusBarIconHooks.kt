@@ -16,7 +16,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 object SystemStatusBarIconHooks {
 
@@ -87,7 +87,7 @@ object SystemStatusBarIconHooks {
                         val thisObject = chain.thisObject
 
                         val mSystemIconsContainer = XposedHelpers.getObjectField(thisObject, "mSystemIconsContainer") as ViewGroup
-                        val batteryResId = Helpers.getResId(mSystemIconsContainer.resources, "battery", "id", "com.android.systemui")
+                        val batteryResId = HookUtils.getResId(mSystemIconsContainer.resources, "battery", "id", "com.android.systemui")
                         val mBatteryView = mSystemIconsContainer.findViewById<View>(batteryResId)
                         mBatteryView.setTag(batteryId, true)
 
@@ -158,7 +158,7 @@ object SystemStatusBarIconHooks {
             if (nextTime == 0L) {
                 nextTime = ModuleHelper.getNextMIUIAlarmTime(mContext)
             }
-            if (nextTime == 0L) nextTime = Helpers.getNextStockAlarmTime(mContext)
+            if (nextTime == 0L) nextTime = HookUtils.getNextStockAlarmTime(mContext)
 
             var diffMSec = nextTime - nowTime
             if (diffMSec < 0) diffMSec += 7 * 24 * 60 * 60 * 1000

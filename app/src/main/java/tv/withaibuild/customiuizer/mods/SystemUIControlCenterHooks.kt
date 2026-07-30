@@ -33,10 +33,10 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
 import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
 import java.util.ArrayList
 import java.util.Comparator
 import java.util.HashSet
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * Control centre, volume dialog and brightness UI hooks.
@@ -311,7 +311,7 @@ object SystemUIControlCenterHooks {
                         val dimId = headerView.resources.getIdentifier("header_carrier_vertical_mode_margin_bottom", "dimen", "miui.systemui.plugin")
                         val marginBottom = headerView.resources.getDimensionPixelSize(dimId)
                         XposedHelpers.callMethod(constraintSet, "connect", stepViewId, 4, iconsId, 3, marginBottom)
-                        XposedHelpers.callMethod(constraintSet, "connect", stepViewId, 7, carrierId, 6, Helpers.dp2px(4f).toInt())
+                        XposedHelpers.callMethod(constraintSet, "connect", stepViewId, 7, carrierId, 6, HookUtils.dp2px(4f).toInt())
                         XposedHelpers.callMethod(constraintSet, "applyTo", headerView)
                     }
                 }
@@ -369,7 +369,7 @@ object SystemUIControlCenterHooks {
                 val thisView = param.getThisObject() as FrameLayout
                 val resId = thisView.resources.getIdentifier("icon_frame", "id", "miui.systemui.plugin")
                 val iconFrame = thisView.findViewById<View>(resId)
-                val iconSize = Helpers.dp2px(68f * iconScaleRatio).toInt()
+                val iconSize = HookUtils.dp2px(68f * iconScaleRatio).toInt()
                 iconFrame.layoutParams.width = iconSize
                 iconFrame.layoutParams.height = iconSize
 
@@ -382,7 +382,7 @@ object SystemUIControlCenterHooks {
         ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemView", pluginLoader, "onFinishInflate", resizeIconFrame)
         ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemView", pluginLoader, "updateContainerHeight", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
-                val iconSize = Helpers.dp2px(85f * iconScaleRatio + 1).toInt()
+                val iconSize = HookUtils.dp2px(85f * iconScaleRatio + 1).toInt()
                 XposedHelpers.setObjectField(param.getThisObject(), "containerHeight", iconSize)
             }
         })
@@ -753,7 +753,7 @@ object SystemUIControlCenterHooks {
         ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemIconView", pluginLoader, "getCornerRadius", object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
                 val radius = 20 * iconScaleRatio
-                param.returnAndSkip(Helpers.dp2px(radius))
+                param.returnAndSkip(HookUtils.dp2px(radius))
             }
         })
         val radiusHook = object : MethodHook() {
@@ -762,7 +762,7 @@ object SystemUIControlCenterHooks {
                 val gradientDrawable = drawable as? GradientDrawable
                 if (gradientDrawable != null) {
                     val radius = 20 * iconScaleRatio
-                    gradientDrawable.cornerRadius = Helpers.dp2px(radius)
+                    gradientDrawable.cornerRadius = HookUtils.dp2px(radius)
                 }
             }
         }
@@ -889,7 +889,7 @@ object SystemUIControlCenterHooks {
                             && Math.abs(mTouchX - currentDownX) < 80F) {
                             if (MainModule.mPrefs.getBoolean("system_statusbarcontrols_longpress_vibrate")) {
                                 val ignoreOff = MainModule.mPrefs.getBoolean("system_statusbarcontrols_longpress_vibrate_ignoreoff")
-                                Helpers.performStrongVibration(mContext, ignoreOff)
+                                HookUtils.performStrongVibration(mContext, ignoreOff)
                             }
                             GlobalActions.handleAction(mContext, "system_statusbarcontrols_longpress")
                         }

@@ -38,6 +38,7 @@ import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
 import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.lang.ref.WeakReference
 import java.net.NetworkInterface
@@ -155,19 +156,19 @@ object SystemUIStatusBarHooks {
             iconTextView.typeface = Typeface.DEFAULT_BOLD
         }
         var leftMargin = MainModule.mPrefs.getInt("system_statusbar_${subKey}_leftmargin", 8)
-        leftMargin = Helpers.dp2px(leftMargin * 0.5f).toInt()
+        leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
         var rightMargin = MainModule.mPrefs.getInt("system_statusbar_${subKey}_rightmargin", 8)
-        rightMargin = Helpers.dp2px(rightMargin * 0.5f).toInt()
+        rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
         var topMargin = 0
         val verticalOffset = MainModule.mPrefs.getInt("system_statusbar_${subKey}_verticaloffset", 8)
         if (verticalOffset != 8) {
-            topMargin = Helpers.dp2px((verticalOffset - 8) * 0.5f).toInt()
+            topMargin = HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
         }
         iconTextView.setPaddingRelative(leftMargin, topMargin, rightMargin, 0)
         val fixedWidth = MainModule.mPrefs.getInt("system_statusbar_${subKey}_fixedcontent_width", 10)
         if (fixedWidth > 10) {
             val lp = iconTextView.layoutParams as LinearLayout.LayoutParams
-            lp.width = Helpers.dp2px(fixedWidth.toFloat()).toInt()
+            lp.width = HookUtils.dp2px(fixedWidth.toFloat()).toInt()
             iconTextView.layoutParams = lp
         }
 
@@ -405,13 +406,13 @@ object SystemUIStatusBarHooks {
             digitalTextView.typeface = Typeface.DEFAULT_BOLD
         }
         var leftMargin = MainModule.mPrefs.getInt("system_statusbar_${subKey}_leftmargin", 8)
-        leftMargin = Helpers.dp2px(leftMargin * 0.5f).toInt()
+        leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
         var rightMargin = MainModule.mPrefs.getInt("system_statusbar_${subKey}_rightmargin", 8)
-        rightMargin = Helpers.dp2px(rightMargin * 0.5f).toInt()
+        rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
         var topMargin = 0
         val verticalOffset = MainModule.mPrefs.getInt("system_statusbar_${subKey}_verticaloffset", 8)
         if (verticalOffset != 8) {
-            topMargin = Helpers.dp2px((verticalOffset - 8) * 0.5f).toInt()
+            topMargin = HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
         }
         digitalTextView.setPaddingRelative(leftMargin, topMargin, rightMargin, 0)
         val align = MainModule.mPrefs.getStringAsInt("system_statusbar_${subKey}_align", 1)
@@ -759,20 +760,20 @@ object SystemUIStatusBarHooks {
                     } else {
                         return
                     }
-                    val rightSpacing = Helpers.dp2px(rightMargin * 0.5f).toInt()
-                    val leftSpacing = Helpers.dp2px(leftMargin * 0.5f).toInt()
+                    val rightSpacing = HookUtils.dp2px(rightMargin * 0.5f).toInt()
+                    val leftSpacing = HookUtils.dp2px(leftMargin * 0.5f).toInt()
                     mobileView.setPadding(leftSpacing, 0, rightSpacing, 0)
                     val mMobile = XposedHelpers.getObjectField(param.getThisObject(), "mMobile") as View
                     if (verticalOffset != 8) {
-                        val marginTop = Helpers.dp2px((verticalOffset - 8) * 0.5f)
+                        val marginTop = HookUtils.dp2px((verticalOffset - 8) * 0.5f)
                         val mobileIcon = mMobile.parent as FrameLayout
                         mobileIcon.translationY = marginTop
                     }
                     if (iconScale != 10) {
                         val mSmallRoaming = XposedHelpers.getObjectField(param.getThisObject(), "mSmallRoaming") as View
                         val layoutParams = mMobile.layoutParams as FrameLayout.LayoutParams?
-                            ?: FrameLayout.LayoutParams(-2, Helpers.dp2px(2.0f * iconScale).toInt())
-                        layoutParams.height = Helpers.dp2px(2.0f * iconScale).toInt()
+                            ?: FrameLayout.LayoutParams(-2, HookUtils.dp2px(2.0f * iconScale).toInt())
+                        layoutParams.height = HookUtils.dp2px(2.0f * iconScale).toInt()
                         layoutParams.gravity = Gravity.CENTER
                         mMobile.layoutParams = layoutParams
                         mSmallRoaming.layoutParams = layoutParams
@@ -1216,7 +1217,7 @@ object SystemUIStatusBarHooks {
         if (fixedWidth > 10 || singleOrDual) {
             val lp = numberView.layoutParams as LinearLayout.LayoutParams
             if (fixedWidth > 10) {
-                lp.width = Helpers.dp2px(fixedWidth.toFloat()).toInt()
+                lp.width = HookUtils.dp2px(fixedWidth.toFloat()).toInt()
             }
             if (singleOrDual) {
                 lp.topMargin = 0
@@ -1228,13 +1229,13 @@ object SystemUIStatusBarHooks {
         }
 
         var leftMargin = MainModule.mPrefs.getInt("system_netspeed_leftmargin", 0)
-        leftMargin = Helpers.dp2px(leftMargin * 0.5f).toInt()
+        leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
         var rightMargin = MainModule.mPrefs.getInt("system_netspeed_rightmargin", 0)
-        rightMargin = Helpers.dp2px(rightMargin * 0.5f).toInt()
+        rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
         var topMargin = 0
         val verticalOffset = MainModule.mPrefs.getInt("system_netspeed_verticaloffset", 8)
         if (verticalOffset != 8) {
-            topMargin = Helpers.dp2px((verticalOffset - 8) * 0.5f).toInt()
+            topMargin = HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
         }
         speedView.translationY = topMargin.toFloat()
         speedView.setPaddingRelative(leftMargin, 0, rightMargin, 0)
@@ -1390,14 +1391,14 @@ object SystemUIStatusBarHooks {
                 }
                 val mlp = mMobileTypeSingle.layoutParams as ViewGroup.MarginLayoutParams
                 var leftMargin = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_leftmargin", 4)
-                mlp.leftMargin = Helpers.dp2px(leftMargin * 0.5f).toInt()
+                mlp.leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
                 val rightMargin = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_rightmargin", 0)
                 if (rightMargin > 0) {
-                    mlp.rightMargin = Helpers.dp2px(rightMargin * 0.5f).toInt()
+                    mlp.rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
                 }
                 val verticalOffset = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_verticaloffset", 8)
                 if (verticalOffset != 8) {
-                    mlp.topMargin = Helpers.dp2px((verticalOffset - 8) * 0.5f).toInt()
+                    mlp.topMargin = HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
                 }
                 mMobileTypeSingle.layoutParams = mlp
                 val fontSize = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_fontsize", 27)
@@ -1415,9 +1416,9 @@ object SystemUIStatusBarHooks {
         val horizHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
                 val leftMargin = MainModule.mPrefs.getInt("system_statusbar_horizmargin_left", 16)
-                val leftMarginPx = Helpers.dp2px(leftMargin.toFloat()).toInt()
+                val leftMarginPx = HookUtils.dp2px(leftMargin.toFloat()).toInt()
                 val rightMargin = MainModule.mPrefs.getInt("system_statusbar_horizmargin_right", 16)
-                val rightMarginPx = Helpers.dp2px(rightMargin.toFloat()).toInt()
+                val rightMarginPx = HookUtils.dp2px(rightMargin.toFloat()).toInt()
                 param.returnAndSkip(Pair(leftMarginPx, rightMarginPx))
             }
         }

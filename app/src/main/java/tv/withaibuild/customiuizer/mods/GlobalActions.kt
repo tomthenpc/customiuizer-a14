@@ -36,7 +36,6 @@ import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.Toast
 import io.github.libxposed.api.XposedInterface
-import io.github.libxposed.api.XposedModuleInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
@@ -44,6 +43,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 object GlobalActions {
 
@@ -698,28 +698,6 @@ object GlobalActions {
         return customToggleMap!!.get(what)
     }
 
-    @JvmStatic
-    fun setupGlobalActions(lpparam: XposedModuleInterface.SystemServerStartingParam) {
-        GlobalActionSystemServerHooks.setupGlobalActions(lpparam)
-    }
-
-    @JvmStatic
-    fun setupStatusBar(lpparam: PackageReadyParam) {
-        GlobalActionSystemServerHooks.setupStatusBar(lpparam)
-    }
-
-    @JvmStatic
-    fun launchAppIntent(context: Context, key: String, skipLock: Boolean): Boolean = GlobalActionsIntentHelper.launchAppIntent(context, key, skipLock)
-
-    @JvmStatic
-    fun launchActivityIntent(context: Context, key: String, skipLock: Boolean): Boolean = GlobalActionsIntentHelper.launchActivityIntent(context, key, skipLock)
-
-    @JvmStatic
-    fun launchShortcutIntent(context: Context, key: String, skipLock: Boolean): Boolean = GlobalActionsIntentHelper.launchShortcutIntent(context, key, skipLock)
-
-    @JvmStatic
-    fun launchIntent(context: Context, intent: Intent): Boolean = GlobalActionsIntentHelper.launchIntent(context, intent)
-
     private fun showSidebar(context: Context, bundle: Bundle?): Boolean {
         return try {
             val showIntent = Intent(ACTION_PREFIX + "ShowSideBar")
@@ -792,7 +770,7 @@ object GlobalActions {
         am.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, keyCode))
 
         if (vibrate && MainModule.mPrefs.getBoolean("controls_volumemedia_vibrate", true)) {
-            Helpers.performStrongVibration(mContext, MainModule.mPrefs.getBoolean("controls_volumemedia_vibrate_ignore"))
+            HookUtils.performStrongVibration(mContext, MainModule.mPrefs.getBoolean("controls_volumemedia_vibrate_ignore"))
         }
     }
 }

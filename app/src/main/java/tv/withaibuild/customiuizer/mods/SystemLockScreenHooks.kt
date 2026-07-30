@@ -38,6 +38,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.HookUtils
 import tv.withaibuild.customiuizer.utils.PrefPair
 import java.io.File
 import java.io.FileInputStream
@@ -84,10 +85,10 @@ object SystemLockScreenHooks {
                         Collections.shuffle(mRandomViews)
 
                         val pinview = thisObject as View
-                        val row1 = pinview.findViewById<ViewGroup>(Helpers.getResId(pinview.resources, "row1", "id", "com.android.systemui"))
-                        val row2 = pinview.findViewById<ViewGroup>(Helpers.getResId(pinview.resources, "row2", "id", "com.android.systemui"))
-                        val row3 = pinview.findViewById<ViewGroup>(Helpers.getResId(pinview.resources, "row3", "id", "com.android.systemui"))
-                        val row4 = pinview.findViewById<ViewGroup>(Helpers.getResId(pinview.resources, "row4", "id", "com.android.systemui"))
+                        val row1 = pinview.findViewById<ViewGroup>(HookUtils.getResId(pinview.resources, "row1", "id", "com.android.systemui"))
+                        val row2 = pinview.findViewById<ViewGroup>(HookUtils.getResId(pinview.resources, "row2", "id", "com.android.systemui"))
+                        val row3 = pinview.findViewById<ViewGroup>(HookUtils.getResId(pinview.resources, "row3", "id", "com.android.systemui"))
+                        val row4 = pinview.findViewById<ViewGroup>(HookUtils.getResId(pinview.resources, "row4", "id", "com.android.systemui"))
 
                         row1.removeAllViews()
                         row2.removeAllViews()
@@ -206,7 +207,7 @@ object SystemLockScreenHooks {
         if (wifiManager == null || !wifiManager.isWifiEnabled) return false
         val trustedNetworks = MainModule.mPrefs.getStringSet("system_noscreenlock_wifi")
         val bssid = wifiManager.connectionInfo.bssid ?: ""
-        return Helpers.containsStringPair(trustedNetworks, bssid)
+        return PrefPair.containsFirst(trustedNetworks, bssid)
     }
 
     @SuppressLint("MissingPermission")
@@ -223,7 +224,7 @@ object SystemLockScreenHooks {
                     if (mDevice == null) continue
                     if (mDevice.bondState == BluetoothDevice.BOND_BONDED &&
                         XposedHelpers.callMethod(device, "isConnected") as Boolean &&
-                        Helpers.containsStringPair(trustedDevices, mDevice.address ?: "")
+                        PrefPair.containsFirst(trustedDevices, mDevice.address ?: "")
                     ) return true
                 }
             }
@@ -879,7 +880,7 @@ object SystemLockScreenHooks {
             val mContext = alarmTime.context
             var timestamp = ModuleHelper.getNextMIUIAlarmTime(mContext)
             if (timestamp == 0L && MainModule.mPrefs.getBoolean("system_lsalarm_all"))
-                timestamp = Helpers.getNextStockAlarmTime(mContext)
+                timestamp = HookUtils.getNextStockAlarmTime(mContext)
             if (timestamp == 0L) {
                 alarmTime.text = ""
                 return
@@ -931,7 +932,7 @@ object SystemLockScreenHooks {
                         hasUdfs = isGxzwLowPosition
                     }
                     val layoutParams = mTopIndicationView.layoutParams as LinearLayout.LayoutParams
-                    layoutParams.bottomMargin = Helpers.dp2px((if (hasUdfs) 80 else 20).toFloat()).toInt()
+                    layoutParams.bottomMargin = HookUtils.dp2px((if (hasUdfs) 80 else 20).toFloat()).toInt()
                     mTopIndicationView.layoutParams = layoutParams
                     val mInitialTextColorState = XposedHelpers.getObjectField(thisObject, "mInitialTextColorState") as ColorStateList
                     mTopIndicationView.setTextColor(mInitialTextColorState)
@@ -1366,7 +1367,7 @@ object SystemLockScreenHooks {
                             if (!wallpaper.exists()) return@postDelayed
 
                             val lockWallpaperPath = "/data/system/theme/thirdparty_lock_wallpaper"
-                            Helpers.copyFile(wallpaper.absolutePath, lockWallpaperPath)
+                            HookUtils.copyFile(wallpaper.absolutePath, lockWallpaperPath)
                             val ThemeUtils = XposedHelpers.findClass("miui.content.res.ThemeNativeUtils", lpparam.classLoader)
                             XposedHelpers.callStaticMethod(ThemeUtils, "updateFilePermissionWithThemeContext", lockWallpaperPath)
                             val data = JSONObject()

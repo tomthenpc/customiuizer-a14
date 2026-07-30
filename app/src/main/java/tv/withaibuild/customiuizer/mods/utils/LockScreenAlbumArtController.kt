@@ -21,10 +21,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.mods.GlobalActions
-import tv.withaibuild.customiuizer.utils.Helpers
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.math.sqrt
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * Lock-screen album art processor.
@@ -291,7 +291,7 @@ object LockScreenAlbumArtController {
 
     private fun blurArt(art: Bitmap, blur: Int): Bitmap? {
         val small = downsampleForBlur(art, BLUR_MAX_PIXELS)
-        return Helpers.fastBlur(small, blur + 1) ?: small
+        return HookUtils.fastBlur(small, blur + 1) ?: small
     }
 
     private fun downsampleForBlur(art: Bitmap, maxPixels: Int): Bitmap {

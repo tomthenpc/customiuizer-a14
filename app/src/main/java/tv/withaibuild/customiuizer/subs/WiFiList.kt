@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.SubFragment
 import tv.withaibuild.customiuizer.utils.AppHelper
-import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.PrefPair
 
 class WiFiList : SubFragment() {
 
@@ -227,7 +227,7 @@ class WiFiList : SubFragment() {
         override fun getItemId(position: Int): Long = position.toLong()
 
         override fun isEnabled(position: Int): Boolean {
-            return isSelected || !Helpers.containsStringPair(bssids, getItem(position)?.first ?: "")
+            return isSelected || !PrefPair.containsFirst(bssids, getItem(position)?.first ?: "")
         }
 
         override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {

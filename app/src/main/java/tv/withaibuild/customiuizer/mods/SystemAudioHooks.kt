@@ -22,9 +22,9 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.AudioVisualizer
-import tv.withaibuild.customiuizer.utils.Helpers
 import java.util.ArrayList
 import java.util.Calendar
+import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * Audio, media and haptics hooks.
@@ -55,9 +55,9 @@ object SystemAudioHooks {
                         val ignoreSystem = MainModule.mPrefs.getBoolean("system_qshaptics_ignore")
                         val opt = MainModule.mPrefs.getStringAsInt("system_qshaptics", 1)
                         if (opt == 2)
-                            Helpers.performLightVibration(mContext, ignoreSystem)
+                            HookUtils.performLightVibration(mContext, ignoreSystem)
                         else if (opt == 3)
-                            Helpers.performStrongVibration(mContext, ignoreSystem)
+                            HookUtils.performStrongVibration(mContext, ignoreSystem)
                     }
 
                 } catch (t: Throwable) {
@@ -238,7 +238,7 @@ object SystemAudioHooks {
                     audioVizLocal.isClickable = false
                     visFrame.addView(audioVizLocal)
                     visFrame.isClickable = false
-                    val themebkg = mNotificationPanel.findViewById<View>(Helpers.getResId(mContext.resources, "keyguard_background_layer", "id", lpparam.packageName))
+                    val themebkg = mNotificationPanel.findViewById<View>(HookUtils.getResId(mContext.resources, "keyguard_background_layer", "id", lpparam.packageName))
 
                     var order = 0
                     if (themebkg != null) order = Math.max(order, mNotificationPanel.indexOfChild(themebkg))
