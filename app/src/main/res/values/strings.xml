@@ -828,6 +828,8 @@
     <string name="warning">Warning!</string>
     <string name="soft_reboot">Soft reboot</string>
     <string name="soft_reboot_ask">Perform reboot now?</string>
+    <string name="fast_reboot_not_received">The fast reboot command was not received by SystemUI. Confirm that the module is enabled, then fully reboot the device.</string>
+    <string name="fast_reboot_failed">SystemUI received the fast reboot command but could not execute it.</string>
     <string name="restart_launcher">Restart launcher</string>
     <string name="restart_systemui">Restart systemui</string>
     <string name="restart_securitycenter">Restart security center</string>

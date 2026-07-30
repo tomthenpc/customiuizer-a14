@@ -55,12 +55,14 @@ object GlobalActions {
      *
      * They exist so the settings app can tell "the module is not in the host" from "the
      * module handled it", without asking a question the settings process cannot answer from
-     * its own LSPosed bind state. [mSBReceiver] sets [ACTION_HANDLED]; a broadcast no
-     * receiver claims arrives at the sender's result receiver still carrying
-     * [ACTION_UNHANDLED].
+     * its own LSPosed bind state. [fastRebootReceiver] sets [ACTION_HANDLED] immediately
+     * before invoking the reboot service. A broadcast no receiver claims arrives at the
+     * sender's result receiver still carrying [ACTION_UNHANDLED], while a claimed action
+     * that cannot invoke the service returns [ACTION_FAILED].
      */
     const val ACTION_UNHANDLED = Activity.RESULT_CANCELED
     const val ACTION_HANDLED = Activity.RESULT_OK
+    const val ACTION_FAILED = Activity.RESULT_FIRST_USER
 
     @JvmStatic
     fun handleAction(context: Context, key: String?): Boolean {
@@ -147,6 +149,24 @@ object GlobalActions {
     }
 
     @JvmField
+    val fastRebootReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action != ACTION_PREFIX + "FastReboot") return
+            if (isOrderedBroadcast) resultCode = ACTION_FAILED
+            try {
+                val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                val mService = XposedHelpers.getObjectField(pm, "mService")
+                if (isOrderedBroadcast) resultCode = ACTION_HANDLED
+                // Does not return on success.
+                XposedHelpers.callMethod(mService, "reboot", false, null, false)
+            } catch (t: Throwable) {
+                if (isOrderedBroadcast) resultCode = ACTION_FAILED
+                XposedHelpers.log(t)
+            }
+        }
+    }
+
+    @JvmField
     val mSBReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         @SuppressLint("WrongConstant", "MissingPermission")
         override fun onReceive(context: Context, intent: Intent) {
@@ -157,21 +177,6 @@ object GlobalActions {
 
                 when (action) {
                     ACTION_PREFIX + "RestartSystemUI" -> Process.killProcess(Process.myPid())
-                    ACTION_PREFIX + "FastReboot" -> {
-                        val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                        // Resolve first, claim second. On a ROM without this field the lookup
-                        // throws, and claiming the broadcast beforehand would have told the
-                        // sender the reboot was under way when nothing had happened.
-                        val mService = XposedHelpers.getObjectField(pm, "mService")
-                        if (isOrderedBroadcast) resultCode = ACTION_HANDLED
-                        try {
-                            // Does not return on success.
-                            XposedHelpers.callMethod(mService, "reboot", false, null, false)
-                        } catch (t: Throwable) {
-                            if (isOrderedBroadcast) resultCode = ACTION_UNHANDLED
-                            throw t
-                        }
-                    }
                     ACTION_PREFIX + "ClearNotifications" -> {
                         val nms = XposedHelpers.callStaticMethod(NotificationManager::class.java, "getService")
                         XposedHelpers.callMethod(nms, "cancelAllNotifications", null, 0)

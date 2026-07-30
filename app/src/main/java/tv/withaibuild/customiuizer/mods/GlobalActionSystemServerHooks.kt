@@ -136,6 +136,18 @@ object GlobalActionSystemServerHooks {
     }
 
     @JvmStatic
+    fun setupFastRebootReceiver(context: Context) {
+        val filter = IntentFilter(GlobalActions.ACTION_PREFIX + "FastReboot")
+        ModuleHelper.registerModuleReceiver(
+            context,
+            "fastRebootReceiver",
+            GlobalActions.fastRebootReceiver,
+            filter,
+            Context.RECEIVER_EXPORTED
+        )
+    }
+
+    @JvmStatic
     fun setupStatusBar(lpparam: PackageReadyParam) {
         val statusBarClass = XposedHelpers.findClassIfExists("com.android.systemui.statusbar.phone.CentralSurfacesImpl", lpparam.classLoader)
         if (statusBarClass == null) return
@@ -179,7 +191,6 @@ object GlobalActionSystemServerHooks {
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "RestartSecurityCenter")
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "FloatingWindow")
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "SwitchOneHanded")
-                    intentfilter.addAction(GlobalActions.ACTION_PREFIX + "FastReboot")
 
                     intentfilter.addAction(GlobalActions.ACTION_PREFIX + "ScrollToTop")
 
