@@ -22,6 +22,10 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).parent))
+
+import adb_regression.plan as plan
+
 MODULE_PACKAGE = "tv.withaibuild.customiuizer.r14"
 
 READONLY_SHELL_COMMANDS = {
@@ -349,15 +353,11 @@ def cmd_validate_plan(args: argparse.Namespace) -> int:
     plan_path = Path(args.plan).expanduser().resolve()
     if not plan_path.is_file():
         die(f"plan not found: {plan_path}", 2)
-    schema_path = REPO_ROOT / "adb-regression" / "schema.json"
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    plan = json.loads(plan_path.read_text(encoding="utf-8"))
-    # Minimal structural validation; full JSON Schema not required for milestone 1.
-    for key in schema["properties"]["required"]:
-        if key not in plan:
-            die(f"plan missing required field: {key}", 2)
-    print(f"plan structure OK: {plan_path}")
-    return 0
+    exit_code, messages = plan.validate(plan_path)
+    for m in messages:
+        stream = sys.stderr if exit_code != 0 else sys.stdout
+        print(m, file=stream)
+    return exit_code
 
 
 def cmd_run(args: argparse.Namespace) -> int:
