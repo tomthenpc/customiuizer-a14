@@ -2,6 +2,7 @@ package tv.withaibuild.customiuizer
 
 import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -11,26 +12,34 @@ class BroadcastSecurityContractTest {
     private val globalActions = source("app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt")
     private val moduleHelper = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt")
     private val systemServerHooks = source("app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActionSystemServerHooks.kt")
-    private val preferences = source("app/src/main/java/tv/withaibuild/customiuizer/PreferenceFragmentBase.kt")
+    private val systemLockScreenHooks = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt")
+    private val launcher = source("app/src/main/java/tv/withaibuild/customiuizer/mods/Launcher.kt")
+    private val btList = source("app/src/main/java/tv/withaibuild/customiuizer/subs/BTList.kt")
+    private val appSelector = source("app/src/main/java/tv/withaibuild/customiuizer/subs/AppSelector.kt")
+    private val preferenceFragmentBase = source("app/src/main/java/tv/withaibuild/customiuizer/PreferenceFragmentBase.kt")
 
     @Test
-    fun broadcastPermissionIsDeclaredWithSignatureOrPrivilegedProtection() {
+    fun broadcastPermissionIsDeclaredWithSignatureOnly() {
         assertTrue(
             "Expected a permission declaration for BROADCAST",
             manifest.contains("android:name=\"tv.withaibuild.customiuizer.r14.permission.BROADCAST\"")
         )
         assertTrue(
-            "Expected signatureOrSystem or signature|privileged protection",
-            manifest.contains("signatureOrSystem") || manifest.contains("signature|privileged")
+            "Expected protectionLevel=\"signature\" (not signatureOrSystem)",
+            manifest.contains("android:protectionLevel=\"signature\"")
+        )
+        assertFalse(
+            "signatureOrSystem is deprecated and should not be used",
+            manifest.contains("signatureOrSystem")
         )
         assertTrue(
-            "Module app must request its own permission",
+            "Module app must request its own signature permission",
             manifest.contains("uses-permission android:name=\"tv.withaibuild.customiuizer.r14.permission.BROADCAST\"")
         )
     }
 
     @Test
-    fun globalActionsExportsTheBroadcastPermissionConstant() {
+    fun globalActionsExposesBroadcastPermissionAndIdentityHelpers() {
         assertTrue(
             "GlobalActions should expose BROADCAST_PERMISSION",
             globalActions.contains("BROADCAST_PERMISSION = \"tv.withaibuild.customiuizer.r14.permission.BROADCAST\"")
@@ -38,58 +47,121 @@ class BroadcastSecurityContractTest {
     }
 
     @Test
-    fun moduleHelperCanPassBroadcastPermissionWhenRegisteringReceivers() {
+    fun moduleHelperProvidesIdentityBroadcastAndVerification() {
         assertTrue(
-            "registerModuleReceiver should accept an optional permission parameter",
-            moduleHelper.contains("fun registerModuleReceiver(")
+            "ModuleHelper should provide sendBroadcastWithIdentity",
+            moduleHelper.contains("fun sendBroadcastWithIdentity(")
         )
         assertTrue(
-            "registerOwnedReceiver should accept an optional permission parameter",
-            moduleHelper.contains("fun registerOwnedReceiver(")
+            "ModuleHelper should provide sendOrderedBroadcastWithIdentity",
+            moduleHelper.contains("fun sendOrderedBroadcastWithIdentity(")
         )
         assertTrue(
-            "Receiver registration must forward permission to Context.registerReceiver",
-            moduleHelper.contains("context.registerReceiver(receiver, filter, permission, null, flags)")
+            "Sender must share identity via BroadcastOptions",
+            moduleHelper.contains(".setShareIdentityEnabled(true)")
+        )
+        assertTrue(
+            "ModuleHelper should provide isTrustedBroadcast",
+            moduleHelper.contains("fun isTrustedBroadcast(")
+        )
+        assertTrue(
+            "Receiver must call getSentFromPackage",
+            moduleHelper.contains("receiver.getSentFromPackage()")
         )
     }
 
     @Test
-    fun highPrivilegeReceiversAreRegisteredWithTheSharedPermission() {
+    fun highPrivilegeHostReceiversVerifySenderIdentity() {
         assertTrue(
-            "fastRebootReceiver must be registered with the broadcast permission",
-            systemServerHooks.contains("fastRebootReceiver") &&
+            "mSBReceiver must verify sender",
+            globalActions.contains("ModuleHelper.isTrustedBroadcast(") &&
+                globalActions.contains("\"android\"") &&
+                globalActions.contains("\"com.android.systemui\"") &&
+                globalActions.contains("\"com.miui.home\"")
+        )
+        assertTrue(
+            "phoneWindowManagerActionReceiver must verify sender",
+            systemServerHooks.contains("ModuleHelper.isTrustedBroadcast(")
+        )
+        assertTrue(
+            "noScreenLockReceiver must verify getSentFromPackage",
+            systemLockScreenHooks.contains("getSentFromPackage()") &&
+                systemLockScreenHooks.contains("Helpers.modulePkg")
+        )
+    }
+
+    @Test
+    fun moduleToHostReceiversUseSignaturePermission() {
+        // FastReboot, fetchCachedDevices, FETCHAPPCONFIG are the only receivers that keep the signature permission.
+        assertTrue(
+            "fastRebootReceiver must be protected by the signature permission",
+            systemServerHooks.contains("\"fastRebootReceiver\"") &&
                 systemServerHooks.contains("GlobalActions.BROADCAST_PERMISSION")
         )
-        val expectedProtectedKeys = listOf(
-            "phoneWindowManagerActionReceiver",
-            "statusBarActionReceiver",
-            "freeformModeReceiver",
-            "soScSplitScreenReceiver",
-            "autoBrightnessReceiver"
+        assertTrue(
+            "fetchCachedDevicesReceiver must be protected by the signature permission",
+            systemLockScreenHooks.contains("\"fetchCachedDevicesReceiver\"") &&
+                systemLockScreenHooks.contains("GlobalActions.BROADCAST_PERMISSION")
         )
-        for (key in expectedProtectedKeys) {
-            assertTrue(
-                "$key must be in the same file and the file must reference the shared permission",
-                systemServerHooks.contains(key)
-            )
-        }
-        val permissionCount = systemServerHooks.windowed("GlobalActions.BROADCAST_PERMISSION".length)
-            .count { it == "GlobalActions.BROADCAST_PERMISSION" }
-        assertEquals(
-            "All six privileged receivers must reference the broadcast permission",
-            6,
-            permissionCount
+        assertTrue(
+            "fetchAppConfigReceiver must be protected by the signature permission",
+            launcher.contains("\"fetchAppConfigReceiver\"") &&
+                launcher.contains("GlobalActions.BROADCAST_PERMISSION")
         )
     }
 
     @Test
-    fun softRebootBroadcastIsAddressedExplicitlyToSystemUI() {
-        val sendSoftReboot = preferences.section(
+    fun hostToModuleDataReceiversCheckSpecificSenderPackage() {
+        assertTrue(
+            "PUSHAPPCONFIG receiver must accept only com.miui.home",
+            appSelector.contains("getSentFromPackage() != \"com.miui.home\"")
+        )
+        assertTrue(
+            "CACHEDDEVICESUPDATE receiver must accept only com.android.systemui",
+            btList.contains("getSentFromPackage() != \"com.android.systemui\"")
+        )
+    }
+
+    @Test
+    fun softRebootBroadcastUsesIdentityAndRemainsAddressedToSystemUI() {
+        val sendSoftReboot = preferenceFragmentBase.section(
             "private fun sendSoftReboot()",
             "private fun showFastRebootFailure("
         )
         assertTrue(sendSoftReboot.contains("intent.setPackage(\"com.android.systemui\")"))
-        assertTrue(sendSoftReboot.contains("GlobalActions.ACTION_PREFIX + \"FastReboot\""))
+        assertTrue(sendSoftReboot.contains("ModuleHelper.sendOrderedBroadcastWithIdentity("))
+    }
+
+    @Test
+    fun fastRebootSenderUsesSignatureAndExplicitPackage() {
+        assertTrue(
+            "FastReboot sender must use ModuleHelper.sendOrderedBroadcastWithIdentity and setPackage",
+            preferenceFragmentBase.contains("intent.setPackage(\"com.android.systemui\")") &&
+                preferenceFragmentBase.contains("ModuleHelper.sendOrderedBroadcastWithIdentity(")
+        )
+        val fastRebootRegister = systemServerHooks.section(
+            "fun setupFastRebootReceiver(context: Context)",
+            "fun setupStatusBar("
+        )
+        assertTrue(fastRebootRegister.contains("GlobalActions.BROADCAST_PERMISSION"))
+    }
+
+    @Test
+    fun allModuleSendersNowShareIdentity() {
+        val senders = listOf(
+            globalActions,
+            systemLockScreenHooks,
+            launcher,
+            btList,
+            appSelector,
+            preferenceFragmentBase
+        )
+        val identityCallers = senders.flatMap { it.split("\n") }
+            .filter { it.contains("sendBroadcastWithIdentity") || it.contains("sendOrderedBroadcastWithIdentity") }
+        assertTrue(
+            "Internal module senders must call identity-sharing helpers",
+            identityCallers.size >= 6
+        )
     }
 
     private fun source(relativePath: String): String {
