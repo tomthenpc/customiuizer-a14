@@ -1,0 +1,281 @@
+name: A14 CI and Telegram
+
+on:
+  push:
+    branches:
+      - hardening/a14-lts-foundation
+    tags:
+      - "ci-a14-*"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a14-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ANDROID_COMPILE_SDK: "37"
+  ANDROID_BUILD_TOOLS: "37.0.0"
+
+jobs:
+  build:
+    name: Verify, build and publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      IS_PUBLISH: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/ci-a14-') }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Install Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SDKMANAGER="$(command -v sdkmanager || true)"
+
+          if [[ -z "$SDKMANAGER" ]]; then
+            SDKMANAGER="${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
+          fi
+
+          if [[ ! -x "$SDKMANAGER" ]]; then
+            echo "::error::sdkmanager was not found"
+            exit 1
+          fi
+
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+
+          "$SDKMANAGER" \
+            "platforms;android-${ANDROID_COMPILE_SDK}" \
+            "build-tools;${ANDROID_BUILD_TOOLS}"
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Restore release signing
+        if: env.IS_PUBLISH == 'true'
+        shell: bash
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          : "${RELEASE_KEYSTORE_BASE64:?RELEASE_KEYSTORE_BASE64 is missing}"
+          : "${RELEASE_STORE_PASSWORD:?RELEASE_STORE_PASSWORD is missing}"
+          : "${RELEASE_KEY_ALIAS:?RELEASE_KEY_ALIAS is missing}"
+          : "${RELEASE_KEY_PASSWORD:?RELEASE_KEY_PASSWORD is missing}"
+
+          umask 077
+
+          KEYSTORE_PATH="${RUNNER_TEMP}/customiuizer-a14-release.keystore"
+          PROPERTIES_PATH="${GITHUB_WORKSPACE}/../keystore.properties"
+
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" \
+            | base64 --decode \
+            > "$KEYSTORE_PATH"
+
+          if [[ ! -s "$KEYSTORE_PATH" ]]; then
+            echo "::error::Decoded keystore is empty"
+            exit 1
+          fi
+
+          escape_property() {
+            printf '%s' "$1" | sed 's/\\/\\\\/g'
+          }
+
+          {
+            printf 'storeFile=%s\n' "$KEYSTORE_PATH"
+            printf 'storePassword=%s\n' "$(escape_property "$RELEASE_STORE_PASSWORD")"
+            printf 'keyAlias=%s\n' "$(escape_property "$RELEASE_KEY_ALIAS")"
+            printf 'keyPassword=%s\n' "$(escape_property "$RELEASE_KEY_PASSWORD")"
+          } > "$PROPERTIES_PATH"
+
+          chmod 600 "$KEYSTORE_PATH" "$PROPERTIES_PATH"
+
+          echo "Release signing material restored."
+
+      - name: Run verification and build
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 tools/check-invariants.py
+
+          if [[ "$IS_PUBLISH" == "true" ]]; then
+            ./gradlew \
+              --no-daemon \
+              -PofficialRelease=true \
+              test \
+              lintDebug \
+              lintRelease \
+              lintVitalRelease \
+              assembleDebug \
+              assembleRelease
+          else
+            ./gradlew \
+              --no-daemon \
+              test \
+              lintDebug \
+              lintRelease \
+              lintVitalRelease \
+              assembleDebug \
+              assembleRelease
+          fi
+
+      - name: Find signed release APK
+        id: apk
+        if: env.IS_PUBLISH == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mapfile -t APKS < <(
+            find app/build/outputs/apk/release \
+              -maxdepth 1 \
+              -type f \
+              -name 'CustoMIUIzer-A14-*.apk' \
+              ! -name '*unsigned-ci*' \
+              | sort
+          )
+
+          if [[ "${#APKS[@]}" -ne 1 ]]; then
+            echo "::error::Expected exactly one signed release APK, found ${#APKS[@]}"
+            printf '%s\n' "${APKS[@]}"
+            exit 1
+          fi
+
+          APK_PATH="$(realpath "${APKS[0]}")"
+          APK_NAME="$(basename "$APK_PATH")"
+          APK_SHA256="$(sha256sum "$APK_PATH" | awk '{print $1}')"
+
+          echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "name=$APK_NAME" >> "$GITHUB_OUTPUT"
+          echo "sha256=$APK_SHA256" >> "$GITHUB_OUTPUT"
+
+          echo "APK: $APK_NAME"
+          echo "SHA-256: $APK_SHA256"
+
+      - name: Verify APK signature
+        if: env.IS_PUBLISH == 'true'
+        shell: bash
+        env:
+          APK_PATH: ${{ steps.apk.outputs.path }}
+        run: |
+          set -euo pipefail
+
+          APKSIGNER="${ANDROID_SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS}/apksigner"
+
+          if [[ ! -x "$APKSIGNER" ]]; then
+            echo "::error::apksigner was not found: $APKSIGNER"
+            exit 1
+          fi
+
+          "$APKSIGNER" verify \
+            --verbose \
+            --print-certs \
+            "$APK_PATH"
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: A14-CI-${{ github.run_number }}-${{ github.run_attempt }}
+          path: app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Publish signed APK to Telegram
+        if: env.IS_PUBLISH == 'true'
+        shell: bash
+        env:
+          BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+          APK_PATH: ${{ steps.apk.outputs.path }}
+          APK_NAME: ${{ steps.apk.outputs.name }}
+          APK_SHA256: ${{ steps.apk.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+
+          : "${BOT_TOKEN:?TELEGRAM_BOT_TOKEN is missing}"
+          : "${CHAT_ID:?TELEGRAM_CHAT_ID is missing}"
+          : "${APK_PATH:?APK path is missing}"
+
+          SHORT_SHA="${GITHUB_SHA::7}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          CAPTION="$(cat <<EOF
+          🧪 CustoMIUIzer A14 CI Build
+
+          Ref: ${GITHUB_REF_NAME}
+          Commit: ${SHORT_SHA}
+          Build: #${GITHUB_RUN_NUMBER}
+          File: ${APK_NAME}
+
+          SHA-256:
+          ${APK_SHA256}
+
+          Testing build; not a stable release.
+          测试构建，未完成实机验证前不视为稳定版。
+          EOF
+          )"
+
+          BUTTONS="$(printf \
+            '{"inline_keyboard":[[{"text":"Commit","url":"%s"},{"text":"CI Log","url":"%s"}],[{"text":"Discussion","url":"https://t.me/tvsCustomiuizerDiscussion"}]]}' \
+            "$COMMIT_URL" \
+            "$RUN_URL"
+          )"
+
+          RESPONSE="$(
+            curl \
+              --silent \
+              --show-error \
+              --fail-with-body \
+              --retry 3 \
+              --retry-delay 5 \
+              --form-string "chat_id=${CHAT_ID}" \
+              -F "document=@${APK_PATH};type=application/vnd.android.package-archive" \
+              --form-string "caption=${CAPTION}" \
+              --form-string "reply_markup=${BUTTONS}" \
+              "https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+          )"
+
+          printf '%s' "$RESPONSE" | python3 -c '
+          import json
+          import sys
+
+          data = json.load(sys.stdin)
+          if not data.get("ok"):
+              raise SystemExit("Telegram API failed: " + repr(data))
+
+          print("Telegram message_id=" + str(data["result"]["message_id"]))
+          '
+
+      - name: Remove signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${RUNNER_TEMP}/customiuizer-a14-release.keystore"
+          rm -f "${GITHUB_WORKSPACE}/../keystore.properties"
