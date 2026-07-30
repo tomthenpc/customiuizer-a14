@@ -9,8 +9,6 @@ val keystoreProperties = Properties()
 val hasReleaseSigning = keystorePropertiesFile.isFile
 if (hasReleaseSigning) {
     keystorePropertiesFile.inputStream().use(keystoreProperties::load)
-} else {
-    throw GradleException("Release signing is unavailable: ../keystore.properties was not found.")
 }
 
 val lastVersion = 186
@@ -57,7 +55,7 @@ android {
         }
     }
 
-    val releaseSigning = signingConfigs.getByName("v2")
+    val releaseSigning = if (hasReleaseSigning) signingConfigs.getByName("v2") else null
     buildTypes {
         create("develop") {
             isDebuggable = false
