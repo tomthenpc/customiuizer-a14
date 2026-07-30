@@ -106,6 +106,9 @@ def generate(
         "exitCode": exit_code,
         "summary": _summary(step_results),
         "steps": step_results,
+        "evidenceConfidence": ctx.get("evidence_confidence", "VERIFIED"),
+        "selectedLogSource": ctx.get("selected_log_source", parsers.LOG_SOURCE_ADB),
+        "lsposedLogFile": ctx.get("lsposed_log_basename", ""),
     }
 
     _write_json(out_dir / "report.json", report)
@@ -142,10 +145,11 @@ def generate(
 
     _write_json(out_dir / "commands.json", ctx.get("commands", []))
 
-    # Derived reports from the last captured logcat.
-    last_logcat = ctx.get("last_logcat", "")
-    _write_json(out_dir / "module-load.json", parsers.parse_module_markers(last_logcat))
-    hook_records = parsers.parse_hook_summary(last_logcat)
+    # Derived reports from the selected log source.
+    selected_text = ctx.get("selected_log_text", ctx.get("last_logcat", ""))
+    selected_source = ctx.get("selected_log_source", parsers.LOG_SOURCE_ADB)
+    _write_json(out_dir / "module-load.json", parsers.parse_module_markers(selected_text, source=selected_source))
+    hook_records = parsers.parse_hook_summary(selected_text, source=selected_source)
     _write_json(out_dir / "hook-summary.json", {
         "records": hook_records,
         "totals": parsers.hook_summary_totals(hook_records),
@@ -154,8 +158,23 @@ def generate(
         "# Hook Summary\n\n" + _hook_table(hook_records) + "\n",
         encoding="utf-8",
     )
-    _write_json(out_dir / "crash-summary.json", parsers.parse_crash_markers(last_logcat))
-    (out_dir / "filtered-logcat.txt").write_text(last_logcat, encoding="utf-8")
+
+    # Crash detection always comes from the live ADB logcat.
+    last_logcat = ctx.get("last_logcat", "")
+    _write_json(out_dir / "crash-summary.json", parsers.parse_crash_markers(last_logcat, source=parsers.LOG_SOURCE_ADB))
+
+    # Only filtered, redacted evidence lines are stored; the full user log is not.
+    filtered: list[str] = []
+    seen: set[str] = set()
+    for line in parsers.filter_interesting_lines(selected_text):
+        if line not in seen:
+            seen.add(line)
+            filtered.append(redaction.redact(line, serial=ctx.get("serial")))
+    for line in parsers.filter_interesting_lines(last_logcat):
+        if line not in seen:
+            seen.add(line)
+            filtered.append(redaction.redact(line, serial=ctx.get("serial")))
+    (out_dir / "filtered-logcat.txt").write_text("\n".join(filtered) + "\n", encoding="utf-8")
 
     # Process comparison between the first and latest snapshots.
     first = ctx.get("snapshots", {}).get("_first", {})

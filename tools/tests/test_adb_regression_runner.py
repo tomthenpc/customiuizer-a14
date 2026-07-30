@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -215,6 +216,143 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(paths, sorted(paths))
         for f in manifest["files"]:
             self.assertEqual(len(f["sha256"]), 64)
+
+    def _lsposed_timestamp(self, fresh: bool = True) -> str:
+        if fresh:
+            now = datetime.now()
+            return (
+                f"{now.month:02d}-{now.day:02d} "
+                f"{now.hour:02d}:{now.minute:02d}:{now.second:02d}."
+                f"{now.microsecond // 1000:03d}"
+            )
+        return "01-01 00:00:00.000"
+
+    def _make_lsposed_file(
+        self,
+        marker: bool = False,
+        hook: bool = False,
+        timestamp: bool = False,
+        fresh: bool = True,
+    ) -> Path:
+        td = tempfile.TemporaryDirectory()
+        self._temps.append(td)
+        p = Path(td.name) / "lsposed.log"
+        ts = self._lsposed_timestamp(fresh)
+        prefix = f"{ts}  1234  1234 I Pengeek: " if timestamp else ""
+        lines: list[str] = []
+        if marker:
+            lines.append(
+                f"{prefix}[Pengeek] CustoMIUIzer r14.13.8 (186) loaded in system_server"
+            )
+            lines.append(
+                f"{prefix}[Pengeek] CustoMIUIzer r14.13.8 (186) loaded in com.android.systemui"
+            )
+            lines.append(
+                f"{prefix}[Pengeek] CustoMIUIzer r14.13.8 (186) loaded in com.miui.home"
+            )
+        if hook:
+            lines.append(
+                f"{prefix}[Pengeek] CustoMIUIzer HookSummary "
+                "process=com.android.systemui stage=onPackageReady "
+                "installed=43 classMissing=0 memberMissing=0 failed=0 "
+                "silentSkipped=0 dexkitFailed=0 dexkitNoMatch=0 prefsUnavailable=0"
+            )
+        p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return p
+
+    def _marker_plan(self) -> Path:
+        return self._write_plan({
+            "schemaVersion": 1,
+            "planId": "lsposed-fallback",
+            "description": "lsposed fallback",
+            "supportedApi": [34],
+            "supportedRomFamily": ["hyperos1"],
+            "steps": [
+                {
+                    "id": "s1",
+                    "type": "logcat_assert",
+                    "description": "markers",
+                    "timeoutSeconds": 10,
+                    "expected": {
+                        "patterns": [
+                            "CustoMIUIzer .* loaded in .*system_server",
+                        ],
+                    },
+                },
+                {
+                    "id": "s2",
+                    "type": "hook_summary",
+                    "description": "hook",
+                    "timeoutSeconds": 10,
+                    "expected": {
+                        "process": "com.android.systemui",
+                    },
+                },
+            ],
+        })
+
+    def test_lsposed_fallback_no_adb_markers(self) -> None:
+        plan = self._marker_plan()
+        log = self._make_lsposed_file(marker=True, hook=True, timestamp=True)
+        rc, out, err, out_dir = self._run(
+            plan,
+            scenario="no_markers",
+            extra=["--lsposed-log", str(log)],
+        )
+        self.assertEqual(rc, 0, f"stdout={out!r} stderr={err!r}")
+        report = json.loads((out_dir / "report.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["selectedLogSource"], "LSPOSED_VERBOSE")
+        self.assertEqual(report["evidenceConfidence"], "VERIFIED")
+
+    def test_lsposed_stale_rejected(self) -> None:
+        plan = self._marker_plan()
+        log = self._make_lsposed_file(marker=True, timestamp=True, fresh=False)
+        rc, out, err, out_dir = self._run(
+            plan,
+            scenario="no_markers",
+            extra=["--lsposed-log", str(log)],
+        )
+        self.assertEqual(rc, 2, f"stdout={out!r} stderr={err!r}")
+        report = json.loads((out_dir / "report.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["evidenceConfidence"], "STALE_OR_UNVERIFIED_LOG")
+
+    def test_lsposed_unverified_allowed(self) -> None:
+        plan = self._marker_plan()
+        log = self._make_lsposed_file(marker=True, hook=True, timestamp=True, fresh=False)
+        rc, out, err, out_dir = self._run(
+            plan,
+            scenario="no_markers",
+            extra=["--lsposed-log", str(log), "--allow-unverified-log"],
+        )
+        self.assertEqual(rc, 0, f"stdout={out!r} stderr={err!r}")
+        report = json.loads((out_dir / "report.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["selectedLogSource"], "LSPOSED_VERBOSE")
+        self.assertEqual(report["evidenceConfidence"], "UNVERIFIED")
+
+    def test_lsposed_unverifiable_rejected(self) -> None:
+        plan = self._marker_plan()
+        log = self._make_lsposed_file(marker=True, hook=True, timestamp=False)
+        rc, out, err, out_dir = self._run(
+            plan,
+            scenario="no_markers",
+            extra=["--lsposed-log", str(log)],
+        )
+        self.assertEqual(rc, 2, f"stdout={out!r} stderr={err!r}")
+        report = json.loads((out_dir / "report.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["evidenceConfidence"], "STALE_OR_UNVERIFIED_LOG")
+
+    def test_lsposed_log_directory_rejected(self) -> None:
+        td = tempfile.TemporaryDirectory()
+        self._temps.append(td)
+        log_dir = Path(td.name) / "log_dir"
+        log_dir.mkdir()
+        rc, out, err, _ = self._run(
+            A14_SMOKE,
+            scenario="no_markers",
+            extra=["--lsposed-log", str(log_dir)],
+        )
+        self.assertEqual(rc, 2)
+        self.assertIn("lsposed log is a directory", err.lower())
 
     def _write_plan(self, data: dict) -> Path:
         td = tempfile.TemporaryDirectory()

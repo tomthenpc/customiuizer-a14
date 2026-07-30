@@ -6,6 +6,13 @@ import re
 from typing import Any
 
 
+LOG_SOURCE_ADB = "ADB_LOGCAT"
+LOG_SOURCE_LSP = "LSPOSED_VERBOSE"
+
+_TIMESTAMP_RE = re.compile(
+    r"^(\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3,6})\b"
+)
+
 MODULE_LOAD_RE = re.compile(
     r"CustoMIUIzer\s+(\S+(?:\.\S+)?)\s+\((\d+)\)\s+loaded\s+in\s+(\S+)",
     re.IGNORECASE,
@@ -44,10 +51,44 @@ CRASH_MARKERS = (
     "*** FATAL",
 )
 
+STAGE_NORMALIZATION = {
+    "onPackageReady": "package-ready",
+    "onSystemServerStarting": "system-server-finished",
+    "post-init": "post-init",
+    "post-attach": "post-attach",
+}
 
-def parse_module_markers(text: str) -> dict[str, str]:
-    """Return a mapping of process name to 'version (code)' for module load markers."""
-    markers: dict[str, str] = {}
+
+def _parse_timestamp(line: str) -> str | None:
+    m = _TIMESTAMP_RE.search(line)
+    return m.group(1) if m else None
+
+
+def _normalize_stage(raw: str) -> str:
+    return STAGE_NORMALIZATION.get(raw, raw)
+
+
+def _record(
+    source: str,
+    timestamp: str | None,
+    process: str,
+    raw_stage: str,
+    normalized_stage: str,
+    **extra: Any,
+) -> dict[str, Any]:
+    return {
+        "source": source,
+        "timestamp": timestamp,
+        "process": process,
+        "rawStage": raw_stage,
+        "normalizedStage": normalized_stage,
+        **extra,
+    }
+
+
+def parse_module_markers(text: str, source: str = LOG_SOURCE_ADB) -> list[dict[str, Any]]:
+    """Return a list of module-load marker records with source tracking."""
+    records: list[dict[str, Any]] = []
     for line in text.splitlines():
         m = MODULE_LOAD_RE.search(line)
         if not m:
@@ -55,11 +96,20 @@ def parse_module_markers(text: str) -> dict[str, str]:
         version = m.group(1)
         code = m.group(2)
         process = m.group(3).strip().rstrip(",;.")
-        markers[process] = f"{version} ({code})"
-    return markers
+        records.append(_record(
+            source,
+            _parse_timestamp(line),
+            process,
+            "",
+            "",
+            version=version,
+            code=code,
+            load=f"{version} ({code})",
+        ))
+    return records
 
 
-def _parse_kv_hook(line: str) -> dict[str, Any] | None:
+def _parse_kv_hook(line: str, source: str) -> dict[str, Any] | None:
     """Parse a HookSummary key=value form of the summary line.
 
     Handles the real LSPosed verbose format where the line is prefixed by a
@@ -75,6 +125,7 @@ def _parse_kv_hook(line: str) -> dict[str, Any] | None:
     defaults: dict[str, Any] = {"process": "", "stage": ""}
     record: dict[str, Any] = {k: defaults.get(k, 0) for k in keys}
     found_any = False
+    raw_stage = record["stage"]
     for key in keys:
         pattern = rf"\b{key}=(\S+)"
         m = re.search(pattern, line, re.IGNORECASE)
@@ -82,8 +133,11 @@ def _parse_kv_hook(line: str) -> dict[str, Any] | None:
             continue
         found_any = True
         value = m.group(1).rstrip(";,")
-        if key in ("process", "stage"):
+        if key == "process":
             record[key] = value
+        elif key == "stage":
+            raw_stage = value
+            record["stage"] = _normalize_stage(value)
         else:
             try:
                 record[key] = int(value)
@@ -91,30 +145,39 @@ def _parse_kv_hook(line: str) -> dict[str, Any] | None:
                 return None
     if not found_any:
         return None
+    record["rawStage"] = raw_stage
+    record["normalizedStage"] = record["stage"]
+    record["source"] = source
+    record["timestamp"] = _parse_timestamp(line)
     return record
 
 
-def parse_hook_summary(text: str) -> list[dict[str, Any]]:
+def parse_hook_summary(text: str, source: str = LOG_SOURCE_ADB) -> list[dict[str, Any]]:
     """Parse all HookSummary records from logcat output."""
     records: list[dict[str, Any]] = []
     for line in text.splitlines():
         m = HOOK_SUMMARY_RE.search(line)
         if m:
-            record = {
-                "process": m.group("process"),
-                "stage": m.group("stage"),
-                "installed": int(m.group("installed")),
-                "classMissing": int(m.group("classMissing")),
-                "memberMissing": int(m.group("memberMissing")),
-                "failed": int(m.group("failed")),
-                "silentSkipped": int(m.group("silentSkipped")),
-                "dexkitFailed": int(m.group("dexkitFailed")),
-                "dexkitNoMatch": int(m.group("dexkitNoMatch")),
-                "prefsUnavailable": int(m.group("prefsUnavailable")),
-            }
-            records.append(record)
+            raw_stage = m.group("stage")
+            normalized = _normalize_stage(raw_stage)
+            records.append(_record(
+                source,
+                _parse_timestamp(line),
+                m.group("process"),
+                raw_stage,
+                normalized,
+                stage=normalized,
+                installed=int(m.group("installed")),
+                classMissing=int(m.group("classMissing")),
+                memberMissing=int(m.group("memberMissing")),
+                failed=int(m.group("failed")),
+                silentSkipped=int(m.group("silentSkipped")),
+                dexkitFailed=int(m.group("dexkitFailed")),
+                dexkitNoMatch=int(m.group("dexkitNoMatch")),
+                prefsUnavailable=int(m.group("prefsUnavailable")),
+            ))
             continue
-        record = _parse_kv_hook(line)
+        record = _parse_kv_hook(line, source)
         if record:
             records.append(record)
     return records
@@ -130,9 +193,9 @@ def hook_summary_totals(records: list[dict[str, Any]]) -> dict[str, int]:
     return totals
 
 
-def parse_crash_markers(text: str) -> list[dict[str, str]]:
-    """Return crash-like lines found in the text."""
-    crashes: list[dict[str, str]] = []
+def parse_crash_markers(text: str, source: str = LOG_SOURCE_ADB) -> list[dict[str, Any]]:
+    """Return crash-like records found in the text."""
+    crashes: list[dict[str, Any]] = []
     seen: set[str] = set()
     for line in text.splitlines():
         upper = line.upper()
@@ -140,12 +203,37 @@ def parse_crash_markers(text: str) -> list[dict[str, str]]:
             if marker.upper() in upper:
                 if line not in seen:
                     seen.add(line)
-                    crashes.append({
-                        "line": line,
-                        "marker": marker,
-                    })
+                    crashes.append(_record(
+                        source,
+                        _parse_timestamp(line),
+                        "",
+                        "",
+                        "",
+                        line=line,
+                        marker=marker,
+                    ))
                 break
     return crashes
+
+
+def is_evidence_line(line: str) -> bool:
+    """Return True if a raw log line contains a marker, hook or crash."""
+    if MODULE_LOAD_RE.search(line):
+        return True
+    if HOOK_SUMMARY_RE.search(line):
+        return True
+    if HOOK_SUMMARY_KV_RE.search(line):
+        return True
+    upper = line.upper()
+    for marker in CRASH_MARKERS:
+        if marker.upper() in upper:
+            return True
+    return False
+
+
+def filter_interesting_lines(text: str) -> list[str]:
+    """Return only lines that contain module, hook or crash evidence."""
+    return [line for line in text.splitlines() if is_evidence_line(line)]
 
 
 def compare_pids(

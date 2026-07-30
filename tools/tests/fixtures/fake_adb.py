@@ -85,6 +85,9 @@ def _logcat_output(scenario: str) -> list[str]:
         time.sleep(20)
         return []
 
+    if scenario == "no_markers":
+        return []
+
     if scenario == "module_markers":
         return [
             "06-01 12:00:00.000  1234  1234 I CustoMIUIzer: CustoMIUIzer 14.13.8 (14130800) loaded in system_server",

@@ -110,9 +110,21 @@ def run(
 
     lsposed_text = ""
     lsposed_log_lines: list[str] = []
+    lsposed_log_basename = ""
     if lsposed_log:
-        lsposed_text = lsposed_log.read_text(encoding="utf-8")
+        if lsposed_log.is_dir():
+            raise RegressionError(f"lsposed log is a directory: {lsposed_log}", 2)
+        if not lsposed_log.is_file():
+            raise RegressionError(f"lsposed log not found: {lsposed_log}", 2)
+        if lsposed_log.stat().st_size > 100 * 1024 * 1024:
+            raise RegressionError("lsposed log exceeds 100 MB", 2)
+        try:
+            lsposed_text = lsposed_log.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:
+            raise RegressionError(f"cannot read lsposed log: {exc}", 2)
+        lsposed_text = redaction.redact(lsposed_text, serial=serial)
         lsposed_log_lines = lsposed_text.splitlines()
+        lsposed_log_basename = lsposed_log.name
 
     ctx: dict[str, Any] = {
         "adb": adb,
@@ -131,6 +143,8 @@ def run(
         "simulation": simulation,
         "lsposed_log_lines": lsposed_log_lines,
         "lsposed_text": lsposed_text,
+        "lsposed_log_basename": lsposed_log_basename,
+        "allow_unverified_log": bool(getattr(args, "allow_unverified_log", False)),
     }
 
     step_results: list[dict[str, Any]] = []

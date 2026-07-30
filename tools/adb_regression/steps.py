@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,59 @@ def _timeout(step: dict[str, Any], ctx: dict[str, Any]) -> int:
 
 def _run_adb(ctx: dict[str, Any], args: list[str], timeout: int) -> tuple[int, str, str, float]:
     return ctx["run_adb"](args, timeout)
+
+
+def _parse_log_timestamp(ts: str) -> datetime:
+    """Parse a MM-DD HH:MM:SS.mmm style timestamp as UTC today."""
+    date_part, time_part = ts.split(None, 1)
+    month, day = date_part.split("-", 1)
+    hms, ms = time_part.rsplit(".", 1)
+    hour, minute, second = hms.split(":", 2)
+    year = datetime.now(timezone.utc).year
+    micro = int(ms.ljust(6, "0")[:6])
+    return datetime(
+        year, int(month), int(day), int(hour), int(minute), int(second), micro,
+        tzinfo=timezone.utc,
+    )
+
+
+def _lsposed_freshness(text: str) -> tuple[bool, bool]:
+    """Return (verified, unverifiable) for an LSPosed verbose log."""
+    records = parsers.parse_module_markers(text, source=parsers.LOG_SOURCE_LSP)
+    records += parsers.parse_hook_summary(text, source=parsers.LOG_SOURCE_LSP)
+    timestamps = [r.get("timestamp") for r in records if r.get("timestamp")]
+    if not timestamps:
+        return (False, True)
+    latest = max(_parse_log_timestamp(ts) for ts in timestamps)
+    age = (datetime.now(timezone.utc) - latest).total_seconds()
+    return (age <= 300, False)
+
+
+def _select_log_source(ctx: dict[str, Any]) -> tuple[str, str, str, str]:
+    """Pick the evidence log to use based on the fallback policy.
+
+    Returns (text, source, confidence, error).  An empty text means no usable
+    source was found.  confidence is one of: VERIFIED, UNVERIFIED.  error is one
+    of the documented reason strings or empty.
+    """
+    real_logcat = ctx.get("last_logcat", "")
+    lsposed_text = ctx.get("lsposed_text", "")
+
+    real_markers = parsers.parse_module_markers(real_logcat, source=parsers.LOG_SOURCE_ADB)
+    if real_markers:
+        return real_logcat, parsers.LOG_SOURCE_ADB, "VERIFIED", ""
+
+    if lsposed_text:
+        lsposed_markers = parsers.parse_module_markers(lsposed_text, source=parsers.LOG_SOURCE_LSP)
+        if lsposed_markers:
+            verified, _ = _lsposed_freshness(lsposed_text)
+            if verified:
+                return lsposed_text, parsers.LOG_SOURCE_LSP, "VERIFIED", ""
+            if ctx.get("allow_unverified_log"):
+                return lsposed_text, parsers.LOG_SOURCE_LSP, "UNVERIFIED", ""
+            return "", "", "STALE_OR_UNVERIFIED_LOG", "STALE_OR_UNVERIFIED_LOG"
+
+    return "", "", "LOG_SOURCE_UNAVAILABLE", "LOG_SOURCE_UNAVAILABLE"
 
 
 def execute_shell(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str, Any]:
@@ -224,12 +278,22 @@ def _logcat(ctx: dict[str, Any], timeout: int) -> tuple[int, str]:
     return rc, out
 
 
+def _refresh_logcat(ctx: dict[str, Any], timeout: int) -> dict[str, Any] | None:
+    """Capture a fresh logcat if one is not already cached."""
+    try:
+        rc, _ = _logcat(ctx, timeout)
+    except Exception as exc:
+        return _result(None, "ERROR", f"logcat capture failed: {exc}")  # type: ignore[return-value]
+    if rc == -1:
+        return _result(None, "ERROR", "logcat timed out")  # type: ignore[return-value]
+    return None
+
+
 def execute_logcat_assert(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str, Any]:
     expected = step.get("expected", {})
     if not isinstance(expected, dict):
         expected = {}
     timeout = _timeout(step, ctx)
-    lsposed_text = ctx.get("lsposed_text", "")
 
     # Always capture real logcat for crash detection and process state.
     try:
@@ -239,9 +303,15 @@ def execute_logcat_assert(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str
     if rc == -1:
         return _result(step, "ERROR", "logcat timed out")
 
-    # When an LSPosed log is supplied, assertions and module markers use it;
-    # crash detection continues to use the live adb logcat.
-    text = lsposed_text if lsposed_text else real_logcat
+    text, source, confidence, error = _select_log_source(ctx)
+    if error:
+        ctx["evidence_confidence"] = error
+        ctx["selected_log_source"] = ""
+        ctx["selected_log_text"] = ""
+        return _result(
+            step, "ERROR", error,
+            evidenceConfidence=error,
+        )
 
     patterns = expected.get("patterns", [])
     absent = expected.get("absent", [])
@@ -256,8 +326,12 @@ def execute_logcat_assert(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str
         messages.append(f"forbidden present: {present_absent}")
     message = "; ".join(messages) if messages else "logcat ok"
 
-    markers = parsers.parse_module_markers(text)
-    crashes = parsers.parse_crash_markers(real_logcat)
+    markers = parsers.parse_module_markers(text, source=source)
+    crashes = parsers.parse_crash_markers(real_logcat, source=parsers.LOG_SOURCE_ADB)
+
+    ctx["selected_log_text"] = text
+    ctx["selected_log_source"] = source
+    ctx["evidence_confidence"] = confidence
 
     for ef in step.get("evidenceFiles", []):
         path = ctx["out_dir"] / ef
@@ -279,6 +353,8 @@ def execute_logcat_assert(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str
         presentForbidden=present_absent,
         markers=markers,
         crashes=crashes,
+        evidenceConfidence=confidence,
+        selectedLogSource=source,
     )
 
 
@@ -287,21 +363,28 @@ def execute_hook_summary(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str,
     if not isinstance(expected, dict):
         expected = {}
     timeout = _timeout(step, ctx)
-    try:
-        # Use an injected LSPosed log when available; otherwise use real logcat.
-        if ctx.get("lsposed_text"):
-            text = ctx["lsposed_text"]
-        elif ctx.get("last_logcat"):
-            text = ctx["last_logcat"]
-        else:
-            rc, text = _logcat(ctx, timeout)
-            if rc == -1:
-                return _result(step, "ERROR", "logcat timed out")
-    except Exception as exc:
-        return _result(step, "ERROR", f"logcat capture failed: {exc}")
 
-    records = parsers.parse_hook_summary(text)
+    if not ctx.get("last_logcat"):
+        err = _refresh_logcat(ctx, timeout)
+        if err:
+            return err
+
+    text, source, confidence, error = _select_log_source(ctx)
+    if error:
+        ctx["evidence_confidence"] = error
+        ctx["selected_log_source"] = ""
+        ctx["selected_log_text"] = ""
+        return _result(
+            step, "ERROR", error,
+            evidenceConfidence=error,
+        )
+
+    records = parsers.parse_hook_summary(text, source=source)
     totals = parsers.hook_summary_totals(records)
+
+    ctx["selected_log_text"] = text
+    ctx["selected_log_source"] = source
+    ctx["evidence_confidence"] = confidence
 
     for ef in step.get("evidenceFiles", []):
         _write_json(ctx["out_dir"] / ef, {
@@ -315,6 +398,8 @@ def execute_hook_summary(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str,
             step, "FAIL",
             f"no HookSummary for {process}",
             records=records, totals=totals,
+            evidenceConfidence=confidence,
+            selectedLogSource=source,
         )
 
     fail = 0
@@ -329,12 +414,16 @@ def execute_hook_summary(ctx: dict[str, Any], step: dict[str, Any]) -> dict[str,
             step, "FAIL",
             f"HookSummary exceeded expected limits: {totals}",
             records=records, totals=totals,
+            evidenceConfidence=confidence,
+            selectedLogSource=source,
         )
 
     return _result(
         step, "PASS",
         f"HookSummary OK: {totals}",
         records=records, totals=totals,
+        evidenceConfidence=confidence,
+        selectedLogSource=source,
     )
 
 

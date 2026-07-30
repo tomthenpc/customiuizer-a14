@@ -24,6 +24,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(Path(__file__).parent))
 
+import adb_regression.parsers as parsers
 import adb_regression.plan as plan
 import adb_regression.runner as runner
 
@@ -55,10 +56,16 @@ def die(message: str, exit_code: int = 2) -> None:
     sys.exit(exit_code)
 
 
-def _normalize_path(value: str) -> Path:
+def _validate_lsposed_log(value: str) -> Path:
     p = Path(value).expanduser().resolve()
+    if not p.exists():
+        die(f"lsposed log not found: {p}", 2)
+    if p.is_dir():
+        die(f"lsposed log is a directory: {p}", 2)
     if not p.is_file():
-        die(f"file not found: {p}", 2)
+        die(f"lsposed log is not a regular file: {p}", 2)
+    if p.stat().st_size > 100 * 1024 * 1024:
+        die(f"lsposed log exceeds 100 MB: {p}", 2)
     return p
 
 
@@ -234,7 +241,7 @@ def _has_root(adb: Path, serial: str, timeout: int) -> dict[str, bool]:
     return {"su": su, "root": root}
 
 
-def _loaded_markers(adb: Path, serial: str, timeout: int) -> dict[str, str]:
+def _loaded_markers(adb: Path, serial: str, timeout: int) -> list[dict[str, Any]]:
     # This is a lightweight grep; no huge log is copied.
     rc, out, _, _ = _run(
         adb,
@@ -243,14 +250,8 @@ def _loaded_markers(adb: Path, serial: str, timeout: int) -> dict[str, str]:
         serial=serial,
     )
     if rc != 0:
-        return {}
-    markers: dict[str, str] = {}
-    pattern = re.compile(rf"CustoMIUIzer\s+(\S+)\s+\((\d+)\)\s+loaded\s+in\s+(.+)")
-    for line in out.splitlines():
-        m = pattern.search(line)
-        if m:
-            markers[m.group(3).strip()] = f"{m.group(1)} ({m.group(2)})"
-    return markers
+        return []
+    return parsers.parse_module_markers(out, source=parsers.LOG_SOURCE_ADB)
 
 
 def _collect_preflight(
@@ -395,7 +396,8 @@ def main() -> int:
     p.add_argument("--install", action="store_true", help="install the specified APK")
     p.add_argument("--allow-dangerous", action="store_true", help="allow dangerous steps")
     p.add_argument("--verbose", action="store_true", help="verbose output")
-    p.add_argument("--lsposed-log", type=_normalize_path, help="path to LSPosed verbose log file to use for assertions")
+    p.add_argument("--lsposed-log", type=_validate_lsposed_log, help="path to LSPosed verbose log file to use for assertions")
+    p.add_argument("--allow-unverified-log", action="store_true", help="accept stale or unverifiable LSPosed verbose logs with UNVERIFIED confidence")
     p.set_defaults(func=cmd_run)
 
     p = sub.add_parser("propose-evidence", help="propose device evidence from a report", parents=[parent])

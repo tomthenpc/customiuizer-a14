@@ -25,12 +25,21 @@ class ParsersTest(unittest.TestCase):
             "CustoMIUIzer 14.13.8 (14130800) loaded in com.android.systemui\n"
         )
         markers = parsers.parse_module_markers(text)
-        self.assertIn("system_server", markers)
-        self.assertIn("com.android.systemui", markers)
-        self.assertEqual(markers["system_server"], "14.13.8 (14130800)")
+        self.assertEqual(len(markers), 2)
+        processes = {m["process"] for m in markers}
+        self.assertIn("system_server", processes)
+        self.assertIn("com.android.systemui", processes)
+        for m in markers:
+            self.assertEqual(m["source"], parsers.LOG_SOURCE_ADB)
+            self.assertTrue(m["timestamp"])
+            self.assertEqual(m["version"], "14.13.8")
+            self.assertEqual(m["code"], "14130800")
+            self.assertEqual(m["load"], f"{m['version']} ({m['code']})")
+            self.assertEqual(m["rawStage"], "")
+            self.assertEqual(m["normalizedStage"], "")
 
     def test_module_markers_absent(self) -> None:
-        self.assertEqual(parsers.parse_module_markers("nothing here"), {})
+        self.assertEqual(parsers.parse_module_markers("nothing here"), [])
 
     def test_hook_summary_multi_stage(self) -> None:
         text = (
@@ -45,7 +54,10 @@ class ParsersTest(unittest.TestCase):
         self.assertEqual(len(records), 2)
         self.assertEqual(records[0]["process"], "com.android.systemui")
         self.assertEqual(records[0]["stage"], "init")
+        self.assertEqual(records[0]["rawStage"], "init")
+        self.assertEqual(records[0]["normalizedStage"], "init")
         self.assertEqual(records[0]["installed"], 42)
+        self.assertEqual(records[0]["source"], parsers.LOG_SOURCE_ADB)
         totals = parsers.hook_summary_totals(records)
         self.assertEqual(totals["installed"], 97)
         self.assertEqual(totals["classMissing"], 1)
@@ -84,12 +96,16 @@ class ParsersTest(unittest.TestCase):
 
     def test_crash_detection(self) -> None:
         text = (
-            "E AndroidRuntime: FATAL EXCEPTION: main\n"
-            "E Watchdog: WATCHDOG: Killing system_server\n"
-            "system_server crash\n"
+            "06-01 12:00:00.000  1234  1234 E AndroidRuntime: FATAL EXCEPTION: main\n"
+            "06-01 12:00:01.000  1234  1234 E Watchdog: WATCHDOG: Killing system_server\n"
+            "06-01 12:00:02.000  1234  1234 E system_server: system_server crash\n"
         )
         crashes = parsers.parse_crash_markers(text)
         self.assertEqual(len(crashes), 3)
+        for c in crashes:
+            self.assertEqual(c["source"], parsers.LOG_SOURCE_ADB)
+            self.assertTrue(c["timestamp"])
+            self.assertIn("marker", c)
         markers = {c["marker"] for c in crashes}
         self.assertIn("FATAL EXCEPTION", markers)
         self.assertIn("WATCHDOG", markers)
@@ -141,18 +157,24 @@ class ParsersTest(unittest.TestCase):
         text = (
             "[Pengeek] CustoMIUIzer r14.13.8 (186) loaded in com.android.systemui\n"
         )
-        markers = parsers.parse_module_markers(text)
-        self.assertIn("com.android.systemui", markers)
-        self.assertEqual(markers["com.android.systemui"], "r14.13.8 (186)")
+        markers = parsers.parse_module_markers(text, source=parsers.LOG_SOURCE_LSP)
+        self.assertEqual(len(markers), 1)
+        self.assertEqual(markers[0]["process"], "com.android.systemui")
+        self.assertEqual(markers[0]["version"], "r14.13.8")
+        self.assertEqual(markers[0]["code"], "186")
+        self.assertEqual(markers[0]["source"], parsers.LOG_SOURCE_LSP)
+        self.assertIsNone(markers[0]["timestamp"])
 
     def test_lsposed_module_marker_with_timestamp(self) -> None:
         text = (
             "06-01 12:00:00.000  1234  1234 I Pengeek: "
             "[Pengeek] CustoMIUIzer r14.13.8 (186) loaded in com.android.systemui\n"
         )
-        markers = parsers.parse_module_markers(text)
-        self.assertIn("com.android.systemui", markers)
-        self.assertEqual(markers["com.android.systemui"], "r14.13.8 (186)")
+        markers = parsers.parse_module_markers(text, source=parsers.LOG_SOURCE_LSP)
+        self.assertEqual(len(markers), 1)
+        self.assertEqual(markers[0]["process"], "com.android.systemui")
+        self.assertEqual(markers[0]["source"], parsers.LOG_SOURCE_LSP)
+        self.assertEqual(markers[0]["timestamp"], "06-01 12:00:00.000")
 
     def test_lsposed_hook_summary_real(self) -> None:
         text = (
@@ -161,11 +183,14 @@ class ParsersTest(unittest.TestCase):
             "classMissing=0 memberMissing=0 failed=0 silentSkipped=0 "
             "dexkitFailed=0 dexkitNoMatch=0 prefsUnavailable=0\n"
         )
-        records = parsers.parse_hook_summary(text)
+        records = parsers.parse_hook_summary(text, source=parsers.LOG_SOURCE_LSP)
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0]["process"], "com.android.systemui")
-        self.assertEqual(records[0]["stage"], "onPackageReady")
+        self.assertEqual(records[0]["stage"], "package-ready")
+        self.assertEqual(records[0]["rawStage"], "onPackageReady")
+        self.assertEqual(records[0]["normalizedStage"], "package-ready")
         self.assertEqual(records[0]["installed"], 43)
+        self.assertEqual(records[0]["source"], parsers.LOG_SOURCE_LSP)
 
     def test_lsposed_hook_summary_reordered(self) -> None:
         text = (
@@ -174,10 +199,11 @@ class ParsersTest(unittest.TestCase):
             "failed=2 classMissing=3 silentSkipped=4 memberMissing=5 "
             "dexkitFailed=6 dexkitNoMatch=7 stage=init\n"
         )
-        records = parsers.parse_hook_summary(text)
+        records = parsers.parse_hook_summary(text, source=parsers.LOG_SOURCE_LSP)
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0]["process"], "system_server")
         self.assertEqual(records[0]["stage"], "init")
+        self.assertEqual(records[0]["rawStage"], "init")
         self.assertEqual(records[0]["installed"], 12)
         self.assertEqual(records[0]["classMissing"], 3)
         self.assertEqual(records[0]["memberMissing"], 5)
@@ -186,6 +212,21 @@ class ParsersTest(unittest.TestCase):
         self.assertEqual(records[0]["dexkitFailed"], 6)
         self.assertEqual(records[0]["dexkitNoMatch"], 7)
         self.assertEqual(records[0]["prefsUnavailable"], 1)
+        self.assertEqual(records[0]["source"], parsers.LOG_SOURCE_LSP)
+
+    def test_stage_normalization(self) -> None:
+        text = (
+            "[HookSummary] process=com.android.systemui stage=onPackageReady installed=1\n"
+            "[HookSummary] process=system_server stage=onSystemServerStarting installed=2\n"
+            "[HookSummary] process=com.miui.home stage=post-init installed=3\n"
+            "[HookSummary] process=com.miui.home stage=post-attach installed=4\n"
+        )
+        records = parsers.parse_hook_summary(text)
+        normalized = {r["stage"] for r in records}
+        self.assertIn("package-ready", normalized)
+        self.assertIn("system-server-finished", normalized)
+        self.assertIn("post-init", normalized)
+        self.assertIn("post-attach", normalized)
 
 
 if __name__ == "__main__":
