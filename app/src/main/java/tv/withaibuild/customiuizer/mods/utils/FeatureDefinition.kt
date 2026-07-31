@@ -1,6 +1,7 @@
 package tv.withaibuild.customiuizer.mods.utils
 
 import tv.withaibuild.customiuizer.utils.PrefMap
+import tv.withaibuild.customiuizer.utils.RestartRequirement
 
 /**
  * Declaration of one feature that can be installed by the module.
@@ -25,6 +26,12 @@ interface FeatureDefinition {
 
     /** The earliest lifecycle phase at which this feature may be installed. */
     val phase: InstallPhase
+
+    /** Policy for whether this feature may be installed after its preferred [InstallPhase]. */
+    val lateInstallPolicy: LateInstallPolicy get() = LateInstallPolicy.NONE
+
+    /** The restart/exit action required for a preference change to take effect. */
+    val restartRequirement: RestartRequirement get() = RestartRequirement.NONE
 
     /**
      * Whether the feature should be installed now, based on the current preference snapshot.

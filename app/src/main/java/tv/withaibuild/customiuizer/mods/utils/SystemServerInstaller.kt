@@ -3,6 +3,7 @@ package tv.withaibuild.customiuizer.mods.utils
 import io.github.libxposed.api.XposedModuleInterface
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.Controls
+import tv.withaibuild.customiuizer.mods.utils.feature.PackagePermissionsFeatureId
 import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.mods.PackagePermissions
@@ -14,7 +15,7 @@ import tv.withaibuild.customiuizer.mods.SystemNotificationHooks
 import tv.withaibuild.customiuizer.mods.SystemSecurityHooks
 import tv.withaibuild.customiuizer.mods.SystemShareMenuHooks
 import tv.withaibuild.customiuizer.mods.SystemWindowHooks
-
+import tv.withaibuild.customiuizer.utils.PrefMap
 /**
  * Installer for hooks that must run in `system_server`.
  *
@@ -30,7 +31,9 @@ object SystemServerInstaller {
         val mPrefs = MainModule.mPrefs
 
         // Base system_server hook: not preference-controlled, always installed.
-        PackagePermissions.hook(lpparam)
+        val registry = FeatureInstallRegistry()
+        registry.register(PackagePermissionsFeature(lpparam, mPrefs))
+        registry.installAll(FeatureTarget.SYSTEM_SERVER, InstallPhase.SYSTEM_SERVER_STARTING, mPrefs)
 
         if (prefReady && GlobalActions.hasCustomActions()) {
             GlobalActionSystemServerHooks.setupGlobalActions(lpparam)
@@ -109,5 +112,22 @@ object SystemServerInstaller {
         }
         if (mPrefs.getInt("system_other_wallpaper_scale", 6) > 6) SystemDisplayHooks.WallpaperScaleLevelHook(lpparam)
         if (mPrefs.getBoolean("various_allow_untrusted_touch")) SystemWindowHooks.AllowUntrustedTouchHook(lpparam)
+    }
+}
+
+internal class PackagePermissionsFeature(
+    private val lpparam: XposedModuleInterface.SystemServerStartingParam,
+    private val mPrefs: PrefMap
+) : FeatureDefinition {
+    override val id = PackagePermissionsFeatureId
+    override val name = "Package permissions"
+    override val preferenceKey: String? = null
+    override val target = FeatureTarget.SYSTEM_SERVER
+    override val phase = InstallPhase.SYSTEM_SERVER_STARTING
+    override fun isEnabled(prefs: PrefMap) = true
+
+    override fun install(): FeatureInstallResult {
+        PackagePermissions.hook(lpparam)
+        return FeatureInstallResult.Installed
     }
 }

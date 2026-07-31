@@ -19,6 +19,9 @@ enum class FeatureTarget {
     /** The feature lives in `com.miui.home` (or another supported launcher). */
     LAUNCHER,
 
+    /** The feature lives in `system_server`. */
+    SYSTEM_SERVER,
+
     /** The feature is process-agnostic and can be installed anywhere the registry is applied. */
     ANY,
 }
