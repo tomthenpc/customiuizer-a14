@@ -1,7 +1,6 @@
 package tv.withaibuild.customiuizer.mods
 
 import android.app.AlarmManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -10,8 +9,10 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import io.github.libxposed.api.XposedInterface
+import java.lang.ref.WeakReference
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
@@ -141,12 +142,14 @@ object SystemStatusBarIconHooks {
         })
     }
 
-    private var lastState = false
-    private var mNextAlarmTime = 0L
+    private const val ALARM_LAST_STATE = "customiuizer_alarmLastState"
+    private const val ALARM_NEXT_TIME = "customiuizer_alarmNextTime"
+    private const val ALARM_POLICY_OWNER = "customiuizer_alarmPolicyOwner"
 
     private fun updateAlarmVisibility(thisObject: Any) {
         try {
             val mIconController = XposedHelpers.getObjectField(thisObject, "mIconController")
+            val lastState = XposedHelpers.getAdditionalInstanceField(thisObject, ALARM_LAST_STATE) as? Boolean ?: false
             if (!lastState) {
                 XposedHelpers.callMethod(mIconController, "setIconVisibility", "alarm_clock", false)
                 return
@@ -154,7 +157,7 @@ object SystemStatusBarIconHooks {
 
             val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
             val nowTime = java.lang.System.currentTimeMillis()
-            var nextTime = mNextAlarmTime
+            var nextTime = XposedHelpers.getAdditionalInstanceField(thisObject, ALARM_NEXT_TIME) as? Long ?: 0L
             if (nextTime == 0L) {
                 nextTime = ModuleHelper.getNextMIUIAlarmTime(mContext)
             }
@@ -205,50 +208,37 @@ object SystemStatusBarIconHooks {
                     }
 
                     val mNextAlarmCallback = XposedHelpers.getObjectField(thisObject, "mNextAlarmCallback")
+                    XposedHelpers.setAdditionalInstanceField(mNextAlarmCallback, ALARM_POLICY_OWNER, WeakReference(thisObject))
+
                     ModuleHelper.findAndHookMethod(mNextAlarmCallback.javaClass, "onAlarmChanged", Boolean::class.javaPrimitiveType!!, object : MethodHook() {
-                        override fun intercept(chain: XposedInterface.Chain): Any? {
-                            var skipped = false
-                            var result: Any? = null
-                            var throwable: Throwable? = null
-                            val thisObject2 = chain.thisObject
-                            try {
+                        override fun after(param: AfterHookCallback) = ModuleHelper.guarded {
+                            val callback = param.getThisObject() ?: return
+                            val policyRef = XposedHelpers.getAdditionalInstanceField(callback, ALARM_POLICY_OWNER) as? WeakReference<Any>
+                            val policy = policyRef?.get() ?: return
 
-                                lastState = chain.getArg(0) as Boolean
-                                mNextAlarmTime = ModuleHelper.getNextMIUIAlarmTime(mContext)
-                                updateAlarmVisibility(thisObject2)
-                                skipped = true; result = null; throwable = null
+                            val newState = param.getArgs()[0] as Boolean
+                            XposedHelpers.setAdditionalInstanceField(policy, ALARM_LAST_STATE, newState)
 
-                                if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                                result = chain.proceed()
-                            } catch (t: Throwable) {
-                                throwable = t
-                                result = null
-                            }
-                            return XposedHelpers.throwOrReturn(throwable, result)
+                            val mContext = XposedHelpers.getObjectField(policy, "mContext") as Context
+                            XposedHelpers.setAdditionalInstanceField(policy, ALARM_NEXT_TIME, ModuleHelper.getNextMIUIAlarmTime(mContext))
+
+                            updateAlarmVisibility(policy)
                         }
                     })
                     ModuleHelper.findAndHookMethod(mNextAlarmCallback.javaClass, "onNextAlarmChanged", AlarmManager.AlarmClockInfo::class.java, object : MethodHook() {
-                        override fun intercept(chain: XposedInterface.Chain): Any? {
-                            var skipped = false
-                            var result: Any? = null
-                            var throwable: Throwable? = null
-                            val thisObject2 = chain.thisObject
-                            try {
+                        override fun after(param: AfterHookCallback) = ModuleHelper.guarded {
+                            val callback = param.getThisObject() ?: return
+                            val policyRef = XposedHelpers.getAdditionalInstanceField(callback, ALARM_POLICY_OWNER) as? WeakReference<Any>
+                            val policy = policyRef?.get() ?: return
 
-                                if (chain.getArg(0) == null) {
-                                    lastState = false
-                                }
-                                mNextAlarmTime = ModuleHelper.getNextMIUIAlarmTime(mContext)
-                                updateAlarmVisibility(thisObject2)
-                                skipped = true; result = null; throwable = null
-
-                                if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                                result = chain.proceed()
-                            } catch (t: Throwable) {
-                                throwable = t
-                                result = null
+                            if (param.getArgs()[0] == null) {
+                                XposedHelpers.setAdditionalInstanceField(policy, ALARM_LAST_STATE, false)
                             }
-                            return XposedHelpers.throwOrReturn(throwable, result)
+
+                            val mContext = XposedHelpers.getObjectField(policy, "mContext") as Context
+                            XposedHelpers.setAdditionalInstanceField(policy, ALARM_NEXT_TIME, ModuleHelper.getNextMIUIAlarmTime(mContext))
+
+                            updateAlarmVisibility(policy)
                         }
                     })
 
