@@ -1,99 +1,150 @@
 #!/usr/bin/env python3
-r"""Stream LSPosed full.log analyzer for A14/A13.
+r"""Offline LSPosed log analyzer for CustoMIUIzer A14.
+
+Supports plain .txt/.log files, .zip archives, directories, and multi-file input.
+Outputs a Markdown summary and a JSON analysis.  No ADB, network, or APK code.
 
 Usage:
-    python tools/analyze_lsposed_log.py "C:\path\full.log" --profile a14 --repo-root "." --output "build\log-analysis\r14-test"
+    python tools/analyze_lsposed_log.py path/to/full.log --output out
+    python tools/analyze_lsposed_log.py log1.txt log2.log logs/ archive.zip --output out
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
+import io
 import json
 import os
 import re
 import sys
-from collections import Counter, deque
+import zipfile
+from collections import Counter, defaultdict, deque
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Dict, Iterable, Iterator, List, Optional, Set, Tuple
 
 
 # ---------------------------------------------------------------------------
-# Profiles and rules
+# Constants and patterns
 # ---------------------------------------------------------------------------
 
-PROFILES = {
-    "a14": {
-        "application_id": "tv.withaibuild.customiuizer.r14",
-        "source_package": "tv.withaibuild.customiuizer",
-        "module_markers": [
-            "tv.withaibuild.customiuizer",
-            "CustoMIUIzer",
-            "MainModule",
-            "ModuleHelper",
-            "XposedHelpers",
-            "HookerClassHelper",
-            "ResourceHooks",
-            "PrefMap",
-        ],
-    },
-    "a13": {
-        "application_id": "tv.withaibuild.customiuizer.r13",
-        "source_package": "name.monwf.customiuizer",
-        "module_markers": [
-            "tv.withaibuild.customiuizer.r13",
-            "name.monwf.customiuizer",
-            "CustoMIUIzer",
-            "MainModule",
-            "ModuleHelper",
-            "XposedHelpers",
-            "HookerClassHelper",
-            "ResourceHooks",
-            "PrefMap",
-        ],
-    },
-}
+APPLICATION_ID = "tv.withaibuild.customiuizer.r14"
+SOURCE_PACKAGE = "tv.withaibuild.customiuizer"
+MODULE_PREFIX = "[Pengeek]"
 
-COMMON_TARGETS = {
-    "android", "system_server", "com.android.systemui", "com.miui.home",
-    "com.mi.android.globallauncher", "com.miui.securitycenter", "com.miui.powerkeeper",
-    "com.miui.packageinstaller", "com.miui.screenshot", "com.android.settings",
+PROCESSES = {
+    "android",
+    "system_server",
+    "com.android.systemui",
+    "com.miui.home",
+    "com.mi.android.globallauncher",
+    "com.android.settings",
+    "com.miui.securitycenter",
+    "com.miui.securitycenter:ui",
     "com.android.incallui",
 }
 
-SEVERE_ANCHORS = (
-    "FATAL EXCEPTION", "AndroidRuntime", "ANR in", "WATCHDOG", "Watchdog",
-    "system_server crash", "Process has died", "ProcessRecord died", "native crash",
-    "Fatal signal", "SIGSEGV", "SIGABRT", "DeadSystemException",
-    "TransactionTooLargeException", "VerifyError", "LinkageError",
-    "NoClassDefFoundError", "ExceptionInInitializerError",
+MODULE_MARKERS = (
+    APPLICATION_ID,
+    SOURCE_PACKAGE,
+    "CustoMIUIzer",
+    MODULE_PREFIX,
+    "MainModule",
+    "ModuleHelper",
+    "XposedHelpers",
+    "HookerClassHelper",
+    "ResourceHooks",
+    "PrefMap",
+    "HookDiagnostics",
 )
 
-HOOK_ANCHORS = (
-    "Failed to hook", "Hook failed", "Failed hook", "Failed to load module",
-    "Cannot load module", "XposedModule", "XposedModuleInterface", "LSPosed",
-    "libxposed", "java_init.list", "module.prop", "RemotePreferences",
-    "getRemotePreferences", "Chain.proceed", "intercept", "hook registration",
+CRASH_ANCHORS = (
+    "FATAL EXCEPTION",
+    "ANR in",
+    "Watchdog",
+    "WATCHDOG",
+    "system_server crash",
+    "Process has died",
+    "ProcessRecord died",
+    "native crash",
+    "Fatal signal",
+    "SIGSEGV",
+    "SIGABRT",
+    "DeadSystemException",
+    "TransactionTooLargeException",
+    "NoClassDefFoundError",
+    "ExceptionInInitializerError",
 )
 
 EXCEPTION_CLASSES = (
-    "ClassNotFoundException", "NoSuchMethodException", "NoSuchFieldException",
-    "IllegalAccessException", "InvocationTargetException", "ClassCastException",
-    "NullPointerException", "IllegalArgumentException", "IllegalStateException",
-    "AbstractMethodError", "IncompatibleClassChangeError", "UnsatisfiedLinkError",
-    "SecurityException", "DeadObjectException", "RuntimeException",
+    "ClassNotFoundException",
+    "NoSuchMethodException",
+    "NoSuchFieldException",
+    "IllegalAccessException",
+    "InvocationTargetException",
+    "ClassCastException",
+    "NullPointerException",
+    "IllegalArgumentException",
+    "IllegalStateException",
+    "AbstractMethodError",
+    "IncompatibleClassChangeError",
+    "UnsatisfiedLinkError",
+    "SecurityException",
+    "DeadObjectException",
+    "RuntimeException",
+    "VerifyError",
+    "LinkageError",
 )
 
-NOISE_TAGS = (
-    "ColorManager", "BlurController", "MisoundAsc", "FlagUtils", "SDM", "SRE",
-    "MI-SF", "RefreshRateSelector", "sensors-hal", "RegisteredAidCache",
-    "SmartPower.DisplayPolicy",
+PREFERENCE_KEYWORDS = (
+    "RemotePreferences",
+    "Remote preferences",
+    "PrefMap",
+    "preference",
+    "getAll",
+    "onPreferenceChanged",
 )
 
-NOISE_MESSAGES = (
-    "histogram value", "avc: denied", "Display index not found",
-    "No subscribers registered", "SDK version is too low", " Enter", " Exit",
-    "sensorCallback", "setSREStrength", "refresh rate", "brightness",
+PREFERENCE_STATES = (
+    "UNINITIALIZED",
+    "UNAVAILABLE",
+    "SNAPSHOT_PENDING_LISTENER",
+    "EMPTY_PENDING",
+    "VALID_EMPTY",
+    "LOADED",
+)
+
+RECEIVER_KEYWORDS = (
+    "registerModuleReceiver",
+    "registerOwnedReceiver",
+    "replaceModuleRegistration",
+    "RECEIVER_STALE_DROPPED",
+    "RECEIVER_UNREGISTER_FAILED",
+    "stale receiver",
+    "active receiver",
+)
+
+MISS_DEFERRED_RESTART_KEYWORDS = (
+    "missed",
+    "deferred",
+    "restart required",
+    "restartRequired",
+    "needs restart",
+    "restarting",
+)
+
+HD_STATUS_KEYWORDS = (
+    "TARGET_CLASS_MISSING",
+    "TARGET_MEMBER_MISSING",
+    "INSTALL_FAILED",
+    "SILENTLY_SKIPPED",
+    "DEXKIT_FAILED",
+    "DEXKIT_NO_MATCH",
+    "PREFERENCES_UNAVAILABLE",
+    "RECEIVER_UNREGISTER_FAILED",
+    "RECEIVER_STALE_DROPPED",
+    "DUPLICATE_FEATURE",
 )
 
 LOG_RE = re.compile(
@@ -101,19 +152,109 @@ LOG_RE = re.compile(
     r"(\d+)\s+(\d+)\s+([VDIWEAF])\s+(.*?):\s(.*)$"
 )
 
+LOADED_RE = re.compile(r"loaded in\s+(\S+)")
+
+HOOK_DIAGNOSTICS_SUMMARY_RE = re.compile(
+    r"HookSummary\s+stage=(\S+)\s+process=(\S+)\s+installed=(\d+)\s+"
+    r"classMissing=(\d+)\s+memberMissing=(\d+)\s+failed=(\d+)\s+silentSkipped=(\d+)\s+"
+    r"dexkitFailed=(\d+)\s+dexkitNoMatch=(\d+)\s+prefsUnavailable=(\d+)"
+)
+
+FAILED_HOOK_METHOD_CF = re.compile(
+    r"Failed to hook\s+(.*?)\s+method in\s+(.*?)\s+\(class not found\)"
+)
+FAILED_HOOK_METHOD_NM = re.compile(
+    r"Failed to hook\s+(.*?)\s+method in\s+(.*?)\s+\(no methods found\)"
+)
+FAILED_HOOK_CTOR_CF = re.compile(
+    r"Failed to hook\s+(.*?)\s+constructor\s+\(class not found\)"
+)
+FAILED_HOOK_CTOR_NC = re.compile(
+    r"Failed to hook\s+(.*?)\s+constructor\s+\(no constructors found\)"
+)
+
+CLASS_NOT_FOUND_RE = re.compile(r"ClassNotFoundException:\s*([^\s:]+(?:\.[A-Za-z0-9_$]+)+)")
+NO_SUCH_METHOD_RE = re.compile(r"NoSuchMethodException:\s*([^\s:]+(?:\.[A-Za-z0-9_$]+)*)")
+NO_SUCH_FIELD_RE = re.compile(r"NoSuchFieldException:\s*([^\s:]+(?:\.[A-Za-z0-9_$]+)*)")
+NO_FIELD_IN_CLASS_RE = re.compile(r"No field\s+(\w+)\s+in class\s+([\w.$]+)")
+NO_METHOD_IN_CLASS_RE = re.compile(r"No method\s+(\w+)\s+in class\s+([\w.$]+)")
+
+MODULE_STACK_RE = re.compile(
+    r"at\s+(tv\.withaibuild\.customiuizer(?:\.[A-Za-z_$][\w$]*|\$[A-Za-z_$][\w$]*)+)\."
+    r"([A-Za-z_$][\w$]*)\s*\("
+)
+MODULE_STACK_FALLBACK_RE = re.compile(
+    r"at\s+(tv\.withaibuild\.customiuizer(?:\.[A-Za-z_$][\w$]*|\$[A-Za-z_$][\w$]*)+)"
+)
+
 HEX_RE = re.compile(r"0x[0-9a-fA-F]+|\b[0-9a-fA-F]{7,}\b")
 DEC_RE = re.compile(r"\b\d{4,}\b")
 UUID_RE = re.compile(r"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}")
 OBJHASH_RE = re.compile(r"@[0-9a-fA-F]{5,}")
+TOKEN_RE = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
+
+MAX_FINGERPRINTS = 10_000
+MAX_EVENT_LIST = 1_000
+MAX_CONTEXT_AFTER = 200
 
 
-def file_sha256(path: str) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest().upper()
+def append_limited(container: list, item: dict, state: Analysis, name: str, limit: int = MAX_EVENT_LIST) -> None:
+    if len(container) < limit:
+        container.append(item)
+    else:
+        state.overflow[name] += 1
 
+
+# ---------------------------------------------------------------------------
+# Data model
+# ---------------------------------------------------------------------------
+
+@dataclass
+class Analysis:
+    started: str
+    inputs: List[str]
+    total_lines: int = 0
+    parsed_lines: int = 0
+    first_time: Optional[str] = None
+    last_time: Optional[str] = None
+    a14_markers: List[dict] = field(default_factory=list)
+    process_lines: Counter = field(default_factory=Counter)
+    process_pids: Dict[str, Set[int]] = field(default_factory=lambda: defaultdict(set))
+    process_events: Dict[str, Counter] = field(default_factory=lambda: defaultdict(Counter))
+    hook_diagnostics: dict = field(
+        default_factory=lambda: {
+            "summaries": [],
+            "totals": Counter(),
+            "by_process": defaultdict(Counter),
+            "records": [],
+        }
+    )
+    preferences: dict = field(
+        default_factory=lambda: {"events": [], "states": Counter(), "keys": Counter()}
+    )
+    missed_deferred_restart: List[dict] = field(default_factory=list)
+    receiver_events: List[dict] = field(default_factory=list)
+    missing: Dict[str, Counter] = field(
+        default_factory=lambda: {"class": Counter(), "method": Counter(), "field": Counter()}
+    )
+    dexkit: List[dict] = field(default_factory=list)
+    crashes: List[dict] = field(default_factory=list)
+    fingerprints: Dict[str, dict] = field(default_factory=dict)
+    source_suggestions: Dict[str, List[str]] = field(default_factory=dict)
+    module_stacks: Set[str] = field(default_factory=set)
+    overflow: Counter = field(default_factory=Counter)
+
+    def add_event(self, field_name: str, item: dict, limit: int = MAX_EVENT_LIST) -> None:
+        lst = getattr(self, field_name)
+        if len(lst) < limit:
+            lst.append(item)
+        else:
+            self.overflow[field_name] += 1
+
+
+# ---------------------------------------------------------------------------
+# Log parsing helpers
+# ---------------------------------------------------------------------------
 
 def parse_line(raw: str, line_no: int) -> Optional[dict]:
     m = LOG_RE.match(raw.rstrip("\n\r"))
@@ -134,12 +275,18 @@ def parse_line(raw: str, line_no: int) -> Optional[dict]:
     }
 
 
-def discover_process(rec: dict, pid_map: Dict[int, str]) -> Optional[str]:
+def discover_process(rec: dict, pid_map: Dict[int, str]) -> str:
     pid = rec["pid"]
     msg = rec["message"]
     tag = rec["tag"]
 
-    # Update pid map from AM/process lines
+    # Module load markers explicitly state the process name.
+    m = LOADED_RE.search(msg)
+    if m:
+        proc = m.group(1)
+        pid_map[pid] = proc
+        return proc
+
     if tag in ("ActivityManager", "ActivityManagerShell", "am_proc_start", "am_proc_bound"):
         for pat in (
             r"Start proc\s+([\w\.]+)",
@@ -157,470 +304,731 @@ def discover_process(rec: dict, pid_map: Dict[int, str]) -> Optional[str]:
     if pid in pid_map:
         return pid_map[pid]
 
-    # Package names in message for common targets
-    m = re.search(r"([a-zA-Z][\w]*\.)+[a-zA-Z][\w]*", msg)
-    if m and "http" not in m.group(0).lower():
-        proc = m.group(0)
-        if proc in COMMON_TARGETS:
+    for proc in PROCESSES:
+        if proc in msg:
             return proc
-    return None
+
+    return "unknown"
 
 
-# ---------------------------------------------------------------------------
-# Anchors and context extraction
-# ---------------------------------------------------------------------------
-
-MODULE_LOG_TAGS = ("LSPosed-Bridge", "LSPosed", "CustoMIUIzer")
-
-
-def module_evidence(text: str, tag: str, source_package: str, application_id: str) -> str:
-    """How strongly a piece of text implicates the module's own code.
-
-    The distinction that matters: the ROM writes our applicationId into its own logs
-    constantly — activity starts, SmartPower, the package manager, recents. Treating
-    that as evidence buries the real findings under hundreds of routine lines, which
-    is what made triage slow. Our *code* being named is evidence; our *package* being
-    mentioned is only context.
-
-    Returns one of "code", "log", "mention", "none", strongest first.
-    """
-    if re.search(r"\bat\s+" + re.escape(source_package) + r"[\w.$]*", text):
-        return "code"
-    if re.search(r"\b" + re.escape(source_package) + r"\.[A-Za-z]\w*\.[A-Za-z]\w*\s*\(", text):
-        return "code"
-    if any(t in tag for t in MODULE_LOG_TAGS) and (source_package in text or "CustoMIUIzer" in text):
-        return "log"
-    if source_package in text or application_id in text:
-        return "mention"
-    return "none"
-
-
-def is_anchor(rec: dict, module_markers: List[str]) -> Tuple[bool, bool]:
-    msg = rec["message"]
-    tag = rec["tag"]
-    module_hit = any(m in msg or m in tag for m in module_markers)
-    severe_hit = any(a in msg or a in tag for a in SEVERE_ANCHORS)
-    hook_hit = any(a in msg or a in tag for a in HOOK_ANCHORS)
-    exc_hit = any(a in msg for a in EXCEPTION_CLASSES)
-    return module_hit or severe_hit or hook_hit or exc_hit, module_hit
-
-
-def extract_exception_type(lines: List[str]) -> str:
-    for line in lines:
-        # Android logcat exception lines often contain: java.lang.FooException: msg
-        m = re.search(r"([\w\.]+(?:Exception|Error|Death|Crash))", line)
-        if m:
-            return m.group(1).split(".")[-1]
-    return ""
-
-
-def extract_module_stack(lines: List[str], module_pkg: str) -> str:
-    for line in lines:
-        if f"at {module_pkg}" in line:
-            # keep method signature only
-            m = re.search(r"at\s+([\w\.]+)\.(\w+)\s*\(", line)
-            if m:
-                return f"{m.group(1)}.{m.group(2)}"
-            m = re.search(r"at\s+([\w\.]+)", line)
-            if m:
-                return m.group(1)
-    return ""
-
-
-def extract_first_stack(lines: List[str]) -> str:
-    for line in lines:
-        m = re.search(r"at\s+([\w\.]+)\.(\w+)\s*\(", line)
-        if m:
-            return f"{m.group(1)}.{m.group(2)}"
-    return ""
-
-
-def normalize_message(text: str) -> str:
+def normalize(text: str) -> str:
     text = UUID_RE.sub("UUID", text)
     text = HEX_RE.sub("HEX", text)
     text = OBJHASH_RE.sub("@HEX", text)
     text = DEC_RE.sub("NUM", text)
     text = re.sub(r"\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+", "DATETIME", text)
     text = re.sub(r"\s+", " ", text).strip()
-    return text[:160]
+    return text[:140]
 
 
-def fingerprint_from_context(ctx: List[str], rec: dict, module_pkg: str) -> str:
-    exc = extract_exception_type(ctx)
-    mod_stack = extract_module_stack(ctx, module_pkg)
-    first_stack = extract_first_stack(ctx) if not mod_stack else ""
-    tag = rec["tag"]
-    proc = rec.get("process") or "unknown"
-    if mod_stack:
-        return f"{proc}|{exc or 'module'}|{mod_stack}"
-    if exc:
-        stack = first_stack or normalize_message(ctx[0] if ctx else rec["message"])
-        return f"{proc}|{exc}|{stack}"
-    return f"{proc}|{tag}|{normalize_message(rec['message'])}"
+def extract_exception_type(text: str) -> str:
+    m = re.search(r"([\w\.]+(?:Exception|Error|Death|Crash))", text)
+    if m:
+        return m.group(1).split(".")[-1]
+    return ""
 
 
-# ---------------------------------------------------------------------------
-# Scoring and candidate
-# ---------------------------------------------------------------------------
-
-@dataclass
-class Candidate:
-    fingerprint: str
-    priority: str
-    score: int
-    count: int = 0
-    first_time: str = ""
-    last_time: str = ""
-    process: Set[str] = field(default_factory=set)
-    pids: Set[int] = field(default_factory=set)
-    tag: str = ""
-    exception: str = ""
-    module_related: bool = False
-    module_stack: str = ""
-    sample_offsets: List[int] = field(default_factory=list)
-    sample_messages: List[str] = field(default_factory=list)
-    classification: str = "待分类"
-
-    def to_tsv(self) -> str:
-        return (
-            f"{self.priority}\t{self.score}\t{self.count}\t{self.first_time}\t{self.last_time}\t"
-            f"{','.join(sorted(self.process))}\t{','.join(str(p) for p in sorted(self.pids))}\t"
-            f"{self.tag}\t{self.exception}\t{self.fingerprint}\t{self.module_related}\t"
-            f"{','.join(str(o) for o in self.sample_offsets)}\t{self.classification}"
-        )
+def extract_module_stack(text: str) -> str:
+    m = MODULE_STACK_RE.search(text)
+    if m:
+        return f"{m.group(1)}.{m.group(2)}"
+    m = MODULE_STACK_FALLBACK_RE.search(text)
+    if m:
+        return m.group(1)
+    return ""
 
 
-def score_context(ctx: List[str], rec: dict, module_markers: List[str], profile: dict) -> int:
-    score = 0
+def is_anchor(rec: dict) -> bool:
     msg = rec["message"]
     tag = rec["tag"]
-    proc = rec.get("process") or "unknown"
-    source_package = profile["source_package"]
-    application_id = profile["application_id"]
-
-    severe = any(a in msg or a in tag for a in SEVERE_ANCHORS)
-    hook = any(a in msg or a in tag for a in HOOK_ANCHORS)
-    exc = any(a in msg for a in EXCEPTION_CLASSES)
-
-    # Strongest evidence wins, taken over the whole context so a stack trace a few
-    # lines below the anchor still counts.
-    evidence = module_evidence(msg, tag, source_package, application_id)
-    if evidence != "code":
-        for line in ctx:
-            if module_evidence(line, tag, source_package, application_id) == "code":
-                evidence = "code"
-                break
-
-    if evidence == "code":
-        score += 140
-    elif evidence == "log":
-        score += 80
-    elif evidence == "mention":
-        # Our applicationId appearing in someone else's message is context, not a
-        # finding. It must not on its own reach any actionable priority.
-        score += 10
-
-    if severe:
-        score += 90
-    if hook:
-        score += 25
-    if exc:
-        score += 40
-
-    if proc in COMMON_TARGETS:
-        if exc:
-            score += 20
-        if proc in ("system_server", "com.android.systemui", "com.miui.home"):
-            score += 40
-
-    # suppress plain E/W without exception/severity/module
-    if rec["level"] in ("E", "W") and not (evidence in ("code", "log") or severe or exc or hook):
-        score -= 60
-    if tag in NOISE_TAGS:
-        score -= 50
-    if any(ns in msg for ns in NOISE_MESSAGES):
-        score -= 30
-
-    return max(score, 0)
-
-
-def priority_from_score(score: int) -> str:
-    if score >= 150:
-        return "P0"
-    if score >= 110:
-        return "P1"
-    if score >= 70:
-        return "P2"
-    if score >= 30:
-        return "P3"
-    return "P4"
+    text = msg + " " + tag
+    if any(m in text for m in MODULE_MARKERS):
+        return True
+    if any(a in msg or a in tag for a in CRASH_ANCHORS):
+        return True
+    if any(a in msg for a in EXCEPTION_CLASSES):
+        return True
+    if "HookSummary" in msg:
+        return True
+    if any(k in text for k in HD_STATUS_KEYWORDS):
+        return True
+    if "Failed to hook" in msg or "DexKit" in msg:
+        return True
+    if any(k in text for k in RECEIVER_KEYWORDS + MISS_DEFERRED_RESTART_KEYWORDS + PREFERENCE_KEYWORDS):
+        return True
+    return False
 
 
 # ---------------------------------------------------------------------------
-# Main streaming analyzer
+# Source index for class suggestions
 # ---------------------------------------------------------------------------
 
-def analyze(log_path: str, profile: dict, args: argparse.Namespace) -> Tuple[Dict[str, Candidate], List[str], dict, List[dict]]:
-    marker_set = set(profile["module_markers"])
-    pid_map: Dict[int, str] = {}
-    stats = {
-        "sha256": file_sha256(log_path),
-        "size": os.path.getsize(log_path),
-        "total_lines": 0,
-        "parsed_lines": 0,
-        "first_time": None,
-        "last_time": None,
-        "module_loads": [],
-    }
+class SourceIndex:
+    def __init__(self, repo_root: Path) -> None:
+        self.root = repo_root
+        self.token_files: Dict[str, Set[str]] = defaultdict(set)
+        src = repo_root / "app" / "src"
+        if not src.exists():
+            return
+        for p in src.rglob("*"):
+            if p.is_file() and p.suffix in (".kt", ".java"):
+                rel = p.relative_to(repo_root).as_posix()
+                text = p.read_text(encoding="utf-8", errors="ignore")
+                tokens = set(TOKEN_RE.findall(text))
+                for t in tokens:
+                    self.token_files[t].add(rel)
 
-    window: deque = deque(maxlen=args.context_before + 1)
-    after_buffer: List[Tuple[dict, int]] = []
-    pending_anchor: Optional[Tuple[dict, int, int]] = None
-    pending_ctx: List[str] = []
+    def _module_source(self, name: str) -> List[str]:
+        if not name.startswith("tv.withaibuild.customiuizer."):
+            return []
+        parts = name.split("$")[0].split(".")
+        # The class simple name is the last part; the package is everything before it.
+        if len(parts) < 2:
+            return []
+        pkg_path = "/".join(parts[:-1])
+        cls = parts[-1]
+        candidates = [
+            f"app/src/main/java/{pkg_path}/{cls}.kt",
+            f"app/src/main/java/{pkg_path}/{cls}.java",
+        ]
+        return [c for c in candidates if (self.root / c).exists()]
 
-    candidates: Dict[str, Candidate] = {}
-    contexts: List[Tuple[str, List[str]]] = []
-
-    with open(log_path, "r", encoding="utf-8", errors="replace") as f:
-        for line_no, raw in enumerate(f, start=1):
-            stats["total_lines"] += 1
-            if not raw.strip():
+    def suggest(self, names: Iterable[str]) -> Dict[str, List[str]]:
+        result: Dict[str, List[str]] = {}
+        stoplist = {"com", "android", "java", "javax", "org", "tv", "withaibuild", "customiuizer", "miui", "name", "monwf"}
+        for name in names:
+            name = name.strip()
+            if not name:
                 continue
-            rec = parse_line(raw, line_no)
-            if not rec:
-                continue
-            stats["parsed_lines"] += 1
-            if stats["first_time"] is None:
-                stats["first_time"] = rec["time"]
-            stats["last_time"] = rec["time"]
-
-            rec["process"] = discover_process(rec, pid_map)
-
-            # module load tracking
-            if ("Loading module" in rec["message"] or "Loaded module" in rec["message"]) and any(m in rec["message"] for m in marker_set):
-                stats["module_loads"].append({
-                    "time": rec["time"], "pid": rec["pid"], "process": rec.get("process"), "message": rec["message"],
-                })
-
-            # anchor detection with context window
-            is_anch, module_hit = is_anchor(rec, profile["module_markers"])
-
-            if pending_anchor is not None:
-                # continue collecting context after anchor
-                pending_ctx.append(rec["raw"])
-                after_buffer.append((rec, line_no))
-                # stop collecting if we have enough lines and next line is a new anchor or log record break
-                anchor_rec, anchor_off, collected = pending_anchor
-                if len(pending_ctx) - len(window) >= args.context_after:
-                    # finalize
-                    _finalize_candidate(
-                        anchor_rec, anchor_off, pending_ctx, window, candidates, profile["source_package"], stats, contexts, profile
-                    )
-                    pending_anchor = None
-                    pending_ctx = []
-                    after_buffer = []
-                elif is_anch and not rec["raw"].startswith(" ") and rec["level"] in "EW":
-                    # new anchor, finalize previous
-                    _finalize_candidate(
-                        anchor_rec, anchor_off, pending_ctx, window, candidates, profile["source_package"], stats, contexts, profile
-                    )
-                    pending_anchor = None
-                    pending_ctx = []
-                    after_buffer = []
-
-            if is_anch:
-                if pending_anchor is None:
-                    pending_anchor = (rec, line_no, 0)
-                    # build context: previous window lines + anchor line
-                    pending_ctx = [r["raw"] for r in window] + [rec["raw"]]
-                    # reset after buffer
-                    after_buffer = []
-
-            window.append(rec)
-
-    # finalize any pending anchor at EOF
-    if pending_anchor is not None:
-        anchor_rec, anchor_off, _ = pending_anchor
-        _finalize_candidate(
-            anchor_rec, anchor_off, pending_ctx, window, candidates, profile["source_package"], stats, contexts, profile
-        )
-
-    # Priority is severity, not frequency. A repeated benign line is still benign and
-    # a crash that happened once is still a crash; `count` carries the frequency.
-    # Repetition only breaks ties between findings of the same severity.
-    for c in candidates.values():
-        c.score = max(0, c.score)
-        c.priority = priority_from_score(c.score)
-
-    return candidates, contexts, stats, stats["module_loads"]
-
-
-def _finalize_candidate(
-    rec: dict, offset: int, ctx: List[str], window: deque,
-    candidates: Dict[str, Candidate], module_pkg: str, stats: dict,
-    contexts: List[Tuple[str, List[str]]],
-    profile: dict
-) -> None:
-    fp = fingerprint_from_context(ctx, rec, module_pkg)
-    if fp not in candidates:
-        candidates[fp] = Candidate(
-            fingerprint=fp,
-            priority="P0",
-            score=0,
-            tag=rec["tag"],
-            exception=extract_exception_type(ctx),
-            module_related=module_pkg in "\n".join(ctx),
-            module_stack=extract_module_stack(ctx, module_pkg),
-        )
-    c = candidates[fp]
-    c.count += 1
-    # Worst single observation, not the sum over occurrences. Summing let a benign
-    # line that repeats 200 times outrank a crash that happened once; how often a
-    # finding occurred is reported in `count`, it is not evidence of severity.
-    c.score = max(c.score, score_context(ctx, rec, profile["module_markers"], profile))
-    if not c.first_time:
-        c.first_time = rec["time"]
-    c.last_time = rec["time"]
-    if rec.get("process"):
-        c.process.add(rec["process"])
-    c.pids.add(rec["pid"])
-    if len(c.sample_offsets) < 3:
-        c.sample_offsets.append(offset)
-        c.sample_messages.append(rec["raw"])
-        # Keep the raw context; format it at write time. The priority is not known
-        # until every occurrence of this fingerprint has been scored.
-        contexts.append((fp, list(ctx)))
-
-
-def _format_context(fp: str, c: Candidate, ctx: List[str]) -> str:
-    header = (
-        f"\n--- context [{c.priority}] score={c.score} count={c.count} ---\n"
-        f"process={','.join(c.process)} pids={','.join(str(p) for p in sorted(c.pids))}\n"
-        f"fingerprint: {fp}\n"
-    )
-    return header + "\n".join(ctx)
+            seen: Set[str] = set()
+            suggestions: List[str] = []
+            for direct in self._module_source(name):
+                if direct not in seen:
+                    seen.add(direct)
+                    suggestions.append(direct)
+            # For non-module names, use the simple name (last dotted/inner segment) only.
+            simple = re.split(r"[.$#(]", name)[-1].strip()
+            if (
+                simple
+                and len(simple) > 2
+                and simple not in stoplist
+                and not simple.startswith("<")
+            ):
+                file_hits: Counter = Counter()
+                for f in self.token_files.get(simple, ()):
+                    file_hits[f] += 1
+                for f, _ in file_hits.most_common(5):
+                    if f not in seen:
+                        seen.add(f)
+                        suggestions.append(f)
+            if suggestions:
+                result[name] = suggestions[:5]
+        return result
 
 
 # ---------------------------------------------------------------------------
-# Outputs
+# Classification detectors
 # ---------------------------------------------------------------------------
 
-def write_outputs(
-    output_dir: str, log_path: str, profile_name: str,
-    candidates: Dict[str, Candidate], contexts: List[Tuple[str, List[str]]], stats: dict, module_loads: List[dict]
-) -> None:
-    os.makedirs(output_dir, exist_ok=True)
-
-    loaded = any("Loaded module" in m["message"] for m in module_loads)
-
-    p_counts = Counter(c.priority for c in candidates.values())
-
-    # crash flags require P0 + specific evidence
-    p0 = [c for c in candidates.values() if c.priority == "P0"]
-    system_server_crash = any(
-        c.priority == "P0" and "system_server" in c.process and
-        (c.exception in ("FATAL EXCEPTION", "AndroidRuntime") or "crash" in c.fingerprint.lower() or "died" in c.fingerprint.lower())
-        for c in candidates.values()
-    )
-    systemui_crash = any(
-        c.priority == "P0" and "com.android.systemui" in c.process and
-        (c.exception in ("FATAL EXCEPTION", "AndroidRuntime") or "crash" in c.fingerprint.lower())
-        for c in candidates.values()
-    )
-    launcher_crash = any(
-        c.priority == "P0" and (c.process & {"com.miui.home", "com.mi.android.globallauncher"}) and
-        (c.exception in ("FATAL EXCEPTION", "AndroidRuntime") or "crash" in c.fingerprint.lower())
-        for c in candidates.values()
-    )
-    hook_failed = any("Failed to hook" in c.fingerprint or "Hook failed" in c.fingerprint for c in candidates.values())
-    rp_issue = any("RemotePreferences" in c.fingerprint for c in candidates.values())
-
-    module_top = "无"
-    module_cands = [c for c in candidates.values() if c.module_related]
-    if module_cands:
-        top = max(module_cands, key=lambda c: c.count)
-        module_top = f"{top.fingerprint[:120]} (count={top.count})"
-
-    if not loaded and not p0 and not any(c.priority == "P1" for c in candidates.values()):
-        conclusion = "未检测到模块加载及高优先级问题，需要确认测试时是否已启用模块并重启目标进程。"
-    elif not p0 and not any(c.priority == "P1" for c in candidates.values()):
-        conclusion = "模块加载正常，未发现 P0/P1 级别异常。"
-    else:
-        conclusion = f"发现 {len(p0)} 个 P0、{sum(1 for c in candidates.values() if c.priority == 'P1')} 个 P1 候选，需要人工归因。"
-
-    summary = f"""# LSPosed 日志分析摘要
-
-- **日志文件**: `{log_path}`
-- **SHA-256**: `{stats['sha256']}`
-- **文件大小**: {stats['size']} bytes
-- **总行数**: {stats['total_lines']}
-- **可解析行数**: {stats['parsed_lines']}
-- **不可解析行数**: {stats['total_lines'] - stats['parsed_lines']}
-- **时间范围**: {stats['first_time']} - {stats['last_time']}
-- **Profile**: {profile_name}
-- **模块加载**: {'成功' if loaded else '未检测到'} ({len(module_loads)} 条加载事件)
-- **P0**: {p_counts.get('P0', 0)}
-- **P1**: {p_counts.get('P1', 0)}
-- **P2**: {p_counts.get('P2', 0)}
-- **P3**: {p_counts.get('P3', 0)}
-- **P4**: {p_counts.get('P4', 0)}
-- **system_server 崩溃**: {'是' if system_server_crash else '否'}
-- **SystemUI 崩溃**: {'是' if systemui_crash else '否'}
-- **Launcher 崩溃**: {'是' if launcher_crash else '否'}
-- **Hook 失败**: {'是' if hook_failed else '否'}
-- **RemotePreferences 异常**: {'是' if rp_issue else '否'}
-- **重复最多的模块相关异常**: {module_top}
-- **最终结论**: {conclusion}
-"""
-    with open(os.path.join(output_dir, "summary.md"), "w", encoding="utf-8") as f:
-        f.write(summary)
-
-    with open(os.path.join(output_dir, "candidates.tsv"), "w", encoding="utf-8") as f:
-        f.write("priority\tscore\tcount\tfirst_time\tlast_time\tprocess\tpid\ttag\texception\tfingerprint\tmodule_related\tcontext_offset\tclassification\n")
-        for c in sorted(candidates.values(), key=lambda x: (x.priority, -x.score, -x.count)):
-            f.write(c.to_tsv() + "\n")
-
-    # Only actionable priorities get a context dump. Emitting one for every P3/P4
-    # line produced a file too large to read, which pushes the reader back to the raw
-    # log - the exact thing this tool exists to prevent.
-    with open(os.path.join(output_dir, "contexts.log"), "w", encoding="utf-8") as f:
-        written = 0
-        for fp, ctx in contexts:
-            c = candidates.get(fp)
-            if c is None or c.priority not in ("P0", "P1", "P2"):
-                continue
-            f.write(_format_context(fp, c, ctx))
-            f.write(chr(10))
-            written += 1
-        if written == 0:
-            f.write("No P0/P1/P2 candidates: nothing needs to be read by hand." + chr(10))
-
-    noise = sorted((c for c in candidates.values() if c.priority in ("P3", "P4")), key=lambda x: -x.count)[:50]
-    with open(os.path.join(output_dir, "noise-stats.tsv"), "w", encoding="utf-8") as f:
-        f.write("priority\tscore\tcount\tprocess\ttag\tfingerprint\n")
-        for c in noise:
-            f.write(f"{c.priority}\t{c.score}\t{c.count}\t{','.join(c.process)}\t{c.tag}\t{c.fingerprint}\n")
-
-    sigs = {}
-    for fp, c in candidates.items():
-        sigs[fp] = {
-            "fingerprint": fp,
-            "priority": c.priority,
-            "score": c.score,
-            "count": c.count,
-            "first_time": c.first_time,
-            "last_time": c.last_time,
-            "process": sorted(c.process),
-            "pids": sorted(c.pids),
-            "exception": c.exception,
-            "module_related": c.module_related,
-            "classification": c.classification,
+def _add_fingerprint(state: Analysis, category: str, process: str, key: str, raw: str) -> None:
+    fp = f"{category}|{process}|{normalize(key)}"
+    if fp not in state.fingerprints:
+        if len(state.fingerprints) >= MAX_FINGERPRINTS:
+            state.overflow["fingerprints"] += 1
+            return
+        state.fingerprints[fp] = {
+            "category": category,
+            "process": process,
+            "key": key,
+            "count": 0,
+            "samples": [],
         }
-    with open(os.path.join(output_dir, "signatures.json"), "w", encoding="utf-8") as f:
-        json.dump(sigs, f, ensure_ascii=False, indent=2)
+    entry = state.fingerprints[fp]
+    entry["count"] += 1
+    if len(entry["samples"]) < 3:
+        entry["samples"].append(raw)
 
-    with open(os.path.join(output_dir, "parser-stats.json"), "w", encoding="utf-8") as f:
-        json.dump(stats, f, ensure_ascii=False, indent=2, default=str)
+
+def detect_a14_marker(rec: dict, state: Analysis) -> None:
+    text = rec["message"] + " " + rec["tag"]
+    if not any(m in text for m in ("CustoMIUIzer", APPLICATION_ID, SOURCE_PACKAGE, "[Pengeek]")):
+        return
+    m = LOADED_RE.search(rec["message"])
+    if m:
+        proc = m.group(1)
+        marker = {
+            "time": rec["time"],
+            "pid": rec["pid"],
+            "process": proc,
+            "message": rec["message"],
+        }
+        state.add_event("a14_markers", marker)
+        state.process_events[proc]["a14_marker"] += 1
+
+
+def detect_hook_diagnostics(rec: dict, state: Analysis) -> None:
+    msg = rec["message"]
+    proc = rec.get("process") or "unknown"
+    m = HOOK_DIAGNOSTICS_SUMMARY_RE.search(msg)
+    if m:
+        summary = {
+            "time": rec["time"],
+            "process": m.group(2),
+            "stage": m.group(1),
+            "installed": int(m.group(3)),
+            "classMissing": int(m.group(4)),
+            "memberMissing": int(m.group(5)),
+            "failed": int(m.group(6)),
+            "silentSkipped": int(m.group(7)),
+            "dexkitFailed": int(m.group(8)),
+            "dexkitNoMatch": int(m.group(9)),
+            "prefsUnavailable": int(m.group(10)),
+        }
+        append_limited(state.hook_diagnostics["summaries"], summary, state, "hook_diagnostics_summaries")
+        for k in ("installed", "classMissing", "memberMissing", "failed", "silentSkipped", "dexkitFailed", "dexkitNoMatch", "prefsUnavailable"):
+            state.hook_diagnostics["totals"][k] += summary[k]
+            state.hook_diagnostics["by_process"][summary["process"]][k] += summary[k]
+        _add_fingerprint(state, "hook_diagnostics", proc, f"stage={summary['stage']}", rec["raw"])
+        return
+
+    for status in HD_STATUS_KEYWORDS:
+        if status in msg:
+            record = {
+                "time": rec["time"],
+                "process": proc,
+                "status": status,
+                "message": msg,
+            }
+            append_limited(state.hook_diagnostics["records"], record, state, "hook_diagnostics_records")
+            _add_fingerprint(state, "hook_diagnostics", proc, status, rec["raw"])
+
+
+def detect_preferences(rec: dict, state: Analysis) -> None:
+    text = (rec["message"] + " " + rec["tag"]).lower()
+    proc = rec.get("process") or "unknown"
+    if not any(k.lower() in text for k in PREFERENCE_KEYWORDS):
+        return
+
+    state.process_events[proc]["preference"] += 1
+
+    for s in PREFERENCE_STATES:
+        if re.search(r"\b" + s + r"\b", rec["message"]):
+            state.preferences["states"][s] += 1
+
+    # Map common preference log phrases to bootstrap states.
+    state_map = {
+        "empty-pending": "EMPTY_PENDING",
+        "valid but empty": "VALID_EMPTY",
+        "getAll returned null": "UNAVAILABLE",
+        "getRemotePreferences returned null": "UNAVAILABLE",
+        "PREFERENCES_UNAVAILABLE": "UNAVAILABLE",
+        "Remote preferences missed": "EMPTY_PENDING",
+    }
+    lower_msg = rec["message"].lower()
+    for phrase, st in state_map.items():
+        if phrase.lower() in lower_msg:
+            state.preferences["states"][st] += 1
+
+    for key in re.findall(r"pref_key_\w+|pref_\w+", rec["message"]):
+        state.preferences["keys"][key] += 1
+
+    event = {
+        "time": rec["time"],
+        "process": proc,
+        "message": rec["message"],
+    }
+    append_limited(state.preferences["events"], event, state, "preferences_events")
+    _add_fingerprint(state, "preference", proc, normalize(rec["message"]), rec["raw"])
+
+
+def _classify_keyword(text: str) -> str:
+    t = text.lower()
+    if "restart" in t:
+        return "restart"
+    if "missed" in t:
+        return "missed"
+    if "defer" in t:
+        return "deferred"
+    return "other"
+
+
+def detect_missed_deferred_restart(rec: dict, state: Analysis) -> None:
+    msg = rec["message"].lower()
+    if not any(k.lower() in msg for k in MISS_DEFERRED_RESTART_KEYWORDS):
+        return
+    proc = rec.get("process") or "unknown"
+    event = {
+        "time": rec["time"],
+        "process": proc,
+        "category": _classify_keyword(rec["message"]),
+        "message": rec["message"],
+    }
+    state.add_event("missed_deferred_restart", event)
+    state.process_events[proc][event["category"]] += 1
+    _add_fingerprint(state, "missed_deferred", proc, f"{event['category']}|{normalize(rec['message'])}", rec["raw"])
+
+
+def _classify_receiver(text: str) -> str:
+    if "RECEIVER_STALE_DROPPED" in text:
+        return "stale_dropped"
+    if "RECEIVER_UNREGISTER_FAILED" in text:
+        return "unregister_failed"
+    if "registerModuleReceiver" in text:
+        return "register_module"
+    if "registerOwnedReceiver" in text:
+        return "register_owned"
+    if "replaceModuleRegistration" in text:
+        return "replace_module"
+    if "stale" in text.lower():
+        return "stale"
+    if "active" in text.lower():
+        return "active"
+    return "receiver"
+
+
+def detect_receivers(rec: dict, state: Analysis) -> None:
+    text = rec["message"] + " " + rec["tag"]
+    if not any(k in text for k in RECEIVER_KEYWORDS + ("stale", "active")):
+        return
+    if "Receiver" not in text and "receiver" not in text.lower():
+        return
+    proc = rec.get("process") or "unknown"
+    event = {
+        "time": rec["time"],
+        "process": proc,
+        "category": _classify_receiver(text),
+        "message": rec["message"],
+    }
+    state.add_event("receiver_events", event)
+    state.process_events[proc]["receiver_" + event["category"]] += 1
+    _add_fingerprint(state, "receiver", proc, event["category"], rec["raw"])
+
+
+def _record_missing(state: Analysis, kind: str, name: str, process: str, raw: str) -> None:
+    state.missing[kind][name] += 1
+    state.process_events[process][f"missing_{kind}"] += 1
+    _add_fingerprint(state, f"missing_{kind}", process, name, raw)
+
+
+def detect_missing(rec: dict, tail: Optional[List[str]], state: Analysis) -> None:
+    text = rec["message"]
+    if tail:
+        text += " " + " ".join(tail)
+    proc = rec.get("process") or "unknown"
+    raw = rec["raw"]
+
+    # Module helper explicit hook failures.
+    for m in FAILED_HOOK_METHOD_CF.finditer(rec["message"]):
+        _record_missing(state, "class", m.group(2), proc, raw)
+    for m in FAILED_HOOK_METHOD_NM.finditer(rec["message"]):
+        _record_missing(state, "method", f"{m.group(2)}.{m.group(1)}", proc, raw)
+    for m in FAILED_HOOK_CTOR_CF.finditer(rec["message"]):
+        _record_missing(state, "class", m.group(1), proc, raw)
+    for m in FAILED_HOOK_CTOR_NC.finditer(rec["message"]):
+        _record_missing(state, "method", f"{m.group(1)}.<init>", proc, raw)
+
+    # Exception class/method/field names.
+    for m in CLASS_NOT_FOUND_RE.finditer(text):
+        _record_missing(state, "class", m.group(1), proc, raw)
+    for m in NO_SUCH_METHOD_RE.finditer(text):
+        _record_missing(state, "method", m.group(1), proc, raw)
+    for m in NO_SUCH_FIELD_RE.finditer(text):
+        _record_missing(state, "field", m.group(1), proc, raw)
+
+    for m in NO_FIELD_IN_CLASS_RE.finditer(text):
+        _record_missing(state, "field", f"{m.group(2)}.{m.group(1)}", proc, raw)
+    for m in NO_METHOD_IN_CLASS_RE.finditer(text):
+        _record_missing(state, "method", f"{m.group(2)}.{m.group(1)}", proc, raw)
+
+    # Extract any module stack for source-class suggestions.
+    mod_stack = extract_module_stack(text)
+    if mod_stack:
+        state.module_stacks.add(mod_stack)
+
+
+def detect_dexkit(rec: dict, state: Analysis) -> None:
+    if "DexKit" not in rec["message"] and "dexkit" not in rec["message"].lower():
+        return
+    proc = rec.get("process") or "unknown"
+    event = {
+        "time": rec["time"],
+        "process": proc,
+        "message": rec["message"],
+    }
+    state.add_event("dexkit", event)
+    state.process_events[proc]["dexkit"] += 1
+    _add_fingerprint(state, "dexkit", proc, normalize(rec["message"]), rec["raw"])
+
+
+def detect_crash_anr(rec: dict, tail: Optional[List[str]], state: Analysis) -> None:
+    msg = rec["message"]
+    tag = rec["tag"]
+    if not (any(a in msg or a in tag for a in CRASH_ANCHORS) or any(a in msg for a in EXCEPTION_CLASSES)):
+        return
+    proc = rec.get("process") or "unknown"
+    text = msg
+    if tail:
+        text += " " + " ".join(tail)
+    exc = extract_exception_type(text) or ("ANR" if "ANR" in msg else "CRASH")
+    mod_stack = extract_module_stack(text)
+    if mod_stack:
+        state.module_stacks.add(mod_stack)
+    event = {
+        "time": rec["time"],
+        "process": proc,
+        "exception": exc,
+        "module_stack": mod_stack,
+        "message": msg,
+    }
+    state.add_event("crashes", event)
+    state.process_events[proc]["crash_anr"] += 1
+    key = f"{exc}|{mod_stack or normalize(msg)}"
+    _add_fingerprint(state, "crash_anr", proc, key, rec["raw"])
+
+
+def classify_record(rec: dict, tail: Optional[List[str]], state: Analysis) -> None:
+    proc = rec.get("process") or "unknown"
+    state.parsed_lines += 1
+    state.process_lines[proc] += 1
+    state.process_pids[proc].add(rec["pid"])
+    if state.first_time is None:
+        state.first_time = rec["time"]
+    state.last_time = rec["time"]
+
+    detect_a14_marker(rec, state)
+    detect_hook_diagnostics(rec, state)
+    detect_preferences(rec, state)
+    detect_missed_deferred_restart(rec, state)
+    detect_receivers(rec, state)
+    detect_missing(rec, tail, state)
+    detect_dexkit(rec, state)
+    detect_crash_anr(rec, tail, state)
+
+
+# ---------------------------------------------------------------------------
+# Streaming input and analysis
+# ---------------------------------------------------------------------------
+
+def iter_text_lines(path: Path, source_name: str) -> Iterator[Tuple[str, str]]:
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            yield source_name, line
+
+
+def iter_zip_member_lines(zf: zipfile.ZipFile, info: zipfile.ZipInfo, source_name: str) -> Iterator[Tuple[str, str]]:
+    with zf.open(info) as f:
+        wrapper = io.TextIOWrapper(f, encoding="utf-8", errors="replace")
+        for line in wrapper:
+            yield source_name, line
+
+
+def iter_inputs(paths: List[str]) -> Iterator[Tuple[str, str]]:
+    for p in paths:
+        path = Path(p)
+        if not path.exists():
+            print(f"Warning: input not found: {p}", file=sys.stderr)
+            continue
+        if path.is_dir():
+            for child in sorted(path.rglob("*")):
+                if child.is_file():
+                    name = str(child)
+                    if child.suffix.lower() in (".log", ".txt") or not child.suffix:
+                        yield from iter_text_lines(child, name)
+        elif path.suffix.lower() == ".zip":
+            with zipfile.ZipFile(path, "r") as zf:
+                for info in zf.infolist():
+                    if info.is_dir():
+                        continue
+                    filename = info.filename.split("/")[-1]
+                    if filename.lower().endswith((".log", ".txt")) or "." not in filename:
+                        source_name = f"{path}!{info.filename}"
+                        yield from iter_zip_member_lines(zf, info, source_name)
+        else:
+            yield from iter_text_lines(path, str(path))
+
+
+def analyze_stream(stream: Iterator[Tuple[str, str]], state: Analysis, max_after: int) -> None:
+    pending_anchor: Optional[dict] = None
+    pending_tail: List[str] = []
+    line_no = 0
+    pid_map: Dict[int, str] = {}
+
+    for _source, raw in stream:
+        line_no += 1
+        state.total_lines += 1
+        if not raw.strip():
+            continue
+
+        rec = parse_line(raw, line_no)
+        if rec is None:
+            if pending_anchor is not None:
+                pending_tail.append(raw.rstrip("\n\r"))
+                if len(pending_tail) >= max_after:
+                    classify_record(pending_anchor, pending_tail, state)
+                    pending_anchor = None
+                    pending_tail = []
+            continue
+
+        rec["process"] = discover_process(rec, pid_map)
+
+        if pending_anchor is not None:
+            classify_record(pending_anchor, pending_tail, state)
+            pending_anchor = None
+            pending_tail = []
+
+        if is_anchor(rec):
+            pending_anchor = rec
+        else:
+            classify_record(rec, None, state)
+
+    if pending_anchor is not None:
+        classify_record(pending_anchor, pending_tail, state)
+
+
+# ---------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------
+
+def _top(counter: Counter, n: int = 20) -> List[Tuple[str, int]]:
+    return counter.most_common(n)
+
+
+def _sorted_processes(state: Analysis) -> List[str]:
+    return sorted(state.process_lines, key=lambda p: -state.process_lines[p])
+
+
+def build_source_suggestions(state: Analysis, repo_root: Optional[Path]) -> None:
+    if repo_root is None or not repo_root.exists():
+        return
+    names: Set[str] = set()
+    names.update(state.missing["class"].keys())
+    names.update(state.missing["method"].keys())
+    names.update(state.missing["field"].keys())
+    names.update(state.module_stacks)
+    for rec in state.hook_diagnostics["records"]:
+        if "targetClass" in rec:
+            names.add(rec["targetClass"])
+    for ev in state.crashes:
+        if ev.get("module_stack"):
+            names.add(ev["module_stack"])
+
+    index = SourceIndex(repo_root)
+    state.source_suggestions = index.suggest(names)
+
+
+def write_markdown(output_dir: Path, state: Analysis, args: argparse.Namespace) -> None:
+    lines: List[str] = []
+    lines.append("# LSPosed 日志分析摘要\n")
+    lines.append("## 输入与元数据\n")
+    lines.append(f"- **分析时间**: {state.started}")
+    lines.append(f"- **输入文件数**: {len(state.inputs)}")
+    lines.append(f"- **输入路径**: {', '.join(state.inputs)}")
+    lines.append(f"- **总行数**: {state.total_lines}")
+    lines.append(f"- **可解析行数**: {state.parsed_lines}")
+    lines.append(f"- **时间范围**: {state.first_time or 'N/A'} - {state.last_time or 'N/A'}")
+    lines.append(f"- **输出目录**: {output_dir}")
+    lines.append("")
+
+    # A14 markers
+    lines.append("## A14 模块加载标记\n")
+    if state.a14_markers:
+        for m in state.a14_markers[:20]:
+            lines.append(f"- `{m['time']}` `{m['process']}`: {m['message'][:140]}")
+        if len(state.a14_markers) > 20:
+            lines.append(f"- ... 还有 {len(state.a14_markers) - 20} 条")
+    else:
+        lines.append("未检测到模块加载标记。")
+    lines.append("")
+
+    # Process summary
+    lines.append("## 进程概览\n")
+    lines.append("| process | lines | pids | a14 | crash/ANR | missing class | missing method | missing field | dexkit |")
+    lines.append("|---------|-------|------|-----|-----------|---------------|----------------|---------------|--------|")
+    for proc in _sorted_processes(state)[:30]:
+        ev = state.process_events[proc]
+        pids = len(state.process_pids[proc])
+        lines.append(
+            f"| {proc} | {state.process_lines[proc]} | {pids} | "
+            f"{ev.get('a14_marker', 0)} | {ev.get('crash_anr', 0)} | "
+            f"{ev.get('missing_class', 0)} | {ev.get('missing_method', 0)} | "
+            f"{ev.get('missing_field', 0)} | {ev.get('dexkit', 0)} |"
+        )
+    lines.append("")
+
+    # HookDiagnostics
+    lines.append("## HookDiagnostics\n")
+    totals = state.hook_diagnostics["totals"]
+    if totals:
+        lines.append(f"- installed: {totals.get('installed', 0)}")
+        lines.append(f"- classMissing: {totals.get('classMissing', 0)}")
+        lines.append(f"- memberMissing: {totals.get('memberMissing', 0)}")
+        lines.append(f"- failed: {totals.get('failed', 0)}")
+        lines.append(f"- silentSkipped: {totals.get('silentSkipped', 0)}")
+        lines.append(f"- dexkitFailed: {totals.get('dexkitFailed', 0)}")
+        lines.append(f"- dexkitNoMatch: {totals.get('dexkitNoMatch', 0)}")
+        lines.append(f"- prefsUnavailable: {totals.get('prefsUnavailable', 0)}")
+    else:
+        lines.append("未检测到 HookDiagnostics 汇总。")
+    lines.append("")
+
+    # Preferences
+    lines.append("## Preference 状态\n")
+    if state.preferences["states"]:
+        for s, c in _top(state.preferences["states"]):
+            lines.append(f"- {s}: {c}")
+    else:
+        lines.append("未检测到明确的 Preference 状态。")
+    if state.preferences["keys"]:
+        lines.append("")
+        lines.append("高频 Preference key:")
+        for k, c in _top(state.preferences["keys"], 10):
+            lines.append(f"- {k}: {c}")
+    lines.append("")
+
+    # Missed / deferred / restart
+    lines.append("## missed / deferred / restart required\n")
+    if state.missed_deferred_restart:
+        counts = Counter(e["category"] for e in state.missed_deferred_restart)
+        for cat, c in counts.most_common():
+            lines.append(f"- {cat}: {c}")
+        for e in state.missed_deferred_restart[:5]:
+            lines.append(f"  - `{e['time']}` `{e['process']}` {e['message'][:100]}")
+    else:
+        lines.append("未检测到 missed / deferred / restart 事件。")
+    lines.append("")
+
+    # Receiver
+    lines.append("## Receiver active / stale\n")
+    if state.receiver_events:
+        counts = Counter(e["category"] for e in state.receiver_events)
+        for cat, c in counts.most_common():
+            lines.append(f"- {cat}: {c}")
+        for e in state.receiver_events[:5]:
+            lines.append(f"  - `{e['time']}` `{e['process']}` {e['message'][:100]}")
+    else:
+        lines.append("未检测到 Receiver 相关事件。")
+    lines.append("")
+
+    # Missing class/method/field
+    lines.append("## Class / Method / Field missing\n")
+    for kind, title in (("class", "Class"), ("method", "Method"), ("field", "Field")):
+        counter = state.missing[kind]
+        lines.append(f"### {title} missing ({len(counter)} unique, {sum(counter.values())} total)\n")
+        if counter:
+            for name, c in _top(counter, 20):
+                lines.append(f"- {name}: {c}")
+        else:
+            lines.append("无。")
+        lines.append("")
+
+    # DexKit
+    lines.append("## DexKit\n")
+    if state.dexkit:
+        for e in state.dexkit[:20]:
+            lines.append(f"- `{e['time']}` `{e['process']}`: {e['message'][:120]}")
+    else:
+        lines.append("未检测到 DexKit 相关事件。")
+    lines.append("")
+
+    # Crash/ANR
+    lines.append("## crash / ANR\n")
+    if state.crashes:
+        for e in state.crashes[:20]:
+            ms = f" (module stack: {e['module_stack']})" if e.get("module_stack") else ""
+            lines.append(f"- `{e['time']}` `{e['process']}` **{e['exception']}**{ms}: {e['message'][:120]}")
+    else:
+        lines.append("未检测到崩溃或 ANR。")
+    lines.append("")
+
+    # Duplicate fingerprints
+    lines.append("## 重复指纹\n")
+    duplicates = [f for f in state.fingerprints.values() if f["count"] > 1]
+    duplicates.sort(key=lambda x: -x["count"])
+    if duplicates:
+        for f in duplicates[:30]:
+            lines.append(f"- count={f['count']} category={f['category']} process={f['process']} key={f['key'][:80]}")
+    else:
+        lines.append("未检测到重复指纹。")
+    lines.append("")
+
+    # Source-class suggestions
+    lines.append("## 源码类建议\n")
+    if state.source_suggestions:
+        for name, files in list(state.source_suggestions.items())[:50]:
+            lines.append(f"- `{name}` -> {', '.join(files[:5])}")
+    else:
+        lines.append("无可用的源码建议（未提供 repo-root 或未识别到相关目标）。")
+    lines.append("")
+
+    if state.overflow:
+        lines.append("## 容量溢出\n")
+        lines.append("以下类别因超过有界容量而被截断：")
+        for k, c in state.overflow.most_common():
+            lines.append(f"- {k}: {c}")
+        lines.append("")
+
+    (output_dir / "summary.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_json(output_dir: Path, state: Analysis, args: argparse.Namespace) -> None:
+    data = {
+        "meta": {
+            "started": state.started,
+            "inputs": state.inputs,
+            "total_lines": state.total_lines,
+            "parsed_lines": state.parsed_lines,
+            "first_time": state.first_time,
+            "last_time": state.last_time,
+        },
+        "a14_markers": state.a14_markers,
+        "processes": {
+            proc: {
+                "lines": state.process_lines[proc],
+                "pids": sorted(state.process_pids[proc]),
+                "events": dict(state.process_events[proc]),
+            }
+            for proc in sorted(state.process_lines)
+        },
+        "hook_diagnostics": {
+            "summaries": state.hook_diagnostics["summaries"],
+            "totals": dict(state.hook_diagnostics["totals"]),
+            "by_process": {
+                proc: dict(vals) for proc, vals in state.hook_diagnostics["by_process"].items()
+            },
+            "records": state.hook_diagnostics["records"],
+        },
+        "preferences": {
+            "events": state.preferences["events"],
+            "states": dict(state.preferences["states"]),
+            "keys": dict(state.preferences["keys"]),
+        },
+        "missed_deferred_restart": state.missed_deferred_restart,
+        "receiver_events": state.receiver_events,
+        "missing": {
+            "class": dict(state.missing["class"]),
+            "method": dict(state.missing["method"]),
+            "field": dict(state.missing["field"]),
+        },
+        "dexkit": state.dexkit,
+        "crashes": state.crashes,
+        "fingerprints": {
+            fp: {**v, "samples": v["samples"][:3]}
+            for fp, v in sorted(state.fingerprints.items(), key=lambda x: -x[1]["count"])
+        },
+        "source_suggestions": state.source_suggestions,
+        "overflows": dict(state.overflow),
+    }
+    (output_dir / "analysis.json").write_text(
+        json.dumps(data, ensure_ascii=False, indent=2, default=str), encoding="utf-8"
+    )
+
+
+def write_outputs(output_dir: Path, state: Analysis, args: argparse.Namespace) -> None:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if args.format in ("md", "both"):
+        write_markdown(output_dir, state, args)
+    if args.format in ("json", "both"):
+        write_json(output_dir, state, args)
 
 
 # ---------------------------------------------------------------------------
@@ -628,25 +1036,47 @@ def write_outputs(
 # ---------------------------------------------------------------------------
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Analyze LSPosed full.log")
-    parser.add_argument("log", help="Path to full.log")
-    parser.add_argument("--profile", choices=["a14", "a13"], default="a14")
-    parser.add_argument("--repo-root", default=".")
-    parser.add_argument("--output", required=True)
-    parser.add_argument("--context-before", type=int, default=25)
-    parser.add_argument("--context-after", type=int, default=60)
-    parser.add_argument("--max-stack-lines", type=int, default=150)
+    parser = argparse.ArgumentParser(
+        description="Offline LSPosed log analyzer for CustoMIUIzer A14."
+    )
+    parser.add_argument("inputs", nargs="+", help="txt/log/zip files or directories")
+    parser.add_argument("-o", "--output", required=True, help="output directory")
+    parser.add_argument(
+        "--format", choices=["md", "json", "both"], default="both",
+        help="output format (default: both)"
+    )
+    parser.add_argument("--profile", choices=["a14"], default="a14")
+    parser.add_argument(
+        "--repo-root",
+        default=None,
+        help="repository root for source-class suggestions (default: parent of tools/)",
+    )
+    parser.add_argument("--context-after", type=int, default=40, help="max trailing context lines")
     args = parser.parse_args()
 
-    profile = PROFILES[args.profile]
-    log_path = os.path.abspath(args.log)
-    output_dir = os.path.abspath(args.output)
+    if args.repo_root:
+        repo_root = Path(args.repo_root).resolve()
+    else:
+        repo_root = Path(__file__).resolve().parent.parent
 
-    print("Analyzing ...", file=sys.stderr)
-    candidates, contexts, stats, module_loads = analyze(log_path, profile, args)
-    write_outputs(output_dir, log_path, args.profile, candidates, contexts, stats, module_loads)
+    started = datetime.now(timezone.utc).isoformat()
+    state = Analysis(started=started, inputs=[os.path.abspath(p) for p in args.inputs])
+
+    max_after = max(1, min(args.context_after, MAX_CONTEXT_AFTER))
+    stream = iter_inputs(args.inputs)
+    analyze_stream(stream, state, max_after)
+
+    build_source_suggestions(state, repo_root)
+
+    output_dir = Path(args.output).resolve()
+    write_outputs(output_dir, state, args)
+
     print(f"Done. Output in {output_dir}", file=sys.stderr)
-    print(f"Candidates: {len(candidates)}", file=sys.stderr)
+    print(
+        f"Lines: {state.total_lines} parsed: {state.parsed_lines} "
+        f"crashes: {len(state.crashes)} missing: {dict({k: sum(v.values()) for k, v in state.missing.items()})}",
+        file=sys.stderr,
+    )
     return 0
 
 

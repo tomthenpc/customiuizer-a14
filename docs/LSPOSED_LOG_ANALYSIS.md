@@ -1,51 +1,58 @@
-# LSPosed 大型日志快速分析
+# LSPosed 日志离线分析
 
-本项目使用 `tools/analyze_lsposed_log.py` 统一处理 LSPosed `full.log`，避免直接人工通读十万行日志。
+`tools/analyze_lsposed_log.py` 用于离线分析 CustoMIUIzer A14 的 LSPosed 日志。
+
+本工具**不使用 ADB、网络或 APK 相关功能**，所有输入均来自本地文件。
+
+## 支持输入
+
+- `.txt`、`.log` 文本日志
+- `.zip` 压缩包（自动读取其中 `.txt`/`.log`/无扩展名的文件）
+- 目录（递归读取其中 `.txt`/`.log`/无扩展名的文件）
+- 多文件/多目录同时输入
+
+## 输出格式
+
+在 `--output` 目录中生成：
+
+| 文件 | 说明 |
+|------|------|
+| `summary.md` | 分析摘要（Markdown） |
+| `analysis.json` | 结构化分析数据（JSON） |
 
 ## 使用方式
 
 ```powershell
-python tools/analyze_lsposed_log.py `
-  "C:\path\full.log" `
-  --profile a14 `
-  --repo-root "." `
-  --output "build\log-analysis\r14-test"
+# 单文件
+python tools/analyze_lsposed_log.py "C:\path\full.log" --output "build\log-analysis\r14-test"
+
+# 多输入
+python tools/analyze_lsposed_log.py "log1.txt" "log2.log" "logs/" "archive.zip" --output "build\log-analysis\r14-test"
+
+# 仅输出 JSON
+python tools/analyze_lsposed_log.py "full.log" --output "build\log-analysis\r14-test" --format json
+
+# 指定仓库根目录以获取源码类建议（默认当前仓库根目录）
+python tools/analyze_lsposed_log.py "full.log" --output "build\log-analysis\r14-test" --repo-root "."
 ```
 
-## 输出产物
+## 分析内容
 
-| 文件 | 说明 |
-|------|------|
-| `summary.md` | 日志摘要、P0/P1/P2 数量、模块加载情况、最终结论 |
-| `candidates.tsv` | 归并后的候选问题，含优先级、风险分、次数、进程、tag、异常、指纹 |
-| `contexts.log` | P0/P1 及必要 P2 的上下文片段 |
-| `noise-stats.tsv` | 高频噪声签名统计 |
-| `signatures.json` | 标准化签名数据库，用于后续增量比较 |
-| `parser-stats.json` | 解析统计（大小、行数、可解析行数、时间范围等） |
+- **A14 marker**：模块 `CustoMIUIzer r14` 在各进程的加载标记
+- **process**：各进程日志行数、PID、事件分布
+- **system_server / SystemUI / Launcher / Settings / SecurityCenter**：关键进程的事件统计
+- **HookDiagnostics**：阶段汇总（installed、missing、failed、DexKit、preferences 等）
+- **Preference 状态**：`UNAVAILABLE`、`LOADED`、`VALID_EMPTY`、`EMPTY_PENDING` 等状态
+- **missed / deferred / restart required**：偏好未就绪、延迟初始化、需要重启等事件
+- **Receiver active / stale**：注册、替换、stale 队列、unregister 失败
+- **Class / Method / Field missing**：缺失的类、方法、字段
+- **DexKit**：DexKit 查询失败/无匹配
+- **crash / ANR**：崩溃、ANR、Watchdog
+- **重复指纹**：按标准化指纹聚合重复事件
+- **源码类建议**：对模块栈或缺失目标，给出可能对应的源码文件
 
-## 分析原则
+## 设计约束
 
-- 最多顺序扫描原日志两遍，不一次性加载进内存。
-- 按指纹聚合重复异常，不把大量重复输出交给人工。
-- 优先保留包含模块源码、Hook 失败、崩溃、ANR、system_server/SystemUI/Launcher 异常的上下文。
-- 仅凭 `E`/`W` 等级不能判定为本模块问题。
-- 归因需要：模块堆栈、Hook 目标与异常的因果关系、模块日志紧邻异常、或修复后复测消失。
-
-## 增量比较
-
-```powershell
-python tools/analyze_lsposed_log.py `
-  "C:\path\new\full.log" `
-  --profile a14 `
-  --baseline "build\log-analysis\last\signatures.json" `
-  --output "build\log-analysis\current"
-```
-
-## 配置文件
-
-- `tools/analyze_lsposed_log.py` 内置 A14/A13 profile、异常锚点、噪声规则。
-- 可选 `tools/lsposed_log_profiles.json` 和 `tools/lsposed_noise_rules.json` 进行覆盖扩展。
-
-## 输出目录
-
-中间产物输出到 `build/log-analysis/<日志名>/`，该目录由 `.gitignore` 的 `build/` 规则自动忽略，不得提交。
+- **流式读取**：逐行扫描，不一次性将多 GB 日志加载到内存。
+- **容量有界**：事件列表、指纹表、上下文缓冲区均设置上限，超出后计入 `overflow`。
+- **纯离线**：仅读取本地文件与仓库源码，不涉及设备、网络或 APK 构建。
