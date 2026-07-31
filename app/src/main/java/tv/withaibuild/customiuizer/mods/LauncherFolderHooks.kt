@@ -167,10 +167,6 @@ object LauncherFolderHooks {
                         intentFilter.addDataAuthority("233233", null)
                         intentFilter.addDataScheme("android_secret_code")
 
-                        val oldsecretCodeReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "secretCodeReceiver")
-                        if (oldsecretCodeReceiver is BroadcastReceiver) {
-                            try { act.unregisterReceiver(oldsecretCodeReceiver) } catch (ignore: Throwable) {}
-                        }
                         val secretCodeReceiver = ModuleHelper.registerOwnedReceiver(
                             act,
                             act,
@@ -183,7 +179,6 @@ object LauncherFolderHooks {
                                 XposedHelpers.callMethod(owner, "startSecurityHide")
                             }
                         }
-                        XposedHelpers.setAdditionalInstanceField(thisObject, "secretCodeReceiver", secretCodeReceiver)
 
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)

@@ -341,10 +341,6 @@ object Launcher {
                     val intentFilter = IntentFilter()
                     intentFilter.addAction(GlobalActions.EVENT_PREFIX + "FETCHAPPCONFIG")
 
-                    val oldfetchAppConfigReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "fetchAppConfigReceiver")
-                    if (oldfetchAppConfigReceiver is BroadcastReceiver) {
-                        try { act.unregisterReceiver(oldfetchAppConfigReceiver) } catch (ignore: Throwable) {}
-                    }
                     val fetchAppConfigReceiver = ModuleHelper.registerOwnedReceiver(
                         act,
                         act,
@@ -382,7 +378,6 @@ object Launcher {
                             if (receiver.isOrderedBroadcast) receiver.setResultCode(GlobalActions.ACTION_HANDLED)
                         }
                     }
-                    XposedHelpers.setAdditionalInstanceField(thisObject, "fetchAppConfigReceiver", fetchAppConfigReceiver)
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
@@ -397,14 +392,8 @@ object Launcher {
                 var throwable: Throwable? = null
                 try {
                     val act = chain.getThisObject() as Activity
-                    val secretCodeReceiver = XposedHelpers.getAdditionalInstanceField(act, "secretCodeReceiver")
-                    if (secretCodeReceiver is BroadcastReceiver) {
-                        try { act.unregisterReceiver(secretCodeReceiver) } catch (ignore: Throwable) {}
-                    }
-                    val fetchAppConfigReceiver = XposedHelpers.getAdditionalInstanceField(act, "fetchAppConfigReceiver")
-                    if (fetchAppConfigReceiver is BroadcastReceiver) {
-                        try { act.unregisterReceiver(fetchAppConfigReceiver) } catch (ignore: Throwable) {}
-                    }
+                    ModuleHelper.unregisterOwnedReceiver(act, "secretCodeReceiver")
+                    ModuleHelper.unregisterOwnedReceiver(act, "fetchAppConfigReceiver")
                     result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t

@@ -1259,6 +1259,32 @@ class ModuleHelper private constructor() {
             }
         }
 
+        /** Unregisters and removes the receiver owned by [owner] under [key], if one exists. */
+        @JvmStatic
+        @JvmOverloads
+        fun unregisterOwnedReceiver(
+            owner: Any,
+            key: String,
+            expectedReceiver: BroadcastReceiver? = null
+        ) {
+            val removedRef = java.util.concurrent.atomic.AtomicReference<OwnedReceiver?>(null)
+            ownedReceivers.compute(key) { _, list ->
+                if (list == null) return@compute null
+                val newList = CopyOnWriteArrayList<OwnedReceiver>()
+                for (reg in list) {
+                    val regOwner = reg.ownerRef.get()
+                    if (regOwner === owner && (expectedReceiver == null || reg.receiver === expectedReceiver)) {
+                        removedRef.set(reg)
+                    } else {
+                        newList.add(reg)
+                    }
+                }
+                if (newList.isEmpty()) null else newList
+            }
+            val reg = removedRef.get() ?: return
+            releaseReceiver(reg.contextRef, reg.receiver)
+        }
+
         private class ModuleRegistration(
             val key: String,
             val cleanup: Runnable,
