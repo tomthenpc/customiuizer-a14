@@ -3,15 +3,11 @@ package tv.withaibuild.customiuizer;
 import android.app.Application;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.os.Build;
 import android.provider.Settings;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-
-import java.util.Map;
-import java.util.Set;
 
 import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedModuleInterface;
@@ -20,6 +16,7 @@ import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam;
 import tv.withaibuild.customiuizer.mods.Controls;
 import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks;
 import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics;
+import tv.withaibuild.customiuizer.mods.utils.PreferenceBootstrap;
 import tv.withaibuild.customiuizer.mods.GlobalActions;
 import tv.withaibuild.customiuizer.mods.LauncherGestureHooks;
 import tv.withaibuild.customiuizer.mods.LauncherIconHooks;
@@ -61,20 +58,8 @@ public class MainModule extends XposedModule {
     public static ResourceHooks resHooks = new ResourceHooks();
     String processName;
 
-    SharedPreferences remotePrefs;
+    private PreferenceBootstrap preferenceBootstrap;
 
-    OnSharedPreferenceChangeListener mListener;
-
-    private enum PrefsState { UNINITIALIZED, LOADED, EMPTY_PENDING, UNAVAILABLE, VALID_EMPTY }
-    private static PrefsState mPrefsState = PrefsState.UNINITIALIZED;
-    private static boolean mPrefsWatcherRegistered = false;
-    private static boolean mValidEmptyReported = false;
-    private static boolean mUnavailableReported = false;
-    private static boolean mEmptyPendingReported = false;
-    private static int mPrefsInitAttempts = 0;
-    private static final int MAX_PREF_INIT_ATTEMPTS = 5;
-    private static int mEmptyPendingAttempts = 0;
-    private static final int MAX_EMPTY_PENDING_ATTEMPTS = 3;
     private static boolean mSystemServerLoadMarkerLogged = false;
 
     @Override
@@ -88,6 +73,13 @@ public class MainModule extends XposedModule {
         // Once per process, on the coldest path there is.
         XposedHelpers.log("CustoMIUIzer " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE
                 + ") loaded in " + processName);
+
+        preferenceBootstrap = PreferenceBootstrap.create(mPrefs, new PreferenceBootstrap.RemotePreferenceSource() {
+            @Override
+            public SharedPreferences get(String name) {
+                return getRemotePreferences(name);
+            }
+        });
     }
 
     private boolean isSupportedAndroidVersion() {
@@ -101,93 +93,11 @@ public class MainModule extends XposedModule {
     /**
      * Loads the remote preference snapshot into the process-local {@link PrefMap}.
      *
-     * <p>The provider, an empty-but-unconfirmed map, and a valid empty configuration are kept
-     * distinct:
-     * <ul>
-     *   <li>{@code null} or thrown from {@link RemotePreferences#getAll()} means the provider is
-     *       not ready ({@link PrefsState#UNAVAILABLE}).</li>
-     *   <li>An empty, non-null map without a confirmed live listener is only
-     *       {@link PrefsState#EMPTY_PENDING}; it stays retriable up to a bounded count.</li>
-     *   <li>{@link PrefsState#VALID_EMPTY} is only reached when an empty map is returned while a
-     *       live preference watcher is registered. We do not use it as a fallback after bounded
-     *       retries alone, because that would conflate "still loading" with "valid empty".</li>
-     * </ul>
-     * Retries are bounded and do not sleep the caller's thread.</p>
+     * The real state machine now lives in {@link PreferenceBootstrap}.  This wrapper keeps the
+     * existing call sites unchanged while the bootstrap is extracted into a testable component.
      */
     private void initPrefs() {
-        if (mPrefsState == PrefsState.LOADED || mPrefsState == PrefsState.VALID_EMPTY) return;
-
-        if (mPrefsState == PrefsState.UNAVAILABLE && mPrefsInitAttempts >= MAX_PREF_INIT_ATTEMPTS) return;
-
-        if (mPrefsState == PrefsState.EMPTY_PENDING) {
-            // Without a live watcher the only signal we have is the empty map itself, so we keep
-            // retrying up to a bounded number. Once the watcher is registered the next attempt
-            // can trust an empty getAll() result.
-            if (mEmptyPendingAttempts >= MAX_EMPTY_PENDING_ATTEMPTS && !mPrefsWatcherRegistered) {
-                // Bounded retry limit reached without a live watcher. We do not claim a reliable
-                // VALID_EMPTY; we simply stop burning the caller's package-ready callbacks.
-                if (!mEmptyPendingReported) {
-                    mEmptyPendingReported = true;
-                    XposedHelpers.log("Remote preferences empty-pending: retry limit reached, continuing without final state");
-                }
-                return;
-            }
-            mEmptyPendingAttempts++;
-        }
-
-        if (mPrefsState == PrefsState.UNINITIALIZED || mPrefsState == PrefsState.UNAVAILABLE) {
-            if (mPrefsState == PrefsState.UNAVAILABLE) mPrefsInitAttempts++;
-            if (remotePrefs == null) {
-                try {
-                    remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
-                } catch (Throwable t) {
-                    mPrefsState = PrefsState.UNAVAILABLE;
-                    HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getRemotePreferences");
-                    return;
-                }
-            }
-            if (remotePrefs == null) {
-                mPrefsState = PrefsState.UNAVAILABLE;
-                HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null");
-                return;
-            }
-        }
-
-        Map<String, ?> allPrefs;
-        try {
-            allPrefs = remotePrefs.getAll();
-        } catch (Throwable t) {
-            mPrefsState = PrefsState.UNAVAILABLE;
-            HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getAll");
-            return;
-        }
-        if (allPrefs == null) {
-            mPrefsState = PrefsState.UNAVAILABLE;
-            if (!mUnavailableReported) {
-                mUnavailableReported = true;
-                XposedHelpers.log("Remote preferences unavailable: getAll returned null");
-            }
-            return;
-        }
-        if (allPrefs.isEmpty()) {
-            if (mPrefsWatcherRegistered) {
-                mPrefsState = PrefsState.VALID_EMPTY;
-                if (!mValidEmptyReported) {
-                    mValidEmptyReported = true;
-                    XposedHelpers.log("Remote preferences are valid but empty (watcher confirmed)");
-                }
-            } else {
-                mPrefsState = PrefsState.EMPTY_PENDING;
-                HookDiagnostics.recordPreferencesEmptyPending();
-                if (!mEmptyPendingReported) {
-                    mEmptyPendingReported = true;
-                    XposedHelpers.log("Remote preferences empty-pending: provider reachable but map is empty");
-                }
-            }
-            return;
-        }
-        mPrefs.putAll(allPrefs);
-        mPrefsState = PrefsState.LOADED;
+        if (preferenceBootstrap != null) preferenceBootstrap.init();
     }
 
     private void loadDexKit() {
@@ -201,74 +111,7 @@ public class MainModule extends XposedModule {
     }
 
     private boolean watchPreferenceChange() {
-        if (mPrefsWatcherRegistered) return true;
-        mListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
-            @Override
-            public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, @Nullable String key) {
-                if (sharedPreferences == null || key == null) return;
-                try {
-                    Object val;
-                    if (sharedPreferences.contains(key)) {
-                        Object oldVal = mPrefs.get(key);
-                        if (oldVal instanceof Boolean) {
-                            val = sharedPreferences.getBoolean(key, false);
-                        } else if (oldVal instanceof Integer) {
-                            val = sharedPreferences.getInt(key, 0);
-                        } else if (oldVal instanceof Long) {
-                            val = sharedPreferences.getLong(key, 0L);
-                        } else if (oldVal instanceof Float) {
-                            val = sharedPreferences.getFloat(key, 0f);
-                        } else if (oldVal instanceof String) {
-                            val = sharedPreferences.getString(key, null);
-                        } else if (oldVal instanceof Set) {
-                            val = sharedPreferences.getStringSet(key, null);
-                        } else {
-                            val = sharedPreferences.getAll().get(key);
-                        }
-                    } else {
-                        val = null;
-                    }
-                    if (val == null) {
-                        mPrefs.remove(key);
-                    }
-                    else {
-                        mPrefs.put(key, val);
-                    }
-                    if (!"pref_key_systemui_restart_time".equals(key)) {
-                        ModuleHelper.handlePreferenceChanged(key);
-                    }
-                } catch (Throwable t) {
-                    // A failed preference update must not take down the host process.
-                    XposedHelpers.log(t);
-                }
-            }
-        };
-        initPrefs();
-        if (remotePrefs == null) {
-            try {
-                remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
-            } catch (Throwable t) {
-                HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getRemotePreferences");
-                return false;
-            }
-        }
-        if (remotePrefs == null) {
-            HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null");
-            return false;
-        }
-        try {
-            remotePrefs.registerOnSharedPreferenceChangeListener(mListener);
-            mPrefsWatcherRegistered = true;
-            // A live watcher is now in place. Reset retry counters so initPrefs can use it as a
-            // readiness signal and (re)load the current snapshot.
-            mPrefsInitAttempts = 0;
-            mEmptyPendingAttempts = 0;
-            initPrefs();
-            return true;
-        } catch (Throwable t) {
-            HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "registerOnSharedPreferenceChangeListener");
-            return false;
-        }
+        return preferenceBootstrap != null && preferenceBootstrap.installListener();
     }
 
     @Override
@@ -284,8 +127,8 @@ public class MainModule extends XposedModule {
             XposedHelpers.log("CustoMIUIzer " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ") loaded in " + processName);
         }
         initPrefs();
-        if (mPrefsState != PrefsState.LOADED && mPrefsState != PrefsState.VALID_EMPTY) {
-            HookDiagnostics.recordPreferencesMissed("android", mPrefsState.name());
+        if (!preferenceBootstrap.isReady()) {
+            HookDiagnostics.recordPreferencesMissed("android", preferenceBootstrap.getState().name());
         }
         PackagePermissions.hook(lpparam);
         if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupGlobalActions(lpparam);
@@ -377,8 +220,8 @@ public class MainModule extends XposedModule {
 
         ModuleHelper.currentPackageName = lpparam.getPackageName();
         initPrefs();
-        if (mPrefsState != PrefsState.LOADED && mPrefsState != PrefsState.VALID_EMPTY) {
-            HookDiagnostics.recordPreferencesMissed(pkg, mPrefsState.name());
+        if (!preferenceBootstrap.isReady()) {
+            HookDiagnostics.recordPreferencesMissed(pkg, preferenceBootstrap.getState().name());
         }
 
         if (pkg.equals("android")) {
