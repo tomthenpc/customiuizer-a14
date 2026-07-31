@@ -68,20 +68,20 @@ jobs:
         shell: bash
         run: |
           python tools/verify-apk-signatures.py \
-            --debug-apk app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.13.8-debug.apk \
-            --release-apk app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.8-unsigned-ci.apk \
+            --debug-apk app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.13.9-debug.apk \
+            --release-apk app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.9-unsigned-ci.apk \
             --release-kind ci
       - name: Upload Debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: debug-apk
-          path: app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.13.8-debug.apk
+          path: app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.13.9-debug.apk
           retention-days: 7
       - name: Upload Unsigned Release APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: unsigned-release-apk
-          path: app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.8-unsigned-ci.apk
+          path: app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.9-unsigned-ci.apk
           retention-days: 7
       - name: Upload Broadcast Probe Debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

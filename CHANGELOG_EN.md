@@ -10,7 +10,8 @@ and performance figures without same-condition measurements are not release chan
 
 | Version | Date | Purpose |
 | --- | --- | --- |
-| `r14.13.8` | 2026-07-30 | Current stable release; structure tidy-up, soft-reboot receiver fix, LSPosed 2.1.1 acceptance |
+| `r14.13.9` | 2026-07-31 | Current stable release; restores upstream A14 `system` scope, fixes `system_server` hook loading |
+| `r14.13.8` | 2026-07-30 | Structure tidy-up, soft-reboot receiver fix, LSPosed 2.1.1 acceptance |
 | `r14.13.7` | 2026-07-29 | Current stable release; settings survive an unbound service, soft reboot un-gated, hot-path robustness |
 | `r14.13.6` | 2026-07-29 | Runtime hardening, language fix, hook files split by domain |
 | `r14.8.0` | 2026-07-25 | Old-signature rollback point; back up and reinstall before upgrading |
@@ -19,6 +20,35 @@ and performance figures without same-condition measurements are not release chan
 Release titles contain only the version number. Asset names, sizes, and SHA-256 digests for
 removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the
 corresponding source remains available through Git tags.
+
+## [r14.13.9] - 2026-07-31
+
+### Purpose
+
+Restores the upstream A14 `system` scope so `system_server` is loaded again and system-service hooks
+are not silently skipped. No business hook logic was changed.
+
+### Changes
+
+- Restores `system` in `app/src/main/resources/META-INF/xposed/scope.list` while keeping the existing `android` scope.
+- Improves ADB regression normalization of `system` / `system_server`, preserving `rawProcess`.
+- Adds a scope static regression test requiring `system` in `scope.list` whenever `MainModule.onSystemServerStarting` is present.
+
+### Verification
+
+- `python tools/check-invariants.py`, `python tools/audit-feature-semantics.py --validate`, and the full Python test suite pass.
+- `gradlew test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease` passes.
+- GitHub Actions CI passes.
+- `META-INF/xposed/scope.list` contains `system`, `android`, `com.android.systemui`, and `com.miui.home`.
+
+### Known boundary
+
+The `r14.13.9` build and CI have passed, but the fixed `system_server` real-device loading, full `a14-smoke`, Broadcast negative probe, and Tasker manual checkpoint have not yet been executed.
+
+### Artifacts
+
+- APK: `CustoMIUIzer-A14-r14.13.9.apk`
+- versionCode / versionName: `187 / r14.13.9`
 
 ## [r14.13.8] - 2026-07-30
 

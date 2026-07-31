@@ -9,7 +9,8 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 | 版本 | 日期 | 定位 |
 | --- | --- | --- |
-| `r14.13.8` | 2026-07-30 | 当前稳定版；结构整理收口、快速重启 Receiver 修复、LSPosed 2.1.1 实机验收 |
+| `r14.13.9` | 2026-07-31 | 当前稳定版；恢复 A14 上游 `system` 作用域，修复 `system_server` Hook 未加载问题 |
+| `r14.13.8` | 2026-07-30 | 结构整理收口、快速重启 Receiver 修复、LSPosed 2.1.1 实机验收 |
 | `r14.13.7` | 2026-07-29 | 当前稳定版；未连接期间的设置不再丢失、快速重启不再误判、系统进程热路径容错 |
 | `r14.13.6` | 2026-07-29 | 运行期健壮性加固、界面语言修复、hook 文件按功能域拆分 |
 | `r14.8.0` | 2026-07-25 | 旧签名回退点；升级到新版本前必须备份并重装 |
@@ -17,6 +18,35 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
 [历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
+
+## [r14.13.9] - 2026-07-31
+
+### 版本定位
+
+恢复 A14 上游原有的 `system` 作用域，修复 `system_server` 未加载导致系统服务类 Hook 静默失效的问题。
+本轮不改动业务 Hook。
+
+### 变更
+
+- 在 `app/src/main/resources/META-INF/xposed/scope.list` 中恢复 `system` 作用域，保留现有 `android` 作用域。
+- 改进 ADB regression 对 `system` / `system_server` 的进程归一化，保留 `rawProcess`。
+- 增加作用域静态回归测试，要求 `MainModule.onSystemServerStarting` 存在时 `scope.list` 必须包含 `system`。
+
+### 验证
+
+- 通过 `python tools/check-invariants.py`、`python tools/audit-feature-semantics.py --validate`。
+- 通过 `gradlew test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease`。
+- 通过 GitHub Actions CI 全部任务。
+- `META-INF/xposed/scope.list` 校验包含 `system`、`android`、`com.android.systemui`、`com.miui.home`。
+
+### 已知边界
+
+- `r14.13.9` 构建和 CI 已通过，但修复后的 `system_server` 真机加载、完整 `a14-smoke`、Broadcast 负向探测和 Tasker 人工检查尚未执行。
+
+### 产物
+
+- APK：`CustoMIUIzer-A14-r14.13.9.apk`
+- versionCode / versionName：`187 / r14.13.9`
 
 ## [r14.13.8] - 2026-07-30
 
