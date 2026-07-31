@@ -314,10 +314,6 @@ object SystemLockScreenHooks {
                     val thisObject = chain.thisObject
 
                     val mContext = XposedHelpers.callMethod(thisObject, "getContext") as Context
-                    val oldunlockStrongAuthReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "unlockStrongAuthReceiver")
-                    if (oldunlockStrongAuthReceiver is BroadcastReceiver) {
-                        try { mContext.unregisterReceiver(oldunlockStrongAuthReceiver) } catch (ignore: Throwable) {}
-                    }
                     val unlockStrongAuthReceiver = object : BroadcastReceiver() {
                         override fun onReceive(context: Context, intent: Intent) {
                             try {
@@ -328,7 +324,6 @@ object SystemLockScreenHooks {
                             }
                         }
                     }
-                    XposedHelpers.setAdditionalInstanceField(thisObject, "unlockStrongAuthReceiver", unlockStrongAuthReceiver)
                     ModuleHelper.registerModuleReceiver(
                         mContext,
                         "unlockStrongAuthReceiver",
@@ -394,10 +389,6 @@ object SystemLockScreenHooks {
                     filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
                     filter.addAction(GlobalActions.ACTION_PREFIX + "UnlockSetForced")
                     filter.addAction(GlobalActions.ACTION_PREFIX + "BTConnectionChanged")
-                    val oldnoScreenLockReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "noScreenLockReceiver")
-                    if (oldnoScreenLockReceiver is BroadcastReceiver) {
-                        try { mContext.unregisterReceiver(oldnoScreenLockReceiver) } catch (ignore: Throwable) {}
-                    }
                     val noScreenLockReceiver = object : BroadcastReceiver() {
                         override fun onReceive(context: Context, intent: Intent) {
                             val action = intent.action ?: return
@@ -452,7 +443,6 @@ object SystemLockScreenHooks {
                             if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
                         }
                     }
-                    XposedHelpers.setAdditionalInstanceField(thisObject, "noScreenLockReceiver", noScreenLockReceiver)
                     ModuleHelper.registerModuleReceiver(mContext, "noScreenLockReceiver", noScreenLockReceiver, filter, Context.RECEIVER_EXPORTED)
 
                 } catch (t: Throwable) {

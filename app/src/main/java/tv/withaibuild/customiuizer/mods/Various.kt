@@ -668,7 +668,6 @@ object Various {
                             }
                         }
                         ModuleHelper.registerModuleReceiver(view.context, "showSideBarReceiver", showReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"), Context.RECEIVER_EXPORTED)
-                        XposedHelpers.setAdditionalInstanceField(thisObject, "showReceiver", showReceiver)
 
                         if (!isHooked[1]) {
                             isHooked[1] = true
@@ -743,12 +742,6 @@ object Various {
                     val thisObject = chain.thisObject
 
                     isHooked[0] = false
-                    val showReceiver = XposedHelpers.getAdditionalInstanceField(thisObject, "showReceiver") as BroadcastReceiver?
-                    if (showReceiver != null) {
-                        val view = chain.getArg(0) as View
-                        view.context.unregisterReceiver(showReceiver)
-                        XposedHelpers.removeAdditionalInstanceField(thisObject, "showReceiver")
-                    }
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
@@ -1240,10 +1233,6 @@ object Various {
                         return XposedHelpers.throwOrReturn(throwable, result)
                     }
                     val resolver = mContext.contentResolver
-                    val oldObserver = XposedHelpers.getAdditionalInstanceField(thisObject, "mNextAlarmObserver") as ContentObserver?
-                    if (oldObserver != null) {
-                        resolver.unregisterContentObserver(oldObserver)
-                    }
                     val alarmObserver = object : ContentObserver(Handler(mContext.mainLooper)) {
                         override fun onChange(selfChange: Boolean) = ModuleHelper.guarded {
                             if (selfChange) return@guarded
@@ -1251,8 +1240,8 @@ object Various {
                         }
                     }
                     alarmObserver.onChange(false)
-                    XposedHelpers.setAdditionalInstanceField(thisObject, "mNextAlarmObserver", alarmObserver)
                     resolver.registerContentObserver(Settings.System.getUriFor("next_alarm_clock_formatted"), false, alarmObserver)
+                    ModuleHelper.replaceModuleRegistration("alarmManager_next_alarm") { resolver.unregisterContentObserver(alarmObserver) }
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)

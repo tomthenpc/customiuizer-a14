@@ -106,11 +106,6 @@ object SystemUIMonitorAndTileHooks {
                     when (tileName) {
                         "custom_5G" -> {
                             val resolver = mContext.contentResolver
-                            val oldObserver = XposedHelpers.getAdditionalInstanceField(param.getThisObject(), "tileListener") as ContentObserver?
-                            if (oldObserver != null) {
-                                resolver.unregisterContentObserver(oldObserver)
-                                XposedHelpers.removeAdditionalInstanceField(param.getThisObject(), "tileListener")
-                            }
                             if (mListening) {
                                 val contentObserver = object : ContentObserver(Handler(mContext.mainLooper)) {
                                     override fun onChange(selfChange: Boolean) = ModuleHelper.guarded {
@@ -119,7 +114,9 @@ object SystemUIMonitorAndTileHooks {
                                 }
                                 resolver.registerContentObserver(Settings.Global.getUriFor("fiveg_user_enable"), false, contentObserver)
                                 resolver.registerContentObserver(Settings.Global.getUriFor("dual_nr_enabled"), false, contentObserver)
-                                XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "tileListener", contentObserver)
+                                ModuleHelper.replaceModuleRegistration("custom_5G_tile_listener") { resolver.unregisterContentObserver(contentObserver) }
+                            } else {
+                                ModuleHelper.replaceModuleRegistration("custom_5G_tile_listener") {}
                             }
                         }
                         "custom_FPS" -> {
@@ -133,11 +130,6 @@ object SystemUIMonitorAndTileHooks {
                         }
                         "custom_floatingtime" -> {
                             val resolver = mContext.contentResolver
-                            val oldObserver = XposedHelpers.getAdditionalInstanceField(param.getThisObject(), "tileListener") as ContentObserver?
-                            if (oldObserver != null) {
-                                resolver.unregisterContentObserver(oldObserver)
-                                XposedHelpers.removeAdditionalInstanceField(param.getThisObject(), "tileListener")
-                            }
                             if (mListening) {
                                 val contentObserver = object : ContentObserver(Handler(mContext.mainLooper)) {
                                     override fun onChange(selfChange: Boolean) = ModuleHelper.guarded {
@@ -145,7 +137,9 @@ object SystemUIMonitorAndTileHooks {
                                     }
                                 }
                                 resolver.registerContentObserver(Settings.System.getUriFor("miui_time_floating_window"), false, contentObserver)
-                                XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "tileListener", contentObserver)
+                                ModuleHelper.replaceModuleRegistration("custom_floatingtime_tile_listener") { resolver.unregisterContentObserver(contentObserver) }
+                            } else {
+                                ModuleHelper.replaceModuleRegistration("custom_floatingtime_tile_listener") {}
                             }
                         }
                     }
