@@ -1275,17 +1275,21 @@ object SystemUIStatusBarHooks {
                 unitView?.visibility = View.GONE
             }
             if (fixedWidth > 10 || singleOrDual) {
-                val lp = numberView.layoutParams as? LinearLayout.LayoutParams ?: LinearLayout.LayoutParams(-2, -2)
+                val numberLp = numberView.layoutParams as? LinearLayout.LayoutParams ?: LinearLayout.LayoutParams(-2, -2)
                 if (fixedWidth > 10) {
-                    lp.width = HookUtils.dp2px(fixedWidth.toFloat()).toInt()
+                    numberLp.width = HookUtils.dp2px(fixedWidth.toFloat()).toInt()
                 }
                 if (singleOrDual) {
-                    lp.topMargin = 0
-                    lp.height = -1
-                    lp.bottomMargin = 0
+                    numberLp.topMargin = 0
+                    numberLp.height = -1
+                    numberLp.bottomMargin = 0
                 }
-                numberView.layoutParams = lp
-                unitView?.layoutParams = lp
+                numberView.layoutParams = numberLp
+
+                unitView?.let { unit ->
+                    val unitLp = unit.layoutParams as? LinearLayout.LayoutParams ?: LinearLayout.LayoutParams(-2, -2)
+                    unit.layoutParams = unitLp
+                }
             }
 
             var leftMargin = MainModule.mPrefs.getInt("system_netspeed_leftmargin", 0)
