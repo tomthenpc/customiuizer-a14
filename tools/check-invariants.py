@@ -34,10 +34,11 @@ ALLOWED = {
         "tv/withaibuild/customiuizer/mods/utils/ReceiverRegistry.kt",
     },
     "no-direct-hook-installation": {
-        # The wrappers are the only place that may call the underlying Xposed
+        # The wrappers are the only places that may call the underlying Xposed
         # helpers directly. Everyone else must go through ModuleHelper so that
         # HookDiagnostics can record every install attempt.
         "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt",
+        "tv/withaibuild/customiuizer/mods/utils/HookInstallerFacade.kt",
     },
     "guard-framework-callbacks": {
         # The settings app is the module's own process. A throw there shows a

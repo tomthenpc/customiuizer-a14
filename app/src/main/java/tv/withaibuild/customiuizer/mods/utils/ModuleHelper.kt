@@ -65,17 +65,6 @@ class ModuleHelper private constructor() {
         private var thermalIdScanned = false
 
 
-        private fun argList(vararg args: Any?): String {
-            if (args.isEmpty()) return ""
-            val lastIndex = args.size - 1
-            val sb = StringBuilder()
-            for (i in 0 until lastIndex) {
-                if (i > 0) sb.append(',')
-                sb.append(args[i]?.toString() ?: "")
-            }
-            return sb.toString()
-        }
-
         private fun Method.descriptor(): String =
             parameterTypes.joinToString(",") { it.name ?: it.toString() }
 
@@ -120,49 +109,8 @@ class ModuleHelper private constructor() {
         }
 
         @JvmStatic
-        fun findAndHookMethod(className: String, classLoader: ClassLoader?, methodName: String, vararg parameterTypesAndCallback: Any?): CustomMethodUnhooker? {
-            val hookClass = XposedHelpers.findClassIfExists(className, classLoader)
-            if (hookClass == null) {
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    HookDiagnostics.Status.TARGET_CLASS_MISSING,
-                )
-                XposedHelpers.log("Failed to hook " + methodName + " method in " + className + " (class not found)")
-                return null
-            }
-            return try {
-                val unhooker = XposedHelpers.findAndHookMethod(hookClass, methodName, *parameterTypesAndCallback)
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    HookDiagnostics.Status.INSTALLED,
-                )
-                unhooker
-            } catch (t: Throwable) {
-                XposedHelpers.log("Failed to hook " + methodName + " method in " + className)
-                val status = when {
-                    HookDiagnostics.isMemberMissingException(t) -> HookDiagnostics.Status.TARGET_MEMBER_MISSING
-                    else -> HookDiagnostics.Status.INSTALL_FAILED
-                }
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    status,
-                    t.javaClass.simpleName,
-                )
-                null
-            }
-        }
+        fun findAndHookMethod(className: String, classLoader: ClassLoader?, methodName: String, vararg parameterTypesAndCallback: Any?): CustomMethodUnhooker? =
+            HookInstallerFacade.findAndHookMethod(className, classLoader, methodName, *parameterTypesAndCallback)
 
         @JvmStatic
         fun callMethodSilently(obj: Any?, methodName: String, vararg args: Any?): Any? {
@@ -175,107 +123,18 @@ class ModuleHelper private constructor() {
         }
 
         @JvmStatic
-        fun findAndHookMethod(clazz: Class<*>, methodName: String, vararg parameterTypesAndCallback: Any?): CustomMethodUnhooker? {
-            val className = clazz.canonicalName ?: clazz.name
-            return try {
-                val unhooker = XposedHelpers.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback)
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    HookDiagnostics.Status.INSTALLED,
-                )
-                unhooker
-            } catch (t: Throwable) {
-                XposedHelpers.log("Failed to hook " + methodName + " method in " + className)
-                val status = when {
-                    HookDiagnostics.isMemberMissingException(t) -> HookDiagnostics.Status.TARGET_MEMBER_MISSING
-                    else -> HookDiagnostics.Status.INSTALL_FAILED
-                }
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    status,
-                    t.javaClass.simpleName,
-                )
-                null
-            }
-        }
+        fun findAndHookMethod(clazz: Class<*>, methodName: String, vararg parameterTypesAndCallback: Any?): CustomMethodUnhooker? =
+            HookInstallerFacade.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback)
 
         @JvmStatic
         @Suppress("UNUSED_RETURN_VALUE")
-        fun findAndHookMethodSilently(className: String, classLoader: ClassLoader?, methodName: String, vararg parameterTypesAndCallback: Any?): Boolean {
-            val hookClass = XposedHelpers.findClassIfExists(className, classLoader)
-            if (hookClass == null) {
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    HookDiagnostics.Status.SILENTLY_SKIPPED,
-                    "class-not-found",
-                )
-                return false
-            }
-            return try {
-                val ok = XposedHelpers.findAndHookMethod(hookClass, methodName, *parameterTypesAndCallback) != null
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    if (ok) HookDiagnostics.Status.INSTALLED else HookDiagnostics.Status.SILENTLY_SKIPPED,
-                )
-                ok
-            } catch (t: Throwable) {
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    HookDiagnostics.Status.SILENTLY_SKIPPED,
-                    t.javaClass.simpleName,
-                )
-                false
-            }
-        }
+        fun findAndHookMethodSilently(className: String, classLoader: ClassLoader?, methodName: String, vararg parameterTypesAndCallback: Any?): Boolean =
+            HookInstallerFacade.findAndHookMethodSilently(className, classLoader, methodName, *parameterTypesAndCallback)
 
         @JvmStatic
         @Suppress("UNUSED_RETURN_VALUE")
-        fun findAndHookMethodSilently(clazz: Class<*>, methodName: String, vararg parameterTypesAndCallback: Any?): Boolean {
-            val className = clazz.canonicalName ?: clazz.name
-            return try {
-                val ok = XposedHelpers.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback) != null
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    if (ok) HookDiagnostics.Status.INSTALLED else HookDiagnostics.Status.SILENTLY_SKIPPED,
-                )
-                ok
-            } catch (t: Throwable) {
-                HookDiagnostics.record(
-                    PreferenceObserverRegistry.processName(),
-                    HookDiagnostics.Kind.METHOD,
-                    className,
-                    methodName,
-                    argList(*parameterTypesAndCallback),
-                    HookDiagnostics.Status.SILENTLY_SKIPPED,
-                    t.javaClass.simpleName,
-                )
-                false
-            }
-        }
+        fun findAndHookMethodSilently(clazz: Class<*>, methodName: String, vararg parameterTypesAndCallback: Any?): Boolean =
+            HookInstallerFacade.findAndHookMethodSilently(clazz, methodName, *parameterTypesAndCallback)
 
         @JvmStatic
         fun findAndHookConstructor(className: String, classLoader: ClassLoader?, vararg parameterTypesAndCallback: Any?): CustomMethodUnhooker? {
@@ -286,7 +145,7 @@ class ModuleHelper private constructor() {
                     HookDiagnostics.Kind.CONSTRUCTOR,
                     className,
                     "<init>",
-                    argList(*parameterTypesAndCallback),
+                    HookInstallerFacade.argList(*parameterTypesAndCallback),
                     HookDiagnostics.Status.TARGET_CLASS_MISSING,
                 )
                 XposedHelpers.log("Failed to hook constructor in " + className + " (class not found)")
@@ -299,7 +158,7 @@ class ModuleHelper private constructor() {
                     HookDiagnostics.Kind.CONSTRUCTOR,
                     className,
                     "<init>",
-                    argList(*parameterTypesAndCallback),
+                    HookInstallerFacade.argList(*parameterTypesAndCallback),
                     HookDiagnostics.Status.INSTALLED,
                 )
                 unhooker
@@ -314,7 +173,7 @@ class ModuleHelper private constructor() {
                     HookDiagnostics.Kind.CONSTRUCTOR,
                     className,
                     "<init>",
-                    argList(*parameterTypesAndCallback),
+                    HookInstallerFacade.argList(*parameterTypesAndCallback),
                     status,
                     t.javaClass.simpleName,
                 )
