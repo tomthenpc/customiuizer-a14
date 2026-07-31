@@ -29,6 +29,7 @@ import tv.withaibuild.customiuizer.mods.SystemStatusBarBackgroundHooks;
 import tv.withaibuild.customiuizer.mods.System;
 import tv.withaibuild.customiuizer.installers.InputMethodInstaller;
 import tv.withaibuild.customiuizer.installers.LauncherInstaller;
+import tv.withaibuild.customiuizer.installers.SettingsInstaller;
 import tv.withaibuild.customiuizer.installers.SystemUiInstaller;
 import tv.withaibuild.customiuizer.mods.SystemUIStatusBarHooks;
 import tv.withaibuild.customiuizer.mods.Various;
@@ -319,19 +320,7 @@ public class MainModule extends XposedModule {
         }
 
         if (pkg.equals("com.android.settings")) {
-            if (mPrefs.getStringAsInt("miuizer_settingsiconpos", 1) > 0) {
-                GlobalActions.miuizerSettingsHook(lpparam);
-            }
-            if (mPrefs.getBoolean("system_disableanynotif")) {
-                SystemNotificationHooks.DisableAnyNotificationHook(lpparam);
-                SystemNotificationHooks.DisableAnyNotificationBlockHook(lpparam);
-            }
-            if (mPrefs.getBoolean("system_notifimportance")) {
-                SystemNotificationHooks.NotificationImportanceHook(lpparam);
-            }
-            if (mPrefs.getBoolean("system_wifipassword")) {
-                System.ViewWifiPasswordHook(lpparam);
-            }
+            SettingsInstaller.install(lpparam, mPrefs);
         }
 
         if (pkg.equals("com.miui.packageinstaller")) {
