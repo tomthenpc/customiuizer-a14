@@ -315,13 +315,9 @@ object SystemLockScreenHooks {
 
                     val mContext = XposedHelpers.callMethod(thisObject, "getContext") as Context
                     val unlockStrongAuthReceiver = object : BroadcastReceiver() {
-                        override fun onReceive(context: Context, intent: Intent) {
-                            try {
-                                val mCallback = XposedHelpers.getObjectField(thisObject, "mKeyguardSecurityCallback")
-                                XposedHelpers.callMethod(mCallback, "reportUnlockAttempt", 0, 0, 0, true)
-                            } catch (t: Throwable) {
-                                XposedHelpers.log(t)
-                            }
+                        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                            val mCallback = XposedHelpers.getObjectField(thisObject, "mKeyguardSecurityCallback")
+                            XposedHelpers.callMethod(mCallback, "reportUnlockAttempt", 0, 0, 0, true)
                         }
                     }
                     ModuleHelper.registerModuleReceiver(
@@ -391,56 +387,58 @@ object SystemLockScreenHooks {
                     filter.addAction(GlobalActions.ACTION_PREFIX + "BTConnectionChanged")
                     val noScreenLockReceiver = object : BroadcastReceiver() {
                         override fun onReceive(context: Context, intent: Intent) {
-                            val action = intent.action ?: return
-                            when (action) {
-                                GlobalActions.ACTION_PREFIX + "UnlockSetForced" ->
-                                    if (!ModuleHelper.isTrustedBroadcast(this, Helpers.modulePkg, rejectionResultCode = GlobalActions.ACTION_FAILED)) return
-                                GlobalActions.ACTION_PREFIX + "BTConnectionChanged" ->
-                                    if (!ModuleHelper.isTrustedBroadcast(this, "com.android.systemui", rejectionResultCode = GlobalActions.ACTION_FAILED)) return
-                                WifiManager.NETWORK_STATE_CHANGED_ACTION -> { }
-                                else -> {
-                                    if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_FAILED)
-                                    return
+                            ModuleHelper.guarded {
+                                val action = intent.action ?: return@guarded
+                                when (action) {
+                                    GlobalActions.ACTION_PREFIX + "UnlockSetForced" ->
+                                        if (!ModuleHelper.isTrustedBroadcast(this, Helpers.modulePkg, rejectionResultCode = GlobalActions.ACTION_FAILED)) return@guarded
+                                    GlobalActions.ACTION_PREFIX + "BTConnectionChanged" ->
+                                        if (!ModuleHelper.isTrustedBroadcast(this, "com.android.systemui", rejectionResultCode = GlobalActions.ACTION_FAILED)) return@guarded
+                                    WifiManager.NETWORK_STATE_CHANGED_ACTION -> { }
+                                    else -> {
+                                        if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_FAILED)
+                                        return@guarded
+                                    }
                                 }
-                            }
 
-                            if (action == GlobalActions.ACTION_PREFIX + "UnlockSetForced")
-                                forcedOption = intent.getIntExtra("system_noscreenlock_force", -1)
+                                if (action == GlobalActions.ACTION_PREFIX + "UnlockSetForced")
+                                    forcedOption = intent.getIntExtra("system_noscreenlock_force", -1)
 
-                            val isShowing = XposedHelpers.getBooleanField(thisObject, "mShowing")
-                            if (!isShowing) return
-                            if (!isAuthOnce()) return
+                                val isShowing = XposedHelpers.getBooleanField(thisObject, "mShowing")
+                                if (!isShowing) return@guarded
+                                if (!isAuthOnce()) return@guarded
 
-                            var isTrusted = false
-                            if (forcedOption == 1) isTrusted = true
-                            else if (forcedOption != 0 && MainModule.mPrefs.getStringAsInt("system_noscreenlock", 1) == 3) {
-                                if (action == WifiManager.NETWORK_STATE_CHANGED_ACTION) {
-                                    val netInfo = intent.getParcelableExtra<NetworkInfo>(WifiManager.EXTRA_NETWORK_INFO)
-                                    if (netInfo == null) return
-                                    if (netInfo.state != NetworkInfo.State.CONNECTED && netInfo.state != NetworkInfo.State.DISCONNECTED)
-                                        return
-                                    if (netInfo.isConnected) isTrusted = isTrustedWiFi(mContext)
-                                } else if (action == GlobalActions.ACTION_PREFIX + "BTConnectionChanged") {
-                                    isTrusted = isTrustedBt(lpparam.classLoader)
+                                var isTrusted = false
+                                if (forcedOption == 1) isTrusted = true
+                                else if (forcedOption != 0 && MainModule.mPrefs.getStringAsInt("system_noscreenlock", 1) == 3) {
+                                    if (action == WifiManager.NETWORK_STATE_CHANGED_ACTION) {
+                                        val netInfo = intent.getParcelableExtra<NetworkInfo>(WifiManager.EXTRA_NETWORK_INFO)
+                                        if (netInfo == null) return@guarded
+                                        if (netInfo.state != NetworkInfo.State.CONNECTED && netInfo.state != NetworkInfo.State.DISCONNECTED)
+                                            return@guarded
+                                        if (netInfo.isConnected) isTrusted = isTrustedWiFi(mContext)
+                                    } else if (action == GlobalActions.ACTION_PREFIX + "BTConnectionChanged") {
+                                        isTrusted = isTrustedBt(lpparam.classLoader)
+                                    }
                                 }
-                            }
 
-                            if (isTrusted) {
-                                val skip = MainModule.mPrefs.getBoolean("system_noscreenlock_skip")
-                                if (skip)
-                                    XposedHelpers.callMethod(thisObject, "keyguardDone")
-                                else
-                                    XposedHelpers.callMethod(thisObject, "resetStateLocked", false)
-                                isUnlockedInnerCall = true
-                                val unlockIntent = Intent(GlobalActions.ACTION_PREFIX + "UnlockStrongAuth")
-                                unlockIntent.setPackage("com.android.systemui")
-                                mContext.sendBroadcast(unlockIntent)
-                            } else try {
-                                XposedHelpers.callMethod(thisObject, "resetStateLocked", true)
-                            } catch (t: Throwable) {
-                                XposedHelpers.log(t)
+                                if (isTrusted) {
+                                    val skip = MainModule.mPrefs.getBoolean("system_noscreenlock_skip")
+                                    if (skip)
+                                        XposedHelpers.callMethod(thisObject, "keyguardDone")
+                                    else
+                                        XposedHelpers.callMethod(thisObject, "resetStateLocked", false)
+                                    isUnlockedInnerCall = true
+                                    val unlockIntent = Intent(GlobalActions.ACTION_PREFIX + "UnlockStrongAuth")
+                                    unlockIntent.setPackage("com.android.systemui")
+                                    mContext.sendBroadcast(unlockIntent)
+                                } else {
+                                    ModuleHelper.guarded {
+                                        XposedHelpers.callMethod(thisObject, "resetStateLocked", true)
+                                    }
+                                }
+                                if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
                             }
-                            if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
                         }
                     }
                     ModuleHelper.registerModuleReceiver(mContext, "noScreenLockReceiver", noScreenLockReceiver, filter, Context.RECEIVER_EXPORTED)
@@ -1368,8 +1366,8 @@ object SystemLockScreenHooks {
                     val wallpaper = XposedHelpers.getObjectField(wallpaperData, "wallpaperFile") as File
 
                     Handler(mContext.mainLooper).postDelayed({
-                        try {
-                            if (!wallpaper.exists()) return@postDelayed
+                        ModuleHelper.guarded {
+                            if (!wallpaper.exists()) return@guarded
 
                             val lockWallpaperPath = "/data/system/theme/thirdparty_lock_wallpaper"
                             HookUtils.copyFile(wallpaper.absolutePath, lockWallpaperPath)
@@ -1377,7 +1375,7 @@ object SystemLockScreenHooks {
                             XposedHelpers.callStaticMethod(ThemeUtils, "updateFilePermissionWithThemeContext", lockWallpaperPath)
                             val data = JSONObject()
                             val ex = JSONObject()
-                            try {
+                            ModuleHelper.guarded {
                                 val lockWallpaper = File(lockWallpaperPath)
                                 ex
                                     .put("link_type", "0")
@@ -1422,16 +1420,12 @@ object SystemLockScreenHooks {
                                     .put("titleTextSize", -1)
                                     .put("totalOfAlbum", -1)
                                     .put("wallpaperUri", lockWallpaper.toURI())
-                            } catch (t: Throwable) {
-                                XposedHelpers.log(t)
                             }
 
                             val setIntent = Intent("com.miui.miwallpaper.UPDATE_LOCKSCREEN_WALLPAPER")
                             setIntent.putExtra("wallpaperInfo", data.toString())
                             setIntent.putExtra("apply", true)
                             mContext.sendBroadcast(setIntent)
-                        } catch (t: Throwable) {
-                            XposedHelpers.log(t)
                         }
                     }, 1800)
 

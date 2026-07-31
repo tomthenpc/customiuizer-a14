@@ -68,14 +68,10 @@ object SystemUILockScreenHooks {
     private var lockScreenAlbumArtReceiverRegistered = false
 
     private val lockScreenAlbumArtReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action != GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART") return
-            val controller = lockScreenAlbumArtController?.get() ?: return
-            try {
-                XposedHelpers.callMethod(controller, "updateThemeBackgroundVisibility")
-            } catch (t: Throwable) {
-                XposedHelpers.log(t)
-            }
+        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+            if (intent.action != GlobalActions.EVENT_PREFIX + "UPDATE_LS_ALBUM_ART") return@guarded
+            val controller = lockScreenAlbumArtController?.get() ?: return@guarded
+            XposedHelpers.callMethod(controller, "updateThemeBackgroundVisibility")
         }
     }
 

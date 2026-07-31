@@ -134,7 +134,7 @@ object SystemNotificationHooks {
                     XposedHelpers.setIntField(thisObject, "mMinimumDisplayTime", delay)
                     XposedHelpers.setIntField(thisObject, "mHeadsUpNotificationDecay", delay)
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
-                        override fun onChange(key: String?) {
+                        override fun onChange(key: String?) = ModuleHelper.guarded {
                             if (key?.contains("system_betterpopups_delay") == true) {
                                 var delay2 = MainModule.mPrefs.getInt("system_betterpopups_delay", 0) * 1000
                                 if (delay2 == 0) delay2 = 5000
@@ -250,42 +250,42 @@ object SystemNotificationHooks {
                     val mOpenFwBtn = XposedHelpers.callMethod(openFwBtn, "getMenuView") as View
                     val expandNotifyRow = XposedHelpers.getObjectField(thisObject, "mParent")
                     val itemClick = View.OnClickListener { view ->
-                        if (view == null) return@OnClickListener
-                        val uid = XposedHelpers.getIntField(notification, "mAppUid")
-                        var user = 0
-                        try {
-                            user = XposedHelpers.callStaticMethod(UserHandle::class.java, "getUserId", uid) as Int
-                        } catch (t: Throwable) {
-                            XposedHelpers.log(t)
-                        }
-
-                        if (view == mInfoBtn) {
-                            ModuleHelper.openAppInfo(mContext, pkgName, user)
-                        } else if (view == mForceCloseBtn) {
-                            val am = mContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                            if (user != 0)
-                                XposedHelpers.callMethod(am, "forceStopPackageAsUser", pkgName, user)
-                            else
-                                XposedHelpers.callMethod(am, "forceStopPackage", pkgName)
-                            try {
-                                val appName = mContext.packageManager.getApplicationLabel(mContext.packageManager.getApplicationInfo(pkgName, 0))
-                                Toast.makeText(mContext, ModuleHelper.getModuleRes(mContext).getString(R.string.force_closed, appName), Toast.LENGTH_SHORT).show()
-                            } catch (ignore: Throwable) {}
-                        } else if (view == mOpenFwBtn) {
-                            val miniWindowPkg = XposedHelpers.callMethod(expandNotifyRow, "getMiniWindowTargetPkg") as String
-                            val notifyIntent = XposedHelpers.callMethod(expandNotifyRow, "getPendingIntent") as PendingIntent
-                            try {
-                                val options = ModuleHelper.getFreeformOptions(mContext, miniWindowPkg, notifyIntent, true)
-                                notifyIntent.send(mContext, 0, ModuleHelper.getFreeformIntent(miniWindowPkg), null, null, null, options)
-                            } catch (e: PendingIntent.CanceledException) {
-                                throw RuntimeException(e)
+                        ModuleHelper.guarded {
+                            if (view == null) return@OnClickListener
+                            val uid = XposedHelpers.getIntField(notification, "mAppUid")
+                            var user = 0
+                            ModuleHelper.guarded {
+                                user = XposedHelpers.callStaticMethod(UserHandle::class.java, "getUserId", uid) as Int
                             }
+
+                            if (view == mInfoBtn) {
+                                ModuleHelper.openAppInfo(mContext, pkgName, user)
+                            } else if (view == mForceCloseBtn) {
+                                val am = mContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                                if (user != 0)
+                                    XposedHelpers.callMethod(am, "forceStopPackageAsUser", pkgName, user)
+                                else
+                                    XposedHelpers.callMethod(am, "forceStopPackage", pkgName)
+                                ModuleHelper.guarded {
+                                    val appName = mContext.packageManager.getApplicationLabel(mContext.packageManager.getApplicationInfo(pkgName, 0))
+                                    Toast.makeText(mContext, ModuleHelper.getModuleRes(mContext).getString(R.string.force_closed, appName), Toast.LENGTH_SHORT).show()
+                                }
+                            } else if (view == mOpenFwBtn) {
+                                val miniWindowPkg = XposedHelpers.callMethod(expandNotifyRow, "getMiniWindowTargetPkg") as String
+                                val notifyIntent = XposedHelpers.callMethod(expandNotifyRow, "getPendingIntent") as PendingIntent
+                                try {
+                                    val options = ModuleHelper.getFreeformOptions(mContext, miniWindowPkg, notifyIntent, true)
+                                    notifyIntent.send(mContext, 0, ModuleHelper.getFreeformIntent(miniWindowPkg), null, null, null, options)
+                                } catch (e: PendingIntent.CanceledException) {
+                                    throw RuntimeException(e)
+                                }
+                            }
+                            val ModalControllerForDep = "com.android.systemui.statusbar.notification.modal.ModalController"
+                            val ModalController = ModuleHelper.getDepInstance(lpparam.classLoader, ModalControllerForDep)
+                            XposedHelpers.callMethod(ModalController, "animExitModal", "OTHER")
+                            val mCommandQueue = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.CommandQueue")
+                            XposedHelpers.callMethod(mCommandQueue, "animateCollapsePanels", 0, false)
                         }
-                        val ModalControllerForDep = "com.android.systemui.statusbar.notification.modal.ModalController"
-                        val ModalController = ModuleHelper.getDepInstance(lpparam.classLoader, ModalControllerForDep)
-                        XposedHelpers.callMethod(ModalController, "animExitModal", "OTHER")
-                        val mCommandQueue = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.CommandQueue")
-                        XposedHelpers.callMethod(mCommandQueue, "animateCollapsePanels", 0, false)
                     }
                     mInfoBtn.setOnClickListener(itemClick)
                     mOpenFwBtn.setOnClickListener(itemClick)
@@ -630,7 +630,7 @@ object SystemNotificationHooks {
                     val mInfoItem = XposedHelpers.getObjectField(thisObject, "mInfoItem")
                     val mIcon = XposedHelpers.getObjectField(mInfoItem, "mIcon") as ImageView
                     mIcon.setOnClickListener(View.OnClickListener {
-                        try {
+                        ModuleHelper.guarded {
                             val bundle = Bundle()
                             bundle.putString("android.provider.extra.CHANNEL_ID", channelId)
                             val pkgName = XposedHelpers.callMethod(notification, "getPackageName") as String
@@ -649,8 +649,6 @@ object SystemNotificationHooks {
                             XposedHelpers.callMethod(modalController, "animExitModal", 50L, true, "MORE", false)
                             val statusBar = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.CommandQueue")
                             XposedHelpers.callMethod(statusBar, "animateCollapsePanels", 0, false)
-                        } catch (ignore: Throwable) {
-                            XposedHelpers.log(ignore)
                         }
                     })
 

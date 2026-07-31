@@ -87,8 +87,8 @@ object SystemUIScreenshotHooks {
             }
         }
 
-        override fun onViewAttachedToWindow(v: View) {
-            if (registered) return
+        override fun onViewAttachedToWindow(v: View) = ModuleHelper.guarded {
+            if (registered) return@guarded
             v.context.registerReceiver(
                 this,
                 IntentFilter(SCREENSHOT_ACTION),
@@ -97,14 +97,10 @@ object SystemUIScreenshotHooks {
             registered = true
         }
 
-        override fun onViewDetachedFromWindow(v: View) {
-            if (!registered) return
+        override fun onViewDetachedFromWindow(v: View) = ModuleHelper.guarded {
+            if (!registered) return@guarded
             registered = false
-            try {
-                v.context.unregisterReceiver(this)
-            } catch (t: Throwable) {
-                XposedHelpers.log(t)
-            }
+            v.context.unregisterReceiver(this)
         }
     }
 

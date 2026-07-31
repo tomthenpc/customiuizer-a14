@@ -306,46 +306,42 @@ object GlobalActionSystemServerHooks {
                         val intentfilter = IntentFilter()
                         intentfilter.addAction(GlobalActions.ACTION_PREFIX + "PinningWindow")
                         val mFreeFormReceiver = object : BroadcastReceiver() {
-                            override fun onReceive(context: Context, intent: Intent) {
-                                if (intent.action == null) return
+                            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                                if (intent.action == null) return@guarded
                                 val action = intent.action
                                 if (action == GlobalActions.ACTION_PREFIX + "PinningWindow") {
-                                    try {
-                                        val foregroundInfo = ProcessManager.getForegroundInfo()
-                                        if (foregroundInfo != null) {
-                                            val topPackage = foregroundInfo.mForegroundPackageName
-                                            if ("com.miui.home" == topPackage) return
-                                        } else return
+                                    val foregroundInfo = ProcessManager.getForegroundInfo()
+                                    if (foregroundInfo != null) {
+                                        val topPackage = foregroundInfo.mForegroundPackageName
+                                        if ("com.miui.home" == topPackage) return@guarded
+                                    } else return@guarded
 
-                                        val activityTaskManagerCls = XposedHelpers.findClassIfExists("android.app.ActivityTaskManager", context.classLoader)
-                                        val activityTaskManager = XposedHelpers.callStaticMethod(activityTaskManagerCls, "getService")
-                                        val freeFormStackInfoList = MiuiFreeFormManager.getAllFreeFormStackInfosOnDisplay(0)
-                                        var freeFormCount = 0
-                                        if (freeFormStackInfoList != null) freeFormCount = freeFormStackInfoList.size
-                                        if (freeFormCount == 2) return
-                                        val rootTaskInfos = XposedHelpers.callMethod(activityTaskManager, "getAllRootTaskInfosOnDisplay", 0) as List<*>
-                                        val freeformController = thisObject
-                                        for (rootTaskInfo in rootTaskInfos) {
-                                            val conf = XposedHelpers.getObjectField(rootTaskInfo, "configuration")
-                                            val windowConfiguration = XposedHelpers.getObjectField(conf, "windowConfiguration")
-                                            val wmode = XposedHelpers.getIntField(windowConfiguration, "mWindowingMode")
-                                            val mActivityType = XposedHelpers.getIntField(windowConfiguration, "mActivityType")
-                                            if (wmode < 2 && mActivityType < 2) {
-                                                val taskId = XposedHelpers.getIntField(rootTaskInfo, "taskId")
-                                                XposedHelpers.callMethod(freeformController, "freeformFullscreenTask", taskId)
-                                                val myhandler = Handler(Looper.myLooper()!!)
-                                                val removeBg = object : Runnable {
-                                                    override fun run() = ModuleHelper.guarded {
-                                                        myhandler.removeCallbacks(this)
-                                                        XposedHelpers.callMethod(freeformController, "pinAllFreeForm")
-                                                    }
+                                    val activityTaskManagerCls = XposedHelpers.findClassIfExists("android.app.ActivityTaskManager", context.classLoader)
+                                    val activityTaskManager = XposedHelpers.callStaticMethod(activityTaskManagerCls, "getService")
+                                    val freeFormStackInfoList = MiuiFreeFormManager.getAllFreeFormStackInfosOnDisplay(0)
+                                    var freeFormCount = 0
+                                    if (freeFormStackInfoList != null) freeFormCount = freeFormStackInfoList.size
+                                    if (freeFormCount == 2) return@guarded
+                                    val rootTaskInfos = XposedHelpers.callMethod(activityTaskManager, "getAllRootTaskInfosOnDisplay", 0) as List<*>
+                                    val freeformController = thisObject
+                                    for (rootTaskInfo in rootTaskInfos) {
+                                        val conf = XposedHelpers.getObjectField(rootTaskInfo, "configuration")
+                                        val windowConfiguration = XposedHelpers.getObjectField(conf, "windowConfiguration")
+                                        val wmode = XposedHelpers.getIntField(windowConfiguration, "mWindowingMode")
+                                        val mActivityType = XposedHelpers.getIntField(windowConfiguration, "mActivityType")
+                                        if (wmode < 2 && mActivityType < 2) {
+                                            val taskId = XposedHelpers.getIntField(rootTaskInfo, "taskId")
+                                            XposedHelpers.callMethod(freeformController, "freeformFullscreenTask", taskId)
+                                            val myhandler = Handler(Looper.myLooper()!!)
+                                            val removeBg = object : Runnable {
+                                                override fun run() = ModuleHelper.guarded {
+                                                    myhandler.removeCallbacks(this)
+                                                    XposedHelpers.callMethod(freeformController, "pinAllFreeForm")
                                                 }
-                                                myhandler.postDelayed(removeBg, 200)
-                                                return
                                             }
+                                            myhandler.postDelayed(removeBg, 200)
+                                            return@guarded
                                         }
-                                    } catch (err: Throwable) {
-                                        XposedHelpers.log(err)
                                     }
                                 }
                             }
@@ -375,34 +371,30 @@ object GlobalActionSystemServerHooks {
                         val intentfilter = IntentFilter()
                         intentfilter.addAction(GlobalActions.ACTION_PREFIX + "SplitScreen")
                         val mFreeFormReceiver = object : BroadcastReceiver() {
-                            override fun onReceive(context: Context, intent: Intent) {
-                                if (intent.action == null) return
+                            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                                if (intent.action == null) return@guarded
                                 val action = intent.action
                                 if (action == GlobalActions.ACTION_PREFIX + "SplitScreen") {
-                                    try {
-                                        val foregroundInfo = ProcessManager.getForegroundInfo()
-                                        if (foregroundInfo != null) {
-                                            val topPackage = foregroundInfo.mForegroundPackageName
-                                            if ("com.miui.home" == topPackage) return
-                                        } else return
+                                    val foregroundInfo = ProcessManager.getForegroundInfo()
+                                    if (foregroundInfo != null) {
+                                        val topPackage = foregroundInfo.mForegroundPackageName
+                                        if ("com.miui.home" == topPackage) return@guarded
+                                    } else return@guarded
 
-                                        val activityTaskManagerCls = XposedHelpers.findClassIfExists("android.app.ActivityTaskManager", context.classLoader)
-                                        val activityTaskManager = XposedHelpers.callStaticMethod(activityTaskManagerCls, "getService")
-                                        val rootTaskInfos = XposedHelpers.callMethod(activityTaskManager, "getAllRootTaskInfosOnDisplay", 0) as List<*>
-                                        val freeformController = thisObject
-                                        for (rootTaskInfo in rootTaskInfos) {
-                                            val conf = XposedHelpers.getObjectField(rootTaskInfo, "configuration")
-                                            val windowConfiguration = XposedHelpers.getObjectField(conf, "windowConfiguration")
-                                            val wmode = XposedHelpers.getIntField(windowConfiguration, "mWindowingMode")
-                                            val mActivityType = XposedHelpers.getIntField(windowConfiguration, "mActivityType")
-                                            if (wmode < 2 && mActivityType < 2) {
-                                                val taskId = XposedHelpers.getIntField(rootTaskInfo, "taskId")
-                                                XposedHelpers.callMethod(freeformController, "startTask", taskId, 0, null)
-                                                return
-                                            }
+                                    val activityTaskManagerCls = XposedHelpers.findClassIfExists("android.app.ActivityTaskManager", context.classLoader)
+                                    val activityTaskManager = XposedHelpers.callStaticMethod(activityTaskManagerCls, "getService")
+                                    val rootTaskInfos = XposedHelpers.callMethod(activityTaskManager, "getAllRootTaskInfosOnDisplay", 0) as List<*>
+                                    val freeformController = thisObject
+                                    for (rootTaskInfo in rootTaskInfos) {
+                                        val conf = XposedHelpers.getObjectField(rootTaskInfo, "configuration")
+                                        val windowConfiguration = XposedHelpers.getObjectField(conf, "windowConfiguration")
+                                        val wmode = XposedHelpers.getIntField(windowConfiguration, "mWindowingMode")
+                                        val mActivityType = XposedHelpers.getIntField(windowConfiguration, "mActivityType")
+                                        if (wmode < 2 && mActivityType < 2) {
+                                            val taskId = XposedHelpers.getIntField(rootTaskInfo, "taskId")
+                                            XposedHelpers.callMethod(freeformController, "startTask", taskId, 0, null)
+                                            return@guarded
                                         }
-                                    } catch (err: Throwable) {
-                                        XposedHelpers.log(err)
                                     }
                                 }
                             }
@@ -432,22 +424,17 @@ object GlobalActionSystemServerHooks {
                         val intentfilter = IntentFilter()
                         intentfilter.addAction(GlobalActions.ACTION_PREFIX + "ToggleAutoBrightness")
                         val mFreeFormReceiver = object : BroadcastReceiver() {
-                            override fun onReceive(context: Context, intent: Intent) {
-                                if (intent.action == null) return
+                            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                                if (intent.action == null) return@guarded
                                 val action = intent.action
                                 if (action == GlobalActions.ACTION_PREFIX + "ToggleAutoBrightness") {
-                                    var modRes: android.content.res.Resources? = null
-                                    try {
-                                        modRes = ModuleHelper.getModuleRes(mContext)
-                                        val enabled = XposedHelpers.getBooleanField(thisObject, "enabled")
-                                        XposedHelpers.callMethod(thisObject, "toggleAutoBrightness")
-                                        if (enabled) {
-                                            Toast.makeText(context, modRes.getString(R.string.toggle_autobright_off), Toast.LENGTH_SHORT).show()
-                                        } else {
-                                            Toast.makeText(context, modRes.getString(R.string.toggle_autobright_on), Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (t: Throwable) {
-                                        XposedHelpers.log(t)
+                                    val modRes = ModuleHelper.getModuleRes(mContext)
+                                    val enabled = XposedHelpers.getBooleanField(thisObject, "enabled")
+                                    XposedHelpers.callMethod(thisObject, "toggleAutoBrightness")
+                                    if (enabled) {
+                                        Toast.makeText(context, modRes.getString(R.string.toggle_autobright_off), Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, modRes.getString(R.string.toggle_autobright_on), Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             }

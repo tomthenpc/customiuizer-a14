@@ -118,16 +118,12 @@ object SystemUIControlCenterHooks {
     private var volumeBlurObserverRegistered = false
 
     private val volumeBlurPreferenceObserver = object : ModuleHelper.PreferenceObserver {
-        override fun onChange(key: String?) {
-            try {
-                if (key == "pref_key_system_volumeblur_collapsed") {
-                    blurCollapsed = MainModule.mPrefs.getInt(key, 0) / 100f
-                }
-                if (key == "pref_key_system_volumeblur_expanded") {
-                    blurExpanded = MainModule.mPrefs.getInt(key, 0) / 100f
-                }
-            } catch (t: Throwable) {
-                XposedHelpers.log(t)
+        override fun onChange(key: String?) = ModuleHelper.guarded {
+            if (key == "pref_key_system_volumeblur_collapsed") {
+                blurCollapsed = MainModule.mPrefs.getInt(key, 0) / 100f
+            }
+            if (key == "pref_key_system_volumeblur_expanded") {
+                blurExpanded = MainModule.mPrefs.getInt(key, 0) / 100f
             }
         }
     }

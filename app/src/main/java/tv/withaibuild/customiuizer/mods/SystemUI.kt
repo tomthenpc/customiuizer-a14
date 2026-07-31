@@ -79,15 +79,17 @@ object SystemUI {
                         )
                     )
                     confirmDlg.setButton(-1, Resources.getSystem().getString(android.R.string.ok), DialogInterface.OnClickListener { _, _ ->
-                        val pm = mContext.getSystemService(Context.POWER_SERVICE) as PowerManager
-                        val mService = XposedHelpers.getObjectField(pm, "mService")
-                        if (mMessageResId == recoveryTitleId) {
-                            XposedHelpers.callMethod(mService, "reboot", false, "recovery", false)
-                        } else {
-                            XposedHelpers.callMethod(mService, "reboot", false, "bootloader", false)
+                        ModuleHelper.guarded {
+                            val pm = mContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+                            val mService = XposedHelpers.getObjectField(pm, "mService")
+                            if (mMessageResId == recoveryTitleId) {
+                                XposedHelpers.callMethod(mService, "reboot", false, "recovery", false)
+                            } else {
+                                XposedHelpers.callMethod(mService, "reboot", false, "bootloader", false)
+                            }
                         }
                     })
-                    confirmDlg.setButton(-2, Resources.getSystem().getString(android.R.string.cancel), DialogInterface.OnClickListener { _, _ -> })
+                    confirmDlg.setButton(-2, Resources.getSystem().getString(android.R.string.cancel), DialogInterface.OnClickListener { _, _ -> ModuleHelper.guarded { } })
                     confirmDlg.show()
                     param.returnAndSkip(null)
                 }
