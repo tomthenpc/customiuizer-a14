@@ -27,6 +27,7 @@ import tv.withaibuild.customiuizer.mods.SystemNotificationHooks;
 import tv.withaibuild.customiuizer.mods.SystemWindowHooks;
 import tv.withaibuild.customiuizer.mods.SystemStatusBarBackgroundHooks;
 import tv.withaibuild.customiuizer.mods.System;
+import tv.withaibuild.customiuizer.installers.InputMethodInstaller;
 import tv.withaibuild.customiuizer.installers.LauncherInstaller;
 import tv.withaibuild.customiuizer.installers.SystemUiInstaller;
 import tv.withaibuild.customiuizer.mods.SystemUIStatusBarHooks;
@@ -160,14 +161,7 @@ public class MainModule extends XposedModule {
             || pkg.startsWith("com.touchtype.swiftkey")
             || pkg.startsWith("com.tencent.wetype")
         ) {
-            if (mPrefs.getBoolean("controls_volumecursor")) Controls.VolumeCursorHook(lpparam);
-            if (mPrefs.getBoolean("controls_nonavbar_fix_inputmethod")
-                && mPrefs.getBoolean("controls_nonavbar")) {
-                Various.FixInputMethodBottomMarginHook(lpparam);
-            }
-            if (pkg.startsWith("com.google.android.inputmethod")) {
-                if (mPrefs.getInt("various_gboardpadding_port", 0) > 0 || mPrefs.getInt("various_gboardpadding_land", 0) > 0) Various.GboardPaddingHook(lpparam);
-            }
+            InputMethodInstaller.install(lpparam, mPrefs);
             HookDiagnostics.printSummaryForStage("onPackageReady");
             return;
         }
