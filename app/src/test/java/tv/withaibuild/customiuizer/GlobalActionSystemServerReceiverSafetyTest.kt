@@ -80,24 +80,24 @@ class GlobalActionSystemServerReceiverSafetyTest {
     }
 
     @Test
-    fun phoneWindowManagerActionReceiver_completedOnlyAfterBusinessBody() {
+    fun phoneWindowManagerActionReceiver_completedOnlyInsideBusinessBody() {
         val receiver = phoneWindowManagerActionReceiverSource()
 
         assertTrue(
-            "completed = true must be present after the when block",
+            "completed = true must be present inside the when branches",
             receiver.contains("completed = true")
         )
 
         val whenBody = whenBody(receiver)
-        assertFalse(
-            "completed must not be set to true inside the when branches",
+        assertTrue(
+            "completed must be set to true inside the when branches",
             whenBody.contains("completed = true")
         )
 
-        // completed = true must appear after the when block closes, not inside it.
+        // completed = true must not appear after the when block; it is set per action branch.
         val afterWhen = receiver.substring(receiver.indexOf(whenBody) + whenBody.length)
-        assertTrue(
-            "completed = true must follow the when block",
+        assertFalse(
+            "completed = true must not be set unconditionally after the when block",
             afterWhen.contains("completed = true")
         )
     }
