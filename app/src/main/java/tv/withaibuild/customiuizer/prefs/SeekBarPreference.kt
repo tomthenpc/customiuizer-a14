@@ -18,7 +18,7 @@ import kotlin.math.roundToInt
 class SeekBarPreference @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet?,
-    defStyleAttr: Int = 0
+    defStyleAttr: Int = androidx.preference.R.attr.preferenceStyle
 ) : Preference(context, attrs, defStyleAttr), PreferenceState {
 
     private var dynamic = false
