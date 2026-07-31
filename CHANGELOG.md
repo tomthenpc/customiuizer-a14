@@ -40,6 +40,10 @@ LSPosed 日志验证。
   `feature-semantics/a14.json` 元数据；`prefs_system_detailednetspeed.xml` 与主体实现语义一致。
 - 从 `fix/a14-ui-text-inheritance-and-about-wrap` 纳入 `SeekBarPreference` 系统文本样式继承
   保持与 About 页面换行修复。
+- 修复 SystemUI 状态栏网速加粗不生效：新增 `applyNetSpeedTextStyle` 统一负责字号、字体、加粗、
+  行距、对齐、边距与 fixed width；以当前字体为基线叠加 `Typeface.BOLD`，并配合 `Paint.isFakeBoldText`
+  作为无有效粗体字形时的兜底；在 `TextView.setTextAppearance`、`NetworkSpeedView.onFinishInflate`、
+  `NetworkSpeedView.setNetworkSpeed` 等可能覆盖字体的生命周期点后重新应用样式，避免反复叠加。
 - 删除 `.github/workflows/ci.yml`（CI 不再维护）。
 - 更新 `README`、`README_EN`、`docs/BUILD_AND_RELEASE.md`、`docs/MAINTENANCE_CHECKPOINT.md` 等
   当前文档到 `r14.15.3`。

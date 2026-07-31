@@ -9,7 +9,7 @@
 - 当前工作分支：`release/r14.15.3`
 - 当前候选版本：`r14.15.3` / versionCode `191`
 - 分支起始点：`origin/integration/a14-r14.15.1` / `9dd52ec1`
-- 状态：`r14.15.3` 本地正式签名候选版本，静态检查和构建通过，待 Android 14 / HyperOS 实机及 LSPosed 日志验证。
+- 状态：`r14.15.3` 本地正式签名候选版本，静态检查和构建通过；本轮修复 SystemUI 网速加粗不生效，待 Android 14 / HyperOS 实机及 LSPosed 日志验证。
 - 整合台账：[BRANCH_CONSOLIDATION_R14_15_3.md](BRANCH_CONSOLIDATION_R14_15_3.md)
 - 已整合分支：
   - `hardening/a14-lts-foundation`（contained，不重复合并）
@@ -26,7 +26,7 @@
 - `python tools/check-invariants.py` → 119 files, no violations
 - `python -m unittest discover -s tools/tests -p "test_*.py"` → 103 tests, 0 failures
 - `python tools/audit-feature-semantics.py --validate` → Validation passed
-- `gradlew.bat test` → BUILD SUCCESSFUL
+- `gradlew.bat test` → BUILD SUCCESSFUL（242 单元测试 0 失败，含新增 `NetSpeedTypefaceStyleTest`）
 - `gradlew.bat lintDebug lintRelease lintVitalRelease` → BUILD SUCCESSFUL
 - `gradlew.bat assembleDebug assembleRelease :broadcast-probe:assembleDebug` → BUILD SUCCESSFUL
 - `gradlew.bat clean :app:assembleDebug :app:assembleRelease -PofficialRelease=true` → BUILD SUCCESSFUL
@@ -35,9 +35,10 @@
 - `aapt2 dump badging` → `package='tv.withaibuild.customiuizer.r14' versionCode='191' versionName='r14.15.3'`
 - `META-INF/xposed/module.prop` → `minApiVersion=101 targetApiVersion=102 staticScope=false`
 - 产物：`../release-output/A14/CustoMIUIzer-A14-r14.15.3.apk`（3,107,273 bytes）
-- APK SHA-256：`2561BFA49CC8B32E931AFE2B7B520CC2A535B8D333EC8E9A8FF3D73EB19DE58D`
+- APK SHA-256：`8E8DA3F3F557D62F3D44C14865A21073DAF896726B4DD48B7E1557CA5C590A65`
+- 关键修复：SystemUI 网速加粗不生效 → 新增 `applyNetSpeedTextStyle` 统一管理字号、字体、加粗、行距、对齐、边距与 fixed width；以当前字体为基线叠加 `Typeface.BOLD` 并配合 `Paint.isFakeBoldText` 兜底；在 `TextView.setTextAppearance`、`NetworkSpeedView.onFinishInflate`、`NetworkSpeedView.setNetworkSpeed` 后重新应用，避免被覆盖。
 
-**未完成/待实机验证：** 网速显示（行距 70%–130%）、About 页面换行、双行网速、完整人工冒烟测试。
+**未完成/待实机验证：** 网速显示（加粗、行距 70%–130%）、About 页面换行、双行网速、完整人工冒烟测试。
 
 ## ⚠️ 本版本的验证状态
 

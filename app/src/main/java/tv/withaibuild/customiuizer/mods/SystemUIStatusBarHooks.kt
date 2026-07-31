@@ -65,6 +65,9 @@ internal fun resolveNetSpeedLineSpacing(
     return baseSpacing * adjustment / 100f
 }
 
+internal fun resolveNetSpeedTypefaceStyle(baseStyle: Int, bold: Boolean): Int =
+    if (bold) baseStyle or Typeface.BOLD else baseStyle and Typeface.BOLD.inv()
+
 object SystemUIStatusBarHooks {
 
     private val StatusBarCls = "com.android.systemui.statusbar.phone.CentralSurfacesImpl"
@@ -74,6 +77,12 @@ object SystemUIStatusBarHooks {
     val textIconTagId = ResourceHooks.getFakeResId("text_icon_tag")
 
     private val viewInitedTag = ResourceHooks.getFakeResId("view_inited_tag")
+
+    private val netspeedNumberViewTag = ResourceHooks.getFakeResId("netspeed_number_view")
+
+    private val netspeedUnitViewTag = ResourceHooks.getFakeResId("netspeed_unit_view")
+
+    private val netspeedTypefaceStateTag = ResourceHooks.getFakeResId("netspeed_typeface_state")
 
     @JvmStatic
     fun setupStatusBar(mContext: Context) {
@@ -1200,114 +1209,175 @@ object SystemUIStatusBarHooks {
         })
     }
 
-    private fun initNetSpeedStyle(speedView: LinearLayout) {
+    private class NetSpeedTypefaceState(var base: Typeface? = null, var target: Typeface? = null)
+
+    private fun getNetSpeedNumberView(speedView: LinearLayout): TextView? {
+        val cached = speedView.getTag(netspeedNumberViewTag) as? TextView
+        if (cached != null) return cached
+        val numberView = XposedHelpers.getObjectField(speedView, "mNetworkSpeedNumberText") as? TextView ?: return null
+        speedView.setTag(netspeedNumberViewTag, numberView)
+        return numberView
+    }
+
+    private fun getNetSpeedUnitView(speedView: LinearLayout): TextView? {
+        val cached = speedView.getTag(netspeedUnitViewTag) as? TextView
+        if (cached != null) return cached
+        val unitView = XposedHelpers.getObjectField(speedView, "mNetworkSpeedUnitText") as? TextView ?: return null
+        speedView.setTag(netspeedUnitViewTag, unitView)
+        return unitView
+    }
+
+    private fun ensureNetSpeedTypeface(textView: TextView, bold: Boolean) {
+        val state = textView.getTag(netspeedTypefaceStateTag) as? NetSpeedTypefaceState
+            ?: NetSpeedTypefaceState().also { textView.setTag(netspeedTypefaceStateTag, it) }
+
+        val current = textView.typeface
+        if (state.target != null && current === state.target && textView.paint.isFakeBoldText == bold) return
+
+        if (state.target != null && current !== state.target) {
+            state.base = current
+            state.target = null
+        }
+
+        if (state.base == null) state.base = current
+
+        val base = state.base
+        val targetStyle = resolveNetSpeedTypefaceStyle(base?.style ?: 0, bold)
+        val target = Typeface.create(base, targetStyle)
+        textView.typeface = target
+        textView.paint.isFakeBoldText = bold
+        state.target = target
+    }
+
+    private fun applyNetSpeedTextStyle(speedView: LinearLayout, typefaceOnly: Boolean = false) {
+        if (speedView.tag as? String == "slot_text_icon") return
+
+        val numberView = getNetSpeedNumberView(speedView) ?: return
+        val unitView = getNetSpeedUnitView(speedView)
+
         val speedStyle = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_style", 1)
-        val numberView = getIconTextView(speedView)
-        val unitView = XposedHelpers.getObjectField(speedView, "mNetworkSpeedUnitText") as TextView
+        val unitVisible = speedStyle == 1
+        val bold = MainModule.mPrefs.getBoolean("system_netspeed_boldfont")
 
-        val fontSize = MainModule.mPrefs.getInt("system_netspeed_fontsize", 13)
-        if (fontSize > 13) {
-            numberView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, fontSize * 0.5f)
-            if (speedStyle == 1) {
-                unitView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, fontSize * 0.5f)
-            }
-        }
+        if (!typefaceOnly) {
+            val fontSize = MainModule.mPrefs.getInt("system_netspeed_fontsize", 13)
 
-        val boldFont = MainModule.mPrefs.getBoolean("system_netspeed_boldfont")
-        if (boldFont) {
-            numberView.typeface = Typeface.create(numberView.typeface, Typeface.BOLD)
-            if (speedStyle == 1) {
-                unitView.typeface = Typeface.create(unitView.typeface, Typeface.BOLD)
+            if (fontSize > 13) {
+                val size = fontSize * 0.5f
+                numberView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, size)
+                if (unitVisible) unitView?.setTextSize(TypedValue.COMPLEX_UNIT_DIP, size)
             }
-        }
 
-        val fixedWidth = MainModule.mPrefs.getInt("system_netspeed_fixedcontent_width", 10)
-        val singleOrDual = speedStyle == 2 || speedStyle == 3
-        if (singleOrDual) {
-            numberView.gravity = Gravity.CENTER_VERTICAL or Gravity.START
-            unitView.visibility = View.GONE
-        }
-        if (fixedWidth > 10 || singleOrDual) {
-            val lp = numberView.layoutParams as LinearLayout.LayoutParams
-            if (fixedWidth > 10) {
-                lp.width = HookUtils.dp2px(fixedWidth.toFloat()).toInt()
-            }
+            val fixedWidth = MainModule.mPrefs.getInt("system_netspeed_fixedcontent_width", 10)
+            val singleOrDual = speedStyle == 2 || speedStyle == 3
             if (singleOrDual) {
-                lp.topMargin = 0
-                lp.height = -1
-                lp.bottomMargin = 0
+                numberView.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                unitView?.visibility = View.GONE
             }
-            numberView.layoutParams = lp
-            unitView.layoutParams = lp
-        }
-
-        var leftMargin = MainModule.mPrefs.getInt("system_netspeed_leftmargin", 0)
-        leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
-        var rightMargin = MainModule.mPrefs.getInt("system_netspeed_rightmargin", 0)
-        rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
-        var topMargin = 0
-        val verticalOffset = MainModule.mPrefs.getInt("system_netspeed_verticaloffset", 8)
-        if (verticalOffset != 8) {
-            topMargin = HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
-        }
-        speedView.translationY = topMargin.toFloat()
-        speedView.setPaddingRelative(leftMargin, 0, rightMargin, 0)
-
-        val align = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_align", 1)
-        if (align > 1) {
-            var alignVal = View.TEXT_ALIGNMENT_TEXT_START
-            if (align == 3) {
-                alignVal = View.TEXT_ALIGNMENT_CENTER
-            } else if (align == 4) {
-                alignVal = View.TEXT_ALIGNMENT_TEXT_END
+            if (fixedWidth > 10 || singleOrDual) {
+                val lp = numberView.layoutParams as? LinearLayout.LayoutParams ?: LinearLayout.LayoutParams(-2, -2)
+                if (fixedWidth > 10) {
+                    lp.width = HookUtils.dp2px(fixedWidth.toFloat()).toInt()
+                }
+                if (singleOrDual) {
+                    lp.topMargin = 0
+                    lp.height = -1
+                    lp.bottomMargin = 0
+                }
+                numberView.layoutParams = lp
+                unitView?.layoutParams = lp
             }
-            numberView.textAlignment = alignVal
-            unitView.textAlignment = alignVal
+
+            var leftMargin = MainModule.mPrefs.getInt("system_netspeed_leftmargin", 0)
+            leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
+            var rightMargin = MainModule.mPrefs.getInt("system_netspeed_rightmargin", 0)
+            rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
+            val verticalOffset = MainModule.mPrefs.getInt("system_netspeed_verticaloffset", 8)
+            val topMargin = if (verticalOffset == 8) 0 else HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
+            speedView.translationY = topMargin.toFloat()
+            speedView.setPaddingRelative(leftMargin, 0, rightMargin, 0)
+
+            val align = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_align", 1)
+            if (align > 1) {
+                val alignVal = when (align) {
+                    3 -> View.TEXT_ALIGNMENT_CENTER
+                    4 -> View.TEXT_ALIGNMENT_TEXT_END
+                    else -> View.TEXT_ALIGNMENT_TEXT_START
+                }
+                numberView.textAlignment = alignVal
+                if (unitVisible) unitView?.textAlignment = alignVal
+            }
+
+            if (speedStyle == 2) {
+                val adjustment = MainModule.mPrefs.getInt("system_netspeed_rowspacing", 100)
+                val spacing = resolveNetSpeedLineSpacing(fontSize, adjustment)
+                numberView.setSingleLine(false)
+                numberView.maxLines = 2
+                numberView.setLineSpacing(0f, spacing)
+            }
+
+            speedView.setTag(viewInitedTag, true)
         }
 
-        if (speedStyle == 2) {
-            val adjustment = MainModule.mPrefs.getInt("system_netspeed_rowspacing", 100)
-            val spacing = resolveNetSpeedLineSpacing(fontSize, adjustment)
-            numberView.setSingleLine(false)
-            numberView.maxLines = 2
-            numberView.setLineSpacing(0f, spacing)
-        }
+        ensureNetSpeedTypeface(numberView, bold)
+        if (unitVisible) unitView?.let { ensureNetSpeedTypeface(it, bold) }
     }
 
     @JvmStatic
     fun NetSpeedStyleHook(lpparam: PackageReadyParam) {
-        ModuleHelper.hookAllConstructors("com.android.systemui.statusbar.views.NetworkSpeedView", lpparam.classLoader, object : MethodHook() {
+        ModuleHelper.hookAllMethods("android.widget.TextView", lpparam.classLoader, "setTextAppearance", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
-                if (param.getThisObject() == null) return
-                val speedView = param.getThisObject() as LinearLayout
-                val inited = speedView.getTag(viewInitedTag)
-                val tag = speedView.tag as? String
-                if (inited == null && tag != "slot_text_icon") {
-                    speedView.setTag(viewInitedTag, true)
-                    speedView.postDelayed({ ModuleHelper.guarded { initNetSpeedStyle(speedView) } }, 200)
+                val textView = param.getThisObject() as? TextView ?: return
+                val state = textView.getTag(netspeedTypefaceStateTag) as? NetSpeedTypefaceState ?: return
+                val speedView = textView.parent as? LinearLayout ?: return
+                if (speedView.tag as? String == "slot_text_icon") return
+                state.base = textView.typeface
+                state.target = null
+                applyNetSpeedTextStyle(speedView, false)
+            }
+        })
+
+        ModuleHelper.hookAllMethods("com.android.systemui.statusbar.views.NetworkSpeedView", lpparam.classLoader, "setNetworkSpeed", object : MethodHook() {
+            override fun after(param: AfterHookCallback) {
+                val speedView = param.getThisObject() as? LinearLayout ?: return
+                if (speedView.tag as? String == "slot_text_icon") return
+                if (speedView.getTag(viewInitedTag) == null) {
+                    applyNetSpeedTextStyle(speedView, false)
+                } else {
+                    applyNetSpeedTextStyle(speedView, true)
                 }
             }
         })
 
-        val useClockStyle = MainModule.mPrefs.getBoolean("system_netspeed_use_clock_style")
-        if (useClockStyle) {
-            ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.views.NetworkSpeedView", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
-                override fun after(param: AfterHookCallback) {
-                    val speedView = param.getThisObject() as LinearLayout
-                    val tag = speedView.tag as? String
-                    if (tag != "slot_text_icon") {
-                        val numberView = getIconTextView(speedView)
-                        val unitView = XposedHelpers.getObjectField(speedView, "mNetworkSpeedUnitText") as TextView
-                        val styleId = speedView.resources.getIdentifier("TextAppearance.StatusBar.Clock", "style", "com.android.systemui")
-                        numberView.setTextAppearance(styleId)
-                        val speedStyle = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_style", 1)
-                        if (speedStyle == 1) {
-                            unitView.setTextAppearance(styleId)
-                        }
-                    }
+        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.views.NetworkSpeedView", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
+            override fun after(param: AfterHookCallback) {
+                val speedView = param.getThisObject() as? LinearLayout ?: return
+                if (speedView.tag as? String == "slot_text_icon") return
+                if (speedView.getTag(viewInitedTag) != null) return
+
+                val numberView = getNetSpeedNumberView(speedView) ?: return
+                val unitView = getNetSpeedUnitView(speedView)
+
+                numberView.getTag(netspeedTypefaceStateTag) as? NetSpeedTypefaceState
+                    ?: NetSpeedTypefaceState().also { numberView.setTag(netspeedTypefaceStateTag, it) }
+                unitView?.let { view ->
+                    view.getTag(netspeedTypefaceStateTag) as? NetSpeedTypefaceState
+                        ?: NetSpeedTypefaceState().also { view.setTag(netspeedTypefaceStateTag, it) }
                 }
-            })
-        }
+
+                val useClockStyle = MainModule.mPrefs.getBoolean("system_netspeed_use_clock_style")
+                if (useClockStyle) {
+                    val styleId = speedView.resources.getIdentifier("TextAppearance.StatusBar.Clock", "style", "com.android.systemui")
+                    val speedStyle = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_style", 1)
+                    if (styleId != 0) {
+                        numberView.setTextAppearance(styleId)
+                        if (speedStyle == 1) unitView?.setTextAppearance(styleId)
+                    }
+                } else {
+                    applyNetSpeedTextStyle(speedView, false)
+                }
+            }
+        })
     }
 
     @JvmStatic

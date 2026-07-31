@@ -44,6 +44,12 @@ HyperOS plus LSPosed log triage.
   `prefs_system_detailednetspeed.xml` is semantically equivalent to the baseline.
 - Brings in the `SeekBarPreference` system-text style inheritance and About attribution wrapping
   fix from `fix/a14-ui-text-inheritance-and-about-wrap`.
+- Fixes the ineffective network-speed bold setting: adds `applyNetSpeedTextStyle` to own font size,
+  typeface family, bold, line spacing, alignment, margins, and fixed width; stacks `Typeface.BOLD`
+  on the current typeface and uses `Paint.isFakeBoldText` as a fallback for fonts without a
+  distinct bold glyph; re-applies style after `TextView.setTextAppearance`,
+  `NetworkSpeedView.onFinishInflate`, and `NetworkSpeedView.setNetworkSpeed` to avoid repeated
+  stacking or silent reset.
 - Removes `.github/workflows/ci.yml` (CI is no longer maintained).
 - Updates `README`, `README_EN`, `docs/BUILD_AND_RELEASE.md`, `docs/MAINTENANCE_CHECKPOINT.md`, and
   other active documents to `r14.15.3`.
