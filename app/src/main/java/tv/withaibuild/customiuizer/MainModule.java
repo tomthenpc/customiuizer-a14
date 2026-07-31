@@ -353,9 +353,21 @@ public class MainModule extends XposedModule {
         }
         if (pkg.equals("com.android.systemui")) {
             Context mContext = ModuleHelper.findContext(lpparam);
-            GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext);
-            long restartTime = Settings.System.getLong(mContext.getContentResolver(), "systemui_restart_time", 0L);
+            final boolean[] fastRebootReceiverReady = { false };
             long currentTime = java.lang.System.currentTimeMillis();
+
+            if (mContext != null) {
+                GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext);
+                fastRebootReceiverReady[0] = true;
+                long restartTime = Settings.System.getLong(mContext.getContentResolver(), "systemui_restart_time", 0L);
+                if (currentTime - restartTime < 10000) {
+                    HookDiagnostics.printSummaryForStage("onPackageReady");
+                    return;
+                }
+            } else {
+                XposedHelpers.log("MainModule: SystemUI context not ready at package ready, deferring FastReboot receiver");
+            }
+
             MethodHook initStatusBarHook = new MethodHook() {
                 private boolean isHooked = false;
                 @Override
@@ -363,8 +375,14 @@ public class MainModule extends XposedModule {
                     if (!isHooked && param.getThisObject() != null) {
                         isHooked = true;
                         Context context = (Context) XposedHelpers.getObjectField(param.getThisObject(), "mContext");
-                        SystemUIStatusBarHooks.setupStatusBar(context);
-                        watchPreferenceChange();
+                        if (!fastRebootReceiverReady[0] && context != null) {
+                            GlobalActionSystemServerHooks.setupFastRebootReceiver(context);
+                            fastRebootReceiverReady[0] = true;
+                        }
+                        if (context != null) {
+                            SystemUIStatusBarHooks.setupStatusBar(context);
+                            watchPreferenceChange();
+                        }
                         HookDiagnostics.printSummaryForStage("post-init");
                     }
                 }
@@ -373,11 +391,6 @@ public class MainModule extends XposedModule {
             ModuleHelper.findAndHookMethod("com.android.systemui.SystemUIInitializer", lpparam.getClassLoader(),
                 "init", boolean.class, initStatusBarHook);
             if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam);
-
-            if (currentTime - restartTime < 10000) {
-                HookDiagnostics.printSummaryForStage("onPackageReady");
-                return;
-            }
 
             if (mPrefs.getStringAsInt("various_showcallui", 0) > 0
                 || mPrefs.getBoolean("controls_volumecursor")
