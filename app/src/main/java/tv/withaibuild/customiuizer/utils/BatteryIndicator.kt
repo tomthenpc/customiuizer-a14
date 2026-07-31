@@ -237,7 +237,7 @@ class BatteryIndicator @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        ModuleHelper.removePreferenceObserver(this)
+        ModuleHelper.unregisterPreferenceObserver(this)
         if (receiverRegistered) {
             context.unregisterReceiver(broadcastReceiver)
             receiverRegistered = false

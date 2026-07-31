@@ -28,16 +28,11 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.CustomMethodUnho
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.utils.Helpers
 import java.io.RandomAccessFile
-import java.lang.ref.WeakReference
 import java.lang.reflect.Method
-import java.util.concurrent.CopyOnWriteArrayList
-import java.util.concurrent.CopyOnWriteArraySet
 
 class ModuleHelper private constructor() {
 
-    interface PreferenceObserver {
-        fun onChange(key: String?)
-    }
+    interface PreferenceObserver : PreferenceObserverRegistry.PreferenceObserver
 
     companion object {
         const val NOT_EXIST_SYMBOL = "ObjectFieldNotExist"
@@ -62,20 +57,6 @@ class ModuleHelper private constructor() {
 
         private val viewInfoTag = ResourceHooks.getFakeResId("view_info_tag")
 
-        /** Process-scoped observers. Owned by module singletons, never collected. */
-        private val prefObservers = CopyOnWriteArraySet<PreferenceObserver>()
-
-        /**
-         * Observers whose lifetime is bound to a hooked object.
-         *
-         * The strong reference lives in the owner's additional instance field, which
-         * [XposedHelpers] keeps in a `WeakHashMap`. Holding only a weak reference here means a
-         * recreated hook target (theme change, density change, panel rebuild) drops its old
-         * observer instead of pinning the dead instance for the life of the process.
-         */
-        private val ownedPrefObservers = CopyOnWriteArrayList<WeakReference<PreferenceObserver>>()
-        private const val PREF_OBSERVER_FIELD = "customiuizer_prefObserver"
-
         @JvmField
         internal var ActivityThreadClass: Class<*>? = null
 
@@ -83,9 +64,6 @@ class ModuleHelper private constructor() {
 
         private var thermalIdScanned = false
 
-        private fun processName() = HookDiagnostics.currentProcessName
-            ?: currentPackageName
-            ?: android.os.Process.myPid().toString()
 
         private fun argList(vararg args: Any?): String {
             if (args.isEmpty()) return ""
@@ -107,7 +85,7 @@ class ModuleHelper private constructor() {
                 val unhooker = XposedHelpers.doHookMethod(method, callback)
                 if (unhooker != null) {
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.METHOD,
                         method.declaringClass?.name ?: "?",
                         method.name,
@@ -116,7 +94,7 @@ class ModuleHelper private constructor() {
                     )
                 } else {
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.METHOD,
                         method.declaringClass?.name ?: "?",
                         method.name,
@@ -129,7 +107,7 @@ class ModuleHelper private constructor() {
             } catch (t: Throwable) {
                 XposedHelpers.log("Failed to hook " + method.name + " method")
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     method.declaringClass?.name ?: "?",
                     method.name,
@@ -146,7 +124,7 @@ class ModuleHelper private constructor() {
             val hookClass = XposedHelpers.findClassIfExists(className, classLoader)
             if (hookClass == null) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -159,7 +137,7 @@ class ModuleHelper private constructor() {
             return try {
                 val unhooker = XposedHelpers.findAndHookMethod(hookClass, methodName, *parameterTypesAndCallback)
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -174,7 +152,7 @@ class ModuleHelper private constructor() {
                     else -> HookDiagnostics.Status.INSTALL_FAILED
                 }
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -202,7 +180,7 @@ class ModuleHelper private constructor() {
             return try {
                 val unhooker = XposedHelpers.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback)
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -217,7 +195,7 @@ class ModuleHelper private constructor() {
                     else -> HookDiagnostics.Status.INSTALL_FAILED
                 }
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -235,7 +213,7 @@ class ModuleHelper private constructor() {
             val hookClass = XposedHelpers.findClassIfExists(className, classLoader)
             if (hookClass == null) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -248,7 +226,7 @@ class ModuleHelper private constructor() {
             return try {
                 val ok = XposedHelpers.findAndHookMethod(hookClass, methodName, *parameterTypesAndCallback) != null
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -258,7 +236,7 @@ class ModuleHelper private constructor() {
                 ok
             } catch (t: Throwable) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -277,7 +255,7 @@ class ModuleHelper private constructor() {
             return try {
                 val ok = XposedHelpers.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback) != null
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -287,7 +265,7 @@ class ModuleHelper private constructor() {
                 ok
             } catch (t: Throwable) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
                     className,
                     methodName,
@@ -304,7 +282,7 @@ class ModuleHelper private constructor() {
             val hookClass = XposedHelpers.findClassIfExists(className, classLoader)
             if (hookClass == null) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.CONSTRUCTOR,
                     className,
                     "<init>",
@@ -317,7 +295,7 @@ class ModuleHelper private constructor() {
             return try {
                 val unhooker = XposedHelpers.findAndHookConstructor(hookClass, *parameterTypesAndCallback)
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.CONSTRUCTOR,
                     className,
                     "<init>",
@@ -332,7 +310,7 @@ class ModuleHelper private constructor() {
                     else -> HookDiagnostics.Status.INSTALL_FAILED
                 }
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.CONSTRUCTOR,
                     className,
                     "<init>",
@@ -351,7 +329,7 @@ class ModuleHelper private constructor() {
                 if (hookClass == null) {
                     XposedHelpers.log("Failed to hook " + className + " constructor (class not found)")
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_CONSTRUCTORS,
                         className,
                         "<all>",
@@ -364,7 +342,7 @@ class ModuleHelper private constructor() {
                 if (unhookers.isEmpty()) {
                     XposedHelpers.log("Failed to hook " + className + " constructor (no constructors found)")
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_CONSTRUCTORS,
                         className,
                         "<all>",
@@ -373,7 +351,7 @@ class ModuleHelper private constructor() {
                     )
                 } else {
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_CONSTRUCTORS,
                         className,
                         "<all>",
@@ -384,7 +362,7 @@ class ModuleHelper private constructor() {
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_CONSTRUCTORS,
                     className,
                     "<all>",
@@ -400,7 +378,7 @@ class ModuleHelper private constructor() {
             val className = hookClass?.canonicalName ?: "?"
             if (hookClass == null) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_CONSTRUCTORS,
                     className,
                     "<all>",
@@ -414,7 +392,7 @@ class ModuleHelper private constructor() {
                 if (unhookers.isEmpty()) {
                     XposedHelpers.log("Failed to hook " + className + " constructor (no constructors found)")
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_CONSTRUCTORS,
                         className,
                         "<all>",
@@ -423,7 +401,7 @@ class ModuleHelper private constructor() {
                     )
                 } else {
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_CONSTRUCTORS,
                         className,
                         "<all>",
@@ -434,7 +412,7 @@ class ModuleHelper private constructor() {
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_CONSTRUCTORS,
                     className,
                     "<all>",
@@ -452,7 +430,7 @@ class ModuleHelper private constructor() {
                 if (hookClass == null) {
                     XposedHelpers.log("Failed to hook " + methodName + " method in " + className + " (class not found)")
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_METHODS,
                         className,
                         methodName,
@@ -465,7 +443,7 @@ class ModuleHelper private constructor() {
                 if (unhookers.isEmpty()) {
                     XposedHelpers.log("Failed to hook " + methodName + " method in " + className + " (no methods found)")
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_METHODS,
                         className,
                         methodName,
@@ -474,7 +452,7 @@ class ModuleHelper private constructor() {
                     )
                 } else {
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_METHODS,
                         className,
                         methodName,
@@ -485,7 +463,7 @@ class ModuleHelper private constructor() {
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
@@ -501,7 +479,7 @@ class ModuleHelper private constructor() {
             val className = hookClass?.canonicalName ?: "?"
             if (hookClass == null) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
@@ -515,7 +493,7 @@ class ModuleHelper private constructor() {
                 if (unhookers.isEmpty()) {
                     XposedHelpers.log("Failed to hook " + methodName + " method in " + className + " (no methods found)")
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_METHODS,
                         className,
                         methodName,
@@ -524,7 +502,7 @@ class ModuleHelper private constructor() {
                     )
                 } else {
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_METHODS,
                         className,
                         methodName,
@@ -535,7 +513,7 @@ class ModuleHelper private constructor() {
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
@@ -564,7 +542,7 @@ class ModuleHelper private constructor() {
                 val hookClass = XposedHelpers.findClassIfExists(className, classLoader)
                 if (hookClass == null) {
                     HookDiagnostics.record(
-                        processName(),
+                        PreferenceObserverRegistry.processName(),
                         HookDiagnostics.Kind.ALL_METHODS,
                         className,
                         methodName,
@@ -576,7 +554,7 @@ class ModuleHelper private constructor() {
                 }
                 val ok = XposedHelpers.hookAllMethods(hookClass, methodName, callback).isNotEmpty()
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
@@ -587,7 +565,7 @@ class ModuleHelper private constructor() {
                 ok
             } catch (t: Throwable) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
@@ -604,7 +582,7 @@ class ModuleHelper private constructor() {
             val className = hookClass?.canonicalName ?: "?"
             if (hookClass == null) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
@@ -617,7 +595,7 @@ class ModuleHelper private constructor() {
             return try {
                 val ok = XposedHelpers.hookAllMethods(hookClass, methodName, callback).isNotEmpty()
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
@@ -628,7 +606,7 @@ class ModuleHelper private constructor() {
                 ok
             } catch (t: Throwable) {
                 HookDiagnostics.record(
-                    processName(),
+                    PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
@@ -743,79 +721,20 @@ class ModuleHelper private constructor() {
         }
 
         @JvmStatic
-        fun observePreferenceChange(prefObserver: PreferenceObserver?) {
-            if (prefObserver != null) prefObservers.add(prefObserver)
-        }
+        fun observePreferenceChange(prefObserver: PreferenceObserver?) =
+            PreferenceObserverRegistry.observePreferenceChange(prefObserver)
 
         @JvmStatic
-        fun observePreferenceChange(prefObserver: PreferenceObserver?, owner: Any?) {
-            if (prefObserver == null) return
-            if (owner == null) {
-                observePreferenceChange(prefObserver)
-                return
-            }
-            val old = XposedHelpers.getAdditionalInstanceField(owner, PREF_OBSERVER_FIELD)
-            if (old is PreferenceObserver) {
-                dropOwnedObserver(old)
-            }
-            XposedHelpers.setAdditionalInstanceField(owner, PREF_OBSERVER_FIELD, prefObserver)
-            ownedPrefObservers.add(WeakReference(prefObserver))
-        }
+        fun observePreferenceChange(prefObserver: PreferenceObserver?, owner: Any?) =
+            PreferenceObserverRegistry.observePreferenceChange(prefObserver, owner)
 
         @JvmStatic
-        fun removePreferenceObserver(owner: Any?) {
-            val old = XposedHelpers.removeAdditionalInstanceField(owner, PREF_OBSERVER_FIELD)
-            if (old is PreferenceObserver) {
-                dropOwnedObserver(old)
-            }
-        }
+        fun unregisterPreferenceObserver(owner: Any?) =
+            PreferenceObserverRegistry.unregisterPreferenceObserver(owner)
 
-        /**
-         * Removes [observer] and every reference the garbage collector has already cleared.
-         *
-         * Uses [CopyOnWriteArrayList.removeIf], which performs one atomic array copy. The Kotlin
-         * `removeAll { }` extension would instead walk the list with indexed writes, copying the
-         * backing array once per removal and without atomicity.
-         */
-        private fun dropOwnedObserver(observer: PreferenceObserver?) {
-            ownedPrefObservers.removeIf { ref ->
-                val referent = ref.get()
-                referent == null || referent === observer
-            }
-        }
-
-        /**
-         * Fans a preference change out to every observer.
-         *
-         * Runs on the remote-preferences listener thread of system_server, SystemUI and Launcher.
-         * A throwing observer must neither kill that process nor stop the remaining observers from
-         * seeing the change, so each callback is isolated.
-         */
         @JvmStatic
-        fun handlePreferenceChanged(key: String?) {
-            for (prefObserver in prefObservers) {
-                try {
-                    prefObserver.onChange(key)
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
-                }
-            }
-            if (ownedPrefObservers.isEmpty()) return
-            var sawCleared = false
-            for (ref in ownedPrefObservers) {
-                val prefObserver = ref.get()
-                if (prefObserver == null) {
-                    sawCleared = true
-                    continue
-                }
-                try {
-                    prefObserver.onChange(key)
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
-                }
-            }
-            if (sawCleared) dropOwnedObserver(null)
-        }
+        fun handlePreferenceChanged(key: String?) =
+            PreferenceObserverRegistry.handlePreferenceChanged(key)
 
         /**
          * Delegates to [ReceiverRegistry].

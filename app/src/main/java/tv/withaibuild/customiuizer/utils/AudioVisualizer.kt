@@ -546,7 +546,7 @@ class AudioVisualizer @JvmOverloads constructor(
         detached = true
         viewAttached = false
         mDisplaying = false
-        ModuleHelper.removePreferenceObserver(this)
+        ModuleHelper.unregisterPreferenceObserver(this)
         stopFrameScheduler()
         val visualizer = synchronized(visualizerLock) {
             val current = mVisualizer

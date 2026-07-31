@@ -115,7 +115,7 @@ object LauncherIconHooks {
                 var result: Any? = null
                 var throwable: Throwable? = null
                 try {
-                    ModuleHelper.removePreferenceObserver(chain.getThisObject())
+                    ModuleHelper.unregisterPreferenceObserver(chain.getThisObject())
                     result = chain.proceed()
                 } catch (t: Throwable) {
                     throwable = t

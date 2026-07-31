@@ -44,9 +44,9 @@ class PreferenceObserverDispatchTest {
             assertTrue("throwing observer was not dispatched to", log.contains("boom"))
             assertTrue("dispatch stopped at the throwing observer", log.contains("third"))
         } finally {
-            ModuleHelper.removePreferenceObserver(first)
-            ModuleHelper.removePreferenceObserver(second)
-            ModuleHelper.removePreferenceObserver(third)
+            ModuleHelper.unregisterPreferenceObserver(first)
+            ModuleHelper.unregisterPreferenceObserver(second)
+            ModuleHelper.unregisterPreferenceObserver(third)
         }
     }
 
@@ -62,7 +62,7 @@ class PreferenceObserverDispatchTest {
 
             assertEquals(listOf("fresh"), log)
         } finally {
-            ModuleHelper.removePreferenceObserver(owner)
+            ModuleHelper.unregisterPreferenceObserver(owner)
         }
     }
 
@@ -71,7 +71,7 @@ class PreferenceObserverDispatchTest {
         val log = mutableListOf<String>()
         val owner = Owner()
         ModuleHelper.observePreferenceChange(RecordingObserver(log, "gone"), owner)
-        ModuleHelper.removePreferenceObserver(owner)
+        ModuleHelper.unregisterPreferenceObserver(owner)
 
         ModuleHelper.handlePreferenceChanged("system_statusbar_clocktweak")
 
@@ -99,7 +99,7 @@ class PreferenceObserverDispatchTest {
             ModuleHelper.handlePreferenceChanged("system_statusbar_clocktweak")
             dropped = !log.contains("collected")
         }
-        ModuleHelper.removePreferenceObserver(survivor)
+        ModuleHelper.unregisterPreferenceObserver(survivor)
 
         assertTrue("observer stayed reachable after its owner was collected", dropped)
     }
