@@ -1,6 +1,5 @@
 package tv.withaibuild.customiuizer;
 
-import android.app.Application;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
@@ -13,22 +12,19 @@ import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedModuleInterface;
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam;
-import tv.withaibuild.customiuizer.mods.Controls;
 import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks;
 import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics;
 import tv.withaibuild.customiuizer.mods.utils.PreferenceBootstrap;
 import tv.withaibuild.customiuizer.mods.utils.ReflectionCache;
 import tv.withaibuild.customiuizer.mods.utils.SystemServerInstaller;
 import tv.withaibuild.customiuizer.mods.GlobalActions;
-import tv.withaibuild.customiuizer.mods.LauncherAnimationHooks;
-import tv.withaibuild.customiuizer.mods.SystemShareMenuHooks;
-import tv.withaibuild.customiuizer.mods.SystemNotificationHooks;
-import tv.withaibuild.customiuizer.mods.SystemWindowHooks;
-import tv.withaibuild.customiuizer.mods.SystemStatusBarBackgroundHooks;
 import tv.withaibuild.customiuizer.mods.System;
+import tv.withaibuild.customiuizer.installers.AndroidPackageInstaller;
+import tv.withaibuild.customiuizer.installers.GenericAppInstaller;
 import tv.withaibuild.customiuizer.installers.GuardProviderInstaller;
 import tv.withaibuild.customiuizer.installers.InputMethodInstaller;
 import tv.withaibuild.customiuizer.installers.LauncherInstaller;
+import tv.withaibuild.customiuizer.installers.MediaInstaller;
 import tv.withaibuild.customiuizer.installers.PackageInstallerRouter;
 import tv.withaibuild.customiuizer.installers.PhoneInstaller;
 import tv.withaibuild.customiuizer.installers.PowerKeeperInstaller;
@@ -37,7 +33,6 @@ import tv.withaibuild.customiuizer.installers.SettingsInstaller;
 import tv.withaibuild.customiuizer.installers.SystemUiInstaller;
 import tv.withaibuild.customiuizer.mods.SystemUIStatusBarHooks;
 import tv.withaibuild.customiuizer.mods.Various;
-import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback;
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback;
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook;
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper;
@@ -149,11 +144,7 @@ public class MainModule extends XposedModule {
         }
 
         if (pkg.equals("android")) {
-            if (prefReady && mPrefs.getBoolean("system_cleanshare")) SystemShareMenuHooks.CleanShareMenuHook(lpparam);
-            if (prefReady && mPrefs.getBoolean("system_cleanopenwith")) SystemShareMenuHooks.CleanOpenWithMenuHook(lpparam);
-            if (prefReady && mPrefs.getStringAsInt("system_allrotations2", 1) > 1) {
-                MainModule.resHooks.setThemeValueReplacement("android", "bool", "config_allowAllRotations", mPrefs.getStringAsInt("system_allrotations2", 1) == 2);
-            }
+            AndroidPackageInstaller.install(lpparam, mPrefs);
         }
 
         if (pkg.equals("com.baidu.input")
@@ -179,8 +170,10 @@ public class MainModule extends XposedModule {
             Various.AlarmCompatHook();
         }
 
-        if (pkg.equals("com.miui.miwallpaper")) {
-            if (mPrefs.getBoolean("launcher_disable_wallpaperscale")) LauncherAnimationHooks.DisableUnlockWallpaperScale(lpparam);
+        if (pkg.equals("com.miui.miwallpaper")
+            || pkg.equals("com.miui.screenshot")
+            || pkg.equals("com.miui.gallery")) {
+            MediaInstaller.install(lpparam, mPrefs);
         }
         if (pkg.equals("com.android.systemui")) {
             ReflectionCache.onSafeLifecycle(lpparam.getClassLoader());
@@ -294,27 +287,6 @@ public class MainModule extends XposedModule {
             PackageInstallerRouter.install(lpparam, mPrefs);
         }
 
-        if (pkg.equals("com.miui.screenshot")) {
-            if (mPrefs.getBoolean("system_screenshot")) {
-                try {
-                    loadDexKit();
-                    XposedHelpers.createBridge(lpparam.getApplicationInfo().sourceDir);
-                    System.ScreenshotConfigHook(lpparam);
-                } catch (Throwable t) {
-                    XposedHelpers.log(t);
-                } finally {
-                    XposedHelpers.closeBridge();
-                }
-            }
-        }
-
-        if (pkg.equals("com.miui.gallery")) {
-            int folder = mPrefs.getStringAsInt("system_gallery_screenshots_path", 1);
-            if (folder > 1) {
-                System.GalleryScreenshotPathHook(lpparam);
-            }
-        }
-
         final boolean isLauncherPkg = pkg.equals("com.miui.home");
 
         if (isLauncherPkg) {
@@ -328,19 +300,7 @@ public class MainModule extends XposedModule {
         final boolean controlMedia = (mPrefs.getStringAsInt("controls_volumemedia_up", 0) > 0
             || mPrefs.getStringAsInt("controls_volumemedia_down", 0) > 0) && mPrefs.getStringSet("controls_mediaplayer_apps").contains(pkg);
         if (isLauncherPkg || isStatusBarColor || isNoOverscroll || controlMedia) {
-            ModuleHelper.findAndHookMethod(Application.class, "attach", Context.class, new MethodHook() {
-                @Override
-                protected void after(AfterHookCallback param) throws Throwable {
-                    if (isLauncherPkg) LauncherInstaller.handleLoadLauncher(lpparam, mPrefs);
-                    if (isStatusBarColor) {
-                        SystemStatusBarBackgroundHooks.StatusBarBackgroundCompatHook(lpparam);
-                        SystemStatusBarBackgroundHooks.StatusBarBackgroundHook(lpparam);
-                    }
-                    if (isNoOverscroll) SystemWindowHooks.NoOverscrollAppHook(lpparam);
-                    if (controlMedia) Controls.VolumeMediaPlayerHook(lpparam);
-                    HookDiagnostics.printSummaryForStage("post-attach");
-                }
-            });
+            GenericAppInstaller.installPostAttach(lpparam, mPrefs, isLauncherPkg, isStatusBarColor, isNoOverscroll, controlMedia);
         }
 
         HookDiagnostics.printSummaryForStage("onPackageReady");

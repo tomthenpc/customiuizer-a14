@@ -5,41 +5,37 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class PackageInstallerRouterTest {
+class AndroidPackageInstallerTest {
 
     @Test
     fun installerIsWiredInMainModule() {
         val main = source("app/src/main/java/tv/withaibuild/customiuizer/MainModule.java")
         val section = main.section(
-            "if (pkg.equals(\"com.miui.packageinstaller\"))",
-            "final boolean isLauncherPkg"
+            "if (pkg.equals(\"android\")) {",
+            "if (pkg.equals(\"com.baidu.input\")"
         )
 
         assertTrue(
-            "MainModule must keep the Package Installer package filter",
-            section.contains("pkg.equals(\"com.miui.packageinstaller\")")
+            "MainModule must keep the android package filter",
+            section.contains("pkg.equals(\"android\")")
         )
         assertTrue(
-            "MainModule must delegate Package Installer hooks to PackageInstallerRouter",
-            section.contains("PackageInstallerRouter.install(lpparam, mPrefs);")
+            "MainModule must delegate android hooks to AndroidPackageInstaller",
+            section.contains("AndroidPackageInstaller.install(lpparam, mPrefs);")
         )
         assertFalse(
-            "MainModule must no longer define Package Installer hook conditions",
-            section.contains("Various.MiuiPackageInstallerHook")
+            "MainModule must no longer define the android hook conditions",
+            section.contains("SystemShareMenuHooks.CleanShareMenuHook")
         )
         assertFalse(
-            "MainModule must no longer define Package Installer hook conditions",
-            section.contains("Various.AppInfoDuringMiuiInstallHook")
-        )
-        assertFalse(
-            "MainModule must no longer define Package Installer hook conditions",
-            section.contains("Various.PurePackageInstallerHook")
+            "MainModule must no longer define the all-rotations replacement",
+            section.contains("MainModule.resHooks.setThemeValueReplacement")
         )
     }
 
     @Test
     fun installerUsesLibxposedPackageReadyParam() {
-        val installer = source("app/src/main/java/tv/withaibuild/customiuizer/installers/PackageInstallerRouter.java")
+        val installer = source("app/src/main/java/tv/withaibuild/customiuizer/installers/AndroidPackageInstaller.java")
 
         assertTrue(
             "install method signature missing or changed",
@@ -57,22 +53,23 @@ class PackageInstallerRouterTest {
 
     @Test
     fun installerPreservesHookConditions() {
-        val installer = source("app/src/main/java/tv/withaibuild/customiuizer/installers/PackageInstallerRouter.java")
+        val installer = source("app/src/main/java/tv/withaibuild/customiuizer/installers/AndroidPackageInstaller.java")
 
         assertTrue(
-            "MiuiPackageInstallerHook condition must be preserved",
-            installer.contains("mPrefs.getBoolean(\"various_miuiinstaller\")")
-                && installer.contains("Various.MiuiPackageInstallerHook")
+            "CleanShareMenuHook condition and call must be preserved",
+            installer.contains("mPrefs.getBoolean(\"system_cleanshare\")")
+                && installer.contains("SystemShareMenuHooks.CleanShareMenuHook")
         )
         assertTrue(
-            "AppInfoDuringMiuiInstallHook condition must be preserved",
-            installer.contains("mPrefs.getBoolean(\"various_installappinfo\")")
-                && installer.contains("Various.AppInfoDuringMiuiInstallHook")
+            "CleanOpenWithMenuHook condition and call must be preserved",
+            installer.contains("mPrefs.getBoolean(\"system_cleanopenwith\")")
+                && installer.contains("SystemShareMenuHooks.CleanOpenWithMenuHook")
         )
         assertTrue(
-            "PurePackageInstallerHook condition must be preserved",
-            installer.contains("mPrefs.getBoolean(\"various_installer_purify\")")
-                && installer.contains("Various.PurePackageInstallerHook")
+            "all-rotations theme replacement condition and call must be preserved",
+            installer.contains("mPrefs.getStringAsInt(\"system_allrotations2\", 1)")
+                && installer.contains("MainModule.resHooks.setThemeValueReplacement")
+                && installer.contains("config_allowAllRotations")
         )
     }
 

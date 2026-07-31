@@ -12,7 +12,7 @@ class LauncherInstallerTest {
         val main = source("app/src/main/java/tv/withaibuild/customiuizer/MainModule.java")
         val section = main.section(
             "if (isLauncherPkg) {",
-            "if (isStatusBarColor)"
+            "final boolean isStatusBarColor"
         )
 
         assertTrue(
@@ -27,9 +27,15 @@ class LauncherInstallerTest {
             "MainModule must keep the preference bootstrap in the launcher branch",
             section.contains("initPrefs();")
         )
+        val generic = source("app/src/main/java/tv/withaibuild/customiuizer/installers/GenericAppInstaller.java")
         assertTrue(
-            "MainModule must delegate launcher post-attach hooks to LauncherInstaller",
-            main.contains("if (isLauncherPkg) LauncherInstaller.handleLoadLauncher(lpparam, mPrefs);")
+            "GenericAppInstaller must call launcher post-attach hooks",
+            generic.contains("if (isLauncherPkg)")
+                && generic.contains("LauncherInstaller.handleLoadLauncher(lpparam, mPrefs)")
+        )
+        assertTrue(
+            "MainModule must delegate the post-attach hook to GenericAppInstaller",
+            main.contains("GenericAppInstaller.installPostAttach")
         )
         assertFalse(
             "MainModule must no longer define the launcher post-attach handler",

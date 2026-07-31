@@ -177,8 +177,8 @@
     {
       "target": "framework",
       "class": "Landroid/app/Application;",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-      "sourceHookFunction": "onPackageReady",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/installers/GenericAppInstaller.java",
+      "sourceHookFunction": "installPostAttach",
       "targetProcessPackage": "com.miui.home",
       "methods": [
         {
