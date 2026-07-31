@@ -9,6 +9,7 @@ import android.os.Handler
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.lang.ref.WeakReference
@@ -32,8 +33,14 @@ class WeakOwnerReceiverTest {
      * registerReceiver just returns a stub [Intent]; we are not testing the framework here.
      */
     private class TrackableContext : Application() {
-        val unregisteredReceivers = ArrayList<BroadcastReceiver>()
+        val unregisteredReceivers = CopyOnWriteArrayList<BroadcastReceiver>()
         var failNextUnregister = false
+
+        // Latches for deterministic same-owner concurrent registration tests. The first call to the
+        // 5-arg registerReceiver will count down firstRegisterEntered and then wait on
+        // firstRegisterRelease, allowing another thread to complete its registration first.
+        var firstRegisterEntered: CountDownLatch? = null
+        var firstRegisterRelease: CountDownLatch? = null
 
         override fun registerReceiver(receiver: BroadcastReceiver?, filter: IntentFilter?): Intent {
             return Intent("stub")
@@ -46,6 +53,12 @@ class WeakOwnerReceiverTest {
             scheduler: Handler?,
             flags: Int
         ): Intent {
+            val entered = firstRegisterEntered
+            if (entered != null) {
+                firstRegisterEntered = null
+                entered.countDown()
+                firstRegisterRelease?.await(5, TimeUnit.SECONDS)
+            }
             return Intent("stub")
         }
 
@@ -324,6 +337,68 @@ class WeakOwnerReceiverTest {
             getOwnedReceiversMap().clear()
             context.unregisteredReceivers.clear()
         }
+    }
+
+    @Test
+    fun weakOwnerReceiver_sameOwnerRaceUnregistersLoserAfterFrameworkRegister() {
+        val context = TrackableContext()
+        val owner = Any()
+        val filter = IntentFilter("android.intent.action.TIME_TICK")
+        val key = "testRaceSameOwner"
+
+        // Thread A will get stuck inside registerReceiver until thread B completes and releases it.
+        val aEntered = CountDownLatch(1)
+        val aRelease = CountDownLatch(1)
+        context.firstRegisterEntered = aEntered
+        context.firstRegisterRelease = aRelease
+
+        var receiverA: BroadcastReceiver? = null
+        var receiverB: BroadcastReceiver? = null
+
+        val threadA = Thread {
+            receiverA = ModuleHelper.registerOwnedReceiver(
+                context,
+                owner,
+                key,
+                filter,
+                Context.RECEIVER_NOT_EXPORTED
+            ) { _, _, _, _ -> }
+        }
+
+        val threadB = Thread {
+            // Wait until A has entered its framework registerReceiver, then register the same
+            // owner/key and complete first.
+            aEntered.await(5, TimeUnit.SECONDS)
+            receiverB = ModuleHelper.registerOwnedReceiver(
+                context,
+                owner,
+                key,
+                filter,
+                Context.RECEIVER_NOT_EXPORTED
+            ) { _, _, _, _ -> }
+            aRelease.countDown()
+        }
+
+        threadA.start()
+        assertTrue("thread A must enter registerReceiver", aEntered.await(5, TimeUnit.SECONDS))
+        threadB.start()
+        threadA.join(10_000)
+        threadB.join(10_000)
+
+        val ownedReceivers = getOwnedReceiversMap()
+        val list = ownedReceivers[key]
+        assertEquals("only one registration must remain for the same owner/key", 1, list?.size ?: 0)
+        val remainingReceiver = list?.firstOrNull()?.let { getReceiverFromRegistration(it) }
+
+        // The winner is whichever thread completed registerReceiver last (A in the described scenario).
+        // The key assertion is that the loser is unregistered and the winner is tracked.
+        assertNotNull("a receiver must remain", remainingReceiver)
+        assertTrue("losing receiver must be unregistered", context.unregisteredReceivers.contains(receiverA))
+        assertFalse("remaining receiver must not be unregistered", context.unregisteredReceivers.contains(remainingReceiver))
+
+        // There must be no success-register-but-untracked receiver.
+        val trackedReceivers = list?.mapNotNull { getReceiverFromRegistration(it) }?.toSet()
+        assertTrue("receiver A must not be registered successfully without being tracked", receiverA !in trackedReceivers!!)
     }
 
     @Suppress("UNCHECKED_CAST")

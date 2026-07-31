@@ -1017,6 +1017,20 @@ class ModuleHelper private constructor() {
 
             return try {
                 context.registerReceiver(receiver, filter, permission, null, flags)
+
+                // Another thread may have replaced this same-owner registration while this thread
+                // was inside registerReceiver. If newReg is no longer in the map, we are the loser
+                // and must self-unregister so the winner is the only tracked receiver.
+                val stillTracked = ownedReceivers[key]?.any { it === newReg } == true
+                if (!stillTracked) {
+                    try {
+                        context.unregisterReceiver(receiver)
+                    } catch (_: Throwable) {
+                        // Already unregistered or Context is gone; the winner's cleanup has already
+                        // handled it.
+                    }
+                }
+
                 receiver
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
