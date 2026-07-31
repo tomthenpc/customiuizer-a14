@@ -1,6 +1,7 @@
 package tv.withaibuild.customiuizer.mods.utils
 
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArraySet
 
 /**
  * Process-scoped, in-memory collector for Hook installation diagnostics.
@@ -53,7 +54,7 @@ object HookDiagnostics {
 
     private const val MAX_RECORDS = 256
     private val records = ConcurrentHashMap<String, Record>()
-    private val printedStages = mutableSetOf<String>()
+    private val printedStages = CopyOnWriteArraySet<String>()
 
     /**
      * The real process name set by [MainModule] from [XC_LoadPackage.LoadPackageParam.getProcessName].
@@ -100,9 +101,7 @@ object HookDiagnostics {
     @JvmStatic
     @JvmOverloads
     fun printSummaryForStage(stage: String, prefix: String = "CustoMIUIzer") {
-        val key = stage
-        if (printedStages.contains(key)) return
-        printedStages.add(key)
+        if (!printedStages.add(stage)) return
         val s = summary()
         val process = currentProcessName ?: android.os.Process.myPid().toString()
         val installed = s[Status.INSTALLED] ?: 0
