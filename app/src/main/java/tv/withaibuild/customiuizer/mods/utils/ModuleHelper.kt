@@ -896,8 +896,40 @@ class ModuleHelper private constructor() {
             private val ownerRef = WeakReference(owner)
 
             override fun onReceive(context: Context, intent: Intent) = guarded {
-                val owner = ownerRef.get() ?: return
+                val owner = ownerRef.get()
+                if (owner == null) {
+                    cleanupIfOwnerGone(context)
+                    return@guarded
+                }
                 callback.onReceive(this, owner, context, intent)
+            }
+
+            private fun cleanupIfOwnerGone(context: Context) {
+                // Remove this receiver from the ownedReceivers registry. If we can still reach a
+                // live Context, try to unregister; failure is logged and ignored so the host process
+                // never crashes because the owner was collected before the broadcast arrived.
+                val receiver = this
+                var removed = false
+                val emptyKeys = ArrayList<String>()
+                for ((key, registrations) in ownedReceivers) {
+                    if (registrations.removeIf { it.receiver === receiver }) {
+                        removed = true
+                        if (registrations.isEmpty()) {
+                            emptyKeys.add(key)
+                        }
+                    }
+                }
+                for (key in emptyKeys) {
+                    ownedReceivers.remove(key)
+                }
+                if (removed) {
+                    try {
+                        context.unregisterReceiver(receiver)
+                    } catch (_: Throwable) {
+                        // Already unregistered or Context is gone; the receiver will stay registered
+                        // only if the call fails, and the next broadcast will retry cleanup.
+                    }
+                }
             }
         }
 

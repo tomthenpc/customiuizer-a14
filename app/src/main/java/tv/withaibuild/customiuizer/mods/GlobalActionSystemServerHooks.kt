@@ -81,8 +81,7 @@ object GlobalActionSystemServerHooks {
                                         } catch (t1: Throwable) {
                                             try {
                                                 val mHandler = XposedHelpers.getObjectField(thisObject, "mHandler") as Handler
-                                                mHandler.sendMessageDelayed(mHandler.obtainMessage(1, "show_menu"), android.view.ViewConfiguration.getLongPressTimeout().toLong())
-                                                completed = true
+                                                completed = mHandler.sendMessageDelayed(mHandler.obtainMessage(1, "show_menu"), android.view.ViewConfiguration.getLongPressTimeout().toLong())
                                             } catch (t2: Throwable) {
                                                 XposedHelpers.log(t2)
                                             }
@@ -106,9 +105,8 @@ object GlobalActionSystemServerHooks {
                                             val hasConflict = conflictProp == 1 || conflictProp2 == 1
                                             val dfMgr = XposedHelpers.callStaticMethod(XposedHelpers.findClass("miui.hardware.display.DisplayFeatureManager", null), "getInstance")
                                             if (hasConflict && opt == 0) XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 1)
-                                            Settings.Secure.putInt(context.contentResolver, "accessibility_display_inversion_enabled", if (opt == 0) 1 else 0)
+                                            completed = Settings.Secure.putInt(context.contentResolver, "accessibility_display_inversion_enabled", if (opt == 0) 1 else 0)
                                             if (hasConflict && opt != 0) XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 0)
-                                            completed = true
                                         } catch (e: Settings.SettingNotFoundException) {
                                             XposedHelpers.log(e)
                                         }

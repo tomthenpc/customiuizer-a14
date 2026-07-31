@@ -1227,6 +1227,36 @@ object SystemUIStatusBarHooks {
         return unitView
     }
 
+    /**
+     * Returns a new [LinearLayout.LayoutParams] copied from [source], preserving the original
+     * width, height, weight, gravity and margins. This prevents two Views from sharing a single
+     * LayoutParams instance.
+     */
+    private fun copyLinearLayoutParams(source: ViewGroup.LayoutParams?): LinearLayout.LayoutParams {
+        val original = source as? LinearLayout.LayoutParams
+        val width = original?.width ?: ViewGroup.LayoutParams.WRAP_CONTENT
+        val height = original?.height ?: ViewGroup.LayoutParams.WRAP_CONTENT
+        val copy = LinearLayout.LayoutParams(width, height)
+        if (original != null) {
+            copy.weight = original.weight
+            copy.gravity = original.gravity
+            copy.topMargin = original.topMargin
+            copy.bottomMargin = original.bottomMargin
+            copy.leftMargin = original.leftMargin
+            copy.rightMargin = original.rightMargin
+            copy.marginStart = original.marginStart
+            copy.marginEnd = original.marginEnd
+        } else if (source is ViewGroup.MarginLayoutParams) {
+            copy.topMargin = source.topMargin
+            copy.bottomMargin = source.bottomMargin
+            copy.leftMargin = source.leftMargin
+            copy.rightMargin = source.rightMargin
+            copy.marginStart = source.marginStart
+            copy.marginEnd = source.marginEnd
+        }
+        return copy
+    }
+
     private fun ensureNetSpeedTypeface(textView: TextView, bold: Boolean) {
         val state = textView.getTag(netspeedTypefaceStateTag) as? NetSpeedTypefaceState
             ?: NetSpeedTypefaceState().also { textView.setTag(netspeedTypefaceStateTag, it) }
@@ -1275,7 +1305,7 @@ object SystemUIStatusBarHooks {
                 unitView?.visibility = View.GONE
             }
             if (fixedWidth > 10 || singleOrDual) {
-                val numberLp = numberView.layoutParams as? LinearLayout.LayoutParams ?: LinearLayout.LayoutParams(-2, -2)
+                val numberLp = copyLinearLayoutParams(numberView.layoutParams)
                 if (fixedWidth > 10) {
                     numberLp.width = HookUtils.dp2px(fixedWidth.toFloat()).toInt()
                 }
@@ -1287,7 +1317,7 @@ object SystemUIStatusBarHooks {
                 numberView.layoutParams = numberLp
 
                 unitView?.let { unit ->
-                    val unitLp = unit.layoutParams as? LinearLayout.LayoutParams ?: LinearLayout.LayoutParams(-2, -2)
+                    val unitLp = copyLinearLayoutParams(unit.layoutParams)
                     unit.layoutParams = unitLp
                 }
             }

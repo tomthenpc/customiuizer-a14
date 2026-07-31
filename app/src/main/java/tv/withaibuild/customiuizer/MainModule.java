@@ -65,13 +65,16 @@ public class MainModule extends XposedModule {
 
     OnSharedPreferenceChangeListener mListener;
 
-    private enum PrefsState { UNINITIALIZED, LOADED, VALID_EMPTY, UNAVAILABLE }
+    private enum PrefsState { UNINITIALIZED, LOADED, EMPTY_PENDING, UNAVAILABLE, VALID_EMPTY }
     private static PrefsState mPrefsState = PrefsState.UNINITIALIZED;
     private static boolean mPrefsWatcherRegistered = false;
     private static boolean mValidEmptyReported = false;
     private static boolean mUnavailableReported = false;
+    private static boolean mEmptyPendingReported = false;
     private static int mPrefsInitAttempts = 0;
     private static final int MAX_PREF_INIT_ATTEMPTS = 5;
+    private static int mEmptyPendingAttempts = 0;
+    private static final int MAX_EMPTY_PENDING_ATTEMPTS = 3;
     private static boolean mSystemServerLoadMarkerLogged = false;
 
     @Override
@@ -98,34 +101,64 @@ public class MainModule extends XposedModule {
     /**
      * Loads the remote preference snapshot into the process-local {@link PrefMap}.
      *
-     * <p>The provider is distinguished from an empty-but-valid configuration:
+     * <p>The provider, an empty-but-unconfirmed map, and a valid empty configuration are kept
+     * distinct:
      * <ul>
      *   <li>{@code null} or thrown from {@link RemotePreferences#getAll()} means the provider is
      *       not ready ({@link PrefsState#UNAVAILABLE}).</li>
-     *   <li>An empty, non-null map means the user has no custom settings yet
-     *       ({@link PrefsState#VALID_EMPTY}); this is a real state, not a failure.</li>
+     *   <li>An empty, non-null map without a confirmed live listener is only
+     *       {@link PrefsState#EMPTY_PENDING}; it stays retriable up to a bounded count.</li>
+     *   <li>{@link PrefsState#VALID_EMPTY} is only reached when the preference watcher is
+     *       registered (live provider evidence) or empty has been observed consistently up to the
+     *       bounded retry limit. This is a fallback, not a proof that late-install is solved.</li>
      * </ul>
      * Retries are bounded and do not sleep the caller's thread.</p>
      */
     private void initPrefs() {
         if (mPrefsState == PrefsState.LOADED || mPrefsState == PrefsState.VALID_EMPTY) return;
+
         if (mPrefsState == PrefsState.UNAVAILABLE && mPrefsInitAttempts >= MAX_PREF_INIT_ATTEMPTS) return;
 
-        mPrefsInitAttempts++;
-        if (remotePrefs == null) {
-            try {
-                remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
-            } catch (Throwable t) {
+        if (mPrefsState == PrefsState.EMPTY_PENDING) {
+            if (mPrefsWatcherRegistered) {
+                // A live preference watcher is registered: an empty map is now considered valid.
+                mPrefsState = PrefsState.VALID_EMPTY;
+                if (!mValidEmptyReported) {
+                    mValidEmptyReported = true;
+                    XposedHelpers.log("Remote preferences are valid but empty (watcher confirmed)");
+                }
+                return;
+            }
+            if (mEmptyPendingAttempts >= MAX_EMPTY_PENDING_ATTEMPTS) {
+                // Bounded retry limit reached without a live watcher. We do not claim a reliable
+                // VALID_EMPTY; we simply stop burning the caller's package-ready callbacks.
+                if (!mEmptyPendingReported) {
+                    mEmptyPendingReported = true;
+                    XposedHelpers.log("Remote preferences empty-pending: retry limit reached, continuing without final state");
+                }
+                return;
+            }
+            mEmptyPendingAttempts++;
+        }
+
+        if (mPrefsState == PrefsState.UNINITIALIZED || mPrefsState == PrefsState.UNAVAILABLE) {
+            if (mPrefsState == PrefsState.UNAVAILABLE) mPrefsInitAttempts++;
+            if (remotePrefs == null) {
+                try {
+                    remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
+                } catch (Throwable t) {
+                    mPrefsState = PrefsState.UNAVAILABLE;
+                    HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getRemotePreferences");
+                    return;
+                }
+            }
+            if (remotePrefs == null) {
                 mPrefsState = PrefsState.UNAVAILABLE;
-                HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getRemotePreferences");
+                HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null");
                 return;
             }
         }
-        if (remotePrefs == null) {
-            mPrefsState = PrefsState.UNAVAILABLE;
-            HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null");
-            return;
-        }
+
         Map<String, ?> allPrefs;
         try {
             allPrefs = remotePrefs.getAll();
@@ -143,10 +176,19 @@ public class MainModule extends XposedModule {
             return;
         }
         if (allPrefs.isEmpty()) {
-            mPrefsState = PrefsState.VALID_EMPTY;
-            if (!mValidEmptyReported) {
-                mValidEmptyReported = true;
-                XposedHelpers.log("Remote preferences are valid but empty");
+            if (mPrefsWatcherRegistered) {
+                mPrefsState = PrefsState.VALID_EMPTY;
+                if (!mValidEmptyReported) {
+                    mValidEmptyReported = true;
+                    XposedHelpers.log("Remote preferences are valid but empty (watcher confirmed)");
+                }
+            } else {
+                mPrefsState = PrefsState.EMPTY_PENDING;
+                HookDiagnostics.recordPreferencesEmptyPending();
+                if (!mEmptyPendingReported) {
+                    mEmptyPendingReported = true;
+                    XposedHelpers.log("Remote preferences empty-pending: provider reachable but map is empty");
+                }
             }
             return;
         }
@@ -223,6 +265,11 @@ public class MainModule extends XposedModule {
         try {
             remotePrefs.registerOnSharedPreferenceChangeListener(mListener);
             mPrefsWatcherRegistered = true;
+            // A live watcher is now in place. Reset retry counters so initPrefs can use it as a
+            // readiness signal and (re)load the current snapshot.
+            mPrefsInitAttempts = 0;
+            mEmptyPendingAttempts = 0;
+            initPrefs();
         } catch (Throwable t) {
             HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "registerOnSharedPreferenceChangeListener");
         }
@@ -241,6 +288,9 @@ public class MainModule extends XposedModule {
             XposedHelpers.log("CustoMIUIzer " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ") loaded in " + processName);
         }
         initPrefs();
+        if (mPrefsState != PrefsState.LOADED && mPrefsState != PrefsState.VALID_EMPTY) {
+            HookDiagnostics.recordPreferencesMissed("android", mPrefsState.name());
+        }
         PackagePermissions.hook(lpparam);
         if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupGlobalActions(lpparam);
 
@@ -331,6 +381,9 @@ public class MainModule extends XposedModule {
 
         ModuleHelper.currentPackageName = lpparam.getPackageName();
         initPrefs();
+        if (mPrefsState != PrefsState.LOADED && mPrefsState != PrefsState.VALID_EMPTY) {
+            HookDiagnostics.recordPreferencesMissed(pkg, mPrefsState.name());
+        }
 
         if (pkg.equals("android")) {
             if (mPrefs.getBoolean("system_cleanshare")) SystemShareMenuHooks.CleanShareMenuHook(lpparam);
@@ -375,45 +428,75 @@ public class MainModule extends XposedModule {
             if (mPrefs.getBoolean("launcher_disable_wallpaperscale")) LauncherAnimationHooks.DisableUnlockWallpaperScale(lpparam);
         }
         if (pkg.equals("com.android.systemui")) {
-            Context mContext = ModuleHelper.findContext(lpparam);
+            // 1. The SystemUIInitializer.init hook is always installed first. It is the only place
+            // where we can safely obtain a live Context and finish context-dependent init.
             final boolean[] fastRebootReceiverReady = { false };
-            long currentTime = java.lang.System.currentTimeMillis();
-
-            if (mContext != null) {
-                GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext);
-                fastRebootReceiverReady[0] = true;
-                long restartTime = Settings.System.getLong(mContext.getContentResolver(), "systemui_restart_time", 0L);
-                if (currentTime - restartTime < 10000) {
-                    HookDiagnostics.printSummaryForStage("onPackageReady");
-                    return;
-                }
-            } else {
-                XposedHelpers.log("MainModule: SystemUI context not ready at package ready, deferring FastReboot receiver");
-            }
+            final boolean[] statusBarSetupDone = { false };
+            final boolean[] preferenceWatchDone = { false };
 
             MethodHook initStatusBarHook = new MethodHook() {
                 private boolean isHooked = false;
                 @Override
                 protected void before(final BeforeHookCallback param) throws Throwable {
-                    if (!isHooked && param.getThisObject() != null) {
-                        isHooked = true;
-                        Context context = (Context) XposedHelpers.getObjectField(param.getThisObject(), "mContext");
-                        if (!fastRebootReceiverReady[0] && context != null) {
+                    if (isHooked || param.getThisObject() == null) return;
+                    Context context = (Context) XposedHelpers.getObjectField(param.getThisObject(), "mContext");
+                    if (context == null) {
+                        XposedHelpers.log("MainModule: SystemUI mContext is null in SystemUIInitializer.init, deferring context-dependent init");
+                        return;
+                    }
+                    try {
+                        if (!fastRebootReceiverReady[0]) {
                             GlobalActionSystemServerHooks.setupFastRebootReceiver(context);
                             fastRebootReceiverReady[0] = true;
                         }
-                        if (context != null) {
+                        if (!statusBarSetupDone[0]) {
                             SystemUIStatusBarHooks.setupStatusBar(context);
-                            watchPreferenceChange();
+                            statusBarSetupDone[0] = true;
                         }
+                        if (!preferenceWatchDone[0]) {
+                            watchPreferenceChange();
+                            preferenceWatchDone[0] = true;
+                        }
+                        isHooked = true;
                         HookDiagnostics.printSummaryForStage("post-init");
+                    } catch (Throwable t) {
+                        XposedHelpers.log(t);
+                        // Do not set isHooked: one failed init step must not mark the whole pass as complete.
                     }
                 }
             };
 
             ModuleHelper.findAndHookMethod("com.android.systemui.SystemUIInitializer", lpparam.getClassLoader(),
                 "init", boolean.class, initStatusBarHook);
+
+            // 2. Base hooks whose original install timing must never be skipped by the 10s restart check.
+            Context mContext = ModuleHelper.findContext(lpparam);
+            if (mContext != null) {
+                if (!fastRebootReceiverReady[0]) {
+                    GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext);
+                    fastRebootReceiverReady[0] = true;
+                }
+            } else {
+                XposedHelpers.log("MainModule: SystemUI context not ready at package ready, deferring FastReboot receiver");
+            }
             if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam);
+
+            // 3. The 10s restart check is only allowed to skip the non-essential hooks below.
+            boolean skipNonEssential = false;
+            if (mContext != null) {
+                try {
+                    long restartTime = Settings.System.getLong(mContext.getContentResolver(), "systemui_restart_time", 0L);
+                    long currentTime = java.lang.System.currentTimeMillis();
+                    if (currentTime - restartTime < 10000) skipNonEssential = true;
+                } catch (Throwable t) {
+                    XposedHelpers.log(t);
+                }
+            }
+
+            if (skipNonEssential) {
+                HookDiagnostics.printSummaryForStage("onPackageReady");
+                return;
+            }
 
             if (mPrefs.getStringAsInt("various_showcallui", 0) > 0
                 || mPrefs.getBoolean("controls_volumecursor")

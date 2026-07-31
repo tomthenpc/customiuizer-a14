@@ -190,6 +190,43 @@ object HookDiagnostics {
     }
 
     /**
+     * Record an empty-but-unconfirmed RemotePreferences state once for this process.
+     */
+    @JvmStatic
+    fun recordPreferencesEmptyPending() {
+        record(
+            Record(
+                process = currentProcessName ?: android.os.Process.myPid().toString(),
+                kind = Kind.REMOTE_PREFERENCES,
+                targetClass = "io.github.libxposed.service.RemotePreferences",
+                targetMember = "getAll",
+                descriptor = "empty-pending",
+                status = Status.PREFERENCES_UNAVAILABLE,
+                exceptionType = "",
+            )
+        )
+    }
+
+    /**
+     * Record that a package's hooks may have missed the real preference snapshot because
+     * the RemotePreferences state was not LOADED or VALID_EMPTY when the package was ready.
+     */
+    @JvmStatic
+    fun recordPreferencesMissed(packageName: String, state: String) {
+        record(
+            Record(
+                process = currentProcessName ?: android.os.Process.myPid().toString(),
+                kind = Kind.REMOTE_PREFERENCES,
+                targetClass = packageName,
+                targetMember = "onPackageReady",
+                descriptor = state,
+                status = Status.PREFERENCES_UNAVAILABLE,
+                exceptionType = "",
+            )
+        )
+    }
+
+    /**
      * Record a DexKit query result. [noMatch] means the bridge worked but the
      * query returned nothing, which is a different failure from bridge/exception
      * failures.
