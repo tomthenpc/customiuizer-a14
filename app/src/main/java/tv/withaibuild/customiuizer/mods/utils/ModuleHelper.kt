@@ -782,13 +782,8 @@ class ModuleHelper private constructor() {
          * A throw there kills system_server, SystemUI or Launcher, so every such body is wrapped.
          * The function is inline: no object is allocated and no frame is added on the hot path.
          */
-        inline fun guarded(block: () -> Unit) {
-            try {
-                block()
-            } catch (t: Throwable) {
-                XposedHelpers.log(t)
-            }
-        }
+        @JvmStatic
+        inline fun guarded(block: () -> Unit) = CallbackGuard.guarded(block)
 
         /**
          * [guarded] for a callback that has to return a value, such as `OnLongClickListener`.
@@ -796,14 +791,8 @@ class ModuleHelper private constructor() {
          * [fallback] is what the framework sees when the body fails, so it must be the answer
          * that leaves the host's own behavior intact — usually "not consumed".
          */
-        inline fun <T> guarded(fallback: T, block: () -> T): T {
-            return try {
-                block()
-            } catch (t: Throwable) {
-                XposedHelpers.log(t)
-                fallback
-            }
-        }
+        @JvmStatic
+        inline fun <T> guarded(fallback: T, block: () -> T): T = CallbackGuard.guarded(fallback, block)
 
         /**
          * Broadcast identity helpers.
