@@ -25,14 +25,18 @@ import tv.withaibuild.customiuizer.mods.SystemWindowHooks
 object SystemServerInstaller {
 
     @JvmStatic
-    fun install(lpparam: XposedModuleInterface.SystemServerStartingParam) {
+    @JvmOverloads
+    fun install(lpparam: XposedModuleInterface.SystemServerStartingParam, prefReady: Boolean = true) {
         val mPrefs = MainModule.mPrefs
 
+        // Base system_server hook: not preference-controlled, always installed.
         PackagePermissions.hook(lpparam)
 
-        if (GlobalActions.hasCustomActions()) {
+        if (prefReady && GlobalActions.hasCustomActions()) {
             GlobalActionSystemServerHooks.setupGlobalActions(lpparam)
         }
+
+        if (!prefReady) return
 
         if (mPrefs.getBoolean("system_screenshot_overlay")) {
             SystemWindowHooks.TempHideOverlayAppHook(lpparam)

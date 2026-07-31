@@ -6,19 +6,19 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 /**
  * Thread-safe, idempotent bootstrap for the process-local preference snapshot.
  *
- * The class manages the full lifecycle of [RemotePreferences]:
+ * The class manages the full lifecycle of [RemotePreferences] as a single transaction:
  *
  *     1. Obtain the remote [SharedPreferences].
- *     2. First [SharedPreferences.getAll] to get an initial snapshot.
+ *     2. First [SharedPreferences.getAll] for an initial snapshot.
  *     3. Register a single [OnSharedPreferenceChangeListener].
  *     4. Second [SharedPreferences.getAll] to cover changes made during the
  *        listener registration window.
- *     5. Publish the final snapshot to the [PrefMap] and transition to [State.LOADED]
- *        or [State.VALID_EMPTY].
+ *     5. Atomically publish the final snapshot to the [PrefMap].
+ *     6. Transition to [State.LOADED] or [State.VALID_EMPTY].
  *
- * Retries are bounded, no thread is blocked with sleep/wait, and all state transitions
- * happen under a single lock.  The [PrefMap] itself is a [ConcurrentHashMap] so hot hook
- * paths read the snapshot without further synchronization.
+ * The transition to [State.LOADED] / [State.VALID_EMPTY] only happens after the listener is
+ * successfully registered and a second snapshot has been read.  No caller may use the snapshot for
+ * hook installation decisions before [isReady] returns true.
  */
 class PreferenceBootstrap private constructor(
     private val prefs: PrefMap,
@@ -29,9 +29,6 @@ class PreferenceBootstrap private constructor(
      * Source of the remote [SharedPreferences].  This is a function because
      * [XposedModule.getRemotePreferences] is a protected method and must be supplied by the
      * module instance.
-     *
-     * The return type is nullable because a remote source may legitimately return null in some
-     * error paths.
      */
     fun interface RemotePreferenceSource {
         fun get(name: String): SharedPreferences?
@@ -40,6 +37,7 @@ class PreferenceBootstrap private constructor(
     enum class State {
         UNINITIALIZED,
         UNAVAILABLE,
+        SNAPSHOT_PENDING_LISTENER,
         EMPTY_PENDING,
         VALID_EMPTY,
         LOADED,
@@ -74,7 +72,7 @@ class PreferenceBootstrap private constructor(
         }
     }
 
-    /** The current bootstrap state.  Reads and writes are memory-visible without blocking. */
+    /** The current bootstrap state. */
     fun getState(): State = currentState
 
     /** Whether the snapshot is safe to use for feature installation decisions. */
@@ -87,16 +85,18 @@ class PreferenceBootstrap private constructor(
     fun isListenerRegistered(): Boolean = listenerRegistered
 
     /**
-     * Attempt to load the snapshot.  This is safe to call repeatedly from any thread and is the
-     * first step in both [onSystemServerStarting]/[onPackageReady] and the deferred SystemUI
-     * initialization.
+     * Single transaction entry.  Returns [isReady] after attempting to obtain the remote
+     * preferences, register a listener, and publish a stable snapshot.
+     *
+     * Safe to call repeatedly from any thread.  If the bootstrap has already reached a ready state,
+     * this returns immediately without re-registering.
      */
-    fun init() {
+    fun bootstrap(): Boolean {
         synchronized(lock) {
             val s = currentState
-            if (s == State.LOADED || s == State.VALID_EMPTY) return
+            if (s == State.LOADED || s == State.VALID_EMPTY) return true
 
-            if (s == State.UNAVAILABLE && initAttempts >= MAX_PREF_INIT_ATTEMPTS) return
+            if (s == State.UNAVAILABLE && initAttempts >= MAX_PREF_INIT_ATTEMPTS) return false
 
             if (s == State.EMPTY_PENDING) {
                 if (emptyPendingAttempts >= MAX_EMPTY_PENDING_ATTEMPTS && !listenerRegistered) {
@@ -104,14 +104,12 @@ class PreferenceBootstrap private constructor(
                         emptyPendingReported = true
                         XposedHelpers.log("Remote preferences empty-pending: retry limit reached, continuing without final state")
                     }
-                    return
+                    return false
                 }
                 emptyPendingAttempts++
             }
 
             if (s == State.UNINITIALIZED || s == State.UNAVAILABLE) {
-                // Count the attempt before making it so the retry budget limits the total number
-                // of attempts, not total minus one.
                 initAttempts++
                 if (remotePrefs == null) {
                     try {
@@ -119,158 +117,161 @@ class PreferenceBootstrap private constructor(
                     } catch (t: Throwable) {
                         currentState = State.UNAVAILABLE
                         HookDiagnostics.recordPreferencesUnavailable(t.javaClass.name, "getRemotePreferences")
-                        return
+                        return false
                     }
                 }
                 if (remotePrefs == null) {
                     currentState = State.UNAVAILABLE
                     HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null")
-                    return
+                    return false
                 }
             }
 
-            loadSnapshotLocked()
+            return doBootstrapLocked()
         }
     }
 
     /**
-     * Register the live preference listener.  The registration is idempotent: once it succeeds,
-     * subsequent calls return [true] without re-registering.
-     *
-     * After the listener is registered, a second snapshot is loaded immediately so that any
-     * preference changes that occurred between the first snapshot and the listener registration
-     * are not lost.
+     * Old public entry points kept for binary compatibility, but [MainModule] should not call them
+     * directly.  They delegate to [bootstrap].
      */
-    fun installListener(): Boolean {
-        synchronized(lock) {
-            if (listenerRegistered) return true
+    @Deprecated("Use bootstrap() instead.", ReplaceWith("bootstrap()"))
+    fun init() {
+        bootstrap()
+    }
 
-            if (remotePrefs == null) {
-                try {
-                    remotePrefs = remoteSource.get(remoteName)
-                } catch (t: Throwable) {
-                    HookDiagnostics.recordPreferencesUnavailable(t.javaClass.name, "getRemotePreferences")
-                    return false
-                }
-            }
-            if (remotePrefs == null) {
-                HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null")
-                return false
-            }
+    @Deprecated("Use bootstrap() instead.", ReplaceWith("bootstrap()"))
+    fun installListener(): Boolean = bootstrap()
 
-            val newListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->
-                onPreferenceChanged(sharedPreferences, key)
+    /**
+     * Performs the stable snapshot sequence under [lock].
+     *
+     * The snapshot is not published until after the listener is registered, and the second
+     * [getAll] has completed.  This closes the window where a preference change would be lost.
+     */
+    private fun doBootstrapLocked(): Boolean {
+        val remote = remotePrefs ?: return false
+
+        val first = getAllOrFail(remote) ?: return false
+
+        currentState = if (first.isEmpty()) {
+            State.EMPTY_PENDING
+        } else {
+            State.SNAPSHOT_PENDING_LISTENER
+        }
+
+        if (!listenerRegistered) {
+            val newListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                onPreferenceChanged(key)
             }
             listener = newListener
 
             return try {
-                remotePrefs!!.registerOnSharedPreferenceChangeListener(newListener)
+                remote.registerOnSharedPreferenceChangeListener(newListener)
                 listenerRegistered = true
-                // A live watcher is in place. Reset retry counters so a later [init] can use
-                // [listenerRegistered] as a readiness signal.
                 initAttempts = 0
                 emptyPendingAttempts = 0
-                // Second snapshot: cover the listener-registration window.
-                loadSnapshotLocked()
-                true
+                // A live watcher is in place. Take the second snapshot and publish.
+                publishSecondSnapshotLocked(remote)
             } catch (t: Throwable) {
+                listener = null
+                currentState = State.UNAVAILABLE
                 HookDiagnostics.recordPreferencesUnavailable(t.javaClass.name, "registerOnSharedPreferenceChangeListener")
                 false
             }
+        } else {
+            // Listener already registered; this is a retry. Take a fresh snapshot.
+            return publishSecondSnapshotLocked(remote)
         }
     }
 
-    /**
-     * Replace the published snapshot with [allPrefs].  Called while holding [lock].
-     */
-    private fun loadSnapshotLocked() {
-        val allPrefs = try {
-            remotePrefs!!.getAll()
+    private fun publishSecondSnapshotLocked(remote: SharedPreferences): Boolean {
+        val second = getAllOrFail(remote) ?: return false
+
+        if (second.isEmpty()) {
+            currentState = State.VALID_EMPTY
+            prefs.clear()
+            if (!validEmptyReported) {
+                validEmptyReported = true
+                XposedHelpers.log("Remote preferences are valid but empty (watcher confirmed)")
+            }
+            return true
+        }
+
+        currentState = State.LOADED
+        prefs.replaceSnapshot(second)
+        return true
+    }
+
+    private fun getAllOrFail(remote: SharedPreferences): Map<String, *>? {
+        return try {
+            val all = remote.all
+            if (all == null) {
+                currentState = State.UNAVAILABLE
+                HookDiagnostics.recordPreferencesUnavailable("", "getAll returned null")
+                null
+            } else {
+                all
+            }
         } catch (t: Throwable) {
             currentState = State.UNAVAILABLE
             HookDiagnostics.recordPreferencesUnavailable(t.javaClass.name, "getAll")
-            return
-        }
-
-        if (allPrefs == null) {
-            currentState = State.UNAVAILABLE
-            if (!unavailableReported) {
-                unavailableReported = true
-                XposedHelpers.log("Remote preferences unavailable: getAll returned null")
-            }
-            return
-        }
-
-        if (allPrefs.isEmpty()) {
-            if (listenerRegistered) {
-                currentState = State.VALID_EMPTY
-                prefs.clear()
-                if (!validEmptyReported) {
-                    validEmptyReported = true
-                    XposedHelpers.log("Remote preferences are valid but empty (watcher confirmed)")
-                }
-            } else {
-                currentState = State.EMPTY_PENDING
-                HookDiagnostics.recordPreferencesEmptyPending()
-                if (!emptyPendingReported) {
-                    emptyPendingReported = true
-                    XposedHelpers.log("Remote preferences empty-pending: provider reachable but map is empty")
-                }
-            }
-            return
-        }
-
-        publishSnapshot(allPrefs)
-        currentState = State.LOADED
-    }
-
-    /**
-     * Publish [allPrefs] into the process-local [PrefMap].  Null values are skipped because
-     * [PrefMap.put] requires a non-null [Any].
-     */
-    private fun publishSnapshot(allPrefs: Map<String, *>) {
-        prefs.clear()
-        for ((key, value) in allPrefs) {
-            if (value != null) {
-                prefs.put(key, value)
-            }
+            null
         }
     }
 
     /**
-     * Listener callback.  Runs on the remote-preference binder thread, so it updates the
-     * [PrefMap] directly and fans the change out to observers.  Each observer is isolated to
-     * keep one failing observer from taking down the host process.
+     * Listener callback. Runs on the remote-preference binder thread, so it must be fast and
+     * must not install hooks or perform reflection.  The snapshot is updated atomically and the
+     * state is kept in sync.
      */
-    private fun onPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        if (sharedPreferences == null || key == null) return
+    private fun onPreferenceChanged(key: String?) {
+        if (key == null) return
+
         try {
-            val oldValue = prefs.get(key)
-            val value = if (sharedPreferences.contains(key)) {
-                when (oldValue) {
-                    is Boolean -> sharedPreferences.getBoolean(key, false)
-                    is Int -> sharedPreferences.getInt(key, 0)
-                    is Long -> sharedPreferences.getLong(key, 0L)
-                    is Float -> sharedPreferences.getFloat(key, 0f)
-                    is String -> sharedPreferences.getString(key, null)
-                    is Set<*> -> sharedPreferences.getStringSet(key, null)
-                    else -> sharedPreferences.all?.get(key)
-                }
+            val remote = remotePrefs ?: return
+
+            val rawValue = if (remote.contains(key)) {
+                remote.all?.get(key)
             } else {
                 null
             }
 
-            if (value == null) {
+            if (rawValue == null) {
                 prefs.remove(key)
             } else {
-                prefs.put(key, value)
+                prefs.put(key, rawValue)
             }
+
+            synchronizeState()
 
             if (key != "pref_key_systemui_restart_time") {
                 ModuleHelper.handlePreferenceChanged(key)
             }
         } catch (t: Throwable) {
             XposedHelpers.log(t)
+        }
+    }
+
+    /**
+     * Keep the bootstrap state in sync with the snapshot after a single-key update.
+     *
+     * This is called from the listener thread.  It uses a quick in-memory check; no remote
+     * SharedPreferences access here.
+     */
+    private fun synchronizeState() {
+        synchronized(lock) {
+            val s = currentState
+            val empty = prefs.size() == 0
+
+            when {
+                (s == State.LOADED || s == State.VALID_EMPTY) && empty -> {
+                    currentState = State.VALID_EMPTY
+                }
+                (s == State.LOADED || s == State.VALID_EMPTY) && !empty -> {
+                    currentState = State.LOADED
+                }
+            }
         }
     }
 }

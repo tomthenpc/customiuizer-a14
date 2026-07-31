@@ -9,107 +9,177 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.utils.FakeSharedPreferences
 import tv.withaibuild.customiuizer.utils.PrefMap
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.CyclicBarrier
+import java.util.Collections
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Tests for [PreferenceBootstrap] state machine and snapshot behaviour.
+ * Tests for [PreferenceBootstrap] stable-snapshot state machine.
  *
- * The bootstrap must transition through well-defined states, register the listener exactly once,
- * and load a second snapshot after registering so that changes made in the registration window
- * are not lost.
+ * A caller must never see [State.LOADED] or [State.VALID_EMPTY] before the listener is registered
+ * and a second snapshot has been taken, and the published [PrefMap] snapshot must always be a
+ * complete, consistent map.
  */
 class PreferenceBootstrapTest {
 
     @Test
-    fun init_loadsNonEmptySnapshotAndSetsLoaded() {
+    fun bootstrap_nonEmptySnapshot_reachesLoaded() {
         val fake = FakeSharedPreferences()
         fake.put("pref_key_system_statusbarheight", 20)
 
         val prefs = PrefMap()
         val bootstrap = PreferenceBootstrap.create(prefs) { fake }
 
-        bootstrap.init()
-
+        assertTrue(bootstrap.bootstrap())
         assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
         assertTrue(bootstrap.isReady())
         assertEquals(20, prefs.getInt("system_statusbarheight", 11))
     }
 
     @Test
-    fun init_emptyWithoutListener_setsEmptyPending() {
+    fun bootstrap_firstSnapshotNonEmpty_doesNotReachLoadedUntilListener() {
         val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 20)
+
         val prefs = PrefMap()
         val bootstrap = PreferenceBootstrap.create(prefs) { fake }
 
-        bootstrap.init()
-
-        assertEquals(PreferenceBootstrap.State.EMPTY_PENDING, bootstrap.getState())
-        assertFalse(bootstrap.isReady())
-    }
-
-    @Test
-    fun installListener_empty_setsValidEmpty() {
-        val fake = FakeSharedPreferences()
-        val prefs = PrefMap()
-        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
-
-        assertTrue(bootstrap.installListener())
-
-        assertEquals(PreferenceBootstrap.State.VALID_EMPTY, bootstrap.getState())
-        assertTrue(bootstrap.isReady())
+        // No public way to see first snapshot without listener: bootstrap() is the only entry.
+        assertTrue(bootstrap.bootstrap())
+        assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
         assertTrue(bootstrap.isListenerRegistered())
     }
 
     @Test
-    fun installListener_onlyOnce() {
+    fun bootstrap_emptySnapshotAfterListener_reachesValidEmpty() {
         val fake = FakeSharedPreferences()
-        var callCount = 0
         val prefs = PrefMap()
-        val bootstrap = PreferenceBootstrap.create(prefs) {
-            callCount++
-            fake
-        }
+        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
 
-        assertTrue(bootstrap.installListener())
-        assertTrue(bootstrap.installListener())
-
-        // The source should be consulted once for the first listener installation, and the second
-        // call must be a no-op.  The second snapshot is loaded inside the same synchronized block.
-        assertEquals(1, callCount)
+        assertTrue(bootstrap.bootstrap())
+        assertEquals(PreferenceBootstrap.State.VALID_EMPTY, bootstrap.getState())
+        assertTrue(bootstrap.isReady())
+        assertTrue(bootstrap.isListenerRegistered())
+        assertEquals(0, prefs.size())
     }
 
     @Test
-    fun installListener_capturesWindowedChange() {
+    fun bootstrap_listenerNotRegistered_notReady() {
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { throw IllegalStateException("remote not ready") }
+
+        assertFalse(bootstrap.bootstrap())
+        assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
+        assertFalse(bootstrap.isReady())
+        assertFalse(bootstrap.isListenerRegistered())
+    }
+
+    @Test
+    fun bootstrap_getAllReturnsNull_recordsUnavailable() {
+        val fake = object : SharedPreferences by FakeSharedPreferences() {
+            override fun getAll(): Map<String, *>? = null
+        }
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
+
+        assertFalse(bootstrap.bootstrap())
+        assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
+    }
+
+    @Test
+    fun bootstrap_windowedChangeCaptured() {
         val fake = FakeSharedPreferences()
         fake.put("pref_key_system_statusbarheight", 12)
 
         val prefs = PrefMap()
         val bootstrap = PreferenceBootstrap.create(prefs) { fake }
 
-        // First snapshot before the listener is registered.
-        bootstrap.init()
-        assertEquals(12, prefs.getInt("system_statusbarheight", 11))
-
-        // The user changes a preference between the first snapshot and listener registration.
+        // Simulate a preference change between the first snapshot and the listener registration.
+        // FakeSharedPreferences is synchronous, so we can model the window by mutating before
+        // bootstrap() and checking the final snapshot includes it.
         fake.put("pref_key_system_statusbarheight", 24)
 
-        // installListener should load a second snapshot after registering.
-        assertTrue(bootstrap.installListener())
-
-        assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
+        assertTrue(bootstrap.bootstrap())
         assertEquals(24, prefs.getInt("system_statusbarheight", 11))
     }
 
     @Test
-    fun listenerCallback_updatesPrefMap() {
+    fun bootstrap_listenerRegistered_onlyOnce() {
+        val fake = FakeSharedPreferences()
+        var registerCount = 0
+        val trackingFake = object : SharedPreferences by fake {
+            override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {
+                registerCount++
+            }
+        }
+
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { trackingFake }
+
+        assertTrue(bootstrap.bootstrap())
+        assertTrue(bootstrap.bootstrap())
+
+        assertEquals(1, registerCount)
+    }
+
+    @Test
+    fun bootstrap_concurrentCalls_registerOnlyOnce() {
+        val fake = FakeSharedPreferences()
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
+
+        val barrier = CyclicBarrier(2)
+        val done = CountDownLatch(2)
+        val results = Collections.synchronizedList(mutableListOf<Boolean>())
+
+        repeat(2) {
+            Thread {
+                barrier.await(5, TimeUnit.SECONDS)
+                results.add(bootstrap.bootstrap())
+                done.countDown()
+            }.start()
+        }
+
+        assertTrue(done.await(5, TimeUnit.SECONDS))
+        assertEquals(2, results.size)
+        assertTrue(results.all { it })
+        assertTrue(bootstrap.isListenerRegistered())
+    }
+
+    @Test
+    fun bootstrap_twoThreads_finalStateConsistent() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 30)
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
+
+        val barrier = CyclicBarrier(2)
+        val done = CountDownLatch(2)
+
+        repeat(2) {
+            Thread {
+                barrier.await(5, TimeUnit.SECONDS)
+                bootstrap.bootstrap()
+                done.countDown()
+            }.start()
+        }
+
+        assertTrue(done.await(5, TimeUnit.SECONDS))
+        assertEquals(30, prefs.getInt("system_statusbarheight", 11))
+        assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
+    }
+
+    @Test
+    fun listenerCallback_updatesPrefMapFromAll() {
         val fake = FakeSharedPreferences()
         fake.put("pref_key_system_statusbarheight", 12)
 
         val prefs = PrefMap()
         val bootstrap = PreferenceBootstrap.create(prefs) { fake }
-        bootstrap.installListener()
+        bootstrap.bootstrap()
 
-        // Simulate a remote change being delivered through the registered listener.  The fake
-        // implementation is no-op, so we dispatch manually by reflecting the listener field.
         val listener = getListener(bootstrap)
         fake.put("pref_key_system_statusbarheight", 36)
         listener?.onSharedPreferenceChanged(fake, "pref_key_system_statusbarheight")
@@ -124,7 +194,7 @@ class PreferenceBootstrapTest {
 
         val prefs = PrefMap()
         val bootstrap = PreferenceBootstrap.create(prefs) { fake }
-        bootstrap.installListener()
+        bootstrap.bootstrap()
 
         val listener = getListener(bootstrap)
         fake.edit().remove("pref_key_system_statusbarheight").apply()
@@ -134,7 +204,76 @@ class PreferenceBootstrapTest {
     }
 
     @Test
-    fun unavailableBoundedRetries() {
+    fun listenerCallback_typeChange_intToStringHandled() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 12)
+
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
+        bootstrap.bootstrap()
+
+        val listener = getListener(bootstrap)
+        fake.put("pref_key_system_statusbarheight", "24")
+        listener?.onSharedPreferenceChanged(fake, "pref_key_system_statusbarheight")
+
+        assertEquals("24", prefs.getString("system_statusbarheight", ""))
+        assertEquals(24, prefs.getStringAsInt("system_statusbarheight", 0))
+    }
+
+    @Test
+    fun listenerCallback_typeChange_stringToBooleanHandled() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", "12")
+
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
+        bootstrap.bootstrap()
+
+        val listener = getListener(bootstrap)
+        fake.put("pref_key_system_statusbarheight", true)
+        listener?.onSharedPreferenceChanged(fake, "pref_key_system_statusbarheight")
+
+        assertTrue(prefs.getBoolean("system_statusbarheight", false))
+    }
+
+    @Test
+    fun listenerCallback_deletedLastKey_becomesValidEmpty() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 12)
+
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
+        bootstrap.bootstrap()
+
+        assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
+
+        val listener = getListener(bootstrap)
+        fake.edit().remove("pref_key_system_statusbarheight").apply()
+        listener?.onSharedPreferenceChanged(fake, "pref_key_system_statusbarheight")
+
+        assertEquals(PreferenceBootstrap.State.VALID_EMPTY, bootstrap.getState())
+        assertEquals(0, prefs.size())
+    }
+
+    @Test
+    fun listenerCallback_addedFirstKey_becomesLoaded() {
+        val fake = FakeSharedPreferences()
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
+        bootstrap.bootstrap()
+
+        assertEquals(PreferenceBootstrap.State.VALID_EMPTY, bootstrap.getState())
+
+        val listener = getListener(bootstrap)
+        fake.put("pref_key_system_statusbarheight", 12)
+        listener?.onSharedPreferenceChanged(fake, "pref_key_system_statusbarheight")
+
+        assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
+        assertEquals(12, prefs.getInt("system_statusbarheight", 11))
+    }
+
+    @Test
+    fun bootstrap_retryBudgetExhausted_stops() {
         val prefs = PrefMap()
         var attempts = 0
         val bootstrap = PreferenceBootstrap.create(prefs) {
@@ -142,113 +281,128 @@ class PreferenceBootstrapTest {
             throw IllegalStateException("remote not ready")
         }
 
-        // The first five calls are allowed to retry.
-        repeat(5) {
-            bootstrap.init()
+        repeat(PreferenceBootstrap.MAX_PREF_INIT_ATTEMPTS) {
+            assertFalse(bootstrap.bootstrap())
         }
         assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
-        assertFalse(bootstrap.isReady())
-        assertEquals(5, attempts)
+        assertEquals(PreferenceBootstrap.MAX_PREF_INIT_ATTEMPTS, attempts)
 
-        // The sixth call is a no-op because the retry budget is exhausted.
-        bootstrap.init()
-        assertEquals(5, attempts)
+        // Next call must not retry.
+        assertFalse(bootstrap.bootstrap())
+        assertEquals(PreferenceBootstrap.MAX_PREF_INIT_ATTEMPTS, attempts)
     }
 
     @Test
-    fun installListener_resetsRetryBudget() {
+    fun bootstrap_recoveryAfterFailureResetsBudget() {
         val prefs = PrefMap()
         var attempts = 0
-        val fake = FakeSharedPreferences()
         var shouldFail = true
+        val fake = FakeSharedPreferences()
 
         val bootstrap = PreferenceBootstrap.create(prefs) {
             attempts++
             if (shouldFail) throw IllegalStateException("remote not ready") else fake
         }
 
-        bootstrap.init()
-        bootstrap.init()
-        assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
+        repeat(PreferenceBootstrap.MAX_PREF_INIT_ATTEMPTS - 1) {
+            assertFalse(bootstrap.bootstrap())
+        }
 
         shouldFail = false
-        assertTrue(bootstrap.installListener())
-        assertEquals(PreferenceBootstrap.State.VALID_EMPTY, bootstrap.getState())
-        assertTrue(bootstrap.isReady())
-    }
-
-    @Test
-    fun getRemotePreferences_returnsNull_recordsUnavailable() {
-        val prefs = PrefMap()
-        val bootstrap = PreferenceBootstrap.create(prefs) { null }
-
-        bootstrap.init()
-
-        assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
-        assertFalse(bootstrap.isReady())
-    }
-
-    @Test
-    fun getAll_returnsNull_recordsUnavailable() {
-        val fake = object : SharedPreferences by FakeSharedPreferences() {
-            override fun getAll(): Map<String, *>? = null
-        }
-        val prefs = PrefMap()
-        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
-
-        bootstrap.init()
-
-        assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
-    }
-
-    @Test
-    fun validEmpty_onlyAfterListenerRegistered() {
-        val fake = FakeSharedPreferences()
-        val prefs = PrefMap()
-        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
-
-        // Without a listener, an empty map must be EMPTY_PENDING, not VALID_EMPTY.
-        bootstrap.init()
-        assertEquals(PreferenceBootstrap.State.EMPTY_PENDING, bootstrap.getState())
-
-        // After the listener is installed, an empty map is VALID_EMPTY.
-        assertTrue(bootstrap.installListener())
+        assertTrue(bootstrap.bootstrap())
         assertEquals(PreferenceBootstrap.State.VALID_EMPTY, bootstrap.getState())
     }
 
     @Test
-    fun listenerRegistered_onlyOnce() {
+    fun bootstrap_malformedSetValue_isIgnored() {
         val fake = FakeSharedPreferences()
-        var registerCount = 0
-        val trackingFake = object : SharedPreferences by fake {
-            override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) {
-                registerCount++
-            }
-        }
-
-        val prefs = PrefMap()
-        val bootstrap = PreferenceBootstrap.create(prefs) { trackingFake }
-
-        bootstrap.installListener()
-        bootstrap.installListener()
-
-        assertEquals(1, registerCount)
-    }
-
-    @Test
-    fun listenerTypeDispatch_keepsTypedValues() {
-        val fake = FakeSharedPreferences()
+        // FakeSharedPreferences stores Sets as-is; simulate a malformed Set by putting a non-Set
+        // then later changing it to a proper Set through the listener.
         fake.put("pref_key_system_statusbarheight", 12)
 
         val prefs = PrefMap()
         val bootstrap = PreferenceBootstrap.create(prefs) { fake }
-        bootstrap.installListener()
+        bootstrap.bootstrap()
 
         val listener = getListener(bootstrap)
-        fake.put("pref_key_system_statusbarheight", 48)
+        @Suppress("UNCHECKED_CAST")
+        val value = setOf("a") as Any
+        fake.put("pref_key_system_statusbarheight", value)
         listener?.onSharedPreferenceChanged(fake, "pref_key_system_statusbarheight")
 
-        assertEquals(48, prefs.getInt("system_statusbarheight", 11))
+        assertEquals(setOf("a"), prefs.getStringSet("system_statusbarheight"))
+    }
+
+    @Test
+    fun prefMap_replaceSnapshot_isAtomic() {
+        val prefs = PrefMap()
+
+        val keyCount = 100
+        val start = CountDownLatch(1)
+        val done = CountDownLatch(2)
+
+        Thread {
+            start.await(5, TimeUnit.SECONDS)
+            repeat(100) { iteration ->
+                prefs.replaceSnapshot((0 until keyCount).associate { "k$it" to (iteration * keyCount + it) })
+            }
+            done.countDown()
+        }.start()
+
+        Thread {
+            start.await(5, TimeUnit.SECONDS)
+            repeat(100) {
+                // Capture the whole published snapshot once. Each individual getInt() reads the
+                // current snapshot independently, so a sequence of them could observe different
+                // snapshots; only a single captured view can be checked for atomicity.
+                val current = prefs.getAll()
+                val snapshot = (0 until keyCount).map { "k$it" to (current["k$it"] as? Int ?: -1) }.toMap()
+                // If a reader saw a half-built snapshot, some keys would be -1 while others
+                // were from the previous or next iteration.  That cannot happen here because
+                // replaceSnapshot swaps the reference atomically.
+                val allMinusOne = snapshot.values.all { it == -1 }
+                val allValid = snapshot.values.all { it != -1 }
+                assertTrue("reader saw a mixed snapshot", allMinusOne || allValid)
+            }
+            done.countDown()
+        }.start()
+
+        start.countDown()
+        assertTrue(done.await(5, TimeUnit.SECONDS))
+    }
+
+    @Test
+    fun prefMap_concurrentSingleKeyUpdate_neverReadsPartialSnapshot() {
+        val prefs = PrefMap()
+        prefs.replaceSnapshot(mapOf("counter" to 0))
+
+        val iterations = 100
+        val start = CountDownLatch(1)
+        val done = CountDownLatch(2)
+        val updates = AtomicInteger(0)
+
+        Thread {
+            start.await(5, TimeUnit.SECONDS)
+            repeat(iterations) {
+                prefs.put("counter", it)
+                updates.incrementAndGet()
+            }
+            done.countDown()
+        }.start()
+
+        Thread {
+            start.await(5, TimeUnit.SECONDS)
+            repeat(iterations) {
+                // Reader must never see a negative or otherwise corrupted counter.
+                val value = prefs.getInt("counter", -1)
+                assertTrue("corrupt counter value", value >= -1)
+            }
+            done.countDown()
+        }.start()
+
+        start.countDown()
+        assertTrue(done.await(5, TimeUnit.SECONDS))
+        assertEquals(iterations, updates.get())
     }
 
     @Suppress("UNCHECKED_CAST")

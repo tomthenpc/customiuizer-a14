@@ -18,7 +18,7 @@ class MainModuleSystemServerLoadMarkerTest {
         assertTrue("Missing system_server load marker", method.contains(marker))
 
         val markerIndex = method.indexOf(marker)
-        val firstHookIndex = method.indexOf("SystemServerInstaller.install(lpparam);")
+        val firstHookIndex = method.indexOf("SystemServerInstaller.install(lpparam,")
         assertTrue(
             "Load marker must appear before the first hook installation",
             markerIndex in 0 until firstHookIndex

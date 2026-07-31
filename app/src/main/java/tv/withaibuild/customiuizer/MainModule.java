@@ -91,13 +91,17 @@ public class MainModule extends XposedModule {
     }
 
     /**
-     * Loads the remote preference snapshot into the process-local {@link PrefMap}.
+     * Single transaction to load the remote preference snapshot into the process-local {@link PrefMap}.
      *
-     * The real state machine now lives in {@link PreferenceBootstrap}.  This wrapper keeps the
-     * existing call sites unchanged while the bootstrap is extracted into a testable component.
+     * The real state machine now lives in {@link PreferenceBootstrap}.  This wrapper returns whether
+     * the snapshot is ready for hook-installation decisions.
      */
-    private void initPrefs() {
-        if (preferenceBootstrap != null) preferenceBootstrap.init();
+    private boolean initPrefs() {
+        if (preferenceBootstrap != null) {
+            preferenceBootstrap.bootstrap();
+            return preferenceBootstrap.isReady();
+        }
+        return false;
     }
 
     private void loadDexKit() {
@@ -108,10 +112,6 @@ public class MainModule extends XposedModule {
             XposedHelpers.log(t);
             throw t;
         }
-    }
-
-    private boolean watchPreferenceChange() {
-        return preferenceBootstrap != null && preferenceBootstrap.installListener();
     }
 
     @Override
@@ -126,13 +126,11 @@ public class MainModule extends XposedModule {
             mSystemServerLoadMarkerLogged = true;
             XposedHelpers.log("CustoMIUIzer " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ") loaded in " + processName);
         }
-        initPrefs();
-        if (!preferenceBootstrap.isReady()) {
+        boolean prefReady = initPrefs();
+        if (!prefReady) {
             HookDiagnostics.recordPreferencesMissed("android", preferenceBootstrap.getState().name());
         }
-        SystemServerInstaller.install(lpparam);
-
-        watchPreferenceChange();
+        SystemServerInstaller.install(lpparam, prefReady);
         HookDiagnostics.printSummaryForStage("onSystemServerStarting");
     }
 
@@ -152,18 +150,17 @@ public class MainModule extends XposedModule {
         }
 
         ModuleHelper.currentPackageName = lpparam.getPackageName();
-        initPrefs();
-        if (!preferenceBootstrap.isReady()) {
+        boolean prefReady = initPrefs();
+        if (!prefReady) {
             HookDiagnostics.recordPreferencesMissed(pkg, preferenceBootstrap.getState().name());
         }
 
         if (pkg.equals("android")) {
-            if (mPrefs.getBoolean("system_cleanshare")) SystemShareMenuHooks.CleanShareMenuHook(lpparam);
-            if (mPrefs.getBoolean("system_cleanopenwith")) SystemShareMenuHooks.CleanOpenWithMenuHook(lpparam);
-            if (mPrefs.getStringAsInt("system_allrotations2", 1) > 1) {
+            if (prefReady && mPrefs.getBoolean("system_cleanshare")) SystemShareMenuHooks.CleanShareMenuHook(lpparam);
+            if (prefReady && mPrefs.getBoolean("system_cleanopenwith")) SystemShareMenuHooks.CleanOpenWithMenuHook(lpparam);
+            if (prefReady && mPrefs.getStringAsInt("system_allrotations2", 1) > 1) {
                 MainModule.resHooks.setThemeValueReplacement("android", "bool", "config_allowAllRotations", mPrefs.getStringAsInt("system_allrotations2", 1) == 2);
             }
-            watchPreferenceChange();
         }
 
         if (pkg.equals("com.baidu.input")
@@ -238,7 +235,7 @@ public class MainModule extends XposedModule {
                             statusBarSetupDone[0] = true;
                         }
                         if (!preferenceWatchDone[0]) {
-                            preferenceWatchDone[0] = watchPreferenceChange();
+                            preferenceWatchDone[0] = initPrefs();
                         }
                         if (fastRebootReceiverReady[0] && statusBarSetupDone[0] && preferenceWatchDone[0]) {
                             isHooked = true;
@@ -643,7 +640,7 @@ public class MainModule extends XposedModule {
             if (mPrefs.getInt("launcher_dock_bottommargin", 0) > 0) LauncherLayoutHooks.DockMarginBottomHook(lpparam);
             if (mPrefs.getInt("launcher_dock_height", 60) > 60) LauncherLayoutHooks.DockHeightHook(lpparam);
             if (mPrefs.getBoolean("launcher_privacyapps_gest")) Launcher.setupLauncher(lpparam);
-            watchPreferenceChange();
+            initPrefs();
         }
 
         final boolean isStatusBarColor = mPrefs.getBoolean("system_statusbarcolor") && mPrefs.getStringSet("system_statusbarcolor_apps").contains(pkg);

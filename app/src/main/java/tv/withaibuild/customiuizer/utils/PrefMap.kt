@@ -2,16 +2,19 @@ package tv.withaibuild.customiuizer.utils
 
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Process-local preference snapshot used by hook callbacks.
+ * Process-local, atomically published preference snapshot used by hook callbacks.
  *
- * Remote preferences use `pref_key_` names. They are normalized once when inserted so
- * hot hook paths can read their short, source-level keys without allocating a prefixed String on
- * every invocation. ConcurrentHashMap also provides visibility between the preference listener
- * and callbacks running on binder, UI, and system-server threads.
+ * The snapshot is stored as an immutable [Map] behind an [AtomicReference].  A full snapshot is
+ * replaced with a single reference swap, so a reader on a hot path can never see a half-written or
+ * temporarily empty map.  Single-key updates use a CAS loop on the same reference.
+ *
+ * Remote preferences use `pref_key_` names. They are normalized once when inserted so hot hook paths
+ * can read their short, source-level keys without allocating a prefixed String on every invocation.
  */
-class PrefMap : ConcurrentHashMap<String, Any>() {
+class PrefMap {
 
     private companion object {
         const val STORAGE_PREFIX = "pref_key_"
@@ -22,29 +25,104 @@ class PrefMap : ConcurrentHashMap<String, Any>() {
 
     private val parsedIntCache = ConcurrentHashMap<String, CachedInt>()
 
+    private val snapshot = AtomicReference<Map<String, Any>>(emptyMap())
+
     private fun normalizeStorageKey(key: String): String {
         return if (key.startsWith(STORAGE_PREFIX)) key.substring(STORAGE_PREFIX.length) else key
     }
 
+    private fun currentSnapshot(): Map<String, Any> = snapshot.get()
+
     private fun getValue(key: String): Any? {
-        return get(if (key.startsWith(STORAGE_PREFIX)) normalizeStorageKey(key) else key)
+        return currentSnapshot()[if (key.startsWith(STORAGE_PREFIX)) normalizeStorageKey(key) else key]
     }
 
-    override fun put(key: String, value: Any): Any? {
+    /**
+     * Atomically replace the entire published snapshot with [values].
+     *
+     * Null values are skipped. All keys are normalized. The swap itself is a single
+     * [AtomicReference.set], so readers see either the previous complete snapshot or the new
+     * complete snapshot — never a partially built map.
+     */
+    fun replaceSnapshot(values: Map<String, *>) {
+        val normalized = HashMap<String, Any>(values.size)
+        for ((key, value) in values) {
+            if (value != null) {
+                normalized[normalizeStorageKey(key)] = value
+            }
+        }
+        snapshot.set(normalized)
+        parsedIntCache.clear()
+    }
+
+    /**
+     * Atomically update a single key.
+     *
+     * The update uses a CAS loop: the current snapshot is copied, one key is changed, and the
+     * reference is swapped only if the snapshot has not changed in the meantime.  This guarantees
+     * that a reader sees a consistent snapshot and never a mixed old/new state.
+     */
+    fun put(key: String, value: Any) {
         val normalized = normalizeStorageKey(key)
         parsedIntCache.remove(normalized)
-        return super.put(normalized, value)
+
+        while (true) {
+            val old = snapshot.get()
+            val new = HashMap<String, Any>(old)
+            new[normalized] = value
+            if (snapshot.compareAndSet(old, new)) break
+        }
     }
 
-    override fun putAll(from: Map<out String, Any>) {
-        from.forEach { put(it.key, it.value) }
-    }
-
-    override fun remove(key: String): Any? {
+    /**
+     * Atomically remove a single key.
+     */
+    fun remove(key: String) {
         val normalized = normalizeStorageKey(key)
         parsedIntCache.remove(normalized)
-        return super.remove(normalized)
+
+        while (true) {
+            val old = snapshot.get()
+            val new = HashMap<String, Any>(old)
+            new.remove(normalized)
+            if (snapshot.compareAndSet(old, new)) break
+        }
     }
+
+    /** Clear the entire snapshot. */
+    fun clear() {
+        snapshot.set(emptyMap())
+        parsedIntCache.clear()
+    }
+
+    /**
+     * Merge the contents of [from] into the snapshot, replacing existing keys.
+     *
+     * Note: this is **not** atomic as a whole; each entry is inserted with an individual CAS loop.
+     * Callers that need an atomic full snapshot should use [replaceSnapshot].
+     */
+    fun putAll(from: Map<out String, Any>) {
+        for ((key, value) in from) {
+            put(key, value)
+        }
+    }
+
+    /** Snapshot size. */
+    fun size(): Int = currentSnapshot().size
+
+    /** Whether the snapshot contains [key] exactly as given (not normalized). */
+    fun containsKey(key: String): Boolean = currentSnapshot().containsKey(key)
+
+    operator fun contains(key: String): Boolean = currentSnapshot().containsKey(key)
+
+    /**
+     * Returns the current published snapshot as an unmodifiable map.
+     *
+     * Callers that need a consistent view of multiple keys should read the snapshot once with
+     * this method, rather than call the typed getters repeatedly. The typed getters each read
+     * the current snapshot independently, so a sequence of them may observe different snapshots.
+     */
+    fun getAll(): Map<String, Any> = snapshot.get().let { Collections.unmodifiableMap(it) }
 
     fun getInt(key: String, defaultValue: Int): Int {
         val value = getValue(key)
