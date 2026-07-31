@@ -6,20 +6,20 @@
 ## 当前状态
 
 - 仓库：`tomthenpc/customiuizer-a14`
-- 正式发布版本：`r14.13.6` / versionCode `184`
-- 正式发布日期：2026-07-29
-- 正式 tag：`r14.13.6` → `be5191b5`
-- 当前正式源码基线：`main` / `r14.13.6`
-- 源码仓库 Release：[r14.13.6](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.6)
-- LSPosed 模块仓库 tag：`184-r14.13.6`
-- LSPosed 模块仓库 Release：[184-r14.13.6](https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases/tag/184-r14.13.6)
-- `r14.13.5` 的两个 Release 条目已移除（**非撤回**，无已知缺陷；仅保留 r14.13 系列最新一个），
-  Git tag 与源码保留，资产信息见 [RELEASE_ARCHIVE.md](RELEASE_ARCHIVE.md)。
-- `r14.13.4` 已撤回；其 Release 与 tag 已删除。
-- `r14.5.0` 的 Release 条目已移除（非撤回，旧签名）；Git tag 与源码保留。
-- `r14.12.0` 的两个 Release 条目已移除（非撤回）；它是最后一个旧签名公开稳定版，
-  与 `r14.13.x` 无法直接覆盖安装，保留下载入口意义有限。Git tag 与源码保留。
-- 当前 `main` 承载 `r14.13.6` 正式发布提交；开发分支 `devin/r14.13-kotlin-refactor` 与 `main` 同点。
+- 当前工作分支：`release/r14.15.3`
+- 当前候选版本：`r14.15.3` / versionCode `191`
+- 分支起始点：`origin/integration/a14-r14.15.1` / `9dd52ec1`
+- 状态：`r14.15.3` 本地正式签名候选版本，静态检查和构建通过，待 Android 14 / HyperOS 实机及 LSPosed 日志验证。
+- 整合台账：[BRANCH_CONSOLIDATION_R14_15_3.md](BRANCH_CONSOLIDATION_R14_15_3.md)
+- 已整合分支：
+  - `hardening/a14-lts-foundation`（contained，不重复合并）
+  - `devin/r14-netspeed-font-spacing-i18n`（网速行距/本地化/元数据）
+  - `fix/a14-ui-text-inheritance-and-about-wrap`（About 换行 / SeekBar 文本样式继承）
+- 已删除：`.github/workflows/ci.yml`（CI 不再维护）
+- 计划保留的远程分支：`main`、`release/r14.15.3`；其余旧分支验证通过后删除。
+- 上一个公开稳定版本：`r14.13.8` / versionCode `186`；历史 Release 信息见 [RELEASE_ARCHIVE.md](RELEASE_ARCHIVE.md)。
+
+> 以下各轮记录为本仓库历史验证与改动依据，保留供追溯。
 
 ## ⚠️ 本版本的验证状态
 

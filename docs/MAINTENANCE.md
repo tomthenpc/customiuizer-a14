@@ -6,10 +6,10 @@
 
 ## 当前版本
 
-- `versionName`：`r14.15.0`
-- `versionCode`：`188`
+- `versionName`：`r14.15.3`
+- `versionCode`：`191`
 - `applicationId`：`tv.withaibuild.customiuizer.r14`
-- 运行时代码基线：与已验证的 `r14.13.9` 保持一致
+- 运行时代码基线：继承已验证的 `r14.13.9`，新增 `devin` 网速与 `fix` UI 改动，待实机验证
 
 ---
 
@@ -48,12 +48,12 @@
 
 ## 发布代码冻结
 
-`r14.15.0` 必须保持与已验证的 `r14.13.9` 相同的运行时代码。
+`r14.15.3` 包含运行时代码改动（SystemUI 网速显示、About 布局与 SeekBar 文本样式），
+因此必须重新完成实机验证，不能沿用 `r14.13.9` 的运行时证据。
 
 允许修改：
 
 - `versionName` / `versionCode`；
-- CI 产物名称；
 - `CHANGELOG`；
 - 本维护文档；
 - 发布摘要。

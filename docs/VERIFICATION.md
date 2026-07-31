@@ -7,7 +7,22 @@
 102 环境。改变源码、依赖、R8、资源、Manifest、入口或 Xposed 元数据后，必须按风险重新
 验证并新增对应证据。
 
-## 当前正式发布产物
+## 当前候选产物
+
+`r14.15.3` 是本地正式签名候选版本，待实机验证。具体构建信息生成后补全到
+`BUILD_INFO_R14_15_3.txt`。
+
+| 项目 | 值 |
+| --- | --- |
+| 版本 | `r14.15.3` / versionCode 191 |
+| applicationId | `tv.withaibuild.customiuizer.r14` |
+| APK | `CustoMIUIzer-A14-r14.15.3.apk` |
+| 大小 | 构建后补全 |
+| APK SHA-256 | 构建后补全 |
+| 签名证书 SHA-256 | 与 A14 既有正式发布线一致，构建后补全 |
+| libxposed 元数据 | `minApiVersion=101`、`targetApiVersion=102`、`staticScope=false` |
+
+## 上一个公开稳定产物
 
 | 项目 | 值 |
 | --- | --- |

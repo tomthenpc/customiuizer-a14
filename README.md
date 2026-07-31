@@ -10,51 +10,47 @@
 
 ## 当前版本
 
-**r14.13.8 是当前唯一公开版本。**
-
-- [源码仓库 Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.8)
-
-当前正式 APK：
+当前工作分支为 `release/r14.15.3`，是本地正式签名候选版本。该版本尚未完成公开 Release，待 Android 14 / HyperOS 实机及 LSPosed 日志验证。
 
 | 项目 | 值 |
 | --- | --- |
-| APK | `CustoMIUIzer-A14-r14.13.8.apk` |
-| versionCode / versionName | `186 / r14.13.8` |
+| 分支 | `release/r14.15.3` |
+| APK | `CustoMIUIzer-A14-r14.15.3.apk` |
+| versionCode / versionName | `191 / r14.15.3` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | 系统 | HyperOS 1 / Android 14（SDK 34） |
 | ABI | `arm64-v8a` |
 | libxposed | 最低 API 101 / 目标 API 102 |
 | Hot Reload | 关闭 |
-| SHA-256 | `B0E7D4A3CB50E39748531D5B0FD3CB95F81C1F777DDAC9E346B8C8D67B8CBE62` |
-| 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
+| SHA-256 | 构建后补全，见 `BUILD_INFO_R14_15_3.txt` |
+| 签名证书 SHA-256 | 与 A14 既有正式发布线一致，见 `BUILD_INFO_R14_15_3.txt` |
 
-请只从上述官方入口下载。LSPosed 模块仓库镜像如未同步，以源码仓库 Release 为准。
+上一个公开稳定版本为 `r14.13.8`，其历史资产与校验信息见 [CHANGELOG](CHANGELOG.md) 与 [RELEASE_ARCHIVE](docs/RELEASE_ARCHIVE.md)。
 
-## r14.13.8 解决了什么
+## r14.15.3 主要变更（候选）
 
-- 优化 Hook 进程与设置应用工具代码的边界，减少无关类加载。
-- 清理 GlobalActions 遗留的 6 个转发桩，调用点直接使用实际实现。
-- 修复未配置任何自定义动作时，应用内“重启系统”无法执行的问题。
-- 区分快速重启广播无人接收与接收端执行失败，不再把后者误报为“未连接 LSPosed 服务”。
-- 已在 Android 14 / HyperOS 1 与 LSPosed 2.1.1（7790）上完成实机验收。
+- 整合 `hardening/a14-lts-foundation` 安全加固与 `integration/a14-r14.15.1` 运行时代码基线。
+- 从 `devin/r14-netspeed-font-spacing-i18n` 纳入双行网速行距 `70%–130%`、前置提示本地化与 `feature-semantics` 元数据。
+- 从 `fix/a14-ui-text-inheritance-and-about-wrap` 修复 About 页面署名/版本文字换行，保留 SeekBar 系统文本样式继承。
+- 版本号：`versionCode 191 / versionName r14.15.3`。
 
-已知问题：系统 Toast 屏蔽仍可能无效，本版本未改动相关逻辑。
+**已知边界：** 系统 Toast 屏蔽相关逻辑未改动；网速显示、About 布局与完整人工冒烟测试尚待实机验证。
 
 完整变更与历史记录见 [CHANGELOG](CHANGELOG.md)。
 
 ## 安装前必须知道
 
-`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失，无法直接覆盖安装 r14.13.8。
+`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失，无法直接覆盖安装 `r14.15.3`。
 如果正在使用这些旧版本：
 
 1. 在旧版模块中备份设置；
 2. 记录当前 LSPosed / Vector 作用域；
 3. 卸载旧版；
-4. 安装 `CustoMIUIzer-A14-r14.13.8.apk`；
+4. 安装 `CustoMIUIzer-A14-r14.15.3.apk`；
 5. 恢复作用域与设置；
 6. 完整重启设备。
 
-不要在备份前卸载旧版。其他来源的同名 APK 可能使用不同签名，也可能无法覆盖安装。
+不要在备份前卸载旧版。候选版本的 APK 应从本地构建产物 `../release-output/A14/` 或仓库维护者提供的正式通道获取。
 
 ## 功能范围
 
@@ -78,13 +74,11 @@
 
 ## 验证边界
 
-r14.13.8 已通过仓库静态门禁、单元测试、三档 lint，以及 Debug / Release 构建。
-APK 已核对 R8、资源压缩、zipalign、v2 签名、包信息、SHA-256 与实际签名证书。
+`r14.15.3` 计划通过仓库静态门禁、单元测试、三档 lint，以及 Debug / Release 构建后，
+才生成正式签名候选 APK。APK 需核对 R8、资源压缩、zipalign、v2 签名、包信息、SHA-256 与实际签名证书。
 
-快速重启修复已在 Android 14 / HyperOS 1、LSPosed 2.1.1（7790）上完成实机验收：
-模块在 SystemUI 与 Launcher 正常加载，两次快速重启后系统完成启动，未发现 P0/P1、
-目标进程崩溃、Hook 异常或 Receiver 重复注册。其他 ROM 与系统应用版本仍需分别验证。
-详细证据与边界见 [验证记录](docs/VERIFICATION.md)。
+当前状态：`r14.15.3` 本地正式签名候选版本，静态检查和构建通过，待 Android 14 / HyperOS 实机及 LSPosed 日志验证。
+详细证据与边界见 [验证记录](docs/VERIFICATION.md) 与 `BUILD_INFO_R14_15_3.txt`。
 
 ## 开发与构建
 

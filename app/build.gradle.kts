@@ -25,8 +25,8 @@ if (officialRelease) {
     }
 }
 
-val lastVersion = 189
-val lastVersionName = "r14.15.1"
+val lastVersion = 191
+val lastVersionName = "r14.15.3"
 val supportedLocales = setOf(
     "ru-rRU",
     "zh-rCN",

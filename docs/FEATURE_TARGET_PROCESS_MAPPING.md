@@ -1,6 +1,6 @@
 # 功能 — 偏好键 — 目标进程 — 生效重启要求
 
-本文件是 `hardening/a14-lts-foundation` 分支的起始映射，后续应以自动化脚本从 `MainModule.java`、`PreferenceFragmentBase.kt` 和 `res/xml/*.xml` 增量补全。
+本文件是 `release/r14.15.3` 分支的起始映射，后续应以自动化脚本从 `MainModule.java`、`PreferenceFragmentBase.kt` 和 `res/xml/*.xml` 增量补全。
 
 ## 说明
 

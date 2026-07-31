@@ -1,7 +1,8 @@
 # Build and Release Guide
 
-> Branch: `hardening/a14-lts-foundation`  
+> Branch: `release/r14.15.3`
 > Application ID: `tv.withaibuild.customiuizer.r14`
+> 以下示例以 `r14.15.3` 为准；实际构建时输出文件名随 `app/build.gradle.kts` 中的 `lastVersion` / `lastVersionName` 变化。
 
 This document explains how the repository builds Debug, unsigned CI, and officially signed APKs. It also explains why the CI pipeline never touches official signing materials.
 
@@ -11,14 +12,14 @@ This document explains how the repository builds Debug, unsigned CI, and officia
 
 The build produces **three** distinct artifacts with unambiguous names:
 
-| Build command | Variant | Signing | Output name (version `r14.13.8`) |
+| Build command | Variant | Signing | Output name (version `r14.15.3`) |
 |---|---|---|---|
-| `./gradlew assembleDebug` | `debug` | Android debug key | `CustoMIUIzer-A14-r14.13.8-debug.apk` |
-| `./gradlew assembleRelease` | `release` | **unsigned** | `CustoMIUIzer-A14-r14.13.8-unsigned-ci.apk` |
-| `./gradlew assembleRelease -PofficialRelease=true` | `release` | Your `../keystore.properties` | `CustoMIUIzer-A14-r14.13.8.apk` |
+| `./gradlew assembleDebug` | `debug` | Android debug key | `CustoMIUIzer-A14-r14.15.3-debug.apk` |
+| `./gradlew assembleRelease` | `release` | **unsigned** | `CustoMIUIzer-A14-r14.15.3-unsigned-ci.apk` |
+| `./gradlew assembleRelease -PofficialRelease=true` | `release` | Your `../keystore.properties` | `CustoMIUIzer-A14-r14.15.3.apk` |
 
-* `./gradlew assembleDevelop` will produce `CustoMIUIzer-A14-r14.13.8-develop-unsigned-ci.apk`.
-* `./gradlew assembleDevelop -PofficialRelease=true` will produce `CustoMIUIzer-A14-r14.13.8-develop.apk`.
+* `./gradlew assembleDevelop` will produce `CustoMIUIzer-A14-r14.15.3-develop-unsigned-ci.apk`.
+* `./gradlew assembleDevelop -PofficialRelease=true` will produce `CustoMIUIzer-A14-r14.15.3-develop.apk`.
 
 You must **not** rename an unsigned CI APK to remove `-unsigned-ci`. You must **not** run `assembleRelease` on a machine that contains `../keystore.properties` unless you explicitly pass `-PofficialRelease=true`.
 
@@ -86,14 +87,14 @@ Use the included cross-platform helper:
 ```bash
 # CI unsigned verification
 python tools/verify-apk-signatures.py \
-  --debug-apk app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.13.8-debug.apk \
-  --release-apk app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.8-unsigned-ci.apk \
+  --debug-apk app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.15.3-debug.apk \
+  --release-apk app/build/outputs/apk/release/CustoMIUIzer-A14-r14.15.3-unsigned-ci.apk \
   --release-kind ci
 
 # Official build verification
 python tools/verify-apk-signatures.py \
-  --debug-apk app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.13.8-debug.apk \
-  --release-apk app/build/outputs/apk/release/CustoMIUIzer-A14-r14.13.8.apk \
+  --debug-apk app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.15.3-debug.apk \
+  --release-apk app/build/outputs/apk/release/CustoMIUIzer-A14-r14.15.3.apk \
   --release-kind official \
   --expected-sha256 <your-certificate-sha-256>
 ```
@@ -102,26 +103,11 @@ The helper finds the Android SDK from `local.properties`, `ANDROID_SDK_ROOT`, or
 
 ---
 
-## 5. CI Behavior
+## 5. What Must Not Be Published
 
-The CI pipeline in `.github/workflows/ci.yml`:
-
-* Builds `assembleDebug` and `assembleRelease`.
-* Verifies that the Debug APK is signed and the Release APK is **not** signed.
-* Verifies that no file named `CustoMIUIzer-A14-r14.13.8.apk` is produced by a normal CI build.
-* Uploads `debug-apk`, `unsigned-release-apk`, and `broadcast-probe-debug-apk` artifacts.
-* Does **not** read or write `../keystore.properties`.
-* Does **not** upload official named APKs.
-
-The CI artifact retention is set to a short, reasonable period to avoid keeping unsigned artifacts indefinitely.
-
----
-
-## 6. What Must Not Be Published
-
-* `CustoMIUIzer-A14-r14.13.8-unsigned-ci.apk` is for CI and local testing only. It is unsigned and must not be distributed as a release.
-* `CustoMIUIzer-A14-r14.13.8-debug.apk` is signed with the local Android debug key and is not suitable for release.
-* `CustoMIUIzer-A14-r14.13.8.apk` (no suffix) is the only official release filename. It must be produced with `officialRelease=true` and verified with `apksigner` before distribution.
+* `CustoMIUIzer-A14-r14.15.3-unsigned-ci.apk` is for CI and local testing only. It is unsigned and must not be distributed as a release.
+* `CustoMIUIzer-A14-r14.15.3-debug.apk` is signed with the local Android debug key and is not suitable for release.
+* `CustoMIUIzer-A14-r14.15.3.apk` (no suffix) is the only official release filename. It must be produced with `officialRelease=true` and verified with `apksigner` before distribution.
 
 ---
 
@@ -130,7 +116,7 @@ The CI artifact retention is set to a short, reasonable period to avoid keeping 
 Before distributing an official APK, verify:
 
 1. The build command was `./gradlew assembleRelease -PofficialRelease=true`.
-2. `apksigner verify --print-certs -v` passes on `CustoMIUIzer-A14-r14.13.8.apk`.
+2. `apksigner verify --print-certs -v` passes on `CustoMIUIzer-A14-r14.15.3.apk`.
 3. The certificate SHA-256 matches your expected release certificate.
 4. `zipalign -c -v 4 <apk>` confirms alignment.
 5. The `applicationId`, `versionName`, `versionCode`, ABI, and Xposed metadata match the release notes.

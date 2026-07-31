@@ -9,6 +9,7 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 | 版本 | 日期 | 定位 |
 | --- | --- | --- |
+| `r14.15.3` | 2026-07-31 | 本地正式签名候选版本；静态检查和构建通过，待 Android 14 / HyperOS 实机及 LSPosed 日志验证 |
 | `r14.15.1` | 2026-07-31 | 在 `r14.15.0` 基础上整合网速字体家族继承、双排行距与本地化；实机验证待完成 |
 | `r14.15.0` | 2026-07-31 | `r14.13.9` 真机验证基线；增加 `system_server` Global Action Receiver 顶层异常隔离；完整人工冒烟测试延期 |
 | `r14.13.9` | 2026-07-31 | 当前稳定版；恢复 A14 上游 `system` 作用域，修复 `system_server` Hook 未加载问题 |
@@ -20,6 +21,50 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
 [历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
+
+## [r14.15.3] - 2026-07-31
+
+### 版本定位
+
+本地正式签名候选版本。在 `r14.15.1` 基础上完成 A14 有效分支整合，纳入 UI 文本继承与 About
+换行修复，并统一版本号至 `r14.15.3` / `191`。该版本尚未公开，待 Android 14 / HyperOS 实机及
+LSPosed 日志验证。
+
+### 变更
+
+- `versionCode` 升级为 `191`。
+- `versionName` 升级为 `r14.15.3`。
+- 整合 `origin/integration/a14-r14.15.1` 作为主体基线（包含 `system_server` Global Action Receiver
+  异常隔离与网速相关改动）。
+- 从 `devin/r14-netspeed-font-spacing-i18n` 纳入双行网速行距、前置提示本地化与
+  `feature-semantics/a14.json` 元数据；`prefs_system_detailednetspeed.xml` 与主体实现语义一致。
+- 从 `fix/a14-ui-text-inheritance-and-about-wrap` 纳入 `SeekBarPreference` 系统文本样式继承
+  保持与 About 页面换行修复。
+- 删除 `.github/workflows/ci.yml`（CI 不再维护）。
+- 更新 `README`、`README_EN`、`docs/BUILD_AND_RELEASE.md`、`docs/MAINTENANCE_CHECKPOINT.md` 等
+  当前文档到 `r14.15.3`。
+
+### 验证
+
+- 通过 `python tools/check-invariants.py`。
+- 通过 `python tools/audit-feature-semantics.py --validate`。
+- 通过 `python -m unittest discover -s tools/tests -p "test_*.py"`。
+- 通过 `gradlew clean test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease`。
+- 通过 `apksigner verify --verbose --print-certs`、`zipalign -c -v 4` 与
+  `aapt2 dump badging`。
+- `META-INF/xposed/scope.list` 校验包含 `system`、`android`、`com.android.systemui`、`com.miui.home`。
+
+### 已知边界
+
+- `r14.15.3` 是本地构建的正式签名候选 APK，**未创建 Git tag / GitHub Release**。
+- 网速显示、About 布局与完整人工冒烟测试尚待实机验证。
+- 不声称 `r14.15.3` 已公开或已完成实机 PASS。
+
+### 产物
+
+- APK：`CustoMIUIzer-A14-r14.15.3.apk`（正式签名候选） / `CustoMIUIzer-A14-r14.15.3-unsigned-ci.apk`（CI）。
+- versionCode / versionName：`191 / r14.15.3`
+- 构建信息：`../release-output/A14/BUILD_INFO_R14_15_3.txt`
 
 ## [r14.15.0] - 2026-07-31
 

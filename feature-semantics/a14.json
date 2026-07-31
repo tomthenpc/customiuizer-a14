@@ -26524,7 +26524,6 @@
       "featureId": "pref_key_system_netspeed_rowspacing",
       "featureName": "pref_key_system_netspeed_rowspacing",
       "preferenceKeys": [
-<<<<<<< HEAD
         "pref_key_system_netspeed_rowspacing",
         "system_netspeed_rowspacing"
       ],
@@ -26543,47 +26542,6 @@
       "confidence": "CODE_VERIFIED",
       "evidence": "MainModule.mPrefs.getInt(\"system_netspeed_rowspacing\", 100) at SystemUIStatusBarHooks.kt",
       "notes": "Value is clamped to 70-130 at runtime"
-=======
-        "pref_key_system_netspeed_rowspacing"
-      ],
-      "xmlSource": "app/src/main/res/xml/prefs_system_detailednetspeed.xml",
-      "defaultValue": "100",
-      "sourceFile": "",
-      "installer": "UNKNOWN",
-      "targetPackage": "UNKNOWN",
-      "installPhase": "APP_UI_ONLY",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "UNKNOWN",
-      "disableEffect": "UNKNOWN",
-      "valueChangeEffect": "UNKNOWN",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "INFERRED",
-      "evidence": "android:key in app/src/main/res/xml/prefs_system_detailednetspeed.xml",
-      "notes": ""
-    },
-    {
-      "featureId": "system_netspeed_rowspacing",
-      "featureName": "system_netspeed_rowspacing",
-      "preferenceKeys": [
-        "system_netspeed_rowspacing"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:initNetSpeedStyle",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "PACKAGE_READY",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "Applies hook when enabled",
-      "disableEffect": "Restores default behavior",
-      "valueChangeEffect": "Updates applied hook behavior",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:initNetSpeedStyle",
-      "notes": ""
->>>>>>> origin/devin/r14-netspeed-font-spacing-i18n
     }
   ]
 }

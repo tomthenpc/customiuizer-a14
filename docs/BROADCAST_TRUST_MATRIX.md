@@ -1,6 +1,6 @@
 # 模块广播信任矩阵
 
-> 分支：hardening/a14-lts-foundation  
+> 分支：release/r14.15.3
 > 目标：给出每个跨进程 action 的「发送方 package/UID → 接收方 process → 认证方式」。
 
 ## 认证方式说明

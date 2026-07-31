@@ -1,6 +1,6 @@
 # Exported Component Security Audit
 
-> Branch: `hardening/a14-lts-foundation`  
+> Branch: `release/r14.15.3`
 > Scope: components with `android:exported="true"` in `app/src/main/AndroidManifest.xml`.
 
 This document records why every exported component is exported, who is expected to call it, what extra/data/URI it accepts, what side effects it has, and what verification measures are in place. It is the authoritative source for the static invariant that **every exported component in the manifest must be listed here**.

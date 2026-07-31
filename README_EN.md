@@ -13,56 +13,55 @@ not support Android 15, Android 16, or other major MIUI / HyperOS versions.
 
 ## Current Release
 
-**r14.13.8 is the only public release currently maintained.**
-
-- [Source repository Release](https://github.com/tomthenpc/customiuizer-a14/releases/tag/r14.13.8)
-
-Current production APK:
+The current working branch is `release/r14.15.3`, a locally-built, production-signed candidate.
+This version is not a public Release yet; real-device validation on Android 14 / HyperOS and
+LSPosed log triage are pending.
 
 | Item | Value |
 | --- | --- |
-| APK | `CustoMIUIzer-A14-r14.13.8.apk` |
-| versionCode / versionName | `186 / r14.13.8` |
+| Branch | `release/r14.15.3` |
+| APK | `CustoMIUIzer-A14-r14.15.3.apk` |
+| versionCode / versionName | `191 / r14.15.3` |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | System | HyperOS 1 / Android 14 (SDK 34) |
 | ABI | `arm64-v8a` |
 | libxposed | minimum API 101 / target API 102 |
 | Hot Reload | Disabled |
-| SHA-256 | `B0E7D4A3CB50E39748531D5B0FD3CB95F81C1F777DDAC9E346B8C8D67B8CBE62` |
-| Signing certificate SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
+| SHA-256 | To be filled after build; see `BUILD_INFO_R14_15_3.txt` |
+| Signing certificate SHA-256 | Same as the existing A14 release line; see `BUILD_INFO_R14_15_3.txt` |
 
-Download only from the official location above. If the LSPosed module repository mirror has not
-yet caught up, use the source repository Release as the authority.
+The previous public stable release is `r14.13.8`. Historical assets and verification details are in
+the [CHANGELOG](CHANGELOG_EN.md) and [RELEASE_ARCHIVE](docs/RELEASE_ARCHIVE.md).
 
-## What r14.13.8 Fixes
+## What r14.15.3 Changes (candidate)
 
-- Tightens the boundary between hook-process utilities and settings-app utilities, reducing
-  unrelated class loading.
-- Removes six obsolete GlobalActions forwarding stubs and calls their implementations directly.
-- Fixes in-app "Reboot system" when no custom actions are configured.
-- Distinguishes an unclaimed soft-reboot broadcast from a receiver-side failure, so the latter is
-  no longer reported as "LSPosed service not connected".
-- Completed on-device acceptance on Android 14 / HyperOS 1 with LSPosed 2.1.1 (7790).
+- Consolidates the `hardening/a14-lts-foundation` hardening and the `integration/a14-r14.15.1`
+  runtime code baseline.
+- Brings in the dual-row network speed line spacing `70%–130%`, prerequisite note localization,
+  and `feature-semantics` metadata from `devin/r14-netspeed-font-spacing-i18n`.
+- Brings in the About attribution text wrapping and SeekBar system-text style inheritance fix
+  from `fix/a14-ui-text-inheritance-and-about-wrap`.
+- Version: `versionCode 191 / versionName r14.15.3`.
 
-Known issue: system Toast suppression may still be ineffective; this release does not change that
-logic.
+**Known boundary:** system Toast suppression logic is unchanged; network speed display, About
+layout, and the full manual smoke test are still pending real-device validation.
 
 See the [CHANGELOG](CHANGELOG_EN.md) for the complete history.
 
 ## Before Installing
 
 The old signing key used by public releases up to and including `r14.12.0` has been lost. Those
-builds cannot be updated in place to r14.13.8. If you are using one of them:
+builds cannot be updated in place to `r14.15.3`. If you are using one of them:
 
 1. Back up the module settings from the old installation.
 2. Record the current LSPosed / Vector scope.
 3. Uninstall the old version.
-4. Install `CustoMIUIzer-A14-r14.13.8.apk`.
+4. Install `CustoMIUIzer-A14-r14.15.3.apk`.
 5. Restore the scope and settings.
 6. Fully reboot the device.
 
-Do not uninstall the old version before backing up. APKs from other sources may use a different
-certificate and may not install over this build.
+Do not uninstall the old version before backing up. Candidate APKs should be taken from the local
+build output `../release-output/A14/` or from the maintainer's official channel.
 
 ## Feature Scope
 
@@ -86,15 +85,15 @@ Do not enable this module together with upstream or another CustoMIUIzer-derived
 
 ## Verification Boundary
 
-r14.13.8 passed the repository invariant checks, unit tests, all three lint variants, and
-Debug / Release builds. The APK was checked for R8, resource shrinking, zipalign, v2 signing,
-package metadata, SHA-256, and the actual signing certificate.
+`r14.15.3` is expected to pass the repository invariant checks, unit tests, all three lint
+variants, and Debug / Release builds before the production-signed candidate APK is produced. The
+APK must be checked for R8, resource shrinking, zipalign, v2 signing, package metadata, SHA-256,
+and the actual signing certificate.
 
-The soft-reboot fix completed on-device acceptance on Android 14 / HyperOS 1 with LSPosed 2.1.1
-(7790): the module loaded in SystemUI and Launcher, both reboot cycles completed, and no P0/P1,
-target-process crash, hook exception, or duplicate receiver registration was found. Other ROM and
-system-app versions still require separate verification. See [Verification](docs/VERIFICATION.md)
-for the evidence and remaining boundaries.
+Current status: `r14.15.3` is a local production-signed candidate. Static checks and builds pass;
+real-device validation on Android 14 / HyperOS and LSPosed log triage are pending. See
+[Verification](docs/VERIFICATION.md) and `BUILD_INFO_R14_15_3.txt` for the evidence and remaining
+boundaries.
 
 ## Development and Build
 

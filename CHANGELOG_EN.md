@@ -10,6 +10,7 @@ and performance figures without same-condition measurements are not release chan
 
 | Version | Date | Purpose |
 | --- | --- | --- |
+| `r14.15.3` | 2026-07-31 | Local production-signed candidate; static checks and builds pass; real-device validation on Android 14 / HyperOS and LSPosed log triage pending |
 | `r14.15.1` | 2026-07-31 | Integrates network speed typeface inheritance, dual-row spacing and localization on top of `r14.15.0`; real-device validation pending |
 | `r14.15.0` | 2026-07-31 | `r14.13.9` real-device baseline; adds top-level guard for `system_server` Global Action Receiver; manual smoke test deferred |
 | `r14.13.9` | 2026-07-31 | Current stable release; restores upstream A14 `system` scope, fixes `system_server` hook loading |
@@ -22,6 +23,52 @@ and performance figures without same-condition measurements are not release chan
 Release titles contain only the version number. Asset names, sizes, and SHA-256 digests for
 removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the
 corresponding source remains available through Git tags.
+
+## [r14.15.3] - 2026-07-31
+
+### Purpose
+
+A local, production-signed candidate. It consolidates the valid A14 development branches on top of
+`r14.15.1`, brings in the UI text inheritance and About wrapping fix, and bumps the version to
+`r14.15.3` / `191`. This version is not public and is pending real-device validation on Android 14 /
+HyperOS plus LSPosed log triage.
+
+### Changes
+
+- `versionCode` bumped to `191`.
+- `versionName` bumped to `r14.15.3`.
+- Uses `origin/integration/a14-r14.15.1` as the integration baseline (includes the `system_server`
+  Global Action Receiver guard and the network speed changes).
+- Brings in the dual-row network speed line spacing, prerequisite note localization, and
+  `feature-semantics/a14.json` metadata from `devin/r14-netspeed-font-spacing-i18n`.
+  `prefs_system_detailednetspeed.xml` is semantically equivalent to the baseline.
+- Brings in the `SeekBarPreference` system-text style inheritance and About attribution wrapping
+  fix from `fix/a14-ui-text-inheritance-and-about-wrap`.
+- Removes `.github/workflows/ci.yml` (CI is no longer maintained).
+- Updates `README`, `README_EN`, `docs/BUILD_AND_RELEASE.md`, `docs/MAINTENANCE_CHECKPOINT.md`, and
+  other active documents to `r14.15.3`.
+
+### Verification
+
+- `python tools/check-invariants.py` passes.
+- `python tools/audit-feature-semantics.py --validate` passes.
+- `python -m unittest discover -s tools/tests -p "test_*.py"` passes.
+- `gradlew clean test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease` passes.
+- `apksigner verify --verbose --print-certs`, `zipalign -c -v 4`, and `aapt2 dump badging` pass.
+- `META-INF/xposed/scope.list` contains `system`, `android`, `com.android.systemui`, and `com.miui.home`.
+
+### Known boundary
+
+- `r14.15.3` is a locally-built, production-signed candidate APK. **No Git tag or GitHub Release is created.**
+- Network speed display, About layout, and the full manual smoke test are still pending real-device validation.
+- This version is not claimed to be public or real-device PASS.
+
+### Artifacts
+
+- APK: `CustoMIUIzer-A14-r14.15.3.apk` (production-signed candidate) /
+  `CustoMIUIzer-A14-r14.15.3-unsigned-ci.apk` (CI).
+- versionCode / versionName: `191 / r14.15.3`
+- Build info: `../release-output/A14/BUILD_INFO_R14_15_3.txt`
 
 ## [r14.15.0] - 2026-07-31
 

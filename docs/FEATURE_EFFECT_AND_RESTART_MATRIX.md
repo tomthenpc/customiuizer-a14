@@ -1222,4 +1222,3 @@ Generated from `feature-semantics/a14.json`.
 | various_gboardpadding_port | various_gboardpadding_port | UNKNOWN | Applies hook when enabled | Restores default behavior | Updates applied hook behavior | mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:328 | UNKNOWN |
 | various_showcallui | various_showcallui | UNKNOWN | Applies hook when enabled | Restores default behavior | Updates applied hook behavior | mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:373 | UNKNOWN |
 | various_swipe_expand_sidebar | various_swipe_expand_sidebar | UNKNOWN | Applies hook when enabled | Restores default behavior | Updates applied hook behavior | mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/Various.kt:618 | UNKNOWN |
-
