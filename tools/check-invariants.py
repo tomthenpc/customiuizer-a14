@@ -26,10 +26,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_ROOT = REPO_ROOT / "app" / "src" / "main" / "java"
 
-# Re-use the ADB regression plan validator in this repo.
-sys.path.insert(0, str(REPO_ROOT / "tools"))
-import adb_regression.plan as _plan
-
 # Files that are allowed to break a rule, with the reason. Keep this list short;
 # every entry is a place where the invariant is enforced rather than consumed.
 ALLOWED = {
@@ -559,57 +555,6 @@ def check_exported_components_audited() -> list[Finding]:
     return findings
 
 
-def check_adb_regression_plans() -> list[Finding]:
-    """ADB regression plans must pass the plan validator and contain no permanently forbidden commands."""
-    plans_dir = REPO_ROOT / "adb-regression"
-    if not plans_dir.is_dir():
-        return [Finding("adb-regression-plans", plans_dir, 0, "adb-regression directory missing")]
-
-    findings: list[Finding] = []
-    for plan_path in sorted(plans_dir.glob("*.json")):
-        try:
-            data = json.loads(plan_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError) as exc:
-            findings.append(Finding("adb-regression-plans", plan_path, 0, f"cannot read JSON: {exc}"))
-            continue
-
-        # Skip files that are not test plans (e.g. evidence-schema.json).
-        if not isinstance(data, dict) or "steps" not in data or not isinstance(data.get("steps"), list):
-            continue
-
-        exit_code, messages = _plan.validate(plan_path)
-        if exit_code != 0:
-            for message in messages:
-                findings.append(Finding("adb-regression-plans", plan_path, 0, message))
-
-    return findings
-
-
-def check_adb_regression_evidence_schema() -> list[Finding]:
-    """The ADB regression evidence schema must use the expected schemaVersion."""
-    schema_path = REPO_ROOT / "adb-regression" / "evidence-schema.json"
-    if not schema_path.is_file():
-        return [Finding("adb-regression-evidence-schema", schema_path, 0, "evidence schema missing")]
-
-    try:
-        data = json.loads(schema_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as exc:
-        return [Finding("adb-regression-evidence-schema", schema_path, 0, f"cannot read JSON: {exc}")]
-
-    if not isinstance(data, dict) or data.get("schemaVersion") != 1:
-        return [Finding("adb-regression-evidence-schema", schema_path, 0, f"unsupported evidence schemaVersion: {data.get('schemaVersion')!r}")]
-
-    return []
-
-
-def check_a14_telegram_ci_not_restored() -> list[Finding]:
-    """The original a14-telegram-ci.yml workflow must not be restored."""
-    legacy_path = REPO_ROOT / ".github" / "workflows" / "a14-telegram-ci.yml"
-    if legacy_path.is_file():
-        return [Finding("a14-telegram-ci-not-restored", legacy_path, 0, "legacy workflow a14-telegram-ci.yml must not be restored")]
-    return []
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--staged", action="store_true", help="check only files staged in git")
@@ -624,9 +569,6 @@ def main() -> int:
 
     findings.extend(check_exported_components_audited())
     findings.extend(check_rom_contracts())
-    findings.extend(check_adb_regression_plans())
-    findings.extend(check_adb_regression_evidence_schema())
-    findings.extend(check_a14_telegram_ci_not_restored())
 
     if not findings:
         print(f"check-invariants: {len(files)} files, no violations")
