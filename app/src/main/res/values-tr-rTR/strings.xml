@@ -112,6 +112,10 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_detailednetspeed_lowlevel_summ">Bu seviyenin altındaki hız değerleri düşük kabul edilecek ve farklı bir gösterge simgesine sahip olacaktır</string>
     <string name="system_detailednetspeed_secunit_title">Bayt/saniye son ekini gizle (B/s)</string>
     <string name="system_netspeed_fontsize_title">Ağ hızının yazı tipi boyutu</string>
+    <string name="system_netspeed_use_clock_style_title">Durum çubuğu saatiyle aynı metin stilini kullan</string>
+    <string name="system_netspeed_rowspacing_title">Ağ hızı satır aralığı</string>
+    <string name="system_netspeed_rowspacing_summ">Yükleme ve indirme satırları arasındaki boşluğu ayarlar; değişiklikten sonra SystemUI yeniden başlatılmalıdır</string>
+    <string name="system_netspeed_prerequisite_note">Önce sistem ayarlarından "Gerçek zamanlı ağ hızını göster" seçeneğini açın</string>
     <string name="system_statusbarcontrols_title">Hareket kontrolleri</string>
     <string name="system_statusbarcontrols_summ">Slaytta seçilen eylemleri gerçekleştirin ve çift dokunun</string>
     <string name="system_statusbarcontrols_sens_title">Ayar hassasiyeti</string>

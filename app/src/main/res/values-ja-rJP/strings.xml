@@ -132,7 +132,10 @@
     <string name="system_detailednetspeed_lowlevel_summ">このレベル以下の速度値の場合は低速と見なされ、別のアイコンが表示されます</string>
     <string name="system_detailednetspeed_secunit_title">バイト毎秒(B/s)の接尾辞を非表示にする</string>
     <string name="system_netspeed_fontsize_title">ネットワーク速度のフォント</string>
-    <string name="system_netspeed_use_clock_style_title">テキストのスタイルを時計と統一させる </string>
+    <string name="system_netspeed_rowspacing_title">ネットワーク速度の行間隔</string>
+    <string name="system_netspeed_rowspacing_summ">アップロード行とダウンロード行の間隔を調整します。変更後はSystemUIの再起動が必要です</string>
+    <string name="system_netspeed_prerequisite_note">システム設定で「通信速度をリアルタイム表示」を有効にしてください</string>
+    <string name="system_netspeed_use_clock_style_title">ステータスバーの時計と同じ文字スタイルを使用</string>
     <string name="system_statusbarcontrols_title">ジェスチャーコントロール</string>
     <string name="system_statusbarcontrols_summ">スワイプとダブルタップで選択をしたアクションを実行します</string>
     <string name="system_statusbarcontrols_sens_title">感度調整</string>

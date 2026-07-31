@@ -138,7 +138,10 @@
     <string name="system_detailednetspeed_lowlevel_summ">网速值低于该水平时将被认为慢，并会显示不同的指示器图标</string>
     <string name="system_detailednetspeed_secunit_title">网速隐藏 B/s 单位</string>
     <string name="system_netspeed_fontsize_title">网速字体大小</string>
-    <string name="system_netspeed_use_clock_style_title">文字样式与时钟保持一致</string>
+    <string name="system_netspeed_rowspacing_title">双排网速行间距</string>
+    <string name="system_netspeed_rowspacing_summ">调整上传与下载两行之间的距离，修改后需重启系统界面</string>
+    <string name="system_netspeed_prerequisite_note">需先在手机系统设置中开启“显示实时网速”</string>
+    <string name="system_netspeed_use_clock_style_title">文字样式与状态栏时钟保持一致</string>
     <string name="system_statusbarcontrols_title">手势控制</string>
     <string name="system_statusbarcontrols_summ">滑动、双击与长按时执行所选动作</string>
     <string name="system_statusbarcontrols_sens_title">调整灵敏度</string>

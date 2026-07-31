@@ -129,7 +129,10 @@
     <string name="system_detailednetspeed_lowlevel_summ">Hodnoty rychlosti pod touto úrovní budou považovány za nízké a budou mít jinou indikační ikonu</string>
     <string name="system_detailednetspeed_secunit_title">Skrýt Byte za sekundu příponu (B/s)</string>
     <string name="system_netspeed_fontsize_title">Velikost písma rychlosti sítě</string>
-    <string name="system_netspeed_use_clock_style_title">Zachovat styl textu v souladu s hodinami </string>
+    <string name="system_netspeed_rowspacing_title">Řádkování rychlosti sítě</string>
+    <string name="system_netspeed_rowspacing_summ">Upraví mezery mezi řádky odesílání a stahování; po změně je nutné restartovat SystemUI</string>
+    <string name="system_netspeed_prerequisite_note">Nejprve v systémovém nastavení zapněte "Zobrazit rychlost sítě v reálném čase"</string>
+    <string name="system_netspeed_use_clock_style_title">Použít styl textu hodin ve stavovém řádku</string>
     <string name="system_statusbarcontrols_title">Ovládání pomocí gest</string>
     <string name="system_statusbarcontrols_summ">Provádění vybraných akcí na snímku a dvojité klepnutí</string>
     <string name="system_statusbarcontrols_sens_title">Citlivost přizpůsobení</string>
