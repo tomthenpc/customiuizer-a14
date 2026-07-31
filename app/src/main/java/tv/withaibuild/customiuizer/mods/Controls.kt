@@ -647,30 +647,24 @@ object Controls {
     private var markShortcutTriggered: Method? = null
 
     private val mBackLongPressAction = Runnable {
-        try {
-            if (basePWMContext == null || basePWMObject == null) return@Runnable
+        ModuleHelper.guarded {
+            if (basePWMContext == null || basePWMObject == null) return@guarded
             if (GlobalActions.handleAction(basePWMContext!!, "controls_backlong")) HookUtils.performStrongVibration(basePWMContext!!)
             if (MainModule.mPrefs.getInt("controls_backlong_action", 1) != 1) markShortcutTriggered?.invoke(basePWMObject)
-        } catch (t: Throwable) {
-            XposedHelpers.log(t)
         }
     }
     private val mHomeLongPressAction = Runnable {
-        try {
-            if (basePWMContext == null || basePWMObject == null) return@Runnable
+        ModuleHelper.guarded {
+            if (basePWMContext == null || basePWMObject == null) return@guarded
             if (GlobalActions.handleAction(basePWMContext!!, "controls_homelong")) HookUtils.performStrongVibration(basePWMContext!!)
             if (MainModule.mPrefs.getInt("controls_homelong_action", 1) != 1) markShortcutTriggered?.invoke(basePWMObject)
-        } catch (t: Throwable) {
-            XposedHelpers.log(t)
         }
     }
     private val mMenuLongPressAction = Runnable {
-        try {
-            if (basePWMContext == null || basePWMObject == null) return@Runnable
+        ModuleHelper.guarded {
+            if (basePWMContext == null || basePWMObject == null) return@guarded
             if (GlobalActions.handleAction(basePWMContext!!, "controls_menulong")) HookUtils.performStrongVibration(basePWMContext!!)
             if (MainModule.mPrefs.getInt("controls_menulong_action", 1) != 1) markShortcutTriggered?.invoke(basePWMObject)
-        } catch (t: Throwable) {
-            XposedHelpers.log(t)
         }
     }
 

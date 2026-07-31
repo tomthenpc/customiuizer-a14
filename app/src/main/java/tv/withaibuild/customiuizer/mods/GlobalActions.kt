@@ -165,16 +165,19 @@ object GlobalActions {
     val fastRebootReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action != ACTION_PREFIX + "FastReboot") return
-            if (isOrderedBroadcast) resultCode = ACTION_FAILED
-            try {
-                val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                val mService = XposedHelpers.getObjectField(pm, "mService")
-                if (isOrderedBroadcast) resultCode = ACTION_HANDLED
-                // Does not return on success.
-                XposedHelpers.callMethod(mService, "reboot", false, null, false)
-            } catch (t: Throwable) {
+            ModuleHelper.guarded {
                 if (isOrderedBroadcast) resultCode = ACTION_FAILED
-                XposedHelpers.log(t)
+                try {
+                    val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+                    val mService = XposedHelpers.getObjectField(pm, "mService")
+                    if (isOrderedBroadcast) resultCode = ACTION_HANDLED
+                    // Does not return on success.
+                    XposedHelpers.callMethod(mService, "reboot", false, null, false)
+                } catch (t: Throwable) {
+                    if (t is OutOfMemoryError) throw t
+                    if (isOrderedBroadcast) resultCode = ACTION_FAILED
+                    XposedHelpers.log(t)
+                }
             }
         }
     }
@@ -183,7 +186,7 @@ object GlobalActions {
     val mSBReceiver: BroadcastReceiver = object : BroadcastReceiver() {
         @SuppressLint("WrongConstant", "MissingPermission")
         override fun onReceive(context: Context, intent: Intent) {
-            try {
+            ModuleHelper.guarded {
                 val modRes = ModuleHelper.getModuleRes(context)
                 val action = intent.action
                 if (action == null) return
@@ -217,10 +220,8 @@ object GlobalActions {
                         XposedHelpers.callMethod(am, "forceStopPackage", "com.miui.securitycenter")
                     }
                     ACTION_PREFIX + "FloatingWindow" -> {
-                        try {
+                        ModuleHelper.guarded {
                             MiuiMultiWindowUtils.startSmallFreeformForControlCenter(context)
-                        } catch (err: Throwable) {
-                            XposedHelpers.log(err)
                         }
                     }
                     ACTION_PREFIX + "SwitchOneHanded" -> {
@@ -229,25 +230,29 @@ object GlobalActions {
                     }
                     ACTION_PREFIX + "ScrollToTop" -> {
                         Handler(Looper.getMainLooper()).postDelayed({
-                            try {
-                                val injectInputEventMethod = InputManager::class.java.getDeclaredMethod("injectInputEvent", InputEvent::class.java, Int::class.javaPrimitiveType)
-                                val instanceMethod = InputManager::class.java.getDeclaredMethod("getInstance")
-                                val im = instanceMethod.invoke(InputManager::class.java) as InputManager
-                                val uptimeMillis = SystemClock.uptimeMillis()
-                                val swipeDownEvt = MotionEvent.obtain(uptimeMillis, uptimeMillis, MotionEvent.ACTION_DOWN, 500f, 500f, 0)
-                                swipeDownEvt.setSource(InputDevice.SOURCE_TOUCHSCREEN)
-                                injectInputEventMethod.invoke(im, swipeDownEvt, 1)
-                                val swipeMoveEvt = MotionEvent.obtain(uptimeMillis, uptimeMillis + 25, MotionEvent.ACTION_MOVE, 500f, 240000f, 0)
-                                swipeMoveEvt.setSource(InputDevice.SOURCE_TOUCHSCREEN)
-                                injectInputEventMethod.invoke(im, swipeMoveEvt, 2)
-                                val swipeUpEvt = MotionEvent.obtain(uptimeMillis, uptimeMillis + 25, MotionEvent.ACTION_UP, 500f, 240000f, 0)
-                                swipeUpEvt.setSource(InputDevice.SOURCE_TOUCHSCREEN)
-                                injectInputEventMethod.invoke(im, swipeUpEvt, 2)
-                                swipeDownEvt.recycle()
-                                swipeMoveEvt.recycle()
-                                swipeUpEvt.recycle()
-                            } catch (e: Throwable) {
-                                XposedHelpers.log("err: $e")
+                            var swipeDownEvt: MotionEvent? = null
+                            var swipeMoveEvt: MotionEvent? = null
+                            var swipeUpEvt: MotionEvent? = null
+                            ModuleHelper.guarded {
+                                try {
+                                    val injectInputEventMethod = InputManager::class.java.getDeclaredMethod("injectInputEvent", InputEvent::class.java, Int::class.javaPrimitiveType)
+                                    val instanceMethod = InputManager::class.java.getDeclaredMethod("getInstance")
+                                    val im = instanceMethod.invoke(InputManager::class.java) as InputManager
+                                    val uptimeMillis = SystemClock.uptimeMillis()
+                                    swipeDownEvt = MotionEvent.obtain(uptimeMillis, uptimeMillis, MotionEvent.ACTION_DOWN, 500f, 500f, 0)
+                                    swipeDownEvt?.setSource(InputDevice.SOURCE_TOUCHSCREEN)
+                                    injectInputEventMethod.invoke(im, swipeDownEvt, 1)
+                                    swipeMoveEvt = MotionEvent.obtain(uptimeMillis, uptimeMillis + 25, MotionEvent.ACTION_MOVE, 500f, 240000f, 0)
+                                    swipeMoveEvt?.setSource(InputDevice.SOURCE_TOUCHSCREEN)
+                                    injectInputEventMethod.invoke(im, swipeMoveEvt, 2)
+                                    swipeUpEvt = MotionEvent.obtain(uptimeMillis, uptimeMillis + 25, MotionEvent.ACTION_UP, 500f, 240000f, 0)
+                                    swipeUpEvt?.setSource(InputDevice.SOURCE_TOUCHSCREEN)
+                                    injectInputEventMethod.invoke(im, swipeUpEvt, 2)
+                                } finally {
+                                    swipeDownEvt?.recycle()
+                                    swipeMoveEvt?.recycle()
+                                    swipeUpEvt?.recycle()
+                                }
                             }
                         }, 100L)
                     }
@@ -452,7 +457,9 @@ object GlobalActions {
                     }
                     ACTION_PREFIX + "GoBack" -> {
                         Thread {
-                            Instrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+                            ModuleHelper.guarded {
+                                Instrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+                            }
                         }.start()
                     }
                     ACTION_PREFIX + "VolumeUp" -> {
@@ -487,8 +494,6 @@ object GlobalActions {
                     }
                 }
                 if (isOrderedBroadcast) resultCode = ACTION_HANDLED
-            } catch (t: Throwable) {
-                XposedHelpers.log(t)
             }
         }
     }
@@ -645,7 +650,9 @@ object GlobalActions {
                                     val isFullScreen = XposedHelpers.getBooleanField(statusBarStateController, "mIsFullscreen")
                                     if (fullScreen != isFullScreen) {
                                         mBgHandler.post {
-                                            Settings.Global.putInt(mContext.contentResolver, Helpers.modulePkg + ".foreground.fullscreen", if (fullScreen) 1 else 0)
+                                            ModuleHelper.guarded {
+                                                Settings.Global.putInt(mContext.contentResolver, Helpers.modulePkg + ".foreground.fullscreen", if (fullScreen) 1 else 0)
+                                            }
                                         }
                                     }
                                     fullScreen = isFullScreen
@@ -727,7 +734,7 @@ object GlobalActions {
     }
 
     private fun showSidebar(context: Context, bundle: Bundle?): Boolean {
-        return try {
+        return ModuleHelper.guarded(false) {
             val showIntent = Intent(ACTION_PREFIX + "ShowSideBar")
             showIntent.setPackage("com.miui.securitycenter")
             if (bundle != null) {
@@ -735,25 +742,19 @@ object GlobalActions {
             }
             ModuleHelper.sendBroadcastWithIdentity(context, showIntent)
             true
-        } catch (t: Throwable) {
-            XposedHelpers.log(t)
-            false
         }
     }
 
     @JvmStatic
     fun commonSendAction(context: Context, action: String): Boolean {
-        return try {
+        return ModuleHelper.guarded(false) {
             ModuleHelper.sendBroadcastWithIdentity(context, Intent(ACTION_PREFIX + action))
             true
-        } catch (t: Throwable) {
-            XposedHelpers.log(t)
-            false
         }
     }
 
     private fun toggleThis(context: Context, what: Int): Boolean {
-        return try {
+        return ModuleHelper.guarded(false) {
             val whatStr = when (what) {
                 1 -> "WiFi"
                 2 -> "Bluetooth"
@@ -771,9 +772,6 @@ object GlobalActions {
             }
             context.sendBroadcast(Intent(ACTION_PREFIX + "Toggle" + whatStr))
             true
-        } catch (t: Throwable) {
-            XposedHelpers.log(t)
-            false
         }
     }
 
