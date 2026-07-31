@@ -65,9 +65,13 @@ public class MainModule extends XposedModule {
 
     OnSharedPreferenceChangeListener mListener;
 
-    private static boolean mPrefsLoaded = false;
+    private enum PrefsState { UNINITIALIZED, LOADED, VALID_EMPTY, UNAVAILABLE }
+    private static PrefsState mPrefsState = PrefsState.UNINITIALIZED;
     private static boolean mPrefsWatcherRegistered = false;
-    private static boolean mEmptyPrefsReported = false;
+    private static boolean mValidEmptyReported = false;
+    private static boolean mUnavailableReported = false;
+    private static int mPrefsInitAttempts = 0;
+    private static final int MAX_PREF_INIT_ATTEMPTS = 5;
     private static boolean mSystemServerLoadMarkerLogged = false;
 
     @Override
@@ -94,22 +98,31 @@ public class MainModule extends XposedModule {
     /**
      * Loads the remote preference snapshot into the process-local {@link PrefMap}.
      *
-     * <p>An empty result is not cached: the provider can still be unavailable when an early
-     * process is hooked, and freezing that state would make the whole process run unconfigured
-     * until it restarts. The retry is bounded by the number of hooked packages, and the "empty"
-     * log is emitted once per process so a device without any setting cannot spam the log.</p>
+     * <p>The provider is distinguished from an empty-but-valid configuration:
+     * <ul>
+     *   <li>{@code null} or thrown from {@link RemotePreferences#getAll()} means the provider is
+     *       not ready ({@link PrefsState#UNAVAILABLE}).</li>
+     *   <li>An empty, non-null map means the user has no custom settings yet
+     *       ({@link PrefsState#VALID_EMPTY}); this is a real state, not a failure.</li>
+     * </ul>
+     * Retries are bounded and do not sleep the caller's thread.</p>
      */
     private void initPrefs() {
-        if (mPrefsLoaded) return;
+        if (mPrefsState == PrefsState.LOADED || mPrefsState == PrefsState.VALID_EMPTY) return;
+        if (mPrefsState == PrefsState.UNAVAILABLE && mPrefsInitAttempts >= MAX_PREF_INIT_ATTEMPTS) return;
+
+        mPrefsInitAttempts++;
         if (remotePrefs == null) {
             try {
                 remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
             } catch (Throwable t) {
+                mPrefsState = PrefsState.UNAVAILABLE;
                 HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getRemotePreferences");
                 return;
             }
         }
         if (remotePrefs == null) {
+            mPrefsState = PrefsState.UNAVAILABLE;
             HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null");
             return;
         }
@@ -117,19 +130,28 @@ public class MainModule extends XposedModule {
         try {
             allPrefs = remotePrefs.getAll();
         } catch (Throwable t) {
+            mPrefsState = PrefsState.UNAVAILABLE;
             HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getAll");
             return;
         }
-        if (allPrefs == null || allPrefs.isEmpty()) {
-            // Empty map is not a failure; the remote provider may simply have no values yet.
-            if (!mEmptyPrefsReported) {
-                mEmptyPrefsReported = true;
-                XposedHelpers.log("Empty preferences!");
+        if (allPrefs == null) {
+            mPrefsState = PrefsState.UNAVAILABLE;
+            if (!mUnavailableReported) {
+                mUnavailableReported = true;
+                XposedHelpers.log("Remote preferences unavailable: getAll returned null");
+            }
+            return;
+        }
+        if (allPrefs.isEmpty()) {
+            mPrefsState = PrefsState.VALID_EMPTY;
+            if (!mValidEmptyReported) {
+                mValidEmptyReported = true;
+                XposedHelpers.log("Remote preferences are valid but empty");
             }
             return;
         }
         mPrefs.putAll(allPrefs);
-        mPrefsLoaded = true;
+        mPrefsState = PrefsState.LOADED;
     }
 
     private void loadDexKit() {
@@ -185,6 +207,7 @@ public class MainModule extends XposedModule {
                 }
             }
         };
+        initPrefs();
         if (remotePrefs == null) {
             try {
                 remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
