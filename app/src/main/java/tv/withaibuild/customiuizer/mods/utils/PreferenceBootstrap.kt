@@ -162,7 +162,7 @@ class PreferenceBootstrap private constructor(
 
         if (!listenerRegistered) {
             val newListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-                onPreferenceChanged(key)
+                ModuleHelper.guarded { onPreferenceChanged(key) }
             }
             listener = newListener
 

@@ -32,11 +32,11 @@ class ShakeManager(private val helperContext: Context) : SensorEventListener {
         shakeInitiated = false
     }
 
-    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = ModuleHelper.guarded {
         // Don't care...
     }
 
-    override fun onSensorChanged(se: SensorEvent) {
+    override fun onSensorChanged(se: SensorEvent) = ModuleHelper.guarded {
         updateAccelParameters(se.values[0], se.values[1], se.values[2])
         when {
             !shakeInitiated && isAccelerationChanged() -> shakeInitiated = true

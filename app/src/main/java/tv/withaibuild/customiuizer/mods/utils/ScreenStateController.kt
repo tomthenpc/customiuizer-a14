@@ -48,7 +48,7 @@ object ScreenStateController {
                 appContext = ctx
                 screenOn = (ctx.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isInteractive != false
                 receiver = object : BroadcastReceiver() {
-                    override fun onReceive(context: Context, intent: Intent) {
+                    override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                         val isOn = when (intent.action) {
                             Intent.ACTION_SCREEN_ON -> true
                             Intent.ACTION_SCREEN_OFF -> false
