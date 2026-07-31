@@ -31,9 +31,11 @@ import java.io.RandomAccessFile
 import java.lang.ref.WeakReference
 import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 class ModuleHelper private constructor() {
 
@@ -819,14 +821,32 @@ class ModuleHelper private constructor() {
             if (sawCleared) dropOwnedObserver(null)
         }
 
+        private enum class RegistrationState {
+            PENDING_REGISTER,
+            ACTIVE,
+            PENDING_UNREGISTER,
+            STALE,
+            RELEASED,
+            REGISTER_FAILED
+        }
+
         private class ModuleReceiverRegistration(
             val context: Context,
             val receiver: BroadcastReceiver,
             val generation: Long,
+            val state: AtomicReference<RegistrationState> = AtomicReference(RegistrationState.PENDING_REGISTER)
         )
 
         private val moduleReceivers = ConcurrentHashMap<String, ModuleReceiverRegistration>()
         private val moduleReceiverGeneration = AtomicLong(0)
+
+        /** Maximum stale receivers held per key while waiting for a retry. */
+        private const val MAX_STALE_MODULE_RECEIVERS = 3
+
+        /** Receivers whose framework unregister failed. Retried on the next same-key operation. */
+        private val staleModuleReceivers = ConcurrentHashMap<String, ConcurrentLinkedDeque<ModuleReceiverRegistration>>()
+
+
 
         /**
          * Registers [receiver] under [key], replacing whatever the module last registered there.
@@ -866,6 +886,10 @@ class ModuleHelper private constructor() {
         ): Boolean {
             val appContext = context.applicationContext ?: context
 
+            // Retry any stale receivers left over from a previous failed unregister before we
+            // touch the active slot. This is the only safe retry point, not a hot path.
+            retryStaleModuleReceivers(key)
+
             // Calling with the exact same receiver instance is a no-op. This keeps repeated init
             // from the same hook target idempotent and avoids a second framework registration.
             val current = moduleReceivers[key]
@@ -891,10 +915,20 @@ class ModuleHelper private constructor() {
             val previous = previousRef.get()
             if (previous?.receiver === receiver) return true
 
+            // `installed` is non-null here (it is either `newReg` or a non-null old registration
+            // kept because of a same-receiver race, which we just returned from above).
+            if (installed == null) return false
+
             // Unregister the previous receiver, but do not let a failed unregister prevent the new
-            // one from being registered. Failure is logged as a diagnostic.
+            // one from being registered. Failed unregistrations move to the bounded stale queue for
+            // a later retry instead of being silently lost.
             if (previous != null) {
-                safeUnregisterModuleReceiver(previous)
+                previous.state.set(RegistrationState.PENDING_UNREGISTER)
+                if (!releaseModuleRegistration(previous)) {
+                    recordStaleModuleReceiver(key, previous)
+                } else {
+                    previous.state.set(RegistrationState.RELEASED)
+                }
             }
 
             return try {
@@ -905,16 +939,19 @@ class ModuleHelper private constructor() {
                 // must self-unregister.
                 val stillCurrent = moduleReceivers[key]
                 if (stillCurrent !== installed) {
-                    try {
-                        appContext.unregisterReceiver(receiver)
-                    } catch (_: Throwable) {
-                        // Already gone or the winner's cleanup handled it.
+                    installed.state.set(RegistrationState.PENDING_UNREGISTER)
+                    if (!releaseModuleRegistration(installed)) {
+                        recordStaleModuleReceiver(key, installed)
+                    } else {
+                        installed.state.set(RegistrationState.RELEASED)
                     }
                     return false
                 }
+                installed.state.compareAndSet(RegistrationState.PENDING_REGISTER, RegistrationState.ACTIVE)
                 true
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
+                installed.state.set(RegistrationState.REGISTER_FAILED)
                 // Registration failed. Roll back only our own record, leaving any newer record
                 // untouched.
                 moduleReceivers.computeIfPresent(key) { _, reg ->
@@ -928,35 +965,116 @@ class ModuleHelper private constructor() {
         @JvmStatic
         @JvmOverloads
         fun unregisterModuleReceiver(key: String, expectedReceiver: BroadcastReceiver? = null) {
+            // Retry any stale receivers before touching the active slot.
+            retryStaleModuleReceivers(key)
+
             val current = moduleReceivers[key] ?: return
             // If a specific receiver was expected, only remove that exact registration. This
             // prevents a concurrent replacement from being accidentally torn down.
             if (expectedReceiver != null && current.receiver !== expectedReceiver) return
+            current.state.set(RegistrationState.PENDING_UNREGISTER)
             // remove(key, value) is atomic: the entry is removed only if it is still the one
             // we observed, so a registration that has just been replaced by another thread is
             // never deleted under our feet.
             if (moduleReceivers.remove(key, current)) {
-                safeUnregisterModuleReceiver(current)
+                if (!releaseModuleRegistration(current)) {
+                    recordStaleModuleReceiver(key, current)
+                } else {
+                    current.state.set(RegistrationState.RELEASED)
+                }
             }
         }
 
-        private fun safeUnregisterModuleReceiver(reg: ModuleReceiverRegistration) {
-            try {
+        /**
+         * Unregisters [reg] from the framework. Returns true on success, false if the framework
+         * call threw. This is the only place that calls [Context.unregisterReceiver] for a module
+         * receiver, so failed unregistrations are handled by the stale queue above.
+         */
+        private fun releaseModuleRegistration(reg: ModuleReceiverRegistration): Boolean {
+            return try {
                 reg.context.unregisterReceiver(reg.receiver)
-            } catch (t: Throwable) {
-                // A failed unregister does not change the fact that the new receiver is now the
-                // active one. Log once as a diagnostic so a host process is never taken down by a
-                // stale receiver cleanup.
-                XposedHelpers.log("Failed to unregister module receiver for ${reg.receiver}: ${t.javaClass.simpleName}")
+                true
+            } catch (_: Throwable) {
+                false
+            }
+        }
+
+        /**
+         * Records [reg] as stale so a future same-key operation can retry the framework unregister.
+         * The queue is bounded; if it is full, the oldest stale receiver is evicted and a single
+         * retry is attempted. Receivers that still cannot be unregistered after that are dropped
+         * with a diagnostic record so the process is not taken down by cleanup code.
+         */
+        private fun recordStaleModuleReceiver(key: String, reg: ModuleReceiverRegistration) {
+            reg.state.set(RegistrationState.STALE)
+            staleModuleReceivers.compute(key) { _, queue ->
+                val newQueue = ConcurrentLinkedDeque(queue ?: emptyList())
+                if (newQueue.size >= MAX_STALE_MODULE_RECEIVERS) {
+                    val oldest = newQueue.pollFirst()
+                    if (oldest != null) {
+                        if (releaseModuleRegistration(oldest)) {
+                            oldest.state.set(RegistrationState.RELEASED)
+                        } else {
+                            // Bounded best effort: the oldest is evicted because we cannot track
+                            // an unbounded number of stuck receivers. It may still be in the
+                            // framework, but it is no longer our responsibility.
+                            oldest.state.set(RegistrationState.RELEASED)
+                            HookDiagnostics.record(
+                                processName(),
+                                HookDiagnostics.Kind.RECEIVER,
+                                "ModuleReceiverRegistry",
+                                reg.receiver.javaClass.name,
+                                key,
+                                HookDiagnostics.Status.RECEIVER_STALE_DROPPED,
+                                "stale receiver evicted due to bounded queue",
+                            )
+                        }
+                    }
+                }
+                newQueue.addLast(reg)
                 HookDiagnostics.record(
                     processName(),
                     HookDiagnostics.Kind.RECEIVER,
                     "ModuleReceiverRegistry",
                     reg.receiver.javaClass.name,
-                    "",
+                    key,
                     HookDiagnostics.Status.RECEIVER_UNREGISTER_FAILED,
-                    t.javaClass.simpleName,
+                    "receiver moved to stale queue",
                 )
+                newQueue
+            }
+        }
+
+        /**
+         * Retries unregistration for every stale receiver under [key]. Receivers that still fail
+         * are kept in the bounded stale queue; receivers that succeed are removed.
+         */
+        private fun retryStaleModuleReceivers(key: String) {
+            staleModuleReceivers.compute(key) { _, queue ->
+                if (queue == null) return@compute null
+                val stillStale = ConcurrentLinkedDeque<ModuleReceiverRegistration>()
+                for (reg in queue) {
+                    if (reg.state.get() == RegistrationState.RELEASED) continue
+                    if (releaseModuleRegistration(reg)) {
+                        reg.state.set(RegistrationState.RELEASED)
+                    } else if (stillStale.size < MAX_STALE_MODULE_RECEIVERS) {
+                        reg.state.set(RegistrationState.STALE)
+                        stillStale.addLast(reg)
+                    } else {
+                        // Bounded best effort: drop on retry if the queue is already full.
+                        reg.state.set(RegistrationState.RELEASED)
+                        HookDiagnostics.record(
+                            processName(),
+                            HookDiagnostics.Kind.RECEIVER,
+                            "ModuleReceiverRegistry",
+                            reg.receiver.javaClass.name,
+                            key,
+                            HookDiagnostics.Status.RECEIVER_STALE_DROPPED,
+                            "stale receiver dropped on retry due to bounded queue",
+                        )
+                    }
+                }
+                if (stillStale.isEmpty()) null else stillStale
             }
         }
 

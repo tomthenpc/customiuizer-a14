@@ -29,6 +29,7 @@ object HookDiagnostics {
         DEXKIT_NO_MATCH,
         PREFERENCES_UNAVAILABLE,
         RECEIVER_UNREGISTER_FAILED,
+        RECEIVER_STALE_DROPPED,
     }
 
     enum class Kind {

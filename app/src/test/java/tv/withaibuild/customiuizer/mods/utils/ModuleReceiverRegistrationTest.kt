@@ -85,6 +85,7 @@ class ModuleReceiverRegistrationTest {
     fun tearDown() {
         // Isolate tests that exercise the process-scoped singleton.
         getModuleReceiversMap().clear()
+        getStaleModuleReceiversMap().clear()
     }
 
     @Test
@@ -350,9 +351,76 @@ class ModuleReceiverRegistrationTest {
         }
     }
 
+    @Test
+    fun moduleReceiver_staleReceiverIsRetriedOnNextRegister() {
+        val context = TrackableContext()
+        val oldReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {}
+        }
+        val midReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {}
+        }
+        val newReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {}
+        }
+        val filter = IntentFilter("android.intent.action.TIME_TICK")
+
+        ModuleHelper.registerModuleReceiver(
+            context, "staleKey", oldReceiver, filter, Context.RECEIVER_NOT_EXPORTED
+        )
+
+        context.failNextUnregister = true
+        ModuleHelper.registerModuleReceiver(
+            context, "staleKey", midReceiver, filter, Context.RECEIVER_NOT_EXPORTED
+        )
+        assertTrue("old receiver must still be in framework until retry", context.registeredReceivers.contains(oldReceiver))
+        assertTrue("old receiver must still be tracked as stale", getStaleModuleReceiversMap().containsKey("staleKey"))
+
+        context.failNextUnregister = false
+        ModuleHelper.registerModuleReceiver(
+            context, "staleKey", newReceiver, filter, Context.RECEIVER_NOT_EXPORTED
+        )
+
+        assertTrue("old receiver must be unregistered on retry", context.unregisteredReceivers.contains(oldReceiver))
+        assertTrue("mid receiver must be unregistered by replacement", context.unregisteredReceivers.contains(midReceiver))
+        assertTrue("new receiver must be registered", context.registeredReceivers.contains(newReceiver))
+        assertFalse("stale queue must be empty after retry", getStaleModuleReceiversMap().containsKey("staleKey"))
+    }
+
+    @Test
+    fun moduleReceiver_staleQueueIsBounded() {
+        val context = TrackableContext()
+        val filter = IntentFilter("android.intent.action.TIME_TICK")
+
+        // Fill the stale queue by repeatedly failing to unregister the previous receiver.
+        val receivers = mutableListOf<BroadcastReceiver>()
+        repeat(5) { index ->
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {}
+            }
+            receivers.add(receiver)
+            if (index > 0) context.failNextUnregister = true
+            ModuleHelper.registerModuleReceiver(
+                context, "boundedKey", receiver, filter, Context.RECEIVER_NOT_EXPORTED
+            )
+        }
+
+        val staleMap = getStaleModuleReceiversMap()
+        val staleQueue = staleMap["boundedKey"] as? Collection<*>
+        assertNotNull("stale queue must exist", staleQueue)
+        assertTrue("stale queue must be bounded", staleQueue!!.size <= 3)
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun getModuleReceiversMap(): ConcurrentHashMap<String, Any> {
         val field = ModuleHelper::class.java.getDeclaredField("moduleReceivers")
+            .apply { isAccessible = true }
+        return field.get(null) as ConcurrentHashMap<String, Any>
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun getStaleModuleReceiversMap(): ConcurrentHashMap<String, Any> {
+        val field = ModuleHelper::class.java.getDeclaredField("staleModuleReceivers")
             .apply { isAccessible = true }
         return field.get(null) as ConcurrentHashMap<String, Any>
     }
