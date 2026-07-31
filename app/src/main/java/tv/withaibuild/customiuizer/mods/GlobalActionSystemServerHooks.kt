@@ -50,19 +50,21 @@ object GlobalActionSystemServerHooks {
                     ModuleHelper.registerModuleReceiver(mContext, "phoneWindowManagerActionReceiver", object : BroadcastReceiver() {
                         @SuppressLint("MissingPermission")
                         override fun onReceive(context: Context, intent: Intent) {
-                            val action = intent.action
-                            if (action == null) return
-                            if (!ModuleHelper.isTrustedBroadcast(
-                                    this,
-                                    Helpers.modulePkg,
-                                    "android",
-                                    "com.android.systemui",
-                                    "com.miui.home",
-                                    rejectionResultCode = GlobalActions.ACTION_FAILED
-                                )
-                            ) return
+                            var completed = false
+                            ModuleHelper.guarded {
+                                val action = intent.action
+                                if (action == null) return
+                                if (!ModuleHelper.isTrustedBroadcast(
+                                        this,
+                                        Helpers.modulePkg,
+                                        "android",
+                                        "com.android.systemui",
+                                        "com.miui.home",
+                                        rejectionResultCode = GlobalActions.ACTION_FAILED
+                                    )
+                                ) return
 
-                            when (action) {
+                                when (action) {
                                 GlobalActions.ACTION_PREFIX + "SimulateMenu" -> {
                                     try {
                                         val fRequestShowMenu = XposedHelpers.findField(thisObject.javaClass.superclass, "mRequestShowMenu")
@@ -136,8 +138,13 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                             if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
+                            completed = true
                         }
-                    }, intentfilter, Context.RECEIVER_EXPORTED)
+                        if (!completed && isOrderedBroadcast) {
+                            setResultCode(GlobalActions.ACTION_FAILED)
+                        }
+                    }
+                }, intentfilter, Context.RECEIVER_EXPORTED)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }

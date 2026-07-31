@@ -91,3 +91,13 @@
 - 无条件安装的高成本业务 Hook：无（`PackagePermissions` 除外，且为一次性静态字段写入）。
 - 功能关闭时仍安装的 Hook：无。
 - `android` 作用域替代 `system` 作用域：无；`system` 为 `onSystemServerStarting` 触发必要条件。
+
+---
+
+## 5. 风险定级更新
+
+- **P0 resolved — `system_server` Global Action Receiver callback is now guarded**
+  - `GlobalActionSystemServerHooks.setupGlobalActions()` 注册的 `phoneWindowManagerActionReceiver` 已将整个 `onReceive` 业务体包裹在 `ModuleHelper.guarded { ... }` 内。
+  - 异常时调用 `XposedHelpers.log(t)`，有序广播设置 `GlobalActions.ACTION_FAILED`，不重新抛出。
+  - 该修复仅增加顶层隔离，未改变 action 名称、权限、信任验证、正常业务结果或其他 Receiver。
+  - 不声称此前发现过真实 `system_server` 崩溃，也不声称全部 Global Actions 已逐项真机验证。
