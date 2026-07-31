@@ -22,13 +22,13 @@ import tv.withaibuild.customiuizer.mods.utils.SystemServerInstaller;
 import tv.withaibuild.customiuizer.mods.GlobalActions;
 import tv.withaibuild.customiuizer.mods.LauncherAnimationHooks;
 import tv.withaibuild.customiuizer.mods.SystemShareMenuHooks;
-import tv.withaibuild.customiuizer.mods.SystemLockScreenHooks;
 import tv.withaibuild.customiuizer.mods.SystemNotificationHooks;
 import tv.withaibuild.customiuizer.mods.SystemWindowHooks;
 import tv.withaibuild.customiuizer.mods.SystemStatusBarBackgroundHooks;
 import tv.withaibuild.customiuizer.mods.System;
 import tv.withaibuild.customiuizer.installers.InputMethodInstaller;
 import tv.withaibuild.customiuizer.installers.LauncherInstaller;
+import tv.withaibuild.customiuizer.installers.SecurityCenterInstaller;
 import tv.withaibuild.customiuizer.installers.SettingsInstaller;
 import tv.withaibuild.customiuizer.installers.SystemUiInstaller;
 import tv.withaibuild.customiuizer.mods.SystemUIStatusBarHooks;
@@ -287,31 +287,7 @@ public class MainModule extends XposedModule {
         }
 
         if (pkg.equals("com.miui.securitycenter")) {
-            if (mPrefs.getBoolean("various_appdetails")) Various.AppInfoHook(lpparam);
-            if (mPrefs.getBoolean("various_disableapp")) Various.AppsDisableHook(lpparam);
-            if (mPrefs.getBoolean("various_restrictapp")) Various.AppsRestrictHook(lpparam);
-            if (mPrefs.getBoolean("various_hide_report_ondetails")) Various.HideReportButtonHook(lpparam);
-            if (mPrefs.getBoolean("system_applock_scramblepin")) SystemLockScreenHooks.ScrambleAppLockPINHook(lpparam);
-            if (mPrefs.getStringAsInt("various_appsort", 1) > 1) Various.AppsDefaultSortHook(lpparam);
-            if (mPrefs.getBoolean("various_skip_interceptperm")) Various.InterceptPermHook(lpparam);
-            if (mPrefs.getBoolean("various_replace_defaultopen_with_openbydefault")) Various.OpenByDefaultHook(lpparam);
-            if (mPrefs.getBoolean("various_skip_securityscan")) Various.SkipSecurityScanHook(lpparam);
-            if (mPrefs.getBoolean("various_show_battery_temperature")) Various.ShowTempInBatteryHook(lpparam);
-            if (mPrefs.getBoolean("various_disable_freeform_suggest_blacklist")) SystemWindowHooks.DisableSideBarSuggestionHook(lpparam);
-            if (mPrefs.getBoolean("various_disable_dock_suggest")) Various.DisableDockSuggestHook(lpparam);
-            if ("com.miui.securitycenter:ui".equals(processName)
-                && mPrefs.getBoolean("various_enable_expand_sidebar")) {
-                Various.AddSideBarExpandReceiverHook(lpparam);
-            }
-            if (mPrefs.getBoolean("system_hidelowbatwarn")) {
-                Various.NoLowBatteryWarningHook();
-            }
-            if (mPrefs.getBoolean("various_privacyapps_column_nums4")) {
-                Various.PrivacyAppsLayoutHook(lpparam);
-            }
-            if (mPrefs.getBoolean("various_disable_reset_recents_privacy_blur")) {
-                Various.PersistPrivacyThumbnailBlur(lpparam);
-            }
+            SecurityCenterInstaller.install(lpparam, mPrefs);
         }
 
         if (pkg.equals("com.miui.powerkeeper")) {
