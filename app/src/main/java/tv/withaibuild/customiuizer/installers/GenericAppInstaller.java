@@ -4,13 +4,15 @@ import android.app.Application;
 import android.content.Context;
 
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
-import tv.withaibuild.customiuizer.mods.Controls;
-import tv.withaibuild.customiuizer.mods.SystemStatusBarBackgroundHooks;
-import tv.withaibuild.customiuizer.mods.SystemWindowHooks;
+import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition;
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry;
+import tv.withaibuild.customiuizer.mods.utils.FeatureTarget;
 import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics;
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback;
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook;
+import tv.withaibuild.customiuizer.mods.utils.InstallPhase;
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper;
+import tv.withaibuild.customiuizer.mods.utils.feature.GenericAppFeatures;
 import tv.withaibuild.customiuizer.utils.PrefMap;
 
 /**
@@ -25,6 +27,13 @@ public final class GenericAppInstaller {
     private GenericAppInstaller() {}
 
     public static void installPostAttach(PackageReadyParam lpparam, PrefMap mPrefs, boolean isLauncherPkg, boolean isStatusBarColor, boolean isNoOverscroll, boolean controlMedia) {
+        final FeatureInstallRegistry registry = new FeatureInstallRegistry();
+
+        for (FeatureDefinition feature : GenericAppFeatures.all(lpparam, mPrefs)) {
+            if (feature.getClass().getName().equals("tv.withaibuild.customiuizer.mods.utils.feature.LauncherPostAttachFeature") && !isLauncherPkg) continue;
+            registry.register(feature);
+        }
+
         ModuleHelper.findAndHookMethod(
             Application.class,
             "attach",
@@ -33,20 +42,11 @@ public final class GenericAppInstaller {
                 @Override
                 protected void after(AfterHookCallback param) throws Throwable {
                     if (isLauncherPkg) {
-                        LauncherInstaller.handleLoadLauncher(lpparam, mPrefs);
+                        registry.installAll(FeatureTarget.LAUNCHER, InstallPhase.APPLICATION_ATTACHED, mPrefs);
                     }
 
-                    if (isStatusBarColor) {
-                        SystemStatusBarBackgroundHooks.StatusBarBackgroundCompatHook(lpparam);
-                        SystemStatusBarBackgroundHooks.StatusBarBackgroundHook(lpparam);
-                    }
-
-                    if (isNoOverscroll) {
-                        SystemWindowHooks.NoOverscrollAppHook(lpparam);
-                    }
-
-                    if (controlMedia) {
-                        Controls.VolumeMediaPlayerHook(lpparam);
+                    if (isStatusBarColor || isNoOverscroll || controlMedia) {
+                        registry.installAll(FeatureTarget.ANY, InstallPhase.APPLICATION_ATTACHED, mPrefs);
                     }
 
                     HookDiagnostics.printSummaryForStage("post-attach");

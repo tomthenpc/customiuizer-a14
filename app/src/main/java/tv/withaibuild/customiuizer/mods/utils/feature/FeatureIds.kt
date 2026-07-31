@@ -448,3 +448,326 @@ data object NotificationImportanceFeatureId : FeatureId {
 data object NoLightUpOnChargeSystemUiFeatureId : FeatureId {
     override val name = "no_light_up_on_charge_system_ui"
 }
+
+// Common package-ready (MainModule onPackageReady) features
+data object StatusBarHeightFeatureId : FeatureId {
+    override val name = "status_bar_height"
+}
+data object AlarmCompatFeatureId : FeatureId {
+    override val name = "alarm_compat"
+}
+
+// Launcher package-ready features
+data object LauncherFolderColumnsResFeatureId : FeatureId {
+    override val name = "launcher_folder_columns_res"
+}
+data object LauncherHorizontalSpacingFeatureId : FeatureId {
+    override val name = "launcher_horizontal_spacing"
+}
+data object LauncherIndicatorHeightFeatureId : FeatureId {
+    override val name = "launcher_indicator_height"
+}
+data object LauncherIndicatorMarginTopFeatureId : FeatureId {
+    override val name = "launcher_indicator_margin_top"
+}
+data object LauncherUnlockGridsFeatureId : FeatureId {
+    override val name = "launcher_unlock_grids"
+}
+data object LauncherDockTitlesFeatureId : FeatureId {
+    override val name = "launcher_dock_titles"
+}
+data object LauncherDisableLogFeatureId : FeatureId {
+    override val name = "launcher_disable_log"
+}
+data object LauncherWorkspaceCellPaddingTopFeatureId : FeatureId {
+    override val name = "launcher_workspace_cell_padding_top"
+}
+data object LauncherDockMarginTopFeatureId : FeatureId {
+    override val name = "launcher_dock_margin_top"
+}
+data object LauncherDockMarginBottomFeatureId : FeatureId {
+    override val name = "launcher_dock_margin_bottom"
+}
+data object LauncherDockHeightFeatureId : FeatureId {
+    override val name = "launcher_dock_height"
+}
+data object LauncherPrivacyAppsGestFeatureId : FeatureId {
+    override val name = "launcher_privacy_apps_gest"
+}
+
+// Launcher post-attach features
+data object LauncherHomescreenSwipesFeatureId : FeatureId {
+    override val name = "launcher_homescreen_swipes"
+}
+data object LauncherHotSeatSwipesFeatureId : FeatureId {
+    override val name = "launcher_hot_seat_swipes"
+}
+data object LauncherShakeFeatureId : FeatureId {
+    override val name = "launcher_shake"
+}
+data object LauncherDoubleTapFeatureId : FeatureId {
+    override val name = "launcher_double_tap"
+}
+data object LauncherPinchFeatureId : FeatureId {
+    override val name = "launcher_pinch"
+}
+data object LauncherFolderColumnsFeatureId : FeatureId {
+    override val name = "launcher_folder_columns"
+}
+data object LauncherIconScaleFeatureId : FeatureId {
+    override val name = "launcher_icon_scale"
+}
+data object LauncherTitleFontSizeFeatureId : FeatureId {
+    override val name = "launcher_title_font_size"
+}
+data object LauncherTitleTopMarginFeatureId : FeatureId {
+    override val name = "launcher_title_top_margin"
+}
+data object LauncherNoClockHideFeatureId : FeatureId {
+    override val name = "launcher_no_clock_hide"
+}
+data object LauncherRenameShortcutsFeatureId : FeatureId {
+    override val name = "launcher_rename_shortcuts"
+}
+data object LauncherTitleShadowFeatureId : FeatureId {
+    override val name = "launcher_title_shadow"
+}
+data object LauncherHideNavBarFeatureId : FeatureId {
+    override val name = "launcher_hide_nav_bar"
+}
+data object LauncherInfiniteScrollFeatureId : FeatureId {
+    override val name = "launcher_infinite_scroll"
+}
+data object LauncherHideTitlesFeatureId : FeatureId {
+    override val name = "launcher_hide_titles"
+}
+data object LauncherFixAppInfoLaunchFeatureId : FeatureId {
+    override val name = "launcher_fix_app_info_launch"
+}
+data object LauncherNoWidgetOnlyFeatureId : FeatureId {
+    override val name = "launcher_no_widget_only"
+}
+data object LauncherReversePortraitFeatureId : FeatureId {
+    override val name = "launcher_reverse_portrait"
+}
+data object LauncherMaxHotseatIconsFeatureId : FeatureId {
+    override val name = "launcher_max_hotseat_icons"
+}
+data object LauncherCloseFolderOnLaunchFeatureId : FeatureId {
+    override val name = "launcher_close_folder_on_launch"
+}
+data object LauncherRecentsBlurFeatureId : FeatureId {
+    override val name = "launcher_recents_blur"
+}
+data object LauncherBackGestureAreaHeightFeatureId : FeatureId {
+    override val name = "launcher_back_gesture_area_height"
+}
+data object LauncherBackGestureAreaWidthFeatureId : FeatureId {
+    override val name = "launcher_back_gesture_area_width"
+}
+data object LauncherFsgesturesFeatureId : FeatureId {
+    override val name = "launcher_fsgestures"
+}
+data object LauncherHideMemoryCleanFeatureId : FeatureId {
+    override val name = "launcher_hide_memory_clean"
+}
+data object LauncherDisableWallpaperScaleFeatureId : FeatureId {
+    override val name = "launcher_disable_wallpaper_scale"
+}
+data object LauncherHideStatusBarInRecentsFeatureId : FeatureId {
+    override val name = "launcher_hide_status_bar_in_recents"
+}
+data object LauncherMultiWindowPlusFeatureId : FeatureId {
+    override val name = "launcher_multi_window_plus"
+}
+data object LauncherFixAnimFeatureId : FeatureId {
+    override val name = "launcher_fix_anim"
+}
+data object LauncherHideSeekPointsFeatureId : FeatureId {
+    override val name = "launcher_hide_seek_points"
+}
+data object LauncherPrivacyFolderFeatureId : FeatureId {
+    override val name = "launcher_privacy_folder"
+}
+data object LauncherHideFromRecentsFeatureId : FeatureId {
+    override val name = "launcher_hide_from_recents"
+}
+data object LauncherFolderBlurFeatureId : FeatureId {
+    override val name = "launcher_folder_blur"
+}
+data object LauncherNoUnlockAnimationFeatureId : FeatureId {
+    override val name = "launcher_no_unlock_animation"
+}
+data object LauncherNoZoomAnimationFeatureId : FeatureId {
+    override val name = "launcher_no_zoom_animation"
+}
+data object LauncherUseOldLaunchAnimationFeatureId : FeatureId {
+    override val name = "launcher_use_old_launch_animation"
+}
+data object LauncherCloseDrawerOnLaunchFeatureId : FeatureId {
+    override val name = "launcher_close_drawer_on_launch"
+}
+data object LauncherHorizontalWidgetSpacingFeatureId : FeatureId {
+    override val name = "launcher_horizontal_widget_spacing"
+}
+data object LauncherAssistGestureActionFeatureId : FeatureId {
+    override val name = "launcher_assist_gesture_action"
+}
+data object LauncherSwipeAndStopActionFeatureId : FeatureId {
+    override val name = "launcher_swipe_and_stop_action"
+}
+data object LauncherCloseOnLaunchFeatureId : FeatureId {
+    override val name = "launcher_close_on_launch"
+}
+data object LauncherResizableWidgetsFeatureId : FeatureId {
+    override val name = "launcher_resizable_widgets"
+}
+data object LauncherWallpaperColorModeFeatureId : FeatureId {
+    override val name = "launcher_wallpaper_color_mode"
+}
+
+// Input method features
+data object InputMethodVolumeCursorFeatureId : FeatureId {
+    override val name = "input_method_volume_cursor"
+}
+data object InputMethodFixBottomMarginFeatureId : FeatureId {
+    override val name = "input_method_fix_bottom_margin"
+}
+data object InputMethodGboardPaddingFeatureId : FeatureId {
+    override val name = "input_method_gboard_padding"
+}
+
+// Settings features
+data object SettingsMiuizerIconFeatureId : FeatureId {
+    override val name = "settings_miuizer_icon"
+}
+data object SettingsDisableAnyNotificationFeatureId : FeatureId {
+    override val name = "settings_disable_any_notification"
+}
+data object SettingsNotificationImportanceFeatureId : FeatureId {
+    override val name = "settings_notification_importance"
+}
+data object SettingsViewWifiPasswordFeatureId : FeatureId {
+    override val name = "settings_view_wifi_password"
+}
+
+// Security center features
+data object SecurityCenterAppInfoFeatureId : FeatureId {
+    override val name = "security_center_app_info"
+}
+data object SecurityCenterAppsDisableFeatureId : FeatureId {
+    override val name = "security_center_apps_disable"
+}
+data object SecurityCenterAppsRestrictFeatureId : FeatureId {
+    override val name = "security_center_apps_restrict"
+}
+data object SecurityCenterHideReportButtonFeatureId : FeatureId {
+    override val name = "security_center_hide_report_button"
+}
+data object SecurityCenterScrambleAppLockPinFeatureId : FeatureId {
+    override val name = "security_center_scramble_app_lock_pin"
+}
+data object SecurityCenterAppsDefaultSortFeatureId : FeatureId {
+    override val name = "security_center_apps_default_sort"
+}
+data object SecurityCenterInterceptPermFeatureId : FeatureId {
+    override val name = "security_center_intercept_perm"
+}
+data object SecurityCenterOpenByDefaultFeatureId : FeatureId {
+    override val name = "security_center_open_by_default"
+}
+data object SecurityCenterSkipSecurityScanFeatureId : FeatureId {
+    override val name = "security_center_skip_security_scan"
+}
+data object SecurityCenterShowTempInBatteryFeatureId : FeatureId {
+    override val name = "security_center_show_temp_in_battery"
+}
+data object SecurityCenterDisableSideBarSuggestionFeatureId : FeatureId {
+    override val name = "security_center_disable_side_bar_suggestion"
+}
+data object SecurityCenterDisableDockSuggestFeatureId : FeatureId {
+    override val name = "security_center_disable_dock_suggest"
+}
+data object SecurityCenterAddSideBarExpandReceiverFeatureId : FeatureId {
+    override val name = "security_center_add_side_bar_expand_receiver"
+}
+data object SecurityCenterNoLowBatteryWarningFeatureId : FeatureId {
+    override val name = "security_center_no_low_battery_warning"
+}
+data object SecurityCenterPrivacyAppsLayoutFeatureId : FeatureId {
+    override val name = "security_center_privacy_apps_layout"
+}
+data object SecurityCenterPersistPrivacyThumbnailBlurFeatureId : FeatureId {
+    override val name = "security_center_persist_privacy_thumbnail_blur"
+}
+
+// Phone features
+data object PhoneShowCallUiFeatureId : FeatureId {
+    override val name = "phone_show_call_ui"
+}
+data object PhoneInCallBrightnessFeatureId : FeatureId {
+    override val name = "phone_in_call_brightness"
+}
+data object PhoneAnswerCallInHeadUpFeatureId : FeatureId {
+    override val name = "phone_answer_call_in_head_up"
+}
+
+// Power keeper features
+data object PowerKeeperAppsRestrictFeatureId : FeatureId {
+    override val name = "power_keeper_apps_restrict"
+}
+data object PowerKeeperPersistBatteryOptimizationFeatureId : FeatureId {
+    override val name = "power_keeper_persist_battery_optimization"
+}
+
+// Guard provider features
+data object GuardProviderDisableDefraudAppsFeatureId : FeatureId {
+    override val name = "guard_provider_disable_defraud_apps"
+}
+
+// Package installer features
+data object PackageInstallerMiuiPackageFeatureId : FeatureId {
+    override val name = "package_installer_miui_package"
+}
+data object PackageInstallerAppInfoFeatureId : FeatureId {
+    override val name = "package_installer_app_info"
+}
+data object PackageInstallerPurifyFeatureId : FeatureId {
+    override val name = "package_installer_purify"
+}
+
+// Media features
+data object MediaDisableUnlockWallpaperScaleFeatureId : FeatureId {
+    override val name = "media_disable_unlock_wallpaper_scale"
+}
+data object MediaScreenshotConfigFeatureId : FeatureId {
+    override val name = "media_screenshot_config"
+}
+data object MediaGalleryScreenshotPathFeatureId : FeatureId {
+    override val name = "media_gallery_screenshot_path"
+}
+
+// Android package features
+data object AndroidCleanShareMenuFeatureId : FeatureId {
+    override val name = "android_clean_share_menu"
+}
+data object AndroidCleanOpenWithMenuFeatureId : FeatureId {
+    override val name = "android_clean_open_with_menu"
+}
+data object AndroidAllRotationsFeatureId : FeatureId {
+    override val name = "android_all_rotations"
+}
+
+// Generic app post-attach features
+data object LauncherPostAttachFeatureId : FeatureId {
+    override val name = "launcher_post_attach"
+}
+data object GenericAppStatusBarBackgroundFeatureId : FeatureId {
+    override val name = "generic_app_status_bar_background"
+}
+data object GenericAppNoOverscrollFeatureId : FeatureId {
+    override val name = "generic_app_no_overscroll"
+}
+data object GenericAppVolumeMediaPlayerFeatureId : FeatureId {
+    override val name = "generic_app_volume_media_player"
+}

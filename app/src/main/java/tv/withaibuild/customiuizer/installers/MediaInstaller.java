@@ -1,53 +1,32 @@
 package tv.withaibuild.customiuizer.installers;
 
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
-import tv.withaibuild.customiuizer.MainModule;
-import tv.withaibuild.customiuizer.mods.LauncherAnimationHooks;
-import tv.withaibuild.customiuizer.mods.System;
-import tv.withaibuild.customiuizer.mods.utils.XposedHelpers;
+import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition;
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry;
+import tv.withaibuild.customiuizer.mods.utils.FeatureTarget;
+import tv.withaibuild.customiuizer.mods.utils.InstallPhase;
+import tv.withaibuild.customiuizer.mods.utils.feature.MediaFeatures;
 import tv.withaibuild.customiuizer.utils.PrefMap;
 
 /**
- * Installer for hooks that run in media-related app processes.
+ * Installer for hooks that run in the Media process.
  *
- * Handles the live wallpaper, screenshot and gallery packages.
- * DexKit is loaded and the bridge is created/closed only for the screenshot
- * hook, matching the original lifecycle.
+ * This keeps {@link tv.withaibuild.customiuizer.MainModule} focused on module-level lifecycle
+ * and delegates the package-specific hooks to a dedicated, stateless class.
+ * Package filtering, the first-package guard and the onPackageReady diagnostic summary
+ * stay in MainModule.
  */
 public final class MediaInstaller {
 
     private MediaInstaller() {}
 
     public static void install(PackageReadyParam lpparam, PrefMap mPrefs) {
-        String pkg = lpparam.getPackageName();
+        FeatureInstallRegistry registry = new FeatureInstallRegistry();
 
-        if ("com.miui.miwallpaper".equals(pkg)) {
-            if (mPrefs.getBoolean("launcher_disable_wallpaperscale")) {
-                LauncherAnimationHooks.DisableUnlockWallpaperScale(lpparam);
-            }
-            return;
+        for (FeatureDefinition feature : MediaFeatures.all(lpparam, mPrefs)) {
+            registry.register(feature);
         }
 
-        if ("com.miui.screenshot".equals(pkg)) {
-            if (mPrefs.getBoolean("system_screenshot")) {
-                try {
-                    MainModule.loadDexKit();
-                    XposedHelpers.createBridge(lpparam.getApplicationInfo().sourceDir);
-                    System.ScreenshotConfigHook(lpparam);
-                } catch (Throwable t) {
-                    XposedHelpers.log(t);
-                } finally {
-                    XposedHelpers.closeBridge();
-                }
-            }
-            return;
-        }
-
-        if ("com.miui.gallery".equals(pkg)) {
-            int folder = mPrefs.getStringAsInt("system_gallery_screenshots_path", 1);
-            if (folder > 1) {
-                System.GalleryScreenshotPathHook(lpparam);
-            }
-        }
+        registry.installAll(FeatureTarget.SYSTEM_PACKAGE, InstallPhase.PACKAGE_READY, mPrefs);
     }
 }

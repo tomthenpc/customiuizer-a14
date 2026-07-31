@@ -1,37 +1,32 @@
 package tv.withaibuild.customiuizer.installers;
 
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
-import tv.withaibuild.customiuizer.MainModule;
-import tv.withaibuild.customiuizer.mods.SystemShareMenuHooks;
+import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition;
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry;
+import tv.withaibuild.customiuizer.mods.utils.FeatureTarget;
+import tv.withaibuild.customiuizer.mods.utils.InstallPhase;
+import tv.withaibuild.customiuizer.mods.utils.feature.AndroidPackageFeatures;
 import tv.withaibuild.customiuizer.utils.PrefMap;
 
 /**
- * Installer for hooks that run in the {@code android} process.
+ * Installer for hooks that run in the AndroidPackage process.
  *
- * Keeps the share-sheet and open-with chooser cleanup, plus the all-rotations
- * theme value replacement, out of {@link tv.withaibuild.customiuizer.MainModule}.
+ * This keeps {@link tv.withaibuild.customiuizer.MainModule} focused on module-level lifecycle
+ * and delegates the package-specific hooks to a dedicated, stateless class.
+ * Package filtering, the first-package guard and the onPackageReady diagnostic summary
+ * stay in MainModule.
  */
 public final class AndroidPackageInstaller {
 
     private AndroidPackageInstaller() {}
 
     public static void install(PackageReadyParam lpparam, PrefMap mPrefs) {
-        if (mPrefs.getBoolean("system_cleanshare")) {
-            SystemShareMenuHooks.CleanShareMenuHook(lpparam);
+        FeatureInstallRegistry registry = new FeatureInstallRegistry();
+
+        for (FeatureDefinition feature : AndroidPackageFeatures.all(lpparam, mPrefs)) {
+            registry.register(feature);
         }
 
-        if (mPrefs.getBoolean("system_cleanopenwith")) {
-            SystemShareMenuHooks.CleanOpenWithMenuHook(lpparam);
-        }
-
-        int allRotations = mPrefs.getStringAsInt("system_allrotations2", 1);
-        if (allRotations > 1) {
-            MainModule.resHooks.setThemeValueReplacement(
-                "android",
-                "bool",
-                "config_allowAllRotations",
-                allRotations == 2
-            );
-        }
+        registry.installAll(FeatureTarget.SYSTEM_PACKAGE, InstallPhase.PACKAGE_READY, mPrefs);
     }
 }

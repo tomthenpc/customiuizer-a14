@@ -38,6 +38,11 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook;
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper;
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks;
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers;
+import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition;
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry;
+import tv.withaibuild.customiuizer.mods.utils.FeatureTarget;
+import tv.withaibuild.customiuizer.mods.utils.InstallPhase;
+import tv.withaibuild.customiuizer.mods.utils.feature.CommonPackageFeatures;
 import tv.withaibuild.customiuizer.utils.PrefMap;
 
 public class MainModule extends XposedModule {
@@ -162,13 +167,11 @@ public class MainModule extends XposedModule {
             return;
         }
 
-        if (mPrefs.getInt("system_statusbarheight", 11) > 11) {
-            System.StatusBarHeightHook(lpparam);
+        FeatureInstallRegistry commonRegistry = new FeatureInstallRegistry();
+        for (FeatureDefinition feature : CommonPackageFeatures.all(lpparam, mPrefs)) {
+            commonRegistry.register(feature);
         }
-
-        if (mPrefs.getBoolean("various_alarmcompat") && mPrefs.getStringSet("various_alarmcompat_apps").contains(pkg)) {
-            Various.AlarmCompatHook();
-        }
+        commonRegistry.installAll(FeatureTarget.ANY, InstallPhase.PACKAGE_READY, mPrefs);
 
         if (pkg.equals("com.miui.miwallpaper")
             || pkg.equals("com.miui.screenshot")
