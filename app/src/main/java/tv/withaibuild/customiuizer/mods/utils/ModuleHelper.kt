@@ -89,8 +89,16 @@ class ModuleHelper private constructor() {
             ?: currentPackageName
             ?: android.os.Process.myPid().toString()
 
-        private fun argList(vararg args: Any?): String =
-            args.toList().dropLast(1).joinToString(",") { it?.toString() ?: "" }
+        private fun argList(vararg args: Any?): String {
+            if (args.isEmpty()) return ""
+            val lastIndex = args.size - 1
+            val sb = StringBuilder()
+            for (i in 0 until lastIndex) {
+                if (i > 0) sb.append(',')
+                sb.append(args[i]?.toString() ?: "")
+            }
+            return sb.toString()
+        }
 
         private fun Method.descriptor(): String =
             parameterTypes.joinToString(",") { it.name ?: it.toString() }
