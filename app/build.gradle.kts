@@ -25,8 +25,8 @@ if (officialRelease) {
     }
 }
 
-val lastVersion = 188
-val lastVersionName = "r14.15.0"
+val lastVersion = 189
+val lastVersionName = "r14.15.1"
 val supportedLocales = setOf(
     "ru-rRU",
     "zh-rCN",
@@ -94,6 +94,7 @@ android {
             isDebuggable = true
             isMinifyEnabled = false
             isShrinkResources = false
+            versionNameSuffix = "-debug"
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

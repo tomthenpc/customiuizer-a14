@@ -3,7 +3,12 @@
   "contractName": "CustoMIUIzer A14 feature effect and restart semantics",
   "romFamily": "HyperOS 1 / Android 14",
   "androidApi": 34,
-  "exclusions": [],
+  "exclusions": [
+    {
+      "preferenceKey": "pref_key_system_netspeed_prerequisite",
+      "reason": "Non-interactive note preference in XML; no runtime code reads this key."
+    }
+  ],
   "entries": [
     {
       "featureId": "key_pkgname_0",
@@ -26513,6 +26518,50 @@
       "hotReloadable": false,
       "confidence": "UNKNOWN",
       "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/Various.kt:618",
+      "notes": ""
+    },
+    {
+      "featureId": "pref_key_system_netspeed_rowspacing",
+      "featureName": "pref_key_system_netspeed_rowspacing",
+      "preferenceKeys": [
+        "pref_key_system_netspeed_rowspacing"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system_detailednetspeed.xml",
+      "defaultValue": "100",
+      "sourceFile": "",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system_detailednetspeed.xml",
+      "notes": ""
+    },
+    {
+      "featureId": "system_netspeed_rowspacing",
+      "featureName": "system_netspeed_rowspacing",
+      "preferenceKeys": [
+        "system_netspeed_rowspacing"
+      ],
+      "xmlSource": "",
+      "defaultValue": "",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:initNetSpeedStyle",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "Applies hook when enabled",
+      "disableEffect": "Restores default behavior",
+      "valueChangeEffect": "Updates applied hook behavior",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "UNKNOWN",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:initNetSpeedStyle",
       "notes": ""
     }
   ]
