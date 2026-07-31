@@ -27,8 +27,9 @@ LSPosed log triage are pending.
 | ABI | `arm64-v8a` |
 | libxposed | minimum API 101 / target API 102 |
 | Hot Reload | Disabled |
-| SHA-256 | To be filled after build; see `BUILD_INFO_R14_15_3.txt` |
-| Signing certificate SHA-256 | Same as the existing A14 release line; see `BUILD_INFO_R14_15_3.txt` |
+| Size | 3,107,273 bytes |
+| SHA-256 | `2561BFA49CC8B32E931AFE2B7B520CC2A535B8D333EC8E9A8FF3D73EB19DE58D` |
+| Signing certificate SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
 
 The previous public stable release is `r14.13.8`. Historical assets and verification details are in
 the [CHANGELOG](CHANGELOG_EN.md) and [RELEASE_ARCHIVE](docs/RELEASE_ARCHIVE.md).

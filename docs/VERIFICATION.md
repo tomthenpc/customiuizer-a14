@@ -9,17 +9,17 @@
 
 ## 当前候选产物
 
-`r14.15.3` 是本地正式签名候选版本，待实机验证。具体构建信息生成后补全到
-`BUILD_INFO_R14_15_3.txt`。
+`r14.15.3` 是本地正式签名候选版本，待实机验证。具体构建信息见
+`../release-output/A14/BUILD_INFO_R14_15_3.txt`。
 
 | 项目 | 值 |
 | --- | --- |
 | 版本 | `r14.15.3` / versionCode 191 |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | APK | `CustoMIUIzer-A14-r14.15.3.apk` |
-| 大小 | 构建后补全 |
-| APK SHA-256 | 构建后补全 |
-| 签名证书 SHA-256 | 与 A14 既有正式发布线一致，构建后补全 |
+| 大小 | 3,107,273 bytes |
+| APK SHA-256 | `2561BFA49CC8B32E931AFE2B7B520CC2A535B8D333EC8E9A8FF3D73EB19DE58D` |
+| 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
 | libxposed 元数据 | `minApiVersion=101`、`targetApiVersion=102`、`staticScope=false` |
 
 ## 上一个公开稳定产物
