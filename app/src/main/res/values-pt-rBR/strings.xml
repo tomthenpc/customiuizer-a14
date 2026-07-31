@@ -132,7 +132,10 @@
     <string name="system_detailednetspeed_lowlevel_summ">Valores de velocidade abaixo deste nível serão considerados baixos e terão um ícone de indicação diferente</string>
     <string name="system_detailednetspeed_secunit_title">Ocultar sufixo de byte por segundo (B/s)</string>
     <string name="system_netspeed_fontsize_title">Tamanho da fonte da velocidade da rede</string>
-    <string name="system_netspeed_use_clock_style_title">Mantenha o estilo do texto consistente com o do relógio </string>
+    <string name="system_netspeed_rowspacing_title">Espaçamento entre linhas da velocidade de rede</string>
+    <string name="system_netspeed_rowspacing_summ">Ajusta o espaço entre as linhas de upload e download; requer reiniciar a SystemUI após a alteração</string>
+    <string name="system_netspeed_prerequisite_note">Ative primeiro "Mostrar velocidade da rede em tempo real" nas configurações do sistema</string>
+    <string name="system_netspeed_use_clock_style_title">Usar o mesmo estilo de texto do relógio da barra de status</string>
     <string name="system_statusbarcontrols_title">Controles de gestos</string>
     <string name="system_statusbarcontrols_summ">Execute ações selecionadas no slide e toque duas vezes</string>
     <string name="system_statusbarcontrols_sens_title">Sensibilidade de ajuste</string>

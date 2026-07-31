@@ -125,6 +125,10 @@
     <string name="system_detailednetspeed_lowlevel_summ">Valores de velocidad debajo de este nivel se considerarán bajos y tendrán un icono indicador diferente</string>
     <string name="system_detailednetspeed_secunit_title">Ocultar sufijo Byte por segundo (B/s)</string>
     <string name="system_netspeed_fontsize_title">Tamaño de la fuente de velocidad de red</string>
+    <string name="system_netspeed_use_clock_style_title">Usar el mismo estilo de texto que el reloj de la barra de estado</string>
+    <string name="system_netspeed_rowspacing_title">Espaciado entre líneas de velocidad de red</string>
+    <string name="system_netspeed_rowspacing_summ">Ajusta el espacio entre las líneas de subida y descarga; requiere reiniciar SystemUI después del cambio</string>
+    <string name="system_netspeed_prerequisite_note">Primero activa "Mostrar velocidad de red en tiempo real" en los ajustes del sistema</string>
     <string name="system_statusbarcontrols_title">Control de gestos</string>
     <string name="system_statusbarcontrols_summ">Realizar acciones seleccionadas al deslizar y doble toque</string>
     <string name="system_statusbarcontrols_sens_title">Ajuste de sensibilidad</string>

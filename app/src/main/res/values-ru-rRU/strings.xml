@@ -128,7 +128,10 @@
     <string name="system_detailednetspeed_lowlevel_summ">Задаёт уровень, ниже которого скорость будет считаться низкой и будет иметь другую иконку</string>
     <string name="system_detailednetspeed_secunit_title">Скрыть байт в секунду суффикса (Б/с)</string>
     <string name="system_netspeed_fontsize_title">Размер шрифта сетевой скорости</string>
-    <string name="system_netspeed_use_clock_style_title">Сохранять стиль текста в соответствии с Часами </string>
+    <string name="system_netspeed_rowspacing_title">Межстрочный интервал скорости сети</string>
+    <string name="system_netspeed_rowspacing_summ">Настраивает расстояние между строками исходящей и входящей скорости; после изменения требуется перезапуск SystemUI</string>
+    <string name="system_netspeed_prerequisite_note">Сначала включите "Показывать скорость сети" в настройках системы</string>
+    <string name="system_netspeed_use_clock_style_title">Использовать стиль текста часов в строке состояния</string>
     <string name="system_statusbarcontrols_title">Управление жестами</string>
     <string name="system_statusbarcontrols_summ">Выполняет выбранные действия на скольжение и двойное нажатие</string>
     <string name="system_statusbarcontrols_sens_title">Чувствительность регулировки</string>

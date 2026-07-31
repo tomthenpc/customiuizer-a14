@@ -144,7 +144,10 @@
     <string name="system_detailednetspeed_lowlevel_summ">Speed values below this level will be considered low and will have a different indication icon</string>
     <string name="system_detailednetspeed_secunit_title">Hide Byte per second suffix(B/s)</string>
     <string name="system_netspeed_fontsize_title">Network speed\'s font size</string>
-    <string name="system_netspeed_use_clock_style_title">Keep text style consistent with Clock\'s </string>
+    <string name="system_netspeed_rowspacing_title">Network speed row spacing</string>
+    <string name="system_netspeed_rowspacing_summ">Adjusts spacing between upload and download rows; restart SystemUI after changing</string>
+    <string name="system_netspeed_prerequisite_note">Enable "Show real-time network speed" in system settings first</string>
+    <string name="system_netspeed_use_clock_style_title">Match status bar clock text style</string>
     <string name="system_statusbarcontrols_title">Gesture controls</string>
     <string name="system_statusbarcontrols_summ">Perform selected actions on slide and double tap</string>
     <string name="system_statusbarcontrols_sens_title">Adjustment sensitivity</string>
