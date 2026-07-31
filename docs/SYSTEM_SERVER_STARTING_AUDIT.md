@@ -25,12 +25,12 @@
 在 `app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActionSystemServerHooks.kt` 中：
 
 - 将整个 `phoneWindowManagerActionReceiver.onReceive()` 业务体包裹在 `ModuleHelper.guarded { ... }` 内。
-- 正常执行完成后，仍对有序广播设置 `GlobalActions.ACTION_HANDLED`。
-- 若 `ModuleHelper.guarded` 捕获到任何 `Throwable`：
-  - 调用 `XposedHelpers.log(t)`；
-  - 对有序广播设置 `GlobalActions.ACTION_FAILED`；
+- `action == null` 与 `isTrustedBroadcast` 拒绝均使用 `return@guarded`，确保这些提前返回会进入统一的 ordered-broadcast 收尾逻辑。
+- `completed` 仅在 `when (action)` 业务分支完整执行后被置为 `true`。
+- 统一的 ordered-broadcast 收尾逻辑在 `ModuleHelper.guarded { ... }` 内调用 `setResultCode`：
+  - 正常执行完成后，设置 `GlobalActions.ACTION_HANDLED`；
+  - `action == null`、非信任发送者、`ModuleHelper.guarded` 捕获到任何 `Throwable` 时，设置 `GlobalActions.ACTION_FAILED`；
   - 不重新抛出，异常不会传播到 `system_server`。
-- `ModuleHelper.isTrustedBroadcast` 的拒绝行为保持不变：非信任发送者仍会得到 `ACTION_FAILED`。
 - 未修改其他 Receiver、未修改 action code、未修改权限、未修改 scope.list、未修改 `initPrefs` 或 `HookDiagnostics`。
 
 ---
@@ -39,9 +39,11 @@
 
 - 新增 `app/src/test/java/tv/withaibuild/customiuizer/GlobalActionSystemServerReceiverSafetyTest.kt`：
   - 确认 `onReceive` 顶层存在 `ModuleHelper.guarded` 边界；
+  - 确认 `action == null` 与 `isTrustedBroadcast` 拒绝使用 `return@guarded`，而非裸 `return`；
+  - 确认 `completed` 仅在业务体正常完成后为 `true`；
+  - 确认成功路径与失败路径都通过统一的 ordered-broadcast 收尾逻辑设置 `ACTION_HANDLED` / `ACTION_FAILED`；
+  - 确认最终 `setResultCode` 也被 `ModuleHelper.guarded` 包裹；
   - 确认未捕获异常不会重新抛出；
-  - 确认有序广播失败路径使用 `ACTION_FAILED`；
-  - 确认成功路径仍使用 `ACTION_HANDLED`；
   - 确认 `isTrustedBroadcast` 信任验证仍存在；
   - 确认 SystemUI 的 `statusBarActionReceiver`、`fastRebootReceiver`、`freeformModeReceiver` 等未被改动。
 - 通过 `python tools/check-invariants.py`。

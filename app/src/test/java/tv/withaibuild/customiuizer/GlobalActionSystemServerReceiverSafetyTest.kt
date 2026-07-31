@@ -18,7 +18,7 @@ class GlobalActionSystemServerReceiverSafetyTest {
     private val sourceFile = "app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActionSystemServerHooks.kt"
 
     @Test
-    fun phoneWindowManagerActionReceiver_onReceive_hasTopLevelGuard() {
+    fun phoneWindowManagerActionReceiver_onReceive_usesGuardedLambdaReturns() {
         val receiver = phoneWindowManagerActionReceiverSource()
 
         assertTrue(
@@ -27,32 +27,23 @@ class GlobalActionSystemServerReceiverSafetyTest {
         )
 
         assertTrue(
-            "guarded block must start before isTrustedBroadcast",
-            receiver.indexOf("ModuleHelper.guarded {") <
-                receiver.indexOf("ModuleHelper.isTrustedBroadcast")
+            "action == null must return from the guarded lambda, not onReceive",
+            receiver.contains("intent.action ?: return@guarded")
         )
 
         assertTrue(
-            "guarded block must enclose the when branches",
-            receiver.indexOf("when (action) {") >
-                receiver.indexOf("ModuleHelper.guarded {") &&
-                receiver.lastIndexOf("}") > receiver.indexOf("when (action) {")
+            "isTrustedBroadcast rejection must return from the guarded lambda",
+            receiver.contains("return@guarded")
         )
-    }
-
-    @Test
-    fun phoneWindowManagerActionReceiver_onReceive_doesNotRethrow() {
-        val receiver = phoneWindowManagerActionReceiverSource()
 
         assertFalse(
-            "onReceive must not rethrow a caught Throwable",
-            receiver.contains("throw t") || receiver.contains("throw e") ||
-                receiver.contains("throw ex")
+            "onReceive must not use a bare return that exits the function early",
+            regexBareReturn(receiver)
         )
     }
 
     @Test
-    fun phoneWindowManagerActionReceiver_failure_setsActionFailedForOrderedBroadcast() {
+    fun phoneWindowManagerActionReceiver_onReceive_unifiedResultCodeHandling() {
         val receiver = phoneWindowManagerActionReceiverSource()
 
         assertTrue(
@@ -60,34 +51,75 @@ class GlobalActionSystemServerReceiverSafetyTest {
             receiver.contains("GlobalActions.ACTION_FAILED")
         )
 
-        val failedBlock = receiver.sectionAfter("if (!completed && isOrderedBroadcast)")
-        assertTrue(
-            "ACTION_FAILED must be the result code when completed is false",
-            failedBlock.contains("setResultCode(GlobalActions.ACTION_FAILED)")
-        )
-    }
-
-    @Test
-    fun phoneWindowManagerActionReceiver_success_setsActionHandled() {
-        val receiver = phoneWindowManagerActionReceiverSource()
-
-        val guardedBlock = receiver.section(
-            "ModuleHelper.guarded {",
-            "if (!completed && isOrderedBroadcast)"
-        )
         assertTrue(
             "success path must set ACTION_HANDLED for ordered broadcasts",
-            guardedBlock.contains("setResultCode(GlobalActions.ACTION_HANDLED)")
+            receiver.contains("GlobalActions.ACTION_HANDLED")
+        )
+
+        val tail = receiver.section("if (isOrderedBroadcast)", "}, intentfilter, Context.RECEIVER_EXPORTED)")
+        assertTrue(
+            "ordered-broadcast result must be set in a unified tail guarded block",
+            tail.contains("ModuleHelper.guarded {") && tail.contains("setResultCode(")
         )
 
         assertTrue(
-            "completed flag must be set after successful handling",
-            guardedBlock.contains("completed = true")
+            "setResultCode must choose result based on completed flag",
+            tail.contains("if (completed)") || tail.contains("if (completed)")
         )
     }
 
     @Test
-    fun phoneWindowManagerActionReceiver_trustVerification_remains() {
+    fun phoneWindowManagerActionReceiver_setResultCode_isGuarded() {
+        val receiver = phoneWindowManagerActionReceiverSource()
+
+        val tail = receiver.section("if (isOrderedBroadcast)", "}, intentfilter, Context.RECEIVER_EXPORTED)")
+        assertTrue(
+            "final setResultCode must be wrapped in ModuleHelper.guarded",
+            tail.contains("ModuleHelper.guarded {") && tail.contains("setResultCode(")
+        )
+    }
+
+    @Test
+    fun phoneWindowManagerActionReceiver_completedOnlyAfterBusinessBody() {
+        val receiver = phoneWindowManagerActionReceiverSource()
+
+        assertTrue(
+            "completed = true must be present after the when block",
+            receiver.contains("completed = true")
+        )
+
+        val whenBody = whenBody(receiver)
+        assertFalse(
+            "completed must not be set to true inside the when branches",
+            whenBody.contains("completed = true")
+        )
+
+        // completed = true must appear after the when block closes, not inside it.
+        val afterWhen = receiver.substring(receiver.indexOf(whenBody) + whenBody.length)
+        assertTrue(
+            "completed = true must follow the when block",
+            afterWhen.contains("completed = true")
+        )
+    }
+
+    @Test
+    fun phoneWindowManagerActionReceiver_nullAction_entersFailureResult() {
+        val receiver = phoneWindowManagerActionReceiverSource()
+
+        assertTrue(
+            "null action must short-circuit out of guarded business body",
+            receiver.contains("intent.action ?: return@guarded")
+        )
+
+        val tail = receiver.section("if (isOrderedBroadcast)", "}, intentfilter, Context.RECEIVER_EXPORTED)")
+        assertTrue(
+            "null action must still reach the unified failure result",
+            tail.contains("if (completed)") && tail.contains("GlobalActions.ACTION_FAILED")
+        )
+    }
+
+    @Test
+    fun phoneWindowManagerActionReceiver_trustRejection_entersFailureResult() {
         val receiver = phoneWindowManagerActionReceiverSource()
 
         assertTrue(
@@ -96,8 +128,28 @@ class GlobalActionSystemServerReceiverSafetyTest {
         )
 
         assertTrue(
-            "untrusted sender must still receive ACTION_FAILED",
+            "untrusted sender must still be rejected with ACTION_FAILED",
             receiver.contains("rejectionResultCode = GlobalActions.ACTION_FAILED")
+        )
+
+        val businessBody = receiver.section(
+            "ModuleHelper.guarded {",
+            "if (isOrderedBroadcast)"
+        )
+        assertTrue(
+            "trust rejection must use return@guarded",
+            businessBody.contains("return@guarded")
+        )
+    }
+
+    @Test
+    fun phoneWindowManagerActionReceiver_doesNotRethrow() {
+        val receiver = phoneWindowManagerActionReceiverSource()
+
+        assertFalse(
+            "onReceive must not rethrow a caught Throwable",
+            receiver.contains("throw t") || receiver.contains("throw e") ||
+                receiver.contains("throw ex")
         )
     }
 
@@ -123,14 +175,49 @@ class GlobalActionSystemServerReceiverSafetyTest {
         )
     }
 
-    @Test
-    fun topLevelGuard_usesModuleHelperGuarded_notJustLocalTryCatch() {
-        val receiver = phoneWindowManagerActionReceiverSource()
+    private fun regexBareReturn(source: String): Boolean {
+        // Detect a bare 'return' inside onReceive that is not a labelled return.
+        // This is a coarse heuristic: any 'return' followed by whitespace/newline
+        // but not '@' is a non-local return.
+        val regex = "\\breturn(?!@)\\b".toRegex()
+        return regex.containsMatchIn(source)
+    }
 
-        assertTrue(
-            "use the existing ModuleHelper.guarded inline helper",
-            receiver.contains("ModuleHelper.guarded")
-        )
+    private fun whenBody(source: String): String {
+        val start = "when (action) {"
+        val startIndex = source.indexOf(start)
+        check(startIndex >= 0) { "Could not find 'when (action) {'" }
+
+        var depth = 0
+        var inString = false
+        var escape = false
+
+        for (i in startIndex until source.length) {
+            val c = source[i]
+            if (inString) {
+                if (escape) {
+                    escape = false
+                } else if (c == '\\') {
+                    escape = true
+                } else if (c == '"') {
+                    inString = false
+                }
+                continue
+            }
+
+            when (c) {
+                '"' -> inString = true
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) {
+                        return source.substring(startIndex, i + 1)
+                    }
+                }
+            }
+        }
+
+        error("Could not find matching closing brace for 'when (action) {'")
     }
 
     private fun phoneWindowManagerActionReceiverSource(): String {

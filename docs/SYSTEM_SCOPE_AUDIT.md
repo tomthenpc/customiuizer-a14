@@ -98,6 +98,7 @@
 
 - **P0 resolved — `system_server` Global Action Receiver callback is now guarded**
   - `GlobalActionSystemServerHooks.setupGlobalActions()` 注册的 `phoneWindowManagerActionReceiver` 已将整个 `onReceive` 业务体包裹在 `ModuleHelper.guarded { ... }` 内。
-  - 异常时调用 `XposedHelpers.log(t)`，有序广播设置 `GlobalActions.ACTION_FAILED`，不重新抛出。
+  - `action == null` 与信任验证失败均使用 `return@guarded`，统一的 ordered-broadcast 收尾逻辑根据 `completed` 标志设置 `ACTION_HANDLED` 或 `ACTION_FAILED`。
+  - 异常时调用 `XposedHelpers.log(t)`，有序广播设置 `GlobalActions.ACTION_FAILED`，不重新抛出；最终 `setResultCode` 自身也被 `ModuleHelper.guarded` 包裹。
   - 该修复仅增加顶层隔离，未改变 action 名称、权限、信任验证、正常业务结果或其他 Receiver。
   - 不声称此前发现过真实 `system_server` 崩溃，也不声称全部 Global Actions 已逐项真机验证。

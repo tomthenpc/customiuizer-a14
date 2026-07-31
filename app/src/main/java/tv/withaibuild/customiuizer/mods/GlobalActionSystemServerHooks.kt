@@ -52,8 +52,7 @@ object GlobalActionSystemServerHooks {
                         override fun onReceive(context: Context, intent: Intent) {
                             var completed = false
                             ModuleHelper.guarded {
-                                val action = intent.action
-                                if (action == null) return
+                                val action = intent.action ?: return@guarded
                                 if (!ModuleHelper.isTrustedBroadcast(
                                         this,
                                         Helpers.modulePkg,
@@ -62,7 +61,9 @@ object GlobalActionSystemServerHooks {
                                         "com.miui.home",
                                         rejectionResultCode = GlobalActions.ACTION_FAILED
                                     )
-                                ) return
+                                ) {
+                                    return@guarded
+                                }
 
                                 when (action) {
                                 GlobalActions.ACTION_PREFIX + "SimulateMenu" -> {
@@ -137,11 +138,19 @@ object GlobalActionSystemServerHooks {
                                     }
                                 }
                             }
-                            if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
                             completed = true
                         }
-                        if (!completed && isOrderedBroadcast) {
-                            setResultCode(GlobalActions.ACTION_FAILED)
+
+                        if (isOrderedBroadcast) {
+                            ModuleHelper.guarded {
+                                setResultCode(
+                                    if (completed) {
+                                        GlobalActions.ACTION_HANDLED
+                                    } else {
+                                        GlobalActions.ACTION_FAILED
+                                    }
+                                )
+                            }
                         }
                     }
                 }, intentfilter, Context.RECEIVER_EXPORTED)
