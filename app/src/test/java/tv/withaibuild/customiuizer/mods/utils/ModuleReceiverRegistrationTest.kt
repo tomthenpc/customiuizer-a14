@@ -33,8 +33,8 @@ class ModuleReceiverRegistrationTest {
      * framework [registerReceiver] calls. The 5-arg overload is the one [ModuleHelper] uses.
      */
     private class TrackableContext : Application() {
-        val unregisteredReceivers = ArrayList<BroadcastReceiver>()
-        val registeredReceivers = ArrayList<BroadcastReceiver>()
+        val unregisteredReceivers = java.util.concurrent.CopyOnWriteArrayList<BroadcastReceiver>()
+        val registeredReceivers = java.util.concurrent.CopyOnWriteArrayList<BroadcastReceiver>()
         var failNextRegister = false
         var failNextUnregister = false
 
