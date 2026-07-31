@@ -21,6 +21,24 @@
 
 > 以下各轮记录为本仓库历史验证与改动依据，保留供追溯。
 
+## r14.15.3 本轮验证
+
+- `python tools/check-invariants.py` → 119 files, no violations
+- `python -m unittest discover -s tools/tests -p "test_*.py"` → 103 tests, 0 failures
+- `python tools/audit-feature-semantics.py --validate` → Validation passed
+- `gradlew.bat test` → BUILD SUCCESSFUL
+- `gradlew.bat lintDebug lintRelease lintVitalRelease` → BUILD SUCCESSFUL
+- `gradlew.bat assembleDebug assembleRelease :broadcast-probe:assembleDebug` → BUILD SUCCESSFUL
+- `gradlew.bat clean :app:assembleDebug :app:assembleRelease -PofficialRelease=true` → BUILD SUCCESSFUL
+- `tools/verify-apk-signatures.py --release-kind official` → 证书 SHA-256 匹配 `C0EFF2DC...2E70`
+- `zipalign -c -v 4` → Verification successful
+- `aapt2 dump badging` → `package='tv.withaibuild.customiuizer.r14' versionCode='191' versionName='r14.15.3'`
+- `META-INF/xposed/module.prop` → `minApiVersion=101 targetApiVersion=102 staticScope=false`
+- 产物：`../release-output/A14/CustoMIUIzer-A14-r14.15.3.apk`（3,107,273 bytes）
+- APK SHA-256：`2561BFA49CC8B32E931AFE2B7B520CC2A535B8D333EC8E9A8FF3D73EB19DE58D`
+
+**未完成/待实机验证：** 网速显示（行距 70%–130%）、About 页面换行、双行网速、完整人工冒烟测试。
+
 ## ⚠️ 本版本的验证状态
 
 **`r14.13.6` 在未完成实机验收的情况下发布**（用户明确要求先发布再测试）。
@@ -47,8 +65,9 @@ APK v2 签名与 zipalign 校验通过；`META-INF/xposed` 元数据完好。
 
 ## 当前活跃开发分支
 
-- 分支：`devin/r14.13-kotlin-refactor`
-- 状态：全部工作已合并进 `main` 并发布为 `r14.13.6`，与 `main` 同点。
+- 分支：`release/r14.15.3`
+- 状态：本地正式签名候选版本；静态检查、构建、签名验证均通过；待 Android 14 / HyperOS 实机及 LSPosed 日志验证。
+- 旧临时分支 `hardening/a14-lts-foundation`、`integration/a14-r14.15.1`、`devin/r14-netspeed-font-spacing-i18n`、`fix/a14-ui-text-inheritance-and-about-wrap` 已删除。
 - 下方各轮记录保留为改动依据；每一轮的结论以其中的验证证据为准。
 
 ### 本轮加固（2026-07-28）

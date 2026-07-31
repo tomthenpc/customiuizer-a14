@@ -2,15 +2,16 @@
 
 主体基线：`origin/integration/a14-r14.15.1`（`9dd52ec1`）。
 
-## 远程分支枚举
+## 远程分支枚举（最终）
 
 ```
-origin/main                                           de082cc6
-origin/hardening/a14-lts-foundation                   4ca0fccc
-origin/integration/a14-r14.15.1                       9dd52ec1
-origin/devin/r14-netspeed-font-spacing-i18n           49351caf
-origin/fix/a14-ui-text-inheritance-and-about-wrap     03b938ab
+origin/main
+origin/release/r14.15.3
 ```
+
+> 以下分支已在 r14.15.3 合并后删除：
+> `hardening/a14-lts-foundation`、`integration/a14-r14.15.1`、
+> `devin/r14-netspeed-font-spacing-i18n`、`fix/a14-ui-text-inheritance-and-about-wrap`。
 
 ## 拓扑关系
 
@@ -108,8 +109,29 @@ origin/fix/a14-ui-text-inheritance-and-about-wrap     03b938ab
 4. patch-equivalent 提交（`b13b22f4` / `e31d830c`）不重复引入；合并历史以最终实际文件 diff 为准。
 5. 合并后统一提交：`chore(integration): consolidate A14 development branches`。
 
+## 最终状态
+
+- `release/r14.15.3` 已推送远端：`91fe05f4`
+- 旧临时分支已从远端删除：`hardening/a14-lts-foundation`、`integration/a14-r14.15.1`、
+  `devin/r14-netspeed-font-spacing-i18n`、`fix/a14-ui-text-inheritance-and-about-wrap`
+- 当前远端仅保留：`origin/main`、`origin/release/r14.15.3`
+- 正式签名候选 APK：`../release-output/A14/CustoMIUIzer-A14-r14.15.3.apk`
+- APK SHA-256：`2561BFA49CC8B32E931AFE2B7B520CC2A535B8D333EC8E9A8FF3D73EB19DE58D`
+- 签名证书 SHA-256：`C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70`
+
 ## 验证结果
 
 - `git fsck --full`：通过
 - `git bundle create ..\customiuizer-a14-pre-r14.15.3.bundle --all`：通过，bundle 包含所有 refs
-- 待后续补充：`check-invariants.py`、Gradle 测试/Lint/R8、签名 APK 验证
+- `python tools/check-invariants.py`：通过，119 files，无违规
+- `python -m unittest discover -s tools/tests -p "test_*.py"`：103 个测试通过
+- `python tools/audit-feature-semantics.py --validate`：通过
+- `python tools/adb-regression.py validate-plan --plan adb-regression/a14-smoke.json`：通过
+- `gradlew.bat test`：BUILD SUCCESSFUL
+- `gradlew.bat lintDebug lintRelease lintVitalRelease`：BUILD SUCCESSFUL
+- `gradlew.bat assembleDebug assembleRelease :broadcast-probe:assembleDebug`：BUILD SUCCESSFUL
+- `gradlew.bat clean :app:assembleDebug :app:assembleRelease -PofficialRelease=true`：BUILD SUCCESSFUL
+- `apksigner verify`（`tools/verify-apk-signatures.py`）：通过，证书 SHA-256 匹配
+- `zipalign -c -v 4`：通过
+- `aapt2 dump badging`：`versionCode='191'` `versionName='r14.15.3'` `package='tv.withaibuild.customiuizer.r14'`
+- `META-INF/xposed/module.prop`：`minApiVersion=101`，`targetApiVersion=102`，`staticScope=false`
