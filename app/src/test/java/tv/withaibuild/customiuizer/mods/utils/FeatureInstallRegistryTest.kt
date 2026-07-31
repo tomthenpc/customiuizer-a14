@@ -8,6 +8,8 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 
 class FeatureInstallRegistryTest {
 
+    private class TestId(override val name: String) : FeatureId
+
     private class DummyFeature(
         override val name: String,
         override val preferenceKey: String? = null,
@@ -16,11 +18,16 @@ class FeatureInstallRegistryTest {
         val enabled: Boolean = true,
         val result: FeatureInstallResult = FeatureInstallResult.Installed,
     ) : FeatureDefinition {
+        override val id = TestId(name)
         var installCalls = 0
+        var onPreferenceChangedCalls = 0
         override fun isEnabled(prefs: PrefMap): Boolean = enabled
         override fun install(): FeatureInstallResult {
             installCalls++
             return result
+        }
+        override fun onPreferenceChanged(key: String?, prefs: PrefMap) {
+            onPreferenceChangedCalls++
         }
     }
 
@@ -86,6 +93,7 @@ class FeatureInstallRegistryTest {
     fun installAll_exceptionBecomesTransient() {
         val registry = FeatureInstallRegistry()
         val f = object : FeatureDefinition {
+            override val id = TestId("explode")
             override val name = "explode"
             override val preferenceKey = null
             override val target = FeatureTarget.SYSTEM_UI
@@ -101,30 +109,91 @@ class FeatureInstallRegistryTest {
     }
 
     @Test
-    fun onPreferenceChanged_marksMatchingFeaturesForReinstall() {
+    fun register_sameDefinitionIsIdempotent() {
+        val registry = FeatureInstallRegistry()
+        val f = DummyFeature("same")
+        registry.register(f)
+        registry.register(f)
+
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+
+        assertEquals(1, results.size)
+        assertEquals(FeatureInstallResult.Installed, results[0])
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun register_differentDefinitionSameIdThrows() {
+        val registry = FeatureInstallRegistry()
+        val sharedId = TestId("shared")
+        val a = object : FeatureDefinition {
+            override val id = sharedId
+            override val name = "a"
+            override val preferenceKey = null
+            override val target = FeatureTarget.SYSTEM_UI
+            override val phase = InstallPhase.PACKAGE_READY
+            override fun isEnabled(prefs: PrefMap) = true
+            override fun install() = FeatureInstallResult.Installed
+        }
+        val b = object : FeatureDefinition {
+            override val id = sharedId
+            override val name = "b"
+            override val preferenceKey = null
+            override val target = FeatureTarget.SYSTEM_UI
+            override val phase = InstallPhase.PACKAGE_READY
+            override fun isEnabled(prefs: PrefMap) = true
+            override fun install() = FeatureInstallResult.Installed
+        }
+        registry.register(a)
+        registry.register(b)
+    }
+
+    @Test
+    fun onPreferenceChanged_callsInstalledFeature() {
         val registry = FeatureInstallRegistry()
         val f = DummyFeature("statusbar", preferenceKey = "system_statusbarheight")
         registry.register(f)
         registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
         assertEquals(1, f.installCalls)
 
-        registry.onPreferenceChanged("system_statusbarheight")
-        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        registry.onPreferenceChanged("system_statusbarheight", PrefMap())
 
-        assertEquals(2, f.installCalls)
+        assertEquals(1, f.installCalls)
+        assertEquals(1, f.onPreferenceChangedCalls)
     }
 
     @Test
-    fun onPreferenceChanged_nullKeyMarksAllWithKey() {
+    fun onPreferenceChanged_marksEarlyNotInstalledAsRestartRequired() {
         val registry = FeatureInstallRegistry()
-        val f = DummyFeature("clock", preferenceKey = "system_clock")
+        val f = DummyFeature("early", phase = InstallPhase.MODULE_LOADED, preferenceKey = "system_statusbarheight")
         registry.register(f)
+
+        registry.onPreferenceChanged("system_statusbarheight", PrefMap())
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.MODULE_LOADED, PrefMap())
+
+        assertEquals(0, f.installCalls)
+        assertEquals(1, results.size)
+        assertTrue(results[0] is FeatureInstallResult.RestartLater)
+    }
+
+    @Test
+    fun markForReinstall_onlyResetsTransientFailures() {
+        val registry = FeatureInstallRegistry()
+        val permanent = DummyFeature("permanent", result = FeatureInstallResult.FailedPermanent("missing"))
+        val transient = DummyFeature("transient", result = FeatureInstallResult.FailedTransient("missing"))
+        registry.register(permanent)
+        registry.register(transient)
+
         registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        assertEquals(1, permanent.installCalls)
+        assertEquals(1, transient.installCalls)
 
-        registry.onPreferenceChanged(null)
+        registry.markForReinstall("permanent")
+        registry.markForReinstall("transient")
+
         val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
-
-        assertEquals(2, (f as DummyFeature).installCalls)
-        assertEquals(FeatureInstallResult.Installed, results[0])
+        assertEquals(1, permanent.installCalls)
+        assertEquals(2, transient.installCalls)
+        assertTrue(results[0] is FeatureInstallResult.FailedPermanent)
+        assertTrue(results[1] is FeatureInstallResult.FailedTransient)
     }
 }

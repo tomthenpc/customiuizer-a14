@@ -5,13 +5,16 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 /**
  * Declaration of one feature that can be installed by the module.
  *
- * A feature is the unit of "one preference, one hook site, one process".  The definition is
- * intentionally small: it knows whether it should run, where it should run, and how to install
- * itself.  The registry handles ordering and idempotency.
+ * A feature is the unit of "one preference, one hook site, one process".  The [id] is its typed
+ * identity; [name] is only for diagnostics.  The registry handles ordering, idempotency and
+ * per-preference invalidation.
  */
 interface FeatureDefinition {
 
-    /** Human-readable, unique name.  Used for diagnostics and for late-preference tracking. */
+    /** Typed identity.  Equality is identity-based (usually an `object` or `data object`). */
+    val id: FeatureId
+
+    /** Human-readable name for diagnostics and late-preference tracking. */
     val name: String
 
     /** The preference key that enables this feature, or null if it is always enabled. */
@@ -33,4 +36,12 @@ interface FeatureDefinition {
      * Attempt to install the feature.  Implementations must be idempotent and must not throw.
      */
     fun install(): FeatureInstallResult
+
+    /**
+     * Called when a relevant preference changes while the feature is active.
+     * Implementations should update their runtime state only; they must not re-install or throw.
+     */
+    fun onPreferenceChanged(key: String?, prefs: PrefMap) {
+        // Default: runtime values are static or handled elsewhere.
+    }
 }

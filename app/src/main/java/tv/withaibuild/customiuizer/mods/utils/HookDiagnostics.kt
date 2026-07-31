@@ -30,6 +30,7 @@ object HookDiagnostics {
         PREFERENCES_UNAVAILABLE,
         RECEIVER_UNREGISTER_FAILED,
         RECEIVER_STALE_DROPPED,
+        DUPLICATE_FEATURE,
     }
 
     enum class Kind {
@@ -40,6 +41,7 @@ object HookDiagnostics {
         DEXKIT_QUERY,
         REMOTE_PREFERENCES,
         RECEIVER,
+        FEATURE,
     }
 
     data class Record(
