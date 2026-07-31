@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Regression tests for [ModuleHelper.replaceModuleRegistration].
+ * Regression tests for [ReceiverRegistry.replaceModuleRegistration].
  */
 class ModuleRegistrationTest {
 
@@ -26,10 +26,10 @@ class ModuleRegistrationTest {
         val oldRan = AtomicInteger(0)
         val newRan = AtomicInteger(0)
 
-        ModuleHelper.replaceModuleRegistration("regKey") { oldRan.incrementAndGet() }
+        ReceiverRegistry.replaceModuleRegistration("regKey") { oldRan.incrementAndGet() }
         assertEquals("first cleanup must not run yet", 0, oldRan.get())
 
-        ModuleHelper.replaceModuleRegistration("regKey") { newRan.incrementAndGet() }
+        ReceiverRegistry.replaceModuleRegistration("regKey") { newRan.incrementAndGet() }
         assertEquals("old cleanup must have run once", 1, oldRan.get())
         assertEquals("new cleanup must not have run yet", 0, newRan.get())
     }
@@ -42,14 +42,14 @@ class ModuleRegistrationTest {
             if (attempts.get() == 1) throw IllegalStateException("simulated cleanup failure")
         }
 
-        ModuleHelper.replaceModuleRegistration("staleRegKey", cleanup)
+        ReceiverRegistry.replaceModuleRegistration("staleRegKey", cleanup)
         assertEquals("first cleanup must not run on first install", 0, attempts.get())
 
-        ModuleHelper.replaceModuleRegistration("staleRegKey") {}
+        ReceiverRegistry.replaceModuleRegistration("staleRegKey") {}
         assertEquals("first cleanup must run once when replaced", 1, attempts.get())
         assertTrue("stale queue must contain the failed cleanup", getStaleModuleRegistrationsMap().containsKey("staleRegKey"))
 
-        ModuleHelper.replaceModuleRegistration("staleRegKey") {}
+        ReceiverRegistry.replaceModuleRegistration("staleRegKey") {}
         assertEquals("cleanup must be retried exactly once", 2, attempts.get())
         assertFalse("stale queue must be empty after successful retry", getStaleModuleRegistrationsMap().containsKey("staleRegKey"))
     }
@@ -63,7 +63,7 @@ class ModuleRegistrationTest {
         }
 
         repeat(5) {
-            ModuleHelper.replaceModuleRegistration("boundedRegKey", failing)
+            ReceiverRegistry.replaceModuleRegistration("boundedRegKey", failing)
         }
 
         val staleMap = getStaleModuleRegistrationsMap()
@@ -74,14 +74,14 @@ class ModuleRegistrationTest {
 
     @Suppress("UNCHECKED_CAST")
     private fun getModuleRegistrationsMap(): ConcurrentHashMap<String, Any> {
-        val field = ModuleHelper::class.java.getDeclaredField("moduleRegistrations")
+        val field = ReceiverRegistry::class.java.getDeclaredField("moduleRegistrations")
             .apply { isAccessible = true }
         return field.get(null) as ConcurrentHashMap<String, Any>
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun getStaleModuleRegistrationsMap(): ConcurrentHashMap<String, Any> {
-        val field = ModuleHelper::class.java.getDeclaredField("staleModuleRegistrations")
+        val field = ReceiverRegistry::class.java.getDeclaredField("staleModuleRegistrations")
             .apply { isAccessible = true }
         return field.get(null) as ConcurrentHashMap<String, Any>
     }

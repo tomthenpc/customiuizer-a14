@@ -30,7 +30,7 @@ class ModuleReceiverRegistrationTest {
 
     /**
      * A stub [Application] that lets tests observe unregistrations and control the timing of
-     * framework [registerReceiver] calls. The 5-arg overload is the one [ModuleHelper] uses.
+     * framework [registerReceiver] calls. The 5-arg overload is the one [ReceiverRegistry] uses.
      */
     private class TrackableContext : Application() {
         val unregisteredReceivers = java.util.concurrent.CopyOnWriteArrayList<BroadcastReceiver>()
@@ -96,7 +96,7 @@ class ModuleReceiverRegistrationTest {
         }
         val filter = IntentFilter("android.intent.action.TIME_TICK")
 
-        val ok = ModuleHelper.registerModuleReceiver(
+        val ok = ReceiverRegistry.registerModuleReceiver(
             context, "testKey", receiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
 
@@ -117,12 +117,12 @@ class ModuleReceiverRegistrationTest {
         val filter = IntentFilter("android.intent.action.TIME_TICK")
 
         assertTrue(
-            ModuleHelper.registerModuleReceiver(
+            ReceiverRegistry.registerModuleReceiver(
                 context, "testKey", receiver, filter, Context.RECEIVER_NOT_EXPORTED
             )
         )
 
-        val ok = ModuleHelper.registerModuleReceiver(
+        val ok = ReceiverRegistry.registerModuleReceiver(
             context, "testKey", receiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
 
@@ -145,10 +145,10 @@ class ModuleReceiverRegistrationTest {
         }
         val filter = IntentFilter("android.intent.action.TIME_TICK")
 
-        ModuleHelper.registerModuleReceiver(
+        ReceiverRegistry.registerModuleReceiver(
             context, "testKey", oldReceiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
-        ModuleHelper.registerModuleReceiver(
+        ReceiverRegistry.registerModuleReceiver(
             context, "testKey", newReceiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
 
@@ -169,7 +169,7 @@ class ModuleReceiverRegistrationTest {
         }
         val filter = IntentFilter("android.intent.action.TIME_TICK")
 
-        val ok = ModuleHelper.registerModuleReceiver(
+        val ok = ReceiverRegistry.registerModuleReceiver(
             context, "testKey", receiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
 
@@ -188,12 +188,12 @@ class ModuleReceiverRegistrationTest {
         }
         val filter = IntentFilter("android.intent.action.TIME_TICK")
 
-        ModuleHelper.registerModuleReceiver(
+        ReceiverRegistry.registerModuleReceiver(
             context, "testKey", oldReceiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
         context.failNextUnregister = true
 
-        val ok = ModuleHelper.registerModuleReceiver(
+        val ok = ReceiverRegistry.registerModuleReceiver(
             context, "testKey", newReceiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
 
@@ -225,14 +225,14 @@ class ModuleReceiverRegistrationTest {
         var resultB = false
 
         val threadA = Thread {
-            resultA = ModuleHelper.registerModuleReceiver(
+            resultA = ReceiverRegistry.registerModuleReceiver(
                 context, "raceKey", receiverA, filter, Context.RECEIVER_NOT_EXPORTED
             )
         }
 
         val threadB = Thread {
             assertTrue("thread A must enter registerReceiver", aEntered.await(5, TimeUnit.SECONDS))
-            resultB = ModuleHelper.registerModuleReceiver(
+            resultB = ReceiverRegistry.registerModuleReceiver(
                 context, "raceKey", receiverB, filter, Context.RECEIVER_NOT_EXPORTED
             )
             aRelease.countDown()
@@ -268,7 +268,7 @@ class ModuleReceiverRegistrationTest {
         }
         val filter = IntentFilter("android.intent.action.TIME_TICK")
 
-        ModuleHelper.registerModuleReceiver(
+        ReceiverRegistry.registerModuleReceiver(
             context, "raceKey", oldReceiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
 
@@ -279,13 +279,13 @@ class ModuleReceiverRegistrationTest {
         val unregisterThread = Thread {
             barrier.await(5, TimeUnit.SECONDS)
             // Pass the old receiver so a concurrent register does not accidentally remove the new one.
-            ModuleHelper.unregisterModuleReceiver("raceKey", oldReceiver)
+            ReceiverRegistry.unregisterModuleReceiver("raceKey", oldReceiver)
             unregisterDone.countDown()
         }
 
         val registerThread = Thread {
             barrier.await(5, TimeUnit.SECONDS)
-            ModuleHelper.registerModuleReceiver(
+            ReceiverRegistry.registerModuleReceiver(
                 context, "raceKey", newReceiver, filter, Context.RECEIVER_NOT_EXPORTED
             )
             registerDone.countDown()
@@ -315,7 +315,7 @@ class ModuleReceiverRegistrationTest {
             }
 
             // First establish an old registration.
-            ModuleHelper.registerModuleReceiver(
+            ReceiverRegistry.registerModuleReceiver(
                 context, "loopKey", oldReceiver, filter, Context.RECEIVER_NOT_EXPORTED
             )
 
@@ -326,13 +326,13 @@ class ModuleReceiverRegistrationTest {
             Thread {
                 barrier.await(5, TimeUnit.SECONDS)
                 // Pass the old receiver so a concurrent register does not remove the new one.
-                ModuleHelper.unregisterModuleReceiver("loopKey", oldReceiver)
+                ReceiverRegistry.unregisterModuleReceiver("loopKey", oldReceiver)
                 done.countDown()
             }.start()
 
             Thread {
                 barrier.await(5, TimeUnit.SECONDS)
-                ModuleHelper.registerModuleReceiver(
+                ReceiverRegistry.registerModuleReceiver(
                     context, "loopKey", newReceiver, filter, Context.RECEIVER_NOT_EXPORTED
                 )
                 done.countDown()
@@ -365,19 +365,19 @@ class ModuleReceiverRegistrationTest {
         }
         val filter = IntentFilter("android.intent.action.TIME_TICK")
 
-        ModuleHelper.registerModuleReceiver(
+        ReceiverRegistry.registerModuleReceiver(
             context, "staleKey", oldReceiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
 
         context.failNextUnregister = true
-        ModuleHelper.registerModuleReceiver(
+        ReceiverRegistry.registerModuleReceiver(
             context, "staleKey", midReceiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
         assertTrue("old receiver must still be in framework until retry", context.registeredReceivers.contains(oldReceiver))
         assertTrue("old receiver must still be tracked as stale", getStaleModuleReceiversMap().containsKey("staleKey"))
 
         context.failNextUnregister = false
-        ModuleHelper.registerModuleReceiver(
+        ReceiverRegistry.registerModuleReceiver(
             context, "staleKey", newReceiver, filter, Context.RECEIVER_NOT_EXPORTED
         )
 
@@ -400,7 +400,7 @@ class ModuleReceiverRegistrationTest {
             }
             receivers.add(receiver)
             if (index > 0) context.failNextUnregister = true
-            ModuleHelper.registerModuleReceiver(
+            ReceiverRegistry.registerModuleReceiver(
                 context, "boundedKey", receiver, filter, Context.RECEIVER_NOT_EXPORTED
             )
         }
@@ -413,14 +413,14 @@ class ModuleReceiverRegistrationTest {
 
     @Suppress("UNCHECKED_CAST")
     private fun getModuleReceiversMap(): ConcurrentHashMap<String, Any> {
-        val field = ModuleHelper::class.java.getDeclaredField("moduleReceivers")
+        val field = ReceiverRegistry::class.java.getDeclaredField("moduleReceivers")
             .apply { isAccessible = true }
         return field.get(null) as ConcurrentHashMap<String, Any>
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun getStaleModuleReceiversMap(): ConcurrentHashMap<String, Any> {
-        val field = ModuleHelper::class.java.getDeclaredField("staleModuleReceivers")
+        val field = ReceiverRegistry::class.java.getDeclaredField("staleModuleReceivers")
             .apply { isAccessible = true }
         return field.get(null) as ConcurrentHashMap<String, Any>
     }

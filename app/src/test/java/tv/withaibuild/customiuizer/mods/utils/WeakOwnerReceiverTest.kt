@@ -87,7 +87,7 @@ class WeakOwnerReceiverTest {
         val context = TrackableContext()
         val intent = Intent()
 
-        val receiver = ModuleHelper.Companion.WeakOwnerReceiver(owner) { _, o, _, _ ->
+        val receiver = ReceiverRegistry.WeakOwnerReceiver(owner) { _, o, _, _ ->
             calls++
             receivedOwner = o
         }
@@ -105,7 +105,7 @@ class WeakOwnerReceiverTest {
         val context = TrackableContext()
         val intent = Intent()
 
-        val receiver = ModuleHelper.Companion.WeakOwnerReceiver(owner) { _, _, _, _ ->
+        val receiver = ReceiverRegistry.WeakOwnerReceiver(owner) { _, _, _, _ ->
             calls++
         }
 
@@ -127,7 +127,7 @@ class WeakOwnerReceiverTest {
         val intent = Intent()
         val intentFilter = IntentFilter("android.intent.action.TIME_TICK")
 
-        val receiver = ModuleHelper.registerOwnedReceiver(
+        val receiver = ReceiverRegistry.registerOwnedReceiver(
             context,
             owner,
             "testUnregisters",
@@ -157,7 +157,7 @@ class WeakOwnerReceiverTest {
         val intent = Intent()
         val intentFilter = IntentFilter("android.intent.action.TIME_TICK")
 
-        val receiver = ModuleHelper.registerOwnedReceiver(
+        val receiver = ReceiverRegistry.registerOwnedReceiver(
             context,
             owner,
             "testRetries",
@@ -188,7 +188,7 @@ class WeakOwnerReceiverTest {
         val context = TrackableContext()
         val intentFilter = IntentFilter("android.intent.action.TIME_TICK")
 
-        val receiver1 = ModuleHelper.registerOwnedReceiver(
+        val receiver1 = ReceiverRegistry.registerOwnedReceiver(
             context,
             owner,
             "testReplacedStale",
@@ -200,7 +200,7 @@ class WeakOwnerReceiverTest {
         // even after the registry removes it during replacement.
         context.failNextUnregister = true
 
-        val receiver2 = ModuleHelper.registerOwnedReceiver(
+        val receiver2 = ReceiverRegistry.registerOwnedReceiver(
             context,
             owner,
             "testReplacedStale",
@@ -230,7 +230,7 @@ class WeakOwnerReceiverTest {
         val context = TrackableContext()
         val intentFilter = IntentFilter("android.intent.action.TIME_TICK")
 
-        val receiver1 = ModuleHelper.registerOwnedReceiver(
+        val receiver1 = ReceiverRegistry.registerOwnedReceiver(
             context,
             owner1,
             "testConcurrent",
@@ -248,7 +248,7 @@ class WeakOwnerReceiverTest {
         // Register a new owner under the same key. The previous cleanup must not have left the
         // key in a state that blocks new registrations.
         val owner2 = Any()
-        val receiver2 = ModuleHelper.registerOwnedReceiver(
+        val receiver2 = ReceiverRegistry.registerOwnedReceiver(
             context,
             owner2,
             "testConcurrent",
@@ -272,7 +272,7 @@ class WeakOwnerReceiverTest {
         val context = TrackableContext()
         val intent = Intent()
 
-        val receiver = ModuleHelper.Companion.WeakOwnerReceiver(owner!!) { _, callbackOwner, _, _ ->
+        val receiver = ReceiverRegistry.WeakOwnerReceiver(owner!!) { _, callbackOwner, _, _ ->
             calls++
             // The callback must receive the passed owner. We hold it only through a WeakReference
             // so this test does not itself create a strong reference cycle.
@@ -300,7 +300,7 @@ class WeakOwnerReceiverTest {
     @Test
     fun weakOwnerReceiver_storesWeakReferenceNotStrong() {
         val owner = Any()
-        val receiver = ModuleHelper.Companion.WeakOwnerReceiver(owner) { _, _, _, _ -> }
+        val receiver = ReceiverRegistry.WeakOwnerReceiver(owner) { _, _, _, _ -> }
 
         val ownerRef = receiver.javaClass.getDeclaredField("ownerRef")
             .apply { isAccessible = true }
@@ -323,7 +323,7 @@ class WeakOwnerReceiverTest {
         // point and run many iterations to exercise both orderings.
         for (i in 0 until 100) {
             val oldOwner = Any()
-            val oldReceiver = ModuleHelper.registerOwnedReceiver(
+            val oldReceiver = ReceiverRegistry.registerOwnedReceiver(
                 context,
                 oldOwner,
                 key,
@@ -351,7 +351,7 @@ class WeakOwnerReceiverTest {
 
             val registerThread = Thread {
                 barrier.await(5, TimeUnit.SECONDS)
-                newReceiver = ModuleHelper.registerOwnedReceiver(
+                newReceiver = ReceiverRegistry.registerOwnedReceiver(
                     context,
                     newOwner,
                     key,
@@ -399,7 +399,7 @@ class WeakOwnerReceiverTest {
         var receiverB: BroadcastReceiver? = null
 
         val threadA = Thread {
-            receiverA = ModuleHelper.registerOwnedReceiver(
+            receiverA = ReceiverRegistry.registerOwnedReceiver(
                 context,
                 owner,
                 key,
@@ -412,7 +412,7 @@ class WeakOwnerReceiverTest {
             // Wait until A has entered its framework registerReceiver, then register the same
             // owner/key and complete first.
             aEntered.await(5, TimeUnit.SECONDS)
-            receiverB = ModuleHelper.registerOwnedReceiver(
+            receiverB = ReceiverRegistry.registerOwnedReceiver(
                 context,
                 owner,
                 key,
@@ -446,7 +446,7 @@ class WeakOwnerReceiverTest {
 
     @Suppress("UNCHECKED_CAST")
     private fun getOwnedReceiversMap(): ConcurrentHashMap<String, CopyOnWriteArrayList<*>> {
-        val field = ModuleHelper::class.java.getDeclaredField("ownedReceivers")
+        val field = ReceiverRegistry::class.java.getDeclaredField("ownedReceivers")
             .apply { isAccessible = true }
         return field.get(null) as ConcurrentHashMap<String, CopyOnWriteArrayList<*>>
     }

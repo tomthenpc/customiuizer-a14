@@ -31,6 +31,7 @@ SOURCE_ROOT = REPO_ROOT / "app" / "src" / "main" / "java"
 ALLOWED = {
     "no-raw-register-receiver": {
         "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt",
+        "tv/withaibuild/customiuizer/mods/utils/ReceiverRegistry.kt",
     },
     "no-direct-hook-installation": {
         # The wrappers are the only place that may call the underlying Xposed
