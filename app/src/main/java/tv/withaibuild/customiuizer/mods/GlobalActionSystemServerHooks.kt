@@ -66,93 +66,98 @@ object GlobalActionSystemServerHooks {
                                 }
 
                                 when (action) {
-                                GlobalActions.ACTION_PREFIX + "SimulateMenu" -> {
-                                    try {
-                                        val fRequestShowMenu = XposedHelpers.findField(thisObject.javaClass.superclass, "mRequestShowMenu")
-                                        fRequestShowMenu.setAccessible(true)
-                                        fRequestShowMenu.set(thisObject, true)
-                                        val markShortcutTriggered = thisObject.javaClass.superclass!!.getDeclaredMethod("markShortcutTriggered")
-                                        markShortcutTriggered.setAccessible(true)
-                                        markShortcutTriggered.invoke(thisObject)
-                                        val injectEvent = thisObject.javaClass.superclass!!.getDeclaredMethod("injectEvent", Int::class.javaPrimitiveType!!)
-                                        injectEvent.setAccessible(true)
-                                        injectEvent.invoke(thisObject, 82)
-                                    } catch (t1: Throwable) {
+                                    GlobalActions.ACTION_PREFIX + "SimulateMenu" -> {
                                         try {
-                                            val mHandler = XposedHelpers.getObjectField(thisObject, "mHandler") as Handler
-                                            mHandler.sendMessageDelayed(mHandler.obtainMessage(1, "show_menu"), android.view.ViewConfiguration.getLongPressTimeout().toLong())
-                                        } catch (t2: Throwable) {
-                                            XposedHelpers.log(t2)
-                                        }
-                                    }
-                                }
-                                GlobalActions.ACTION_PREFIX + "ForceClose" -> {
-                                    try {
-                                        val closeApp = thisObject.javaClass.superclass!!.getDeclaredMethod("closeApp")
-                                        closeApp.setAccessible(true)
-                                        closeApp.invoke(thisObject)
-                                    } catch (t: Throwable) {
-                                        XposedHelpers.log(t)
-                                    }
-                                }
-                                GlobalActions.ACTION_PREFIX + "ToggleColorInversion" -> {
-                                    var opt = 0
-                                    try {
-                                        opt = Settings.Secure.getInt(context.contentResolver, "accessibility_display_inversion_enabled")
-                                        val conflictProp = ModuleHelper.proxySystemProperties("getInt", "ro.df.effect.conflict", 0, null) as Int
-                                        val conflictProp2 = ModuleHelper.proxySystemProperties("getInt", "ro.vendor.df.effect.conflict", 0, null) as Int
-                                        val hasConflict = conflictProp == 1 || conflictProp2 == 1
-                                        val dfMgr = XposedHelpers.callStaticMethod(XposedHelpers.findClass("miui.hardware.display.DisplayFeatureManager", null), "getInstance")
-                                        if (hasConflict && opt == 0) XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 1)
-                                        Settings.Secure.putInt(context.contentResolver, "accessibility_display_inversion_enabled", if (opt == 0) 1 else 0)
-                                        if (hasConflict && opt != 0) XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 0)
-                                    } catch (e: Settings.SettingNotFoundException) {
-                                        XposedHelpers.log(e)
-                                    }
-                                }
-                                GlobalActions.ACTION_PREFIX + "SwitchToPrevApp" -> {
-                                    val pm = context.packageManager
-                                    val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                                    val rti = am.getRecentTasks(15, 0)
-
-                                    val topAct = am.getRunningTasks(1)[0]
-                                    for (rtitem in rti) {
-                                        if (topAct.topActivity == rtitem.topActivity) continue
-
-                                        var isLauncher = false
-                                        val recentIntent = Intent(rtitem.baseIntent)
-                                        if (rtitem.origActivity != null) recentIntent.setComponent(rtitem.origActivity)
-                                        val resolvedAct = recentIntent.resolveActivity(pm)
-                                        if (resolvedAct != null && "com.miui.home" == resolvedAct.packageName) {
-                                            isLauncher = true
-                                        }
-
-                                        if (!isLauncher) {
+                                            val fRequestShowMenu = XposedHelpers.findField(thisObject.javaClass.superclass, "mRequestShowMenu")
+                                            fRequestShowMenu.setAccessible(true)
+                                            fRequestShowMenu.set(thisObject, true)
+                                            val markShortcutTriggered = thisObject.javaClass.superclass!!.getDeclaredMethod("markShortcutTriggered")
+                                            markShortcutTriggered.setAccessible(true)
+                                            markShortcutTriggered.invoke(thisObject)
+                                            val injectEvent = thisObject.javaClass.superclass!!.getDeclaredMethod("injectEvent", Int::class.javaPrimitiveType!!)
+                                            injectEvent.setAccessible(true)
+                                            injectEvent.invoke(thisObject, 82)
+                                            completed = true
+                                        } catch (t1: Throwable) {
                                             try {
-                                                if (rtitem.taskId >= 0) am.moveTaskToFront(rtitem.taskId, 0) else context.startActivity(recentIntent)
-                                                break
-                                            } catch (e: Throwable) {
-                                                XposedHelpers.log(e)
+                                                val mHandler = XposedHelpers.getObjectField(thisObject, "mHandler") as Handler
+                                                mHandler.sendMessageDelayed(mHandler.obtainMessage(1, "show_menu"), android.view.ViewConfiguration.getLongPressTimeout().toLong())
+                                                completed = true
+                                            } catch (t2: Throwable) {
+                                                XposedHelpers.log(t2)
                                             }
                                         }
                                     }
+                                    GlobalActions.ACTION_PREFIX + "ForceClose" -> {
+                                        try {
+                                            val closeApp = thisObject.javaClass.superclass!!.getDeclaredMethod("closeApp")
+                                            closeApp.setAccessible(true)
+                                            closeApp.invoke(thisObject)
+                                            completed = true
+                                        } catch (t: Throwable) {
+                                            XposedHelpers.log(t)
+                                        }
+                                    }
+                                    GlobalActions.ACTION_PREFIX + "ToggleColorInversion" -> {
+                                        try {
+                                            val opt = Settings.Secure.getInt(context.contentResolver, "accessibility_display_inversion_enabled")
+                                            val conflictProp = ModuleHelper.proxySystemProperties("getInt", "ro.df.effect.conflict", 0, null) as Int
+                                            val conflictProp2 = ModuleHelper.proxySystemProperties("getInt", "ro.vendor.df.effect.conflict", 0, null) as Int
+                                            val hasConflict = conflictProp == 1 || conflictProp2 == 1
+                                            val dfMgr = XposedHelpers.callStaticMethod(XposedHelpers.findClass("miui.hardware.display.DisplayFeatureManager", null), "getInstance")
+                                            if (hasConflict && opt == 0) XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 1)
+                                            Settings.Secure.putInt(context.contentResolver, "accessibility_display_inversion_enabled", if (opt == 0) 1 else 0)
+                                            if (hasConflict && opt != 0) XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 0)
+                                            completed = true
+                                        } catch (e: Settings.SettingNotFoundException) {
+                                            XposedHelpers.log(e)
+                                        }
+                                    }
+                                    GlobalActions.ACTION_PREFIX + "SwitchToPrevApp" -> {
+                                        val pm = context.packageManager
+                                        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                                        val rti = am.getRecentTasks(15, 0)
+
+                                        val topAct = am.getRunningTasks(1)[0]
+                                        var moved = false
+                                        for (rtitem in rti) {
+                                            if (topAct.topActivity == rtitem.topActivity) continue
+
+                                            var isLauncher = false
+                                            val recentIntent = Intent(rtitem.baseIntent)
+                                            if (rtitem.origActivity != null) recentIntent.setComponent(rtitem.origActivity)
+                                            val resolvedAct = recentIntent.resolveActivity(pm)
+                                            if (resolvedAct != null && "com.miui.home" == resolvedAct.packageName) {
+                                                isLauncher = true
+                                            }
+
+                                            if (!isLauncher) {
+                                                try {
+                                                    if (rtitem.taskId >= 0) am.moveTaskToFront(rtitem.taskId, 0) else context.startActivity(recentIntent)
+                                                    moved = true
+                                                    break
+                                                } catch (e: Throwable) {
+                                                    XposedHelpers.log(e)
+                                                }
+                                            }
+                                        }
+                                        completed = moved
+                                    }
                                 }
                             }
-                            completed = true
-                        }
 
-                        if (isOrderedBroadcast) {
-                            ModuleHelper.guarded {
-                                setResultCode(
-                                    if (completed) {
-                                        GlobalActions.ACTION_HANDLED
-                                    } else {
-                                        GlobalActions.ACTION_FAILED
-                                    }
-                                )
+                            if (isOrderedBroadcast) {
+                                ModuleHelper.guarded {
+                                    setResultCode(
+                                        if (completed) {
+                                            GlobalActions.ACTION_HANDLED
+                                        } else {
+                                            GlobalActions.ACTION_FAILED
+                                        }
+                                    )
+                                }
                             }
                         }
-                    }
                 }, intentfilter, Context.RECEIVER_EXPORTED)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
