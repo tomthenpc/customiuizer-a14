@@ -36,6 +36,8 @@ object ScreenStateController {
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @JvmStatic
     fun addListener(context: Context, listener: ScreenStateListener) {
+        var notifyInitial = false
+        var initialState = screenOn
         synchronized(lock) {
             if (listeners.contains(listener)) return
             val first = listeners.isEmpty()
@@ -77,9 +79,20 @@ object ScreenStateController {
                         Context.RECEIVER_NOT_EXPORTED
                     )
                 }
+                notifyInitial = false
+                initialState = screenOn
             } else {
-                // Give the new listener the current state.
-                listener.onScreenStateChanged(screenOn)
+                // Give the new listener the current state, but call outside the lock.
+                notifyInitial = true
+                initialState = screenOn
+            }
+        }
+
+        if (notifyInitial) {
+            try {
+                listener.onScreenStateChanged(initialState)
+            } catch (t: Throwable) {
+                XposedHelpers.log(t)
             }
         }
     }
