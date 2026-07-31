@@ -81,12 +81,6 @@ class ModuleHelper private constructor() {
         @JvmField
         internal var ActivityThreadClass: Class<*>? = null
 
-        private val depInstanceCache = ConcurrentHashMap<Class<*>, Any?>()
-
-        private var DependencyClass: Class<*>? = null
-
-        private var DependencyGetMethod: Method? = null
-
         private var thermalId = -1
 
         private var thermalIdScanned = false
@@ -1289,23 +1283,7 @@ class ModuleHelper private constructor() {
 
         @JvmStatic
         fun getDepInstance(classLoader: ClassLoader?, className: String): Any? {
-            return try {
-                val clazz = XposedHelpers.findClass(className, classLoader)
-                val cached = depInstanceCache[clazz]
-                if (cached != null) return cached
-
-                if (DependencyClass == null || DependencyClass?.classLoader != classLoader) {
-                    DependencyClass = XposedHelpers.findClass("com.android.systemui.Dependency", classLoader)
-                    DependencyGetMethod = DependencyClass?.getDeclaredMethod("get", Class::class.java)
-                    DependencyGetMethod?.isAccessible = true
-                }
-                val instance = DependencyGetMethod?.invoke(null, clazz)
-                if (instance != null) depInstanceCache[clazz] = instance
-                instance
-            } catch (t: Throwable) {
-                XposedHelpers.log(t)
-                null
-            }
+            return ReflectionCache.getDepInstance(classLoader, className)
         }
 
         @JvmStatic
