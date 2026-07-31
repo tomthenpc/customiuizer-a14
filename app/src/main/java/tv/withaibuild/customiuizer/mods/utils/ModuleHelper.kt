@@ -662,27 +662,8 @@ class ModuleHelper private constructor() {
         }
 
         @JvmStatic
-        fun findContext(lpparam: XposedModuleInterface.PackageReadyParam?): Context? {
-            var context: Context? = null
-            try {
-                val classLoader = lpparam?.classLoader
-                context = XposedHelpers.callStaticMethod(
-                    XposedHelpers.findClass("android.app.ActivityThread", classLoader),
-                    "currentApplication"
-                ) as? Application
-                if (context == null) {
-                    val currentActivityThread = XposedHelpers.callStaticMethod(
-                        XposedHelpers.findClass("android.app.ActivityThread", null),
-                        "currentActivityThread"
-                    )
-                    if (currentActivityThread != null) {
-                        context = XposedHelpers.callMethod(currentActivityThread, "getSystemContext") as? Context
-                    }
-                }
-            } catch (ignore: Throwable) {
-            }
-            return context
-        }
+        fun findContext(lpparam: XposedModuleInterface.PackageReadyParam?): Context? =
+            ContextResolver.findContext(lpparam)
 
         @JvmStatic
         fun getNextMIUIAlarmTime(context: Context): Long {
