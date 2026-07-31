@@ -99,7 +99,7 @@ object GlobalActionSystemServerHooks {
                                     }
                                     GlobalActions.ACTION_PREFIX + "ToggleColorInversion" -> {
                                         try {
-                                            val opt = Settings.Secure.getInt(context.contentResolver, "accessibility_display_inversion_enabled")
+                                            val originalValue = Settings.Secure.getInt(context.contentResolver, "accessibility_display_inversion_enabled")
                                             val conflictProp = ModuleHelper.proxySystemProperties("getInt", "ro.df.effect.conflict", 0, null) as Int
                                             val conflictProp2 = ModuleHelper.proxySystemProperties("getInt", "ro.vendor.df.effect.conflict", 0, null) as Int
                                             val hasConflict = conflictProp == 1 || conflictProp2 == 1
@@ -108,7 +108,9 @@ object GlobalActionSystemServerHooks {
                                             // Enabling: pre-apply the conflict workaround, then put the setting.
                                             // If putInt fails, try to restore the previous screen effect.
                                             // Disabling: put the setting first, then disable the conflict workaround.
-                                            val enabling = opt == 0
+                                            // If the workaround fails, restore the original setting so the next action does
+                                            // not run the opposite direction just because the Secure setting changed.
+                                            val enabling = originalValue == 0
                                             var stateChangeCompleted = false
 
                                             if (hasConflict && enabling) {
@@ -129,9 +131,15 @@ object GlobalActionSystemServerHooks {
                                                         XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 0)
                                                     } catch (t: Throwable) {
                                                         // The setting changed but the workaround did not; the action is not
-                                                        // fully complete, so do not claim it as handled.
+                                                        // fully complete, so do not claim it as handled. Try to roll the
+                                                        // setting back so the next trigger does not run the opposite action.
                                                         XposedHelpers.log(t)
                                                         stateChangeCompleted = false
+                                                        try {
+                                                            Settings.Secure.putInt(context.contentResolver, "accessibility_display_inversion_enabled", originalValue)
+                                                        } catch (rollback: Throwable) {
+                                                            XposedHelpers.log(rollback)
+                                                        }
                                                     }
                                                 }
                                             } else if (hasConflict && enabling) {

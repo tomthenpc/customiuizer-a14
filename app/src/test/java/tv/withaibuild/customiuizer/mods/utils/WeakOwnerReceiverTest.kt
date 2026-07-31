@@ -14,6 +14,9 @@ import org.junit.Test
 import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -249,6 +252,78 @@ class WeakOwnerReceiverTest {
 
         assertTrue("ownerRef must be a WeakReference", ownerRef is WeakReference<*>)
         assertTrue("ownerRef must point to the owner", (ownerRef as WeakReference<*>).get() === owner)
+    }
+
+    @Test
+    fun weakOwnerReceiver_registerAndCleanupAreAtomicUnderRace() {
+        val context = TrackableContext()
+        val filter = IntentFilter("android.intent.action.TIME_TICK")
+        val intent = Intent()
+        val key = "testRace"
+
+        // The old non-atomic sequence (remove receiver, then if empty remove key) could lose a
+        // new receiver registered in between. ConcurrentHashMap.compute() makes the whole list
+        // and key update atomic. We force the two operations to start at the exact same barrier
+        // point and run many iterations to exercise both orderings.
+        for (i in 0 until 100) {
+            val oldOwner = Any()
+            val oldReceiver = ModuleHelper.registerOwnedReceiver(
+                context,
+                oldOwner,
+                key,
+                filter,
+                Context.RECEIVER_NOT_EXPORTED
+            ) { _, _, _, _ -> }
+
+            // Simulate the old owner being collected.
+            val oldOwnerRef = oldReceiver.javaClass.getDeclaredField("ownerRef")
+                .apply { isAccessible = true }
+                .get(oldReceiver) as WeakReference<*>
+            oldOwnerRef.clear()
+
+            val newOwner = Any()
+            val barrier = CyclicBarrier(2)
+            val cleanupDone = CountDownLatch(1)
+            val registerDone = CountDownLatch(1)
+            var newReceiver: BroadcastReceiver? = null
+
+            val cleanupThread = Thread {
+                barrier.await(5, TimeUnit.SECONDS)
+                oldReceiver.onReceive(context, intent)
+                cleanupDone.countDown()
+            }
+
+            val registerThread = Thread {
+                barrier.await(5, TimeUnit.SECONDS)
+                newReceiver = ModuleHelper.registerOwnedReceiver(
+                    context,
+                    newOwner,
+                    key,
+                    filter,
+                    Context.RECEIVER_NOT_EXPORTED
+                ) { _, _, _, _ -> }
+                registerDone.countDown()
+            }
+
+            cleanupThread.start()
+            registerThread.start()
+            assertTrue("cleanup thread must finish", cleanupDone.await(5, TimeUnit.SECONDS))
+            assertTrue("register thread must finish", registerDone.await(5, TimeUnit.SECONDS))
+
+            val ownedReceivers = getOwnedReceiversMap()
+            val list = ownedReceivers[key]
+            assertEquals("iteration $i: exactly one registration must remain", 1, list?.size ?: 0)
+            val remainingReceiver = list?.firstOrNull()?.let { getReceiverFromRegistration(it) }
+            assertTrue("iteration $i: remaining receiver must be the new one", remainingReceiver === newReceiver)
+
+            // The old receiver must have been unregistered; the new one must not have been.
+            assertTrue("iteration $i: old receiver must be unregistered", context.unregisteredReceivers.contains(oldReceiver))
+            assertFalse("iteration $i: new receiver must not be unregistered", context.unregisteredReceivers.contains(newReceiver))
+
+            // Reset for the next iteration.
+            getOwnedReceiversMap().clear()
+            context.unregisteredReceivers.clear()
+        }
     }
 
     @Suppress("UNCHECKED_CAST")

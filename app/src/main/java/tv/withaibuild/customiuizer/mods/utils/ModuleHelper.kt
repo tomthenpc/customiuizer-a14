@@ -893,6 +893,7 @@ class ModuleHelper private constructor() {
          */
         internal class WeakOwnerReceiver(
             owner: Any,
+            private val registeredKey: String? = null,
             private val callback: OwnedReceiverCallback
         ) : BroadcastReceiver() {
             private val ownerRef = WeakReference(owner)
@@ -925,17 +926,35 @@ class ModuleHelper private constructor() {
             }
 
             private fun removeOwnedRegistration(receiver: BroadcastReceiver): OwnedReceiver? {
-                for ((key, registrations) in ownedReceivers) {
-                    val registration = registrations.find { it.receiver === receiver }
-                    if (registration != null) {
-                        registrations.remove(registration)
-                        if (registrations.isEmpty()) {
-                            // Conditional remove: only drop the key if this is still the list
-                            // mapped to it, so a concurrent new registration is not lost.
-                            ownedReceivers.remove(key, registrations)
-                        }
-                        return registration
+                val key = registeredKey
+                return if (key != null) {
+                    removeOwnedRegistrationForKey(key, receiver)
+                } else {
+                    // Fallback for receivers created without a key (unit tests).
+                    removeOwnedRegistrationFallback(receiver)
+                }
+            }
+
+            private fun removeOwnedRegistrationForKey(key: String, receiver: BroadcastReceiver): OwnedReceiver? {
+                val removedRef = java.util.concurrent.atomic.AtomicReference<OwnedReceiver?>(null)
+                ownedReceivers.compute(key) { _, list ->
+                    val newList = list?.let { CopyOnWriteArrayList(it) }
+                    val found = newList?.find { it.receiver === receiver }
+                    if (found != null) {
+                        newList.remove(found)
+                        removedRef.set(found)
                     }
+                    if (newList.isNullOrEmpty()) null else newList
+                }
+                return removedRef.get()
+            }
+
+            private fun removeOwnedRegistrationFallback(receiver: BroadcastReceiver): OwnedReceiver? {
+                // Tests may create WeakOwnerReceiver directly without a key. In that case we still
+                // need to find and remove the registration, but the list of keys is small.
+                for ((key, _) in ownedReceivers) {
+                    val found = removeOwnedRegistrationForKey(key, receiver)
+                    if (found != null) return found
                 }
                 return null
             }
@@ -963,21 +982,53 @@ class ModuleHelper private constructor() {
             permission: String? = null,
             callback: OwnedReceiverCallback
         ): BroadcastReceiver {
-            val receiver = WeakOwnerReceiver(owner, callback)
-            val registrations = ownedReceivers.computeIfAbsent(key) { CopyOnWriteArrayList() }
-            registrations.removeIf { registration ->
-                val registrationOwner = registration.ownerRef.get()
-                if (registrationOwner != null && registrationOwner !== owner) return@removeIf false
-                releaseReceiver(registration.contextRef, registration.receiver)
-                true
+            val receiver = WeakOwnerReceiver(owner, key, callback)
+            val newReg = OwnedReceiver(WeakReference(owner), WeakReference(context), receiver)
+
+            // Atomically replace stale / same-owner registrations and add the new one.
+            // No Android framework calls are made inside the remapping function.
+            val removedRef = java.util.concurrent.atomic.AtomicReference<List<OwnedReceiver>>(emptyList())
+            ownedReceivers.compute(key) { _, oldList ->
+                val toRemove = ArrayList<OwnedReceiver>()
+                val newList = CopyOnWriteArrayList<OwnedReceiver>()
+                if (oldList != null) {
+                    for (reg in oldList) {
+                        val regOwner = reg.ownerRef.get()
+                        // Keep live registrations that belong to a different owner. Remove stale
+                        // owners (collected) and any previous registration for the same owner/key
+                        // so the same hook target only has one receiver at a time.
+                        if (regOwner != null && regOwner !== owner) {
+                            newList.add(reg)
+                        } else {
+                            toRemove.add(reg)
+                        }
+                    }
+                }
+                newList.add(newReg)
+                removedRef.set(toRemove)
+                newList
             }
-            try {
+
+            // Unregister whatever the atomic update displaced. This is safe to do outside the
+            // compute because the map already reflects the new state.
+            for (reg in removedRef.get()) {
+                releaseReceiver(reg.contextRef, reg.receiver)
+            }
+
+            return try {
                 context.registerReceiver(receiver, filter, permission, null, flags)
-                registrations.add(OwnedReceiver(WeakReference(owner), WeakReference(context), receiver))
+                receiver
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
+                // Framework registration failed; undo the map entry so we do not keep a dead
+                // receiver around and can retry on the next hook.
+                ownedReceivers.compute(key) { _, list ->
+                    val newList = list?.let { CopyOnWriteArrayList(it) }
+                    newList?.remove(newReg)
+                    if (newList.isNullOrEmpty()) null else newList
+                }
+                receiver
             }
-            return receiver
         }
 
         private val moduleRegistrations = ConcurrentHashMap<String, Runnable>()
