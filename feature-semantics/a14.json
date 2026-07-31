@@ -3,7 +3,12 @@
   "contractName": "CustoMIUIzer A14 feature effect and restart semantics",
   "romFamily": "HyperOS 1 / Android 14",
   "androidApi": 34,
-  "exclusions": [],
+  "exclusions": [
+    {
+      "preferenceKey": "pref_key_system_netspeed_prerequisite",
+      "reason": "Non-interactive prerequisite note; does not control a runtime hook"
+    }
+  ],
   "entries": [
     {
       "featureId": "key_pkgname_0",
@@ -26514,6 +26519,29 @@
       "confidence": "UNKNOWN",
       "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/Various.kt:618",
       "notes": ""
+    },
+    {
+      "featureId": "pref_key_system_netspeed_rowspacing",
+      "featureName": "pref_key_system_netspeed_rowspacing",
+      "preferenceKeys": [
+        "pref_key_system_netspeed_rowspacing",
+        "system_netspeed_rowspacing"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system_detailednetspeed.xml",
+      "defaultValue": "100",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
+      "installer": "NetSpeedStyleHook / initNetSpeedStyle",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "CALLBACK_READ",
+      "enableEffect": "Applies TextView lineSpacing multiplier when detailed network speed style 2 is used",
+      "disableEffect": "Restores default line spacing",
+      "valueChangeEffect": "Only adjusts detailed network speed style 2 TextView lineSpacing multiplier",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "MainModule.mPrefs.getInt(\"system_netspeed_rowspacing\", 100) at SystemUIStatusBarHooks.kt",
+      "notes": "Value is clamped to 70-130 at runtime"
     }
   ]
 }

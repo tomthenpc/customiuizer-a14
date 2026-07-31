@@ -9,6 +9,7 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 | 版本 | 日期 | 定位 |
 | --- | --- | --- |
+| `r14.15.1` | 2026-07-31 | 在 `r14.15.0` 基础上整合网速字体家族继承、双排行距与本地化；实机验证待完成 |
 | `r14.15.0` | 2026-07-31 | `r14.13.9` 真机验证基线；增加 `system_server` Global Action Receiver 顶层异常隔离；完整人工冒烟测试延期 |
 | `r14.13.9` | 2026-07-31 | 当前稳定版；恢复 A14 上游 `system` 作用域，修复 `system_server` Hook 未加载问题 |
 | `r14.13.8` | 2026-07-30 | 结构整理收口、快速重启 Receiver 修复、LSPosed 2.1.1 实机验收 |
@@ -56,6 +57,47 @@ Release 标题统一为纯版本号。已移除版本的资产名、大小与 SH
 
 - APK：`CustoMIUIzer-A14-r14.15.0.apk`（正式签名时） / `CustoMIUIzer-A14-r14.15.0-unsigned-ci.apk`（CI）。
 - versionCode / versionName：`188 / r14.15.0`
+
+## [r14.15.1] - 2026-07-31
+
+### 版本定位
+
+在 `r14.15.0` 的 `system_server` Receiver 异常隔离基础上，整合网速显示改进：粗体保留 SystemUI 当前字体家族，新增双排网速行间距 70%–130%，补齐相关本地化和系统实时网速前置提示。
+
+### 变更
+
+- `versionCode` 升级为 `189`。
+- `versionName` 升级为 `r14.15.1`。
+- 恢复 `system` 作用域，使 `system_server` Hook 重新生效（继承自 `r14.13.9`）。
+- 为 `GlobalActionSystemServerHooks` 的 `phoneWindowManagerActionReceiver` 增加完整 `ModuleHelper.guarded` 异常隔离。
+- 修正 `guarded` lambda 中 `action == null` 与 `isTrustedBroadcast` 拒绝的提前返回语义，统一有序广播 `ACTION_HANDLED` / `ACTION_FAILED` 结果。
+- 网速粗体保留当前 SystemUI 字体家族，不再使用 `Typeface.DEFAULT_BOLD`。
+- 新增双排网速行间距 `70%–130%`（默认 `100%`），仅影响 `speedStyle == 2`。
+- 补齐 `system_netspeed_rowspacing_title`、`system_netspeed_rowspacing_summ`、`system_netspeed_prerequisite_note` 等本地化。
+- 新增 `app/src/test/java/tv/withaibuild/customiuizer/mods/NetSpeedLineSpacingTest.kt` 与 `tools/tests/test_netspeed_resources.py`。
+- 更新 `feature-semantics/a14.json`，补充 `pref_key_system_netspeed_rowspacing` 审计记录。
+
+### 验证
+
+- 通过 `python tools/check-invariants.py`。
+- 通过 `python tools/audit-feature-semantics.py --validate`。
+- 通过 `python -m unittest discover -s tools/tests -p "test_*.py"`。
+- 通过 `gradlew clean test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease`。
+- `GlobalActionSystemServerReceiverSafetyTest` 与 `NetSpeedLineSpacingTest` 均通过。
+- `META-INF/xposed/scope.list` 校验包含 `system`、`android`、`com.android.systemui`、`com.miui.home`。
+
+### 已知边界
+
+- `system` scope、Toast 路径已在 `r14.13.9` 真机核心验证。
+- Receiver guard 与网速改动已通过离线测试和构建。
+- 网速实际显示与完整人工冒烟测试尚待实机验证。
+- 不声称网速效果已在真机 PASS。
+- 不声称 r14.15.1 已公开发布。
+
+### 产物
+
+- APK：`CustoMIUIzer-A14-r14.15.1.apk`（正式签名时） / `CustoMIUIzer-A14-r14.15.1-unsigned-ci.apk`（CI）。
+- versionCode / versionName：`189 / r14.15.1`
 
 ## [r14.13.9] - 2026-07-31
 

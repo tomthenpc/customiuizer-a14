@@ -10,6 +10,7 @@ and performance figures without same-condition measurements are not release chan
 
 | Version | Date | Purpose |
 | --- | --- | --- |
+| `r14.15.1` | 2026-07-31 | Integrates network speed typeface inheritance, dual-row spacing and localization on top of `r14.15.0`; real-device validation pending |
 | `r14.15.0` | 2026-07-31 | `r14.13.9` real-device baseline; adds top-level guard for `system_server` Global Action Receiver; manual smoke test deferred |
 | `r14.13.9` | 2026-07-31 | Current stable release; restores upstream A14 `system` scope, fixes `system_server` hook loading |
 | `r14.13.8` | 2026-07-30 | Structure tidy-up, soft-reboot receiver fix, LSPosed 2.1.1 acceptance |
@@ -60,6 +61,43 @@ It also does not claim a real `system_server` crash was observed before or after
 
 - APK: `CustoMIUIzer-A14-r14.15.0.apk` (production signed) / `CustoMIUIzer-A14-r14.15.0-unsigned-ci.apk` (CI).
 - versionCode / versionName: `188 / r14.15.0`
+
+## [r14.15.1] - 2026-07-31
+
+### Purpose
+
+On top of the `system_server` Receiver guard in `r14.15.0`, this candidate integrates network speed display improvements: bold typeface preserves the current SystemUI font family, a new dual-row line spacing slider (70%–130%), and the related localization and system real-time speed prerequisite note.
+
+### Changes
+
+- `versionCode` bumped to `189`.
+- `versionName` bumped to `r14.15.1`.
+- Restores the `system` scope so `system_server` hooks are loaded again (inherited from `r14.13.9`).
+- Adds full `ModuleHelper.guarded` exception isolation to `GlobalActionSystemServerHooks.phoneWindowManagerActionReceiver`.
+- Fixes early-return semantics inside the `guarded` lambda for `action == null` and `isTrustedBroadcast` rejection, unifying ordered-broadcast `ACTION_HANDLED` / `ACTION_FAILED` results.
+- Network speed bold typeface now preserves the current SystemUI font family instead of `Typeface.DEFAULT_BOLD`.
+- Adds dual-row network speed line spacing `70%–130%` (default `100%`), affecting only `speedStyle == 2`.
+- Adds localization for `system_netspeed_rowspacing_title`, `system_netspeed_rowspacing_summ`, and `system_netspeed_prerequisite_note`.
+- Adds `app/src/test/java/tv/withaibuild/customiuizer/mods/NetSpeedLineSpacingTest.kt` and `tools/tests/test_netspeed_resources.py`.
+- Updates `feature-semantics/a14.json` with an audit entry for `pref_key_system_netspeed_rowspacing`.
+
+### Verification
+
+- `python tools/check-invariants.py` passes.
+- `python tools/audit-feature-semantics.py --validate` passes.
+- `python -m unittest discover -s tools/tests -p "test_*.py"` passes.
+- `gradlew clean test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease` passes.
+- `GlobalActionSystemServerReceiverSafetyTest` and `NetSpeedLineSpacingTest` pass.
+- `META-INF/xposed/scope.list` contains `system`, `android`, `com.android.systemui`, and `com.miui.home`.
+
+### Known boundary
+
+The `system` scope and Toast path were core-verified on `r14.13.9`. The Receiver guard and network speed changes have passed offline tests and builds. Real-device visual confirmation of network speed and the full manual smoke test are still pending. This release does not claim the network speed effect is real-device PASS, nor is `r14.15.1` publicly released.
+
+### Artifacts
+
+- APK: `CustoMIUIzer-A14-r14.15.1.apk` (production signed) / `CustoMIUIzer-A14-r14.15.1-unsigned-ci.apk` (CI).
+- versionCode / versionName: `189 / r14.15.1`
 
 ## [r14.13.9] - 2026-07-31
 
