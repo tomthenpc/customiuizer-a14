@@ -26,8 +26,12 @@ import tv.withaibuild.customiuizer.mods.SystemNotificationHooks;
 import tv.withaibuild.customiuizer.mods.SystemWindowHooks;
 import tv.withaibuild.customiuizer.mods.SystemStatusBarBackgroundHooks;
 import tv.withaibuild.customiuizer.mods.System;
+import tv.withaibuild.customiuizer.installers.GuardProviderInstaller;
 import tv.withaibuild.customiuizer.installers.InputMethodInstaller;
 import tv.withaibuild.customiuizer.installers.LauncherInstaller;
+import tv.withaibuild.customiuizer.installers.PackageInstallerRouter;
+import tv.withaibuild.customiuizer.installers.PhoneInstaller;
+import tv.withaibuild.customiuizer.installers.PowerKeeperInstaller;
 import tv.withaibuild.customiuizer.installers.SecurityCenterInstaller;
 import tv.withaibuild.customiuizer.installers.SettingsInstaller;
 import tv.withaibuild.customiuizer.installers.SystemUiInstaller;
@@ -93,7 +97,7 @@ public class MainModule extends XposedModule {
         return false;
     }
 
-    private void loadDexKit() {
+    public static void loadDexKit() {
         try {
             java.lang.System.loadLibrary("dexkit");
         } catch (Throwable t) {
@@ -267,23 +271,11 @@ public class MainModule extends XposedModule {
         }
 
         if (pkg.equals("com.miui.guardprovider")) {
-            if (mPrefs.getBoolean("various_disable_defraud_apps_detect")) {
-                try {
-                    loadDexKit();
-                    XposedHelpers.createBridge(lpparam.getApplicationInfo().sourceDir);
-                    Various.DisableDefraudAppsCheck(lpparam);
-                } catch (Throwable t) {
-                    XposedHelpers.log(t);
-                } finally {
-                    XposedHelpers.closeBridge();
-                }
-            }
+            GuardProviderInstaller.install(lpparam, mPrefs);
         }
 
         if (pkg.equals("com.android.incallui")) {
-            if (mPrefs.getStringAsInt("various_showcallui", 0) > 0) Various.ShowCallUIHook(lpparam);
-            if (mPrefs.getBoolean("various_calluibright")) Various.InCallBrightnessHook(lpparam);
-            if (mPrefs.getBoolean("various_answerinheadup")) Various.AnswerCallInHeadUpHook(lpparam);
+            PhoneInstaller.install(lpparam, mPrefs);
         }
 
         if (pkg.equals("com.miui.securitycenter")) {
@@ -291,8 +283,7 @@ public class MainModule extends XposedModule {
         }
 
         if (pkg.equals("com.miui.powerkeeper")) {
-            if (mPrefs.getBoolean("various_restrictapp")) Various.AppsRestrictPowerHook(lpparam);
-            if (mPrefs.getBoolean("various_persist_batteryoptimization")) Various.PersistBatteryOptimizationHook(lpparam);
+            PowerKeeperInstaller.install(lpparam, mPrefs);
         }
 
         if (pkg.equals("com.android.settings")) {
@@ -300,9 +291,7 @@ public class MainModule extends XposedModule {
         }
 
         if (pkg.equals("com.miui.packageinstaller")) {
-            if (mPrefs.getBoolean("various_miuiinstaller")) Various.MiuiPackageInstallerHook(lpparam);
-            if (mPrefs.getBoolean("various_installappinfo")) Various.AppInfoDuringMiuiInstallHook(lpparam);
-            if (mPrefs.getBoolean("various_installer_purify")) Various.PurePackageInstallerHook(lpparam);
+            PackageInstallerRouter.install(lpparam, mPrefs);
         }
 
         if (pkg.equals("com.miui.screenshot")) {
