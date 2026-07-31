@@ -33,6 +33,7 @@ import java.lang.reflect.Method
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.atomic.AtomicLong
 
 class ModuleHelper private constructor() {
 
@@ -816,12 +817,14 @@ class ModuleHelper private constructor() {
             if (sawCleared) dropOwnedObserver(null)
         }
 
-        private class ReceiverRegistration(
-            val contextRef: WeakReference<Context>,
-            val receiver: BroadcastReceiver
+        private class ModuleReceiverRegistration(
+            val context: Context,
+            val receiver: BroadcastReceiver,
+            val generation: Long,
         )
 
-        private val moduleReceivers = ConcurrentHashMap<String, ReceiverRegistration>()
+        private val moduleReceivers = ConcurrentHashMap<String, ModuleReceiverRegistration>()
+        private val moduleReceiverGeneration = AtomicLong(0)
 
         /**
          * Registers [receiver] under [key], replacing whatever the module last registered there.
@@ -835,6 +838,19 @@ class ModuleHelper private constructor() {
          *
          * A process-scoped key keeps exactly one live receiver per logical registration,
          * regardless of how many times the hook fires.
+         *
+         * The registration and replacement sequence is atomic:
+         * 1. The map is updated with a new, unique [ModuleReceiverRegistration] first.
+         * 2. The previous registration (if any) is unregistered outside the map lock.
+         * 3. The framework is asked to register the new receiver.
+         * 4. After the framework call, the map is checked again. If another thread has replaced
+         *    this registration in the meantime, this thread self-unregisters so the winner is the
+         *    only tracked, active receiver.
+         * 5. If the framework registration throws, only this thread's own map entry is removed.
+         *
+         * The registration holds the [Context] strongly because it is required for safe
+         * unregistration and the key is process-scoped. Only [Context.getApplicationContext] is
+         * retained to avoid pinning an Activity / View context.
          */
         @JvmStatic
         @JvmOverloads
@@ -846,22 +862,100 @@ class ModuleHelper private constructor() {
             flags: Int,
             permission: String? = null
         ): Boolean {
-            unregisterModuleReceiver(key)
+            val appContext = context.applicationContext ?: context
+
+            // Calling with the exact same receiver instance is a no-op. This keeps repeated init
+            // from the same hook target idempotent and avoids a second framework registration.
+            val current = moduleReceivers[key]
+            if (current != null && current.receiver === receiver) return true
+
+            val generation = moduleReceiverGeneration.incrementAndGet()
+            val newReg = ModuleReceiverRegistration(appContext, receiver, generation)
+
+            // Atomically install the new registration. The previous value (if any) is captured so
+            // it can be unregistered outside this compute block, avoiding any framework call inside
+            // a potentially blocking map operation.
+            val previousRef = java.util.concurrent.atomic.AtomicReference<ModuleReceiverRegistration?>(null)
+            val installed = moduleReceivers.compute(key) { _, old ->
+                previousRef.set(old)
+                // If the same receiver was installed concurrently between the first read above and
+                // this compute, keep the existing one. This keeps the map consistent with the
+                // framework, which would reject a duplicate registration of the same receiver.
+                if (old?.receiver === receiver) old else newReg
+            }
+
+            // If the compute kept the previous registration because of a same-receiver race, the
+            // framework already has this receiver. Do not touch it again.
+            val previous = previousRef.get()
+            if (previous?.receiver === receiver) return true
+
+            // Unregister the previous receiver, but do not let a failed unregister prevent the new
+            // one from being registered. Failure is logged as a diagnostic.
+            if (previous != null) {
+                safeUnregisterModuleReceiver(previous)
+            }
+
             return try {
-                context.registerReceiver(receiver, filter, permission, null, flags)
-                moduleReceivers[key] = ReceiverRegistration(WeakReference(context), receiver)
+                appContext.registerReceiver(receiver, filter, permission, null, flags)
+
+                // Another thread may have replaced this same key while we were inside
+                // registerReceiver. If our registration is no longer current, we are the loser and
+                // must self-unregister.
+                val stillCurrent = moduleReceivers[key]
+                if (stillCurrent !== installed) {
+                    try {
+                        appContext.unregisterReceiver(receiver)
+                    } catch (_: Throwable) {
+                        // Already gone or the winner's cleanup handled it.
+                    }
+                    return false
+                }
                 true
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
+                // Registration failed. Roll back only our own record, leaving any newer record
+                // untouched.
+                moduleReceivers.computeIfPresent(key) { _, reg ->
+                    if (reg === installed) null else reg
+                }
                 false
             }
         }
 
         /** Unregisters the receiver held under [key], if the module still has one. */
         @JvmStatic
-        fun unregisterModuleReceiver(key: String) {
-            val previous = moduleReceivers.remove(key) ?: return
-            releaseReceiver(previous.contextRef, previous.receiver)
+        @JvmOverloads
+        fun unregisterModuleReceiver(key: String, expectedReceiver: BroadcastReceiver? = null) {
+            val current = moduleReceivers[key] ?: return
+            // If a specific receiver was expected, only remove that exact registration. This
+            // prevents a concurrent replacement from being accidentally torn down.
+            if (expectedReceiver != null && current.receiver !== expectedReceiver) return
+            // remove(key, value) is atomic: the entry is removed only if it is still the one
+            // we observed, so a registration that has just been replaced by another thread is
+            // never deleted under our feet.
+            if (moduleReceivers.remove(key, current)) {
+                safeUnregisterModuleReceiver(current)
+            }
+        }
+
+        private fun safeUnregisterModuleReceiver(reg: ModuleReceiverRegistration) {
+            try {
+                reg.context.unregisterReceiver(reg.receiver)
+            } catch (t: Throwable) {
+                // A failed unregister does not change the fact that the new receiver is now the
+                // active one. Log once as a diagnostic so a host process is never taken down by a
+                // stale receiver cleanup.
+                XposedHelpers.log("Failed to unregister module receiver for ${reg.receiver}: ${t.javaClass.simpleName}")
+                HookDiagnostics.record(
+                    processName(),
+                    HookDiagnostics.Kind.RECEIVER,
+                    "ModuleReceiverRegistry",
+                    reg.receiver.javaClass.name,
+                    "",
+                    HookDiagnostics.Status.RECEIVER_UNREGISTER_FAILED,
+                    t.javaClass.simpleName,
+                )
+            }
         }
 
         private class OwnedReceiver(

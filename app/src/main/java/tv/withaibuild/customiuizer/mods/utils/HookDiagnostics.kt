@@ -28,6 +28,7 @@ object HookDiagnostics {
         DEXKIT_FAILED,
         DEXKIT_NO_MATCH,
         PREFERENCES_UNAVAILABLE,
+        RECEIVER_UNREGISTER_FAILED,
     }
 
     enum class Kind {
@@ -37,6 +38,7 @@ object HookDiagnostics {
         ALL_CONSTRUCTORS,
         DEXKIT_QUERY,
         REMOTE_PREFERENCES,
+        RECEIVER,
     }
 
     data class Record(
