@@ -182,6 +182,49 @@ class WeakOwnerReceiverTest {
     }
 
     @Test
+    fun weakOwnerReceiver_replacedButStillInFrameworkSelfUnregisters() {
+        var oldCalls = 0
+        val owner = Any()
+        val context = TrackableContext()
+        val intentFilter = IntentFilter("android.intent.action.TIME_TICK")
+
+        val receiver1 = ModuleHelper.registerOwnedReceiver(
+            context,
+            owner,
+            "testReplacedStale",
+            intentFilter,
+            Context.RECEIVER_NOT_EXPORTED
+        ) { _, _, _, _ -> oldCalls++ }
+
+        // Force the next framework unregister to fail, so the old receiver stays registered
+        // even after the registry removes it during replacement.
+        context.failNextUnregister = true
+
+        val receiver2 = ModuleHelper.registerOwnedReceiver(
+            context,
+            owner,
+            "testReplacedStale",
+            intentFilter,
+            Context.RECEIVER_NOT_EXPORTED
+        ) { _, _, _, _ -> }
+
+        val ownedReceivers = getOwnedReceiversMap()
+        val list = ownedReceivers["testReplacedStale"]
+        assertEquals("only the new registration must be tracked", 1, list?.size ?: 0)
+        assertFalse(
+            "old receiver must not be tracked",
+            list?.any { getReceiverFromRegistration(it) === receiver1 } == true
+        )
+
+        // Deliver a broadcast to the stale (still-framework-registered) old receiver.
+        // It must detect that it is no longer tracked, self-unregister, and not deliver.
+        receiver1.onReceive(context, Intent())
+
+        assertEquals("stale callback must not be delivered", 0, oldCalls)
+        assertTrue("stale receiver must be unregistered", context.unregisteredReceivers.contains(receiver1))
+    }
+
+    @Test
     fun weakOwnerReceiver_concurrentNewRegistrationIsNotRemoved() {
         val owner1 = Any()
         val context = TrackableContext()

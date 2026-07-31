@@ -3,6 +3,7 @@ package tv.withaibuild.customiuizer.mods.utils
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.ConcurrentHashMap
@@ -51,6 +52,24 @@ class ModuleRegistrationTest {
         ModuleHelper.replaceModuleRegistration("staleRegKey") {}
         assertEquals("cleanup must be retried exactly once", 2, attempts.get())
         assertFalse("stale queue must be empty after successful retry", getStaleModuleRegistrationsMap().containsKey("staleRegKey"))
+    }
+
+    @Test
+    fun replaceModuleRegistration_staleQueueIsBounded() {
+        val attempts = AtomicInteger(0)
+        val failing = Runnable {
+            attempts.incrementAndGet()
+            throw IllegalStateException("simulated cleanup failure")
+        }
+
+        repeat(5) {
+            ModuleHelper.replaceModuleRegistration("boundedRegKey", failing)
+        }
+
+        val staleMap = getStaleModuleRegistrationsMap()
+        val staleQueue = staleMap["boundedRegKey"] as? Collection<*>
+        assertNotNull("stale queue must exist", staleQueue)
+        assertTrue("stale queue must be bounded", staleQueue!!.size <= 3)
     }
 
     @Suppress("UNCHECKED_CAST")

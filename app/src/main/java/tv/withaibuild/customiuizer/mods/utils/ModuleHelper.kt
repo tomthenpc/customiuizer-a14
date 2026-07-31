@@ -948,7 +948,6 @@ class ModuleHelper private constructor() {
                     return false
                 }
                 installed.state.compareAndSet(RegistrationState.PENDING_REGISTER, RegistrationState.ACTIVE)
-                true
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 installed.state.set(RegistrationState.REGISTER_FAILED)
@@ -1081,7 +1080,7 @@ class ModuleHelper private constructor() {
         private class OwnedReceiver(
             val ownerRef: WeakReference<Any>,
             val contextRef: WeakReference<Context>,
-            val receiver: BroadcastReceiver
+            val receiver: WeakOwnerReceiver
         )
 
         private val ownedReceivers = ConcurrentHashMap<String, CopyOnWriteArrayList<OwnedReceiver>>()
@@ -1111,10 +1110,20 @@ class ModuleHelper private constructor() {
             private val callback: OwnedReceiverCallback
         ) : BroadcastReceiver() {
             private val ownerRef = WeakReference(owner)
+            private val active = java.util.concurrent.atomic.AtomicBoolean(true)
+
+            internal fun markInactive() {
+                active.set(false)
+            }
 
             override fun onReceive(context: Context, intent: Intent) = guarded {
+                if (!active.get()) {
+                    cleanupIfOwnerGone(context)
+                    return@guarded
+                }
                 val owner = ownerRef.get()
                 if (owner == null) {
+                    active.set(false)
                     cleanupIfOwnerGone(context)
                     return@guarded
                 }
@@ -1139,7 +1148,7 @@ class ModuleHelper private constructor() {
                 }
             }
 
-            private fun removeOwnedRegistration(receiver: BroadcastReceiver): OwnedReceiver? {
+            private fun removeOwnedRegistration(receiver: WeakOwnerReceiver): OwnedReceiver? {
                 val key = registeredKey
                 return if (key != null) {
                     removeOwnedRegistrationForKey(key, receiver)
@@ -1149,7 +1158,7 @@ class ModuleHelper private constructor() {
                 }
             }
 
-            private fun removeOwnedRegistrationForKey(key: String, receiver: BroadcastReceiver): OwnedReceiver? {
+            private fun removeOwnedRegistrationForKey(key: String, receiver: WeakOwnerReceiver): OwnedReceiver? {
                 val removedRef = java.util.concurrent.atomic.AtomicReference<OwnedReceiver?>(null)
                 ownedReceivers.compute(key) { _, list ->
                     val newList = list?.let { CopyOnWriteArrayList(it) }
@@ -1163,7 +1172,7 @@ class ModuleHelper private constructor() {
                 return removedRef.get()
             }
 
-            private fun removeOwnedRegistrationFallback(receiver: BroadcastReceiver): OwnedReceiver? {
+            private fun removeOwnedRegistrationFallback(receiver: WeakOwnerReceiver): OwnedReceiver? {
                 // Tests may create WeakOwnerReceiver directly without a key. In that case we still
                 // need to find and remove the registration, but the list of keys is small.
                 for ((key, _) in ownedReceivers) {
@@ -1214,6 +1223,7 @@ class ModuleHelper private constructor() {
                         if (regOwner != null && regOwner !== owner) {
                             newList.add(reg)
                         } else {
+                            reg.receiver.markInactive()
                             toRemove.add(reg)
                         }
                     }
@@ -1237,6 +1247,7 @@ class ModuleHelper private constructor() {
                 // and must self-unregister so the winner is the only tracked receiver.
                 val stillTracked = ownedReceivers[key]?.any { it === newReg } == true
                 if (!stillTracked) {
+                    receiver.markInactive()
                     try {
                         context.unregisterReceiver(receiver)
                     } catch (_: Throwable) {
@@ -1252,7 +1263,9 @@ class ModuleHelper private constructor() {
                 // receiver around and can retry on the next hook.
                 ownedReceivers.compute(key) { _, list ->
                     val newList = list?.let { CopyOnWriteArrayList(it) }
-                    newList?.remove(newReg)
+                    if (newList?.remove(newReg) == true) {
+                        receiver.markInactive()
+                    }
                     if (newList.isNullOrEmpty()) null else newList
                 }
                 receiver
@@ -1274,6 +1287,7 @@ class ModuleHelper private constructor() {
                 for (reg in list) {
                     val regOwner = reg.ownerRef.get()
                     if (regOwner === owner && (expectedReceiver == null || reg.receiver === expectedReceiver)) {
+                        reg.receiver.markInactive()
                         removedRef.set(reg)
                     } else {
                         newList.add(reg)
@@ -1318,16 +1332,23 @@ class ModuleHelper private constructor() {
 
             val newReg = ModuleRegistration(key, cleanup)
 
-            val previous = moduleRegistrations.put(key, newReg) ?: run {
-                newReg.state.set(RegistrationState.ACTIVE)
-                return true
+            val previous = moduleRegistrations.put(key, newReg)
+
+            if (previous != null) {
+                previous.state.set(RegistrationState.PENDING_UNREGISTER)
+                if (!runModuleCleanup(previous)) {
+                    recordStaleModuleRegistration(key, previous)
+                } else {
+                    previous.state.set(RegistrationState.RELEASED)
+                }
             }
 
-            previous.state.set(RegistrationState.PENDING_UNREGISTER)
-            if (!runModuleCleanup(previous)) {
-                recordStaleModuleRegistration(key, previous)
-            } else {
-                previous.state.set(RegistrationState.RELEASED)
+            // A concurrent replacement may have installed another registration while we were
+            // running the previous cleanup. Only mark [newReg] active if it is still current.
+            val stillCurrent = moduleRegistrations[key]
+            if (stillCurrent !== newReg) {
+                // The winner is responsible for [newReg] (it is the winner's previous cleanup).
+                return false
             }
 
             newReg.state.set(RegistrationState.ACTIVE)
