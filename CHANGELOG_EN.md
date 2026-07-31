@@ -10,6 +10,7 @@ and performance figures without same-condition measurements are not release chan
 
 | Version | Date | Purpose |
 | --- | --- | --- |
+| `r14.15.0` | 2026-07-31 | Same runtime code as `r14.13.9`; manual smoke test deferred |
 | `r14.13.9` | 2026-07-31 | Current stable release; restores upstream A14 `system` scope, fixes `system_server` hook loading |
 | `r14.13.8` | 2026-07-30 | Structure tidy-up, soft-reboot receiver fix, LSPosed 2.1.1 acceptance |
 | `r14.13.7` | 2026-07-29 | Current stable release; settings survive an unbound service, soft reboot un-gated, hot-path robustness |
@@ -20,6 +21,40 @@ and performance figures without same-condition measurements are not release chan
 Release titles contain only the version number. Asset names, sizes, and SHA-256 digests for
 removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the
 corresponding source remains available through Git tags.
+
+## [r14.15.0] - 2026-07-31
+
+### Purpose
+
+A release-only bump from `r14.13.9` with identical runtime code. Only `versionCode`, `versionName`,
+`CHANGELOG`, and maintenance documents were updated. No hook logic, preference handling, `HookDiagnostics`,
+R8 rules, or Xposed scope were changed.
+
+### Changes
+
+- `versionCode` from `187` to `188`.
+- `versionName` from `r14.13.9` to `r14.15.0`.
+- Added `docs/SYSTEM_SCOPE_AUDIT.md` covering every branch in `MainModule.onSystemServerStarting`.
+- Added `docs/MAINTENANCE.md` with the deferred manual smoke test, release code freeze, and offline gate.
+
+### Verification
+
+- `python tools/check-invariants.py` passes.
+- `python -m unittest discover -s tools/tests -p "test_*.py"` passes.
+- `gradlew test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease` passes.
+- Real-device LSPosed log for `r14.13.9` confirms `system` (`system_server`), `SystemUI`, and `Launcher`
+  all loaded with zero hook-install errors; the Toast block feature is working.
+
+### Known boundary
+
+The full manual smoke test (power/volume/nav keys; AppLock/lock screen/strong auth; freeform/orientation/
+window; audio/vibration/calls; security/install/wallpaper/Global Actions) is deferred and is not a blocker
+for this release. `r14.15.0` does not claim all 40 `system_server` hooks have been individually verified.
+
+### Artifacts
+
+- APK: `CustoMIUIzer-A14-r14.15.0.apk` (production signed) / `CustoMIUIzer-A14-r14.15.0-unsigned-ci.apk` (CI).
+- versionCode / versionName: `188 / r14.15.0`
 
 ## [r14.13.9] - 2026-07-31
 

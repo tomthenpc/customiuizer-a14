@@ -9,6 +9,7 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 | 版本 | 日期 | 定位 |
 | --- | --- | --- |
+| `r14.15.0` | 2026-07-31 | `r14.13.9` 同运行时代码的发布版；完整人工冒烟测试延期 |
 | `r14.13.9` | 2026-07-31 | 当前稳定版；恢复 A14 上游 `system` 作用域，修复 `system_server` Hook 未加载问题 |
 | `r14.13.8` | 2026-07-30 | 结构整理收口、快速重启 Receiver 修复、LSPosed 2.1.1 实机验收 |
 | `r14.13.7` | 2026-07-29 | 当前稳定版；未连接期间的设置不再丢失、快速重启不再误判、系统进程热路径容错 |
@@ -18,6 +19,37 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 
 Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
 [历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
+
+## [r14.15.0] - 2026-07-31
+
+### 版本定位
+
+`r14.13.9` 的同运行时代码发布版，仅提升版本号和更新维护文档。
+运行时代码、Hook 实现、偏好读取、`HookDiagnostics`、R8 规则与作用域均保持不变。
+
+### 变更
+
+- `versionCode` 从 `187` 提升到 `188`。
+- `versionName` 从 `r14.13.9` 提升到 `r14.15.0`。
+- 新增 `docs/SYSTEM_SCOPE_AUDIT.md`，审计 `MainModule.onSystemServerStarting` 所有条件分支。
+- 新增 `docs/MAINTENANCE.md`，记录当前状态、延期人工冒烟测试和发布代码冻结规则。
+
+### 验证
+
+- 通过 `python tools/check-invariants.py`。
+- 通过 `python -m unittest discover -s tools/tests -p "test_*.py"`。
+- 通过 `gradlew test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease`。
+- `r14.13.9` 真机日志确认：`system`、`SystemUI`、`Launcher` 均成功加载，Hook 安装无错误，`Toast` 禁用功能有效。
+
+### 已知边界
+
+- 完整人工冒烟测试（电源/音量/导航键、AppLock/锁屏、自由窗口/旋转、音频/震动/来电、安全/安装/壁纸/Global Actions）尚未执行，不作为当前发布阻塞项。
+- 已发布的 `r14.15.0` 不声称全部 40 个 `system_server` Hook 均已人工验证。
+
+### 产物
+
+- APK：`CustoMIUIzer-A14-r14.15.0.apk`（正式签名时） / `CustoMIUIzer-A14-r14.15.0-unsigned-ci.apk`（CI）。
+- versionCode / versionName：`188 / r14.15.0`
 
 ## [r14.13.9] - 2026-07-31
 
