@@ -52,6 +52,19 @@ import java.util.Locale
  * temperature readings into, plus the signal, network speed, clock position and
  * icon visibility hooks that share it.
  */
+internal fun resolveNetSpeedLineSpacing(
+    fontSize: Int,
+    adjustmentPercent: Int
+): Float {
+    val baseSpacing =
+        if (fontSize > 17) 0.85f
+        else 0.90f
+
+    val adjustment = adjustmentPercent.coerceIn(70, 130)
+
+    return baseSpacing * adjustment / 100f
+}
+
 object SystemUIStatusBarHooks {
 
     private val StatusBarCls = "com.android.systemui.statusbar.phone.CentralSurfacesImpl"
@@ -1202,9 +1215,9 @@ object SystemUIStatusBarHooks {
 
         val boldFont = MainModule.mPrefs.getBoolean("system_netspeed_boldfont")
         if (boldFont) {
-            numberView.typeface = Typeface.DEFAULT_BOLD
+            numberView.typeface = Typeface.create(numberView.typeface, Typeface.BOLD)
             if (speedStyle == 1) {
-                unitView.typeface = Typeface.DEFAULT_BOLD
+                unitView.typeface = Typeface.create(unitView.typeface, Typeface.BOLD)
             }
         }
 
@@ -1253,12 +1266,10 @@ object SystemUIStatusBarHooks {
         }
 
         if (speedStyle == 2) {
-            var spacing = 0.9f
+            val adjustment = MainModule.mPrefs.getInt("system_netspeed_rowspacing", 100)
+            val spacing = resolveNetSpeedLineSpacing(fontSize, adjustment)
             numberView.setSingleLine(false)
             numberView.maxLines = 2
-            if (0.5 * fontSize > 8.5f) {
-                spacing = 0.85f
-            }
             numberView.setLineSpacing(0f, spacing)
         }
     }
