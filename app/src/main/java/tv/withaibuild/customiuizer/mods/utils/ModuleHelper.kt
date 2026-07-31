@@ -845,13 +845,15 @@ class ModuleHelper private constructor() {
             filter: IntentFilter,
             flags: Int,
             permission: String? = null
-        ) {
+        ): Boolean {
             unregisterModuleReceiver(key)
-            try {
+            return try {
                 context.registerReceiver(receiver, filter, permission, null, flags)
                 moduleReceivers[key] = ReceiverRegistration(WeakReference(context), receiver)
+                true
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
+                false
             }
         }
 
@@ -904,32 +906,38 @@ class ModuleHelper private constructor() {
                 callback.onReceive(this, owner, context, intent)
             }
 
-            private fun cleanupIfOwnerGone(context: Context) {
-                // Remove this receiver from the ownedReceivers registry. If we can still reach a
-                // live Context, try to unregister; failure is logged and ignored so the host process
-                // never crashes because the owner was collected before the broadcast arrived.
+            private fun cleanupIfOwnerGone(fallbackContext: Context) {
+                // Remove this receiver from the ownedReceivers registry. Always try to unregister;
+                // a previous cleanup may have failed or the registry may already be gone. Failure is
+                // logged and ignored so the host process never crashes because the owner was
+                // collected before the broadcast arrived.
                 val receiver = this
-                var removed = false
-                val emptyKeys = ArrayList<String>()
+                val registration = removeOwnedRegistration(receiver)
+
+                // Prefer the Context that was used at registration time; fall back to the Context
+                // supplied by the broadcast delivery.
+                val context = registration?.contextRef?.get() ?: fallbackContext
+                try {
+                    context.unregisterReceiver(receiver)
+                } catch (_: Throwable) {
+                    // Already unregistered or Context is gone; the next broadcast will retry.
+                }
+            }
+
+            private fun removeOwnedRegistration(receiver: BroadcastReceiver): OwnedReceiver? {
                 for ((key, registrations) in ownedReceivers) {
-                    if (registrations.removeIf { it.receiver === receiver }) {
-                        removed = true
+                    val registration = registrations.find { it.receiver === receiver }
+                    if (registration != null) {
+                        registrations.remove(registration)
                         if (registrations.isEmpty()) {
-                            emptyKeys.add(key)
+                            // Conditional remove: only drop the key if this is still the list
+                            // mapped to it, so a concurrent new registration is not lost.
+                            ownedReceivers.remove(key, registrations)
                         }
+                        return registration
                     }
                 }
-                for (key in emptyKeys) {
-                    ownedReceivers.remove(key)
-                }
-                if (removed) {
-                    try {
-                        context.unregisterReceiver(receiver)
-                    } catch (_: Throwable) {
-                        // Already unregistered or Context is gone; the receiver will stay registered
-                        // only if the call fails, and the next broadcast will retry cleanup.
-                    }
-                }
+                return null
             }
         }
 

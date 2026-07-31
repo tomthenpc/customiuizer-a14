@@ -200,8 +200,8 @@ public class MainModule extends XposedModule {
         }
     }
 
-    private void watchPreferenceChange() {
-        if (mPrefsWatcherRegistered) return;
+    private boolean watchPreferenceChange() {
+        if (mPrefsWatcherRegistered) return true;
         mListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
             @Override
             public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, @Nullable String key) {
@@ -249,12 +249,12 @@ public class MainModule extends XposedModule {
                 remotePrefs = getRemotePreferences(ModuleHelper.prefsName + "_remote");
             } catch (Throwable t) {
                 HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "getRemotePreferences");
-                return;
+                return false;
             }
         }
         if (remotePrefs == null) {
             HookDiagnostics.recordPreferencesUnavailable("", "getRemotePreferences returned null");
-            return;
+            return false;
         }
         try {
             remotePrefs.registerOnSharedPreferenceChangeListener(mListener);
@@ -264,8 +264,10 @@ public class MainModule extends XposedModule {
             mPrefsInitAttempts = 0;
             mEmptyPendingAttempts = 0;
             initPrefs();
+            return true;
         } catch (Throwable t) {
             HookDiagnostics.recordPreferencesUnavailable(t.getClass().getName(), "registerOnSharedPreferenceChangeListener");
+            return false;
         }
     }
 
@@ -433,26 +435,39 @@ public class MainModule extends XposedModule {
                 @Override
                 protected void before(final BeforeHookCallback param) throws Throwable {
                     if (isHooked || param.getThisObject() == null) return;
-                    Context context = (Context) XposedHelpers.getObjectField(param.getThisObject(), "mContext");
+
+                    Object mContextField;
+                    try {
+                        mContextField = XposedHelpers.getObjectField(param.getThisObject(), "mContext");
+                    } catch (Throwable t) {
+                        XposedHelpers.log(t);
+                        return;
+                    }
+                    if (!(mContextField instanceof Context)) {
+                        XposedHelpers.log("MainModule: SystemUI mContext field is not a Context");
+                        return;
+                    }
+                    Context context = (Context) mContextField;
                     if (context == null) {
                         XposedHelpers.log("MainModule: SystemUI mContext is null in SystemUIInitializer.init, deferring context-dependent init");
                         return;
                     }
+
                     try {
                         if (!fastRebootReceiverReady[0]) {
-                            GlobalActionSystemServerHooks.setupFastRebootReceiver(context);
-                            fastRebootReceiverReady[0] = true;
+                            fastRebootReceiverReady[0] = GlobalActionSystemServerHooks.setupFastRebootReceiver(context);
                         }
                         if (!statusBarSetupDone[0]) {
                             SystemUIStatusBarHooks.setupStatusBar(context);
                             statusBarSetupDone[0] = true;
                         }
                         if (!preferenceWatchDone[0]) {
-                            watchPreferenceChange();
-                            preferenceWatchDone[0] = true;
+                            preferenceWatchDone[0] = watchPreferenceChange();
                         }
-                        isHooked = true;
-                        HookDiagnostics.printSummaryForStage("post-init");
+                        if (fastRebootReceiverReady[0] && statusBarSetupDone[0] && preferenceWatchDone[0]) {
+                            isHooked = true;
+                            HookDiagnostics.printSummaryForStage("post-init");
+                        }
                     } catch (Throwable t) {
                         XposedHelpers.log(t);
                         // Do not set isHooked: one failed init step must not mark the whole pass as complete.
@@ -467,8 +482,7 @@ public class MainModule extends XposedModule {
             Context mContext = ModuleHelper.findContext(lpparam);
             if (mContext != null) {
                 if (!fastRebootReceiverReady[0]) {
-                    GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext);
-                    fastRebootReceiverReady[0] = true;
+                    fastRebootReceiverReady[0] = GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext);
                 }
             } else {
                 XposedHelpers.log("MainModule: SystemUI context not ready at package ready, deferring FastReboot receiver");

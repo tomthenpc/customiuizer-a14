@@ -104,9 +104,46 @@ object GlobalActionSystemServerHooks {
                                             val conflictProp2 = ModuleHelper.proxySystemProperties("getInt", "ro.vendor.df.effect.conflict", 0, null) as Int
                                             val hasConflict = conflictProp == 1 || conflictProp2 == 1
                                             val dfMgr = XposedHelpers.callStaticMethod(XposedHelpers.findClass("miui.hardware.display.DisplayFeatureManager", null), "getInstance")
-                                            if (hasConflict && opt == 0) XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 1)
-                                            completed = Settings.Secure.putInt(context.contentResolver, "accessibility_display_inversion_enabled", if (opt == 0) 1 else 0)
-                                            if (hasConflict && opt != 0) XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 0)
+
+                                            // Enabling: pre-apply the conflict workaround, then put the setting.
+                                            // If putInt fails, try to restore the previous screen effect.
+                                            // Disabling: put the setting first, then disable the conflict workaround.
+                                            val enabling = opt == 0
+                                            var stateChangeCompleted = false
+
+                                            if (hasConflict && enabling) {
+                                                XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 1)
+                                            }
+
+                                            val putOk = try {
+                                                Settings.Secure.putInt(context.contentResolver, "accessibility_display_inversion_enabled", if (enabling) 1 else 0)
+                                            } catch (t: Throwable) {
+                                                XposedHelpers.log(t)
+                                                false
+                                            }
+
+                                            if (putOk) {
+                                                stateChangeCompleted = true
+                                                if (hasConflict && !enabling) {
+                                                    try {
+                                                        XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 0)
+                                                    } catch (t: Throwable) {
+                                                        // The setting changed but the workaround did not; the action is not
+                                                        // fully complete, so do not claim it as handled.
+                                                        XposedHelpers.log(t)
+                                                        stateChangeCompleted = false
+                                                    }
+                                                }
+                                            } else if (hasConflict && enabling) {
+                                                // putInt failed after we enabled the workaround; try to roll it back.
+                                                try {
+                                                    XposedHelpers.callMethod(dfMgr, "setScreenEffect", 15, 0)
+                                                } catch (t: Throwable) {
+                                                    XposedHelpers.log(t)
+                                                }
+                                            }
+
+                                            completed = stateChangeCompleted
                                         } catch (e: Settings.SettingNotFoundException) {
                                             XposedHelpers.log(e)
                                         }
@@ -166,9 +203,9 @@ object GlobalActionSystemServerHooks {
     }
 
     @JvmStatic
-    fun setupFastRebootReceiver(context: Context) {
+    fun setupFastRebootReceiver(context: Context): Boolean {
         val filter = IntentFilter(GlobalActions.ACTION_PREFIX + "FastReboot")
-        ModuleHelper.registerModuleReceiver(
+        return ModuleHelper.registerModuleReceiver(
             context,
             "fastRebootReceiver",
             GlobalActions.fastRebootReceiver,
