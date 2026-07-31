@@ -171,21 +171,19 @@ object LauncherFolderHooks {
                         if (oldsecretCodeReceiver is BroadcastReceiver) {
                             try { act.unregisterReceiver(oldsecretCodeReceiver) } catch (ignore: Throwable) {}
                         }
-                        val secretCodeReceiver = object : BroadcastReceiver() {
-                            override fun onReceive(context: Context, intent: Intent) {
-                                try {
-                                    if (intent.action == null) return
-                                    if ("android.telephony.action.SECRET_CODE" == intent.action) {
-                                        XposedHelpers.setAdditionalInstanceField(thisObject, "fromSecretCode", true)
-                                        XposedHelpers.callMethod(thisObject, "startSecurityHide")
-                                    }
-                                } catch (t: Throwable) {
-                                    XposedHelpers.log(t)
-                                }
+                        val secretCodeReceiver = ModuleHelper.registerOwnedReceiver(
+                            act,
+                            act,
+                            "secretCodeReceiver",
+                            intentFilter,
+                            Context.RECEIVER_NOT_EXPORTED
+                        ) { _, owner, _, intent ->
+                            if ("android.telephony.action.SECRET_CODE" == intent.action) {
+                                XposedHelpers.setAdditionalInstanceField(owner, "fromSecretCode", true)
+                                XposedHelpers.callMethod(owner, "startSecurityHide")
                             }
                         }
                         XposedHelpers.setAdditionalInstanceField(thisObject, "secretCodeReceiver", secretCodeReceiver)
-                        ModuleHelper.registerOwnedReceiver(act, act, "secretCodeReceiver", secretCodeReceiver, intentFilter, Context.RECEIVER_NOT_EXPORTED)
 
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)

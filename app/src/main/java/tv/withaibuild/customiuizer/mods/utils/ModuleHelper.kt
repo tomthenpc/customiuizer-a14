@@ -871,16 +871,46 @@ class ModuleHelper private constructor() {
         private val ownedReceivers = ConcurrentHashMap<String, CopyOnWriteArrayList<OwnedReceiver>>()
 
         /**
-         * Registers [receiver] on behalf of [owner], and unregisters the receivers of owners that
+         * Callback for [registerOwnedReceiver]. The receiver is passed so callers can call
+         * [BroadcastReceiver.setResultCode] and [BroadcastReceiver.isOrderedBroadcast].
+         *
+         * Implementations must not close over the [owner]; use the [owner] parameter instead.
+         * Closing over the owner turns the weak-reference design into a strong reference and leaks
+         * the hook target.
+         */
+        fun interface OwnedReceiverCallback {
+            fun onReceive(receiver: BroadcastReceiver, owner: Any, context: Context, intent: Intent)
+        }
+
+        /**
+         * A [BroadcastReceiver] that only holds a [WeakReference] to its owner.
+         *
+         * When a broadcast arrives and the owner is still alive, the owner is passed to the
+         * [OwnedReceiverCallback]. If the owner has been collected, the broadcast is ignored and the
+         * receiver will be unregistered by the next [registerOwnedReceiver] sweep for this key.
+         */
+        internal class WeakOwnerReceiver(
+            owner: Any,
+            private val callback: OwnedReceiverCallback
+        ) : BroadcastReceiver() {
+            private val ownerRef = WeakReference(owner)
+
+            override fun onReceive(context: Context, intent: Intent) = guarded {
+                val owner = ownerRef.get() ?: return
+                callback.onReceive(this, owner, context, intent)
+            }
+        }
+
+        /**
+         * Registers a weakly-owned receiver for [owner] and unregisters the receivers of owners that
          * have since been collected.
          *
          * Use this instead of [registerModuleReceiver] when several hook targets can legitimately
          * be alive at once — two clock controllers, one status bar per display — so a single
          * process-wide slot would silently disable all but the newest.
          *
-         * Every recreation of a hook target runs the registration again, which is exactly when the
-         * sweep runs, so dead owners are collected promptly. Cleanup keyed on the hooked instance
-         * cannot do this: the new instance never sees the old instance's field.
+         * The [OwnedReceiverCallback] must not capture the owner; it receives the owner (or nothing,
+         * if it has been collected) as a parameter.
          */
         @JvmStatic
         @JvmOverloads
@@ -888,11 +918,12 @@ class ModuleHelper private constructor() {
             context: Context,
             owner: Any,
             key: String,
-            receiver: BroadcastReceiver,
             filter: IntentFilter,
             flags: Int,
-            permission: String? = null
-        ) {
+            permission: String? = null,
+            callback: OwnedReceiverCallback
+        ): BroadcastReceiver {
+            val receiver = WeakOwnerReceiver(owner, callback)
             val registrations = ownedReceivers.computeIfAbsent(key) { CopyOnWriteArrayList() }
             registrations.removeIf { registration ->
                 val registrationOwner = registration.ownerRef.get()
@@ -906,6 +937,7 @@ class ModuleHelper private constructor() {
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
             }
+            return receiver
         }
 
         private val moduleRegistrations = ConcurrentHashMap<String, Runnable>()

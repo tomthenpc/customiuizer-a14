@@ -278,21 +278,17 @@ object SystemClockHooks {
                     initSecondTicker(thisObject)
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     if (getShowSeconds() || getCCShowSeconds()) {
-                        val mUpdateTimeReceiver = object : BroadcastReceiver() {
-                            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
-                                initSecondTicker(thisObject)
-                            }
-                        }
                         val timeSetIntent = IntentFilter()
                         timeSetIntent.addAction("android.intent.action.TIME_SET")
                         ModuleHelper.registerOwnedReceiver(
                             mContext,
                             thisObject,
                             "clockTimeSetReceiver",
-                            mUpdateTimeReceiver,
                             timeSetIntent,
                             Context.RECEIVER_NOT_EXPORTED
-                        )
+                        ) { _, owner, _, _ ->
+                            initSecondTicker(owner)
+                        }
                     }
 
                 } catch (t: Throwable) {
