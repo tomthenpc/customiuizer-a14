@@ -1,128 +1,142 @@
-# CustoMIUIzer A14
+# CustoMIUIzer A14 Kotlin Refactor
 
 [简体中文](README.md) | English
 
 A Kotlin-refactored, independently maintained CustoMIUIzer build for
 **HyperOS 1 / Android 14**.
 
-The project uses
-[MonwF/customiuizer v24.10.12](https://github.com/MonwF/customiuizer/releases/tag/v24.10.12)
+The project uses [MonwF/customiuizer v24.10.12](https://github.com/MonwF/customiuizer/releases/tag/v24.10.12)
 as its Android 14 functional reference, with a separate package name, release line, signing
-identity, and modern libxposed API integration. It is not an official upstream release and does
-not support Android 15, Android 16, or other major MIUI / HyperOS versions.
+identity, and modern libxposed API. It is not an official upstream release and does not support
+Android 15, Android 16, or other major MIUI / HyperOS versions.
 
 ## Current Release
 
-The current working branch is `release/r14.15.3`, a locally-built, production-signed candidate.
-This version is not a public Release yet; real-device validation on Android 14 / HyperOS and
-LSPosed log triage are pending.
+| Item | Value |
+| --- | --- |
+| Version | `r14.15.3` |
+| versionCode | `191` |
+| System | HyperOS 1 / Android 14 (SDK 34) |
+| ABI | `arm64-v8a` |
+| applicationId | `tv.withaibuild.customiuizer.r14` |
+| libxposed | `minApiVersion=101`, `targetApiVersion=102` |
+| staticScope | `false` |
+| APK | `CustoMIUIzer-A14-r14.15.3.apk` |
+| APK SHA-256 | `F7AB34722B0193DD8C97DF0146C968E5A6064655AD497061E902CD1545375E7E` |
+| Signing certificate SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
+
+The previous public release is `r14.13.8`.
+
+The LSPosed user download page is at:
+
+`Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14`
+
+## r14.15.3 Highlights
+
+* Restores the previously-removed `system` scope, fixing `system_server` hook loading and the silent
+  failure of related system-level features.
+* Hardens the `system_server` BroadcastReceiver in Global Actions with exception boundaries, trust
+  checks, and ordered-broadcast result handling.
+* Improves owner binding, replacement, cleanup, and concurrent registration handling for Receivers
+  and Observers, avoiding duplicate registration and registered-but-untracked receivers.
+* Improves hook-load diagnostics, compatibility logging, and runtime error recording.
+* Keeps network-speed bold text in the current SystemUI font family, with a fallback for when no
+  valid bold glyph is available.
+* Adds dual-row network speed line spacing from `70%` to `130%`, with related localization notes.
+* Fixes text-style inheritance for settings controls and attribution/version text wrapping on the
+  About page.
+* Merges the runtime-safety, scope, network-speed, and UI fixes after `r14.13.8`.
+
+Full history is in [CHANGELOG](CHANGELOG_EN.md).
+
+## Compatibility
 
 | Item | Value |
 | --- | --- |
-| Branch | `release/r14.15.3` |
-| APK | `CustoMIUIzer-A14-r14.15.3.apk` |
-| versionCode / versionName | `191 / r14.15.3` |
-| applicationId | `tv.withaibuild.customiuizer.r14` |
-| System | HyperOS 1 / Android 14 (SDK 34) |
+| System | HyperOS 1 / Android 14 |
+| Android SDK | 34 |
 | ABI | `arm64-v8a` |
-| libxposed | minimum API 101 / target API 102 |
-| Hot Reload | Disabled |
-| Size | 3,107,273 bytes |
-| SHA-256 | `2561BFA49CC8B32E931AFE2B7B520CC2A535B8D333EC8E9A8FF3D73EB19DE58D` |
-| Signing certificate SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
+| Framework | LSPosed / Vector implementing libxposed API 101 or 102 |
+| Android 15/16 | Not supported |
 
-The previous public stable release is `r14.13.8`. Historical assets and verification details are in
-the [CHANGELOG](CHANGELOG_EN.md) and [RELEASE_ARCHIVE](docs/RELEASE_ARCHIVE.md).
+Feature availability depends on the device ROM and system-app versions. Vendor updates may change
+hook targets. Do not enable this module together with the upstream version or another
+CustoMIUIzer-derived module.
 
-## What r14.15.3 Changes (candidate)
+## Main Features
 
-- Consolidates the `hardening/a14-lts-foundation` hardening and the `integration/a14-r14.15.1`
-  runtime code baseline.
-- Brings in the dual-row network speed line spacing `70%–130%`, prerequisite note localization,
-  and `feature-semantics` metadata from `devin/r14-netspeed-font-spacing-i18n`.
-- Brings in the About attribution text wrapping and SeekBar system-text style inheritance fix
-  from `fix/a14-ui-text-inheritance-and-about-wrap`.
-- Version: `versionCode 191 / versionName r14.15.3`.
+* Status bar icons, battery, signal, network speed, date, and temperature;
+* Control center, volume panel, brightness, and notification behavior;
+* Lock screen, charging info, media UI, and shortcuts;
+* Launcher, recents, folders, icons, and home-screen gestures;
+* Navigation bar, buttons, custom actions, power menu, and system animations;
+* App, permission, installer, sharing, privacy app, and app-lock behavior.
 
-**Known boundary:** system Toast suppression logic is unchanged; network speed display, About
-layout, and the full manual smoke test are still pending real-device validation.
+## Important Upgrade Notes
 
-See the [CHANGELOG](CHANGELOG_EN.md) for the complete history.
-
-## Before Installing
+Builds from `r14.13.5` and later using the new signing key can be installed as updates.
 
 The old signing key used by public releases up to and including `r14.12.0` has been lost. Those
-builds cannot be updated in place to `r14.15.3`. If you are using one of them:
+builds cannot be updated in place. Before upgrading:
 
-1. Back up the module settings from the old installation.
+1. Back up module settings.
 2. Record the current LSPosed / Vector scope.
 3. Uninstall the old version.
-4. Install `CustoMIUIzer-A14-r14.15.3.apk`.
-5. Restore the scope and settings.
-6. Fully reboot the device.
+4. Install the new version.
+5. Re-enable the scope.
+6. Restore settings.
+7. Fully reboot the device.
 
-Do not uninstall the old version before backing up. Candidate APKs should be taken from the local
-build output `../release-output/A14/` or from the maintainer's official channel.
-
-## Feature Scope
-
-- Status bar, icons, battery, signal, network speed, date, and temperature;
-- Control center, volume panel, brightness, and notification behavior;
-- Lock screen, charging information, media UI, and shortcuts;
-- Launcher, recents, folders, icons, and home-screen gestures;
-- Navigation bar, buttons, custom actions, power menu, and system animations;
-- App, permission, installer, sharing, privacy-app, and app-lock behavior.
-
-Availability depends on the ROM and system-app versions. Vendor updates may change hook targets.
-Do not enable this module together with upstream or another CustoMIUIzer-derived module.
+Do not uninstall the old version before completing the backup.
 
 ## Installation
 
-1. Download and install the APK.
-2. Enable the module in LSPosed / Vector and confirm the recommended scope.
-3. Open the module settings once.
-4. Fully reboot the device.
-5. Check `system_server`, SystemUI, Launcher, and the features you use.
+1. Download the official APK from the LSPosed release repository.
+2. Verify the APK SHA-256.
+3. Install the APK.
+4. Enable the module in LSPosed / Vector.
+5. Make sure the recommended scope includes `system`.
+6. Open the module settings once and fully reboot the device.
 
-## Verification Boundary
+## Build
 
-`r14.15.3` is expected to pass the repository invariant checks, unit tests, all three lint
-variants, and Debug / Release builds before the production-signed candidate APK is produced. The
-APK must be checked for R8, resource shrinking, zipalign, v2 signing, package metadata, SHA-256,
-and the actual signing certificate.
+JDK 17 and the matching Android SDK are required.
 
-Current status: `r14.15.3` is a local production-signed candidate. Static checks and builds pass;
-real-device validation on Android 14 / HyperOS and LSPosed log triage are pending. See
-[Verification](docs/VERIFICATION.md) and `BUILD_INFO_R14_15_3.txt` for the evidence and remaining
-boundaries.
-
-## Development and Build
-
-JDK 17 and the Android SDK are required:
-
-```powershell
-python tools/check-invariants.py
-.\gradlew.bat --no-daemon test lintVitalRelease assembleDebug assembleRelease
+```bash
+./gradlew :app:assembleRelease -PofficialRelease=true
 ```
 
 Production signing configuration is stored outside the repository. Never commit keystores,
-passwords, tokens, private logs, caches, or local build state.
+passwords, tokens, real `keystore.properties`, APKs, signing backups, private logs, caches, or local
+build state.
 
-Engineering documents:
+## Verification Notes
 
-- [Project lineage](docs/PROJECT_LINEAGE.md)
-- [libxposed API 101 / 102 compatibility](docs/LIBXPOSED_API_101_102_COMPATIBILITY.md)
-- [LSPosed service binder delivery and failure mode](docs/LSPOSED_BINDER_DELIVERY.md)
-- [Engineering method](docs/ENGINEERING_METHOD.md)
-- [Maintenance checkpoint](docs/MAINTENANCE_CHECKPOINT.md)
+`r14.15.3` has completed the official Release APK build and the following basic checks:
 
-The engineering documents are maintained primarily in Chinese.
+* APK v2 signing;
+* zipalign;
+* applicationId, versionCode, versionName;
+* libxposed `module.prop`, `scope.list`, and `java_init.list`;
+* `system` and `android` scopes;
+* APK SHA-256 and the production signing certificate.
 
-## License and Credits
+This release did not run the full unit test suite, Lint, project Audit, ADB regression, or full
+real-device smoke tests. APK build and metadata checks do not prove that every hook works on every
+HyperOS 1 ROM.
 
-This project is derived from Mikanoshi/CustoMIUIzer and references the Android 14 work in
-[MonwF/customiuizer](https://github.com/MonwF/customiuizer).
-Thanks to the maintainers of LSPosed / libxposed, DexKit, and related open-source projects.
+## Feedback
 
-Distributed under [GPL-3.0](LICENSE). See [NOTICE.md](NOTICE.md) for provenance and independent
-maintenance details.
+When reporting issues, please provide:
+
+* Module version and APK source;
+* Device, ROM, and system-app versions;
+* Framework name and actual libxposed API;
+* Currently enabled scope;
+* Logs from `system_server`, SystemUI, or Launcher after a full reboot;
+* Repeatable feature toggles and steps.
+
+## License and Acknowledgements
+
+The project is derived from Mikanoshi/CustoMIUIzer, with Android 14 work referenced from
+MonwF/customiuizer. It is distributed under GPL-3.0.
