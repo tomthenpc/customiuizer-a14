@@ -1259,7 +1259,18 @@ class ModuleHelper private constructor() {
             }
         }
 
-        private val moduleRegistrations = ConcurrentHashMap<String, Runnable>()
+        private class ModuleRegistration(
+            val key: String,
+            val cleanup: Runnable,
+            val generation: Long = moduleRegistrationGeneration.incrementAndGet(),
+            val state: AtomicReference<RegistrationState> = AtomicReference(RegistrationState.PENDING_REGISTER)
+        )
+
+        private val moduleRegistrations = ConcurrentHashMap<String, ModuleRegistration>()
+        private val moduleRegistrationGeneration = AtomicLong(0)
+
+        private const val MAX_STALE_MODULE_REGISTRATIONS = 3
+        private val staleModuleRegistrations = ConcurrentHashMap<String, ConcurrentLinkedDeque<ModuleRegistration>>()
 
         /**
          * Records [cleanup] under [key] and runs whatever cleanup was recorded there before.
@@ -1270,14 +1281,104 @@ class ModuleHelper private constructor() {
          *
          * The same reason applies: a hook target that gets recreated cannot see the registration
          * its predecessor made, so per-instance cleanup silently accumulates live registrations.
+         *
+         * Replacement is two-stage: the new cleanup is installed first, the old cleanup is run,
+         * and failed cleanups are tracked in a bounded stale queue for one retry on the next call.
          */
         @JvmStatic
-        fun replaceModuleRegistration(key: String, cleanup: Runnable) {
-            val previous = moduleRegistrations.put(key, cleanup) ?: return
-            try {
-                previous.run()
+        fun replaceModuleRegistration(key: String, cleanup: Runnable): Boolean {
+            // Retry stale cleanups before touching the active slot.
+            retryStaleModuleRegistrations(key)
+
+            val newReg = ModuleRegistration(key, cleanup)
+
+            val previous = moduleRegistrations.put(key, newReg) ?: run {
+                newReg.state.set(RegistrationState.ACTIVE)
+                return true
+            }
+
+            previous.state.set(RegistrationState.PENDING_UNREGISTER)
+            if (!runModuleCleanup(previous)) {
+                recordStaleModuleRegistration(key, previous)
+            } else {
+                previous.state.set(RegistrationState.RELEASED)
+            }
+
+            newReg.state.set(RegistrationState.ACTIVE)
+            return true
+        }
+
+        private fun runModuleCleanup(reg: ModuleRegistration): Boolean {
+            return try {
+                reg.cleanup.run()
+                true
             } catch (_: Throwable) {
-                // The previous owner is already gone.
+                false
+            }
+        }
+
+        private fun recordStaleModuleRegistration(key: String, reg: ModuleRegistration) {
+            reg.state.set(RegistrationState.STALE)
+            staleModuleRegistrations.compute(key) { _, queue ->
+                val newQueue = ConcurrentLinkedDeque(queue ?: emptyList())
+                if (newQueue.size >= MAX_STALE_MODULE_REGISTRATIONS) {
+                    val oldest = newQueue.pollFirst()
+                    if (oldest != null) {
+                        if (runModuleCleanup(oldest)) {
+                            oldest.state.set(RegistrationState.RELEASED)
+                        } else {
+                            oldest.state.set(RegistrationState.RELEASED)
+                            HookDiagnostics.record(
+                                processName(),
+                                HookDiagnostics.Kind.RECEIVER,
+                                "ModuleRegistrationRegistry",
+                                reg.cleanup.javaClass.name,
+                                key,
+                                HookDiagnostics.Status.RECEIVER_STALE_DROPPED,
+                                "stale cleanup evicted due to bounded queue",
+                            )
+                        }
+                    }
+                }
+                newQueue.addLast(reg)
+                HookDiagnostics.record(
+                    processName(),
+                    HookDiagnostics.Kind.RECEIVER,
+                    "ModuleRegistrationRegistry",
+                    reg.cleanup.javaClass.name,
+                    key,
+                    HookDiagnostics.Status.RECEIVER_UNREGISTER_FAILED,
+                    "cleanup moved to stale queue",
+                )
+                newQueue
+            }
+        }
+
+        private fun retryStaleModuleRegistrations(key: String) {
+            staleModuleRegistrations.compute(key) { _, queue ->
+                if (queue == null) return@compute null
+                val stillStale = ConcurrentLinkedDeque<ModuleRegistration>()
+                for (reg in queue) {
+                    if (reg.state.get() == RegistrationState.RELEASED) continue
+                    if (runModuleCleanup(reg)) {
+                        reg.state.set(RegistrationState.RELEASED)
+                    } else if (stillStale.size < MAX_STALE_MODULE_REGISTRATIONS) {
+                        reg.state.set(RegistrationState.STALE)
+                        stillStale.addLast(reg)
+                    } else {
+                        reg.state.set(RegistrationState.RELEASED)
+                        HookDiagnostics.record(
+                            processName(),
+                            HookDiagnostics.Kind.RECEIVER,
+                            "ModuleRegistrationRegistry",
+                            reg.cleanup.javaClass.name,
+                            key,
+                            HookDiagnostics.Status.RECEIVER_STALE_DROPPED,
+                            "stale cleanup dropped on retry due to bounded queue",
+                        )
+                    }
+                }
+                if (stillStale.isEmpty()) null else stillStale
             }
         }
 
