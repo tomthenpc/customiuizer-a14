@@ -174,9 +174,11 @@ object LauncherFolderHooks {
                             intentFilter,
                             Context.RECEIVER_NOT_EXPORTED
                         ) { _, owner, _, intent ->
-                            if ("android.telephony.action.SECRET_CODE" == intent.action) {
-                                XposedHelpers.setAdditionalInstanceField(owner, "fromSecretCode", true)
-                                XposedHelpers.callMethod(owner, "startSecurityHide")
+                            ModuleHelper.guarded {
+                                if ("android.telephony.action.SECRET_CODE" == intent.action) {
+                                    XposedHelpers.setAdditionalInstanceField(owner, "fromSecretCode", true)
+                                    XposedHelpers.callMethod(owner, "startSecurityHide")
+                                }
                             }
                         }
 

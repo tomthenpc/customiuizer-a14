@@ -349,33 +349,35 @@ object Launcher {
                         Context.RECEIVER_EXPORTED,
                         GlobalActions.BROADCAST_PERMISSION
                     ) { receiver, _, context, intent ->
-                        if (intent.action == null) {
-                            if (receiver.isOrderedBroadcast) receiver.setResultCode(GlobalActions.ACTION_FAILED)
-                        } else if (ModuleHelper.isTrustedBroadcast(receiver, Helpers.modulePkg, rejectionResultCode = GlobalActions.ACTION_FAILED)) {
-                            if ((GlobalActions.EVENT_PREFIX + "FETCHAPPCONFIG") == intent.action) {
-                                val pushIntent = Intent(GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG")
-                                pushIntent.setPackage(Helpers.modulePkg)
-                                val datatype = intent.getStringExtra("DATATYPE")
-                                pushIntent.putExtra("DATATYPE", datatype)
-                                if ("privacy" == datatype) {
-                                    @Suppress("WrongConstant")
-                                    val mSecurityManager = context.getSystemService("security") as SecurityManager
-                                    val privacyAppsMap = HashMap<Int, MutableList<String>>()
-                                    privacyAppsMap[0] = mSecurityManager.getAllPrivacyApps(0) as MutableList<String>
-                                    privacyAppsMap[999] = mSecurityManager.getAllPrivacyApps(999) as MutableList<String>
-                                    pushIntent.putExtra("privacyAppsMap", privacyAppsMap)
-                                    ModuleHelper.sendBroadcastWithIdentity(context, pushIntent)
-                                } else if ("privacy_change" == datatype) {
-                                    val userId = intent.getIntExtra("userId", 0)
-                                    val pkgName = intent.getStringExtra("app")
-                                    val privacy = intent.getBooleanExtra("privacy", false)
-                                    @Suppress("WrongConstant")
-                                    val mSecurityManager = context.getSystemService("security") as SecurityManager
-                                    if (pkgName != null) mSecurityManager.setPrivacyApp(pkgName, userId, privacy)
-                                    context.contentResolver.notifyChange(Uri.parse("content://com.miui.securitycenter.provider/update_privacyapps_icon"), null)
+                        ModuleHelper.guarded {
+                            if (intent.action == null) {
+                                if (receiver.isOrderedBroadcast) receiver.setResultCode(GlobalActions.ACTION_FAILED)
+                            } else if (ModuleHelper.isTrustedBroadcast(receiver, Helpers.modulePkg, rejectionResultCode = GlobalActions.ACTION_FAILED)) {
+                                if ((GlobalActions.EVENT_PREFIX + "FETCHAPPCONFIG") == intent.action) {
+                                    val pushIntent = Intent(GlobalActions.EVENT_PREFIX + "PUSHAPPCONFIG")
+                                    pushIntent.setPackage(Helpers.modulePkg)
+                                    val datatype = intent.getStringExtra("DATATYPE")
+                                    pushIntent.putExtra("DATATYPE", datatype)
+                                    if ("privacy" == datatype) {
+                                        @Suppress("WrongConstant")
+                                        val mSecurityManager = context.getSystemService("security") as SecurityManager
+                                        val privacyAppsMap = HashMap<Int, MutableList<String>>()
+                                        privacyAppsMap[0] = mSecurityManager.getAllPrivacyApps(0) as MutableList<String>
+                                        privacyAppsMap[999] = mSecurityManager.getAllPrivacyApps(999) as MutableList<String>
+                                        pushIntent.putExtra("privacyAppsMap", privacyAppsMap)
+                                        ModuleHelper.sendBroadcastWithIdentity(context, pushIntent)
+                                    } else if ("privacy_change" == datatype) {
+                                        val userId = intent.getIntExtra("userId", 0)
+                                        val pkgName = intent.getStringExtra("app")
+                                        val privacy = intent.getBooleanExtra("privacy", false)
+                                        @Suppress("WrongConstant")
+                                        val mSecurityManager = context.getSystemService("security") as SecurityManager
+                                        if (pkgName != null) mSecurityManager.setPrivacyApp(pkgName, userId, privacy)
+                                        context.contentResolver.notifyChange(Uri.parse("content://com.miui.securitycenter.provider/update_privacyapps_icon"), null)
+                                    }
                                 }
+                                if (receiver.isOrderedBroadcast) receiver.setResultCode(GlobalActions.ACTION_HANDLED)
                             }
-                            if (receiver.isOrderedBroadcast) receiver.setResultCode(GlobalActions.ACTION_HANDLED)
                         }
                     }
 

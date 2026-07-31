@@ -63,7 +63,7 @@ object LauncherIconHooks {
 
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
                         override fun onChange(key: String?) {
-                            try {
+                            ModuleHelper.guarded {
                                 if (key == null || !key.contains("pref_key_launcher_renameapps_list")) return
                                 val newTitle = MainModule.mPrefs.getString(key, "")
                                 var mAllLoadedApps: HashSet<*>? = null
@@ -97,8 +97,6 @@ object LauncherIconHooks {
                                             break
                                         }
                                     }
-                            } catch (t: Throwable) {
-                                XposedHelpers.log(t)
                             }
                         }
                     }, thisObject)
@@ -357,10 +355,12 @@ object LauncherIconHooks {
                                 override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {}
                                 override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {}
                                 override fun afterTextChanged(s: Editable) {
-                                    val maxWidth = mMessage.resources.getDimensionPixelSize(maxWidthResId)
-                                    mMessage.measure(View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST))
-                                    mMessage.translationX = -mMessage.measuredWidth * (iconScale - 1) / 2f
-                                    mMessage.translationY = mMessage.measuredHeight * (iconScale - 1) / 2f
+                                    ModuleHelper.guarded {
+                                        val maxWidth = mMessage.resources.getDimensionPixelSize(maxWidthResId)
+                                        mMessage.measure(View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST), View.MeasureSpec.makeMeasureSpec(maxWidth, View.MeasureSpec.AT_MOST))
+                                        mMessage.translationX = -mMessage.measuredWidth * (iconScale - 1) / 2f
+                                        mMessage.translationY = mMessage.measuredHeight * (iconScale - 1) / 2f
+                                    }
                                 }
                             })
                         }
@@ -369,7 +369,7 @@ object LauncherIconHooks {
                     XposedHelpers.setAdditionalInstanceField(thisObject, "mMessageAnimationOrig", XposedHelpers.getObjectField(thisObject, "mMessageAnimation"))
                     XposedHelpers.setObjectField(thisObject, "mMessageAnimation", object : Runnable {
                         override fun run() {
-                            try {
+                            ModuleHelper.guarded {
                                 val mMessageAnimationOrig = XposedHelpers.getAdditionalInstanceField(thisObject, "mMessageAnimationOrig") as Runnable
                                 mMessageAnimationOrig.run()
                                 val mIsShowMessageAnimation = XposedHelpers.getBooleanField(thisObject, "mIsShowMessageAnimation")
@@ -378,8 +378,6 @@ object LauncherIconHooks {
                                     mMessage.animate().cancel()
                                     mMessage.animate().scaleX(iconScale).scaleY(iconScale).setStartDelay(0).start()
                                 }
-                            } catch (t: Throwable) {
-                                XposedHelpers.log(t)
                             }
                         }
                     })
