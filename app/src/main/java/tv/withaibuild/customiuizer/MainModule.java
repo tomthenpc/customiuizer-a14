@@ -108,9 +108,9 @@ public class MainModule extends XposedModule {
      *       not ready ({@link PrefsState#UNAVAILABLE}).</li>
      *   <li>An empty, non-null map without a confirmed live listener is only
      *       {@link PrefsState#EMPTY_PENDING}; it stays retriable up to a bounded count.</li>
-     *   <li>{@link PrefsState#VALID_EMPTY} is only reached when the preference watcher is
-     *       registered (live provider evidence) or empty has been observed consistently up to the
-     *       bounded retry limit. This is a fallback, not a proof that late-install is solved.</li>
+     *   <li>{@link PrefsState#VALID_EMPTY} is only reached when an empty map is returned while a
+     *       live preference watcher is registered. We do not use it as a fallback after bounded
+     *       retries alone, because that would conflate "still loading" with "valid empty".</li>
      * </ul>
      * Retries are bounded and do not sleep the caller's thread.</p>
      */
@@ -120,16 +120,10 @@ public class MainModule extends XposedModule {
         if (mPrefsState == PrefsState.UNAVAILABLE && mPrefsInitAttempts >= MAX_PREF_INIT_ATTEMPTS) return;
 
         if (mPrefsState == PrefsState.EMPTY_PENDING) {
-            if (mPrefsWatcherRegistered) {
-                // A live preference watcher is registered: an empty map is now considered valid.
-                mPrefsState = PrefsState.VALID_EMPTY;
-                if (!mValidEmptyReported) {
-                    mValidEmptyReported = true;
-                    XposedHelpers.log("Remote preferences are valid but empty (watcher confirmed)");
-                }
-                return;
-            }
-            if (mEmptyPendingAttempts >= MAX_EMPTY_PENDING_ATTEMPTS) {
+            // Without a live watcher the only signal we have is the empty map itself, so we keep
+            // retrying up to a bounded number. Once the watcher is registered the next attempt
+            // can trust an empty getAll() result.
+            if (mEmptyPendingAttempts >= MAX_EMPTY_PENDING_ATTEMPTS && !mPrefsWatcherRegistered) {
                 // Bounded retry limit reached without a live watcher. We do not claim a reliable
                 // VALID_EMPTY; we simply stop burning the caller's package-ready callbacks.
                 if (!mEmptyPendingReported) {
