@@ -1,5 +1,7 @@
 # Changelog
 
+> Note: The Releases page only keeps the current formal release. Full changelogs for older versions are preserved in this file. Older APKs are no longer available for download; historical source tags remain.
+
 [简体中文](CHANGELOG.md) | English
 
 This file records user-visible changes, compatibility boundaries, verification conclusions, and

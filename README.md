@@ -27,6 +27,8 @@
 
 `Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14`
 
+> Releases 页面仅保留当前正式版。旧版本的变更记录已合并到当前 Release 和 CHANGELOG；旧版 APK 不再提供下载，历史源码 tag 继续保留。
+
 ## r14.15.3 更新重点
 
 * 恢复此前误删的 `system` 作用域，修复 `system_server` Hook 未加载、相关系统级功能静默失效的问题；

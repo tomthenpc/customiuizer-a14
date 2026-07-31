@@ -31,6 +31,8 @@ The LSPosed user download page is at:
 
 `Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14`
 
+> This Releases page only keeps the current formal release. Changelog for older versions has been merged into the current Release and CHANGELOG. Older APKs are no longer available for download; the historical source tags remain.
+
 ## r14.15.3 Highlights
 
 * Restores the previously-removed `system` scope, fixing `system_server` hook loading and the silent
