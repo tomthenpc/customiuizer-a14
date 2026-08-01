@@ -1,5 +1,6 @@
 package tv.withaibuild.customiuizer.mods
 
+import android.animation.ValueAnimator
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.libxposed.api.XposedInterface
 import tv.withaibuild.customiuizer.MainModule
@@ -7,7 +8,6 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.utils.Helpers
 
 /**
  * Launcher animation and wallpaper hooks.
@@ -28,7 +28,7 @@ object LauncherAnimationHooks {
                 var throwable: Throwable? = null
                 try {
 
-                    var scale = Helpers.getAnimationScale(2)
+                    var scale = ValueAnimator.getDurationScale()
                     if (scale == 1.0f) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     if (scale == 0f) scale = 0.01f
                     val args = XposedHelpers.getArgsArray(chain)
@@ -50,7 +50,7 @@ object LauncherAnimationHooks {
                 val thisObject = chain.getThisObject()
                 try {
 
-                    var scale = Helpers.getAnimationScale(2)
+                    var scale = ValueAnimator.getDurationScale()
                     if (scale == 1.0f) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     if (scale == 0f) scale = 0.01f
                     XposedHelpers.setFloatField(thisObject, "mCenterXStiffness", scaleStiffness(XposedHelpers.getFloatField(thisObject, "mCenterXStiffness"), scale))

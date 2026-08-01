@@ -11,6 +11,8 @@ class HotPathArgumentMaterializationTest {
         val launcher = source("app/src/main/java/tv/withaibuild/customiuizer/mods/LauncherAnimationHooks.kt")
             .section("fun FixAnimHook", "        val hook = object")
         assertAfter(launcher, "if (scale == 1.0f)", "val args = XposedHelpers.getArgsArray(chain)")
+        assertTrue(launcher.contains("ValueAnimator.getDurationScale()"))
+        assertTrue(!launcher.contains("Helpers.getAnimationScale"))
 
         val controls = source("app/src/main/java/tv/withaibuild/customiuizer/mods/Controls.kt")
             .section("fun BackGestureAreaWidthHook", "fun HideNavBarHook")
