@@ -20,24 +20,36 @@ def fmt(b: int) -> str:
     return f"{sign}{b:,} bytes ({sign}{b / 1024:.1f} KB)"
 
 
-def compare(before_path: str, after_path: str, apk_budget_kb: float, dex_budget_kb: float) -> int:
+def compare(
+    before_path: str, after_path: str, apk_budget_kb: float, dex_budget_kb: float
+) -> int:
     before = load(before_path)
     after = load(after_path)
 
-    apk_delta = after["totalBytes"] - before["totalBytes"]
-    dex_delta = after["dexTotalBytes"] - before["dexTotalBytes"]
-    arsc_delta = after["resourcesArscBytes"] - before["resourcesArscBytes"]
-    lib_delta = after["libTotalBytes"] - before["libTotalBytes"]
+    apk_delta = after["apkFileBytes"] - before["apkFileBytes"]
+    zip_compressed_delta = (
+        after["zipEntriesCompressedBytes"] - before["zipEntriesCompressedBytes"]
+    )
+    zip_uncompressed_delta = (
+        after["zipEntriesUncompressedBytes"] - before["zipEntriesUncompressedBytes"]
+    )
+    dex_compressed_delta = after["dexCompressedBytes"] - before["dexCompressedBytes"]
+    dex_uncompressed_delta = after["dexUncompressedBytes"] - before["dexUncompressedBytes"]
+    arsc_delta = after["resourcesArscCompressedBytes"] - before["resourcesArscCompressedBytes"]
+    lib_delta = after["libCompressedBytes"] - before["libCompressedBytes"]
 
     print(f"APK: {before['apkPath']} -> {after['apkPath']}")
-    print(f"Total: {fmt(apk_delta)}")
-    print(f"classes*.dex: {fmt(dex_delta)}")
-    print(f"resources.arsc: {fmt(arsc_delta)}")
-    print(f"lib/: {fmt(lib_delta)}")
+    print(f"Real APK file size: {fmt(apk_delta)}")
+    print(f"ZIP compressed total: {fmt(zip_compressed_delta)}")
+    print(f"ZIP uncompressed total: {fmt(zip_uncompressed_delta)}")
+    print(f"classes*.dex (compressed): {fmt(dex_compressed_delta)}")
+    print(f"classes*.dex (uncompressed): {fmt(dex_uncompressed_delta)}")
+    print(f"resources.arsc (compressed): {fmt(arsc_delta)}")
+    print(f"lib/ (compressed): {fmt(lib_delta)}")
 
-    # Per-file top changes
-    before_files = {f["name"]: f["size"] for f in before["files"]}
-    after_files = {f["name"]: f["size"] for f in after["files"]}
+    # Per-file top changes by compressed size
+    before_files = {f["name"]: f["compressedSize"] for f in before["files"]}
+    after_files = {f["name"]: f["compressedSize"] for f in after["files"]}
     all_files = set(before_files) | set(after_files)
     changes = []
     for name in all_files:
@@ -46,16 +58,16 @@ def compare(before_path: str, after_path: str, apk_budget_kb: float, dex_budget_
         if a != b:
             changes.append((name, a - b))
     changes.sort(key=lambda x: abs(x[1]), reverse=True)
-    print("\nTop file changes:")
+    print("\nTop file changes (compressed):")
     for name, delta in changes[:20]:
         print(f"  {name}: {fmt(delta)}")
 
     failed = False
     if abs(apk_delta) > apk_budget_kb * 1024:
-        print(f"FAIL: APK delta {apk_delta / 1024:.1f} KB exceeds budget {apk_budget_kb} KB")
+        print(f"FAIL: APK file delta {apk_delta / 1024:.1f} KB exceeds budget {apk_budget_kb} KB")
         failed = True
-    if abs(dex_delta) > dex_budget_kb * 1024:
-        print(f"FAIL: DEX delta {dex_delta / 1024:.1f} KB exceeds budget {dex_budget_kb} KB")
+    if abs(dex_compressed_delta) > dex_budget_kb * 1024:
+        print(f"FAIL: DEX (compressed) delta {dex_compressed_delta / 1024:.1f} KB exceeds budget {dex_budget_kb} KB")
         failed = True
     return 1 if failed else 0
 

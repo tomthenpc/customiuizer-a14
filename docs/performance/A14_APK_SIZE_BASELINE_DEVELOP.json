@@ -1,2698 +1,3245 @@
 {
   "apkPath": "app\\build\\outputs\\apk\\develop\\CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk",
   "sha256": "bd2f0fc688be0211067a0548e3414f09de7fd831fd531d407e1ad4a3d51ba261",
-  "totalBytes": 3624553,
+  "apkFileBytes": 3365398,
+  "zipEntriesUncompressedBytes": 3624553,
+  "zipEntriesCompressedBytes": 3303102,
   "fileCount": 537,
-  "dexTotalBytes": 1792108,
-  "resourcesArscBytes": 782132,
-  "libTotalBytes": 381024,
-  "resTotalBytes": 613605,
-  "assetsTotalBytes": 38703,
-  "metaTotalBytes": 497,
+  "dexUncompressedBytes": 1792108,
+  "dexCompressedBytes": 1792108,
+  "resourcesArscUncompressedBytes": 782132,
+  "resourcesArscCompressedBytes": 782132,
+  "libUncompressedBytes": 381024,
+  "libCompressedBytes": 381024,
+  "resUncompressedBytes": 613605,
+  "resCompressedBytes": 304560,
+  "assetsUncompressedBytes": 38703,
+  "assetsCompressedBytes": 38649,
+  "metaUncompressedBytes": 497,
+  "metaCompressedBytes": 361,
+  "manifestUncompressedBytes": 14756,
+  "manifestCompressedBytes": 3494,
   "files": [
     {
       "name": "classes.dex",
-      "size": 1792108,
+      "uncompressedSize": 1792108,
+      "compressedSize": 1792108,
       "bucket": "dex"
     },
     {
       "name": "resources.arsc",
-      "size": 782132,
+      "uncompressedSize": 782132,
+      "compressedSize": 782132,
       "bucket": "arsc"
     },
     {
       "name": "lib/arm64-v8a/libdexkit.so",
-      "size": 381024,
+      "uncompressedSize": 381024,
+      "compressedSize": 381024,
       "bucket": "lib"
     },
     {
-      "name": "res/yi.xml",
-      "size": 40400,
-      "bucket": "res"
-    },
-    {
       "name": "assets/test1.mp3",
-      "size": 22569,
+      "uncompressedSize": 22569,
+      "compressedSize": 22569,
       "bucket": "assets"
-    },
-    {
-      "name": "AndroidManifest.xml",
-      "size": 14756,
-      "bucket": "manifest"
     },
     {
       "name": "assets/test0.png",
-      "size": 12499,
+      "uncompressedSize": 12499,
+      "compressedSize": 12499,
       "bucket": "assets"
     },
     {
-      "name": "res/dh.xml",
-      "size": 11888,
-      "bucket": "res"
-    },
-    {
       "name": "res/RJ.png",
-      "size": 11799,
+      "uncompressedSize": 11799,
+      "compressedSize": 11799,
       "bucket": "res"
     },
     {
-      "name": "res/VL.xml",
-      "size": 8960,
-      "bucket": "res"
-    },
-    {
-      "name": "res/ot.xml",
-      "size": 8044,
+      "name": "res/yi.xml",
+      "uncompressedSize": 40400,
+      "compressedSize": 7855,
       "bucket": "res"
     },
     {
       "name": "res/as.png",
-      "size": 7277,
-      "bucket": "res"
-    },
-    {
-      "name": "res/BJ.xml",
-      "size": 7164,
-      "bucket": "res"
-    },
-    {
-      "name": "res/UU.xml",
-      "size": 6888,
-      "bucket": "res"
-    },
-    {
-      "name": "res/YK.xml",
-      "size": 6728,
-      "bucket": "res"
-    },
-    {
-      "name": "res/uT.xml",
-      "size": 4972,
-      "bucket": "res"
-    },
-    {
-      "name": "res/XJ.xml",
-      "size": 4872,
+      "uncompressedSize": 7277,
+      "compressedSize": 7277,
       "bucket": "res"
     },
     {
       "name": "res/Lf.png",
-      "size": 4708,
-      "bucket": "res"
-    },
-    {
-      "name": "res/93.xml",
-      "size": 4400,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Dz.xml",
-      "size": 4392,
-      "bucket": "res"
-    },
-    {
-      "name": "res/XT.xml",
-      "size": 4392,
+      "uncompressedSize": 4708,
+      "compressedSize": 4708,
       "bucket": "res"
     },
     {
       "name": "res/Bz.png",
-      "size": 4343,
-      "bucket": "res"
-    },
-    {
-      "name": "res/0-.xml",
-      "size": 4168,
+      "uncompressedSize": 4343,
+      "compressedSize": 4343,
       "bucket": "res"
     },
     {
       "name": "res/Em.png",
-      "size": 3843,
+      "uncompressedSize": 3843,
+      "compressedSize": 3843,
       "bucket": "res"
     },
     {
-      "name": "res/wL.xml",
-      "size": 3832,
-      "bucket": "res"
-    },
-    {
-      "name": "res/-f.xml",
-      "size": 3696,
-      "bucket": "res"
-    },
-    {
-      "name": "res/jZ.xml",
-      "size": 3640,
-      "bucket": "res"
-    },
-    {
-      "name": "res/1T.xml",
-      "size": 3592,
-      "bucket": "res"
-    },
-    {
-      "name": "res/dO.xml",
-      "size": 3472,
-      "bucket": "res"
-    },
-    {
-      "name": "res/US.xml",
-      "size": 3432,
-      "bucket": "res"
-    },
-    {
-      "name": "res/90.xml",
-      "size": 3360,
-      "bucket": "res"
-    },
-    {
-      "name": "res/i0.xml",
-      "size": 3296,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Uq.xml",
-      "size": 3232,
-      "bucket": "res"
-    },
-    {
-      "name": "res/t1.xml",
-      "size": 3096,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Oi.xml",
-      "size": 2896,
-      "bucket": "res"
+      "name": "AndroidManifest.xml",
+      "uncompressedSize": 14756,
+      "compressedSize": 3494,
+      "bucket": "manifest"
     },
     {
       "name": "res/qD.9.png",
-      "size": 2834,
+      "uncompressedSize": 2834,
+      "compressedSize": 2834,
       "bucket": "res"
     },
     {
       "name": "res/MF.9.png",
-      "size": 2816,
+      "uncompressedSize": 2816,
+      "compressedSize": 2816,
       "bucket": "res"
     },
     {
       "name": "res/fe.png",
-      "size": 2789,
-      "bucket": "res"
-    },
-    {
-      "name": "res/qx.xml",
-      "size": 2780,
-      "bucket": "res"
-    },
-    {
-      "name": "res/pw.xml",
-      "size": 2720,
+      "uncompressedSize": 2789,
+      "compressedSize": 2789,
       "bucket": "res"
     },
     {
       "name": "res/C4.png",
-      "size": 2715,
+      "uncompressedSize": 2715,
+      "compressedSize": 2715,
       "bucket": "res"
     },
     {
-      "name": "res/rC.xml",
-      "size": 2708,
-      "bucket": "res"
-    },
-    {
-      "name": "res/80.xml",
-      "size": 2688,
-      "bucket": "res"
-    },
-    {
-      "name": "res/U8.xml",
-      "size": 2660,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Be.xml",
-      "size": 2648,
-      "bucket": "res"
-    },
-    {
-      "name": "res/0S.xml",
-      "size": 2544,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Cp.xml",
-      "size": 2536,
-      "bucket": "res"
-    },
-    {
-      "name": "res/kj.xml",
-      "size": 2520,
+      "name": "res/dh.xml",
+      "uncompressedSize": 11888,
+      "compressedSize": 2709,
       "bucket": "res"
     },
     {
       "name": "res/NA.9.png",
-      "size": 2505,
-      "bucket": "res"
-    },
-    {
-      "name": "res/fw.xml",
-      "size": 2492,
+      "uncompressedSize": 2505,
+      "compressedSize": 2505,
       "bucket": "res"
     },
     {
       "name": "res/WV.9.png",
-      "size": 2480,
-      "bucket": "res"
-    },
-    {
-      "name": "res/i6.xml",
-      "size": 2464,
+      "uncompressedSize": 2480,
+      "compressedSize": 2480,
       "bucket": "res"
     },
     {
       "name": "res/zV.9.png",
-      "size": 2463,
-      "bucket": "res"
-    },
-    {
-      "name": "res/5h.xml",
-      "size": 2448,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Ke.xml",
-      "size": 2360,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Iy.xml",
-      "size": 2352,
-      "bucket": "res"
-    },
-    {
-      "name": "res/5e.xml",
-      "size": 2348,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Bd.xml",
-      "size": 2344,
-      "bucket": "res"
-    },
-    {
-      "name": "res/K7.xml",
-      "size": 2340,
+      "uncompressedSize": 2463,
+      "compressedSize": 2463,
       "bucket": "res"
     },
     {
       "name": "res/1I.9.png",
-      "size": 2305,
+      "uncompressedSize": 2305,
+      "compressedSize": 2305,
       "bucket": "res"
     },
     {
-      "name": "res/Pk.xml",
-      "size": 2292,
-      "bucket": "res"
-    },
-    {
-      "name": "res/8x.xml",
-      "size": 2280,
-      "bucket": "res"
-    },
-    {
-      "name": "res/F1.xml",
-      "size": 2280,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Gf.xml",
-      "size": 2232,
-      "bucket": "res"
-    },
-    {
-      "name": "res/10.xml",
-      "size": 2228,
-      "bucket": "res"
-    },
-    {
-      "name": "res/wW.xml",
-      "size": 2228,
-      "bucket": "res"
-    },
-    {
-      "name": "res/EX.xml",
-      "size": 2216,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Rd.xml",
-      "size": 2216,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Ex.xml",
-      "size": 2160,
-      "bucket": "res"
-    },
-    {
-      "name": "res/h4.xml",
-      "size": 2124,
+      "name": "res/VL.xml",
+      "uncompressedSize": 8960,
+      "compressedSize": 2165,
       "bucket": "res"
     },
     {
       "name": "res/og.png",
-      "size": 2117,
+      "uncompressedSize": 2117,
+      "compressedSize": 2117,
       "bucket": "res"
     },
     {
-      "name": "res/2j.xml",
-      "size": 2072,
+      "name": "res/Dz.xml",
+      "uncompressedSize": 4392,
+      "compressedSize": 1841,
       "bucket": "res"
     },
     {
-      "name": "res/Ly.xml",
-      "size": 2056,
+      "name": "res/XT.xml",
+      "uncompressedSize": 4392,
+      "compressedSize": 1841,
       "bucket": "res"
     },
     {
-      "name": "res/Ci.xml",
-      "size": 2052,
-      "bucket": "res"
-    },
-    {
-      "name": "res/3s.xml",
-      "size": 2028,
-      "bucket": "res"
-    },
-    {
-      "name": "res/2f.xml",
-      "size": 1916,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Xk.xml",
-      "size": 1916,
-      "bucket": "res"
-    },
-    {
-      "name": "res/eA.xml",
-      "size": 1868,
-      "bucket": "res"
-    },
-    {
-      "name": "res/w4.xml",
-      "size": 1848,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Y4.xml",
-      "size": 1844,
+      "name": "res/YK.xml",
+      "uncompressedSize": 6728,
+      "compressedSize": 1801,
       "bucket": "res"
     },
     {
       "name": "res/Li.9.png",
-      "size": 1779,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Ip.xml",
-      "size": 1768,
-      "bucket": "res"
-    },
-    {
-      "name": "res/OZ.xml",
-      "size": 1768,
-      "bucket": "res"
-    },
-    {
-      "name": "res/A5.xml",
-      "size": 1732,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Eh.xml",
-      "size": 1732,
+      "uncompressedSize": 1779,
+      "compressedSize": 1779,
       "bucket": "res"
     },
     {
       "name": "res/1J.9.png",
-      "size": 1731,
+      "uncompressedSize": 1731,
+      "compressedSize": 1731,
       "bucket": "res"
     },
     {
-      "name": "DebugProbesKt.bin",
-      "size": 1728,
-      "bucket": "other"
-    },
-    {
-      "name": "res/Nu.xml",
-      "size": 1728,
+      "name": "res/UU.xml",
+      "uncompressedSize": 6888,
+      "compressedSize": 1709,
       "bucket": "res"
     },
     {
-      "name": "res/D-.xml",
-      "size": 1720,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Eg.xml",
-      "size": 1716,
+      "name": "res/ot.xml",
+      "uncompressedSize": 8044,
+      "compressedSize": 1705,
       "bucket": "res"
     },
     {
       "name": "res/Bk.png",
-      "size": 1684,
+      "uncompressedSize": 1684,
+      "compressedSize": 1684,
       "bucket": "res"
     },
     {
       "name": "assets/dexopt/baseline.prof",
-      "size": 1670,
+      "uncompressedSize": 1670,
+      "compressedSize": 1670,
       "bucket": "assets"
     },
     {
-      "name": "res/Zc.xml",
-      "size": 1668,
-      "bucket": "res"
-    },
-    {
       "name": "res/tC.png",
-      "size": 1666,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Zz.xml",
-      "size": 1664,
-      "bucket": "res"
-    },
-    {
-      "name": "res/9T1.xml",
-      "size": 1656,
-      "bucket": "res"
-    },
-    {
-      "name": "res/K5.xml",
-      "size": 1656,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Lf.xml",
-      "size": 1656,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Ol.xml",
-      "size": 1656,
-      "bucket": "res"
-    },
-    {
-      "name": "res/qz.xml",
-      "size": 1656,
-      "bucket": "res"
-    },
-    {
-      "name": "res/hP1.xml",
-      "size": 1584,
-      "bucket": "res"
-    },
-    {
-      "name": "res/9V.xml",
-      "size": 1560,
-      "bucket": "res"
-    },
-    {
-      "name": "res/k8.xml",
-      "size": 1560,
+      "uncompressedSize": 1666,
+      "compressedSize": 1666,
       "bucket": "res"
     },
     {
       "name": "res/U1.png",
-      "size": 1557,
+      "uncompressedSize": 1557,
+      "compressedSize": 1557,
       "bucket": "res"
     },
     {
       "name": "res/IX.9.png",
-      "size": 1544,
+      "uncompressedSize": 1544,
+      "compressedSize": 1544,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BJ.xml",
+      "uncompressedSize": 7164,
+      "compressedSize": 1540,
       "bucket": "res"
     },
     {
       "name": "res/io.9.png",
-      "size": 1526,
+      "uncompressedSize": 1526,
+      "compressedSize": 1526,
       "bucket": "res"
     },
     {
       "name": "assets/test2.mp4",
-      "size": 1493,
+      "uncompressedSize": 1493,
+      "compressedSize": 1493,
       "bucket": "assets"
     },
     {
       "name": "res/hk.png",
-      "size": 1460,
+      "uncompressedSize": 1460,
+      "compressedSize": 1460,
       "bucket": "res"
     },
     {
-      "name": "res/ps.xml",
-      "size": 1448,
-      "bucket": "res"
-    },
-    {
-      "name": "res/pl.xml",
-      "size": 1428,
-      "bucket": "res"
-    },
-    {
-      "name": "res/bL.xml",
-      "size": 1408,
-      "bucket": "res"
-    },
-    {
-      "name": "res/vG.xml",
-      "size": 1396,
+      "name": "res/US.xml",
+      "uncompressedSize": 3432,
+      "compressedSize": 1431,
       "bucket": "res"
     },
     {
       "name": "res/rs.png",
-      "size": 1394,
+      "uncompressedSize": 1394,
+      "compressedSize": 1394,
       "bucket": "res"
     },
     {
-      "name": "res/o1.xml",
-      "size": 1376,
+      "name": "res/XJ.xml",
+      "uncompressedSize": 4872,
+      "compressedSize": 1374,
       "bucket": "res"
     },
     {
       "name": "res/G6.png",
-      "size": 1372,
+      "uncompressedSize": 1372,
+      "compressedSize": 1372,
       "bucket": "res"
     },
     {
-      "name": "res/Fu.xml",
-      "size": 1352,
-      "bucket": "res"
-    },
-    {
-      "name": "res/0Z.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/0z.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/15.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/1L.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/6g.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/6l.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/EY.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Ej.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Ib.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Kw.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/MS.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/NE.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/NN.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Nk.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Nq.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/R2.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/RV.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Rp.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Rq.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Uj.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Vf.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/X6.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/YJ.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Yu.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/_e.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/c0.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/cU.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/cw.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/ka.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/lq.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/mZ.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/n0.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/ni.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/py.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/s0.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/tC.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/uQ.xml",
-      "size": 1312,
-      "bucket": "res"
-    },
-    {
-      "name": "res/EJ.xml",
-      "size": 1296,
-      "bucket": "res"
-    },
-    {
-      "name": "res/8s.xml",
-      "size": 1276,
-      "bucket": "res"
-    },
-    {
-      "name": "res/v9.xml",
-      "size": 1260,
+      "name": "res/uT.xml",
+      "uncompressedSize": 4972,
+      "compressedSize": 1288,
       "bucket": "res"
     },
     {
       "name": "res/G2.9.png",
-      "size": 1243,
-      "bucket": "res"
-    },
-    {
-      "name": "res/1I.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/2k.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/3n.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/4V.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/4k.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/5G.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/7X.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/8w.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/AL.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/CU.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Lw.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/MY.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Mx.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/PH.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Pm.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/RY.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/S-.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Tl.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/VI.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Vf1.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/XB.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/_l.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/a7.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/as.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/ec.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/im.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/jF.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/lT.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/n3.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/ns.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/nw.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/pD.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/s1.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/sl.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/zC.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/ze.xml",
-      "size": 1220,
-      "bucket": "res"
-    },
-    {
-      "name": "res/GR.xml",
-      "size": 1208,
+      "uncompressedSize": 1243,
+      "compressedSize": 1243,
       "bucket": "res"
     },
     {
       "name": "res/nf.png",
-      "size": 1208,
+      "uncompressedSize": 1208,
+      "compressedSize": 1208,
       "bucket": "res"
     },
     {
-      "name": "res/M7.xml",
-      "size": 1196,
+      "name": "res/0-.xml",
+      "uncompressedSize": 4168,
+      "compressedSize": 1171,
       "bucket": "res"
     },
     {
-      "name": "res/u0.xml",
-      "size": 1196,
-      "bucket": "res"
-    },
-    {
-      "name": "res/ON.xml",
-      "size": 1184,
-      "bucket": "res"
-    },
-    {
-      "name": "res/GK.xml",
-      "size": 1172,
-      "bucket": "res"
-    },
-    {
-      "name": "res/nT.xml",
-      "size": 1160,
+      "name": "res/93.xml",
+      "uncompressedSize": 4400,
+      "compressedSize": 1170,
       "bucket": "res"
     },
     {
       "name": "res/jm.png",
-      "size": 1142,
+      "uncompressedSize": 1142,
+      "compressedSize": 1142,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5e.xml",
+      "uncompressedSize": 2348,
+      "compressedSize": 1140,
       "bucket": "res"
     },
     {
       "name": "res/IS.png",
-      "size": 1137,
+      "uncompressedSize": 1137,
+      "compressedSize": 1137,
       "bucket": "res"
     },
     {
       "name": "res/db.png",
-      "size": 1132,
+      "uncompressedSize": 1132,
+      "compressedSize": 1132,
       "bucket": "res"
     },
     {
-      "name": "res/cj.xml",
-      "size": 1124,
-      "bucket": "res"
-    },
-    {
-      "name": "res/_q.xml",
-      "size": 1120,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color-v23/abc_tint_default.xml",
-      "size": 1120,
-      "bucket": "res"
-    },
-    {
-      "name": "res/7G.xml",
-      "size": 1116,
-      "bucket": "res"
-    },
-    {
-      "name": "res/j3.xml",
-      "size": 1100,
+      "name": "res/dO.xml",
+      "uncompressedSize": 3472,
+      "compressedSize": 1105,
       "bucket": "res"
     },
     {
       "name": "res/rj.9.png",
-      "size": 1098,
-      "bucket": "res"
-    },
-    {
-      "name": "res/GD.xml",
-      "size": 1096,
+      "uncompressedSize": 1098,
+      "compressedSize": 1098,
       "bucket": "res"
     },
     {
       "name": "res/h7.9.png",
-      "size": 1096,
+      "uncompressedSize": 1096,
+      "compressedSize": 1096,
       "bucket": "res"
     },
     {
-      "name": "res/0E.xml",
-      "size": 1088,
+      "name": "res/t1.xml",
+      "uncompressedSize": 3096,
+      "compressedSize": 1096,
       "bucket": "res"
     },
     {
       "name": "res/2q.png",
-      "size": 1081,
+      "uncompressedSize": 1081,
+      "compressedSize": 1081,
       "bucket": "res"
     },
     {
       "name": "res/Oq.png",
-      "size": 1075,
+      "uncompressedSize": 1075,
+      "compressedSize": 1075,
       "bucket": "res"
     },
     {
       "name": "res/e0.png",
-      "size": 1065,
-      "bucket": "res"
-    },
-    {
-      "name": "res/0M.xml",
-      "size": 1064,
-      "bucket": "res"
-    },
-    {
-      "name": "res/L_.xml",
-      "size": 1064,
+      "uncompressedSize": 1065,
+      "compressedSize": 1065,
       "bucket": "res"
     },
     {
       "name": "res/si.png",
-      "size": 1057,
+      "uncompressedSize": 1057,
+      "compressedSize": 1057,
       "bucket": "res"
     },
     {
-      "name": "res/Eq.xml",
-      "size": 1056,
+      "name": "res/1T.xml",
+      "uncompressedSize": 3592,
+      "compressedSize": 1046,
       "bucket": "res"
     },
     {
-      "name": "res/9T2.xml",
-      "size": 1028,
+      "name": "res/wL.xml",
+      "uncompressedSize": 3832,
+      "compressedSize": 1038,
       "bucket": "res"
     },
     {
-      "name": "res/Zg.xml",
-      "size": 1028,
+      "name": "res/EX.xml",
+      "uncompressedSize": 2216,
+      "compressedSize": 1035,
       "bucket": "res"
     },
     {
-      "name": "res/vq.xml",
-      "size": 1020,
+      "name": "res/Rd.xml",
+      "uncompressedSize": 2216,
+      "compressedSize": 1035,
       "bucket": "res"
     },
     {
-      "name": "res/Gt.xml",
-      "size": 1012,
+      "name": "res/8x.xml",
+      "uncompressedSize": 2280,
+      "compressedSize": 1028,
       "bucket": "res"
     },
     {
-      "name": "res/t8.xml",
-      "size": 1012,
+      "name": "res/F1.xml",
+      "uncompressedSize": 2280,
+      "compressedSize": 1028,
       "bucket": "res"
     },
     {
-      "name": "res/ZN.xml",
-      "size": 1000,
+      "name": "res/Oi.xml",
+      "uncompressedSize": 2896,
+      "compressedSize": 1028,
       "bucket": "res"
     },
     {
-      "name": "res/Kf.xml",
-      "size": 992,
-      "bucket": "res"
-    },
-    {
-      "name": "res/cW.xml",
-      "size": 992,
+      "name": "res/jZ.xml",
+      "uncompressedSize": 3640,
+      "compressedSize": 989,
       "bucket": "res"
     },
     {
       "name": "res/Gf.png",
-      "size": 984,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Qt.xml",
-      "size": 980,
-      "bucket": "res"
-    },
-    {
-      "name": "res/ij.xml",
-      "size": 976,
+      "uncompressedSize": 984,
+      "compressedSize": 984,
       "bucket": "res"
     },
     {
       "name": "res/uL.9.png",
-      "size": 966,
+      "uncompressedSize": 966,
+      "compressedSize": 966,
       "bucket": "res"
     },
     {
-      "name": "res/color/preference_primary_text.xml",
-      "size": 960,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/preference_secondary_text.xml",
-      "size": 960,
+      "name": "res/Uq.xml",
+      "uncompressedSize": 3232,
+      "compressedSize": 949,
       "bucket": "res"
     },
     {
       "name": "res/8h.png",
-      "size": 946,
+      "uncompressedSize": 946,
+      "compressedSize": 946,
       "bucket": "res"
     },
     {
-      "name": "res/9T.xml",
-      "size": 932,
+      "name": "res/90.xml",
+      "uncompressedSize": 3360,
+      "compressedSize": 940,
       "bucket": "res"
     },
     {
-      "name": "res/cm.xml",
-      "size": 920,
+      "name": "res/0S.xml",
+      "uncompressedSize": 2544,
+      "compressedSize": 932,
       "bucket": "res"
     },
     {
-      "name": "res/A1.xml",
-      "size": 872,
+      "name": "res/i0.xml",
+      "uncompressedSize": 3296,
+      "compressedSize": 919,
       "bucket": "res"
     },
     {
-      "name": "res/V1.xml",
-      "size": 864,
+      "name": "res/-f.xml",
+      "uncompressedSize": 3696,
+      "compressedSize": 905,
       "bucket": "res"
     },
     {
-      "name": "res/hP.xml",
-      "size": 864,
+      "name": "res/i6.xml",
+      "uncompressedSize": 2464,
+      "compressedSize": 895,
       "bucket": "res"
     },
     {
-      "name": "res/ML.xml",
-      "size": 856,
+      "name": "res/Iy.xml",
+      "uncompressedSize": 2352,
+      "compressedSize": 892,
       "bucket": "res"
     },
     {
-      "name": "res/5T.xml",
-      "size": 852,
-      "bucket": "res"
-    },
-    {
-      "name": "res/aM.xml",
-      "size": 852,
-      "bucket": "res"
-    },
-    {
-      "name": "res/dG.xml",
-      "size": 852,
+      "name": "res/rC.xml",
+      "uncompressedSize": 2708,
+      "compressedSize": 892,
       "bucket": "res"
     },
     {
       "name": "res/d5.9.png",
-      "size": 851,
+      "uncompressedSize": 851,
+      "compressedSize": 851,
       "bucket": "res"
     },
     {
-      "name": "res/8g.xml",
-      "size": 848,
+      "name": "res/Eh.xml",
+      "uncompressedSize": 1732,
+      "compressedSize": 848,
       "bucket": "res"
     },
     {
-      "name": "res/uJ.xml",
-      "size": 848,
+      "name": "res/A5.xml",
+      "uncompressedSize": 1732,
+      "compressedSize": 847,
       "bucket": "res"
     },
     {
-      "name": "res/bt.xml",
-      "size": 840,
+      "name": "res/pw.xml",
+      "uncompressedSize": 2720,
+      "compressedSize": 842,
       "bucket": "res"
     },
     {
-      "name": "res/AS.xml",
-      "size": 832,
+      "name": "res/80.xml",
+      "uncompressedSize": 2688,
+      "compressedSize": 841,
       "bucket": "res"
     },
     {
-      "name": "res/R5.xml",
-      "size": 832,
+      "name": "res/Pk.xml",
+      "uncompressedSize": 2292,
+      "compressedSize": 839,
       "bucket": "res"
     },
     {
-      "name": "res/RH.xml",
-      "size": 832,
+      "name": "res/Be.xml",
+      "uncompressedSize": 2648,
+      "compressedSize": 835,
       "bucket": "res"
     },
     {
-      "name": "res/GC.xml",
-      "size": 828,
+      "name": "res/U8.xml",
+      "uncompressedSize": 2660,
+      "compressedSize": 831,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Cp.xml",
+      "uncompressedSize": 2536,
+      "compressedSize": 825,
       "bucket": "res"
     },
     {
       "name": "res/fM.9.png",
-      "size": 825,
+      "uncompressedSize": 825,
+      "compressedSize": 825,
       "bucket": "res"
     },
     {
-      "name": "res/kn.xml",
-      "size": 816,
-      "bucket": "res"
-    },
-    {
-      "name": "res/oP.xml",
-      "size": 816,
+      "name": "res/Ci.xml",
+      "uncompressedSize": 2052,
+      "compressedSize": 820,
       "bucket": "res"
     },
     {
       "name": "res/7_.9.png",
-      "size": 813,
+      "uncompressedSize": 813,
+      "compressedSize": 813,
       "bucket": "res"
     },
     {
-      "name": "res/D5.xml",
-      "size": 812,
+      "name": "res/5h.xml",
+      "uncompressedSize": 2448,
+      "compressedSize": 806,
       "bucket": "res"
     },
     {
-      "name": "res/YG.xml",
-      "size": 812,
+      "name": "res/2j.xml",
+      "uncompressedSize": 2072,
+      "compressedSize": 803,
       "bucket": "res"
     },
     {
-      "name": "res/hG.xml",
-      "size": 812,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Bv.xml",
-      "size": 804,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Qd1.xml",
-      "size": 796,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Mp.xml",
-      "size": 792,
+      "name": "res/Gf.xml",
+      "uncompressedSize": 2232,
+      "compressedSize": 786,
       "bucket": "res"
     },
     {
       "name": "res/Th.png",
-      "size": 785,
+      "uncompressedSize": 785,
+      "compressedSize": 785,
       "bucket": "res"
     },
     {
       "name": "res/j4.png",
-      "size": 785,
+      "uncompressedSize": 785,
+      "compressedSize": 785,
       "bucket": "res"
     },
     {
-      "name": "res/46.xml",
-      "size": 780,
+      "name": "res/Ex.xml",
+      "uncompressedSize": 2160,
+      "compressedSize": 780,
       "bucket": "res"
     },
     {
       "name": "res/Nk.9.png",
-      "size": 776,
+      "uncompressedSize": 776,
+      "compressedSize": 776,
       "bucket": "res"
     },
     {
-      "name": "res/Tn.xml",
-      "size": 768,
+      "name": "DebugProbesKt.bin",
+      "uncompressedSize": 1728,
+      "compressedSize": 774,
+      "bucket": "other"
+    },
+    {
+      "name": "res/Ly.xml",
+      "uncompressedSize": 2056,
+      "compressedSize": 768,
       "bucket": "res"
     },
     {
-      "name": "res/4u.xml",
-      "size": 756,
+      "name": "res/wW.xml",
+      "uncompressedSize": 2228,
+      "compressedSize": 764,
       "bucket": "res"
     },
     {
-      "name": "res/ZL.xml",
-      "size": 756,
+      "name": "res/10.xml",
+      "uncompressedSize": 2228,
+      "compressedSize": 762,
       "bucket": "res"
     },
     {
-      "name": "res/d3.xml",
-      "size": 756,
+      "name": "res/Bd.xml",
+      "uncompressedSize": 2344,
+      "compressedSize": 759,
       "bucket": "res"
     },
     {
       "name": "res/ut.9.png",
-      "size": 754,
+      "uncompressedSize": 754,
+      "compressedSize": 754,
       "bucket": "res"
     },
     {
       "name": "res/jW.png",
-      "size": 753,
+      "uncompressedSize": 753,
+      "compressedSize": 753,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qx.xml",
+      "uncompressedSize": 2780,
+      "compressedSize": 742,
       "bucket": "res"
     },
     {
       "name": "res/Pa.9.png",
-      "size": 738,
+      "uncompressedSize": 738,
+      "compressedSize": 738,
       "bucket": "res"
     },
     {
-      "name": "res/tL.xml",
-      "size": 716,
+      "name": "res/OZ.xml",
+      "uncompressedSize": 1768,
+      "compressedSize": 733,
       "bucket": "res"
     },
     {
-      "name": "res/JP.xml",
-      "size": 712,
+      "name": "res/w4.xml",
+      "uncompressedSize": 1848,
+      "compressedSize": 733,
       "bucket": "res"
     },
     {
-      "name": "res/4_.xml",
-      "size": 692,
+      "name": "res/kj.xml",
+      "uncompressedSize": 2520,
+      "compressedSize": 731,
       "bucket": "res"
     },
     {
-      "name": "res/6Q.xml",
-      "size": 688,
+      "name": "res/D-.xml",
+      "uncompressedSize": 1720,
+      "compressedSize": 725,
       "bucket": "res"
     },
     {
-      "name": "res/rW.xml",
-      "size": 688,
+      "name": "res/fw.xml",
+      "uncompressedSize": 2492,
+      "compressedSize": 712,
       "bucket": "res"
     },
     {
-      "name": "res/VN.xml",
-      "size": 684,
+      "name": "res/eA.xml",
+      "uncompressedSize": 1868,
+      "compressedSize": 709,
       "bucket": "res"
     },
     {
-      "name": "res/A4.xml",
-      "size": 680,
+      "name": "res/3s.xml",
+      "uncompressedSize": 2028,
+      "compressedSize": 703,
       "bucket": "res"
     },
     {
-      "name": "res/rx.xml",
-      "size": 680,
+      "name": "res/Nu.xml",
+      "uncompressedSize": 1728,
+      "compressedSize": 703,
       "bucket": "res"
     },
     {
-      "name": "res/Oa.xml",
-      "size": 676,
+      "name": "res/Ol.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 678,
       "bucket": "res"
     },
     {
-      "name": "res/tk.xml",
-      "size": 676,
+      "name": "res/2f.xml",
+      "uncompressedSize": 1916,
+      "compressedSize": 668,
       "bucket": "res"
     },
     {
-      "name": "res/color-v23/abc_tint_edittext.xml",
-      "size": 668,
+      "name": "res/K7.xml",
+      "uncompressedSize": 2340,
+      "compressedSize": 664,
       "bucket": "res"
     },
     {
-      "name": "res/color-v23/abc_tint_spinner.xml",
-      "size": 668,
+      "name": "res/Xk.xml",
+      "uncompressedSize": 1916,
+      "compressedSize": 664,
       "bucket": "res"
     },
     {
-      "name": "res/color-v23/abc_tint_switch_track.xml",
-      "size": 664,
+      "name": "res/Ke.xml",
+      "uncompressedSize": 2360,
+      "compressedSize": 660,
       "bucket": "res"
     },
     {
       "name": "res/o_.png",
-      "size": 651,
+      "uncompressedSize": 651,
+      "compressedSize": 651,
       "bucket": "res"
     },
     {
-      "name": "res/bP.xml",
-      "size": 644,
+      "name": "res/k8.xml",
+      "uncompressedSize": 1560,
+      "compressedSize": 649,
       "bucket": "res"
     },
     {
-      "name": "res/BJ1.xml",
-      "size": 640,
+      "name": "res/Y4.xml",
+      "uncompressedSize": 1844,
+      "compressedSize": 648,
       "bucket": "res"
     },
     {
-      "name": "res/VT.xml",
-      "size": 640,
+      "name": "res/9V.xml",
+      "uncompressedSize": 1560,
+      "compressedSize": 644,
       "bucket": "res"
     },
     {
-      "name": "res/cL.xml",
-      "size": 640,
-      "bucket": "res"
-    },
-    {
-      "name": "res/u_.xml",
-      "size": 640,
-      "bucket": "res"
-    },
-    {
-      "name": "res/um.xml",
-      "size": 636,
+      "name": "res/h4.xml",
+      "uncompressedSize": 2124,
+      "compressedSize": 641,
       "bucket": "res"
     },
     {
       "name": "res/Pb.png",
-      "size": 631,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color-v23/abc_tint_btn_checkable.xml",
-      "size": 624,
+      "uncompressedSize": 631,
+      "compressedSize": 631,
       "bucket": "res"
     },
     {
       "name": "res/KH.9.png",
-      "size": 618,
+      "uncompressedSize": 618,
+      "compressedSize": 618,
       "bucket": "res"
     },
     {
-      "name": "res/hq.xml",
-      "size": 612,
+      "name": "res/hP1.xml",
+      "uncompressedSize": 1584,
+      "compressedSize": 610,
       "bucket": "res"
     },
     {
-      "name": "res/B_.xml",
-      "size": 604,
+      "name": "res/ps.xml",
+      "uncompressedSize": 1448,
+      "compressedSize": 605,
       "bucket": "res"
     },
     {
-      "name": "res/Qd.xml",
-      "size": 604,
+      "name": "res/Ip.xml",
+      "uncompressedSize": 1768,
+      "compressedSize": 603,
       "bucket": "res"
     },
     {
-      "name": "res/qQ.xml",
-      "size": 604,
+      "name": "res/vG.xml",
+      "uncompressedSize": 1396,
+      "compressedSize": 597,
       "bucket": "res"
     },
     {
-      "name": "res/9P.xml",
-      "size": 600,
+      "name": "res/Zc.xml",
+      "uncompressedSize": 1668,
+      "compressedSize": 596,
       "bucket": "res"
     },
     {
       "name": "res/49.png",
-      "size": 595,
+      "uncompressedSize": 595,
+      "compressedSize": 595,
       "bucket": "res"
     },
     {
       "name": "res/9z.png",
-      "size": 593,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_search_url_text.xml",
-      "size": 588,
-      "bucket": "res"
-    },
-    {
-      "name": "res/xj.xml",
-      "size": 588,
+      "uncompressedSize": 593,
+      "compressedSize": 593,
       "bucket": "res"
     },
     {
       "name": "res/g-.png",
-      "size": 585,
+      "uncompressedSize": 585,
+      "compressedSize": 585,
       "bucket": "res"
     },
     {
-      "name": "res/yV.xml",
-      "size": 576,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_hint_foreground_material_dark.xml",
-      "size": 564,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_hint_foreground_material_light.xml",
-      "size": 564,
+      "name": "res/EJ.xml",
+      "uncompressedSize": 1296,
+      "compressedSize": 567,
       "bucket": "res"
     },
     {
       "name": "res/RV.png",
-      "size": 563,
+      "uncompressedSize": 563,
+      "compressedSize": 563,
       "bucket": "res"
     },
     {
-      "name": "res/rY.xml",
-      "size": 548,
+      "name": "res/8s.xml",
+      "uncompressedSize": 1276,
+      "compressedSize": 562,
       "bucket": "res"
     },
     {
-      "name": "res/color-v23/abc_color_highlight_material.xml",
-      "size": 544,
+      "name": "res/GD.xml",
+      "uncompressedSize": 1096,
+      "compressedSize": 554,
       "bucket": "res"
     },
     {
-      "name": "res/fS.xml",
-      "size": 544,
+      "name": "res/Eg.xml",
+      "uncompressedSize": 1716,
+      "compressedSize": 551,
+      "bucket": "res"
+    },
+    {
+      "name": "res/v9.xml",
+      "uncompressedSize": 1260,
+      "compressedSize": 551,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Fu.xml",
+      "uncompressedSize": 1352,
+      "compressedSize": 549,
       "bucket": "res"
     },
     {
       "name": "res/33.9.png",
-      "size": 541,
+      "uncompressedSize": 541,
+      "compressedSize": 541,
       "bucket": "res"
     },
     {
-      "name": "res/aG.xml",
-      "size": 532,
+      "name": "res/vq.xml",
+      "uncompressedSize": 1020,
+      "compressedSize": 536,
       "bucket": "res"
     },
     {
-      "name": "res/vJ.xml",
-      "size": 528,
+      "name": "res/pl.xml",
+      "uncompressedSize": 1428,
+      "compressedSize": 532,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7G.xml",
+      "uncompressedSize": 1116,
+      "compressedSize": 525,
       "bucket": "res"
     },
     {
       "name": "res/7o.9.png",
-      "size": 525,
+      "uncompressedSize": 525,
+      "compressedSize": 525,
+      "bucket": "res"
+    },
+    {
+      "name": "res/X6.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 525,
       "bucket": "res"
     },
     {
       "name": "res/gZ.9.png",
-      "size": 524,
+      "uncompressedSize": 524,
+      "compressedSize": 524,
       "bucket": "res"
     },
     {
-      "name": "res/3W.xml",
-      "size": 516,
-      "bucket": "res"
-    },
-    {
-      "name": "res/5z.xml",
-      "size": 516,
-      "bucket": "res"
-    },
-    {
-      "name": "res/BJ2.xml",
-      "size": 516,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Sc.xml",
-      "size": 516,
-      "bucket": "res"
-    },
-    {
-      "name": "res/XK.xml",
-      "size": 516,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Xx.xml",
-      "size": 516,
-      "bucket": "res"
-    },
-    {
-      "name": "res/bb.xml",
-      "size": 516,
-      "bucket": "res"
-    },
-    {
-      "name": "res/q6.xml",
-      "size": 516,
+      "name": "res/Qt.xml",
+      "uncompressedSize": 980,
+      "compressedSize": 514,
       "bucket": "res"
     },
     {
       "name": "res/MQ.png",
-      "size": 513,
+      "uncompressedSize": 513,
+      "compressedSize": 513,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_q.xml",
+      "uncompressedSize": 1120,
+      "compressedSize": 513,
       "bucket": "res"
     },
     {
       "name": "res/u3.png",
-      "size": 513,
+      "uncompressedSize": 513,
+      "compressedSize": 513,
       "bucket": "res"
     },
     {
       "name": "res/VW.png",
-      "size": 510,
+      "uncompressedSize": 510,
+      "compressedSize": 510,
       "bucket": "res"
     },
     {
-      "name": "res/KI.xml",
-      "size": 508,
-      "bucket": "res"
-    },
-    {
-      "name": "res/UX.xml",
-      "size": 508,
-      "bucket": "res"
-    },
-    {
-      "name": "res/k_.xml",
-      "size": 508,
-      "bucket": "res"
-    },
-    {
-      "name": "res/pV.xml",
-      "size": 504,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color-v23/abc_tint_seek_thumb.xml",
-      "size": 500,
+      "name": "res/Eq.xml",
+      "uncompressedSize": 1056,
+      "compressedSize": 505,
       "bucket": "res"
     },
     {
       "name": "res/RH.png",
-      "size": 498,
+      "uncompressedSize": 498,
+      "compressedSize": 498,
       "bucket": "res"
     },
     {
       "name": "res/Xw.png",
-      "size": 498,
+      "uncompressedSize": 498,
+      "compressedSize": 498,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0E.xml",
+      "uncompressedSize": 1088,
+      "compressedSize": 497,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Zz.xml",
+      "uncompressedSize": 1664,
+      "compressedSize": 496,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ZN.xml",
+      "uncompressedSize": 1000,
+      "compressedSize": 492,
+      "bucket": "res"
+    },
+    {
+      "name": "res/o1.xml",
+      "uncompressedSize": 1376,
+      "compressedSize": 490,
       "bucket": "res"
     },
     {
       "name": "res/fF.png",
-      "size": 488,
-      "bucket": "res"
-    },
-    {
-      "name": "res/NM.xml",
-      "size": 484,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Qj.xml",
-      "size": 484,
-      "bucket": "res"
-    },
-    {
-      "name": "res/_G.xml",
-      "size": 484,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/color_selector.xml",
-      "size": 484,
+      "uncompressedSize": 488,
+      "compressedSize": 488,
       "bucket": "res"
     },
     {
       "name": "res/iR.9.png",
-      "size": 484,
+      "uncompressedSize": 484,
+      "compressedSize": 484,
       "bucket": "res"
     },
     {
       "name": "res/tG.png",
-      "size": 476,
+      "uncompressedSize": 476,
+      "compressedSize": 476,
       "bucket": "res"
     },
     {
       "name": "res/GS.png",
-      "size": 475,
+      "uncompressedSize": 475,
+      "compressedSize": 475,
       "bucket": "res"
     },
     {
-      "name": "res/1x.xml",
-      "size": 472,
-      "bucket": "res"
-    },
-    {
-      "name": "res/e-.xml",
-      "size": 472,
+      "name": "res/cm.xml",
+      "uncompressedSize": 920,
+      "compressedSize": 471,
       "bucket": "res"
     },
     {
       "name": "res/rA.png",
-      "size": 471,
+      "uncompressedSize": 471,
+      "compressedSize": 471,
       "bucket": "res"
     },
     {
-      "name": "res/In.xml",
-      "size": 468,
+      "name": "res/GR.xml",
+      "uncompressedSize": 1208,
+      "compressedSize": 470,
       "bucket": "res"
     },
     {
-      "name": "res/color/abc_background_cache_hint_selector_material_dark.xml",
-      "size": 468,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_background_cache_hint_selector_material_light.xml",
-      "size": 468,
-      "bucket": "res"
-    },
-    {
-      "name": "res/7H.xml",
-      "size": 464,
+      "name": "res/ON.xml",
+      "uncompressedSize": 1184,
+      "compressedSize": 465,
       "bucket": "res"
     },
     {
       "name": "res/7i.png",
-      "size": 464,
+      "uncompressedSize": 464,
+      "compressedSize": 464,
       "bucket": "res"
     },
     {
-      "name": "res/Hd.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/Jl.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_primary_text_disable_only_material_dark.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_primary_text_disable_only_material_light.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_primary_text_material_dark.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_primary_text_material_light.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_secondary_text_material_dark.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/abc_secondary_text_material_light.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/switch_thumb_material_dark.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/color/switch_thumb_material_light.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/sA.xml",
-      "size": 464,
-      "bucket": "res"
-    },
-    {
-      "name": "res/zq.xml",
-      "size": 464,
+      "name": "res/GK.xml",
+      "uncompressedSize": 1172,
+      "compressedSize": 462,
       "bucket": "res"
     },
     {
       "name": "res/zX.png",
-      "size": 462,
+      "uncompressedSize": 462,
+      "compressedSize": 462,
       "bucket": "res"
     },
     {
       "name": "res/Sl.png",
-      "size": 457,
+      "uncompressedSize": 457,
+      "compressedSize": 457,
+      "bucket": "res"
+    },
+    {
+      "name": "res/GC.xml",
+      "uncompressedSize": 828,
+      "compressedSize": 456,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ij.xml",
+      "uncompressedSize": 976,
+      "compressedSize": 454,
       "bucket": "res"
     },
     {
       "name": "res/jk.png",
-      "size": 454,
+      "uncompressedSize": 454,
+      "compressedSize": 454,
       "bucket": "res"
     },
     {
-      "name": "res/4B.xml",
-      "size": 452,
+      "name": "res/D5.xml",
+      "uncompressedSize": 812,
+      "compressedSize": 452,
       "bucket": "res"
     },
     {
-      "name": "res/qA.xml",
-      "size": 452,
+      "name": "res/0z.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
       "bucket": "res"
     },
     {
-      "name": "res/BW.xml",
-      "size": 448,
+      "name": "res/Ib.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NE.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Nk.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Rq.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Yu.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_e.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
       "bucket": "res"
     },
     {
       "name": "res/aU.9.png",
-      "size": 448,
+      "uncompressedSize": 448,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cU.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ni.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/s0.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tC.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/uQ.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/MS.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 447,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cw.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 447,
+      "bucket": "res"
+    },
+    {
+      "name": "res/mZ.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 447,
+      "bucket": "res"
+    },
+    {
+      "name": "res/6g.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/6l.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/AS.xml",
+      "uncompressedSize": 832,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/R5.xml",
+      "uncompressedSize": 832,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/c0.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0Z.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/15.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1L.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Ej.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Kw.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Nq.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/R2.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Uj.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/lq.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/n0.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/py.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NN.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 444,
+      "bucket": "res"
+    },
+    {
+      "name": "res/V1.xml",
+      "uncompressedSize": 864,
+      "compressedSize": 444,
+      "bucket": "res"
+    },
+    {
+      "name": "res/hP.xml",
+      "uncompressedSize": 864,
+      "compressedSize": 444,
+      "bucket": "res"
+    },
+    {
+      "name": "res/EY.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/RV.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Rp.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Vf.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/YJ.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ka.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/8w.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 441,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Mx.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 441,
       "bucket": "res"
     },
     {
       "name": "res/X_.png",
-      "size": 441,
+      "uncompressedSize": 441,
+      "compressedSize": 441,
+      "bucket": "res"
+    },
+    {
+      "name": "res/as.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 441,
       "bucket": "res"
     },
     {
       "name": "res/6Y.png",
-      "size": 440,
+      "uncompressedSize": 440,
+      "compressedSize": 440,
+      "bucket": "res"
+    },
+    {
+      "name": "res/CU.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 440,
+      "bucket": "res"
+    },
+    {
+      "name": "res/MY.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 440,
+      "bucket": "res"
+    },
+    {
+      "name": "res/sl.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 440,
       "bucket": "res"
     },
     {
       "name": "res/8G.png",
-      "size": 439,
+      "uncompressedSize": 439,
+      "compressedSize": 439,
+      "bucket": "res"
+    },
+    {
+      "name": "res/a7.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 439,
+      "bucket": "res"
+    },
+    {
+      "name": "res/im.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 439,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ze.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 439,
+      "bucket": "res"
+    },
+    {
+      "name": "res/3n.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/4V.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5G.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/AL.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Lw.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Tl.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/nw.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/2k.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Pm.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/hG.xml",
+      "uncompressedSize": 812,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/n3.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ns.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/pD.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/s1.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
       "bucket": "res"
     },
     {
       "name": "res/wL.9.png",
-      "size": 437,
+      "uncompressedSize": 437,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/4k.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
+      "bucket": "res"
+    },
+    {
+      "name": "res/PH.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VI.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Vf1.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
+      "bucket": "res"
+    },
+    {
+      "name": "res/lT.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
       "bucket": "res"
     },
     {
       "name": "res/G1.png",
-      "size": 435,
+      "uncompressedSize": 435,
+      "compressedSize": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Qd1.xml",
+      "uncompressedSize": 796,
+      "compressedSize": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/S-.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ec.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/jF.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 435,
       "bucket": "res"
     },
     {
       "name": "res/t4.png",
-      "size": 435,
+      "uncompressedSize": 435,
+      "compressedSize": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1I.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7X.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/RY.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/XB.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_l.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/uJ.xml",
+      "uncompressedSize": 848,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/zC.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/K5.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 433,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cj.xml",
+      "uncompressedSize": 1124,
+      "compressedSize": 432,
       "bucket": "res"
     },
     {
       "name": "res/d3.png",
-      "size": 432,
+      "uncompressedSize": 432,
+      "compressedSize": 432,
       "bucket": "res"
     },
     {
       "name": "res/7C.9.png",
-      "size": 430,
+      "uncompressedSize": 430,
+      "compressedSize": 430,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qz.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 430,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9T1.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 428,
       "bucket": "res"
     },
     {
       "name": "res/5b.png",
-      "size": 427,
+      "uncompressedSize": 427,
+      "compressedSize": 427,
       "bucket": "res"
     },
     {
       "name": "res/QL.png",
-      "size": 427,
+      "uncompressedSize": 427,
+      "compressedSize": 427,
       "bucket": "res"
     },
     {
       "name": "res/13.png",
-      "size": 425,
+      "uncompressedSize": 425,
+      "compressedSize": 425,
       "bucket": "res"
     },
     {
       "name": "res/A2.png",
-      "size": 425,
+      "uncompressedSize": 425,
+      "compressedSize": 425,
       "bucket": "res"
     },
     {
-      "name": "res/Cg.xml",
-      "size": 424,
+      "name": "res/bt.xml",
+      "uncompressedSize": 840,
+      "compressedSize": 424,
       "bucket": "res"
     },
     {
-      "name": "res/MO.xml",
-      "size": 424,
+      "name": "res/bL.xml",
+      "uncompressedSize": 1408,
+      "compressedSize": 423,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Bv.xml",
+      "uncompressedSize": 804,
+      "compressedSize": 422,
       "bucket": "res"
     },
     {
       "name": "res/UR.png",
-      "size": 422,
+      "uncompressedSize": 422,
+      "compressedSize": 422,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Lf.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 421,
       "bucket": "res"
     },
     {
       "name": "res/Z8.png",
-      "size": 420,
+      "uncompressedSize": 420,
+      "compressedSize": 420,
       "bucket": "res"
     },
     {
       "name": "res/nA.png",
-      "size": 420,
+      "uncompressedSize": 420,
+      "compressedSize": 420,
       "bucket": "res"
     },
     {
       "name": "res/z9.9.png",
-      "size": 417,
+      "uncompressedSize": 417,
+      "compressedSize": 417,
       "bucket": "res"
     },
     {
       "name": "res/KM.png",
-      "size": 415,
+      "uncompressedSize": 415,
+      "compressedSize": 415,
       "bucket": "res"
     },
     {
       "name": "res/SR.png",
-      "size": 412,
+      "uncompressedSize": 412,
+      "compressedSize": 412,
       "bucket": "res"
     },
     {
       "name": "res/lr.png",
-      "size": 411,
+      "uncompressedSize": 411,
+      "compressedSize": 411,
       "bucket": "res"
     },
     {
       "name": "res/r2.png",
-      "size": 411,
+      "uncompressedSize": 411,
+      "compressedSize": 411,
       "bucket": "res"
     },
     {
       "name": "res/tn.png",
-      "size": 411,
+      "uncompressedSize": 411,
+      "compressedSize": 411,
       "bucket": "res"
     },
     {
       "name": "res/52.png",
-      "size": 409,
+      "uncompressedSize": 409,
+      "compressedSize": 409,
+      "bucket": "res"
+    },
+    {
+      "name": "res/nT.xml",
+      "uncompressedSize": 1160,
+      "compressedSize": 409,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ZL.xml",
+      "uncompressedSize": 756,
+      "compressedSize": 405,
       "bucket": "res"
     },
     {
       "name": "res/dY.png",
-      "size": 404,
+      "uncompressedSize": 404,
+      "compressedSize": 404,
       "bucket": "res"
     },
     {
       "name": "res/s0.png",
-      "size": 403,
+      "uncompressedSize": 403,
+      "compressedSize": 403,
       "bucket": "res"
     },
     {
-      "name": "res/sn.xml",
-      "size": 400,
+      "name": "res/M7.xml",
+      "uncompressedSize": 1196,
+      "compressedSize": 397,
+      "bucket": "res"
+    },
+    {
+      "name": "res/u0.xml",
+      "uncompressedSize": 1196,
+      "compressedSize": 397,
       "bucket": "res"
     },
     {
       "name": "res/5U.png",
-      "size": 396,
+      "uncompressedSize": 396,
+      "compressedSize": 396,
       "bucket": "res"
     },
     {
       "name": "res/yg.9.png",
-      "size": 395,
+      "uncompressedSize": 395,
+      "compressedSize": 395,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9T.xml",
+      "uncompressedSize": 932,
+      "compressedSize": 394,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Tn.xml",
+      "uncompressedSize": 768,
+      "compressedSize": 394,
+      "bucket": "res"
+    },
+    {
+      "name": "res/RH.xml",
+      "uncompressedSize": 832,
+      "compressedSize": 393,
       "bucket": "res"
     },
     {
       "name": "res/ar.png",
-      "size": 391,
+      "uncompressedSize": 391,
+      "compressedSize": 391,
       "bucket": "res"
     },
     {
-      "name": "res/1a.xml",
-      "size": 388,
+      "name": "res/A1.xml",
+      "uncompressedSize": 872,
+      "compressedSize": 388,
       "bucket": "res"
     },
     {
-      "name": "res/9z.xml",
-      "size": 388,
+      "name": "res/46.xml",
+      "uncompressedSize": 780,
+      "compressedSize": 381,
       "bucket": "res"
     },
     {
-      "name": "res/rj.xml",
-      "size": 388,
+      "name": "res/4_.xml",
+      "uncompressedSize": 692,
+      "compressedSize": 381,
       "bucket": "res"
     },
     {
-      "name": "res/color/color_popmenu_background.xml",
-      "size": 376,
+      "name": "res/Zg.xml",
+      "uncompressedSize": 1028,
+      "compressedSize": 380,
       "bucket": "res"
     },
     {
-      "name": "res/color/color_popup_background.xml",
-      "size": 376,
+      "name": "res/5T.xml",
+      "uncompressedSize": 852,
+      "compressedSize": 377,
       "bucket": "res"
     },
     {
-      "name": "res/color/preference_primary_text_disable.xml",
-      "size": 376,
+      "name": "res/aM.xml",
+      "uncompressedSize": 852,
+      "compressedSize": 376,
       "bucket": "res"
     },
     {
-      "name": "res/7N.xml",
-      "size": 372,
+      "name": "res/Mp.xml",
+      "uncompressedSize": 792,
+      "compressedSize": 375,
       "bucket": "res"
     },
     {
-      "name": "res/YW.xml",
-      "size": 372,
+      "name": "res/9T2.xml",
+      "uncompressedSize": 1028,
+      "compressedSize": 373,
+      "bucket": "res"
+    },
+    {
+      "name": "res/YG.xml",
+      "uncompressedSize": 812,
+      "compressedSize": 369,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_default.xml",
+      "uncompressedSize": 1120,
+      "compressedSize": 369,
+      "bucket": "res"
+    },
+    {
+      "name": "res/8g.xml",
+      "uncompressedSize": 848,
+      "compressedSize": 363,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cL.xml",
+      "uncompressedSize": 640,
+      "compressedSize": 361,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VN.xml",
+      "uncompressedSize": 684,
+      "compressedSize": 360,
+      "bucket": "res"
+    },
+    {
+      "name": "res/d3.xml",
+      "uncompressedSize": 756,
+      "compressedSize": 360,
       "bucket": "res"
     },
     {
       "name": "res/eR.png",
-      "size": 356,
+      "uncompressedSize": 356,
+      "compressedSize": 356,
       "bucket": "res"
     },
     {
-      "name": "res/3V.xml",
-      "size": 352,
+      "name": "res/j3.xml",
+      "uncompressedSize": 1100,
+      "compressedSize": 354,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VT.xml",
+      "uncompressedSize": 640,
+      "compressedSize": 352,
+      "bucket": "res"
+    },
+    {
+      "name": "res/u_.xml",
+      "uncompressedSize": 640,
+      "compressedSize": 351,
+      "bucket": "res"
+    },
+    {
+      "name": "res/JP.xml",
+      "uncompressedSize": 712,
+      "compressedSize": 350,
+      "bucket": "res"
+    },
+    {
+      "name": "res/bP.xml",
+      "uncompressedSize": 644,
+      "compressedSize": 350,
       "bucket": "res"
     },
     {
       "name": "res/7I.9.png",
-      "size": 345,
+      "uncompressedSize": 345,
+      "compressedSize": 345,
       "bucket": "res"
     },
     {
       "name": "res/mm.9.png",
-      "size": 345,
+      "uncompressedSize": 345,
+      "compressedSize": 345,
       "bucket": "res"
     },
     {
-      "name": "res/27.xml",
-      "size": 336,
+      "name": "res/kn.xml",
+      "uncompressedSize": 816,
+      "compressedSize": 343,
+      "bucket": "res"
+    },
+    {
+      "name": "res/oP.xml",
+      "uncompressedSize": 816,
+      "compressedSize": 343,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ML.xml",
+      "uncompressedSize": 856,
+      "compressedSize": 342,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BJ1.xml",
+      "uncompressedSize": 640,
+      "compressedSize": 340,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0M.xml",
+      "uncompressedSize": 1064,
+      "compressedSize": 338,
+      "bucket": "res"
+    },
+    {
+      "name": "res/L_.xml",
+      "uncompressedSize": 1064,
+      "compressedSize": 338,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tk.xml",
+      "uncompressedSize": 676,
+      "compressedSize": 338,
       "bucket": "res"
     },
     {
       "name": "res/Wr.png",
-      "size": 335,
+      "uncompressedSize": 335,
+      "compressedSize": 335,
       "bucket": "res"
     },
     {
-      "name": "res/NF.xml",
-      "size": 328,
+      "name": "res/hq.xml",
+      "uncompressedSize": 612,
+      "compressedSize": 333,
       "bucket": "res"
     },
     {
-      "name": "res/VM.xml",
-      "size": 328,
+      "name": "res/9P.xml",
+      "uncompressedSize": 600,
+      "compressedSize": 331,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/preference_primary_text.xml",
+      "uncompressedSize": 960,
+      "compressedSize": 328,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/preference_secondary_text.xml",
+      "uncompressedSize": 960,
+      "compressedSize": 328,
       "bucket": "res"
     },
     {
       "name": "res/Tj.9.png",
-      "size": 327,
+      "uncompressedSize": 327,
+      "compressedSize": 327,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Kf.xml",
+      "uncompressedSize": 992,
+      "compressedSize": 325,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cW.xml",
+      "uncompressedSize": 992,
+      "compressedSize": 325,
       "bucket": "res"
     },
     {
       "name": "res/zE.png",
-      "size": 324,
+      "uncompressedSize": 324,
+      "compressedSize": 324,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tL.xml",
+      "uncompressedSize": 716,
+      "compressedSize": 323,
       "bucket": "res"
     },
     {
       "name": "res/NG.png",
-      "size": 322,
+      "uncompressedSize": 322,
+      "compressedSize": 322,
       "bucket": "res"
     },
     {
       "name": "res/tS.png",
-      "size": 321,
+      "uncompressedSize": 321,
+      "compressedSize": 321,
       "bucket": "res"
     },
     {
-      "name": "res/DZ.xml",
-      "size": 320,
+      "name": "res/Gt.xml",
+      "uncompressedSize": 1012,
+      "compressedSize": 319,
       "bucket": "res"
     },
     {
-      "name": "res/lN.xml",
-      "size": 320,
+      "name": "res/t8.xml",
+      "uncompressedSize": 1012,
+      "compressedSize": 319,
       "bucket": "res"
     },
     {
       "name": "res/-N.png",
-      "size": 318,
+      "uncompressedSize": 318,
+      "compressedSize": 318,
       "bucket": "res"
     },
     {
       "name": "res/eT.9.png",
-      "size": 318,
+      "uncompressedSize": 318,
+      "compressedSize": 318,
       "bucket": "res"
     },
     {
-      "name": "res/_o.xml",
-      "size": 316,
+      "name": "res/Oa.xml",
+      "uncompressedSize": 676,
+      "compressedSize": 317,
       "bucket": "res"
     },
     {
-      "name": "res/c5.xml",
-      "size": 316,
+      "name": "res/dG.xml",
+      "uncompressedSize": 852,
+      "compressedSize": 314,
       "bucket": "res"
     },
     {
       "name": "res/EP.png",
-      "size": 310,
+      "uncompressedSize": 310,
+      "compressedSize": 310,
+      "bucket": "res"
+    },
+    {
+      "name": "res/um.xml",
+      "uncompressedSize": 636,
+      "compressedSize": 308,
       "bucket": "res"
     },
     {
       "name": "res/FW.png",
-      "size": 307,
+      "uncompressedSize": 307,
+      "compressedSize": 307,
       "bucket": "res"
     },
     {
-      "name": "res/V7.xml",
-      "size": 304,
+      "name": "res/rW.xml",
+      "uncompressedSize": 688,
+      "compressedSize": 306,
+      "bucket": "res"
+    },
+    {
+      "name": "res/6Q.xml",
+      "uncompressedSize": 688,
+      "compressedSize": 301,
+      "bucket": "res"
+    },
+    {
+      "name": "res/A4.xml",
+      "uncompressedSize": 680,
+      "compressedSize": 301,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rx.xml",
+      "uncompressedSize": 680,
+      "compressedSize": 301,
+      "bucket": "res"
+    },
+    {
+      "name": "res/fS.xml",
+      "uncompressedSize": 544,
+      "compressedSize": 299,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rY.xml",
+      "uncompressedSize": 548,
+      "compressedSize": 297,
+      "bucket": "res"
+    },
+    {
+      "name": "res/yV.xml",
+      "uncompressedSize": 576,
+      "compressedSize": 295,
+      "bucket": "res"
+    },
+    {
+      "name": "res/4u.xml",
+      "uncompressedSize": 756,
+      "compressedSize": 291,
+      "bucket": "res"
+    },
+    {
+      "name": "res/aG.xml",
+      "uncompressedSize": 532,
+      "compressedSize": 287,
       "bucket": "res"
     },
     {
       "name": "res/op.9.png",
-      "size": 286,
+      "uncompressedSize": 286,
+      "compressedSize": 286,
+      "bucket": "res"
+    },
+    {
+      "name": "res/vJ.xml",
+      "uncompressedSize": 528,
+      "compressedSize": 284,
+      "bucket": "res"
+    },
+    {
+      "name": "res/B_.xml",
+      "uncompressedSize": 604,
+      "compressedSize": 283,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_edittext.xml",
+      "uncompressedSize": 668,
+      "compressedSize": 283,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_spinner.xml",
+      "uncompressedSize": 668,
+      "compressedSize": 283,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qQ.xml",
+      "uncompressedSize": 604,
+      "compressedSize": 283,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Qd.xml",
+      "uncompressedSize": 604,
+      "compressedSize": 282,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_switch_track.xml",
+      "uncompressedSize": 664,
+      "compressedSize": 282,
       "bucket": "res"
     },
     {
       "name": "res/-B.png",
-      "size": 281,
+      "uncompressedSize": 281,
+      "compressedSize": 281,
       "bucket": "res"
     },
     {
       "name": "res/JJ.9.png",
-      "size": 280,
+      "uncompressedSize": 280,
+      "compressedSize": 280,
+      "bucket": "res"
+    },
+    {
+      "name": "res/pV.xml",
+      "uncompressedSize": 504,
+      "compressedSize": 280,
       "bucket": "res"
     },
     {
       "name": "res/te.png",
-      "size": 278,
+      "uncompressedSize": 278,
+      "compressedSize": 278,
+      "bucket": "res"
+    },
+    {
+      "name": "res/q6.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 277,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BJ2.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 276,
       "bucket": "res"
     },
     {
       "name": "res/pk.png",
-      "size": 275,
+      "uncompressedSize": 275,
+      "compressedSize": 275,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Sc.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 274,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5z.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 273,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_btn_checkable.xml",
+      "uncompressedSize": 624,
+      "compressedSize": 273,
       "bucket": "res"
     },
     {
       "name": "res/5D.9.png",
-      "size": 272,
+      "uncompressedSize": 272,
+      "compressedSize": 272,
       "bucket": "res"
     },
     {
       "name": "res/ly.png",
-      "size": 272,
+      "uncompressedSize": 272,
+      "compressedSize": 272,
+      "bucket": "res"
+    },
+    {
+      "name": "res/KI.xml",
+      "uncompressedSize": 508,
+      "compressedSize": 271,
       "bucket": "res"
     },
     {
       "name": "res/jv.png",
-      "size": 271,
+      "uncompressedSize": 271,
+      "compressedSize": 271,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Hd.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 270,
       "bucket": "res"
     },
     {
       "name": "assets/dexopt/baseline.profm",
-      "size": 268,
+      "uncompressedSize": 268,
+      "compressedSize": 268,
       "bucket": "assets"
     },
     {
+      "name": "res/zq.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 268,
+      "bucket": "res"
+    },
+    {
       "name": "res/0c.9.png",
-      "size": 267,
+      "uncompressedSize": 267,
+      "compressedSize": 267,
       "bucket": "res"
     },
     {
       "name": "res/dW.png",
-      "size": 267,
+      "uncompressedSize": 267,
+      "compressedSize": 267,
       "bucket": "res"
     },
     {
       "name": "res/m0.png",
-      "size": 267,
+      "uncompressedSize": 267,
+      "compressedSize": 267,
       "bucket": "res"
     },
     {
-      "name": "res/XY.xml",
-      "size": 264,
+      "name": "res/4B.xml",
+      "uncompressedSize": 452,
+      "compressedSize": 265,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qA.xml",
+      "uncompressedSize": 452,
+      "compressedSize": 265,
       "bucket": "res"
     },
     {
       "name": "res/2P.png",
-      "size": 262,
+      "uncompressedSize": 262,
+      "compressedSize": 262,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1x.xml",
+      "uncompressedSize": 472,
+      "compressedSize": 261,
+      "bucket": "res"
+    },
+    {
+      "name": "res/e-.xml",
+      "uncompressedSize": 472,
+      "compressedSize": 260,
       "bucket": "res"
     },
     {
       "name": "res/o9.9.png",
-      "size": 260,
+      "uncompressedSize": 260,
+      "compressedSize": 260,
+      "bucket": "res"
+    },
+    {
+      "name": "res/UX.xml",
+      "uncompressedSize": 508,
+      "compressedSize": 259,
       "bucket": "res"
     },
     {
       "name": "res/3u.9.png",
-      "size": 258,
+      "uncompressedSize": 258,
+      "compressedSize": 258,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_hint_foreground_material_dark.xml",
+      "uncompressedSize": 564,
+      "compressedSize": 258,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_hint_foreground_material_light.xml",
+      "uncompressedSize": 564,
+      "compressedSize": 258,
+      "bucket": "res"
+    },
+    {
+      "name": "res/k_.xml",
+      "uncompressedSize": 508,
+      "compressedSize": 258,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_color_highlight_material.xml",
+      "uncompressedSize": 544,
+      "compressedSize": 257,
       "bucket": "res"
     },
     {
       "name": "res/Uj.png",
-      "size": 256,
+      "uncompressedSize": 256,
+      "compressedSize": 256,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xj.xml",
+      "uncompressedSize": 588,
+      "compressedSize": 252,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_search_url_text.xml",
+      "uncompressedSize": 588,
+      "compressedSize": 250,
+      "bucket": "res"
+    },
+    {
+      "name": "res/3W.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 246,
+      "bucket": "res"
+    },
+    {
+      "name": "res/bb.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 246,
       "bucket": "res"
     },
     {
       "name": "res/s3.9.png",
-      "size": 245,
+      "uncompressedSize": 245,
+      "compressedSize": 245,
       "bucket": "res"
     },
     {
       "name": "res/CK.9.png",
-      "size": 244,
+      "uncompressedSize": 244,
+      "compressedSize": 244,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Xx.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 244,
       "bucket": "res"
     },
     {
       "name": "res/bX.9.png",
-      "size": 244,
+      "uncompressedSize": 244,
+      "compressedSize": 244,
       "bucket": "res"
     },
     {
-      "name": "META-INF/xposed/scope.list",
-      "size": 243,
-      "bucket": "meta"
+      "name": "res/XK.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 241,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_seek_thumb.xml",
+      "uncompressedSize": 500,
+      "compressedSize": 241,
+      "bucket": "res"
     },
     {
       "name": "res/gj.9.png",
-      "size": 237,
+      "uncompressedSize": 237,
+      "compressedSize": 237,
       "bucket": "res"
     },
     {
       "name": "res/jS.9.png",
-      "size": 236,
+      "uncompressedSize": 236,
+      "compressedSize": 236,
       "bucket": "res"
     },
     {
       "name": "res/65.9.png",
-      "size": 235,
+      "uncompressedSize": 235,
+      "compressedSize": 235,
+      "bucket": "res"
+    },
+    {
+      "name": "res/In.xml",
+      "uncompressedSize": 468,
+      "compressedSize": 232,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_background_cache_hint_selector_material_dark.xml",
+      "uncompressedSize": 468,
+      "compressedSize": 231,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_background_cache_hint_selector_material_light.xml",
+      "uncompressedSize": 468,
+      "compressedSize": 231,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7H.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 230,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9z.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 230,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Jl.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 230,
+      "bucket": "res"
+    },
+    {
+      "name": "res/sA.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 230,
       "bucket": "res"
     },
     {
       "name": "res/BL.9.png",
-      "size": 229,
+      "uncompressedSize": 229,
+      "compressedSize": 229,
       "bucket": "res"
     },
     {
       "name": "res/ZN.9.png",
-      "size": 229,
+      "uncompressedSize": 229,
+      "compressedSize": 229,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_disable_only_material_dark.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_disable_only_material_light.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_material_light.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 228,
       "bucket": "res"
     },
     {
       "name": "res/ev.9.png",
-      "size": 228,
+      "uncompressedSize": 228,
+      "compressedSize": 228,
       "bucket": "res"
     },
     {
       "name": "res/iO.png",
-      "size": 228,
+      "uncompressedSize": 228,
+      "compressedSize": 228,
       "bucket": "res"
     },
     {
       "name": "res/6t.png",
-      "size": 227,
+      "uncompressedSize": 227,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_material_dark.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_secondary_text_material_dark.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_secondary_text_material_light.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/switch_thumb_material_light.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/switch_thumb_material_dark.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 226,
       "bucket": "res"
     },
     {
       "name": "res/sg.9.png",
-      "size": 226,
+      "uncompressedSize": 226,
+      "compressedSize": 226,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NM.xml",
+      "uncompressedSize": 484,
+      "compressedSize": 225,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_G.xml",
+      "uncompressedSize": 484,
+      "compressedSize": 225,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/color_selector.xml",
+      "uncompressedSize": 484,
+      "compressedSize": 224,
       "bucket": "res"
     },
     {
       "name": "res/kp1.png",
-      "size": 224,
+      "uncompressedSize": 224,
+      "compressedSize": 224,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1a.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 223,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rj.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 223,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BW.xml",
+      "uncompressedSize": 448,
+      "compressedSize": 222,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Qj.xml",
+      "uncompressedSize": 484,
+      "compressedSize": 222,
       "bucket": "res"
     },
     {
       "name": "res/UE.9.png",
-      "size": 222,
+      "uncompressedSize": 222,
+      "compressedSize": 222,
       "bucket": "res"
     },
     {
       "name": "res/X3.9.png",
-      "size": 221,
+      "uncompressedSize": 221,
+      "compressedSize": 221,
       "bucket": "res"
     },
     {
       "name": "res/W4.9.png",
-      "size": 217,
+      "uncompressedSize": 217,
+      "compressedSize": 217,
       "bucket": "res"
     },
     {
       "name": "res/py.9.png",
-      "size": 217,
+      "uncompressedSize": 217,
+      "compressedSize": 217,
       "bucket": "res"
     },
     {
       "name": "res/K_.9.png",
-      "size": 216,
+      "uncompressedSize": 216,
+      "compressedSize": 216,
       "bucket": "res"
     },
     {
       "name": "res/42.9.png",
-      "size": 214,
+      "uncompressedSize": 214,
+      "compressedSize": 214,
+      "bucket": "res"
+    },
+    {
+      "name": "res/sn.xml",
+      "uncompressedSize": 400,
+      "compressedSize": 214,
       "bucket": "res"
     },
     {
       "name": "res/w_.png",
-      "size": 214,
+      "uncompressedSize": 214,
+      "compressedSize": 214,
       "bucket": "res"
     },
     {
       "name": "res/Y7.9.png",
-      "size": 212,
+      "uncompressedSize": 212,
+      "compressedSize": 212,
       "bucket": "res"
     },
     {
       "name": "res/hh.9.png",
-      "size": 212,
+      "uncompressedSize": 212,
+      "compressedSize": 212,
       "bucket": "res"
     },
     {
       "name": "res/x3.9.png",
-      "size": 212,
+      "uncompressedSize": 212,
+      "compressedSize": 212,
       "bucket": "res"
     },
     {
       "name": "res/SV.9.png",
-      "size": 211,
+      "uncompressedSize": 211,
+      "compressedSize": 211,
       "bucket": "res"
     },
     {
       "name": "res/62.9.png",
-      "size": 210,
+      "uncompressedSize": 210,
+      "compressedSize": 210,
       "bucket": "res"
     },
     {
       "name": "res/0x.9.png",
-      "size": 209,
+      "uncompressedSize": 209,
+      "compressedSize": 209,
       "bucket": "res"
     },
     {
       "name": "res/Yt.9.png",
-      "size": 209,
+      "uncompressedSize": 209,
+      "compressedSize": 209,
       "bucket": "res"
     },
     {
       "name": "res/kJ.9.png",
-      "size": 208,
+      "uncompressedSize": 208,
+      "compressedSize": 208,
       "bucket": "res"
     },
     {
       "name": "res/tU.9.png",
-      "size": 208,
+      "uncompressedSize": 208,
+      "compressedSize": 208,
       "bucket": "res"
     },
     {
       "name": "res/v4.9.png",
-      "size": 208,
+      "uncompressedSize": 208,
+      "compressedSize": 208,
       "bucket": "res"
     },
     {
       "name": "res/8h.9.png",
-      "size": 207,
+      "uncompressedSize": 207,
+      "compressedSize": 207,
       "bucket": "res"
     },
     {
       "name": "res/Pg.9.png",
-      "size": 207,
+      "uncompressedSize": 207,
+      "compressedSize": 207,
       "bucket": "res"
     },
     {
       "name": "res/nI.9.png",
-      "size": 207,
+      "uncompressedSize": 207,
+      "compressedSize": 207,
       "bucket": "res"
     },
     {
       "name": "res/gt.9.png",
-      "size": 205,
+      "uncompressedSize": 205,
+      "compressedSize": 205,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/preference_primary_text_disable.xml",
+      "uncompressedSize": 376,
+      "compressedSize": 204,
       "bucket": "res"
     },
     {
       "name": "res/uu.9.png",
-      "size": 204,
+      "uncompressedSize": 204,
+      "compressedSize": 204,
       "bucket": "res"
     },
     {
       "name": "res/H-.png",
-      "size": 203,
+      "uncompressedSize": 203,
+      "compressedSize": 203,
       "bucket": "res"
     },
     {
       "name": "res/YG.9.png",
-      "size": 203,
+      "uncompressedSize": 203,
+      "compressedSize": 203,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/color_popmenu_background.xml",
+      "uncompressedSize": 376,
+      "compressedSize": 203,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/color_popup_background.xml",
+      "uncompressedSize": 376,
+      "compressedSize": 203,
       "bucket": "res"
     },
     {
       "name": "res/Gt.9.png",
-      "size": 202,
+      "uncompressedSize": 202,
+      "compressedSize": 202,
       "bucket": "res"
     },
     {
       "name": "res/-D.png",
-      "size": 201,
+      "uncompressedSize": 201,
+      "compressedSize": 201,
       "bucket": "res"
     },
     {
       "name": "res/4k.png",
-      "size": 201,
+      "uncompressedSize": 201,
+      "compressedSize": 201,
       "bucket": "res"
     },
     {
       "name": "res/EA.9.png",
-      "size": 200,
+      "uncompressedSize": 200,
+      "compressedSize": 200,
+      "bucket": "res"
+    },
+    {
+      "name": "res/3V.xml",
+      "uncompressedSize": 352,
+      "compressedSize": 199,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Cg.xml",
+      "uncompressedSize": 424,
+      "compressedSize": 199,
+      "bucket": "res"
+    },
+    {
+      "name": "res/MO.xml",
+      "uncompressedSize": 424,
+      "compressedSize": 199,
       "bucket": "res"
     },
     {
       "name": "res/No.9.png",
-      "size": 199,
+      "uncompressedSize": 199,
+      "compressedSize": 199,
       "bucket": "res"
     },
     {
       "name": "res/tZ.9.png",
-      "size": 198,
+      "uncompressedSize": 198,
+      "compressedSize": 198,
       "bucket": "res"
     },
     {
       "name": "res/qp.png",
-      "size": 197,
+      "uncompressedSize": 197,
+      "compressedSize": 197,
       "bucket": "res"
     },
     {
       "name": "res/Wz.png",
-      "size": 196,
+      "uncompressedSize": 196,
+      "compressedSize": 196,
       "bucket": "res"
     },
     {
       "name": "res/uj.9.png",
-      "size": 196,
+      "uncompressedSize": 196,
+      "compressedSize": 196,
       "bucket": "res"
     },
     {
       "name": "res/0z.png",
-      "size": 194,
+      "uncompressedSize": 194,
+      "compressedSize": 194,
       "bucket": "res"
     },
     {
       "name": "res/lP.9.png",
-      "size": 194,
+      "uncompressedSize": 194,
+      "compressedSize": 194,
       "bucket": "res"
     },
     {
       "name": "res/xR.9.png",
-      "size": 194,
+      "uncompressedSize": 194,
+      "compressedSize": 194,
       "bucket": "res"
     },
     {
       "name": "res/9X.9.png",
-      "size": 192,
+      "uncompressedSize": 192,
+      "compressedSize": 192,
       "bucket": "res"
     },
     {
       "name": "res/BG.9.png",
-      "size": 190,
+      "uncompressedSize": 190,
+      "compressedSize": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/DZ.xml",
+      "uncompressedSize": 320,
+      "compressedSize": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NF.xml",
+      "uncompressedSize": 328,
+      "compressedSize": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VM.xml",
+      "uncompressedSize": 328,
+      "compressedSize": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/lN.xml",
+      "uncompressedSize": 320,
+      "compressedSize": 190,
       "bucket": "res"
     },
     {
       "name": "res/QJ.9.png",
-      "size": 189,
+      "uncompressedSize": 189,
+      "compressedSize": 189,
       "bucket": "res"
     },
     {
       "name": "res/9N.9.png",
-      "size": 187,
+      "uncompressedSize": 187,
+      "compressedSize": 187,
       "bucket": "res"
     },
     {
       "name": "res/X4.9.png",
-      "size": 187,
+      "uncompressedSize": 187,
+      "compressedSize": 187,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_o.xml",
+      "uncompressedSize": 316,
+      "compressedSize": 187,
+      "bucket": "res"
+    },
+    {
+      "name": "res/c5.xml",
+      "uncompressedSize": 316,
+      "compressedSize": 187,
       "bucket": "res"
     },
     {
       "name": "res/Yw.9.png",
-      "size": 186,
+      "uncompressedSize": 186,
+      "compressedSize": 186,
       "bucket": "res"
     },
     {
       "name": "res/i6.9.png",
-      "size": 186,
+      "uncompressedSize": 186,
+      "compressedSize": 186,
       "bucket": "res"
     },
     {
       "name": "res/xH.png",
-      "size": 186,
+      "uncompressedSize": 186,
+      "compressedSize": 186,
       "bucket": "res"
     },
     {
       "name": "res/yY.9.png",
-      "size": 186,
+      "uncompressedSize": 186,
+      "compressedSize": 186,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7N.xml",
+      "uncompressedSize": 372,
+      "compressedSize": 185,
+      "bucket": "res"
+    },
+    {
+      "name": "res/YW.xml",
+      "uncompressedSize": 372,
+      "compressedSize": 185,
       "bucket": "res"
     },
     {
       "name": "res/yH.9.png",
-      "size": 184,
+      "uncompressedSize": 184,
+      "compressedSize": 184,
       "bucket": "res"
     },
     {
       "name": "res/NZ.9.png",
-      "size": 182,
+      "uncompressedSize": 182,
+      "compressedSize": 182,
       "bucket": "res"
     },
     {
       "name": "res/vz.9.png",
-      "size": 181,
+      "uncompressedSize": 181,
+      "compressedSize": 181,
       "bucket": "res"
     },
     {
-      "name": "assets/test4.zip",
-      "size": 179,
-      "bucket": "assets"
-    },
-    {
       "name": "res/9n.9.png",
-      "size": 178,
+      "uncompressedSize": 178,
+      "compressedSize": 178,
       "bucket": "res"
     },
     {
       "name": "res/DL.9.png",
-      "size": 178,
+      "uncompressedSize": 178,
+      "compressedSize": 178,
       "bucket": "res"
     },
     {
       "name": "res/D_.9.png",
-      "size": 178,
+      "uncompressedSize": 178,
+      "compressedSize": 178,
       "bucket": "res"
     },
     {
       "name": "res/Su.9.png",
-      "size": 178,
+      "uncompressedSize": 178,
+      "compressedSize": 178,
       "bucket": "res"
     },
     {
       "name": "res/ps.9.png",
-      "size": 178,
+      "uncompressedSize": 178,
+      "compressedSize": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/27.xml",
+      "uncompressedSize": 336,
+      "compressedSize": 174,
+      "bucket": "res"
+    },
+    {
+      "name": "res/V7.xml",
+      "uncompressedSize": 304,
+      "compressedSize": 174,
       "bucket": "res"
     },
     {
       "name": "res/_q.png",
-      "size": 173,
+      "uncompressedSize": 173,
+      "compressedSize": 173,
       "bucket": "res"
     },
     {
       "name": "res/1e.9.png",
-      "size": 171,
+      "uncompressedSize": 171,
+      "compressedSize": 171,
       "bucket": "res"
     },
     {
       "name": "res/Wh.png",
-      "size": 171,
+      "uncompressedSize": 171,
+      "compressedSize": 171,
       "bucket": "res"
     },
     {
       "name": "res/ej.9.png",
-      "size": 167,
+      "uncompressedSize": 167,
+      "compressedSize": 167,
       "bucket": "res"
     },
     {
       "name": "res/hZ.9.png",
-      "size": 167,
+      "uncompressedSize": 167,
+      "compressedSize": 167,
       "bucket": "res"
     },
     {
       "name": "res/jS1.9.png",
-      "size": 167,
+      "uncompressedSize": 167,
+      "compressedSize": 167,
       "bucket": "res"
     },
     {
       "name": "res/BM.png",
-      "size": 159,
+      "uncompressedSize": 159,
+      "compressedSize": 159,
+      "bucket": "res"
+    },
+    {
+      "name": "res/XY.xml",
+      "uncompressedSize": 264,
+      "compressedSize": 152,
       "bucket": "res"
     },
     {
       "name": "res/2d.png",
-      "size": 145,
-      "bucket": "res"
-    },
-    {
-      "name": "res/lL.xml",
-      "size": 136,
+      "uncompressedSize": 145,
+      "compressedSize": 145,
       "bucket": "res"
     },
     {
       "name": "res/kp.png",
-      "size": 128,
+      "uncompressedSize": 128,
+      "compressedSize": 128,
       "bucket": "res"
     },
     {
-      "name": "res/QZ.xml",
-      "size": 124,
-      "bucket": "res"
-    },
-    {
-      "name": "res/XW.xml",
-      "size": 124,
-      "bucket": "res"
-    },
-    {
-      "name": "res/aW.xml",
-      "size": 124,
-      "bucket": "res"
+      "name": "assets/test4.zip",
+      "uncompressedSize": 179,
+      "compressedSize": 123,
+      "bucket": "assets"
     },
     {
       "name": "res/YG.png",
-      "size": 123,
+      "uncompressedSize": 123,
+      "compressedSize": 123,
       "bucket": "res"
     },
     {
       "name": "META-INF/version-control-info.textproto",
-      "size": 120,
+      "uncompressedSize": 120,
+      "compressedSize": 118,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/xposed/scope.list",
+      "uncompressedSize": 243,
+      "compressedSize": 113,
+      "bucket": "meta"
+    },
+    {
+      "name": "res/lL.xml",
+      "uncompressedSize": 136,
+      "compressedSize": 79,
+      "bucket": "res"
+    },
+    {
+      "name": "res/QZ.xml",
+      "uncompressedSize": 124,
+      "compressedSize": 68,
+      "bucket": "res"
+    },
+    {
+      "name": "res/XW.xml",
+      "uncompressedSize": 124,
+      "compressedSize": 68,
+      "bucket": "res"
+    },
+    {
+      "name": "res/aW.xml",
+      "uncompressedSize": 124,
+      "compressedSize": 68,
+      "bucket": "res"
+    },
+    {
+      "name": "META-INF/com/android/build/gradle/app-metadata.properties",
+      "uncompressedSize": 56,
+      "compressedSize": 51,
       "bucket": "meta"
     },
     {
       "name": "META-INF/xposed/module.prop",
-      "size": 57,
-      "bucket": "meta"
-    },
-    {
-      "name": "META-INF/com/android/build/gradle/app-metadata.properties",
-      "size": 56,
+      "uncompressedSize": 57,
+      "compressedSize": 48,
       "bucket": "meta"
     },
     {
       "name": "assets/test3.txt",
-      "size": 25,
+      "uncompressedSize": 25,
+      "compressedSize": 27,
       "bucket": "assets"
     },
     {
       "name": "META-INF/kotlinx_coroutines_android.version",
-      "size": 6,
+      "uncompressedSize": 6,
+      "compressedSize": 8,
       "bucket": "meta"
     },
     {
       "name": "META-INF/kotlinx_coroutines_core.version",
-      "size": 6,
+      "uncompressedSize": 6,
+      "compressedSize": 8,
       "bucket": "meta"
     },
     {
       "name": "META-INF/services/d4",
-      "size": 3,
+      "uncompressedSize": 3,
+      "compressedSize": 5,
       "bucket": "meta"
     },
     {
       "name": "META-INF/services/rg",
-      "size": 3,
+      "uncompressedSize": 3,
+      "compressedSize": 5,
       "bucket": "meta"
     },
     {
       "name": "META-INF/xposed/java_init.list",
-      "size": 3,
+      "uncompressedSize": 3,
+      "compressedSize": 5,
       "bucket": "meta"
     }
   ]
