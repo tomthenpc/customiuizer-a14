@@ -19,7 +19,7 @@ pluginManagement {
                 }
             }
         } else {
-            // Official repositories only. This is the default for CI and non-China builds.
+            // Official repositories only. This is the default for non-China builds.
             google()
             mavenCentral()
             gradlePluginPortal()
@@ -65,7 +65,7 @@ dependencyResolutionManagement {
                 }
             }
         } else {
-            // Official repositories only. This is the default for CI and non-China builds.
+            // Official repositories only. This is the default for non-China builds.
             google()
             mavenCentral()
         }

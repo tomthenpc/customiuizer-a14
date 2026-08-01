@@ -98,7 +98,7 @@ versionCode / versionName：`191 / r14.15.3`
 
 ### 产物
 
-- APK：`CustoMIUIzer-A14-r14.15.0.apk`（正式签名时） / `CustoMIUIzer-A14-r14.15.0-unsigned-ci.apk`（CI）。
+- APK：`CustoMIUIzer-A14-r14.15.0.apk`（正式签名时） / `CustoMIUIzer-A14-r14.15.0-unsigned.apk`（本地未签名）。
 - versionCode / versionName：`188 / r14.15.0`
 
 ## [r14.15.1] - 2026-07-31
@@ -139,7 +139,7 @@ versionCode / versionName：`191 / r14.15.3`
 
 ### 产物
 
-- APK：`CustoMIUIzer-A14-r14.15.1.apk`（正式签名时） / `CustoMIUIzer-A14-r14.15.1-unsigned-ci.apk`（CI）。
+- APK：`CustoMIUIzer-A14-r14.15.1.apk`（正式签名时） / `CustoMIUIzer-A14-r14.15.1-unsigned.apk`（本地未签名）。
 - versionCode / versionName：`189 / r14.15.1`
 
 ## [r14.13.9] - 2026-07-31
@@ -159,12 +159,12 @@ versionCode / versionName：`191 / r14.15.3`
 
 - 通过 `python tools/check-invariants.py`、`python tools/audit-feature-semantics.py --validate`。
 - 通过 `gradlew test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease`。
-- 通过 GitHub Actions CI 全部任务。
+- 本地离线验证链全部通过（`check-invariants`、`test`、`lintDebug`、`lintRelease`、`lintVitalRelease`、`assembleDebug`、`assembleRelease`）。
 - `META-INF/xposed/scope.list` 校验包含 `system`、`android`、`com.android.systemui`、`com.miui.home`。
 
 ### 已知边界
 
-- `r14.13.9` 构建和 CI 已通过，但修复后的 `system_server` 真机加载、完整 `a14-smoke`、Broadcast 负向探测和 Tasker 人工检查尚未执行。
+- `r14.13.9` 构建和离线验证已通过，但修复后的 `system_server` 真机加载、完整 `a14-smoke`、Broadcast 负向探测和 Tasker 人工检查尚未执行。
 
 ### 产物
 

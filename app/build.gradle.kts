@@ -141,8 +141,8 @@ androidComponents {
         variant.outputs.forEach { output ->
             val suffix = when (variant.name) {
                 "debug" -> "-debug"
-                "release" -> if (officialRelease) "" else "-unsigned-ci"
-                "develop" -> if (officialRelease) "-develop" else "-develop-unsigned-ci"
+                "release" -> if (officialRelease) "" else "-unsigned"
+                "develop" -> if (officialRelease) "-develop" else "-develop-unsigned"
                 else -> ""
             }
             output.outputFileName.set("CustoMIUIzer-A14-$lastVersionName$suffix.apk")

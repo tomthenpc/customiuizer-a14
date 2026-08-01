@@ -109,7 +109,7 @@ It also does not claim a real `system_server` crash was observed before or after
 
 ### Artifacts
 
-- APK: `CustoMIUIzer-A14-r14.15.0.apk` (production signed) / `CustoMIUIzer-A14-r14.15.0-unsigned-ci.apk` (CI).
+- APK: `CustoMIUIzer-A14-r14.15.0.apk` (production signed) / `CustoMIUIzer-A14-r14.15.0-unsigned.apk` (local unsigned).
 - versionCode / versionName: `188 / r14.15.0`
 
 ## [r14.15.1] - 2026-07-31
@@ -146,7 +146,7 @@ The `system` scope and Toast path were core-verified on `r14.13.9`. The Receiver
 
 ### Artifacts
 
-- APK: `CustoMIUIzer-A14-r14.15.1.apk` (production signed) / `CustoMIUIzer-A14-r14.15.1-unsigned-ci.apk` (CI).
+- APK: `CustoMIUIzer-A14-r14.15.1.apk` (production signed) / `CustoMIUIzer-A14-r14.15.1-unsigned.apk` (local unsigned).
 - versionCode / versionName: `189 / r14.15.1`
 
 ## [r14.13.9] - 2026-07-31
@@ -166,12 +166,12 @@ are not silently skipped. No business hook logic was changed.
 
 - `python tools/check-invariants.py`, `python tools/audit-feature-semantics.py --validate`, and the full Python test suite pass.
 - `gradlew test lintDebug lintRelease lintVitalRelease assembleDebug assembleRelease` passes.
-- GitHub Actions CI passes.
+- Local offline verification pipeline passes (check-invariants, test, lintDebug, lintRelease, lintVitalRelease, assembleDebug, assembleRelease).
 - `META-INF/xposed/scope.list` contains `system`, `android`, `com.android.systemui`, and `com.miui.home`.
 
 ### Known boundary
 
-The `r14.13.9` build and CI have passed, but the fixed `system_server` real-device loading, full `a14-smoke`, Broadcast negative probe, and Tasker manual checkpoint have not yet been executed.
+The `r14.13.9` build and offline verification have passed, but the fixed `system_server` real-device loading, full `a14-smoke`, Broadcast negative probe, and Tasker manual checkpoint have not yet been executed.
 
 ### Artifacts
 
