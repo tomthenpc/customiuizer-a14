@@ -13,6 +13,11 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 
 object CommonPackageFeatures {
     @JvmStatic
+    fun hasEnabledFeature(prefs: PrefMap, packageName: String): Boolean =
+        StatusBarHeightFeature.evaluateEnabled(prefs) ||
+            AlarmCompatFeature.evaluateEnabled(prefs, packageName)
+
+    @JvmStatic
     fun all(lpparam: PackageReadyParam, mPrefs: PrefMap): List<FeatureSpec> = listOf(
         LazyFeatureSpec(
             id = StatusBarHeightFeatureId,

@@ -170,11 +170,13 @@ public class MainModule extends XposedModule {
             return;
         }
 
-        FeatureInstallRegistry commonRegistry = new FeatureInstallRegistry();
-        for (FeatureSpec feature : CommonPackageFeatures.all(lpparam, mPrefs)) {
-            commonRegistry.register(feature);
+        if (CommonPackageFeatures.hasEnabledFeature(mPrefs, pkg)) {
+            FeatureInstallRegistry commonRegistry = new FeatureInstallRegistry();
+            for (FeatureSpec feature : CommonPackageFeatures.all(lpparam, mPrefs)) {
+                commonRegistry.register(feature);
+            }
+            commonRegistry.installAll(FeatureTarget.ANY, InstallPhase.PACKAGE_READY, mPrefs);
         }
-        commonRegistry.installAll(FeatureTarget.ANY, InstallPhase.PACKAGE_READY, mPrefs);
 
         if (pkg.equals("com.miui.miwallpaper")
             || pkg.equals("com.miui.screenshot")
