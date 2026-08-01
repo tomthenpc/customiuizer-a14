@@ -126,13 +126,9 @@ class BatteryIndicator @JvmOverloads constructor(
         updateParameters()
         ModuleHelper.observePreferenceChange(
             object : ModuleHelper.PreferenceObserver {
-                override fun onChange(key: String?) {
-                    try {
-                        if (!mTesting && key?.contains("pref_key_system_batteryindicator") == true) {
-                            viewScope.launch { updateParameters(); update() }
-                        }
-                    } catch (t: Throwable) {
-                        XposedHelpers.log(t)
+                override fun onChange(key: String?) = ModuleHelper.guarded {
+                    if (!mTesting && key?.contains("pref_key_system_batteryindicator") == true) {
+                        viewScope.launch { updateParameters(); update() }
                     }
                 }
             },

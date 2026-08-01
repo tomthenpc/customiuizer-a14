@@ -56,7 +56,7 @@ object SystemDisplayHooks {
                         mColorFadeOffAnimator.duration = value.toLong()
                     }
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
-                        override fun onChange(key: String?) {
+                        override fun onChange(key: String?) = ModuleHelper.guarded {
                             if (key?.contains("system_screenanim_duration") == true) {
                                 if (mColorFadeOffAnimator == null) return
                                 var value2 = MainModule.mPrefs.getInt("system_screenanim_duration", 0)
@@ -121,7 +121,7 @@ object SystemDisplayHooks {
                     val thisObject = chain.thisObject
                     mCustomBlurModifier[0] = MainModule.mPrefs.getInt("system_drawer_blur", 100)
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
-                        override fun onChange(key: String?) {
+                        override fun onChange(key: String?) = ModuleHelper.guarded {
                             if (key?.contains("system_drawer_blur") == true) {
                                 mCustomBlurModifier[0] = MainModule.mPrefs.getInt("system_drawer_blur", 100)
                             }
@@ -515,7 +515,7 @@ object SystemDisplayHooks {
                     val scale = MainModule.mPrefs.getInt("system_other_wallpaper_scale", 6) / 10.0f
                     XposedHelpers.setObjectField(thisObject, "mMaxWallpaperScale", scale)
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
-                        override fun onChange(key: String?) {
+                        override fun onChange(key: String?) = ModuleHelper.guarded {
                             if (key?.contains("system_other_wallpaper_scale") == true) {
                                 val value = MainModule.mPrefs.getInt("system_other_wallpaper_scale", 6)
                                 XposedHelpers.setObjectField(thisObject, "mMaxWallpaperScale", value / 10.0f)

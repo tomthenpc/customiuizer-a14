@@ -179,13 +179,11 @@ object SystemClockHooks {
             }
         }
 
-        override fun onScreenStateChanged(isOn: Boolean) {
-            if (isOn) start() else stop()
-        }
+        override fun onScreenStateChanged(isOn: Boolean) = ModuleHelper.guarded { if (isOn) start() else stop() }
 
         override fun run() {
             if (!running) return
-            try {
+            ModuleHelper.guarded {
                 val calendar = XposedHelpers.getObjectField(clockController, "mCalendar")
                 XposedHelpers.callMethod(calendar, "setTimeInMillis", java.lang.System.currentTimeMillis())
                 XposedHelpers.setObjectField(clockController, "mIs24", DateFormat.is24HourFormat(context))
@@ -196,8 +194,6 @@ object SystemClockHooks {
                         XposedHelpers.callMethod(clock, "updateTime")
                     }
                 }
-            } catch (t: Throwable) {
-                XposedHelpers.log("SecondTicker", t)
             }
             scheduleNextTick()
         }
@@ -287,7 +283,7 @@ object SystemClockHooks {
                             timeSetIntent,
                             Context.RECEIVER_NOT_EXPORTED
                         ) { _, owner, _, _ ->
-                            initSecondTicker(owner)
+                            ModuleHelper.guarded { initSecondTicker(owner) }
                         }
                     }
 

@@ -146,31 +146,27 @@ object SystemStatusBarIconHooks {
     private const val ALARM_NEXT_TIME = "customiuizer_alarmNextTime"
     private const val ALARM_POLICY_OWNER = "customiuizer_alarmPolicyOwner"
 
-    private fun updateAlarmVisibility(thisObject: Any) {
-        try {
-            val mIconController = XposedHelpers.getObjectField(thisObject, "mIconController")
-            val lastState = XposedHelpers.getAdditionalInstanceField(thisObject, ALARM_LAST_STATE) as? Boolean ?: false
-            if (!lastState) {
-                XposedHelpers.callMethod(mIconController, "setIconVisibility", "alarm_clock", false)
-                return
-            }
-
-            val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
-            val nowTime = java.lang.System.currentTimeMillis()
-            var nextTime = XposedHelpers.getAdditionalInstanceField(thisObject, ALARM_NEXT_TIME) as? Long ?: 0L
-            if (nextTime == 0L) {
-                nextTime = ModuleHelper.getNextMIUIAlarmTime(mContext)
-            }
-            if (nextTime == 0L) nextTime = HookUtils.getNextStockAlarmTime(mContext)
-
-            var diffMSec = nextTime - nowTime
-            if (diffMSec < 0) diffMSec += 7 * 24 * 60 * 60 * 1000
-            val diffHours = (diffMSec - 59 * 1000) / (1000f * 60f * 60f)
-            val vis = diffHours <= MainModule.mPrefs.getInt("system_statusbaricons_alarmn", 0)
-            XposedHelpers.callMethod(mIconController, "setIconVisibility", "alarm_clock", vis)
-        } catch (t: Throwable) {
-            XposedHelpers.log(t)
+    private fun updateAlarmVisibility(thisObject: Any) = ModuleHelper.guarded {
+        val mIconController = XposedHelpers.getObjectField(thisObject, "mIconController")
+        val lastState = XposedHelpers.getAdditionalInstanceField(thisObject, ALARM_LAST_STATE) as? Boolean ?: false
+        if (!lastState) {
+            XposedHelpers.callMethod(mIconController, "setIconVisibility", "alarm_clock", false)
+            return
         }
+
+        val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
+        val nowTime = java.lang.System.currentTimeMillis()
+        var nextTime = XposedHelpers.getAdditionalInstanceField(thisObject, ALARM_NEXT_TIME) as? Long ?: 0L
+        if (nextTime == 0L) {
+            nextTime = ModuleHelper.getNextMIUIAlarmTime(mContext)
+        }
+        if (nextTime == 0L) nextTime = HookUtils.getNextStockAlarmTime(mContext)
+
+        var diffMSec = nextTime - nowTime
+        if (diffMSec < 0) diffMSec += 7 * 24 * 60 * 60 * 1000
+        val diffHours = (diffMSec - 59 * 1000) / (1000f * 60f * 60f)
+        val vis = diffHours <= MainModule.mPrefs.getInt("system_statusbaricons_alarmn", 0)
+        XposedHelpers.callMethod(mIconController, "setIconVisibility", "alarm_clock", vis)
     }
 
     @JvmStatic
@@ -204,7 +200,7 @@ object SystemStatusBarIconHooks {
                         filter,
                         Context.RECEIVER_NOT_EXPORTED
                     ) { _, owner, _, _ ->
-                        updateAlarmVisibility(owner)
+                        ModuleHelper.guarded { updateAlarmVisibility(owner) }
                     }
 
                     val mNextAlarmCallback = XposedHelpers.getObjectField(thisObject, "mNextAlarmCallback")

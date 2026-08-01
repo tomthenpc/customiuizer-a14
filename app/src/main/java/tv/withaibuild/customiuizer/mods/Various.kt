@@ -128,7 +128,7 @@ object Various {
                     val thisObject = chain.thisObject
 
                     val handler = Handler(Looper.getMainLooper())
-                    handler.post {
+                    handler.post { ModuleHelper.guarded {
                         val act = thisObject as Activity
                         val contentFrag = act.fragmentManager.findFragmentById(android.R.id.content)
                         val frag = contentFrag ?: mSupportFragment
@@ -137,36 +137,26 @@ object Various {
                             return@post
                         }
 
-                        val modRes: Resources
-                        try {
-                            modRes = ModuleHelper.getModuleRes(act)!!
-                            val piField = XposedHelpers.findFirstFieldByExactType(frag.javaClass, PackageInfo::class.java)
-                            mLastPackageInfo = piField.get(frag) as PackageInfo?
-                            val addPref = XposedHelpers.findMethodsByExactParameters(frag.javaClass, Void.TYPE, String::class.java, String::class.java, String::class.java)
-                            if (mLastPackageInfo == null || addPref.isEmpty()) {
-                                XposedHelpers.log("AppInfoHook", "Unable to find field/class/method in SecurityCenter to hook")
-                                return@post
-                            } else {
-                                addPref[0].isAccessible = true
-                            }
-                            val pkgInfo = mLastPackageInfo!!
-                            addPref[0].invoke(frag, "apk_versioncode", modRes.getString(R.string.appdetails_apk_version_code), pkgInfo.versionCode.toString())
-                            addPref[0].invoke(frag, "apk_filename", modRes.getString(R.string.appdetails_apk_file), pkgInfo.applicationInfo!!.sourceDir)
-                            addPref[0].invoke(frag, "data_path", modRes.getString(R.string.appdetails_data_path), pkgInfo.applicationInfo!!.dataDir)
-                            addPref[0].invoke(frag, "app_uid", modRes.getString(R.string.appdetails_app_uid), pkgInfo.applicationInfo!!.uid.toString())
-                            addPref[0].invoke(frag, "target_sdk", modRes.getString(R.string.appdetails_sdk), pkgInfo.applicationInfo!!.targetSdkVersion.toString())
-                            handler.post {
-                                try {
-                                    addPref[0].invoke(frag, "open_in_store", modRes.getString(R.string.appdetails_playstore), "")
-                                    addPref[0].invoke(frag, "launch_app", modRes.getString(R.string.appdetails_launch), "")
-                                } catch (t: Throwable) {
-                                    XposedHelpers.log(t)
-                                }
-                            }
-                        } catch (t: Throwable) {
-                            XposedHelpers.log(t)
+                        val modRes = ModuleHelper.getModuleRes(act)!!
+                        val piField = XposedHelpers.findFirstFieldByExactType(frag.javaClass, PackageInfo::class.java)
+                        mLastPackageInfo = piField.get(frag) as PackageInfo?
+                        val addPref = XposedHelpers.findMethodsByExactParameters(frag.javaClass, Void.TYPE, String::class.java, String::class.java, String::class.java)
+                        if (mLastPackageInfo == null || addPref.isEmpty()) {
+                            XposedHelpers.log("AppInfoHook", "Unable to find field/class/method in SecurityCenter to hook")
                             return@post
+                        } else {
+                            addPref[0].isAccessible = true
                         }
+                        val pkgInfo = mLastPackageInfo!!
+                        addPref[0].invoke(frag, "apk_versioncode", modRes.getString(R.string.appdetails_apk_version_code), pkgInfo.versionCode.toString())
+                        addPref[0].invoke(frag, "apk_filename", modRes.getString(R.string.appdetails_apk_file), pkgInfo.applicationInfo!!.sourceDir)
+                        addPref[0].invoke(frag, "data_path", modRes.getString(R.string.appdetails_data_path), pkgInfo.applicationInfo!!.dataDir)
+                        addPref[0].invoke(frag, "app_uid", modRes.getString(R.string.appdetails_app_uid), pkgInfo.applicationInfo!!.uid.toString())
+                        addPref[0].invoke(frag, "target_sdk", modRes.getString(R.string.appdetails_sdk), pkgInfo.applicationInfo!!.targetSdkVersion.toString())
+                            handler.post { ModuleHelper.guarded {
+                                addPref[0].invoke(frag, "open_in_store", modRes.getString(R.string.appdetails_playstore), "")
+                                addPref[0].invoke(frag, "launch_app", modRes.getString(R.string.appdetails_launch), "")
+                            }}
 
                         ModuleHelper.hookAllMethods(frag.javaClass, "onPreferenceTreeClick", object : MethodHook() {
                             override fun intercept(chain: XposedInterface.Chain): Any? {
@@ -238,7 +228,7 @@ object Various {
                                 return XposedHelpers.throwOrReturn(throwable, result)
                             }
                         })
-                    }
+                    }}
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
@@ -316,7 +306,7 @@ object Various {
     }
 
     private fun setAppState(act: Activity, pkgName: String, item: MenuItem, enable: Boolean) {
-        try {
+        ModuleHelper.guarded {
             val pm = act.packageManager
             pm.setApplicationEnabledSetting(pkgName, if (enable) PackageManager.COMPONENT_ENABLED_STATE_DEFAULT else PackageManager.COMPONENT_ENABLED_STATE_DISABLED, 0)
             val state = pm.getApplicationEnabledSetting(pkgName)
@@ -328,8 +318,6 @@ object Various {
                 Toast.makeText(act, ModuleHelper.getModuleRes(act)!!.getString(R.string.disable_app_fail), Toast.LENGTH_LONG).show()
             }
             Handler(Looper.getMainLooper()).postDelayed({ ModuleHelper.guarded { act.invalidateOptionsMenu() } }, 500)
-        } catch (t: Throwable) {
-            XposedHelpers.log(t)
         }
     }
 
@@ -433,7 +421,7 @@ object Various {
                             val title = modRes.getString(R.string.disable_app_title)
                             val text = modRes.getString(R.string.disable_app_text)
                             AlertDialog.Builder(act).setTitle(title).setMessage(text).setPositiveButton(android.R.string.ok) { _, _ ->
-                                setAppState(act, mPackageInfo.packageName, item, false)
+                                ModuleHelper.guarded { setAppState(act, mPackageInfo.packageName, item, false) }
                             }.setNegativeButton(android.R.string.cancel, null).show()
                         } else setAppState(act, mPackageInfo.packageName, item, false)
                     } else setAppState(act, mPackageInfo.packageName, item, true)
@@ -672,7 +660,7 @@ object Various {
                         if (!isHooked[1]) {
                             isHooked[1] = true
                             val myhandler = Handler(Looper.myLooper()!!)
-                            val removeBg = Runnable {
+                            val removeBg = Runnable { ModuleHelper.guarded {
                                 myhandler.removeCallbacks(this as Runnable)
                                 if (!enableSideBar) {
                                     val li = XposedHelpers.getObjectField(view, "mListenerInfo")
@@ -717,7 +705,7 @@ object Various {
                                     })
                                     view.background = null
                                 }
-                            }
+                            }}
                             myhandler.postDelayed(removeBg, 150)
                         }
                     }
