@@ -19,6 +19,16 @@ class ProcessRouterTest {
     }
 
     @Test
+    fun resolvesSystemUiPluginAsNonInstallable() {
+        assertEquals(ProcessScope.SYSTEM_UI, ProcessRouter.resolve("com.android.systemui", "com.android.systemui"))
+        assertEquals(ProcessScope.SYSTEM_UI, ProcessRouter.resolve("com.android.systemui", null))
+        assertEquals(ProcessScope.SYSTEM_UI_PLUGIN, ProcessRouter.resolve("com.android.systemui", "com.android.systemui:plugin"))
+        assertEquals(ProcessScope.SYSTEM_UI_PLUGIN, ProcessRouter.resolve("com.android.systemui", "com.android.systemui:remote"))
+        assertTrue(ProcessScope.SYSTEM_UI.isInstallable)
+        assertFalse(ProcessScope.SYSTEM_UI_PLUGIN.isInstallable)
+    }
+
+    @Test
     fun resolvesSettingsAndSecurityCenterVariants() {
         assertEquals(ProcessScope.SETTINGS_MAIN, ProcessRouter.resolve("com.android.settings", "com.android.settings"))
         assertEquals(ProcessScope.SETTINGS_REMOTE, ProcessRouter.resolve("com.android.settings", "com.android.settings:remote"))
@@ -62,6 +72,7 @@ class ProcessRouterTest {
     @Test
     fun installableScopes() {
         assertTrue(ProcessScope.SYSTEM_UI.isInstallable)
+        assertFalse(ProcessScope.SYSTEM_UI_PLUGIN.isInstallable)
         assertTrue(ProcessScope.LAUNCHER.isInstallable)
         assertTrue(ProcessScope.SETTINGS_MAIN.isInstallable)
         assertFalse(ProcessScope.SETTINGS_REMOTE.isInstallable)

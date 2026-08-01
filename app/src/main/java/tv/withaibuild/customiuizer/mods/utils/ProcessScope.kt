@@ -31,6 +31,7 @@ enum class ProcessScope {
     /** True if this scope can host module hooks in A14. */
     val isInstallable: Boolean
         get() = this != UNSUPPORTED
+            && this != SYSTEM_UI_PLUGIN
             && this != SETTINGS_REMOTE
             && this != SECURITY_CENTER_REMOTE
             && this != SECURITY_CENTER_BOOTAWARE

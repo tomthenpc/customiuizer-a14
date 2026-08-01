@@ -46,16 +46,18 @@ object ProcessRouter {
      */
     @JvmStatic
     @JvmOverloads
-    fun resolve(packageName: String, processName: String? = packageName): ProcessScope = when (packageName) {
-        "android" -> ProcessScope.SYSTEM_SERVER
-        "com.android.systemui" -> ProcessScope.SYSTEM_UI
-        "com.miui.home" -> ProcessScope.LAUNCHER
-        "com.android.settings" -> if (packageName == processName) ProcessScope.SETTINGS_MAIN else ProcessScope.SETTINGS_REMOTE
-        "com.miui.securitycenter" -> when (processName) {
-            "com.miui.securitycenter" -> ProcessScope.SECURITY_CENTER_MAIN
-            "com.miui.securitycenter.bootaware" -> ProcessScope.SECURITY_CENTER_BOOTAWARE
-            else -> ProcessScope.SECURITY_CENTER_REMOTE
-        }
+    fun resolve(packageName: String, processName: String? = packageName): ProcessScope {
+        val actualProcessName = processName ?: packageName
+        return when (packageName) {
+            "android" -> ProcessScope.SYSTEM_SERVER
+            "com.android.systemui" -> if (packageName == actualProcessName) ProcessScope.SYSTEM_UI else ProcessScope.SYSTEM_UI_PLUGIN
+            "com.miui.home" -> ProcessScope.LAUNCHER
+            "com.android.settings" -> if (packageName == actualProcessName) ProcessScope.SETTINGS_MAIN else ProcessScope.SETTINGS_REMOTE
+            "com.miui.securitycenter" -> when (actualProcessName) {
+                "com.miui.securitycenter" -> ProcessScope.SECURITY_CENTER_MAIN
+                "com.miui.securitycenter.bootaware" -> ProcessScope.SECURITY_CENTER_BOOTAWARE
+                else -> ProcessScope.SECURITY_CENTER_REMOTE
+            }
         "com.miui.powerkeeper" -> ProcessScope.POWER_KEEPER
         "com.miui.guardprovider" -> ProcessScope.GUARD_PROVIDER
         "com.miui.miwallpaper" -> ProcessScope.WALLPAPER
@@ -70,4 +72,5 @@ object ProcessRouter {
             else -> ProcessScope.GENERIC_APP
         }
     }
+}
 }
