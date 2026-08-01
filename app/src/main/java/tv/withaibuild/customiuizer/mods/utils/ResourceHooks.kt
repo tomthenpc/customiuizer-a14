@@ -3,11 +3,13 @@ package tv.withaibuild.customiuizer.mods.utils
 import android.app.MiuiThemeHelper
 import android.content.Context
 import android.content.res.Resources
+import android.os.SystemClock
 import android.util.SparseArray
 import android.util.SparseIntArray
 import io.github.libxposed.api.XposedInterface
 import miui.content.res.ThemeValues
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 class ResourceHooks {
 
@@ -37,11 +39,50 @@ class ResourceHooks {
         ID, OBJECT
     }
 
-    private val hookedTypes = HashSet<String>()
+    /**
+     * The fixed getter kind for every hot-path Resources hook.
+     *
+     * Each kind carries its method name, parameter types and a direct Resources call.  This removes
+     * the runtime `chain.executable.name` JNI lookup and the argument list materialization from the
+     * per-resource hot path.
+     */
+    private enum class ResourceGetterKind(
+        val methodName: String,
+        val paramTypes: Array<Class<*>>,
+        val supportsIdReplacement: Boolean = true,
+    ) {
+        GET_TEXT("getText", arrayOf(Int::class.javaPrimitiveType!!)),
+        GET_STRING("getString", arrayOf(Int::class.javaPrimitiveType!!)),
+        GET_LAYOUT("getLayout", arrayOf(Int::class.javaPrimitiveType!!), supportsIdReplacement = false),
+        GET_DRAWABLE_FOR_DENSITY(
+            "getDrawableForDensity",
+            arrayOf(
+                Int::class.javaPrimitiveType!!,
+                Int::class.javaPrimitiveType!!,
+                Resources.Theme::class.java,
+            ),
+        );
+
+        fun getValue(res: Resources, resId: Int, density: Int = 0, theme: Resources.Theme? = null): Any? {
+            return when (this) {
+                GET_TEXT -> res.getText(resId)
+                GET_STRING -> res.getString(resId)
+                GET_LAYOUT -> res.getLayout(resId)
+                GET_DRAWABLE_FOR_DENSITY -> res.getDrawableForDensity(resId, density, theme)
+            }
+        }
+    }
+
+    private enum class HookStatus {
+        PENDING,
+        HOOKED,
+        FAILED,
+    }
+
     private val themeValueReplacements = ConcurrentHashMap<String, ThemeValue>()
 
     /**
-     * Replacement tables read by [mReplaceHook].
+     * Replacement tables read by [ReplaceHook].
      *
      * The hook sits on `Resources.getText/getString/getLayout/getDrawableForDensity`, so it runs on
      * every resource read of the hooked process. Sparse containers keep the lookup free of key
@@ -56,24 +97,38 @@ class ResourceHooks {
     @Volatile
     private var resourceIdReplacements = SparseArray<ResourceValue>()
 
-    private val mReplaceHook = object : HookerClassHelper.MethodHook() {
+    private val hookedGetters = ConcurrentHashMap<ResourceGetterKind, HookStatus>()
+    private val getterLocks = ConcurrentHashMap<ResourceGetterKind, Any>()
+    private val getterAttempts = ConcurrentHashMap<ResourceGetterKind, AtomicInteger>()
+
+    private val themeHookLock = Any()
+    private var themeHookStatus = HookStatus.FAILED
+    private var themeHookAttempts = 0
+
+    private val exceptionLogTimes = ConcurrentHashMap<String, Long>()
+
+    /**
+     * Hot-path hook implementation.  Bound to a fixed [kind] so it never calls
+     * `chain.executable.name` or `chain.getArgs()`.
+     */
+    private inner class ReplaceHook(private val kind: ResourceGetterKind) : HookerClassHelper.MethodHook() {
         @Throws(Throwable::class)
         override fun intercept(chain: XposedInterface.Chain): Any? {
             var skipValue: Any? = null
             var shouldSkip = false
             try {
-                val args = chain.getArgs()
-                val resId = args[0] as Int
+                val resId = chain.getArg(0) as Int
                 val replacement = resourceIdReplacements[resId]
                 if (replacement != null) {
                     if (replacement.mType == ReplacementType.OBJECT) {
                         skipValue = replacement.mValue
                         shouldSkip = true
-                    } else {
-                        // Resolved only after a match: Executable.getName() is a JNI call.
-                        val method = chain.executable.name
-                        if ("getLayout" != method) {
-                            val value = moduleResValue(method, replacement.mValue as Int, args)
+                    } else if (kind.supportsIdReplacement) {
+                        val moduleRes = resolveModuleRes()
+                        if (moduleRes != null) {
+                            val (density, theme) = extraArgs(chain)
+                            val modResId = replacement.mValue as Int
+                            val value = kind.getValue(moduleRes, modResId, density, theme)
                             if (value != null) {
                                 skipValue = value
                                 shouldSkip = true
@@ -83,23 +138,48 @@ class ResourceHooks {
                 } else {
                     val modResId = fakes[resId]
                     if (modResId != 0) {
-                        val value = moduleResValue(chain.executable.name, modResId, args)
-                        if (value != null) {
-                            skipValue = value
-                            shouldSkip = true
+                        val moduleRes = resolveModuleRes()
+                        if (moduleRes != null) {
+                            val (density, theme) = extraArgs(chain)
+                            val value = kind.getValue(moduleRes, modResId, density, theme)
+                            if (value != null) {
+                                skipValue = value
+                                shouldSkip = true
+                            }
                         }
                     }
                 }
             } catch (t: Throwable) {
-                XposedHelpers.log(t)
+                if (t is OutOfMemoryError) throw t
+                logThrottled(t)
             }
             return if (shouldSkip) skipValue else chain.proceed()
         }
+
+        private fun extraArgs(chain: XposedInterface.Chain): Pair<Int, Resources.Theme?> {
+            return if (kind == ResourceGetterKind.GET_DRAWABLE_FOR_DENSITY) {
+                val density = chain.getArg(1) as Int
+                val theme = chain.getArg(2) as Resources.Theme?
+                Pair(density, theme)
+            } else {
+                Pair(0, null)
+            }
+        }
     }
 
-    private fun moduleResValue(method: String, modResId: Int, args: List<Any?>): Any? {
+    private fun resolveModuleRes(): Resources? {
         val context = ModuleHelper.findContext() ?: return null
-        return getModuleResValue(ModuleHelper.getModuleRes(context), method, modResId, args)
+        return ModuleHelper.getModuleRes(context)
+    }
+
+    private fun logThrottled(t: Throwable) {
+        val now = SystemClock.elapsedRealtime()
+        val key = t::class.java.name
+        val last = exceptionLogTimes.putIfAbsent(key, now)
+        if (last == null || now - last > EXCEPTION_LOG_THROTTLE_MS) {
+            exceptionLogTimes[key] = now
+            XposedHelpers.log(t)
+        }
     }
 
     private fun initThemeHook() {
@@ -126,17 +206,17 @@ class ResourceHooks {
                             mPackageName == ModuleHelper.currentPackageName
                             || "miui.systemui.plugin" == mPackageName
                         )) {
-                            val args = chain.getArgs()
-                            if (args.size > 1 && (
-                                args[0] == ModuleHelper.currentPackageName
-                                || "miui.systemui.plugin" == args[0]
-                            )) {
+                            val packageName = chain.getArg(0) as String?
+                            val mThemeValues = chain.getArg(1)
+                            if (packageName != null && (
+                                packageName == ModuleHelper.currentPackageName
+                                || "miui.systemui.plugin" == packageName
+                            ) && mThemeValues != null) {
                                 val themeIntValues = SparseIntArray()
                                 val themeIntegerArrays = SparseArray<IntArray>()
                                 val themeStringArrays = SparseArray<Array<String>>()
                                 val mResources = XposedHelpers.getObjectField(mThemeResources, "mResources") as Resources
                                 val nightMode = XposedHelpers.getBooleanField(mThemeResources, "mNightMode")
-                                val mThemeValues = args[1]
                                 @Suppress("UNCHECKED_CAST")
                                 val mIntegers = XposedHelpers.getObjectField(mThemeValues, "mIntegers") as HashMap<Int, Int>
                                 @Suppress("UNCHECKED_CAST")
@@ -169,7 +249,8 @@ class ResourceHooks {
                             }
                         }
                     } catch (t: Throwable) {
-                        XposedHelpers.log(t)
+                        if (t is OutOfMemoryError) throw t
+                        logThrottled(t)
                     }
                     return XposedHelpers.throwOrReturn(throwable, result)
                 }
@@ -196,16 +277,53 @@ class ResourceHooks {
         }
     }
 
-    private fun applyHooks(type: String) {
-        if (hookedTypes.contains(type)) return
-        hookedTypes.add(type)
-        when (type) {
-            "layout" -> ModuleHelper.findAndHookMethod(Resources::class.java, "getLayout", Int::class.javaPrimitiveType, mReplaceHook)
-            "string" -> {
-                ModuleHelper.findAndHookMethod(Resources::class.java, "getText", Int::class.javaPrimitiveType, mReplaceHook)
-                ModuleHelper.findAndHookMethod(Resources::class.java, "getString", Int::class.javaPrimitiveType, mReplaceHook)
+    private fun installGetter(kind: ResourceGetterKind) {
+        val lock = getterLocks.getOrPut(kind) { Any() }
+        val attempts = getterAttempts.getOrPut(kind) { AtomicInteger(0) }
+
+        synchronized(lock) {
+            when (hookedGetters[kind]) {
+                HookStatus.HOOKED -> return
+                HookStatus.FAILED -> if (attempts.get() >= MAX_HOOK_ATTEMPTS) return
+                HookStatus.PENDING -> return
+                else -> {}
             }
-            "drawable" -> ModuleHelper.findAndHookMethod(Resources::class.java, "getDrawableForDensity", Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, Resources.Theme::class.java, mReplaceHook)
+            hookedGetters[kind] = HookStatus.PENDING
+        }
+
+        var installed = false
+        var error: Throwable? = null
+        try {
+            ModuleHelper.findAndHookMethod(Resources::class.java, kind.methodName, *kind.paramTypes, ReplaceHook(kind))
+            installed = true
+        } catch (t: Throwable) {
+            if (t is OutOfMemoryError) throw t
+            error = t
+        }
+
+        synchronized(lock) {
+            if (installed) {
+                hookedGetters[kind] = HookStatus.HOOKED
+                attempts.set(0)
+            } else {
+                hookedGetters[kind] = HookStatus.FAILED
+                attempts.incrementAndGet()
+            }
+        }
+
+        if (!installed && error != null) {
+            XposedHelpers.log("Failed to hook Resources.${kind.methodName}: $error")
+        }
+    }
+
+    private fun applyHooks(type: String) {
+        when (type) {
+            "layout" -> installGetter(ResourceGetterKind.GET_LAYOUT)
+            "string" -> {
+                installGetter(ResourceGetterKind.GET_TEXT)
+                installGetter(ResourceGetterKind.GET_STRING)
+            }
+            "drawable" -> installGetter(ResourceGetterKind.GET_DRAWABLE_FOR_DENSITY)
         }
     }
 
@@ -228,6 +346,7 @@ class ResourceHooks {
             applyHooks(type)
             fakeResId
         } catch (t: Throwable) {
+            if (t is OutOfMemoryError) throw t
             XposedHelpers.log(t)
             0
         }
@@ -246,6 +365,7 @@ class ResourceHooks {
             initResourceIdHook(pkg, type, name, ReplacementType.ID, replacementResId)
             applyHooks(type)
         } catch (t: Throwable) {
+            if (t is OutOfMemoryError) throw t
             XposedHelpers.log(t)
         }
     }
@@ -263,6 +383,7 @@ class ResourceHooks {
             initResourceIdHook(pkg, type, name, ReplacementType.OBJECT, replacementResValue)
             applyHooks(type)
         } catch (t: Throwable) {
+            if (t is OutOfMemoryError) throw t
             XposedHelpers.log(t)
         }
     }
@@ -272,35 +393,62 @@ class ResourceHooks {
     }
 
     fun setThemeValueReplacement(pkg: String, type: String, name: String, resValue: Any?, nightResValue: Any?) {
-        var value: Any? = resValue
-        var nightValue: Any? = nightResValue
-        if ("bool" == type) {
-            value = if (value as Boolean) 1 else 0
-            nightValue = if (nightValue as Boolean) 1 else 0
-        } else if ("dimen" == type) {
-            val valInDimen = "${value}dp"
-            value = MiuiThemeHelper.parseDimension(valInDimen)
-            nightValue = value
-        }
-        val tv = ThemeValue(value, nightValue)
-        tv.pkg = pkg
-        tv.name = name
-        tv.themeValueType = type
-        tv.resourceType = if ("string-array" == type || "integer-array" == type) "array" else type
-        themeValueReplacements["$pkg:$type/$name"] = tv
-        if (!themeResourcesHooked) {
-            themeResourcesHooked = true
-            initThemeHook()
+        try {
+            var value: Any? = resValue
+            var nightValue: Any? = nightResValue
+            if ("bool" == type) {
+                value = if (value as Boolean) 1 else 0
+                nightValue = if (nightValue as Boolean) 1 else 0
+            } else if ("dimen" == type) {
+                val valInDimen = "${value}dp"
+                value = MiuiThemeHelper.parseDimension(valInDimen)
+                nightValue = value
+            }
+            val tv = ThemeValue(value, nightValue)
+            tv.pkg = pkg
+            tv.name = name
+            tv.themeValueType = type
+            tv.resourceType = if ("string-array" == type || "integer-array" == type) "array" else type
+            themeValueReplacements["$pkg:$type/$name"] = tv
+            tryInitThemeHook()
+        } catch (t: Throwable) {
+            if (t is OutOfMemoryError) throw t
+            XposedHelpers.log(t)
         }
     }
 
-    private fun getModuleResValue(modRes: Resources, method: String, modResId: Int, args: List<Any?>): Any? {
-        return when (method) {
-            "getText" -> modRes.getText(modResId)
-            "getString" -> modRes.getString(modResId)
-            "getLayout" -> modRes.getLayout(modResId)
-            "getDrawableForDensity" -> modRes.getDrawableForDensity(modResId, args[1] as Int, args[2] as Resources.Theme?)
-            else -> null
+    private fun tryInitThemeHook() {
+        synchronized(themeHookLock) {
+            when (themeHookStatus) {
+                HookStatus.HOOKED -> return
+                HookStatus.FAILED -> if (themeHookAttempts >= MAX_HOOK_ATTEMPTS) return
+                HookStatus.PENDING -> return
+            }
+            themeHookStatus = HookStatus.PENDING
+        }
+
+        var installed = false
+        var error: Throwable? = null
+        try {
+            initThemeHook()
+            installed = true
+        } catch (t: Throwable) {
+            if (t is OutOfMemoryError) throw t
+            error = t
+        }
+
+        synchronized(themeHookLock) {
+            if (installed) {
+                themeHookStatus = HookStatus.HOOKED
+                themeHookAttempts = 0
+            } else {
+                themeHookStatus = HookStatus.FAILED
+                themeHookAttempts++
+            }
+        }
+
+        if (!installed && error != null) {
+            XposedHelpers.log("Failed to hook ThemeResources.mergeThemeValues: $error")
         }
     }
 
@@ -309,7 +457,8 @@ class ResourceHooks {
         fun getFakeResId(resourceName: String): Int {
             return 0x7e00f000 or (resourceName.hashCode() and 0x00ffffff)
         }
-    }
 
-    private var themeResourcesHooked = false
+        private const val EXCEPTION_LOG_THROTTLE_MS = 5000L
+        private const val MAX_HOOK_ATTEMPTS = 3
+    }
 }
