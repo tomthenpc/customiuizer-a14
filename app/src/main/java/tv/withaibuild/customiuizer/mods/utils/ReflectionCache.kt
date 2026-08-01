@@ -229,7 +229,10 @@ object ReflectionCache {
 
         val method = if (depClass != null) {
             try {
+                if (dependencyMethodThrowableForTest != null) throw dependencyMethodThrowableForTest!!
                 depClass.getDeclaredMethod("get", Class::class.java).apply { isAccessible = true }
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 null
@@ -243,6 +246,10 @@ object ReflectionCache {
 
     // --- test-only helpers --------------------------------------------------
 
+    /** Optional throwable to inject before resolving the Dependency.get method. Tests only. */
+    @JvmField
+    internal var dependencyMethodThrowableForTest: Throwable? = null
+
     @JvmStatic
     internal fun loaderStateForTest(classLoader: ClassLoader?): LoaderState? = loaderStates[classLoader]
 
@@ -253,5 +260,6 @@ object ReflectionCache {
     internal fun clearForTests() {
         lifecycle.set(0L)
         loaderStates.clear()
+        dependencyMethodThrowableForTest = null
     }
 }

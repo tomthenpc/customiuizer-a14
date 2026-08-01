@@ -2,6 +2,7 @@ package tv.withaibuild.customiuizer.mods.utils
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -169,6 +170,28 @@ class ReflectionCacheTest {
             "global loader cache must stay within ${ReflectionCache.MAX_LOADERS}, was $loaders",
             loaders <= ReflectionCache.MAX_LOADERS
         )
+    }
+
+    @Test(expected = OutOfMemoryError::class)
+    fun getDepInstance_dependencyMethodOom_doesNotPolluteState() {
+        val loader = object : ClassLoader(javaClass.classLoader) {}
+        ReflectionCache.dependencyClassName = FakeDependency::class.java.name
+        ReflectionCache.dependencyMethodThrowableForTest = OutOfMemoryError("OOM in getDeclaredMethod")
+
+        try {
+            ReflectionCache.getDepInstance(loader, "java.lang.String")
+        } finally {
+            val state = ReflectionCache.loaderStateForTest(loader)
+            assertNotNull(state)
+            assertFalse(
+                "dependencyMethodResolved must not be set after OOM",
+                state!!.dependencyMethodResolved
+            )
+            assertNull(
+                "dependencyMethod must not be set after OOM",
+                state.dependencyMethod
+            )
+        }
     }
 
     @Test
