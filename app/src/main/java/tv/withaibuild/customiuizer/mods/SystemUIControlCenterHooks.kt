@@ -36,7 +36,6 @@ import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.util.ArrayList
 import java.util.Comparator
-import java.util.HashSet
 import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
@@ -961,20 +960,19 @@ object SystemUIControlCenterHooks {
                 var name = tileName
                 if (name.startsWith("intent(")) name = "intent"
                 else if (name.startsWith("custom(")) name = "custom"
-                val secureTitles = HashSet<String>()
-                if (MainModule.mPrefs.getBoolean("system_secureqs_wifi")) secureTitles.add("wifi")
-                if (MainModule.mPrefs.getBoolean("system_secureqs_bt")) secureTitles.add("bt")
-                if (MainModule.mPrefs.getBoolean("system_secureqs_mobiledata")) secureTitles.add("cell")
-                if (MainModule.mPrefs.getBoolean("system_secureqs_airplane")) secureTitles.add("airplane")
-                if (MainModule.mPrefs.getBoolean("system_secureqs_location")) secureTitles.add("gps")
-                if (MainModule.mPrefs.getBoolean("system_secureqs_hotspot")) secureTitles.add("hotspot")
-                if (MainModule.mPrefs.getBoolean("system_secureqs_nfc")) secureTitles.add("nfc")
-                if (MainModule.mPrefs.getBoolean("system_secureqs_sync")) secureTitles.add("sync")
-                if (MainModule.mPrefs.getBoolean("system_secureqs_custom")) {
-                    secureTitles.add("intent")
-                    secureTitles.add("custom")
+                val secure = when (name) {
+                    "wifi" -> MainModule.mPrefs.getBoolean("system_secureqs_wifi")
+                    "bt" -> MainModule.mPrefs.getBoolean("system_secureqs_bt")
+                    "cell" -> MainModule.mPrefs.getBoolean("system_secureqs_mobiledata")
+                    "airplane" -> MainModule.mPrefs.getBoolean("system_secureqs_airplane")
+                    "gps" -> MainModule.mPrefs.getBoolean("system_secureqs_location")
+                    "hotspot" -> MainModule.mPrefs.getBoolean("system_secureqs_hotspot")
+                    "nfc" -> MainModule.mPrefs.getBoolean("system_secureqs_nfc")
+                    "sync" -> MainModule.mPrefs.getBoolean("system_secureqs_sync")
+                    "intent", "custom" -> MainModule.mPrefs.getBoolean("system_secureqs_custom")
+                    else -> false
                 }
-                if (secureTitles.contains(name)) {
+                if (secure) {
                     val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
                     val kgMgr = mContext.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
                     if (!kgMgr.isKeyguardLocked || !kgMgr.isKeyguardSecure) return

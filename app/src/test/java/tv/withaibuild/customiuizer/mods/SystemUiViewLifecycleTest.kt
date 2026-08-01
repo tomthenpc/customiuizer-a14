@@ -17,6 +17,20 @@ class SystemUiViewLifecycleTest {
         assertTrue(source.contains("val pct = mPct ?: return"))
     }
 
+    @Test
+    fun secureQsClickPathDoesNotBuildASet() {
+        val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt")
+        val hook = source.substring(
+            source.indexOf("fun SecureQSTilesHook"),
+            source.indexOf("private var mPctRef")
+        )
+
+        assertFalse(hook.contains("HashSet"))
+        assertFalse(hook.contains("secureTitles"))
+        assertTrue(hook.contains("val secure = when (name)"))
+        assertTrue(hook.contains("\"intent\", \"custom\" -> MainModule.mPrefs.getBoolean(\"system_secureqs_custom\")"))
+    }
+
     private fun source(relativePath: String): String {
         var directory = File(requireNotNull(java.lang.System.getProperty("user.dir"))).absoluteFile
         while (true) {
