@@ -405,6 +405,69 @@ class PreferenceBootstrapTest {
         assertEquals(iterations, updates.get())
     }
 
+    @Test
+    fun bootstrap_remoteSourceThrowsVmError_propagatesAndMarksUnavailable() {
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { throw InternalError("remote vm error") }
+
+        try {
+            bootstrap.bootstrap()
+            assertTrue("InternalError must propagate", false)
+        } catch (e: InternalError) {
+            assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
+        }
+    }
+
+    @Test
+    fun bootstrap_remoteSourceThrowsThreadDeath_propagatesAndMarksUnavailable() {
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { throw ThreadDeath() }
+
+        try {
+            bootstrap.bootstrap()
+            assertTrue("ThreadDeath must propagate", false)
+        } catch (e: ThreadDeath) {
+            assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
+        }
+    }
+
+    @Test
+    fun bootstrap_getAllThrowsVmError_propagatesAndMarksUnavailable() {
+        val fake = object : SharedPreferences by FakeSharedPreferences() {
+            override fun getAll(): Map<String, *> = throw InternalError("getAll vm error")
+        }
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { fake }
+
+        try {
+            bootstrap.bootstrap()
+            assertTrue("InternalError must propagate", false)
+        } catch (e: InternalError) {
+            assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
+        }
+    }
+
+    @Test
+    fun bootstrap_registerListenerThrowsVmError_propagatesAndMarksUnavailable() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 20)
+        val throwingFake = object : SharedPreferences by fake {
+            override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
+                throw InternalError("register vm error")
+            }
+        }
+
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { throwingFake }
+
+        try {
+            bootstrap.bootstrap()
+            assertTrue("InternalError must propagate", false)
+        } catch (e: InternalError) {
+            assertEquals(PreferenceBootstrap.State.UNAVAILABLE, bootstrap.getState())
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun getListener(bootstrap: PreferenceBootstrap): SharedPreferences.OnSharedPreferenceChangeListener? {
         val field = PreferenceBootstrap::class.java.getDeclaredField("listener")

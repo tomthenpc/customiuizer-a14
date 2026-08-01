@@ -114,6 +114,12 @@ class PreferenceBootstrap private constructor(
                 if (remotePrefs == null) {
                     try {
                         remotePrefs = remoteSource.get(remoteName)
+                    } catch (vm: VirtualMachineError) {
+                        currentState = State.UNAVAILABLE
+                        throw vm
+                    } catch (td: ThreadDeath) {
+                        currentState = State.UNAVAILABLE
+                        throw td
                     } catch (t: Throwable) {
                         currentState = State.UNAVAILABLE
                         HookDiagnostics.recordPreferencesUnavailable(t.javaClass.name, "getRemotePreferences")
@@ -173,6 +179,14 @@ class PreferenceBootstrap private constructor(
                 emptyPendingAttempts = 0
                 // A live watcher is in place. Take the second snapshot and publish.
                 publishSecondSnapshotLocked(remote)
+            } catch (vm: VirtualMachineError) {
+                listener = null
+                currentState = State.UNAVAILABLE
+                throw vm
+            } catch (td: ThreadDeath) {
+                listener = null
+                currentState = State.UNAVAILABLE
+                throw td
             } catch (t: Throwable) {
                 listener = null
                 currentState = State.UNAVAILABLE
@@ -213,6 +227,12 @@ class PreferenceBootstrap private constructor(
             } else {
                 all
             }
+        } catch (vm: VirtualMachineError) {
+            currentState = State.UNAVAILABLE
+            throw vm
+        } catch (td: ThreadDeath) {
+            currentState = State.UNAVAILABLE
+            throw td
         } catch (t: Throwable) {
             currentState = State.UNAVAILABLE
             HookDiagnostics.recordPreferencesUnavailable(t.javaClass.name, "getAll")
