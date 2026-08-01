@@ -32,6 +32,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallba
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
+import tv.withaibuild.customiuizer.mods.utils.ShadeExpansionTracker
 import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.util.ArrayList
@@ -791,12 +792,14 @@ object SystemUIControlCenterHooks {
 
     private var nextBrightNess = -999f
 
+    private val shadeExpansionTracker = ShadeExpansionTracker(0.33f)
+
     @JvmStatic
     fun StatusBarGesturesHook(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod("com.android.systemui.shade.MiuiNotificationPanelViewController", lpparam.classLoader, "setExpandedHeightInternal", Float::class.javaPrimitiveType!!, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
                 val mExpandedFraction = XposedHelpers.getFloatField(param.getThisObject(), "mExpandedFraction")
-                if (mExpandedFraction > 0.33f) {
+                if (shadeExpansionTracker.update(mExpandedFraction) && mExpandedFraction > 0.33f) {
                     currentTouchTime = 0L
                     currentTouchX = 0f
                     currentDownTime = 0L
