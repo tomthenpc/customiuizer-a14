@@ -84,6 +84,9 @@ class FeatureInstallRegistry {
                 FeatureInstallState.set(id, FeatureState.INSTALLING)
                 val result = try {
                     feature.install()
+                } catch (oom: OutOfMemoryError) {
+                    FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
+                    throw oom
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                     recordInstallFailure(feature, t)
@@ -96,6 +99,7 @@ class FeatureInstallRegistry {
     }
 
     private fun recordInstallFailure(feature: FeatureDefinition, t: Throwable) {
+        if (t is OutOfMemoryError) throw t
         HookDiagnostics.record(
             process = HookDiagnostics.currentProcessName ?: android.os.Process.myPid().toString(),
             kind = HookDiagnostics.Kind.FEATURE,

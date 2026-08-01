@@ -17,10 +17,12 @@ class PreferenceObserverDispatchTest {
     private class RecordingObserver(
         private val log: MutableList<String>,
         private val name: String,
-        private val throwOnChange: Boolean = false
+        private val throwOnChange: Boolean = false,
+        private val throwOomOnChange: Boolean = false,
     ) : ModuleHelper.PreferenceObserver {
         override fun onChange(key: String?) {
             log.add(name)
+            if (throwOomOnChange) throw OutOfMemoryError("ROM field missing")
             if (throwOnChange) throw IllegalStateException("ROM field missing")
         }
     }
@@ -102,5 +104,16 @@ class PreferenceObserverDispatchTest {
         ModuleHelper.unregisterPreferenceObserver(survivor)
 
         assertTrue("observer stayed reachable after its owner was collected", dropped)
+    }
+
+    @Test(expected = OutOfMemoryError::class)
+    fun anOomObserverIsPropagatedToCrashTheHost() {
+        val owner = Owner()
+        ModuleHelper.observePreferenceChange(RecordingObserver(mutableListOf(), "oom", throwOomOnChange = true), owner)
+        try {
+            ModuleHelper.handlePreferenceChanged("system_statusbar_clocktweak")
+        } finally {
+            ModuleHelper.unregisterPreferenceObserver(owner)
+        }
     }
 }

@@ -93,6 +93,8 @@ class ModuleHelper private constructor() {
                     )
                 }
                 unhooker
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log("Failed to hook " + method.name + " method")
                 HookDiagnostics.record(
@@ -162,6 +164,8 @@ class ModuleHelper private constructor() {
                     HookDiagnostics.Status.INSTALLED,
                 )
                 unhooker
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log("Failed to hook constructor in " + className)
                 val status = when {
@@ -218,6 +222,8 @@ class ModuleHelper private constructor() {
                         HookDiagnostics.Status.INSTALLED,
                     )
                 }
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 HookDiagnostics.record(
@@ -268,6 +274,8 @@ class ModuleHelper private constructor() {
                         HookDiagnostics.Status.INSTALLED,
                     )
                 }
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 HookDiagnostics.record(
@@ -319,6 +327,8 @@ class ModuleHelper private constructor() {
                         HookDiagnostics.Status.INSTALLED,
                     )
                 }
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 HookDiagnostics.record(
@@ -369,6 +379,8 @@ class ModuleHelper private constructor() {
                         HookDiagnostics.Status.INSTALLED,
                     )
                 }
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 HookDiagnostics.record(
@@ -422,6 +434,8 @@ class ModuleHelper private constructor() {
                     if (ok) "" else "no-methods-found",
                 )
                 ok
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 HookDiagnostics.record(
                     PreferenceObserverRegistry.processName(),
@@ -463,6 +477,8 @@ class ModuleHelper private constructor() {
                     if (ok) "" else "no-methods-found",
                 )
                 ok
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 HookDiagnostics.record(
                     PreferenceObserverRegistry.processName(),

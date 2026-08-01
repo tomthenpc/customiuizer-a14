@@ -9,6 +9,7 @@ import android.os.Handler
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.fail
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -36,6 +37,7 @@ class ModuleReceiverRegistrationTest {
         val unregisteredReceivers = java.util.concurrent.CopyOnWriteArrayList<BroadcastReceiver>()
         val registeredReceivers = java.util.concurrent.CopyOnWriteArrayList<BroadcastReceiver>()
         var failNextRegister = false
+        var oomNextRegister = false
         var failNextUnregister = false
 
         // Latches for deterministic race tests. The first 5-arg registerReceiver call will count
@@ -54,6 +56,10 @@ class ModuleReceiverRegistrationTest {
             scheduler: Handler?,
             flags: Int
         ): Intent {
+            if (oomNextRegister) {
+                oomNextRegister = false
+                throw OutOfMemoryError("simulated OOM during registerReceiver")
+            }
             if (failNextRegister) {
                 failNextRegister = false
                 throw IllegalStateException("simulated register failure")
@@ -409,6 +415,26 @@ class ModuleReceiverRegistrationTest {
         val staleQueue = staleMap["boundedKey"] as? Collection<*>
         assertNotNull("stale queue must exist", staleQueue)
         assertTrue("stale queue must be bounded", staleQueue!!.size <= 3)
+    }
+
+    @Test
+    fun moduleReceiver_registerOomDoesNotLeaveTrackedRegistration() {
+        val context = TrackableContext()
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {}
+        }
+        val filter = IntentFilter("android.intent.action.TIME_TICK")
+
+        context.oomNextRegister = true
+        try {
+            ReceiverRegistry.registerModuleReceiver(
+                context, "oomKey", receiver, filter, Context.RECEIVER_NOT_EXPORTED
+            )
+            fail("OutOfMemoryError must propagate")
+        } catch (oom: OutOfMemoryError) {
+            assertEquals("OOM must remove the in-flight registration", 0, getModuleReceiversMap().size)
+            assertTrue("OOM must not register the receiver with the framework", context.registeredReceivers.isEmpty())
+        }
     }
 
     @Suppress("UNCHECKED_CAST")

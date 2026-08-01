@@ -169,6 +169,8 @@ object ReflectionCache {
                 is DepResult.DependencyNotReady -> existing.clazz
                 else -> try {
                     XposedHelpers.findClassIfExists(className, classLoader)
+                } catch (oom: OutOfMemoryError) {
+                    throw oom
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                     null
@@ -188,6 +190,13 @@ object ReflectionCache {
 
             val instance = try {
                 method.invoke(null, clazz)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
+            } catch (ite: java.lang.reflect.InvocationTargetException) {
+                val cause = ite.cause
+                if (cause is OutOfMemoryError) throw cause
+                XposedHelpers.log(ite)
+                null
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
                 null
@@ -211,6 +220,8 @@ object ReflectionCache {
 
         val depClass = try {
             XposedHelpers.findClassIfExists(dependencyClassName, classLoader)
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (t: Throwable) {
             XposedHelpers.log(t)
             null

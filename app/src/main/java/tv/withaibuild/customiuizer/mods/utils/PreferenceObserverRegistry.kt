@@ -53,7 +53,12 @@ object PreferenceObserverRegistry {
             dropOwnedObserver(old)
         }
         XposedHelpers.setAdditionalInstanceField(owner, PREF_OBSERVER_FIELD, prefObserver)
-        observerOwners.add(WeakReference(prefObserver))
+        try {
+            observerOwners.add(WeakReference(prefObserver))
+        } catch (oom: OutOfMemoryError) {
+            XposedHelpers.removeAdditionalInstanceField(owner, PREF_OBSERVER_FIELD)
+            throw oom
+        }
     }
 
     /**
@@ -93,6 +98,8 @@ object PreferenceObserverRegistry {
         for (prefObserver in observers) {
             try {
                 prefObserver.onChange(key)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
             }
@@ -107,6 +114,8 @@ object PreferenceObserverRegistry {
             }
             try {
                 prefObserver.onChange(key)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
             }

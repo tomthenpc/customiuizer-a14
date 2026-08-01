@@ -141,6 +141,10 @@ object ReceiverRegistry {
                 return false
             }
             installed.state.compareAndSet(RegistrationState.PENDING_REGISTER, RegistrationState.ACTIVE)
+        } catch (oom: OutOfMemoryError) {
+            installed.state.set(RegistrationState.REGISTER_FAILED)
+            moduleReceivers.remove(key, installed)
+            throw oom
         } catch (t: Throwable) {
             XposedHelpers.log(t)
             installed.state.set(RegistrationState.REGISTER_FAILED)
