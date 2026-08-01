@@ -178,6 +178,38 @@ catch (_: Throwable) { return null }
         findings = self.mod.check_device_info_monitor_hot_path(path, unsafe)
         self.assertEqual(2, len(findings))
 
+    def test_method_hook_callbacks_require_oom_rethrow(self):
+        path = self._source_path(
+            "tv/withaibuild/customiuizer/mods/utils/HookerClassHelper.kt"
+        )
+        clean = """
+override fun beforeHook(callback: BeforeHookCallback) {
+    try { before(callback) }
+    catch (oom: OutOfMemoryError) { throw oom }
+    catch (t: Throwable) { log(t) }
+}
+override fun afterHook(callback: AfterHookCallback) {
+    try { after(callback) }
+    catch (oom: OutOfMemoryError) { throw oom }
+    catch (t: Throwable) { log(t) }
+}
+"""
+        self.assertEqual([], self.mod.check_method_hook_fatal_boundary(path, clean))
+
+        unsafe = """
+override fun beforeHook(callback: BeforeHookCallback) {
+    try { before(callback) }
+    catch (t: Throwable) { log(t) }
+}
+override fun afterHook(callback: AfterHookCallback) {
+    try { after(callback) }
+    catch (t: Throwable) { log(t) }
+}
+"""
+        findings = self.mod.check_method_hook_fatal_boundary(path, unsafe)
+        self.assertEqual(2, len(findings))
+        self.assertTrue(all("OutOfMemoryError" in item.detail for item in findings))
+
     def test_reflection_cache_get_declared_method_oom_ok(self):
         text = """
     private fun resolveDependencyMethod(loaderState: LoaderState, classLoader: ClassLoader?): Method? {

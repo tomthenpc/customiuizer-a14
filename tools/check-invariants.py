@@ -437,6 +437,7 @@ FEATURE_INSTALL_REGISTRY = "tv/withaibuild/customiuizer/mods/utils/FeatureInstal
 FEATURE_DEFINITION_ROOT = "tv/withaibuild/customiuizer/mods/utils/feature/"
 SYSTEM_SERVER_INSTALLER = "tv/withaibuild/customiuizer/mods/utils/SystemServerInstaller.kt"
 DEVICE_INFO_MONITOR = "tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt"
+HOOKER_CLASS_HELPER = "tv/withaibuild/customiuizer/mods/utils/HookerClassHelper.kt"
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
@@ -525,6 +526,41 @@ def check_device_info_monitor_hot_path(path: Path, text: str) -> list[Finding]:
                     path,
                     line_of(text, generic.start()),
                     "device monitor catch(Throwable) must be preceded by an OOM rethrow catch",
+                )
+            )
+    return findings
+
+
+def check_method_hook_fatal_boundary(path: Path, text: str) -> list[Finding]:
+    """The shared before/after adapters must not turn OOM into a logged success."""
+    if rel_posix(path) != HOOKER_CLASS_HELPER:
+        return []
+    findings = []
+    for callback_name in ("beforeHook", "afterHook"):
+        match = re.search(rf"override\s+fun\s+{callback_name}\s*\(", text)
+        if match is None:
+            findings.append(
+                Finding(
+                    "method-hook-fatal-boundary",
+                    path,
+                    1,
+                    f"shared {callback_name} callback is missing",
+                )
+            )
+            continue
+        body, _ = block_at(text, match.start())
+        oom = re.search(
+            r"catch\s*\(\s*([A-Za-z]\w*)\s*:\s*OutOfMemoryError\s*\)\s*\{\s*throw\s+\1\s*\}",
+            body,
+        )
+        generic = re.search(r"catch\s*\(\s*[A-Za-z]\w*\s*:\s*Throwable\s*\)", body)
+        if oom is None or generic is None or oom.start() > generic.start():
+            findings.append(
+                Finding(
+                    "method-hook-fatal-boundary",
+                    path,
+                    line_of(text, match.start()),
+                    f"{callback_name} must rethrow OutOfMemoryError before catch(Throwable)",
                 )
             )
     return findings
@@ -628,6 +664,7 @@ RULES = (
     check_feature_install_oom_cleanup,
     check_feature_install_boundary,
     check_device_info_monitor_hot_path,
+    check_method_hook_fatal_boundary,
     check_reflection_cache_get_declared_method_oom,
 )
 

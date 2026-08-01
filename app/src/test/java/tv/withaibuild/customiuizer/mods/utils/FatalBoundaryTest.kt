@@ -1,5 +1,6 @@
 package tv.withaibuild.customiuizer.mods.utils
 
+import io.github.libxposed.api.XposedInterface
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -8,6 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import tv.withaibuild.customiuizer.utils.PrefMap
+import java.lang.reflect.Proxy
 
 /**
  * Tests for the public framework boundaries that must rethrow [OutOfMemoryError]
@@ -15,6 +17,25 @@ import tv.withaibuild.customiuizer.utils.PrefMap
  * behind a cached or registered state that looks like success after an OOM.
  */
 class FatalBoundaryTest {
+
+    private fun emptyChain(): XposedInterface.Chain {
+        return Proxy.newProxyInstance(
+            XposedInterface.Chain::class.java.classLoader,
+            arrayOf(XposedInterface.Chain::class.java),
+        ) { _, method, _ ->
+            when (method.returnType) {
+                Boolean::class.javaPrimitiveType -> false
+                Byte::class.javaPrimitiveType -> 0.toByte()
+                Short::class.javaPrimitiveType -> 0.toShort()
+                Int::class.javaPrimitiveType -> 0
+                Long::class.javaPrimitiveType -> 0L
+                Float::class.javaPrimitiveType -> 0f
+                Double::class.javaPrimitiveType -> 0.0
+                Char::class.javaPrimitiveType -> '\u0000'
+                else -> null
+            }
+        } as XposedInterface.Chain
+    }
 
     private class OomClassLoader : ClassLoader(FatalBoundaryTest::class.java.classLoader) {
         val loaded = mutableListOf<String>()
@@ -77,6 +98,27 @@ class FatalBoundaryTest {
         CallbackGuard.guarded(fallback = 42) {
             throw OutOfMemoryError("boom")
         }
+    }
+
+    @Test(expected = OutOfMemoryError::class)
+    fun methodHook_beforeCallback_rethrowsOutOfMemoryError() {
+        val hook = object : HookerClassHelper.MethodHook() {
+            override fun before(callback: HookerClassHelper.BeforeHookCallback) {
+                throw OutOfMemoryError("boom")
+            }
+        }
+        hook.beforeHook(HookerClassHelper.BeforeHookCallback(emptyChain()))
+    }
+
+    @Test(expected = OutOfMemoryError::class)
+    fun methodHook_afterCallback_rethrowsOutOfMemoryError() {
+        val before = HookerClassHelper.BeforeHookCallback(emptyChain())
+        val hook = object : HookerClassHelper.MethodHook() {
+            override fun after(callback: HookerClassHelper.AfterHookCallback) {
+                throw OutOfMemoryError("boom")
+            }
+        }
+        hook.afterHook(HookerClassHelper.AfterHookCallback(before, null, null))
     }
 
     @Test

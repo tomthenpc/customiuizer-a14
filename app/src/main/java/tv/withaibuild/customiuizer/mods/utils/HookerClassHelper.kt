@@ -203,6 +203,8 @@ class HookerClassHelper private constructor() {
         override fun beforeHook(callback: BeforeHookCallback) {
             try {
                 before(callback)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
             }
@@ -211,6 +213,8 @@ class HookerClassHelper private constructor() {
         override fun afterHook(callback: AfterHookCallback) {
             try {
                 after(callback)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
             }
