@@ -141,7 +141,7 @@ class FeatureInstallRegistry {
                     activeDefinitions[spec.id]?.onPreferenceChanged(key, prefs)
                 }
                 FeatureState.NOT_INSTALLED, FeatureState.FAILED_TRANSIENT -> {
-                    if (spec.phase.isEarly) {
+                    if (spec.phase.isEarly && spec.isEnabled(prefs)) {
                         FeatureInstallState.set(spec.id, FeatureState.RESTART_REQUIRED)
                     }
                 }

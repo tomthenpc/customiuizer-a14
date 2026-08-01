@@ -324,3 +324,53 @@ class FeatureInstallRegistryTest {
             )
         }
     }
+
+    @Test
+    fun onPreferenceChanged_earlyDisabledRemainsDisabled() {
+        val registry = FeatureInstallRegistry()
+        var factoryCalls = 0
+        val spec = LazyFeatureSpec(
+            id = TestId("early-disabled"),
+            name = "Early Disabled",
+            preferenceKey = "early_disabled",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.MODULE_LOADED,
+            enabled = { prefs -> prefs.getBoolean("early_disabled") },
+            factory = {
+                factoryCalls++
+                DummyFeature("early-disabled", phase = InstallPhase.MODULE_LOADED)
+            },
+        )
+        registry.register(spec)
+
+        registry.onPreferenceChanged("early_disabled", PrefMap())
+
+        assertTrue(FeatureInstallState.get(spec.id) == FeatureState.NOT_INSTALLED)
+        assertEquals("factory must not be called for disabled early feature", 0, factoryCalls)
+    }
+
+    @Test
+    fun onPreferenceChanged_earlyEnabledRequiresRestart() {
+        val registry = FeatureInstallRegistry()
+        var factoryCalls = 0
+        val spec = LazyFeatureSpec(
+            id = TestId("early-enabled"),
+            name = "Early Enabled",
+            preferenceKey = "early_enabled",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.MODULE_LOADED,
+            enabled = { prefs -> prefs.getBoolean("early_enabled") },
+            factory = {
+                factoryCalls++
+                DummyFeature("early-enabled", phase = InstallPhase.MODULE_LOADED)
+            },
+        )
+        registry.register(spec)
+
+        val prefs = PrefMap().apply { put("early_enabled", true) }
+        registry.onPreferenceChanged("early_enabled", prefs)
+
+        assertTrue(FeatureInstallState.get(spec.id) == FeatureState.RESTART_REQUIRED)
+        assertEquals("factory must not be called for early restart decision", 0, factoryCalls)
+    }
+}
