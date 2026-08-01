@@ -306,7 +306,6 @@ public class MainModule extends XposedModule {
         if (isLauncherPkg) {
             ReflectionCache.onSafeLifecycle(lpparam.getClassLoader());
             LauncherInstaller.install(lpparam, mPrefs);
-            initPrefs();
         }
 
         final boolean isStatusBarColor = mPrefs.getBoolean("system_statusbarcolor") && mPrefs.getStringSet("system_statusbarcolor_apps").contains(pkg);

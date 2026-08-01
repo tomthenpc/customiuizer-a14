@@ -8,7 +8,7 @@ class MainModuleSystemServerLoadMarkerTest {
 
     @Test
     fun systemServerLoadMarkerIsLoggedBeforeAnyHookInstallation() {
-        val main = source("app/src/main/java/tv/withaibuild/customiuizer/MainModule.java")
+        val main = source("app/src/main/java/tv/withaibuild/customiuizer/MainModule.java").replace("\r\n", "\n")
         val method = main.section(
             "public void onSystemServerStarting(final SystemServerStartingParam lpparam) {",
             "    public void onPackageReady"
