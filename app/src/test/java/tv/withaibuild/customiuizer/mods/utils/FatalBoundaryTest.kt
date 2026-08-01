@@ -131,6 +131,26 @@ class FatalBoundaryTest {
         XposedHelpers.log("test", OutOfMemoryError("boom"))
     }
 
+    @Test(expected = ThreadDeath::class)
+    fun throwableLogger_rethrowsThreadDeath() {
+        XposedHelpers.log(ThreadDeath())
+    }
+
+    @Test(expected = ThreadDeath::class)
+    fun namedThrowableLogger_rethrowsThreadDeath() {
+        XposedHelpers.log("test", ThreadDeath())
+    }
+
+    @Test(expected = InternalError::class)
+    fun throwableLogger_rethrowsVirtualMachineError() {
+        XposedHelpers.log(InternalError("boom"))
+    }
+
+    @Test(expected = InternalError::class)
+    fun namedThrowableLogger_rethrowsVirtualMachineError() {
+        XposedHelpers.log("test", InternalError("boom"))
+    }
+
     @Test
     fun featureInstallRegistry_installOom_leavesFailedTransientAndRethrows() {
         val registry = FeatureInstallRegistry()
