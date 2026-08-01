@@ -13,3 +13,13 @@ data class GestureGeometry(
     val minBacklight: Float,
     val maxBacklight: Float,
 )
+
+/** Convert runtime dependencies to the geometry snapshot used by the pure state machine. */
+fun GestureDependencies.toGeometry(): GestureGeometry =
+    GestureGeometry(
+        screenWidth = screenWidth,
+        density = density,
+        statusBarHeight = statusBarHeight,
+        minBacklight = minimumBacklight,
+        maxBacklight = maximumBacklight,
+    )
