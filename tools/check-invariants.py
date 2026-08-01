@@ -367,6 +367,72 @@ def check_no_regex_split_on_literal(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+SET_ID_ALLOWED = {
+    "tv/withaibuild/customiuizer/mods/utils/Api102HookBridge.kt",
+}
+
+API_VERSION_ALLOWED = {
+    "tv/withaibuild/customiuizer/MainModule.java",
+    "tv/withaibuild/customiuizer/mods/utils/XposedApiCapabilities.kt",
+}
+
+
+def check_api102_isolation(path: Path, text: str) -> list[Finding]:
+    """API 102 hook features are isolated behind a capability gate.
+
+    - setId may only be called from Api102HookBridge.
+    - replaceHook is not enabled in production.
+    - HotReloadingParam / HotReloadedParam are not used.
+    - getApiVersion may only be read from the module entry cold path.
+    """
+    rel = rel_posix(path)
+    findings: list[Finding] = []
+
+    for match in re.finditer(r"\bsetId\s*\(", text):
+        if rel not in SET_ID_ALLOWED:
+            findings.append(
+                Finding(
+                    "api102-isolation",
+                    path,
+                    line_of(text, match.start()),
+                    "setId may only be called from Api102HookBridge",
+                )
+            )
+
+    for match in re.finditer(r"\breplaceHook\s*\(", text):
+        findings.append(
+            Finding(
+                "api102-isolation",
+                path,
+                line_of(text, match.start()),
+                "replaceHook is not enabled",
+            )
+        )
+
+    for match in re.finditer(r"\bHotReload(?:ing|ed)Param\b", text):
+        findings.append(
+            Finding(
+                "api102-isolation",
+                path,
+                line_of(text, match.start()),
+                "hot reload parameters are not enabled",
+            )
+        )
+
+    for match in re.finditer(r"\bgetApiVersion\s*\(\s*\)", text):
+        if rel not in API_VERSION_ALLOWED:
+            findings.append(
+                Finding(
+                    "api102-isolation",
+                    path,
+                    line_of(text, match.start()),
+                    "getApiVersion may only be read from the module entry cold path",
+                )
+            )
+
+    return findings
+
+
 RULES = (
     check_guard_framework_callbacks,
     check_guard_deferred_callbacks,
@@ -377,6 +443,7 @@ RULES = (
     check_no_direct_hook_installation,
     check_no_legacy_xposed,
     check_no_regex_split_on_literal,
+    check_api102_isolation,
 )
 
 
