@@ -16,6 +16,8 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureId
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
+import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
+import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
 import tv.withaibuild.customiuizer.utils.PrefMap
 
 /**
@@ -52,7 +54,12 @@ internal class TempHideOverlayAppFeature(
     "Temp Hide Overlay App",
     "system_screenshot_overlay"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_screenshot_overlay")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_screenshot_overlay")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.TempHideOverlayAppHook(lpparam)
 }
 
@@ -64,7 +71,12 @@ internal class OpenAppInFreeFormFeature(
     "Open App In Free Form",
     "system_notify_openinfw"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_notify_openinfw") || prefs.getBoolean("system_fw_forcein_actionsend") || prefs.getBoolean("system_betterpopups_allowfloat") || prefs.getBoolean("system_cc_freeform_when_longclick")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_notify_openinfw") || prefs.getBoolean("system_fw_forcein_actionsend") || prefs.getBoolean("system_betterpopups_allowfloat") || prefs.getBoolean("system_cc_freeform_when_longclick")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.OpenAppInFreeFormHook(lpparam)
 }
 
@@ -76,7 +88,12 @@ internal class NavBarActionsFeature(
     "Nav Bar Actions",
     "controls_backlong_action"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("controls_backlong_action", 1) > 1 || prefs.getInt("controls_homelong_action", 1) > 1 || prefs.getInt("controls_menulong_action", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("controls_backlong_action", 1) > 1 || prefs.getInt("controls_homelong_action", 1) > 1 || prefs.getInt("controls_menulong_action", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.NavBarActionsHook(lpparam)
 }
 
@@ -88,7 +105,12 @@ internal class PowerDoubleTapActionFeature(
     "Power Double Tap Action",
     "controls_powerdt_action"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("controls_powerdt_action", 1) > 1 || prefs.getBoolean("controls_volumedowndt_torch")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("controls_powerdt_action", 1) > 1 || prefs.getBoolean("controls_volumedowndt_torch")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.PowerDoubleTapActionHook(lpparam)
 }
 
@@ -100,7 +122,12 @@ internal class ScreenAnimFeature(
     "Screen Anim",
     "system_screenanim_duration"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("system_screenanim_duration", 0) > 0
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_screenanim_duration", 0) > 0
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemDisplayHooks.ScreenAnimHook(lpparam)
 }
 
@@ -112,7 +139,12 @@ internal class AppLockTimeoutFeature(
     "App Lock Timeout",
     "system_applock_timeout"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("system_applock_timeout", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_applock_timeout", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.AppLockTimeoutHook(lpparam)
 }
 
@@ -124,7 +156,12 @@ internal class ScreenDimTimeFeature(
     "Screen Dim Time",
     "system_dimtime"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("system_dimtime", 0) > 0
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_dimtime", 0) > 0
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemDisplayHooks.ScreenDimTimeHook(lpparam)
 }
 
@@ -136,7 +173,12 @@ internal class ToastTimeFeature(
     "Toast Time",
     "system_toasttime"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("system_toasttime", 0) > 0
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_toasttime", 0) > 0
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = ModsSystem.ToastTimeHook(lpparam)
 }
 
@@ -148,7 +190,12 @@ internal class RemoveSecureFeature(
     "Remove Secure",
     "system_removesecure"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_removesecure")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_removesecure")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemSecurityHooks.RemoveSecureHook(lpparam)
 }
 
@@ -160,7 +207,12 @@ internal class RemoveActStartConfirmFeature(
     "Remove Act Start Confirm",
     "system_remove_startactconfirm"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_remove_startactconfirm")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_remove_startactconfirm")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemSecurityHooks.RemoveActStartConfirmHook(lpparam)
 }
 
@@ -172,7 +224,12 @@ internal class EnhancedSecurityFeature(
     "Enhanced Security",
     "system_securelock"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_securelock")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_securelock")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.EnhancedSecurityHook(lpparam)
 }
 
@@ -184,7 +241,12 @@ internal class NoVersionCheckFeature(
     "No Version Check",
     "system_downgrade"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_downgrade")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_downgrade")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemSecurityHooks.NoVersionCheckHook(lpparam)
 }
 
@@ -196,7 +258,12 @@ internal class OrientationLockFeature(
     "Orientation Lock",
     "system_orientationlock"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_orientationlock")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_orientationlock")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.OrientationLockHook(lpparam)
 }
 
@@ -208,7 +275,12 @@ internal class NoDuckingFeature(
     "No Ducking",
     "system_noducking"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_noducking")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_noducking")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemAudioHooks.NoDuckingHook(lpparam)
 }
 
@@ -220,7 +292,12 @@ internal class CleanShareMenuServiceFeature(
     "Clean Share Menu Service",
     "system_cleanshare"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_cleanshare")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_cleanshare")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemShareMenuHooks.CleanShareMenuServiceHook(lpparam)
 }
 
@@ -232,7 +309,12 @@ internal class CleanOpenWithMenuServiceFeature(
     "Clean Open With Menu Service",
     "system_cleanopenwith"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_cleanopenwith")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_cleanopenwith")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemShareMenuHooks.CleanOpenWithMenuServiceHook(lpparam)
 }
 
@@ -244,7 +326,12 @@ internal class AutoBrightnessRangeFeature(
     "Auto Brightness Range",
     "system_autobrightness"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_autobrightness")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_autobrightness")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemDisplayHooks.AutoBrightnessRangeHook(lpparam)
 }
 
@@ -256,7 +343,12 @@ internal class AutoBrightnessAfterScreenOffFeature(
     "Auto Brightness After Screen Off",
     "system_autobrightness_reset_when_screenoff"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_autobrightness_reset_when_screenoff")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_autobrightness_reset_when_screenoff")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemDisplayHooks.AutoBrightnessAfterScreenOffHook(lpparam)
 }
 
@@ -268,7 +360,12 @@ internal class Disable72hStrongAuthFeature(
     "Disable72h Strong Auth",
     "system_lockscreen_disable_strongauth_72h"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_lockscreen_disable_strongauth_72h")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_lockscreen_disable_strongauth_72h")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.Disable72hStrongAuthHook(lpparam)
 }
 
@@ -280,7 +377,12 @@ internal class AppLockFeature(
     "App Lock",
     "system_applock"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_applock")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_applock")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.AppLockHook(lpparam)
 }
 
@@ -292,7 +394,12 @@ internal class SkipAppLockFeature(
     "Skip App Lock",
     "system_applock_skip"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_applock_skip")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_applock_skip")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.SkipAppLockHook(lpparam)
 }
 
@@ -304,7 +411,12 @@ internal class AlarmCompatServiceFeature(
     "Alarm Compat Service",
     "various_alarmcompat"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("various_alarmcompat")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("various_alarmcompat")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Various.AlarmCompatServiceHook(lpparam)
 }
 
@@ -316,7 +428,12 @@ internal class NoCallInterruptionFeature(
     "No Call Interruption",
     "system_ignorecalls"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_ignorecalls")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_ignorecalls")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemAudioHooks.NoCallInterruptionHook(lpparam)
 }
 
@@ -328,7 +445,12 @@ internal class ForceCloseFeature(
     "Force Close",
     "system_forceclose"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_forceclose")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_forceclose")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = ModsSystem.ForceCloseHook(lpparam)
 }
 
@@ -340,7 +462,12 @@ internal class HideProximityWarningFeature(
     "Hide Proximity Warning",
     "system_hideproxywarn"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_hideproxywarn")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_hideproxywarn")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = ModsSystem.HideProximityWarningHook(lpparam)
 }
 
@@ -352,7 +479,12 @@ internal class FirstVolumePressFeature(
     "First Volume Press",
     "system_firstpress"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_firstpress")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_firstpress")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemAudioHooks.FirstVolumePressHook(lpparam)
 }
 
@@ -364,7 +496,12 @@ internal class NoSignatureVerifyServiceFeature(
     "No Signature Verify Service",
     "system_apksign"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_apksign")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_apksign")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemSecurityHooks.NoSignatureVerifyServiceHook(lpparam)
 }
 
@@ -376,7 +513,12 @@ internal class DisableSystemIntegrityFeature(
     "Disable System Integrity",
     "system_disableintegrity"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_disableintegrity")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_disableintegrity")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemSecurityHooks.DisableSystemIntegrityHook(lpparam)
 }
 
@@ -388,7 +530,12 @@ internal class MuffledVibrationFeature(
     "Muffled Vibration",
     "system_vibration_amp"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_vibration_amp")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_vibration_amp")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemAudioHooks.MuffledVibrationHook(lpparam)
 }
 
@@ -400,7 +547,12 @@ internal class ClearAllTasksFeature(
     "Clear All Tasks",
     "system_clearalltasks"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_clearalltasks")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_clearalltasks")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = ModsSystem.ClearAllTasksHook(lpparam)
 }
 
@@ -412,7 +564,12 @@ internal class ForceDarkAllAppsFeature(
     "Force Dark All Apps",
     "system_force_darken_allapps"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_force_darken_allapps")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_force_darken_allapps")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemDisplayHooks.ForceDarkAllAppsHook(lpparam)
 }
 
@@ -424,7 +581,12 @@ internal class SetLockscreenWallpaperFeature(
     "Set Lockscreen Wallpaper",
     "system_lswallpaper"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_lswallpaper")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_lswallpaper")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.SetLockscreenWallpaperHook(lpparam)
 }
 
@@ -436,7 +598,12 @@ internal class PowerKeyFeature(
     "Power Key",
     "controls_powerflash"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("controls_powerflash")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("controls_powerflash")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.PowerKeyHook(lpparam)
 }
 
@@ -448,7 +615,12 @@ internal class FingerprintHapticFailureFeature(
     "Fingerprint Haptic Failure",
     "controls_fingerprintfailure"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("controls_fingerprintfailure")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("controls_fingerprintfailure")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.FingerprintHapticFailureHook(lpparam)
 }
 
@@ -460,7 +632,12 @@ internal class FingerprintScreenOnFeature(
     "Fingerprint Screen On",
     "controls_fingerprintscreen"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("controls_fingerprintscreen")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("controls_fingerprintscreen")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.FingerprintScreenOnHook(lpparam)
 }
 
@@ -472,7 +649,12 @@ internal class NoFingerprintWakeFeature(
     "No Fingerprint Wake",
     "controls_fingerprintwake"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("controls_fingerprintwake")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("controls_fingerprintwake")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.NoFingerprintWakeHook(lpparam)
 }
 
@@ -484,7 +666,12 @@ internal class AppsDisableServiceFeature(
     "Apps Disable Service",
     "various_disableapp"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("various_disableapp")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("various_disableapp")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Various.AppsDisableServiceHook(lpparam)
 }
 
@@ -496,7 +683,12 @@ internal class DisableAnyNotificationBlockFeature(
     "Disable Any Notification Block",
     "system_disableanynotif"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_disableanynotif")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_disableanynotif")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.DisableAnyNotificationBlockHook(lpparam)
 }
 
@@ -508,7 +700,12 @@ internal class AllRotationsFeature(
     "All Rotations",
     "system_allrotations2"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_allrotations2", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_allrotations2", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.AllRotationsHook(lpparam)
 }
 
@@ -520,7 +717,12 @@ internal class NoLightUpOnChargeFeature(
     "No Light Up On Charge",
     "system_nolightuponcharges"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_nolightuponcharges", 1) == 2
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_nolightuponcharges", 1) == 2
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemDisplayHooks.NoLightUpOnChargeHook(lpparam)
 }
 
@@ -532,7 +734,12 @@ internal class SelectiveVibrationFeature(
     "Selective Vibration",
     "system_vibration"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_vibration", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_vibration", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemAudioHooks.SelectiveVibrationHook(lpparam)
 }
 
@@ -544,7 +751,12 @@ internal class SelectiveToastsFeature(
     "Selective Toasts",
     "system_blocktoasts"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_blocktoasts", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_blocktoasts", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = ModsSystem.SelectiveToastsHook(lpparam)
 }
 
@@ -556,7 +768,12 @@ internal class FingerprintHapticSuccessFeature(
     "Fingerprint Haptic Success",
     "controls_fingerprintsuccess"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("controls_fingerprintsuccess", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("controls_fingerprintsuccess", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.FingerprintHapticSuccessHook(lpparam)
 }
 
@@ -568,7 +785,12 @@ internal class VolumeMediaButtonsFeature(
     "Volume Media Buttons",
     "controls_volumemedia_up"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("controls_volumemedia_up", 0) > 0 || prefs.getStringAsInt("controls_volumemedia_down", 0) > 0
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("controls_volumemedia_up", 0) > 0 || prefs.getStringAsInt("controls_volumemedia_down", 0) > 0
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.VolumeMediaButtonsHook(lpparam)
 }
 
@@ -580,7 +802,12 @@ internal class MultiWindowPlusFeature(
     "Multi Window Plus",
     "system_fw_splitscreen"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_fw_splitscreen")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_fw_splitscreen")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.MultiWindowPlusHook(lpparam)
 }
 
@@ -592,7 +819,12 @@ internal class NoFloatingWindowBlacklistFeature(
     "No Floating Window Blacklist",
     "system_fw_noblacklist"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_fw_noblacklist")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_fw_noblacklist")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.NoFloatingWindowBlacklistHook(lpparam)
 }
 
@@ -604,7 +836,12 @@ internal class NoAccessDeviceLogsRequestFeature(
     "No Access Device Logs Request",
     "various_disable_access_devicelogs"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("various_disable_access_devicelogs")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("various_disable_access_devicelogs")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemSecurityHooks.NoAccessDeviceLogsRequest(lpparam)
 }
 
@@ -616,7 +853,12 @@ internal class WallpaperScaleLevelFeature(
     "Wallpaper Scale Level",
     "system_other_wallpaper_scale"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("system_other_wallpaper_scale", 6) > 6
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_other_wallpaper_scale", 6) > 6
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemDisplayHooks.WallpaperScaleLevelHook(lpparam)
 }
 
@@ -628,7 +870,12 @@ internal class AllowUntrustedTouchFeature(
     "Allow Untrusted Touch",
     "various_allow_untrusted_touch"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("various_allow_untrusted_touch")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("various_allow_untrusted_touch")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.AllowUntrustedTouchHook(lpparam)
 }
 
@@ -641,55 +888,447 @@ internal class AllowUntrustedTouchFeature(
 object SystemServerFeatures {
     fun all(
         lpparam: XposedModuleInterface.SystemServerStartingParam
-    ): List<FeatureDefinition> = listOf(
-        TempHideOverlayAppFeature(lpparam),
-        OpenAppInFreeFormFeature(lpparam),
-        NavBarActionsFeature(lpparam),
-        PowerDoubleTapActionFeature(lpparam),
-        ScreenAnimFeature(lpparam),
-        AppLockTimeoutFeature(lpparam),
-        ScreenDimTimeFeature(lpparam),
-        ToastTimeFeature(lpparam),
-        RemoveSecureFeature(lpparam),
-        RemoveActStartConfirmFeature(lpparam),
-        EnhancedSecurityFeature(lpparam),
-        NoVersionCheckFeature(lpparam),
-        OrientationLockFeature(lpparam),
-        NoDuckingFeature(lpparam),
-        CleanShareMenuServiceFeature(lpparam),
-        CleanOpenWithMenuServiceFeature(lpparam),
-        AutoBrightnessRangeFeature(lpparam),
-        AutoBrightnessAfterScreenOffFeature(lpparam),
-        Disable72hStrongAuthFeature(lpparam),
-        AppLockFeature(lpparam),
-        SkipAppLockFeature(lpparam),
-        AlarmCompatServiceFeature(lpparam),
-        NoCallInterruptionFeature(lpparam),
-        ForceCloseFeature(lpparam),
-        HideProximityWarningFeature(lpparam),
-        FirstVolumePressFeature(lpparam),
-        NoSignatureVerifyServiceFeature(lpparam),
-        DisableSystemIntegrityFeature(lpparam),
-        MuffledVibrationFeature(lpparam),
-        ClearAllTasksFeature(lpparam),
-        ForceDarkAllAppsFeature(lpparam),
-        SetLockscreenWallpaperFeature(lpparam),
-        PowerKeyFeature(lpparam),
-        FingerprintHapticFailureFeature(lpparam),
-        FingerprintScreenOnFeature(lpparam),
-        NoFingerprintWakeFeature(lpparam),
-        AppsDisableServiceFeature(lpparam),
-        DisableAnyNotificationBlockFeature(lpparam),
-        AllRotationsFeature(lpparam),
-        NoLightUpOnChargeFeature(lpparam),
-        SelectiveVibrationFeature(lpparam),
-        SelectiveToastsFeature(lpparam),
-        FingerprintHapticSuccessFeature(lpparam),
-        VolumeMediaButtonsFeature(lpparam),
-        MultiWindowPlusFeature(lpparam),
-        NoFloatingWindowBlacklistFeature(lpparam),
-        NoAccessDeviceLogsRequestFeature(lpparam),
-        WallpaperScaleLevelFeature(lpparam),
-        AllowUntrustedTouchFeature(lpparam),
+    ): List<FeatureSpec> = listOf(
+        LazyFeatureSpec(
+            id = TempHideOverlayAppFeatureId,
+            name = "Temp Hide Overlay App",
+            preferenceKey = "system_screenshot_overlay",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> TempHideOverlayAppFeature.evaluateEnabled(prefs) },
+            factory = { TempHideOverlayAppFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = OpenAppInFreeFormFeatureId,
+            name = "Open App In Free Form",
+            preferenceKey = "system_notify_openinfw",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> OpenAppInFreeFormFeature.evaluateEnabled(prefs) },
+            factory = { OpenAppInFreeFormFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = NavBarActionsFeatureId,
+            name = "Nav Bar Actions",
+            preferenceKey = "controls_backlong_action",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> NavBarActionsFeature.evaluateEnabled(prefs) },
+            factory = { NavBarActionsFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = PowerDoubleTapActionFeatureId,
+            name = "Power Double Tap Action",
+            preferenceKey = "controls_powerdt_action",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> PowerDoubleTapActionFeature.evaluateEnabled(prefs) },
+            factory = { PowerDoubleTapActionFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = ScreenAnimFeatureId,
+            name = "Screen Anim",
+            preferenceKey = "system_screenanim_duration",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> ScreenAnimFeature.evaluateEnabled(prefs) },
+            factory = { ScreenAnimFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = AppLockTimeoutFeatureId,
+            name = "App Lock Timeout",
+            preferenceKey = "system_applock_timeout",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> AppLockTimeoutFeature.evaluateEnabled(prefs) },
+            factory = { AppLockTimeoutFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = ScreenDimTimeFeatureId,
+            name = "Screen Dim Time",
+            preferenceKey = "system_dimtime",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> ScreenDimTimeFeature.evaluateEnabled(prefs) },
+            factory = { ScreenDimTimeFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = ToastTimeFeatureId,
+            name = "Toast Time",
+            preferenceKey = "system_toasttime",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> ToastTimeFeature.evaluateEnabled(prefs) },
+            factory = { ToastTimeFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = RemoveSecureFeatureId,
+            name = "Remove Secure",
+            preferenceKey = "system_removesecure",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> RemoveSecureFeature.evaluateEnabled(prefs) },
+            factory = { RemoveSecureFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = RemoveActStartConfirmFeatureId,
+            name = "Remove Act Start Confirm",
+            preferenceKey = "system_remove_startactconfirm",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> RemoveActStartConfirmFeature.evaluateEnabled(prefs) },
+            factory = { RemoveActStartConfirmFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = EnhancedSecurityFeatureId,
+            name = "Enhanced Security",
+            preferenceKey = "system_securelock",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> EnhancedSecurityFeature.evaluateEnabled(prefs) },
+            factory = { EnhancedSecurityFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = NoVersionCheckFeatureId,
+            name = "No Version Check",
+            preferenceKey = "system_downgrade",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> NoVersionCheckFeature.evaluateEnabled(prefs) },
+            factory = { NoVersionCheckFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = OrientationLockFeatureId,
+            name = "Orientation Lock",
+            preferenceKey = "system_orientationlock",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> OrientationLockFeature.evaluateEnabled(prefs) },
+            factory = { OrientationLockFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = NoDuckingFeatureId,
+            name = "No Ducking",
+            preferenceKey = "system_noducking",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> NoDuckingFeature.evaluateEnabled(prefs) },
+            factory = { NoDuckingFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = CleanShareMenuServiceFeatureId,
+            name = "Clean Share Menu Service",
+            preferenceKey = "system_cleanshare",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> CleanShareMenuServiceFeature.evaluateEnabled(prefs) },
+            factory = { CleanShareMenuServiceFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = CleanOpenWithMenuServiceFeatureId,
+            name = "Clean Open With Menu Service",
+            preferenceKey = "system_cleanopenwith",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> CleanOpenWithMenuServiceFeature.evaluateEnabled(prefs) },
+            factory = { CleanOpenWithMenuServiceFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = AutoBrightnessRangeFeatureId,
+            name = "Auto Brightness Range",
+            preferenceKey = "system_autobrightness",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> AutoBrightnessRangeFeature.evaluateEnabled(prefs) },
+            factory = { AutoBrightnessRangeFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = AutoBrightnessAfterScreenOffFeatureId,
+            name = "Auto Brightness After Screen Off",
+            preferenceKey = "system_autobrightness_reset_when_screenoff",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> AutoBrightnessAfterScreenOffFeature.evaluateEnabled(prefs) },
+            factory = { AutoBrightnessAfterScreenOffFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = Disable72hStrongAuthFeatureId,
+            name = "Disable72h Strong Auth",
+            preferenceKey = "system_lockscreen_disable_strongauth_72h",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> Disable72hStrongAuthFeature.evaluateEnabled(prefs) },
+            factory = { Disable72hStrongAuthFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = AppLockFeatureId,
+            name = "App Lock",
+            preferenceKey = "system_applock",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> AppLockFeature.evaluateEnabled(prefs) },
+            factory = { AppLockFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = SkipAppLockFeatureId,
+            name = "Skip App Lock",
+            preferenceKey = "system_applock_skip",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> SkipAppLockFeature.evaluateEnabled(prefs) },
+            factory = { SkipAppLockFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = AlarmCompatServiceFeatureId,
+            name = "Alarm Compat Service",
+            preferenceKey = "various_alarmcompat",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> AlarmCompatServiceFeature.evaluateEnabled(prefs) },
+            factory = { AlarmCompatServiceFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = NoCallInterruptionFeatureId,
+            name = "No Call Interruption",
+            preferenceKey = "system_ignorecalls",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> NoCallInterruptionFeature.evaluateEnabled(prefs) },
+            factory = { NoCallInterruptionFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = ForceCloseFeatureId,
+            name = "Force Close",
+            preferenceKey = "system_forceclose",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> ForceCloseFeature.evaluateEnabled(prefs) },
+            factory = { ForceCloseFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = HideProximityWarningFeatureId,
+            name = "Hide Proximity Warning",
+            preferenceKey = "system_hideproxywarn",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> HideProximityWarningFeature.evaluateEnabled(prefs) },
+            factory = { HideProximityWarningFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = FirstVolumePressFeatureId,
+            name = "First Volume Press",
+            preferenceKey = "system_firstpress",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> FirstVolumePressFeature.evaluateEnabled(prefs) },
+            factory = { FirstVolumePressFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = NoSignatureVerifyServiceFeatureId,
+            name = "No Signature Verify Service",
+            preferenceKey = "system_apksign",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> NoSignatureVerifyServiceFeature.evaluateEnabled(prefs) },
+            factory = { NoSignatureVerifyServiceFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = DisableSystemIntegrityFeatureId,
+            name = "Disable System Integrity",
+            preferenceKey = "system_disableintegrity",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> DisableSystemIntegrityFeature.evaluateEnabled(prefs) },
+            factory = { DisableSystemIntegrityFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = MuffledVibrationFeatureId,
+            name = "Muffled Vibration",
+            preferenceKey = "system_vibration_amp",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> MuffledVibrationFeature.evaluateEnabled(prefs) },
+            factory = { MuffledVibrationFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = ClearAllTasksFeatureId,
+            name = "Clear All Tasks",
+            preferenceKey = "system_clearalltasks",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> ClearAllTasksFeature.evaluateEnabled(prefs) },
+            factory = { ClearAllTasksFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = ForceDarkAllAppsFeatureId,
+            name = "Force Dark All Apps",
+            preferenceKey = "system_force_darken_allapps",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> ForceDarkAllAppsFeature.evaluateEnabled(prefs) },
+            factory = { ForceDarkAllAppsFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = SetLockscreenWallpaperFeatureId,
+            name = "Set Lockscreen Wallpaper",
+            preferenceKey = "system_lswallpaper",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> SetLockscreenWallpaperFeature.evaluateEnabled(prefs) },
+            factory = { SetLockscreenWallpaperFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = PowerKeyFeatureId,
+            name = "Power Key",
+            preferenceKey = "controls_powerflash",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> PowerKeyFeature.evaluateEnabled(prefs) },
+            factory = { PowerKeyFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = FingerprintHapticFailureFeatureId,
+            name = "Fingerprint Haptic Failure",
+            preferenceKey = "controls_fingerprintfailure",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> FingerprintHapticFailureFeature.evaluateEnabled(prefs) },
+            factory = { FingerprintHapticFailureFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = FingerprintScreenOnFeatureId,
+            name = "Fingerprint Screen On",
+            preferenceKey = "controls_fingerprintscreen",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> FingerprintScreenOnFeature.evaluateEnabled(prefs) },
+            factory = { FingerprintScreenOnFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = NoFingerprintWakeFeatureId,
+            name = "No Fingerprint Wake",
+            preferenceKey = "controls_fingerprintwake",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> NoFingerprintWakeFeature.evaluateEnabled(prefs) },
+            factory = { NoFingerprintWakeFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = AppsDisableServiceFeatureId,
+            name = "Apps Disable Service",
+            preferenceKey = "various_disableapp",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> AppsDisableServiceFeature.evaluateEnabled(prefs) },
+            factory = { AppsDisableServiceFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = DisableAnyNotificationBlockFeatureId,
+            name = "Disable Any Notification Block",
+            preferenceKey = "system_disableanynotif",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> DisableAnyNotificationBlockFeature.evaluateEnabled(prefs) },
+            factory = { DisableAnyNotificationBlockFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = AllRotationsFeatureId,
+            name = "All Rotations",
+            preferenceKey = "system_allrotations2",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> AllRotationsFeature.evaluateEnabled(prefs) },
+            factory = { AllRotationsFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = NoLightUpOnChargeFeatureId,
+            name = "No Light Up On Charge",
+            preferenceKey = "system_nolightuponcharges",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> NoLightUpOnChargeFeature.evaluateEnabled(prefs) },
+            factory = { NoLightUpOnChargeFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = SelectiveVibrationFeatureId,
+            name = "Selective Vibration",
+            preferenceKey = "system_vibration",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> SelectiveVibrationFeature.evaluateEnabled(prefs) },
+            factory = { SelectiveVibrationFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = SelectiveToastsFeatureId,
+            name = "Selective Toasts",
+            preferenceKey = "system_blocktoasts",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> SelectiveToastsFeature.evaluateEnabled(prefs) },
+            factory = { SelectiveToastsFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = FingerprintHapticSuccessFeatureId,
+            name = "Fingerprint Haptic Success",
+            preferenceKey = "controls_fingerprintsuccess",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> FingerprintHapticSuccessFeature.evaluateEnabled(prefs) },
+            factory = { FingerprintHapticSuccessFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = VolumeMediaButtonsFeatureId,
+            name = "Volume Media Buttons",
+            preferenceKey = "controls_volumemedia_up",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> VolumeMediaButtonsFeature.evaluateEnabled(prefs) },
+            factory = { VolumeMediaButtonsFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = MultiWindowPlusFeatureId,
+            name = "Multi Window Plus",
+            preferenceKey = "system_fw_splitscreen",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> MultiWindowPlusFeature.evaluateEnabled(prefs) },
+            factory = { MultiWindowPlusFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = NoFloatingWindowBlacklistFeatureId,
+            name = "No Floating Window Blacklist",
+            preferenceKey = "system_fw_noblacklist",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> NoFloatingWindowBlacklistFeature.evaluateEnabled(prefs) },
+            factory = { NoFloatingWindowBlacklistFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = NoAccessDeviceLogsRequestFeatureId,
+            name = "No Access Device Logs Request",
+            preferenceKey = "various_disable_access_devicelogs",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> NoAccessDeviceLogsRequestFeature.evaluateEnabled(prefs) },
+            factory = { NoAccessDeviceLogsRequestFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = WallpaperScaleLevelFeatureId,
+            name = "Wallpaper Scale Level",
+            preferenceKey = "system_other_wallpaper_scale",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> WallpaperScaleLevelFeature.evaluateEnabled(prefs) },
+            factory = { WallpaperScaleLevelFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = AllowUntrustedTouchFeatureId,
+            name = "Allow Untrusted Touch",
+            preferenceKey = "various_allow_untrusted_touch",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> AllowUntrustedTouchFeature.evaluateEnabled(prefs) },
+            factory = { AllowUntrustedTouchFeature(lpparam) },
+        ),
     )
 }
