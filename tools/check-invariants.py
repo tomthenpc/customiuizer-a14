@@ -436,6 +436,7 @@ def check_api102_isolation(path: Path, text: str) -> list[Finding]:
 FEATURE_INSTALL_REGISTRY = "tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistry.kt"
 FEATURE_DEFINITION_ROOT = "tv/withaibuild/customiuizer/mods/utils/feature/"
 SYSTEM_SERVER_INSTALLER = "tv/withaibuild/customiuizer/mods/utils/SystemServerInstaller.kt"
+DEVICE_INFO_MONITOR = "tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt"
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
@@ -494,6 +495,48 @@ def check_feature_install_boundary(path: Path, text: str) -> list[Finding]:
         )
         for match in re.finditer(r"catch\s*\([^)]*\bThrowable\b[^)]*\)", text)
     ]
+
+
+def check_device_info_monitor_hot_path(path: Path, text: str) -> list[Finding]:
+    """The two-second device monitor must avoid Formatter churn and preserve OOM propagation."""
+    if rel_posix(path) != DEVICE_INFO_MONITOR:
+        return []
+    findings = []
+    for match in re.finditer(r"\bString\.format\s*\(", text):
+        findings.append(
+            Finding(
+                "device-info-monitor-hot-path",
+                path,
+                line_of(text, match.start()),
+                "two-second monitor path must use the cached fixed-decimal formatter",
+            )
+        )
+
+    for generic in re.finditer(r"catch\s*\(\s*[_A-Za-z]\w*\s*:\s*Throwable\s*\)", text):
+        preceding = None
+        for oom in re.finditer(
+            r"catch\s*\(\s*([A-Za-z]\w*)\s*:\s*OutOfMemoryError\s*\)",
+            text[:generic.start()],
+        ):
+            preceding = oom
+        safe = False
+        if preceding is not None:
+            oom_body, oom_body_start = block_at(text, preceding.start())
+            between = text[oom_body_start + len(oom_body):generic.start()]
+            safe = not between.strip() and re.search(
+                rf"\bthrow\s+{re.escape(preceding.group(1))}\b",
+                oom_body,
+            ) is not None
+        if not safe:
+            findings.append(
+                Finding(
+                    "device-info-monitor-hot-path",
+                    path,
+                    line_of(text, generic.start()),
+                    "device monitor catch(Throwable) must be preceded by an OOM rethrow catch",
+                )
+            )
+    return findings
 
 
 def check_early_restart_enabled(path: Path, text: str) -> list[Finding]:
@@ -621,6 +664,7 @@ RULES = (
     check_api102_isolation,
     check_feature_install_oom_cleanup,
     check_feature_install_boundary,
+    check_device_info_monitor_hot_path,
     check_early_restart_enabled,
     check_reflection_cache_get_declared_method_oom,
 )

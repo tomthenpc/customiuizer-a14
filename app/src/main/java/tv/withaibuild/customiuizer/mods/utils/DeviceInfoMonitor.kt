@@ -21,8 +21,24 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.io.FileInputStream
 import java.io.RandomAccessFile
+import java.math.RoundingMode
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.util.Locale
 import java.util.Properties
+
+private fun newMonitorDecimalFormat(pattern: String) =
+    DecimalFormat(pattern, DecimalFormatSymbols(Locale.ROOT)).apply {
+        roundingMode = RoundingMode.HALF_UP
+        isGroupingUsed = false
+    }
+
+private val monitorOneDecimalFormat = ThreadLocal.withInitial { newMonitorDecimalFormat("0.0") }
+private val monitorTwoDecimalFormat = ThreadLocal.withInitial { newMonitorDecimalFormat("0.00") }
+
+internal fun formatMonitorOneDecimal(value: Float): String = monitorOneDecimalFormat.get()!!.format(value)
+
+internal fun formatMonitorTwoDecimals(value: Float): String = monitorTwoDecimalFormat.get()!!.format(value)
 
 /**
  * Battery / device-temperature status bar text icon monitor.
@@ -360,6 +376,8 @@ object DeviceInfoMonitor {
         screenReceiver = null
         try {
             activeContext?.unregisterReceiver(receiver)
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (_: Throwable) {
         }
     }
@@ -477,6 +495,8 @@ object DeviceInfoMonitor {
         }
         return try {
             XposedHelpers.callMethod(batteryStatus, "isCharging") as Boolean
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (_: Throwable) {
             true
         }
@@ -487,6 +507,8 @@ object DeviceInfoMonitor {
             FileInputStream("/sys/class/power_supply/battery/uevent").use { fis ->
                 Properties().apply { load(fis) }
             }
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (_: Throwable) {
             null
         }
@@ -497,6 +519,8 @@ object DeviceInfoMonitor {
         if (thermalId == -1) return null
         return try {
             RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$thermalId/temp", "r").use { it.readLine() }
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (_: Throwable) {
             null
         }
@@ -537,7 +561,7 @@ object DeviceInfoMonitor {
             if (cfg.batteryPositive) rawCurr = Math.abs(rawCurr)
             if (Math.abs(rawCurr) > 999) {
                 currUnit = "A"
-                currVal = String.format(Locale.ROOT, "%.2f", rawCurr / 1000f)
+                currVal = formatMonitorTwoDecimals(rawCurr / 1000f)
             } else {
                 currVal = rawCurr.toString()
             }
@@ -551,7 +575,7 @@ object DeviceInfoMonitor {
         var simpleWatt = ""
         if (opt == 2 || opt == 4 || opt == 5) {
             val voltVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_VOLTAGE_NOW")) / 1000f / 1000f
-            simpleWatt = String.format(Locale.ROOT, "%.2f", Math.abs(voltVal * rawCurr) / 1000)
+            simpleWatt = formatMonitorTwoDecimals(Math.abs(voltVal * rawCurr) / 1000)
         }
 
         val splitChar = if (cfg.batterySingleRow) " " else "\n"
@@ -579,8 +603,8 @@ object DeviceInfoMonitor {
     private fun buildDeviceInfo(cfg: ConfigSnapshot, props: Properties, cpuProps: String): String {
         val batteryTempVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_TEMP"))
         val cpuTempVal = parseSysfsInt(cpuProps)
-        val simpleBatteryTemp = String.format(Locale.ROOT, "%.1f", batteryTempVal / 10f)
-        val simpleCpuTemp = String.format(Locale.ROOT, "%.1f", cpuTempVal / 1000f)
+        val simpleBatteryTemp = formatMonitorOneDecimal(batteryTempVal / 10f)
+        val simpleCpuTemp = formatMonitorOneDecimal(cpuTempVal / 1000f)
         val opt = cfg.deviceTempContentOpt
         val tempUnit = if (cfg.deviceTempHideUnit) "" else "℃"
         val splitChar = if (cfg.deviceTempSingleRow) " " else "\n"

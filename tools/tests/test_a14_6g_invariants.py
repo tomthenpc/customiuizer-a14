@@ -164,6 +164,26 @@ void unsafe() {
             self.assertEqual(1, len(findings))
             self.assertIn("OOM", findings[0].detail)
 
+    def test_device_monitor_hot_path_rejects_formatter_and_swallowed_oom(self):
+        path = self._source_path(
+            "tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt"
+        )
+        clean = """
+val text = formatMonitorOneDecimal(value)
+try { read() }
+catch (oom: OutOfMemoryError) { throw oom }
+catch (_: Throwable) { return null }
+"""
+        self.assertEqual([], self.mod.check_device_info_monitor_hot_path(path, clean))
+
+        unsafe = """
+val text = String.format(Locale.ROOT, "%.1f", value)
+try { read() }
+catch (_: Throwable) { return null }
+"""
+        findings = self.mod.check_device_info_monitor_hot_path(path, unsafe)
+        self.assertEqual(2, len(findings))
+
     def test_early_restart_enabled_ok(self):
         text = """
     fun onPreferenceChanged(key: String?, prefs: PrefMap) {
