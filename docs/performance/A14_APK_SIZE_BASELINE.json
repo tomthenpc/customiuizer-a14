@@ -1,0 +1,4184 @@
+{
+  "apkPath": "C:\\Users\\tv\\Downloads\\Peengeek\\customiuizer-a14-forDevin\\app\\build\\outputs\\apk\\debug\\CustoMIUIzer-A14-r14.16.1-debug.apk",
+  "sha256": "c3e941b04b80257d72951c474f0edb466a1d080cc85c58ca1355fc0618774d02",
+  "totalBytes": 14353624,
+  "generatedAtUtc": "2026-08-01T21:17:43.255891+00:00",
+  "files": [
+    {
+      "name": "META-INF/com/android/build/gradle/app-metadata.properties",
+      "size": 56,
+      "compressed": 51,
+      "ratio": 0.9107
+    },
+    {
+      "name": "classes.dex",
+      "size": 9823456,
+      "compressed": 9823456,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes10.dex",
+      "size": 42472,
+      "compressed": 42472,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes11.dex",
+      "size": 31008,
+      "compressed": 31008,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes2.dex",
+      "size": 270456,
+      "compressed": 270456,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes3.dex",
+      "size": 807704,
+      "compressed": 807704,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes4.dex",
+      "size": 319676,
+      "compressed": 319676,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes5.dex",
+      "size": 30100,
+      "compressed": 30100,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes6.dex",
+      "size": 162152,
+      "compressed": 162152,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes7.dex",
+      "size": 764088,
+      "compressed": 764088,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes8.dex",
+      "size": 251452,
+      "compressed": 251452,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes9.dex",
+      "size": 124292,
+      "compressed": 124292,
+      "ratio": 1.0
+    },
+    {
+      "name": "lib/arm64-v8a/libdexkit.so",
+      "size": 381024,
+      "compressed": 381024,
+      "ratio": 1.0
+    },
+    {
+      "name": "assets/test0.png",
+      "size": 12499,
+      "compressed": 12499,
+      "ratio": 1.0
+    },
+    {
+      "name": "assets/test1.mp3",
+      "size": 22569,
+      "compressed": 22569,
+      "ratio": 1.0
+    },
+    {
+      "name": "assets/test2.mp4",
+      "size": 1493,
+      "compressed": 1493,
+      "ratio": 1.0
+    },
+    {
+      "name": "assets/test3.txt",
+      "size": 25,
+      "compressed": 27,
+      "ratio": 1.08
+    },
+    {
+      "name": "assets/test4.zip",
+      "size": 179,
+      "compressed": 124,
+      "ratio": 0.6927
+    },
+    {
+      "name": "AndroidManifest.xml",
+      "size": 14820,
+      "compressed": 3512,
+      "ratio": 0.237
+    },
+    {
+      "name": "res/anim-v21/fragment_fast_out_extra_slow_in.xml",
+      "size": 364,
+      "compressed": 218,
+      "ratio": 0.5989
+    },
+    {
+      "name": "res/anim/abc_fade_in.xml",
+      "size": 388,
+      "compressed": 216,
+      "ratio": 0.5567
+    },
+    {
+      "name": "res/anim/abc_fade_out.xml",
+      "size": 388,
+      "compressed": 218,
+      "ratio": 0.5619
+    },
+    {
+      "name": "res/anim/abc_grow_fade_in_from_bottom.xml",
+      "size": 852,
+      "compressed": 376,
+      "ratio": 0.4413
+    },
+    {
+      "name": "res/anim/abc_popup_enter.xml",
+      "size": 508,
+      "compressed": 258,
+      "ratio": 0.5079
+    },
+    {
+      "name": "res/anim/abc_popup_exit.xml",
+      "size": 508,
+      "compressed": 259,
+      "ratio": 0.5098
+    },
+    {
+      "name": "res/anim/abc_shrink_fade_out_from_bottom.xml",
+      "size": 852,
+      "compressed": 377,
+      "ratio": 0.4425
+    },
+    {
+      "name": "res/anim/abc_slide_in_bottom.xml",
+      "size": 396,
+      "compressed": 228,
+      "ratio": 0.5758
+    },
+    {
+      "name": "res/anim/abc_slide_in_top.xml",
+      "size": 396,
+      "compressed": 229,
+      "ratio": 0.5783
+    },
+    {
+      "name": "res/anim/abc_slide_out_bottom.xml",
+      "size": 396,
+      "compressed": 227,
+      "ratio": 0.5732
+    },
+    {
+      "name": "res/anim/abc_slide_out_top.xml",
+      "size": 396,
+      "compressed": 228,
+      "ratio": 0.5758
+    },
+    {
+      "name": "res/anim/abc_tooltip_enter.xml",
+      "size": 388,
+      "compressed": 218,
+      "ratio": 0.5619
+    },
+    {
+      "name": "res/anim/abc_tooltip_exit.xml",
+      "size": 388,
+      "compressed": 217,
+      "ratio": 0.5593
+    },
+    {
+      "name": "res/anim/activity_close_enter.xml",
+      "size": 636,
+      "compressed": 308,
+      "ratio": 0.4843
+    },
+    {
+      "name": "res/anim/activity_close_exit.xml",
+      "size": 508,
+      "compressed": 271,
+      "ratio": 0.5335
+    },
+    {
+      "name": "res/anim/activity_open_enter.xml",
+      "size": 676,
+      "compressed": 317,
+      "ratio": 0.4689
+    },
+    {
+      "name": "res/anim/activity_open_exit.xml",
+      "size": 756,
+      "compressed": 360,
+      "ratio": 0.4762
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_checked_box_inner_merged_animation.xml",
+      "size": 2124,
+      "compressed": 641,
+      "ratio": 0.3018
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_checked_box_outer_merged_animation.xml",
+      "size": 2780,
+      "compressed": 742,
+      "ratio": 0.2669
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_checked_icon_null_animation.xml",
+      "size": 1196,
+      "compressed": 397,
+      "ratio": 0.3319
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_unchecked_box_inner_merged_animation.xml",
+      "size": 2360,
+      "compressed": 660,
+      "ratio": 0.2797
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_unchecked_check_path_merged_animation.xml",
+      "size": 2520,
+      "compressed": 731,
+      "ratio": 0.2901
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_unchecked_icon_null_animation.xml",
+      "size": 1196,
+      "compressed": 397,
+      "ratio": 0.3319
+    },
+    {
+      "name": "res/anim/btn_radio_to_off_mtrl_dot_group_animation.xml",
+      "size": 1656,
+      "compressed": 430,
+      "ratio": 0.2597
+    },
+    {
+      "name": "res/anim/btn_radio_to_off_mtrl_ring_outer_animation.xml",
+      "size": 1656,
+      "compressed": 433,
+      "ratio": 0.2615
+    },
+    {
+      "name": "res/anim/btn_radio_to_off_mtrl_ring_outer_path_animation.xml",
+      "size": 1028,
+      "compressed": 373,
+      "ratio": 0.3628
+    },
+    {
+      "name": "res/anim/btn_radio_to_on_mtrl_dot_group_animation.xml",
+      "size": 1656,
+      "compressed": 421,
+      "ratio": 0.2542
+    },
+    {
+      "name": "res/anim/btn_radio_to_on_mtrl_ring_outer_animation.xml",
+      "size": 1656,
+      "compressed": 428,
+      "ratio": 0.2585
+    },
+    {
+      "name": "res/anim/btn_radio_to_on_mtrl_ring_outer_path_animation.xml",
+      "size": 1028,
+      "compressed": 380,
+      "ratio": 0.3696
+    },
+    {
+      "name": "res/anim/decelerate_interpolator.xml",
+      "size": 136,
+      "compressed": 79,
+      "ratio": 0.5809
+    },
+    {
+      "name": "res/animator/fragment_close_enter.xml",
+      "size": 516,
+      "compressed": 277,
+      "ratio": 0.5368
+    },
+    {
+      "name": "res/animator/fragment_close_exit.xml",
+      "size": 516,
+      "compressed": 273,
+      "ratio": 0.5291
+    },
+    {
+      "name": "res/animator/fragment_fade_enter.xml",
+      "size": 452,
+      "compressed": 265,
+      "ratio": 0.5863
+    },
+    {
+      "name": "res/animator/fragment_fade_exit.xml",
+      "size": 452,
+      "compressed": 265,
+      "ratio": 0.5863
+    },
+    {
+      "name": "res/animator/fragment_open_enter.xml",
+      "size": 516,
+      "compressed": 274,
+      "ratio": 0.531
+    },
+    {
+      "name": "res/animator/fragment_open_exit.xml",
+      "size": 516,
+      "compressed": 276,
+      "ratio": 0.5349
+    },
+    {
+      "name": "res/color-v23/abc_btn_colored_borderless_text_material.xml",
+      "size": 500,
+      "compressed": 242,
+      "ratio": 0.484
+    },
+    {
+      "name": "res/color-v23/abc_btn_colored_text_material.xml",
+      "size": 500,
+      "compressed": 242,
+      "ratio": 0.484
+    },
+    {
+      "name": "res/color-v23/abc_color_highlight_material.xml",
+      "size": 544,
+      "compressed": 257,
+      "ratio": 0.4724
+    },
+    {
+      "name": "res/color-v23/abc_tint_btn_checkable.xml",
+      "size": 624,
+      "compressed": 273,
+      "ratio": 0.4375
+    },
+    {
+      "name": "res/color-v23/abc_tint_default.xml",
+      "size": 1120,
+      "compressed": 369,
+      "ratio": 0.3295
+    },
+    {
+      "name": "res/color-v23/abc_tint_edittext.xml",
+      "size": 668,
+      "compressed": 283,
+      "ratio": 0.4237
+    },
+    {
+      "name": "res/color-v23/abc_tint_seek_thumb.xml",
+      "size": 500,
+      "compressed": 241,
+      "ratio": 0.482
+    },
+    {
+      "name": "res/color-v23/abc_tint_spinner.xml",
+      "size": 668,
+      "compressed": 283,
+      "ratio": 0.4237
+    },
+    {
+      "name": "res/color-v23/abc_tint_switch_track.xml",
+      "size": 664,
+      "compressed": 282,
+      "ratio": 0.4247
+    },
+    {
+      "name": "res/color/abc_background_cache_hint_selector_material_dark.xml",
+      "size": 468,
+      "compressed": 231,
+      "ratio": 0.4936
+    },
+    {
+      "name": "res/color/abc_background_cache_hint_selector_material_light.xml",
+      "size": 468,
+      "compressed": 231,
+      "ratio": 0.4936
+    },
+    {
+      "name": "res/color/abc_hint_foreground_material_dark.xml",
+      "size": 564,
+      "compressed": 258,
+      "ratio": 0.4574
+    },
+    {
+      "name": "res/color/abc_hint_foreground_material_light.xml",
+      "size": 564,
+      "compressed": 258,
+      "ratio": 0.4574
+    },
+    {
+      "name": "res/color/abc_primary_text_disable_only_material_dark.xml",
+      "size": 464,
+      "compressed": 228,
+      "ratio": 0.4914
+    },
+    {
+      "name": "res/color/abc_primary_text_disable_only_material_light.xml",
+      "size": 464,
+      "compressed": 228,
+      "ratio": 0.4914
+    },
+    {
+      "name": "res/color/abc_primary_text_material_dark.xml",
+      "size": 464,
+      "compressed": 227,
+      "ratio": 0.4892
+    },
+    {
+      "name": "res/color/abc_primary_text_material_light.xml",
+      "size": 464,
+      "compressed": 228,
+      "ratio": 0.4914
+    },
+    {
+      "name": "res/color/abc_search_url_text.xml",
+      "size": 588,
+      "compressed": 250,
+      "ratio": 0.4252
+    },
+    {
+      "name": "res/color/abc_secondary_text_material_dark.xml",
+      "size": 464,
+      "compressed": 227,
+      "ratio": 0.4892
+    },
+    {
+      "name": "res/color/abc_secondary_text_material_light.xml",
+      "size": 464,
+      "compressed": 227,
+      "ratio": 0.4892
+    },
+    {
+      "name": "res/color/color_popmenu_background.xml",
+      "size": 376,
+      "compressed": 203,
+      "ratio": 0.5399
+    },
+    {
+      "name": "res/color/color_popup_background.xml",
+      "size": 376,
+      "compressed": 203,
+      "ratio": 0.5399
+    },
+    {
+      "name": "res/color/color_selector.xml",
+      "size": 484,
+      "compressed": 224,
+      "ratio": 0.4628
+    },
+    {
+      "name": "res/color/preference_primary_text.xml",
+      "size": 960,
+      "compressed": 328,
+      "ratio": 0.3417
+    },
+    {
+      "name": "res/color/preference_primary_text_disable.xml",
+      "size": 376,
+      "compressed": 204,
+      "ratio": 0.5426
+    },
+    {
+      "name": "res/color/preference_secondary_text.xml",
+      "size": 960,
+      "compressed": 328,
+      "ratio": 0.3417
+    },
+    {
+      "name": "res/color/switch_thumb_material_dark.xml",
+      "size": 464,
+      "compressed": 226,
+      "ratio": 0.4871
+    },
+    {
+      "name": "res/color/switch_thumb_material_light.xml",
+      "size": 464,
+      "compressed": 227,
+      "ratio": 0.4892
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_answer.xml",
+      "size": 1356,
+      "compressed": 663,
+      "ratio": 0.4889
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_answer_low.xml",
+      "size": 1320,
+      "compressed": 644,
+      "ratio": 0.4879
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_answer_video.xml",
+      "size": 772,
+      "compressed": 421,
+      "ratio": 0.5453
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_answer_video_low.xml",
+      "size": 736,
+      "compressed": 401,
+      "ratio": 0.5448
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_decline.xml",
+      "size": 1528,
+      "compressed": 734,
+      "ratio": 0.4804
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_decline_low.xml",
+      "size": 1492,
+      "compressed": 712,
+      "ratio": 0.4772
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_ab_share_pack_mtrl_alpha.9.png",
+      "size": 272,
+      "compressed": 272,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "size": 227,
+      "compressed": 227,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "size": 404,
+      "compressed": 404,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "size": 464,
+      "compressed": 464,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "size": 563,
+      "compressed": 563,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "size": 1096,
+      "compressed": 1096,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "size": 1243,
+      "compressed": 1243,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_cab_background_top_mtrl_alpha.9.png",
+      "size": 226,
+      "compressed": 226,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_ic_commit_search_api_mtrl_alpha.png",
+      "size": 171,
+      "compressed": 171,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_divider_mtrl_alpha.9.png",
+      "size": 167,
+      "compressed": 167,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_focused_holo.9.png",
+      "size": 244,
+      "compressed": 244,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_longpressed_holo.9.png",
+      "size": 212,
+      "compressed": 212,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_pressed_holo_dark.9.png",
+      "size": 208,
+      "compressed": 208,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_pressed_holo_light.9.png",
+      "size": 208,
+      "compressed": 208,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_selector_disabled_holo_dark.9.png",
+      "size": 228,
+      "compressed": 228,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_selector_disabled_holo_light.9.png",
+      "size": 229,
+      "compressed": 229,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_menu_hardkey_panel_mtrl_mult.9.png",
+      "size": 738,
+      "compressed": 738,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_popup_background_mtrl_mult.9.png",
+      "size": 1098,
+      "compressed": 1098,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_control_off_mtrl_alpha.png",
+      "size": 201,
+      "compressed": 201,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "size": 196,
+      "compressed": 196,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "size": 272,
+      "compressed": 272,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_primary_mtrl_alpha.9.png",
+      "size": 205,
+      "compressed": 205,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_track_mtrl_alpha.9.png",
+      "size": 196,
+      "compressed": 196,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 345,
+      "compressed": 345,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "size": 484,
+      "compressed": 484,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "size": 190,
+      "compressed": 190,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "size": 278,
+      "compressed": 278,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_text_select_handle_middle_mtrl.png",
+      "size": 396,
+      "compressed": 396,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "size": 262,
+      "compressed": 262,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_textfield_activated_mtrl_alpha.9.png",
+      "size": 186,
+      "compressed": 186,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_textfield_default_mtrl_alpha.9.png",
+      "size": 192,
+      "compressed": 192,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_textfield_search_activated_mtrl_alpha.9.png",
+      "size": 178,
+      "compressed": 178,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_textfield_search_default_mtrl_alpha.9.png",
+      "size": 178,
+      "compressed": 178,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_answer.png",
+      "size": 472,
+      "compressed": 472,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_answer_low.png",
+      "size": 472,
+      "compressed": 472,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_answer_video.png",
+      "size": 254,
+      "compressed": 254,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_answer_video_low.png",
+      "size": 254,
+      "compressed": 254,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_decline.png",
+      "size": 375,
+      "compressed": 375,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_decline_low.png",
+      "size": 375,
+      "compressed": 375,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_bg_low_normal.9.png",
+      "size": 212,
+      "compressed": 212,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_bg_low_pressed.9.png",
+      "size": 225,
+      "compressed": 225,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_bg_normal.9.png",
+      "size": 212,
+      "compressed": 212,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_bg_normal_pressed.9.png",
+      "size": 225,
+      "compressed": 225,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_oversize_large_icon_bg.png",
+      "size": 909,
+      "compressed": 909,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notify_panel_notification_icon_bg.png",
+      "size": 107,
+      "compressed": 107,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_answer.png",
+      "size": 270,
+      "compressed": 270,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_answer_low.png",
+      "size": 270,
+      "compressed": 270,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_answer_video.png",
+      "size": 199,
+      "compressed": 199,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_answer_video_low.png",
+      "size": 199,
+      "compressed": 199,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_decline.png",
+      "size": 201,
+      "compressed": 201,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_decline_low.png",
+      "size": 201,
+      "compressed": 201,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldrtl-hdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 345,
+      "compressed": 345,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldrtl-mdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 318,
+      "compressed": 318,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldrtl-xhdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 417,
+      "compressed": 417,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldrtl-xxhdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 525,
+      "compressed": 525,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-ldrtl-xxxhdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 437,
+      "compressed": 437,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_ab_share_pack_mtrl_alpha.9.png",
+      "size": 267,
+      "compressed": 267,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "size": 214,
+      "compressed": 214,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "size": 321,
+      "compressed": 321,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "size": 324,
+      "compressed": 324,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "size": 356,
+      "compressed": 356,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "size": 754,
+      "compressed": 754,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "size": 825,
+      "compressed": 825,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_cab_background_top_mtrl_alpha.9.png",
+      "size": 216,
+      "compressed": 216,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_ic_commit_search_api_mtrl_alpha.png",
+      "size": 173,
+      "compressed": 173,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_divider_mtrl_alpha.9.png",
+      "size": 167,
+      "compressed": 167,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_focused_holo.9.png",
+      "size": 222,
+      "compressed": 222,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_longpressed_holo.9.png",
+      "size": 211,
+      "compressed": 211,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_pressed_holo_dark.9.png",
+      "size": 207,
+      "compressed": 207,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_pressed_holo_light.9.png",
+      "size": 207,
+      "compressed": 207,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_selector_disabled_holo_dark.9.png",
+      "size": 217,
+      "compressed": 217,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_selector_disabled_holo_light.9.png",
+      "size": 217,
+      "compressed": 217,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_menu_hardkey_panel_mtrl_mult.9.png",
+      "size": 541,
+      "compressed": 541,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_popup_background_mtrl_mult.9.png",
+      "size": 776,
+      "compressed": 776,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_control_off_mtrl_alpha.png",
+      "size": 159,
+      "compressed": 159,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "size": 145,
+      "compressed": 145,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "size": 197,
+      "compressed": 197,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_primary_mtrl_alpha.9.png",
+      "size": 203,
+      "compressed": 203,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_track_mtrl_alpha.9.png",
+      "size": 194,
+      "compressed": 194,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 327,
+      "compressed": 327,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "size": 395,
+      "compressed": 395,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "size": 186,
+      "compressed": 186,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "size": 203,
+      "compressed": 203,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_text_select_handle_middle_mtrl.png",
+      "size": 310,
+      "compressed": 310,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "size": 186,
+      "compressed": 186,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_textfield_activated_mtrl_alpha.9.png",
+      "size": 181,
+      "compressed": 181,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_textfield_default_mtrl_alpha.9.png",
+      "size": 178,
+      "compressed": 178,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_textfield_search_activated_mtrl_alpha.9.png",
+      "size": 178,
+      "compressed": 178,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_textfield_search_default_mtrl_alpha.9.png",
+      "size": 178,
+      "compressed": 178,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_answer.png",
+      "size": 317,
+      "compressed": 317,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_answer_low.png",
+      "size": 317,
+      "compressed": 317,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_answer_video.png",
+      "size": 206,
+      "compressed": 206,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_answer_video_low.png",
+      "size": 206,
+      "compressed": 206,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_decline.png",
+      "size": 264,
+      "compressed": 264,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_decline_low.png",
+      "size": 264,
+      "compressed": 264,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notification_bg_low_normal.9.png",
+      "size": 215,
+      "compressed": 215,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notification_bg_low_pressed.9.png",
+      "size": 223,
+      "compressed": 223,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notification_bg_normal.9.png",
+      "size": 215,
+      "compressed": 215,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notification_bg_normal_pressed.9.png",
+      "size": 223,
+      "compressed": 223,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notify_panel_notification_icon_bg.png",
+      "size": 98,
+      "compressed": 98,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-night-xhdpi-v8/card_icon_default.png",
+      "size": 1270,
+      "compressed": 1270,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-night-xxhdpi-v8/drag_handle.png",
+      "size": 148,
+      "compressed": 148,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-night-xxhdpi-v8/icon_action_default.png",
+      "size": 1065,
+      "compressed": 1065,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-night-xxxhdpi-v8/progressbar_indeterminate_circle.png",
+      "size": 1372,
+      "compressed": 1372,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-v21/abc_action_bar_item_background_material.xml",
+      "size": 264,
+      "compressed": 152,
+      "ratio": 0.5758
+    },
+    {
+      "name": "res/drawable-v21/abc_btn_colored_material.xml",
+      "size": 1716,
+      "compressed": 551,
+      "ratio": 0.3211
+    },
+    {
+      "name": "res/drawable-v21/abc_dialog_material_background.xml",
+      "size": 716,
+      "compressed": 323,
+      "ratio": 0.4511
+    },
+    {
+      "name": "res/drawable-v21/abc_edit_text_material.xml",
+      "size": 1172,
+      "compressed": 462,
+      "ratio": 0.3942
+    },
+    {
+      "name": "res/drawable-v21/abc_list_divider_material.xml",
+      "size": 516,
+      "compressed": 246,
+      "ratio": 0.4767
+    },
+    {
+      "name": "res/drawable-v21/ic_arrow_down_24dp.xml",
+      "size": 644,
+      "compressed": 350,
+      "ratio": 0.5435
+    },
+    {
+      "name": "res/drawable-v21/notification_action_background.xml",
+      "size": 1180,
+      "compressed": 470,
+      "ratio": 0.3983
+    },
+    {
+      "name": "res/drawable-v21/preference_list_divider_material.xml",
+      "size": 516,
+      "compressed": 246,
+      "ratio": 0.4767
+    },
+    {
+      "name": "res/drawable-v23/abc_control_background_material.xml",
+      "size": 304,
+      "compressed": 174,
+      "ratio": 0.5724
+    },
+    {
+      "name": "res/drawable-watch-v20/abc_dialog_material_background.xml",
+      "size": 372,
+      "compressed": 185,
+      "ratio": 0.4973
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_ab_share_pack_mtrl_alpha.9.png",
+      "size": 280,
+      "compressed": 280,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "size": 281,
+      "compressed": 281,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "size": 432,
+      "compressed": 432,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "size": 651,
+      "compressed": 651,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "size": 785,
+      "compressed": 785,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "size": 1526,
+      "compressed": 1526,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "size": 1731,
+      "compressed": 1731,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_cab_background_top_mtrl_alpha.9.png",
+      "size": 229,
+      "compressed": 229,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_ic_commit_search_api_mtrl_alpha.png",
+      "size": 228,
+      "compressed": 228,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_divider_mtrl_alpha.9.png",
+      "size": 167,
+      "compressed": 167,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_focused_holo.9.png",
+      "size": 244,
+      "compressed": 244,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_longpressed_holo.9.png",
+      "size": 214,
+      "compressed": 214,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_pressed_holo_dark.9.png",
+      "size": 209,
+      "compressed": 209,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_pressed_holo_light.9.png",
+      "size": 209,
+      "compressed": 209,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_selector_disabled_holo_dark.9.png",
+      "size": 236,
+      "compressed": 236,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_selector_disabled_holo_light.9.png",
+      "size": 235,
+      "compressed": 235,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_menu_hardkey_panel_mtrl_mult.9.png",
+      "size": 966,
+      "compressed": 966,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_popup_background_mtrl_mult.9.png",
+      "size": 1544,
+      "compressed": 1544,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_control_off_mtrl_alpha.png",
+      "size": 267,
+      "compressed": 267,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "size": 267,
+      "compressed": 267,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "size": 391,
+      "compressed": 391,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_primary_mtrl_alpha.9.png",
+      "size": 208,
+      "compressed": 208,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_track_mtrl_alpha.9.png",
+      "size": 198,
+      "compressed": 198,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 448,
+      "compressed": 448,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "size": 618,
+      "compressed": 618,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "size": 194,
+      "compressed": 194,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "size": 335,
+      "compressed": 335,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_text_select_handle_middle_mtrl.png",
+      "size": 585,
+      "compressed": 585,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "size": 318,
+      "compressed": 318,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_textfield_activated_mtrl_alpha.9.png",
+      "size": 189,
+      "compressed": 189,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_textfield_default_mtrl_alpha.9.png",
+      "size": 187,
+      "compressed": 187,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_textfield_search_activated_mtrl_alpha.9.png",
+      "size": 184,
+      "compressed": 184,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_textfield_search_default_mtrl_alpha.9.png",
+      "size": 182,
+      "compressed": 182,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/card_icon_default.png",
+      "size": 1294,
+      "compressed": 1294,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_answer.png",
+      "size": 623,
+      "compressed": 623,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_answer_low.png",
+      "size": 623,
+      "compressed": 623,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_answer_video.png",
+      "size": 290,
+      "compressed": 290,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_answer_video_low.png",
+      "size": 290,
+      "compressed": 290,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_decline.png",
+      "size": 452,
+      "compressed": 452,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_decline_low.png",
+      "size": 452,
+      "compressed": 452,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notification_bg_low_normal.9.png",
+      "size": 221,
+      "compressed": 221,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notification_bg_low_pressed.9.png",
+      "size": 252,
+      "compressed": 252,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notification_bg_normal.9.png",
+      "size": 221,
+      "compressed": 221,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notification_bg_normal_pressed.9.png",
+      "size": 247,
+      "compressed": 247,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notify_panel_notification_icon_bg.png",
+      "size": 138,
+      "compressed": 138,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_ab_share_pack_mtrl_alpha.9.png",
+      "size": 286,
+      "compressed": 286,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "size": 307,
+      "compressed": 307,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "size": 593,
+      "compressed": 593,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "size": 984,
+      "compressed": 984,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "size": 1208,
+      "compressed": 1208,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "size": 2463,
+      "compressed": 2463,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "size": 2834,
+      "compressed": 2834,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_cab_background_top_mtrl_alpha.9.png",
+      "size": 237,
+      "compressed": 237,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_ic_commit_search_api_mtrl_alpha.png",
+      "size": 224,
+      "compressed": 224,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_divider_mtrl_alpha.9.png",
+      "size": 171,
+      "compressed": 171,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_focused_holo.9.png",
+      "size": 245,
+      "compressed": 245,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_longpressed_holo.9.png",
+      "size": 221,
+      "compressed": 221,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_pressed_holo_dark.9.png",
+      "size": 212,
+      "compressed": 212,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_pressed_holo_light.9.png",
+      "size": 212,
+      "compressed": 212,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_selector_disabled_holo_dark.9.png",
+      "size": 260,
+      "compressed": 260,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_selector_disabled_holo_light.9.png",
+      "size": 258,
+      "compressed": 258,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_menu_hardkey_panel_mtrl_mult.9.png",
+      "size": 1779,
+      "compressed": 1779,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_popup_background_mtrl_mult.9.png",
+      "size": 2305,
+      "compressed": 2305,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_control_off_mtrl_alpha.png",
+      "size": 322,
+      "compressed": 322,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "size": 403,
+      "compressed": 403,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "size": 595,
+      "compressed": 595,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_primary_mtrl_alpha.9.png",
+      "size": 210,
+      "compressed": 210,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_track_mtrl_alpha.9.png",
+      "size": 207,
+      "compressed": 207,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 524,
+      "compressed": 524,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "size": 851,
+      "compressed": 851,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "size": 204,
+      "compressed": 204,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "size": 420,
+      "compressed": 420,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_text_select_handle_middle_mtrl.png",
+      "size": 753,
+      "compressed": 753,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "size": 422,
+      "compressed": 422,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_textfield_activated_mtrl_alpha.9.png",
+      "size": 199,
+      "compressed": 199,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_textfield_default_mtrl_alpha.9.png",
+      "size": 200,
+      "compressed": 200,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_textfield_search_activated_mtrl_alpha.9.png",
+      "size": 187,
+      "compressed": 187,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_textfield_search_default_mtrl_alpha.9.png",
+      "size": 186,
+      "compressed": 186,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/am_card_item_disabled.png",
+      "size": 1394,
+      "compressed": 1394,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/color_button.9.png",
+      "size": 2480,
+      "compressed": 2480,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/drag_handle.png",
+      "size": 142,
+      "compressed": 142,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_appinfo12.png",
+      "size": 1666,
+      "compressed": 1666,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_answer.png",
+      "size": 884,
+      "compressed": 884,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_answer_low.png",
+      "size": 884,
+      "compressed": 884,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_answer_video.png",
+      "size": 384,
+      "compressed": 384,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_answer_video_low.png",
+      "size": 384,
+      "compressed": 384,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_decline.png",
+      "size": 628,
+      "compressed": 628,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_decline_low.png",
+      "size": 628,
+      "compressed": 628,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_credentials.png",
+      "size": 4343,
+      "compressed": 4343,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_forceclose12.png",
+      "size": 1557,
+      "compressed": 1557,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_mask.png",
+      "size": 1615,
+      "compressed": 1615,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_qs_autorotate_disabled.png",
+      "size": 2117,
+      "compressed": 2117,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_qs_autorotate_lock_landscape.png",
+      "size": 2715,
+      "compressed": 2715,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_qs_autorotate_lock_portrait.png",
+      "size": 2789,
+      "compressed": 2789,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_xspace.png",
+      "size": 1057,
+      "compressed": 1057,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/icon_action_allow.png",
+      "size": 1081,
+      "compressed": 1081,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/icon_action_default.png",
+      "size": 1142,
+      "compressed": 1142,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/icon_action_disallow.png",
+      "size": 1132,
+      "compressed": 1132,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "size": 275,
+      "compressed": 275,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "size": 476,
+      "compressed": 476,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "size": 785,
+      "compressed": 785,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "size": 946,
+      "compressed": 946,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "size": 2505,
+      "compressed": 2505,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "size": 2816,
+      "compressed": 2816,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "size": 415,
+      "compressed": 415,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "size": 631,
+      "compressed": 631,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "size": 430,
+      "compressed": 430,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "size": 813,
+      "compressed": 813,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "size": 202,
+      "compressed": 202,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "size": 513,
+      "compressed": 513,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "size": 513,
+      "compressed": 513,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_answer.png",
+      "size": 1171,
+      "compressed": 1171,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_answer_low.png",
+      "size": 1171,
+      "compressed": 1171,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_answer_video.png",
+      "size": 465,
+      "compressed": 465,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_answer_video_low.png",
+      "size": 465,
+      "compressed": 465,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_decline.png",
+      "size": 823,
+      "compressed": 823,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_decline_low.png",
+      "size": 823,
+      "compressed": 823,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_sysbar_dot_bottomleft.png",
+      "size": 425,
+      "compressed": 425,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_sysbar_dot_bottomleft_dark.png",
+      "size": 411,
+      "compressed": 411,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_sysbar_dot_topright.png",
+      "size": 425,
+      "compressed": 425,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_sysbar_dot_topright_dark.png",
+      "size": 411,
+      "compressed": 411,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/progressbar_indeterminate_circle.png",
+      "size": 1777,
+      "compressed": 1777,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/abc_btn_borderless_material.xml",
+      "size": 588,
+      "compressed": 252,
+      "ratio": 0.4286
+    },
+    {
+      "name": "res/drawable/abc_btn_check_material.xml",
+      "size": 464,
+      "compressed": 230,
+      "ratio": 0.4957
+    },
+    {
+      "name": "res/drawable/abc_btn_check_material_anim.xml",
+      "size": 816,
+      "compressed": 343,
+      "ratio": 0.4203
+    },
+    {
+      "name": "res/drawable/abc_btn_default_mtrl_shape.xml",
+      "size": 932,
+      "compressed": 394,
+      "ratio": 0.4227
+    },
+    {
+      "name": "res/drawable/abc_btn_radio_material.xml",
+      "size": 464,
+      "compressed": 230,
+      "ratio": 0.4957
+    },
+    {
+      "name": "res/drawable/abc_btn_radio_material_anim.xml",
+      "size": 816,
+      "compressed": 343,
+      "ratio": 0.4203
+    },
+    {
+      "name": "res/drawable/abc_cab_background_internal_bg.xml",
+      "size": 372,
+      "compressed": 185,
+      "ratio": 0.4973
+    },
+    {
+      "name": "res/drawable/abc_cab_background_top_material.xml",
+      "size": 336,
+      "compressed": 174,
+      "ratio": 0.5179
+    },
+    {
+      "name": "res/drawable/abc_ic_ab_back_material.xml",
+      "size": 692,
+      "compressed": 381,
+      "ratio": 0.5506
+    },
+    {
+      "name": "res/drawable/abc_ic_arrow_drop_right_black_24dp.xml",
+      "size": 1000,
+      "compressed": 492,
+      "ratio": 0.492
+    },
+    {
+      "name": "res/drawable/abc_ic_clear_material.xml",
+      "size": 684,
+      "compressed": 360,
+      "ratio": 0.5263
+    },
+    {
+      "name": "res/drawable/abc_ic_go_search_api_material.xml",
+      "size": 640,
+      "compressed": 340,
+      "ratio": 0.5312
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_copy_mtrl_am_alpha.xml",
+      "size": 756,
+      "compressed": 405,
+      "ratio": 0.5357
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_cut_mtrl_alpha.xml",
+      "size": 1096,
+      "compressed": 554,
+      "ratio": 0.5055
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_overflow_material.xml",
+      "size": 792,
+      "compressed": 389,
+      "ratio": 0.4912
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_paste_mtrl_am_alpha.xml",
+      "size": 796,
+      "compressed": 435,
+      "ratio": 0.5465
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_selectall_mtrl_alpha.xml",
+      "size": 920,
+      "compressed": 471,
+      "ratio": 0.512
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_share_mtrl_alpha.xml",
+      "size": 980,
+      "compressed": 514,
+      "ratio": 0.5245
+    },
+    {
+      "name": "res/drawable/abc_ic_search_api_material.xml",
+      "size": 812,
+      "compressed": 452,
+      "ratio": 0.5567
+    },
+    {
+      "name": "res/drawable/abc_ic_voice_search_api_material.xml",
+      "size": 828,
+      "compressed": 456,
+      "ratio": 0.5507
+    },
+    {
+      "name": "res/drawable/abc_item_background_holo_dark.xml",
+      "size": 1012,
+      "compressed": 319,
+      "ratio": 0.3152
+    },
+    {
+      "name": "res/drawable/abc_item_background_holo_light.xml",
+      "size": 1012,
+      "compressed": 319,
+      "ratio": 0.3152
+    },
+    {
+      "name": "res/drawable/abc_list_selector_background_transition_holo_dark.xml",
+      "size": 424,
+      "compressed": 199,
+      "ratio": 0.4693
+    },
+    {
+      "name": "res/drawable/abc_list_selector_background_transition_holo_light.xml",
+      "size": 424,
+      "compressed": 199,
+      "ratio": 0.4693
+    },
+    {
+      "name": "res/drawable/abc_list_selector_holo_dark.xml",
+      "size": 1064,
+      "compressed": 338,
+      "ratio": 0.3177
+    },
+    {
+      "name": "res/drawable/abc_list_selector_holo_light.xml",
+      "size": 1064,
+      "compressed": 338,
+      "ratio": 0.3177
+    },
+    {
+      "name": "res/drawable/abc_ratingbar_indicator_material.xml",
+      "size": 124,
+      "compressed": 68,
+      "ratio": 0.5484
+    },
+    {
+      "name": "res/drawable/abc_ratingbar_material.xml",
+      "size": 124,
+      "compressed": 68,
+      "ratio": 0.5484
+    },
+    {
+      "name": "res/drawable/abc_ratingbar_small_material.xml",
+      "size": 124,
+      "compressed": 68,
+      "ratio": 0.5484
+    },
+    {
+      "name": "res/drawable/abc_seekbar_thumb_material.xml",
+      "size": 1100,
+      "compressed": 354,
+      "ratio": 0.3218
+    },
+    {
+      "name": "res/drawable/abc_seekbar_tick_mark_material.xml",
+      "size": 516,
+      "compressed": 244,
+      "ratio": 0.4729
+    },
+    {
+      "name": "res/drawable/abc_seekbar_track_material.xml",
+      "size": 1408,
+      "compressed": 423,
+      "ratio": 0.3004
+    },
+    {
+      "name": "res/drawable/abc_spinner_textfield_background_material.xml",
+      "size": 1160,
+      "compressed": 409,
+      "ratio": 0.3526
+    },
+    {
+      "name": "res/drawable/abc_star_black_48dp.xml",
+      "size": 640,
+      "compressed": 361,
+      "ratio": 0.5641
+    },
+    {
+      "name": "res/drawable/abc_star_half_black_48dp.xml",
+      "size": 600,
+      "compressed": 331,
+      "ratio": 0.5517
+    },
+    {
+      "name": "res/drawable/abc_switch_thumb_material.xml",
+      "size": 464,
+      "compressed": 230,
+      "ratio": 0.4957
+    },
+    {
+      "name": "res/drawable/abc_tab_indicator_material.xml",
+      "size": 468,
+      "compressed": 232,
+      "ratio": 0.4957
+    },
+    {
+      "name": "res/drawable/abc_text_cursor_material.xml",
+      "size": 516,
+      "compressed": 241,
+      "ratio": 0.4671
+    },
+    {
+      "name": "res/drawable/abc_textfield_search_material.xml",
+      "size": 756,
+      "compressed": 291,
+      "ratio": 0.3849
+    },
+    {
+      "name": "res/drawable/abc_vector_test.xml",
+      "size": 612,
+      "compressed": 333,
+      "ratio": 0.5441
+    },
+    {
+      "name": "res/drawable/btn_checkbox_checked_mtrl.xml",
+      "size": 2688,
+      "compressed": 841,
+      "ratio": 0.3129
+    },
+    {
+      "name": "res/drawable/btn_checkbox_checked_to_unchecked_mtrl_animation.xml",
+      "size": 688,
+      "compressed": 306,
+      "ratio": 0.4448
+    },
+    {
+      "name": "res/drawable/btn_checkbox_unchecked_mtrl.xml",
+      "size": 2660,
+      "compressed": 831,
+      "ratio": 0.3124
+    },
+    {
+      "name": "res/drawable/btn_checkbox_unchecked_to_checked_mtrl_animation.xml",
+      "size": 688,
+      "compressed": 301,
+      "ratio": 0.4375
+    },
+    {
+      "name": "res/drawable/btn_radio_off_mtrl.xml",
+      "size": 1728,
+      "compressed": 703,
+      "ratio": 0.4068
+    },
+    {
+      "name": "res/drawable/btn_radio_off_to_on_mtrl_animation.xml",
+      "size": 680,
+      "compressed": 301,
+      "ratio": 0.4426
+    },
+    {
+      "name": "res/drawable/btn_radio_on_mtrl.xml",
+      "size": 1656,
+      "compressed": 678,
+      "ratio": 0.4094
+    },
+    {
+      "name": "res/drawable/btn_radio_on_to_off_mtrl_animation.xml",
+      "size": 680,
+      "compressed": 301,
+      "ratio": 0.4426
+    },
+    {
+      "name": "res/drawable/ic_actionbar_done.xml",
+      "size": 640,
+      "compressed": 351,
+      "ratio": 0.5484
+    },
+    {
+      "name": "res/drawable/ic_miuizer_settings.xml",
+      "size": 3432,
+      "compressed": 1431,
+      "ratio": 0.417
+    },
+    {
+      "name": "res/drawable/ic_openinfw.xml",
+      "size": 2348,
+      "compressed": 1140,
+      "ratio": 0.4855
+    },
+    {
+      "name": "res/drawable/ic_qs_5g_off.xml",
+      "size": 2216,
+      "compressed": 1035,
+      "ratio": 0.4671
+    },
+    {
+      "name": "res/drawable/ic_qs_5g_on.xml",
+      "size": 2216,
+      "compressed": 1035,
+      "ratio": 0.4671
+    },
+    {
+      "name": "res/drawable/ic_qs_fps_off.xml",
+      "size": 2280,
+      "compressed": 1028,
+      "ratio": 0.4509
+    },
+    {
+      "name": "res/drawable/ic_qs_fps_on.xml",
+      "size": 2280,
+      "compressed": 1028,
+      "ratio": 0.4509
+    },
+    {
+      "name": "res/drawable/ic_qs_second_off.xml",
+      "size": 832,
+      "compressed": 446,
+      "ratio": 0.5361
+    },
+    {
+      "name": "res/drawable/ic_qs_second_on.xml",
+      "size": 832,
+      "compressed": 446,
+      "ratio": 0.5361
+    },
+    {
+      "name": "res/drawable/input_background.xml",
+      "size": 484,
+      "compressed": 222,
+      "ratio": 0.4587
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_flashlight_img_dark.xml",
+      "size": 1732,
+      "compressed": 847,
+      "ratio": 0.489
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_flashlight_img_light.xml",
+      "size": 1732,
+      "compressed": 848,
+      "ratio": 0.4896
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_miuizer_img_dark.xml",
+      "size": 4392,
+      "compressed": 1841,
+      "ratio": 0.4192
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_miuizer_img_light.xml",
+      "size": 4392,
+      "compressed": 1841,
+      "ratio": 0.4192
+    },
+    {
+      "name": "res/drawable/list_item_bg.xml",
+      "size": 852,
+      "compressed": 314,
+      "ratio": 0.3685
+    },
+    {
+      "name": "res/drawable/list_item_bg_normal.xml",
+      "size": 604,
+      "compressed": 282,
+      "ratio": 0.4669
+    },
+    {
+      "name": "res/drawable/list_item_bg_pressed.xml",
+      "size": 604,
+      "compressed": 283,
+      "ratio": 0.4685
+    },
+    {
+      "name": "res/drawable/list_item_bg_selected.xml",
+      "size": 604,
+      "compressed": 283,
+      "ratio": 0.4685
+    },
+    {
+      "name": "res/drawable/notification_bg.xml",
+      "size": 532,
+      "compressed": 253,
+      "ratio": 0.4756
+    },
+    {
+      "name": "res/drawable/notification_bg_low.xml",
+      "size": 532,
+      "compressed": 253,
+      "ratio": 0.4756
+    },
+    {
+      "name": "res/drawable/notification_icon_background.xml",
+      "size": 372,
+      "compressed": 185,
+      "ratio": 0.4973
+    },
+    {
+      "name": "res/drawable/notification_tile_bg.xml",
+      "size": 304,
+      "compressed": 173,
+      "ratio": 0.5691
+    },
+    {
+      "name": "res/drawable/popmenu_background.xml",
+      "size": 992,
+      "compressed": 325,
+      "ratio": 0.3276
+    },
+    {
+      "name": "res/drawable/popup_background.xml",
+      "size": 992,
+      "compressed": 325,
+      "ratio": 0.3276
+    },
+    {
+      "name": "res/drawable/progressbar_indeterminate.xml",
+      "size": 352,
+      "compressed": 199,
+      "ratio": 0.5653
+    },
+    {
+      "name": "res/drawable/rounded_corners.xml",
+      "size": 848,
+      "compressed": 363,
+      "ratio": 0.4281
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0.xml",
+      "size": 1220,
+      "compressed": 437,
+      "ratio": 0.3582
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_dark.xml",
+      "size": 1220,
+      "compressed": 437,
+      "ratio": 0.3582
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_dark_theme.png",
+      "size": 729,
+      "compressed": 729,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_dark_thick.xml",
+      "size": 1220,
+      "compressed": 435,
+      "ratio": 0.3566
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_theme.png",
+      "size": 685,
+      "compressed": 685,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_thick.xml",
+      "size": 1220,
+      "compressed": 434,
+      "ratio": 0.3557
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_tint.xml",
+      "size": 1220,
+      "compressed": 437,
+      "ratio": 0.3582
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_tint_thick.xml",
+      "size": 1220,
+      "compressed": 434,
+      "ratio": 0.3557
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1.xml",
+      "size": 1220,
+      "compressed": 440,
+      "ratio": 0.3607
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_dark.xml",
+      "size": 1220,
+      "compressed": 441,
+      "ratio": 0.3615
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_dark_theme.png",
+      "size": 922,
+      "compressed": 922,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_dark_thick.xml",
+      "size": 1220,
+      "compressed": 437,
+      "ratio": 0.3582
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_theme.png",
+      "size": 987,
+      "compressed": 987,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_thick.xml",
+      "size": 1220,
+      "compressed": 438,
+      "ratio": 0.359
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_tint.xml",
+      "size": 1220,
+      "compressed": 439,
+      "ratio": 0.3598
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_tint_thick.xml",
+      "size": 1220,
+      "compressed": 436,
+      "ratio": 0.3574
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2.xml",
+      "size": 1220,
+      "compressed": 440,
+      "ratio": 0.3607
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_dark.xml",
+      "size": 1220,
+      "compressed": 441,
+      "ratio": 0.3615
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_dark_theme.png",
+      "size": 934,
+      "compressed": 934,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_dark_thick.xml",
+      "size": 1220,
+      "compressed": 437,
+      "ratio": 0.3582
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_theme.png",
+      "size": 1005,
+      "compressed": 1005,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_thick.xml",
+      "size": 1220,
+      "compressed": 438,
+      "ratio": 0.359
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_tint.xml",
+      "size": 1220,
+      "compressed": 439,
+      "ratio": 0.3598
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_tint_thick.xml",
+      "size": 1220,
+      "compressed": 436,
+      "ratio": 0.3574
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3.xml",
+      "size": 1220,
+      "compressed": 440,
+      "ratio": 0.3607
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_dark.xml",
+      "size": 1220,
+      "compressed": 441,
+      "ratio": 0.3615
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_dark_theme.png",
+      "size": 939,
+      "compressed": 939,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_dark_thick.xml",
+      "size": 1220,
+      "compressed": 437,
+      "ratio": 0.3582
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_theme.png",
+      "size": 1005,
+      "compressed": 1005,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_thick.xml",
+      "size": 1220,
+      "compressed": 438,
+      "ratio": 0.359
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_tint.xml",
+      "size": 1220,
+      "compressed": 439,
+      "ratio": 0.3598
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_tint_thick.xml",
+      "size": 1220,
+      "compressed": 436,
+      "ratio": 0.3574
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4.xml",
+      "size": 1220,
+      "compressed": 438,
+      "ratio": 0.359
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_dark.xml",
+      "size": 1220,
+      "compressed": 438,
+      "ratio": 0.359
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_dark_theme.png",
+      "size": 951,
+      "compressed": 951,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_dark_thick.xml",
+      "size": 1220,
+      "compressed": 434,
+      "ratio": 0.3557
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_theme.png",
+      "size": 1021,
+      "compressed": 1021,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_thick.xml",
+      "size": 1220,
+      "compressed": 435,
+      "ratio": 0.3566
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_tint.xml",
+      "size": 1220,
+      "compressed": 436,
+      "ratio": 0.3574
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_tint_thick.xml",
+      "size": 1220,
+      "compressed": 434,
+      "ratio": 0.3557
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5.xml",
+      "size": 1220,
+      "compressed": 438,
+      "ratio": 0.359
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_dark.xml",
+      "size": 1220,
+      "compressed": 438,
+      "ratio": 0.359
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_dark_theme.png",
+      "size": 934,
+      "compressed": 934,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_dark_thick.xml",
+      "size": 1220,
+      "compressed": 434,
+      "ratio": 0.3557
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_theme.png",
+      "size": 966,
+      "compressed": 966,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_thick.xml",
+      "size": 1220,
+      "compressed": 435,
+      "ratio": 0.3566
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_tint.xml",
+      "size": 1220,
+      "compressed": 436,
+      "ratio": 0.3574
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_tint_thick.xml",
+      "size": 1220,
+      "compressed": 434,
+      "ratio": 0.3557
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_dark.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_dark_theme.png",
+      "size": 624,
+      "compressed": 624,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_dark_thick.xml",
+      "size": 1312,
+      "compressed": 444,
+      "ratio": 0.3384
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_theme.png",
+      "size": 620,
+      "compressed": 620,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_thick.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_tint.xml",
+      "size": 1312,
+      "compressed": 443,
+      "ratio": 0.3377
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_tint_thick.xml",
+      "size": 1312,
+      "compressed": 443,
+      "ratio": 0.3377
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_dark.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_dark_theme.png",
+      "size": 885,
+      "compressed": 885,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_dark_thick.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_theme.png",
+      "size": 908,
+      "compressed": 908,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_thick.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_tint.xml",
+      "size": 1312,
+      "compressed": 446,
+      "ratio": 0.3399
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_tint_thick.xml",
+      "size": 1312,
+      "compressed": 447,
+      "ratio": 0.3407
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_dark.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_dark_theme.png",
+      "size": 885,
+      "compressed": 885,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_dark_thick.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_theme.png",
+      "size": 908,
+      "compressed": 908,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_thick.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_tint.xml",
+      "size": 1312,
+      "compressed": 446,
+      "ratio": 0.3399
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_tint_thick.xml",
+      "size": 1312,
+      "compressed": 447,
+      "ratio": 0.3407
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_dark.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_dark_theme.png",
+      "size": 866,
+      "compressed": 866,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_dark_thick.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_theme.png",
+      "size": 911,
+      "compressed": 911,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_thick.xml",
+      "size": 1312,
+      "compressed": 448,
+      "ratio": 0.3415
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_tint.xml",
+      "size": 1312,
+      "compressed": 446,
+      "ratio": 0.3399
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_tint_thick.xml",
+      "size": 1312,
+      "compressed": 447,
+      "ratio": 0.3407
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_dark.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_dark_theme.png",
+      "size": 852,
+      "compressed": 852,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_dark_thick.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_theme.png",
+      "size": 919,
+      "compressed": 919,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_thick.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_tint.xml",
+      "size": 1312,
+      "compressed": 443,
+      "ratio": 0.3377
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_tint_thick.xml",
+      "size": 1312,
+      "compressed": 443,
+      "ratio": 0.3377
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_dark.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_dark_theme.png",
+      "size": 873,
+      "compressed": 873,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_dark_thick.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_theme.png",
+      "size": 868,
+      "compressed": 868,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_thick.xml",
+      "size": 1312,
+      "compressed": 445,
+      "ratio": 0.3392
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_tint.xml",
+      "size": 1312,
+      "compressed": 443,
+      "ratio": 0.3377
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_tint_thick.xml",
+      "size": 1312,
+      "compressed": 443,
+      "ratio": 0.3377
+    },
+    {
+      "name": "res/drawable/test_level_drawable.xml",
+      "size": 448,
+      "compressed": 217,
+      "ratio": 0.4844
+    },
+    {
+      "name": "res/drawable/tooltip_frame_dark.xml",
+      "size": 484,
+      "compressed": 225,
+      "ratio": 0.4649
+    },
+    {
+      "name": "res/drawable/tooltip_frame_light.xml",
+      "size": 484,
+      "compressed": 225,
+      "ratio": 0.4649
+    },
+    {
+      "name": "res/interpolator/btn_checkbox_checked_mtrl_animation_interpolator_0.xml",
+      "size": 316,
+      "compressed": 187,
+      "ratio": 0.5918
+    },
+    {
+      "name": "res/interpolator/btn_checkbox_checked_mtrl_animation_interpolator_1.xml",
+      "size": 328,
+      "compressed": 190,
+      "ratio": 0.5793
+    },
+    {
+      "name": "res/interpolator/btn_checkbox_unchecked_mtrl_animation_interpolator_0.xml",
+      "size": 316,
+      "compressed": 187,
+      "ratio": 0.5918
+    },
+    {
+      "name": "res/interpolator/btn_checkbox_unchecked_mtrl_animation_interpolator_1.xml",
+      "size": 328,
+      "compressed": 190,
+      "ratio": 0.5793
+    },
+    {
+      "name": "res/interpolator/btn_radio_to_off_mtrl_animation_interpolator_0.xml",
+      "size": 320,
+      "compressed": 190,
+      "ratio": 0.5938
+    },
+    {
+      "name": "res/interpolator/btn_radio_to_on_mtrl_animation_interpolator_0.xml",
+      "size": 320,
+      "compressed": 190,
+      "ratio": 0.5938
+    },
+    {
+      "name": "res/interpolator/fast_out_slow_in.xml",
+      "size": 400,
+      "compressed": 214,
+      "ratio": 0.535
+    },
+    {
+      "name": "res/layout-land/fragment_selectcolor.xml",
+      "size": 2708,
+      "compressed": 892,
+      "ratio": 0.3294
+    },
+    {
+      "name": "res/layout-v21/notification_action.xml",
+      "size": 1052,
+      "compressed": 487,
+      "ratio": 0.4629
+    },
+    {
+      "name": "res/layout-v21/notification_action_tombstone.xml",
+      "size": 1228,
+      "compressed": 539,
+      "ratio": 0.4389
+    },
+    {
+      "name": "res/layout-v21/notification_template_custom_big.xml",
+      "size": 2456,
+      "compressed": 790,
+      "ratio": 0.3217
+    },
+    {
+      "name": "res/layout-v21/notification_template_icon_group.xml",
+      "size": 988,
+      "compressed": 418,
+      "ratio": 0.4231
+    },
+    {
+      "name": "res/layout-v26/abc_screen_toolbar.xml",
+      "size": 1560,
+      "compressed": 649,
+      "ratio": 0.416
+    },
+    {
+      "name": "res/layout-watch-v20/abc_alert_dialog_button_bar_material.xml",
+      "size": 1208,
+      "compressed": 470,
+      "ratio": 0.3891
+    },
+    {
+      "name": "res/layout-watch-v20/abc_alert_dialog_title_material.xml",
+      "size": 1352,
+      "compressed": 549,
+      "ratio": 0.4061
+    },
+    {
+      "name": "res/layout/abc_action_bar_title_item.xml",
+      "size": 872,
+      "compressed": 388,
+      "ratio": 0.445
+    },
+    {
+      "name": "res/layout/abc_action_bar_up_container.xml",
+      "size": 440,
+      "compressed": 251,
+      "ratio": 0.5705
+    },
+    {
+      "name": "res/layout/abc_action_menu_item_layout.xml",
+      "size": 768,
+      "compressed": 394,
+      "ratio": 0.513
+    },
+    {
+      "name": "res/layout/abc_action_menu_layout.xml",
+      "size": 576,
+      "compressed": 295,
+      "ratio": 0.5122
+    },
+    {
+      "name": "res/layout/abc_action_mode_bar.xml",
+      "size": 464,
+      "compressed": 268,
+      "ratio": 0.5776
+    },
+    {
+      "name": "res/layout/abc_action_mode_close_item_material.xml",
+      "size": 840,
+      "compressed": 424,
+      "ratio": 0.5048
+    },
+    {
+      "name": "res/layout/abc_activity_chooser_view.xml",
+      "size": 1684,
+      "compressed": 597,
+      "ratio": 0.3545
+    },
+    {
+      "name": "res/layout/abc_activity_chooser_view_list_item.xml",
+      "size": 1304,
+      "compressed": 568,
+      "ratio": 0.4356
+    },
+    {
+      "name": "res/layout/abc_alert_dialog_button_bar_material.xml",
+      "size": 1584,
+      "compressed": 610,
+      "ratio": 0.3851
+    },
+    {
+      "name": "res/layout/abc_alert_dialog_material.xml",
+      "size": 2648,
+      "compressed": 835,
+      "ratio": 0.3153
+    },
+    {
+      "name": "res/layout/abc_alert_dialog_title_material.xml",
+      "size": 1560,
+      "compressed": 644,
+      "ratio": 0.4128
+    },
+    {
+      "name": "res/layout/abc_cascading_menu_item_layout.xml",
+      "size": 1868,
+      "compressed": 709,
+      "ratio": 0.3796
+    },
+    {
+      "name": "res/layout/abc_dialog_title_material.xml",
+      "size": 1116,
+      "compressed": 525,
+      "ratio": 0.4704
+    },
+    {
+      "name": "res/layout/abc_expanded_menu_layout.xml",
+      "size": 388,
+      "compressed": 230,
+      "ratio": 0.5928
+    },
+    {
+      "name": "res/layout/abc_list_menu_item_checkbox.xml",
+      "size": 528,
+      "compressed": 284,
+      "ratio": 0.5379
+    },
+    {
+      "name": "res/layout/abc_list_menu_item_icon.xml",
+      "size": 780,
+      "compressed": 381,
+      "ratio": 0.4885
+    },
+    {
+      "name": "res/layout/abc_list_menu_item_layout.xml",
+      "size": 1396,
+      "compressed": 597,
+      "ratio": 0.4277
+    },
+    {
+      "name": "res/layout/abc_list_menu_item_radio.xml",
+      "size": 532,
+      "compressed": 287,
+      "ratio": 0.5395
+    },
+    {
+      "name": "res/layout/abc_popup_menu_header_item_layout.xml",
+      "size": 848,
+      "compressed": 434,
+      "ratio": 0.5118
+    },
+    {
+      "name": "res/layout/abc_popup_menu_item_layout.xml",
+      "size": 2072,
+      "compressed": 803,
+      "ratio": 0.3875
+    },
+    {
+      "name": "res/layout/abc_screen_content_include.xml",
+      "size": 548,
+      "compressed": 297,
+      "ratio": 0.542
+    },
+    {
+      "name": "res/layout/abc_screen_simple.xml",
+      "size": 832,
+      "compressed": 393,
+      "ratio": 0.4724
+    },
+    {
+      "name": "res/layout/abc_screen_simple_overlay_action_mode.xml",
+      "size": 792,
+      "compressed": 375,
+      "ratio": 0.4735
+    },
+    {
+      "name": "res/layout/abc_search_dropdown_item_icons_2line.xml",
+      "size": 1916,
+      "compressed": 668,
+      "ratio": 0.3486
+    },
+    {
+      "name": "res/layout/abc_search_view.xml",
+      "size": 3472,
+      "compressed": 1105,
+      "ratio": 0.3183
+    },
+    {
+      "name": "res/layout/abc_select_dialog_material.xml",
+      "size": 1020,
+      "compressed": 536,
+      "ratio": 0.5255
+    },
+    {
+      "name": "res/layout/abc_tooltip.xml",
+      "size": 1056,
+      "compressed": 498,
+      "ratio": 0.4716
+    },
+    {
+      "name": "res/layout/activity_main.xml",
+      "size": 1260,
+      "compressed": 551,
+      "ratio": 0.4373
+    },
+    {
+      "name": "res/layout/applist_item11.xml",
+      "size": 2720,
+      "compressed": 842,
+      "ratio": 0.3096
+    },
+    {
+      "name": "res/layout/custom_dialog.xml",
+      "size": 612,
+      "compressed": 309,
+      "ratio": 0.5049
+    },
+    {
+      "name": "res/layout/expand_button.xml",
+      "size": 1720,
+      "compressed": 725,
+      "ratio": 0.4215
+    },
+    {
+      "name": "res/layout/fragment_about_head.xml",
+      "size": 2536,
+      "compressed": 825,
+      "ratio": 0.3253
+    },
+    {
+      "name": "res/layout/fragment_about_tail.xml",
+      "size": 1184,
+      "compressed": 465,
+      "ratio": 0.3927
+    },
+    {
+      "name": "res/layout/fragment_selectcolor.xml",
+      "size": 3832,
+      "compressed": 1038,
+      "ratio": 0.2709
+    },
+    {
+      "name": "res/layout/image_frame.xml",
+      "size": 1088,
+      "compressed": 497,
+      "ratio": 0.4568
+    },
+    {
+      "name": "res/layout/ime_base_split_test_activity.xml",
+      "size": 364,
+      "compressed": 201,
+      "ratio": 0.5522
+    },
+    {
+      "name": "res/layout/ime_secondary_split_test_activity.xml",
+      "size": 876,
+      "compressed": 417,
+      "ratio": 0.476
+    },
+    {
+      "name": "res/layout/notification_template_part_chronometer.xml",
+      "size": 440,
+      "compressed": 260,
+      "ratio": 0.5909
+    },
+    {
+      "name": "res/layout/notification_template_part_time.xml",
+      "size": 440,
+      "compressed": 263,
+      "ratio": 0.5977
+    },
+    {
+      "name": "res/layout/pref_item.xml",
+      "size": 2160,
+      "compressed": 780,
+      "ratio": 0.3611
+    },
+    {
+      "name": "res/layout/preference.xml",
+      "size": 2352,
+      "compressed": 892,
+      "ratio": 0.3793
+    },
+    {
+      "name": "res/layout/preference_category.xml",
+      "size": 676,
+      "compressed": 338,
+      "ratio": 0.5
+    },
+    {
+      "name": "res/layout/preference_category_material.xml",
+      "size": 1768,
+      "compressed": 733,
+      "ratio": 0.4146
+    },
+    {
+      "name": "res/layout/preference_dialog_edittext.xml",
+      "size": 1312,
+      "compressed": 525,
+      "ratio": 0.4002
+    },
+    {
+      "name": "res/layout/preference_dropdown.xml",
+      "size": 2544,
+      "compressed": 932,
+      "ratio": 0.3664
+    },
+    {
+      "name": "res/layout/preference_dropdown_material.xml",
+      "size": 712,
+      "compressed": 350,
+      "ratio": 0.4916
+    },
+    {
+      "name": "res/layout/preference_information.xml",
+      "size": 1732,
+      "compressed": 657,
+      "ratio": 0.3793
+    },
+    {
+      "name": "res/layout/preference_information_material.xml",
+      "size": 2056,
+      "compressed": 754,
+      "ratio": 0.3667
+    },
+    {
+      "name": "res/layout/preference_list_fragment.xml",
+      "size": 812,
+      "compressed": 369,
+      "ratio": 0.4544
+    },
+    {
+      "name": "res/layout/preference_material.xml",
+      "size": 2052,
+      "compressed": 820,
+      "ratio": 0.3996
+    },
+    {
+      "name": "res/layout/preference_recyclerview.xml",
+      "size": 544,
+      "compressed": 299,
+      "ratio": 0.5496
+    },
+    {
+      "name": "res/layout/preference_seekbar12.xml",
+      "size": 2448,
+      "compressed": 806,
+      "ratio": 0.3292
+    },
+    {
+      "name": "res/layout/preference_widget_checkbox.xml",
+      "size": 472,
+      "compressed": 261,
+      "ratio": 0.553
+    },
+    {
+      "name": "res/layout/preference_widget_seekbar.xml",
+      "size": 2896,
+      "compressed": 1028,
+      "ratio": 0.355
+    },
+    {
+      "name": "res/layout/preference_widget_seekbar_material.xml",
+      "size": 3096,
+      "compressed": 1096,
+      "ratio": 0.354
+    },
+    {
+      "name": "res/layout/preference_widget_switch.xml",
+      "size": 472,
+      "compressed": 260,
+      "ratio": 0.5508
+    },
+    {
+      "name": "res/layout/preference_widget_switch_compat.xml",
+      "size": 504,
+      "compressed": 280,
+      "ratio": 0.5556
+    },
+    {
+      "name": "res/layout/prefs_app_selector.xml",
+      "size": 1276,
+      "compressed": 562,
+      "ratio": 0.4404
+    },
+    {
+      "name": "res/layout/prefs_bt_networks.xml",
+      "size": 2228,
+      "compressed": 762,
+      "ratio": 0.342
+    },
+    {
+      "name": "res/layout/prefs_common.xml",
+      "size": 388,
+      "compressed": 223,
+      "ratio": 0.5747
+    },
+    {
+      "name": "res/layout/prefs_common_padded.xml",
+      "size": 388,
+      "compressed": 223,
+      "ratio": 0.5747
+    },
+    {
+      "name": "res/layout/prefs_fragment_base.xml",
+      "size": 856,
+      "compressed": 342,
+      "ratio": 0.3995
+    },
+    {
+      "name": "res/layout/prefs_main12.xml",
+      "size": 812,
+      "compressed": 437,
+      "ratio": 0.5382
+    },
+    {
+      "name": "res/layout/prefs_multiaction.xml",
+      "size": 3696,
+      "compressed": 905,
+      "ratio": 0.2449
+    },
+    {
+      "name": "res/layout/prefs_sortable_list.xml",
+      "size": 804,
+      "compressed": 422,
+      "ratio": 0.5249
+    },
+    {
+      "name": "res/layout/prefs_wifi_networks.xml",
+      "size": 2228,
+      "compressed": 764,
+      "ratio": 0.3429
+    },
+    {
+      "name": "res/layout/search_stub.xml",
+      "size": 1296,
+      "compressed": 567,
+      "ratio": 0.4375
+    },
+    {
+      "name": "res/layout/select_dialog_item_material.xml",
+      "size": 640,
+      "compressed": 352,
+      "ratio": 0.55
+    },
+    {
+      "name": "res/layout/select_dialog_multichoice_material.xml",
+      "size": 864,
+      "compressed": 444,
+      "ratio": 0.5139
+    },
+    {
+      "name": "res/layout/select_dialog_singlechoice_material.xml",
+      "size": 864,
+      "compressed": 444,
+      "ratio": 0.5139
+    },
+    {
+      "name": "res/layout/statusbar_text_icon.xml",
+      "size": 976,
+      "compressed": 454,
+      "ratio": 0.4652
+    },
+    {
+      "name": "res/layout/support_simple_spinner_dropdown_item.xml",
+      "size": 464,
+      "compressed": 270,
+      "ratio": 0.5819
+    },
+    {
+      "name": "res/layout/tasker_unlock.xml",
+      "size": 1668,
+      "compressed": 596,
+      "ratio": 0.3573
+    },
+    {
+      "name": "res/menu/menu_mods.xml",
+      "size": 1664,
+      "compressed": 496,
+      "ratio": 0.2981
+    },
+    {
+      "name": "res/mipmap-anydpi-v26/ic_launcher.xml",
+      "size": 448,
+      "compressed": 222,
+      "ratio": 0.4955
+    },
+    {
+      "name": "res/mipmap-xhdpi-v4/ic_launcher_foreground.png",
+      "size": 3843,
+      "compressed": 3843,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/mipmap-xxhdpi-v4/ic_launcher.png",
+      "size": 11799,
+      "compressed": 11799,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/mipmap-xxhdpi-v4/ic_launcher_foreground.png",
+      "size": 4708,
+      "compressed": 4708,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/mipmap-xxxhdpi-v4/ic_launcher_foreground.png",
+      "size": 7277,
+      "compressed": 7277,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/raw/keep.xml",
+      "size": 146,
+      "compressed": 124,
+      "ratio": 0.8493
+    },
+    {
+      "name": "res/xml/prefs_about.xml",
+      "size": 1120,
+      "compressed": 513,
+      "ratio": 0.458
+    },
+    {
+      "name": "res/xml/prefs_controls.xml",
+      "size": 8960,
+      "compressed": 2165,
+      "ratio": 0.2416
+    },
+    {
+      "name": "res/xml/prefs_controls_cat.xml",
+      "size": 1124,
+      "compressed": 432,
+      "ratio": 0.3843
+    },
+    {
+      "name": "res/xml/prefs_launcher.xml",
+      "size": 11888,
+      "compressed": 2709,
+      "ratio": 0.2279
+    },
+    {
+      "name": "res/xml/prefs_launcher_cat.xml",
+      "size": 1376,
+      "compressed": 490,
+      "ratio": 0.3561
+    },
+    {
+      "name": "res/xml/prefs_main.xml",
+      "size": 2232,
+      "compressed": 786,
+      "ratio": 0.3522
+    },
+    {
+      "name": "res/xml/prefs_system.xml",
+      "size": 40400,
+      "compressed": 7855,
+      "ratio": 0.1944
+    },
+    {
+      "name": "res/xml/prefs_system_alarmonlock.xml",
+      "size": 1448,
+      "compressed": 605,
+      "ratio": 0.4178
+    },
+    {
+      "name": "res/xml/prefs_system_albumartonlock.xml",
+      "size": 1848,
+      "compressed": 733,
+      "ratio": 0.3966
+    },
+    {
+      "name": "res/xml/prefs_system_autobrightness.xml",
+      "size": 1844,
+      "compressed": 648,
+      "ratio": 0.3514
+    },
+    {
+      "name": "res/xml/prefs_system_batteryindicator.xml",
+      "size": 4400,
+      "compressed": 1170,
+      "ratio": 0.2659
+    },
+    {
+      "name": "res/xml/prefs_system_cat.xml",
+      "size": 2340,
+      "compressed": 664,
+      "ratio": 0.2838
+    },
+    {
+      "name": "res/xml/prefs_system_charginginfo.xml",
+      "size": 1916,
+      "compressed": 664,
+      "ratio": 0.3466
+    },
+    {
+      "name": "res/xml/prefs_system_controlcenter_clock.xml",
+      "size": 2464,
+      "compressed": 895,
+      "ratio": 0.3632
+    },
+    {
+      "name": "res/xml/prefs_system_controlcenter_themestyle.xml",
+      "size": 3296,
+      "compressed": 919,
+      "ratio": 0.2788
+    },
+    {
+      "name": "res/xml/prefs_system_detailednetspeed.xml",
+      "size": 4872,
+      "compressed": 1374,
+      "ratio": 0.282
+    },
+    {
+      "name": "res/xml/prefs_system_hideicons.xml",
+      "size": 7164,
+      "compressed": 1540,
+      "ratio": 0.215
+    },
+    {
+      "name": "res/xml/prefs_system_lockscreenshortcuts.xml",
+      "size": 1768,
+      "compressed": 603,
+      "ratio": 0.3411
+    },
+    {
+      "name": "res/xml/prefs_system_noscreenlock.xml",
+      "size": 2028,
+      "compressed": 703,
+      "ratio": 0.3466
+    },
+    {
+      "name": "res/xml/prefs_system_screenshot.xml",
+      "size": 2056,
+      "compressed": 768,
+      "ratio": 0.3735
+    },
+    {
+      "name": "res/xml/prefs_system_secureqs.xml",
+      "size": 2492,
+      "compressed": 712,
+      "ratio": 0.2857
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_batterystyle.xml",
+      "size": 3360,
+      "compressed": 940,
+      "ratio": 0.2798
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_batterytempandcurrent.xml",
+      "size": 4972,
+      "compressed": 1288,
+      "ratio": 0.2591
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_clock.xml",
+      "size": 6888,
+      "compressed": 1709,
+      "ratio": 0.2481
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_mobilesignal.xml",
+      "size": 8044,
+      "compressed": 1705,
+      "ratio": 0.212
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_righticons.xml",
+      "size": 3640,
+      "compressed": 989,
+      "ratio": 0.2717
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_showdevicetemperature.xml",
+      "size": 4168,
+      "compressed": 1171,
+      "ratio": 0.281
+    },
+    {
+      "name": "res/xml/prefs_system_statusbarcontrols.xml",
+      "size": 3232,
+      "compressed": 949,
+      "ratio": 0.2936
+    },
+    {
+      "name": "res/xml/prefs_system_vibration_amp.xml",
+      "size": 2344,
+      "compressed": 759,
+      "ratio": 0.3238
+    },
+    {
+      "name": "res/xml/prefs_system_visualizer.xml",
+      "size": 3592,
+      "compressed": 1046,
+      "ratio": 0.2912
+    },
+    {
+      "name": "res/xml/prefs_various.xml",
+      "size": 6728,
+      "compressed": 1801,
+      "ratio": 0.2677
+    },
+    {
+      "name": "res/xml/prefs_various_calluibright.xml",
+      "size": 2292,
+      "compressed": 839,
+      "ratio": 0.3661
+    },
+    {
+      "name": "res/xml/prefs_various_hiddenfeatures.xml",
+      "size": 1428,
+      "compressed": 532,
+      "ratio": 0.3725
+    },
+    {
+      "name": "res/xml/shortcuts.xml",
+      "size": 1056,
+      "compressed": 505,
+      "ratio": 0.4782
+    },
+    {
+      "name": "resources.arsc",
+      "size": 836568,
+      "compressed": 836568,
+      "ratio": 1.0
+    },
+    {
+      "name": "DebugProbesKt.bin",
+      "size": 1728,
+      "compressed": 774,
+      "ratio": 0.4479
+    },
+    {
+      "name": "META-INF/kotlinx_coroutines_android.version",
+      "size": 6,
+      "compressed": 6,
+      "ratio": 1.0
+    },
+    {
+      "name": "META-INF/kotlinx_coroutines_core.version",
+      "size": 6,
+      "compressed": 6,
+      "ratio": 1.0
+    },
+    {
+      "name": "META-INF/services/kotlinx.coroutines.CoroutineExceptionHandler",
+      "size": 54,
+      "compressed": 50,
+      "ratio": 0.9259
+    },
+    {
+      "name": "META-INF/services/kotlinx.coroutines.internal.MainDispatcherFactory",
+      "size": 52,
+      "compressed": 49,
+      "ratio": 0.9423
+    },
+    {
+      "name": "META-INF/xposed/java_init.list",
+      "size": 38,
+      "compressed": 38,
+      "ratio": 1.0
+    },
+    {
+      "name": "META-INF/xposed/module.prop",
+      "size": 57,
+      "compressed": 48,
+      "ratio": 0.8421
+    },
+    {
+      "name": "META-INF/xposed/scope.list",
+      "size": 243,
+      "compressed": 113,
+      "ratio": 0.465
+    }
+  ],
+  "byExtension": {
+    ".properties": 56,
+    ".dex": 12626856,
+    ".so": 381024,
+    ".png": 185424,
+    ".mp3": 22569,
+    ".mp4": 1493,
+    ".txt": 25,
+    ".zip": 179,
+    ".xml": 520642,
+    ".arsc": 836568,
+    ".bin": 1728,
+    ".version": 12,
+    ".CoroutineExceptionHandler": 54,
+    ".MainDispatcherFactory": 52,
+    ".list": 281,
+    ".prop": 57
+  },
+  "byDirectory": {
+    "META-INF": 512,
+    "_root_": 13479972,
+    "lib": 381024,
+    "assets": 36765,
+    "res": 678747
+  },
+  "dexTotalBytes": 12626856,
+  "resourcesArscBytes": 836568,
+  "libTotalBytes": 381024,
+  "resTotalBytes": 678747,
+  "assetsTotalBytes": 36765,
+  "metaInfTotalBytes": 512,
+  "topFiles": [
+    {
+      "name": "classes.dex",
+      "size": 9823456,
+      "compressed": 9823456,
+      "ratio": 1.0
+    },
+    {
+      "name": "resources.arsc",
+      "size": 836568,
+      "compressed": 836568,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes3.dex",
+      "size": 807704,
+      "compressed": 807704,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes7.dex",
+      "size": 764088,
+      "compressed": 764088,
+      "ratio": 1.0
+    },
+    {
+      "name": "lib/arm64-v8a/libdexkit.so",
+      "size": 381024,
+      "compressed": 381024,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes4.dex",
+      "size": 319676,
+      "compressed": 319676,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes2.dex",
+      "size": 270456,
+      "compressed": 270456,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes8.dex",
+      "size": 251452,
+      "compressed": 251452,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes6.dex",
+      "size": 162152,
+      "compressed": 162152,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes9.dex",
+      "size": 124292,
+      "compressed": 124292,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes10.dex",
+      "size": 42472,
+      "compressed": 42472,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/xml/prefs_system.xml",
+      "size": 40400,
+      "compressed": 7855,
+      "ratio": 0.1944
+    },
+    {
+      "name": "classes11.dex",
+      "size": 31008,
+      "compressed": 31008,
+      "ratio": 1.0
+    },
+    {
+      "name": "classes5.dex",
+      "size": 30100,
+      "compressed": 30100,
+      "ratio": 1.0
+    },
+    {
+      "name": "assets/test1.mp3",
+      "size": 22569,
+      "compressed": 22569,
+      "ratio": 1.0
+    },
+    {
+      "name": "AndroidManifest.xml",
+      "size": 14820,
+      "compressed": 3512,
+      "ratio": 0.237
+    },
+    {
+      "name": "assets/test0.png",
+      "size": 12499,
+      "compressed": 12499,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/xml/prefs_launcher.xml",
+      "size": 11888,
+      "compressed": 2709,
+      "ratio": 0.2279
+    },
+    {
+      "name": "res/mipmap-xxhdpi-v4/ic_launcher.png",
+      "size": 11799,
+      "compressed": 11799,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/xml/prefs_controls.xml",
+      "size": 8960,
+      "compressed": 2165,
+      "ratio": 0.2416
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_mobilesignal.xml",
+      "size": 8044,
+      "compressed": 1705,
+      "ratio": 0.212
+    },
+    {
+      "name": "res/mipmap-xxxhdpi-v4/ic_launcher_foreground.png",
+      "size": 7277,
+      "compressed": 7277,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/xml/prefs_system_hideicons.xml",
+      "size": 7164,
+      "compressed": 1540,
+      "ratio": 0.215
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_clock.xml",
+      "size": 6888,
+      "compressed": 1709,
+      "ratio": 0.2481
+    },
+    {
+      "name": "res/xml/prefs_various.xml",
+      "size": 6728,
+      "compressed": 1801,
+      "ratio": 0.2677
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_batterytempandcurrent.xml",
+      "size": 4972,
+      "compressed": 1288,
+      "ratio": 0.2591
+    },
+    {
+      "name": "res/xml/prefs_system_detailednetspeed.xml",
+      "size": 4872,
+      "compressed": 1374,
+      "ratio": 0.282
+    },
+    {
+      "name": "res/mipmap-xxhdpi-v4/ic_launcher_foreground.png",
+      "size": 4708,
+      "compressed": 4708,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/xml/prefs_system_batteryindicator.xml",
+      "size": 4400,
+      "compressed": 1170,
+      "ratio": 0.2659
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_miuizer_img_dark.xml",
+      "size": 4392,
+      "compressed": 1841,
+      "ratio": 0.4192
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_miuizer_img_light.xml",
+      "size": 4392,
+      "compressed": 1841,
+      "ratio": 0.4192
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_credentials.png",
+      "size": 4343,
+      "compressed": 4343,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_showdevicetemperature.xml",
+      "size": 4168,
+      "compressed": 1171,
+      "ratio": 0.281
+    },
+    {
+      "name": "res/mipmap-xhdpi-v4/ic_launcher_foreground.png",
+      "size": 3843,
+      "compressed": 3843,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/layout/fragment_selectcolor.xml",
+      "size": 3832,
+      "compressed": 1038,
+      "ratio": 0.2709
+    },
+    {
+      "name": "res/layout/prefs_multiaction.xml",
+      "size": 3696,
+      "compressed": 905,
+      "ratio": 0.2449
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_righticons.xml",
+      "size": 3640,
+      "compressed": 989,
+      "ratio": 0.2717
+    },
+    {
+      "name": "res/xml/prefs_system_visualizer.xml",
+      "size": 3592,
+      "compressed": 1046,
+      "ratio": 0.2912
+    },
+    {
+      "name": "res/layout/abc_search_view.xml",
+      "size": 3472,
+      "compressed": 1105,
+      "ratio": 0.3183
+    },
+    {
+      "name": "res/drawable/ic_miuizer_settings.xml",
+      "size": 3432,
+      "compressed": 1431,
+      "ratio": 0.417
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_batterystyle.xml",
+      "size": 3360,
+      "compressed": 940,
+      "ratio": 0.2798
+    },
+    {
+      "name": "res/xml/prefs_system_controlcenter_themestyle.xml",
+      "size": 3296,
+      "compressed": 919,
+      "ratio": 0.2788
+    },
+    {
+      "name": "res/xml/prefs_system_statusbarcontrols.xml",
+      "size": 3232,
+      "compressed": 949,
+      "ratio": 0.2936
+    },
+    {
+      "name": "res/layout/preference_widget_seekbar_material.xml",
+      "size": 3096,
+      "compressed": 1096,
+      "ratio": 0.354
+    },
+    {
+      "name": "res/layout/preference_widget_seekbar.xml",
+      "size": 2896,
+      "compressed": 1028,
+      "ratio": 0.355
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "size": 2834,
+      "compressed": 2834,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "size": 2816,
+      "compressed": 2816,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_qs_autorotate_lock_portrait.png",
+      "size": 2789,
+      "compressed": 2789,
+      "ratio": 1.0
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_checked_box_outer_merged_animation.xml",
+      "size": 2780,
+      "compressed": 742,
+      "ratio": 0.2669
+    },
+    {
+      "name": "res/layout/applist_item11.xml",
+      "size": 2720,
+      "compressed": 842,
+      "ratio": 0.3096
+    }
+  ],
+  "topExtensions": {
+    ".dex": 12626856,
+    ".arsc": 836568,
+    ".xml": 520642,
+    ".so": 381024,
+    ".png": 185424,
+    ".mp3": 22569,
+    ".bin": 1728,
+    ".mp4": 1493,
+    ".list": 281,
+    ".zip": 179,
+    ".prop": 57,
+    ".properties": 56,
+    ".CoroutineExceptionHandler": 54,
+    ".MainDispatcherFactory": 52,
+    ".txt": 25,
+    ".version": 12
+  },
+  "topDirectories": {
+    "_root_": 13479972,
+    "res": 678747,
+    "lib": 381024,
+    "assets": 36765,
+    "META-INF": 512
+  },
+  "fileCount": 636,
+  "methodCountEstimate": "not_available_without_dex_parser"
+}
