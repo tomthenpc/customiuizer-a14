@@ -388,6 +388,7 @@ public final class XposedHelpers {
     }
 
     public static void log(Throwable t) {
+        if (t instanceof OutOfMemoryError) throw (OutOfMemoryError) t;
         String logStr = Log.getStackTraceString(t);
         Log.e(TAG, "[Pengeek] " + logStr);
     }
@@ -397,6 +398,7 @@ public final class XposedHelpers {
     }
 
     public static void log(String mod, Throwable t) {
+        if (t instanceof OutOfMemoryError) throw (OutOfMemoryError) t;
         String logStr = Log.getStackTraceString(t);
         Log.e(TAG, "[Pengeek][" + mod + "] " + logStr);
     }

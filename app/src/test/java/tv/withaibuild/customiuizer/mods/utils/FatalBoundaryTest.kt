@@ -121,6 +121,16 @@ class FatalBoundaryTest {
         hook.afterHook(HookerClassHelper.AfterHookCallback(before, null, null))
     }
 
+    @Test(expected = OutOfMemoryError::class)
+    fun throwableLogger_rethrowsOutOfMemoryError() {
+        XposedHelpers.log(OutOfMemoryError("boom"))
+    }
+
+    @Test(expected = OutOfMemoryError::class)
+    fun namedThrowableLogger_rethrowsOutOfMemoryError() {
+        XposedHelpers.log("test", OutOfMemoryError("boom"))
+    }
+
     @Test
     fun featureInstallRegistry_installOom_leavesFailedTransientAndRethrows() {
         val registry = FeatureInstallRegistry()

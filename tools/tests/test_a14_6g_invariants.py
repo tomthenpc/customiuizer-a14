@@ -158,6 +158,35 @@ void unsafe() {
             self.assertEqual(1, len(findings))
             self.assertIn("OOM", findings[0].detail)
 
+    def test_throwable_log_overloads_require_oom_rethrow_before_formatting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            helper = Path(tmp) / "XposedHelpers.java"
+            helper.write_text(
+                """
+public static void log(Throwable t) {
+    if (t instanceof OutOfMemoryError) throw (OutOfMemoryError) t;
+    Log.getStackTraceString(t);
+}
+public static void log(String mod, Throwable t) {
+    if (t instanceof OutOfMemoryError) throw (OutOfMemoryError) t;
+    Log.getStackTraceString(t);
+}
+""",
+                encoding="utf-8",
+            )
+            self.assertEqual([], self.mod.check_xposed_throwable_log_oom(helper))
+
+            helper.write_text(
+                """
+public static void log(Throwable t) { Log.getStackTraceString(t); }
+public static void log(String mod, Throwable t) { Log.getStackTraceString(t); }
+""",
+                encoding="utf-8",
+            )
+            findings = self.mod.check_xposed_throwable_log_oom(helper)
+            self.assertEqual(2, len(findings))
+            self.assertTrue(all("OOM" in item.detail for item in findings))
+
     def test_device_monitor_hot_path_rejects_formatter_and_swallowed_oom(self):
         path = self._source_path(
             "tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt"

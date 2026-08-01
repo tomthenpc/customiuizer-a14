@@ -812,6 +812,43 @@ def check_java_fatal_boundaries(paths: tuple[Path, ...] | None = None) -> list[F
     return findings
 
 
+def check_xposed_throwable_log_oom(path: Path | None = None) -> list[Finding]:
+    """Throwable logging is a shared isolation boundary and must rethrow OOM before formatting."""
+    if path is None:
+        path = XPOSED_HELPERS
+    text = strip_comments(path.read_text(encoding="utf-8"))
+    methods = list(re.finditer(r"public\s+static\s+void\s+log\s*\([^)]*Throwable\s+(\w+)[^)]*\)", text))
+    if len(methods) != 2:
+        return [
+            Finding(
+                "xposed-throwable-log-oom",
+                path,
+                1,
+                f"expected two Throwable log overloads, found {len(methods)}",
+            )
+        ]
+    findings = []
+    for method in methods:
+        body, _ = block_at(text, method.start())
+        variable = method.group(1)
+        guard = re.search(
+            rf"if\s*\(\s*{re.escape(variable)}\s+instanceof\s+OutOfMemoryError\s*\)\s*"
+            rf"throw\s*\(\s*OutOfMemoryError\s*\)\s*{re.escape(variable)}\s*;",
+            body,
+        )
+        formatter = body.find("Log.getStackTraceString")
+        if guard is None or formatter < 0 or guard.start() > formatter:
+            findings.append(
+                Finding(
+                    "xposed-throwable-log-oom",
+                    path,
+                    line_of(text, method.start()),
+                    "Throwable log overload must rethrow OOM before formatting the stack trace",
+                )
+            )
+    return findings
+
+
 def smali_to_fqcn(class_desc: str) -> str:
     return class_desc[1:-1].replace("/", ".")
 
@@ -951,6 +988,7 @@ def main() -> int:
     findings.extend(check_docs_zero_object_wording())
     findings.extend(check_dexkit_close_oom())
     findings.extend(check_java_fatal_boundaries())
+    findings.extend(check_xposed_throwable_log_oom())
 
     if not findings:
         print(f"check-invariants: {len(files)} files, no violations")
