@@ -22,6 +22,7 @@ import android.widget.TextView
 import androidx.core.content.res.ResourcesCompat
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
+import java.lang.ref.WeakReference
 import miui.process.ProcessManager
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
@@ -1004,40 +1005,44 @@ object SystemUIControlCenterHooks {
         ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "secondaryClick", View::class.java, clickHook)
     }
 
-    @SuppressLint("StaticFieldLeak")
-    private var mPct: TextView? = null
+    private var mPctRef: WeakReference<TextView>? = null
 
-    private fun initPct(container: ViewGroup, source: Int, context: Context) {
+    private val mPct: TextView?
+        get() = mPctRef?.get()
+
+    private fun initPct(container: ViewGroup, source: Int, context: Context): TextView {
         val res = context.resources
-        if (mPct == null) {
-            mPct = TextView(container.context)
-            mPct!!.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40f)
-            mPct!!.gravity = Gravity.CENTER
+        var pct = mPct
+        if (pct == null) {
+            pct = TextView(container.context)
+            pct.setTextSize(TypedValue.COMPLEX_UNIT_SP, 40f)
+            pct.gravity = Gravity.CENTER
             val density = res.displayMetrics.density
             val lp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT)
             lp.topMargin = Math.round(MainModule.mPrefs.getInt("system_showpct_top", 28) * density)
             lp.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
-            mPct!!.setPadding(Math.round(20 * density), Math.round(10 * density), Math.round(18 * density), Math.round(12 * density))
-            mPct!!.layoutParams = lp
+            pct.setPadding(Math.round(20 * density), Math.round(10 * density), Math.round(18 * density), Math.round(12 * density))
+            pct.layoutParams = lp
             try {
                 val modRes = ModuleHelper.getModuleRes(context)
-                mPct!!.setTextColor(modRes.getColor(R.color.color_on_surface_variant, context.theme))
-                mPct!!.background = ResourcesCompat.getDrawable(modRes, R.drawable.input_background, context.theme)
+                pct.setTextColor(modRes.getColor(R.color.color_on_surface_variant, context.theme))
+                pct.background = ResourcesCompat.getDrawable(modRes, R.drawable.input_background, context.theme)
             } catch (err: Throwable) {
                 XposedHelpers.log(err)
             }
-            container.addView(mPct)
+            container.addView(pct)
+            mPctRef = WeakReference(pct)
         }
-        mPct!!.setTag(source)
-        mPct!!.visibility = View.GONE
+        pct.setTag(source)
+        pct.visibility = View.GONE
+        return pct
     }
 
     private fun removePct(mPctText: TextView?) {
         if (mPctText != null) {
             mPctText.visibility = View.GONE
-            val p = mPctText.parent as ViewGroup
-            p.removeView(mPctText)
-            mPct = null
+            (mPctText.parent as? ViewGroup)?.removeView(mPctText)
+            if (mPctRef?.get() === mPctText) mPctRef = null
         }
     }
 
@@ -1045,8 +1050,7 @@ object SystemUIControlCenterHooks {
         val controlCenter = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.controlcenter.phone.ControlPanelWindowManager")
         val controlCenterWindowView = XposedHelpers.getObjectField(controlCenter, "windowView")
         val windowView = XposedHelpers.callMethod(controlCenterWindowView, "getView") as ViewGroup
-        initPct(windowView, 2, mContext)
-        mPct!!.visibility = View.VISIBLE
+        initPct(windowView, 2, mContext).visibility = View.VISIBLE
     }
 
     @JvmStatic
@@ -1088,12 +1092,13 @@ object SystemUIControlCenterHooks {
         val BrightnessUtils = XposedHelpers.findClassIfExists("com.android.systemui.controlcenter.policy.BrightnessUtils", lpparam.classLoader)
         ModuleHelper.hookAllMethods("com.android.systemui.controlcenter.policy.MiuiBrightnessController", lpparam.classLoader, "onChanged", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
-                val pctTag = mPct?.getTag() as? Int ?: 0
-                if (pctTag == 0 || mPct == null) return
+                val pct = mPct ?: return
+                val pctTag = pct.getTag() as? Int ?: 0
+                if (pctTag == 0) return
                 val currentLevel = param.getArgs()[3] as Int
                 if (BrightnessUtils != null) {
                     val maxLevel = XposedHelpers.getStaticObjectField(BrightnessUtils, "GAMMA_SPACE_MAX") as Int
-                    mPct!!.text = ((currentLevel * 100) / maxLevel).toString() + "%"
+                    pct.text = ((currentLevel * 100) / maxLevel).toString() + "%"
                 }
             }
         })
@@ -1120,8 +1125,9 @@ object SystemUIControlCenterHooks {
             private var nowLevel = -233
             override fun after(param: AfterHookCallback) {
                 if (nowLevel == param.getArgs()[1] as Int) return
-                val pctTag = mPct?.getTag() as? Int ?: 0
-                if (pctTag != 3 || mPct == null) return
+                val pct = mPct ?: return
+                val pctTag = pct.getTag() as? Int ?: 0
+                if (pctTag != 3) return
                 val mColumn = XposedHelpers.getObjectField(param.getThisObject(), "mColumn")
                 val ss = XposedHelpers.getObjectField(mColumn, "ss")
                 if (ss == null) return
@@ -1136,7 +1142,7 @@ object SystemUIControlCenterHooks {
                     XposedHelpers.getIntField(mColumn, "animTargetProgress")
                 }
                 nowLevel = currentLevel
-                mPct!!.visibility = View.VISIBLE
+                pct.visibility = View.VISIBLE
                 val levelMin = XposedHelpers.getIntField(ss, "levelMin")
                 var adjustedLevel = currentLevel
                 if (levelMin > 0 && adjustedLevel < levelMin * 1000) {
@@ -1149,7 +1155,7 @@ object SystemUIControlCenterHooks {
                     val i3 = maxLevel - 1
                     adjustedLevel = if (adjustedLevel == max) maxLevel else (adjustedLevel * i3 / max) + 1
                 }
-                mPct!!.text = ((adjustedLevel * 100) / maxLevel).toString() + "%"
+                pct.text = ((adjustedLevel * 100) / maxLevel).toString() + "%"
             }
         })
     }
