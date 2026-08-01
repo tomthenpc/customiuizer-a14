@@ -42,6 +42,8 @@ import tv.withaibuild.customiuizer.utils.HookUtils
 
 object Controls {
 
+    private const val NAV_BAR_DARK_STATE_FIELD = "custo_nav_bar_buttons_dark"
+
     private var isPowerPressed = false
     private var isPowerLongPressed = false
     private var isVolumePressed = false
@@ -588,11 +590,18 @@ object Controls {
                     val thisObject = chain.thisObject
 
                     val navbar = XposedHelpers.getObjectField(thisObject, "mView") as FrameLayout
-                    val isDark = (chain.getArgs()[0] as Float) > 0.5f
+                    val isDark = (chain.getArg(0) as Float) > 0.5f
                     val hleft = navbar.findViewWithTag<ImageView>("custom_left_horiz")
                     val vleft = navbar.findViewWithTag<ImageView>("custom_left_vert")
                     val hright = navbar.findViewWithTag<ImageView>("custom_right_horiz")
                     val vright = navbar.findViewWithTag<ImageView>("custom_right_vert")
+                    if (hleft == null && vleft == null && hright == null && vright == null) {
+                        return XposedHelpers.throwOrReturn(throwable, result)
+                    }
+                    val previousDark = XposedHelpers.getAdditionalInstanceField(navbar, NAV_BAR_DARK_STATE_FIELD) as? Boolean
+                    if (previousDark == isDark) {
+                        return XposedHelpers.throwOrReturn(throwable, result)
+                    }
 
                     val modCtx = ModuleHelper.getModuleContext(navbar.context)!!
                     val modRes = ModuleHelper.getModuleRes(navbar.context)!!
@@ -611,6 +620,7 @@ object Controls {
                         if (hright != null) hright.setImageDrawable(lightImg2)
                         if (vright != null) vright.setImageDrawable(lightImg2)
                     }
+                    XposedHelpers.setAdditionalInstanceField(navbar, NAV_BAR_DARK_STATE_FIELD, isDark)
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
@@ -632,6 +642,7 @@ object Controls {
                         val thisObject = chain.thisObject
 
                         val navbar = thisObject as FrameLayout
+                        XposedHelpers.removeAdditionalInstanceField(navbar, NAV_BAR_DARK_STATE_FIELD)
                         reposNavBarButtons(navbar)
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)

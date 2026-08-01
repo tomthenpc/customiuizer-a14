@@ -364,6 +364,28 @@ fun fastBlur(sentBitmap: Bitmap, radius: Int): Bitmap? {
         findings = self.mod.check_album_art_memory_lifecycle(path, unsafe)
         self.assertEqual(2, len(findings))
 
+    def test_nav_bar_dark_frames_skip_unchanged_drawable_loads(self):
+        path = self._source_path("tv/withaibuild/customiuizer/mods/Controls.kt")
+        clean = """
+fun NavBarButtonsHook(param: Any) {
+    val isDark = chain.getArg(0) as Float
+    if (previousDark == isDark) return
+    ModuleHelper.getModuleContext(navbar.context)
+    setAdditionalInstanceField(navbar, NAV_BAR_DARK_STATE_FIELD, isDark)
+    removeAdditionalInstanceField(navbar, NAV_BAR_DARK_STATE_FIELD)
+}
+"""
+        self.assertEqual([], self.mod.check_nav_bar_dark_hot_path(path, clean))
+
+        unsafe = """
+fun NavBarButtonsHook(param: Any) {
+    val isDark = chain.getArgs()[0] as Float
+    ModuleHelper.getModuleContext(navbar.context)
+}
+"""
+        findings = self.mod.check_nav_bar_dark_hot_path(path, unsafe)
+        self.assertEqual(4, len(findings))
+
     def test_reflection_cache_get_declared_method_oom_ok(self):
         text = """
     private fun resolveDependencyMethod(loaderState: LoaderState, classLoader: ClassLoader?): Method? {

@@ -442,6 +442,7 @@ MODULE_HELPER = "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt"
 SYSTEM_LOCK_SCREEN_HOOKS = "tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt"
 LOCK_SCREEN_ALBUM_ART_CONTROLLER = "tv/withaibuild/customiuizer/mods/utils/LockScreenAlbumArtController.kt"
 HOOK_UTILS = "tv/withaibuild/customiuizer/utils/HookUtils.kt"
+CONTROLS = "tv/withaibuild/customiuizer/mods/Controls.kt"
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
@@ -721,6 +722,46 @@ def check_album_art_memory_lifecycle(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def check_nav_bar_dark_hot_path(path: Path, text: str) -> list[Finding]:
+    """Dark-intensity animation frames must not reload unchanged navigation drawables."""
+    if rel_posix(path) != CONTROLS:
+        return []
+    method = text.find("fun NavBarButtonsHook(")
+    if method < 0:
+        return [Finding("nav-bar-dark-hot-path", path, 1, "NavBarButtonsHook is missing")]
+    body, _ = block_at(text, method)
+    findings = []
+    if "chain.getArgs()[0] as Float" in body or "chain.getArg(0) as Float" not in body:
+        findings.append(
+            Finding(
+                "nav-bar-dark-hot-path",
+                path,
+                line_of(text, method),
+                "dark intensity must read one argument without materializing the argument array",
+            )
+        )
+    state = body.find("if (previousDark == isDark)")
+    resources = body.find("ModuleHelper.getModuleContext(navbar.context)")
+    if state < 0 or resources < 0 or state > resources:
+        findings.append(
+            Finding(
+                "nav-bar-dark-hot-path",
+                path,
+                line_of(text, method),
+                "unchanged dark state must return before module resources or drawables are loaded",
+            )
+        )
+    if "setAdditionalInstanceField(navbar, NAV_BAR_DARK_STATE_FIELD, isDark)" not in body:
+        findings.append(
+            Finding("nav-bar-dark-hot-path", path, line_of(text, method), "dark state must be recorded after icon replacement")
+        )
+    if "removeAdditionalInstanceField(navbar, NAV_BAR_DARK_STATE_FIELD)" not in body:
+        findings.append(
+            Finding("nav-bar-dark-hot-path", path, line_of(text, method), "configuration changes must invalidate the dark-state cache")
+        )
+    return findings
+
+
 REFLECTION_CACHE = "tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt"
 
 
@@ -823,6 +864,7 @@ RULES = (
     check_module_helper_fatal_boundaries,
     check_charging_info_hot_path,
     check_album_art_memory_lifecycle,
+    check_nav_bar_dark_hot_path,
     check_reflection_cache_get_declared_method_oom,
 )
 
