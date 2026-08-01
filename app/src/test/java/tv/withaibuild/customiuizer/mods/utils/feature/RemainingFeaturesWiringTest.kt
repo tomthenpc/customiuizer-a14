@@ -70,6 +70,31 @@ class RemainingFeaturesWiringTest {
     }
 
     @Test
+    fun genericAppInstallerCreatesOnlyRoutedSpecsInsideAttachCallback() {
+        val installer = source("app/src/main/java/tv/withaibuild/customiuizer/installers/GenericAppInstaller.java")
+        val callback = installer.indexOf("protected void after(AfterHookCallback param)")
+        val registry = installer.indexOf("FeatureInstallRegistry registry = new FeatureInstallRegistry()")
+        assertTrue("generic registry must be short-lived inside Application.attach", callback >= 0 && registry > callback)
+        assertTrue("generic installer must construct only routed specs", installer.contains("GenericAppFeatures.selected("))
+
+        val param = fakePackageReadyParam()
+        val prefs = PrefMap()
+        assertTrue(GenericAppFeatures.selected(param, prefs, false, false, false, false).isEmpty())
+
+        val statusBar = GenericAppFeatures.selected(param, prefs, false, true, false, false)
+        assertEquals(1, statusBar.size)
+        assertEquals("system_statusbarcolor", statusBar.single().preferenceKey)
+
+        val noOverscroll = GenericAppFeatures.selected(param, prefs, false, false, true, false)
+        assertEquals(1, noOverscroll.size)
+        assertEquals("system_nooverscroll", noOverscroll.single().preferenceKey)
+
+        val media = GenericAppFeatures.selected(param, prefs, false, false, false, true)
+        assertEquals(1, media.size)
+        assertEquals("controls_volumemedia_up", media.single().preferenceKey)
+    }
+
+    @Test
     fun representativeFeaturesHaveCorrectTargetPhaseAndKey() {
         val launcherReady = LauncherPackageReadyFeatures.all(fakePackageReadyParam(), PrefMap()).first()
         assertEquals(FeatureTarget.LAUNCHER, launcherReady.target)

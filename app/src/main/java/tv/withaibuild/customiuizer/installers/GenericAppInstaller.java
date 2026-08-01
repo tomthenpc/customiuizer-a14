@@ -27,13 +27,6 @@ public final class GenericAppInstaller {
     private GenericAppInstaller() {}
 
     public static void installPostAttach(PackageReadyParam lpparam, PrefMap mPrefs, boolean isLauncherPkg, boolean isStatusBarColor, boolean isNoOverscroll, boolean controlMedia) {
-        final FeatureInstallRegistry registry = new FeatureInstallRegistry();
-
-        for (FeatureSpec feature : GenericAppFeatures.all(lpparam, mPrefs)) {
-            if ("Launcher Post Attach".equals(feature.getName()) && !isLauncherPkg) continue;
-            registry.register(feature);
-        }
-
         ModuleHelper.findAndHookMethod(
             Application.class,
             "attach",
@@ -41,6 +34,18 @@ public final class GenericAppInstaller {
             new MethodHook() {
                 @Override
                 protected void after(AfterHookCallback param) throws Throwable {
+                    FeatureInstallRegistry registry = new FeatureInstallRegistry();
+                    for (FeatureSpec feature : GenericAppFeatures.selected(
+                        lpparam,
+                        mPrefs,
+                        isLauncherPkg,
+                        isStatusBarColor,
+                        isNoOverscroll,
+                        controlMedia
+                    )) {
+                        registry.register(feature);
+                    }
+
                     if (isLauncherPkg) {
                         registry.installAll(FeatureTarget.LAUNCHER, InstallPhase.APPLICATION_ATTACHED, mPrefs);
                     }

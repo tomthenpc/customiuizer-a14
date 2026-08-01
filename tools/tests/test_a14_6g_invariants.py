@@ -187,6 +187,39 @@ public static void log(String mod, Throwable t) { Log.getStackTraceString(t); }
             self.assertEqual(2, len(findings))
             self.assertTrue(all("OOM" in item.detail for item in findings))
 
+    def test_generic_app_registry_is_created_inside_attach_for_selected_specs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            installer = Path(tmp) / "GenericAppInstaller.java"
+            installer.write_text(
+                """
+void install() {
+    hook(new MethodHook() {
+        protected void after(AfterHookCallback param) {
+            FeatureInstallRegistry registry = new FeatureInstallRegistry();
+            GenericAppFeatures.selected(param, prefs, true, false, false, false);
+        }
+    });
+}
+""",
+                encoding="utf-8",
+            )
+            self.assertEqual([], self.mod.check_generic_app_attach_transaction(installer))
+
+            installer.write_text(
+                """
+void install() {
+    FeatureInstallRegistry registry = new FeatureInstallRegistry();
+    GenericAppFeatures.all(param, prefs);
+    hook(new MethodHook() {
+        protected void after(AfterHookCallback param) {}
+    });
+}
+""",
+                encoding="utf-8",
+            )
+            findings = self.mod.check_generic_app_attach_transaction(installer)
+            self.assertEqual(2, len(findings))
+
     def test_device_monitor_hot_path_rejects_formatter_and_swallowed_oom(self):
         path = self._source_path(
             "tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt"

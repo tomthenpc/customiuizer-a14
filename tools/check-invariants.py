@@ -771,6 +771,7 @@ def changed_kotlin_files() -> list[Path]:
 MANIFEST = REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml"
 MAIN_MODULE = REPO_ROOT / "app" / "src" / "main" / "java" / "tv" / "withaibuild" / "customiuizer" / "MainModule.java"
 XPOSED_HELPERS = SOURCE_ROOT / "tv" / "withaibuild" / "customiuizer" / "mods" / "utils" / "XposedHelpers.java"
+GENERIC_APP_INSTALLER = SOURCE_ROOT / "tv" / "withaibuild" / "customiuizer" / "installers" / "GenericAppInstaller.java"
 JAVA_FATAL_BOUNDARIES = (
     MAIN_MODULE,
     XPOSED_HELPERS,
@@ -884,6 +885,35 @@ def check_xposed_throwable_log_oom(path: Path | None = None) -> list[Finding]:
                     "Throwable log overload must rethrow OOM before formatting the stack trace",
                 )
             )
+    return findings
+
+
+def check_generic_app_attach_transaction(path: Path | None = None) -> list[Finding]:
+    """Generic app specs and registry must be short-lived inside Application.attach."""
+    if path is None:
+        path = GENERIC_APP_INSTALLER
+    text = strip_comments(path.read_text(encoding="utf-8"))
+    callback = text.find("protected void after(AfterHookCallback param)")
+    registry = text.find("FeatureInstallRegistry registry = new FeatureInstallRegistry()")
+    findings = []
+    if callback < 0 or registry < callback:
+        findings.append(
+            Finding(
+                "generic-app-attach-transaction",
+                path,
+                1,
+                "generic registry must be created inside the Application.attach callback",
+            )
+        )
+    if "GenericAppFeatures.selected(" not in text or "GenericAppFeatures.all(" in text:
+        findings.append(
+            Finding(
+                "generic-app-attach-transaction",
+                path,
+                1,
+                "generic installer must construct only route-selected FeatureSpec objects",
+            )
+        )
     return findings
 
 
@@ -1027,6 +1057,7 @@ def main() -> int:
     findings.extend(check_dexkit_close_oom())
     findings.extend(check_java_fatal_boundaries())
     findings.extend(check_xposed_throwable_log_oom())
+    findings.extend(check_generic_app_attach_transaction())
 
     if not findings:
         print(f"check-invariants: {len(files)} files, no violations")

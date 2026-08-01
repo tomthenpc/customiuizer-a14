@@ -14,44 +14,79 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 
 object GenericAppFeatures {
     @JvmStatic
-    fun all(lpparam: PackageReadyParam, mPrefs: PrefMap): List<FeatureSpec> = listOf(
-        LazyFeatureSpec(
-            id = LauncherPostAttachFeatureId,
-            name = "Launcher Post Attach",
-            preferenceKey = null,
-            target = FeatureTarget.LAUNCHER,
-            phase = InstallPhase.APPLICATION_ATTACHED,
-            enabled = { prefs -> LauncherPostAttachFeature.evaluateEnabled(prefs, lpparam.packageName.orEmpty()) },
-            factory = { LauncherPostAttachFeature(lpparam, mPrefs) },
-        ),
-        LazyFeatureSpec(
-            id = GenericAppStatusBarBackgroundFeatureId,
-            name = "Generic App Status Bar Background",
-            preferenceKey = "system_statusbarcolor",
-            target = FeatureTarget.ANY,
-            phase = InstallPhase.APPLICATION_ATTACHED,
-            enabled = { prefs -> GenericAppStatusBarBackgroundFeature.evaluateEnabled(prefs, lpparam.packageName.orEmpty()) },
-            factory = { GenericAppStatusBarBackgroundFeature(lpparam, mPrefs) },
-        ),
-        LazyFeatureSpec(
-            id = GenericAppNoOverscrollFeatureId,
-            name = "Generic App No Overscroll",
-            preferenceKey = "system_nooverscroll",
-            target = FeatureTarget.ANY,
-            phase = InstallPhase.APPLICATION_ATTACHED,
-            enabled = { prefs -> GenericAppNoOverscrollFeature.evaluateEnabled(prefs, lpparam.packageName.orEmpty()) },
-            factory = { GenericAppNoOverscrollFeature(lpparam, mPrefs) },
-        ),
-        LazyFeatureSpec(
-            id = GenericAppVolumeMediaPlayerFeatureId,
-            name = "Generic App Volume Media Player",
-            preferenceKey = "controls_volumemedia_up",
-            target = FeatureTarget.ANY,
-            phase = InstallPhase.APPLICATION_ATTACHED,
-            enabled = { prefs -> GenericAppVolumeMediaPlayerFeature.evaluateEnabled(prefs, lpparam.packageName.orEmpty()) },
-            factory = { GenericAppVolumeMediaPlayerFeature(lpparam, mPrefs) },
-        ),
-    )
+    fun all(lpparam: PackageReadyParam, mPrefs: PrefMap): List<FeatureSpec> =
+        selected(lpparam, mPrefs, true, true, true, true)
+
+    @JvmStatic
+    fun selected(
+        lpparam: PackageReadyParam,
+        mPrefs: PrefMap,
+        includeLauncher: Boolean,
+        includeStatusBarBackground: Boolean,
+        includeNoOverscroll: Boolean,
+        includeVolumeMediaPlayer: Boolean,
+    ): List<FeatureSpec> {
+        val count = (if (includeLauncher) 1 else 0) +
+            (if (includeStatusBarBackground) 1 else 0) +
+            (if (includeNoOverscroll) 1 else 0) +
+            (if (includeVolumeMediaPlayer) 1 else 0)
+        if (count == 0) return emptyList()
+
+        val features = ArrayList<FeatureSpec>(count)
+        if (includeLauncher) {
+            features.add(
+                LazyFeatureSpec(
+                    id = LauncherPostAttachFeatureId,
+                    name = "Launcher Post Attach",
+                    preferenceKey = null,
+                    target = FeatureTarget.LAUNCHER,
+                    phase = InstallPhase.APPLICATION_ATTACHED,
+                    enabled = { prefs -> LauncherPostAttachFeature.evaluateEnabled(prefs, lpparam.packageName.orEmpty()) },
+                    factory = { LauncherPostAttachFeature(lpparam, mPrefs) },
+                )
+            )
+        }
+        if (includeStatusBarBackground) {
+            features.add(
+                LazyFeatureSpec(
+                    id = GenericAppStatusBarBackgroundFeatureId,
+                    name = "Generic App Status Bar Background",
+                    preferenceKey = "system_statusbarcolor",
+                    target = FeatureTarget.ANY,
+                    phase = InstallPhase.APPLICATION_ATTACHED,
+                    enabled = { prefs -> GenericAppStatusBarBackgroundFeature.evaluateEnabled(prefs, lpparam.packageName.orEmpty()) },
+                    factory = { GenericAppStatusBarBackgroundFeature(lpparam, mPrefs) },
+                )
+            )
+        }
+        if (includeNoOverscroll) {
+            features.add(
+                LazyFeatureSpec(
+                    id = GenericAppNoOverscrollFeatureId,
+                    name = "Generic App No Overscroll",
+                    preferenceKey = "system_nooverscroll",
+                    target = FeatureTarget.ANY,
+                    phase = InstallPhase.APPLICATION_ATTACHED,
+                    enabled = { prefs -> GenericAppNoOverscrollFeature.evaluateEnabled(prefs, lpparam.packageName.orEmpty()) },
+                    factory = { GenericAppNoOverscrollFeature(lpparam, mPrefs) },
+                )
+            )
+        }
+        if (includeVolumeMediaPlayer) {
+            features.add(
+                LazyFeatureSpec(
+                    id = GenericAppVolumeMediaPlayerFeatureId,
+                    name = "Generic App Volume Media Player",
+                    preferenceKey = "controls_volumemedia_up",
+                    target = FeatureTarget.ANY,
+                    phase = InstallPhase.APPLICATION_ATTACHED,
+                    enabled = { prefs -> GenericAppVolumeMediaPlayerFeature.evaluateEnabled(prefs, lpparam.packageName.orEmpty()) },
+                    factory = { GenericAppVolumeMediaPlayerFeature(lpparam, mPrefs) },
+                )
+            )
+        }
+        return features
+    }
 }
 
 internal class LauncherPostAttachFeature(
