@@ -24,6 +24,8 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.mods.utils.LateInstallPolicy
+import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
+import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
 import tv.withaibuild.customiuizer.utils.PrefMap
 import tv.withaibuild.customiuizer.utils.RestartRequirement
 
@@ -66,8 +68,12 @@ internal class ForegroundMonitorFeature(
     "Foreground Monitor",
     "various_showcallui"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getStringAsInt("various_showcallui", 0) > 0 || prefs.getBoolean("controls_volumecursor")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("various_showcallui", 0) > 0 || prefs.getBoolean("controls_volumecursor")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = GlobalActions.setupForegroundMonitor(lpparam)
 }
 
@@ -81,7 +87,12 @@ internal class TempHideOverlaySystemUiFeature(
     "Temp Hide Overlay System UI",
     "system_screenshot_overlay"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_screenshot_overlay")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_screenshot_overlay")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIScreenshotHooks.TempHideOverlaySystemUIHook(lpparam)
 }
 
@@ -95,8 +106,12 @@ internal class AddCustomTileFeature(
     "Add Custom Tile",
     "system_fivegtile"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_fivegtile") || prefs.getBoolean("system_cc_fpstile") || prefs.getBoolean("system_cc_floatingtimetile")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_fivegtile") || prefs.getBoolean("system_cc_fpstile") || prefs.getBoolean("system_cc_floatingtimetile")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIControlCenterHooks.AddCustomTileHook(lpparam)
 }
 
@@ -110,7 +125,12 @@ internal class HideStatusBarWhenCaptureFeature(
     "Hide Status Bar When Capture",
     "system_hidestatusbar_whenscreenshot"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_hidestatusbar_whenscreenshot")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_hidestatusbar_whenscreenshot")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIScreenshotHooks.HideStatusBarWhenCaptureHook(lpparam)
 }
 
@@ -124,7 +144,12 @@ internal class NetworkIndicatorWifiFeature(
     "Network Indicator WiFi",
     "system_networkindicator_wifi"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_networkindicator_wifi")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_networkindicator_wifi")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = ModsSystem.NetworkIndicatorWifi(lpparam)
 }
 
@@ -138,7 +163,12 @@ internal class DrawerBlurRatioFeature(
     "Drawer Blur Ratio",
     "system_drawer_blur"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("system_drawer_blur", 100) < 100
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_drawer_blur", 100) < 100
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemDisplayHooks.DrawerBlurRatioHook(lpparam)
 }
 
@@ -152,7 +182,12 @@ internal class ChargeAnimationFeature(
     "Charge Animation",
     "system_chargeanimtime"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("system_chargeanimtime", 20) < 20
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_chargeanimtime", 20) < 20
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemDisplayHooks.ChargeAnimationHook(lpparam)
 }
 
@@ -166,8 +201,12 @@ internal class BetterPopupsHideDelayFeature(
     "Better Popups Hide Delay",
     "system_betterpopups_delay"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getInt("system_betterpopups_delay", 0) > 0 && !prefs.getBoolean("system_betterpopups_nohide")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_betterpopups_delay", 0) > 0 && !prefs.getBoolean("system_betterpopups_nohide")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.BetterPopupsHideDelayHook(lpparam)
 }
 
@@ -181,8 +220,12 @@ internal class AssistGestureActionFeature(
     "Assist Gesture Action",
     "controls_fsg_assist_left_action"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getInt("controls_fsg_assist_left_action", 1) > 1 || prefs.getInt("controls_fsg_assist_right_action", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("controls_fsg_assist_left_action", 1) > 1 || prefs.getInt("controls_fsg_assist_right_action", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.AssistGestureActionHook(lpparam)
 }
 
@@ -196,11 +239,15 @@ internal class NavBarButtonsFeature(
     "Nav Bar Buttons",
     "controls_navbarleft_action"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getInt("controls_navbarleft_action", 1) > 1 ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("controls_navbarleft_action", 1) > 1 ||
         prefs.getInt("controls_navbarleftlong_action", 1) > 1 ||
         prefs.getInt("controls_navbarright_action", 1) > 1 ||
         prefs.getInt("controls_navbarrightlong_action", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.NavBarButtonsHook(lpparam)
 }
 
@@ -214,7 +261,12 @@ internal class ScramblePinFeature(
     "Scramble PIN",
     "system_scramblepin"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_scramblepin")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_scramblepin")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.ScramblePINHook(lpparam)
 }
 
@@ -228,7 +280,12 @@ internal class DoubleTapToSleepFeature(
     "Double Tap To Sleep",
     "system_dttosleep"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_dttosleep")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_dttosleep")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.DoubleTapToSleepHook(lpparam)
 }
 
@@ -242,14 +299,18 @@ internal class StatusBarClockTweakFeature(
     "Status Bar Clock Tweak",
     "system_statusbar_clocktweak"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_statusbar_clocktweak") ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbar_clocktweak") ||
         prefs.getBoolean("system_cc_clocktweak") ||
         prefs.getBoolean("system_cc_hidedate") ||
         prefs.getBoolean("system_drawer_hidedate") ||
         prefs.getBoolean("system_statusbaricons_clock") ||
         prefs.getString("system_cc_dateformat", "").isNotEmpty() ||
         prefs.getString("system_drawer_dateformat", "").isNotEmpty()
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemClockHooks.StatusBarClockTweakHook(lpparam)
 }
 
@@ -263,8 +324,12 @@ internal class CcClockTweakFeature(
     "CC Clock Tweak",
     "system_cc_clocktweak"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_cc_clocktweak") || prefs.getBoolean("system_qs_force_systemfonts")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_cc_clocktweak") || prefs.getBoolean("system_qs_force_systemfonts")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemClockHooks.CCClockTweakHook(lpparam)
 }
 
@@ -278,7 +343,12 @@ internal class DisableFakeClockAnimFeature(
     "Disable Fake Clock Anim",
     "system_qs_disable_fakeclock_anim"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_qs_disable_fakeclock_anim")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_qs_disable_fakeclock_anim")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.DisableFakeClockAnimHook(lpparam)
 }
 
@@ -292,9 +362,13 @@ internal class CcClockCenterAlignFeature(
     "CC Clock Center Align",
     "system_cc_clock_centeralign"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_cc_clock_centeralign") ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_cc_clock_centeralign") ||
         (!prefs.getBoolean("system_drawer_hidedate") && prefs.getBoolean("system_drawer_date_centeralign"))
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemClockHooks.CCClockCenterAlignHook(lpparam)
 }
 
@@ -308,7 +382,12 @@ internal class NoScreenLockFeature(
     "No Screen Lock",
     "system_noscreenlock_act"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_noscreenlock_act")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_noscreenlock_act")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.NoScreenLockHook(lpparam)
 }
 
@@ -322,7 +401,12 @@ internal class LockScreenAlbumArtFeature(
     "Lock Screen Album Art",
     "system_albumartonlock"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_albumartonlock")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_albumartonlock")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUILockScreenHooks.LockScreenAlbumArtHook(lpparam)
 }
 
@@ -336,7 +420,12 @@ internal class ExpandHeadsUpFeature(
     "Expand Heads Up",
     "system_expandheadups"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_expandheadups", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_expandheadups", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.ExpandHeadsUpHook(lpparam)
 }
 
@@ -350,7 +439,12 @@ internal class BetterPopupsNoHideFeature(
     "Better Popups No Hide",
     "system_betterpopups_nohide"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_betterpopups_nohide")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_betterpopups_nohide")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.BetterPopupsNoHideHook(lpparam)
 }
 
@@ -364,7 +458,12 @@ internal class BetterPopupsCenteredFeature(
     "Better Popups Centered",
     "system_betterpopups_center"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_betterpopups_center")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_betterpopups_center")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.BetterPopupsCenteredHook(lpparam)
 }
 
@@ -378,7 +477,12 @@ internal class ShowNotificationsAfterUnlockFeature(
     "Show Notifications After Unlock",
     "system_notifafterunlock"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_notifafterunlock")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_notifafterunlock")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.ShowNotificationsAfterUnlockHook(lpparam)
 }
 
@@ -392,7 +496,12 @@ internal class NotificationRowMenuFeature(
     "Notification Row Menu",
     "system_notifrowmenu"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_notifrowmenu")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_notifrowmenu")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.NotificationRowMenuHook(lpparam)
 }
 
@@ -406,7 +515,12 @@ internal class HideDismissViewFeature(
     "Hide Dismiss View",
     "system_removedismiss"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_removedismiss")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_removedismiss")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUINotificationHooks.HideDismissViewHook(lpparam)
 }
 
@@ -420,7 +534,12 @@ internal class HideNotificationAccessIconFeature(
     "Hide Notification Access Icon",
     "system_drawer_removeshortcut"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_drawer_removeshortcut")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_drawer_removeshortcut")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUINotificationHooks.HideNoficationAccessIconHook(lpparam)
 }
 
@@ -434,7 +553,12 @@ internal class HideNoNotificationsFeature(
     "Hide No Notifications",
     "system_drawer_remove_emptynotify"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_drawer_remove_emptynotify")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_drawer_remove_emptynotify")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUINotificationHooks.HideNoNotificationsHook(lpparam)
 }
 
@@ -448,7 +572,12 @@ internal class HideNavBarFeature(
     "Hide Nav Bar",
     "controls_nonavbar"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("controls_nonavbar")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("controls_nonavbar")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.HideNavBarHook(lpparam)
 }
 
@@ -462,8 +591,12 @@ internal class HideNavBarBeforeScreenshotFeature(
     "Hide Nav Bar Before Screenshot",
     "controls_hidenavbar_whenscreenshot"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        !prefs.getBoolean("controls_nonavbar") && prefs.getBoolean("controls_hidenavbar_whenscreenshot")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = !prefs.getBoolean("controls_nonavbar") && prefs.getBoolean("controls_hidenavbar_whenscreenshot")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIScreenshotHooks.HideNavBarBeforeScreenshotHook(lpparam)
 }
 
@@ -477,7 +610,12 @@ internal class AudioVisualizerFeature(
     "Audio Visualizer",
     "system_visualizer"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_visualizer")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_visualizer")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemAudioHooks.AudioVisualizerHook(lpparam)
 }
 
@@ -491,7 +629,12 @@ internal class ControlCenterPluginFeature(
     "Control Center Plugin",
     null
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = SystemUIControlCenterHooks.hasControlCenterModifications()
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = SystemUIControlCenterHooks.hasControlCenterModifications()
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIControlCenterHooks.ControlCenterPluginHook(lpparam)
 }
 
@@ -505,7 +648,12 @@ internal class BatteryIndicatorFeature(
     "Battery Indicator",
     "system_batteryindicator"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_batteryindicator")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_batteryindicator")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.BatteryIndicatorHook(lpparam)
 }
 
@@ -519,7 +667,12 @@ internal class DisableAnyNotificationFeature(
     "Disable Any Notification",
     "system_disableanynotif"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_disableanynotif")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_disableanynotif")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.DisableAnyNotificationHook(lpparam)
 }
 
@@ -533,7 +686,12 @@ internal class LockScreenShortcutFeature(
     "Lock Screen Shortcut",
     "system_lockscreenshortcuts"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_lockscreenshortcuts")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_lockscreenshortcuts")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUILockScreenHooks.LockScreenShortcutHook(lpparam)
 }
 
@@ -547,10 +705,14 @@ internal class MobileNetworkTypeFeature(
     "Mobile Network Type",
     "system_4gtolte"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_4gtolte") ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_4gtolte") ||
         (prefs.getBoolean("system_statusbar_mobiletype_single") &&
          prefs.getString("system_statusbar_mobile_showname", "").isNotEmpty())
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.MobileNetworkTypeHook(lpparam)
 }
 
@@ -564,37 +726,16 @@ internal class StatusBarIconsPositionAdjustFeature(
     "Status Bar Icons Position Adjust",
     "system_statusbar_alarm_atright"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = computeStatusBarIconsAdjust(prefs).first
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = computeStatusBarIconsAdjust(prefs).first
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() =
         SystemUIStatusBarHooks.StatusBarIconsPositionAdjustHook(lpparam, computeStatusBarIconsAdjust(mPrefs).second)
 
-    private fun computeStatusBarIconsAdjust(prefs: PrefMap): Pair<Boolean, Boolean> {
-        val dualRows = prefs.getBoolean("system_statusbar_dualrows")
-        val netspeedAtRow2 = dualRows && prefs.getBoolean("system_statusbar_netspeed_atsecondrow")
-        val showBatteryDetail = prefs.getBoolean("system_statusbar_batterytempandcurrent")
-        val showDeviceTemp = prefs.getBoolean("system_statusbar_showdevicetemperature")
-        val batteryAtRight = showBatteryDetail && !dualRows && prefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
-        val tempAtRight = showDeviceTemp && !dualRows && prefs.getBoolean("system_statusbar_showdevicetemperature_atright")
-        val batteryAtLeft = showBatteryDetail && !prefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
-        val tempAtLeft = showDeviceTemp && !prefs.getBoolean("system_statusbar_showdevicetemperature_atright")
 
-        val alwaysShowAtRight = prefs.getBoolean("system_statusbar_alarm_atright") ||
-            prefs.getBoolean("system_statusbar_nfc_atright") ||
-            prefs.getBoolean("system_statusbar_btbattery_atright") ||
-            prefs.getBoolean("system_statusbar_headset_atright") ||
-            prefs.getBoolean("system_statusbar_vpn_atright") ||
-            batteryAtRight || tempAtRight
-        val moveLeft = prefs.getBoolean("system_statusbar_alarm_atleft") ||
-            prefs.getBoolean("system_statusbar_sound_atleft") ||
-            prefs.getBoolean("system_statusbar_netspeed_atleft") ||
-            prefs.getBoolean("system_statusbar_dnd_atleft") ||
-            prefs.getBoolean("system_statusbar_gps_atleft") ||
-            prefs.getBoolean("system_statusbaricons_wifi_mobile_atleft") ||
-            batteryAtLeft || tempAtLeft
-        val needsAdjust = alwaysShowAtRight || moveLeft || netspeedAtRow2 ||
-            prefs.getBoolean("system_statusbaricons_swap_wifi_mobile")
-        return needsAdjust to moveLeft
-    }
 }
 
 internal class MonitorDeviceInfoFeature(
@@ -607,9 +748,13 @@ internal class MonitorDeviceInfoFeature(
     "Monitor Device Info",
     "system_statusbar_batterytempandcurrent"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_statusbar_batterytempandcurrent") ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbar_batterytempandcurrent") ||
         prefs.getBoolean("system_statusbar_showdevicetemperature")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.MonitorDeviceInfoHook(lpparam, mPrefs)
 }
 
@@ -623,9 +768,13 @@ internal class StatusBarClockPositionFeature(
     "Status Bar Clock Position",
     "system_statusbar_clock_position"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getStringAsInt("system_statusbar_clock_position", 1) > 1 &&
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_statusbar_clock_position", 1) > 1 &&
         !prefs.getBoolean("system_statusbar_dualrows")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.StatusBarClockPositionHook(lpparam)
 }
 
@@ -639,7 +788,12 @@ internal class StatusBarStyleBatteryIconFeature(
     "Status Bar Style Battery Icon",
     "system_statusbar_batterystyle"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_statusbar_batterystyle")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbar_batterystyle")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.StatusBarStyleBatteryIconHook(lpparam)
 }
 
@@ -653,9 +807,13 @@ internal class LockScreenTopMarginFeature(
     "Lock Screen Top Margin",
     "system_statusbar_topmargin"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_statusbar_topmargin") &&
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbar_topmargin") &&
         prefs.getBoolean("system_statusbar_topmargin_unset_lockscreen")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUILockScreenHooks.LockScreenTopMarginHook(lpparam)
 }
 
@@ -669,7 +827,12 @@ internal class HorizMarginFeature(
     "Horiz Margin",
     "system_statusbar_horizmargin"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_statusbar_horizmargin")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbar_horizmargin")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.HorizMarginHook(lpparam)
 }
 
@@ -683,7 +846,12 @@ internal class BrightnessPctFeature(
     "Brightness Pct",
     "system_showpct"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_showpct")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_showpct")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIControlCenterHooks.BrightnessPctHook(lpparam)
 }
 
@@ -697,7 +865,12 @@ internal class HideLockScreenStatusBarFeature(
     "Hide Lock Screen Status Bar",
     "system_hidelsstatusbar"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_hidelsstatusbar")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_hidelsstatusbar")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.HideLockScreenStatusBarHook(lpparam)
 }
 
@@ -711,7 +884,12 @@ internal class HideLockScreenClockFeature(
     "Hide Lock Screen Clock",
     "system_hidelsclock"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_hidelsclock")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_hidelsclock")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.HideLockScreenClockHook(lpparam)
 }
 
@@ -725,7 +903,12 @@ internal class ForceClockUseSystemFontsFeature(
     "Force Clock Use System Fonts",
     "system_ls_force_systemfonts"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_ls_force_systemfonts")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_ls_force_systemfonts")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.ForceClockUseSystemFontsHook(lpparam)
 }
 
@@ -739,7 +922,12 @@ internal class HideLockScreenHintFeature(
     "Hide Lock Screen Hint",
     "system_hidelshint"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_hidelshint")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_hidelshint")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.HideLockScreenHintHook(lpparam)
 }
 
@@ -753,7 +941,12 @@ internal class AllowAllKeyguardFeature(
     "Allow All Keyguard",
     "system_allownotifonkeyguard"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_allownotifonkeyguard")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_allownotifonkeyguard")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.AllowAllKeyguardHook(lpparam)
 }
 
@@ -767,7 +960,12 @@ internal class AllowAllFloatFeature(
     "Allow All Float",
     "system_allownotiffloat"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_allownotiffloat")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_allownotiffloat")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.AllowAllFloatHook(lpparam)
 }
 
@@ -781,7 +979,12 @@ internal class LockScreenAlarmFeature(
     "Lock Screen Alarm",
     "system_lsalarm"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_lsalarm")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_lsalarm")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.LockScreenAlarmHook(lpparam)
 }
 
@@ -795,7 +998,12 @@ internal class StatusBarGesturesFeature(
     "Status Bar Gestures",
     "system_statusbarcontrols"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_statusbarcontrols")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbarcontrols")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIControlCenterHooks.StatusBarGesturesHook(lpparam)
 }
 
@@ -809,7 +1017,12 @@ internal class NetSpeedIntervalFeature(
     "Net Speed Interval",
     "system_netspeedinterval"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("system_netspeedinterval", 4) != 4
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_netspeedinterval", 4) != 4
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.NetSpeedIntervalHook(lpparam)
 }
 
@@ -823,7 +1036,12 @@ internal class DetailedNetSpeedFeature(
     "Detailed Net Speed",
     "system_detailednetspeed_style"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_detailednetspeed_style", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_detailednetspeed_style", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.DetailedNetSpeedHook(lpparam)
 }
 
@@ -837,8 +1055,9 @@ internal class NetSpeedStyleFeature(
     "Net Speed Style",
     "system_detailednetspeed_style"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getStringAsInt("system_detailednetspeed_style", 1) > 1 ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_detailednetspeed_style", 1) > 1 ||
         prefs.getBoolean("system_netspeed_boldfont") ||
         prefs.getBoolean("system_netspeed_use_clock_style") ||
         prefs.getInt("system_netspeed_fontsize", 13) > 13 ||
@@ -847,6 +1066,9 @@ internal class NetSpeedStyleFeature(
         prefs.getInt("system_netspeed_rightmargin", 0) > 0 ||
         prefs.getInt("system_netspeed_verticaloffset", 8) != 8 ||
         prefs.getStringAsInt("system_detailednetspeed_align", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.NetSpeedStyleHook(lpparam)
 }
 
@@ -860,7 +1082,12 @@ internal class TapToUnlockFeature(
     "Tap To Unlock",
     "system_taptounlock"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_taptounlock")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_taptounlock")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.TapToUnlockHook(lpparam)
 }
 
@@ -874,7 +1101,12 @@ internal class NoSOSFeature(
     "No SOS",
     "system_nosos"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_nosos")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_nosos")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.NoSOSHook(lpparam)
 }
 
@@ -888,7 +1120,12 @@ internal class RemovePackageNotificationsLimitFeature(
     "Remove Package Notifications Limit",
     "system_morenotif"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_morenotif")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_morenotif")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUINotificationHooks.RemovePackageNotificationsLimitHook(lpparam)
 }
 
@@ -902,7 +1139,12 @@ internal class DisableFoldNotificationsFeature(
     "Disable Fold Notifications",
     "system_notif_disable_fold"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_notif_disable_fold")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_notif_disable_fold")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUINotificationHooks.DisableFoldNotificationsHook(lpparam)
 }
 
@@ -916,7 +1158,12 @@ internal class DisableStrongToastFeature(
     "Disable Strong Toast",
     "system_notif_disable_strong_toast"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_notif_disable_strong_toast")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_notif_disable_strong_toast")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUI.DisableStrongToastHook(lpparam)
 }
 
@@ -930,7 +1177,12 @@ internal class ChargingInfoFeature(
     "Charging Info",
     "system_charginginfo"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_charginginfo")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_charginginfo")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.ChargingInfoHook(lpparam)
 }
 
@@ -944,7 +1196,12 @@ internal class SecureQSTilesFeature(
     "Secure QS Tiles",
     "system_secureqs"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_secureqs")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_secureqs")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIControlCenterHooks.SecureQSTilesHook(lpparam)
 }
 
@@ -958,7 +1215,12 @@ internal class MuteVisibleNotificationsFeature(
     "Mute Visible Notifications",
     "system_mutevisiblenotif"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_mutevisiblenotif")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_mutevisiblenotif")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.MuteVisibleNotificationsHook(lpparam)
 }
 
@@ -972,7 +1234,12 @@ internal class HideIconsBattery1Feature(
     "Hide Icons Battery1",
     "system_statusbaricons_battery1"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_statusbaricons_battery1")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbaricons_battery1")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemStatusBarIconHooks.HideIconsBattery1Hook(lpparam)
 }
 
@@ -986,10 +1253,14 @@ internal class HideIconsBattery2Feature(
     "Hide Icons Battery2",
     "system_statusbaricons_battery3"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_statusbaricons_battery3") ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbaricons_battery3") ||
         prefs.getBoolean("system_statusbaricons_battery4") ||
         prefs.getBoolean("system_statusbaricons_battery2")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemStatusBarIconHooks.HideIconsBattery2Hook(lpparam)
 }
 
@@ -1003,7 +1274,12 @@ internal class DisplayWifiStandardFeature(
     "Display WiFi Standard",
     "system_statusbaricons_wifistandard"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_statusbaricons_wifistandard", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_statusbaricons_wifistandard", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemStatusBarIconHooks.DisplayWifiStandardHook(lpparam)
 }
 
@@ -1017,7 +1293,12 @@ internal class HidePrivacyIndicatorFeature(
     "Hide Privacy Indicator",
     "system_statusbaricons_privacy_prompt"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_statusbaricons_privacy_prompt")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbaricons_privacy_prompt")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.HidePrivacyIndicatorHook(lpparam)
 }
 
@@ -1031,13 +1312,17 @@ internal class HideIconsSignalFeature(
     "Hide Icons Signal",
     "system_statusbaricons_signal"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_statusbaricons_signal") ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbaricons_signal") ||
         prefs.getBoolean("system_statusbaricons_sim1") ||
         prefs.getBoolean("system_statusbaricons_sim2") ||
         prefs.getBoolean("system_statusbaricons_sim_nodata") ||
         prefs.getBoolean("system_statusbaricons_roaming") ||
         prefs.getBoolean("system_statusbaricons_volte")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.HideIconsSignalHook(lpparam)
 }
 
@@ -1051,7 +1336,12 @@ internal class HideIconsVoWiFiFeature(
     "Hide Icons VoWiFi",
     "system_statusbaricons_vowifi"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_statusbaricons_vowifi")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbaricons_vowifi")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.HideIconsVoWiFiHook(lpparam)
 }
 
@@ -1065,9 +1355,13 @@ internal class HideIconsSelectiveAlarmFeature(
     "Hide Icons Selective Alarm",
     "system_statusbaricons_alarm"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        !prefs.getBoolean("system_statusbaricons_alarm") &&
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = !prefs.getBoolean("system_statusbaricons_alarm") &&
         prefs.getInt("system_statusbaricons_alarmn", 0) > 0
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemStatusBarIconHooks.HideIconsSelectiveAlarmHook(lpparam)
 }
 
@@ -1081,10 +1375,14 @@ internal class ReplaceShortcutAppFeature(
     "Replace Shortcut App",
     "system_shortcut_app"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getString("system_shortcut_app", "").isNotEmpty() ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getString("system_shortcut_app", "").isNotEmpty() ||
         prefs.getString("system_calendar_app", "").isNotEmpty() ||
         prefs.getString("system_clock_app", "").isNotEmpty()
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUILockScreenHooks.ReplaceShortcutAppHook(lpparam)
 }
 
@@ -1098,7 +1396,12 @@ internal class QSHapticFeature(
     "QS Haptic",
     "system_qshaptics"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_qshaptics", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_qshaptics", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemAudioHooks.QSHapticHook(lpparam)
 }
 
@@ -1112,7 +1415,12 @@ internal class CollapseCCAfterClickFeature(
     "Collapse CC After Click",
     "system_cc_collapse_after_clicked"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_cc_collapse_after_clicked")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_cc_collapse_after_clicked")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIControlCenterHooks.CollapseCCAfterClickHook(lpparam)
 }
 
@@ -1126,7 +1434,12 @@ internal class LongClickTileOpenInFreeFormFeature(
     "Long Click Tile Open In Free Form",
     "system_cc_freeform_when_longclick"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_cc_freeform_when_longclick")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_cc_freeform_when_longclick")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIControlCenterHooks.LongClickTileOpenInFreeFormHook(lpparam)
 }
 
@@ -1140,7 +1453,12 @@ internal class SwitchCCAndNotificationFeature(
     "Switch CC And Notification",
     "system_cc_switch_qsandnotification"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_cc_switch_qsandnotification")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_cc_switch_qsandnotification")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIControlCenterHooks.SwitchCCAndNotificationHook(lpparam)
 }
 
@@ -1154,7 +1472,12 @@ internal class ExpandNotificationsFeature(
     "Expand Notifications",
     "system_expandnotifs"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_expandnotifs", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_expandnotifs", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.ExpandNotificationsHook(lpparam)
 }
 
@@ -1168,10 +1491,14 @@ internal class HideMobileNetworkIndicatorFeature(
     "Hide Mobile Network Indicator",
     "system_mobiletypeicon"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getStringAsInt("system_mobiletypeicon", 1) > 1 ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_mobiletypeicon", 1) > 1 ||
         prefs.getBoolean("system_networkindicator_mobile") ||
         prefs.getBoolean("system_statusbar_mobiletype_show_wificonnected")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.HideMobileNetworkIndicatorHook(lpparam)
 }
 
@@ -1185,7 +1512,12 @@ internal class ExtendedPowerMenuFeature(
     "Extended Power Menu",
     "system_epm"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_epm")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_epm")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUI.ExtendedPowerMenuHook(lpparam)
 }
 
@@ -1199,8 +1531,9 @@ internal class HideIconsFeature(
     "Hide Icons",
     "system_statusbaricons_wifi"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_statusbaricons_wifi") ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbaricons_wifi") ||
         prefs.getBoolean("system_statusbaricons_dualwifi") ||
         prefs.getBoolean("system_statusbaricons_alarm") ||
         prefs.getBoolean("system_statusbaricons_profile") ||
@@ -1218,6 +1551,9 @@ internal class HideIconsFeature(
         prefs.getBoolean("system_statusbaricons_ble_unlock") ||
         prefs.getBoolean("system_statusbaricons_bluetoothicn") ||
         prefs.getBoolean("system_statusbaricons_volte")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.HideIconsHook(lpparam)
 }
 
@@ -1231,12 +1567,16 @@ internal class HideIconsFromSystemManagerFeature(
     "Hide Icons From System Manager",
     "system_statusbaricons_privacy"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        prefs.getBoolean("system_statusbaricons_privacy") ||
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbaricons_privacy") ||
         prefs.getBoolean("system_statusbaricons_mute") ||
         prefs.getBoolean("system_statusbaricons_speaker") ||
         prefs.getBoolean("system_statusbaricons_record") ||
         prefs.getBoolean("system_statusbaricons_wireless_headset")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.HideIconsFromSystemManager(lpparam)
 }
 
@@ -1250,7 +1590,12 @@ internal class BetterPopupsAllowFloatFeature(
     "Better Popups Allow Float",
     "system_betterpopups_allowfloat"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_betterpopups_allowfloat")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_betterpopups_allowfloat")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.BetterPopupsAllowFloatHook(lpparam)
 }
 
@@ -1264,7 +1609,12 @@ internal class AutoDismissExpandedPopupsFeature(
     "Auto Dismiss Expanded Popups",
     "system_betterpopups_autoclose_expanded"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_betterpopups_autoclose_expanded")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_betterpopups_autoclose_expanded")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.AutoDismissExpandedPopupsHook(lpparam)
 }
 
@@ -1278,7 +1628,12 @@ internal class DisableHeadsUpWhenMuteFeature(
     "Disable Heads Up When Mute",
     "system_betterpopups_disablewhenmute"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_betterpopups_disablewhenmute")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_betterpopups_disablewhenmute")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUINotificationHooks.DisableHeadsUpWhenMuteHook(lpparam)
 }
 
@@ -1292,7 +1647,12 @@ internal class MinimalNotificationViewFeature(
     "Minimal Notification View",
     "system_minimalnotifview"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_minimalnotifview")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_minimalnotifview")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.MinimalNotificationViewHook(lpparam)
 }
 
@@ -1306,7 +1666,12 @@ internal class NotificationChannelSettingsFeature(
     "Notification Channel Settings",
     "system_notifchannelsettings"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_notifchannelsettings")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_notifchannelsettings")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.NotificationChannelSettingsHook(lpparam)
 }
 
@@ -1320,7 +1685,12 @@ internal class MaxNotificationIconsFeature(
     "Max Notification Icons",
     "system_maxsbicons"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_maxsbicons", 0) != 0
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_maxsbicons", 0) != 0
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemNotificationHooks.MaxNotificationIconsHook(lpparam)
 }
 
@@ -1334,7 +1704,12 @@ internal class MobileTypeSingleFeature(
     "Mobile Type Single",
     "system_statusbar_mobiletype_single"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_statusbar_mobiletype_single")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbar_mobiletype_single")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.MobileTypeSingleHook(lpparam)
 }
 
@@ -1348,7 +1723,12 @@ internal class StatusBarDigitalSignalFeature(
     "Status Bar Digital Signal",
     "system_statusbar_mobile_digital_signal"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_statusbar_mobile_digital_signal")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbar_mobile_digital_signal")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.StatusBarDigitalSignalHook(lpparam)
 }
 
@@ -1362,9 +1742,13 @@ internal class DualRowSignalFeature(
     "Dual Row Signal",
     "system_statusbar_dualsimin2rows"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) =
-        !prefs.getBoolean("system_statusbar_mobile_digital_signal") &&
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = !prefs.getBoolean("system_statusbar_mobile_digital_signal") &&
         prefs.getBoolean("system_statusbar_dualsimin2rows")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.DualRowSignalHook(lpparam)
 }
 
@@ -1378,7 +1762,12 @@ internal class DualRowsStatusbarFeature(
     "Dual Rows Statusbar",
     "system_statusbar_dualrows"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_statusbar_dualrows")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_statusbar_dualrows")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIStatusBarHooks.DualRowsStatusbarHook(lpparam)
 }
 
@@ -1392,7 +1781,12 @@ internal class ColorizeNotificationCardFeature(
     "Colorize Notification Card",
     "system_colorizenotifs"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_colorizenotifs", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_colorizenotifs", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemColorizeNotificationHooks.ColorizeNotificationCardHook(lpparam)
 }
 
@@ -1406,7 +1800,12 @@ internal class OpenNotifyInFloatingWindowFeature(
     "Open Notify In Floating Window",
     "system_notify_openinfw"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_notify_openinfw")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_notify_openinfw")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUINotificationHooks.OpenNotifyInFloatingWindowHook(lpparam)
 }
 
@@ -1420,7 +1819,12 @@ internal class DisableSideBarSuggestionFeature(
     "Disable Side Bar Suggestion",
     "system_fw_noblacklist"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_fw_noblacklist")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_fw_noblacklist")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.DisableSideBarSuggestionHook(lpparam)
 }
 
@@ -1434,7 +1838,12 @@ internal class HideSafeVolumeDlgFeature(
     "Hide Safe Volume Dlg",
     "system_nosafevolume"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_nosafevolume")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_nosafevolume")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUIControlCenterHooks.HideSafeVolumeDlgHook(lpparam)
 }
 
@@ -1448,7 +1857,12 @@ internal class HideLockscreenZenModeFeature(
     "Hide Lockscreen Zen Mode",
     "system_lockscreen_hidezenmode"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_lockscreen_hidezenmode")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_lockscreen_hidezenmode")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUILockScreenHooks.HideLockscreenZenModeHook(lpparam)
 }
 
@@ -1462,7 +1876,12 @@ internal class DisableKeyguardEditorFeature(
     "Disable Keyguard Editor",
     "system_lockscreen_disable_edit"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_lockscreen_disable_edit")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_lockscreen_disable_edit")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUILockScreenHooks.DisableKeyguardEditorHook(lpparam)
 }
 
@@ -1476,7 +1895,12 @@ internal class NoPasswordFeature(
     "No Password",
     "system_nopassword"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_nopassword")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_nopassword")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemLockScreenHooks.NoPasswordHook(lpparam)
 }
 
@@ -1490,7 +1914,12 @@ internal class NotificationImportanceFeature(
     "Notification Importance",
     "system_notifimportance"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_notifimportance")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_notifimportance")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUINotificationHooks.NotificationImportanceHook(lpparam)
 }
 
@@ -1504,7 +1933,12 @@ internal class NoLightUpOnChargeSystemUiFeature(
     "No Light Up On Charge System UI",
     "system_nolightuponcharges"
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("system_nolightuponcharges", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_nolightuponcharges", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemUI.NoLightUpOnChargeHook(lpparam)
 }
 
@@ -1516,102 +1950,898 @@ object SystemUiFeatures {
     fun all(
         lpparam: PackageReadyParam,
         mPrefs: PrefMap
-    ): List<FeatureDefinition> = listOf(
-        ForegroundMonitorFeature(lpparam, mPrefs),
-        TempHideOverlaySystemUiFeature(lpparam, mPrefs),
-        AddCustomTileFeature(lpparam, mPrefs),
-        HideStatusBarWhenCaptureFeature(lpparam, mPrefs),
-        NetworkIndicatorWifiFeature(lpparam, mPrefs),
-        DrawerBlurRatioFeature(lpparam, mPrefs),
-        ChargeAnimationFeature(lpparam, mPrefs),
-        BetterPopupsHideDelayFeature(lpparam, mPrefs),
-        AssistGestureActionFeature(lpparam, mPrefs),
-        NavBarButtonsFeature(lpparam, mPrefs),
-        ScramblePinFeature(lpparam, mPrefs),
-        DoubleTapToSleepFeature(lpparam, mPrefs),
-        StatusBarClockTweakFeature(lpparam, mPrefs),
-        CcClockTweakFeature(lpparam, mPrefs),
-        DisableFakeClockAnimFeature(lpparam, mPrefs),
-        CcClockCenterAlignFeature(lpparam, mPrefs),
-        NoScreenLockFeature(lpparam, mPrefs),
-        LockScreenAlbumArtFeature(lpparam, mPrefs),
-        ExpandHeadsUpFeature(lpparam, mPrefs),
-        BetterPopupsNoHideFeature(lpparam, mPrefs),
-        BetterPopupsCenteredFeature(lpparam, mPrefs),
-        ShowNotificationsAfterUnlockFeature(lpparam, mPrefs),
-        NotificationRowMenuFeature(lpparam, mPrefs),
-        HideDismissViewFeature(lpparam, mPrefs),
-        HideNotificationAccessIconFeature(lpparam, mPrefs),
-        HideNoNotificationsFeature(lpparam, mPrefs),
-        HideNavBarFeature(lpparam, mPrefs),
-        HideNavBarBeforeScreenshotFeature(lpparam, mPrefs),
-        AudioVisualizerFeature(lpparam, mPrefs),
-        ControlCenterPluginFeature(lpparam, mPrefs),
-        BatteryIndicatorFeature(lpparam, mPrefs),
-        DisableAnyNotificationFeature(lpparam, mPrefs),
-        LockScreenShortcutFeature(lpparam, mPrefs),
-        MobileNetworkTypeFeature(lpparam, mPrefs),
-        StatusBarIconsPositionAdjustFeature(lpparam, mPrefs),
-        MonitorDeviceInfoFeature(lpparam, mPrefs),
-        StatusBarClockPositionFeature(lpparam, mPrefs),
-        StatusBarStyleBatteryIconFeature(lpparam, mPrefs),
-        LockScreenTopMarginFeature(lpparam, mPrefs),
-        HorizMarginFeature(lpparam, mPrefs),
-        BrightnessPctFeature(lpparam, mPrefs),
-        HideLockScreenStatusBarFeature(lpparam, mPrefs),
-        HideLockScreenClockFeature(lpparam, mPrefs),
-        ForceClockUseSystemFontsFeature(lpparam, mPrefs),
-        HideLockScreenHintFeature(lpparam, mPrefs),
-        AllowAllKeyguardFeature(lpparam, mPrefs),
-        AllowAllFloatFeature(lpparam, mPrefs),
-        LockScreenAlarmFeature(lpparam, mPrefs),
-        StatusBarGesturesFeature(lpparam, mPrefs),
-        NetSpeedIntervalFeature(lpparam, mPrefs),
-        DetailedNetSpeedFeature(lpparam, mPrefs),
-        NetSpeedStyleFeature(lpparam, mPrefs),
-        TapToUnlockFeature(lpparam, mPrefs),
-        NoSOSFeature(lpparam, mPrefs),
-        RemovePackageNotificationsLimitFeature(lpparam, mPrefs),
-        DisableFoldNotificationsFeature(lpparam, mPrefs),
-        DisableStrongToastFeature(lpparam, mPrefs),
-        ChargingInfoFeature(lpparam, mPrefs),
-        SecureQSTilesFeature(lpparam, mPrefs),
-        MuteVisibleNotificationsFeature(lpparam, mPrefs),
-        HideIconsBattery1Feature(lpparam, mPrefs),
-        HideIconsBattery2Feature(lpparam, mPrefs),
-        DisplayWifiStandardFeature(lpparam, mPrefs),
-        HidePrivacyIndicatorFeature(lpparam, mPrefs),
-        HideIconsSignalFeature(lpparam, mPrefs),
-        HideIconsVoWiFiFeature(lpparam, mPrefs),
-        HideIconsSelectiveAlarmFeature(lpparam, mPrefs),
-        ReplaceShortcutAppFeature(lpparam, mPrefs),
-        QSHapticFeature(lpparam, mPrefs),
-        CollapseCCAfterClickFeature(lpparam, mPrefs),
-        LongClickTileOpenInFreeFormFeature(lpparam, mPrefs),
-        SwitchCCAndNotificationFeature(lpparam, mPrefs),
-        ExpandNotificationsFeature(lpparam, mPrefs),
-        HideMobileNetworkIndicatorFeature(lpparam, mPrefs),
-        ExtendedPowerMenuFeature(lpparam, mPrefs),
-        HideIconsFeature(lpparam, mPrefs),
-        HideIconsFromSystemManagerFeature(lpparam, mPrefs),
-        BetterPopupsAllowFloatFeature(lpparam, mPrefs),
-        AutoDismissExpandedPopupsFeature(lpparam, mPrefs),
-        DisableHeadsUpWhenMuteFeature(lpparam, mPrefs),
-        MinimalNotificationViewFeature(lpparam, mPrefs),
-        NotificationChannelSettingsFeature(lpparam, mPrefs),
-        MaxNotificationIconsFeature(lpparam, mPrefs),
-        MobileTypeSingleFeature(lpparam, mPrefs),
-        StatusBarDigitalSignalFeature(lpparam, mPrefs),
-        DualRowSignalFeature(lpparam, mPrefs),
-        DualRowsStatusbarFeature(lpparam, mPrefs),
-        ColorizeNotificationCardFeature(lpparam, mPrefs),
-        OpenNotifyInFloatingWindowFeature(lpparam, mPrefs),
-        DisableSideBarSuggestionFeature(lpparam, mPrefs),
-        HideSafeVolumeDlgFeature(lpparam, mPrefs),
-        HideLockscreenZenModeFeature(lpparam, mPrefs),
-        DisableKeyguardEditorFeature(lpparam, mPrefs),
-        NoPasswordFeature(lpparam, mPrefs),
-        NotificationImportanceFeature(lpparam, mPrefs),
-        NoLightUpOnChargeSystemUiFeature(lpparam, mPrefs),
+    ): List<FeatureSpec> = listOf(
+        LazyFeatureSpec(
+            id = ForegroundMonitorFeatureId,
+            name = "Foreground Monitor",
+            preferenceKey = "various_showcallui",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ForegroundMonitorFeature.evaluateEnabled(prefs) },
+            factory = { ForegroundMonitorFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = TempHideOverlaySystemUiFeatureId,
+            name = "Temp Hide Overlay System UI",
+            preferenceKey = "system_screenshot_overlay",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> TempHideOverlaySystemUiFeature.evaluateEnabled(prefs) },
+            factory = { TempHideOverlaySystemUiFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = AddCustomTileFeatureId,
+            name = "Add Custom Tile",
+            preferenceKey = "system_fivegtile",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> AddCustomTileFeature.evaluateEnabled(prefs) },
+            factory = { AddCustomTileFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideStatusBarWhenCaptureFeatureId,
+            name = "Hide Status Bar When Capture",
+            preferenceKey = "system_hidestatusbar_whenscreenshot",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideStatusBarWhenCaptureFeature.evaluateEnabled(prefs) },
+            factory = { HideStatusBarWhenCaptureFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NetworkIndicatorWifiFeatureId,
+            name = "Network Indicator WiFi",
+            preferenceKey = "system_networkindicator_wifi",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NetworkIndicatorWifiFeature.evaluateEnabled(prefs) },
+            factory = { NetworkIndicatorWifiFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DrawerBlurRatioFeatureId,
+            name = "Drawer Blur Ratio",
+            preferenceKey = "system_drawer_blur",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DrawerBlurRatioFeature.evaluateEnabled(prefs) },
+            factory = { DrawerBlurRatioFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ChargeAnimationFeatureId,
+            name = "Charge Animation",
+            preferenceKey = "system_chargeanimtime",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ChargeAnimationFeature.evaluateEnabled(prefs) },
+            factory = { ChargeAnimationFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = BetterPopupsHideDelayFeatureId,
+            name = "Better Popups Hide Delay",
+            preferenceKey = "system_betterpopups_delay",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> BetterPopupsHideDelayFeature.evaluateEnabled(prefs) },
+            factory = { BetterPopupsHideDelayFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = AssistGestureActionFeatureId,
+            name = "Assist Gesture Action",
+            preferenceKey = "controls_fsg_assist_left_action",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> AssistGestureActionFeature.evaluateEnabled(prefs) },
+            factory = { AssistGestureActionFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NavBarButtonsFeatureId,
+            name = "Nav Bar Buttons",
+            preferenceKey = "controls_navbarleft_action",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NavBarButtonsFeature.evaluateEnabled(prefs) },
+            factory = { NavBarButtonsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ScramblePinFeatureId,
+            name = "Scramble PIN",
+            preferenceKey = "system_scramblepin",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ScramblePinFeature.evaluateEnabled(prefs) },
+            factory = { ScramblePinFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DoubleTapToSleepFeatureId,
+            name = "Double Tap To Sleep",
+            preferenceKey = "system_dttosleep",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DoubleTapToSleepFeature.evaluateEnabled(prefs) },
+            factory = { DoubleTapToSleepFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = StatusBarClockTweakFeatureId,
+            name = "Status Bar Clock Tweak",
+            preferenceKey = "system_statusbar_clocktweak",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> StatusBarClockTweakFeature.evaluateEnabled(prefs) },
+            factory = { StatusBarClockTweakFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = CcClockTweakFeatureId,
+            name = "CC Clock Tweak",
+            preferenceKey = "system_cc_clocktweak",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> CcClockTweakFeature.evaluateEnabled(prefs) },
+            factory = { CcClockTweakFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DisableFakeClockAnimFeatureId,
+            name = "Disable Fake Clock Anim",
+            preferenceKey = "system_qs_disable_fakeclock_anim",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DisableFakeClockAnimFeature.evaluateEnabled(prefs) },
+            factory = { DisableFakeClockAnimFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = CcClockCenterAlignFeatureId,
+            name = "CC Clock Center Align",
+            preferenceKey = "system_cc_clock_centeralign",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> CcClockCenterAlignFeature.evaluateEnabled(prefs) },
+            factory = { CcClockCenterAlignFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NoScreenLockFeatureId,
+            name = "No Screen Lock",
+            preferenceKey = "system_noscreenlock_act",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NoScreenLockFeature.evaluateEnabled(prefs) },
+            factory = { NoScreenLockFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LockScreenAlbumArtFeatureId,
+            name = "Lock Screen Album Art",
+            preferenceKey = "system_albumartonlock",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> LockScreenAlbumArtFeature.evaluateEnabled(prefs) },
+            factory = { LockScreenAlbumArtFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ExpandHeadsUpFeatureId,
+            name = "Expand Heads Up",
+            preferenceKey = "system_expandheadups",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ExpandHeadsUpFeature.evaluateEnabled(prefs) },
+            factory = { ExpandHeadsUpFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = BetterPopupsNoHideFeatureId,
+            name = "Better Popups No Hide",
+            preferenceKey = "system_betterpopups_nohide",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> BetterPopupsNoHideFeature.evaluateEnabled(prefs) },
+            factory = { BetterPopupsNoHideFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = BetterPopupsCenteredFeatureId,
+            name = "Better Popups Centered",
+            preferenceKey = "system_betterpopups_center",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> BetterPopupsCenteredFeature.evaluateEnabled(prefs) },
+            factory = { BetterPopupsCenteredFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ShowNotificationsAfterUnlockFeatureId,
+            name = "Show Notifications After Unlock",
+            preferenceKey = "system_notifafterunlock",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ShowNotificationsAfterUnlockFeature.evaluateEnabled(prefs) },
+            factory = { ShowNotificationsAfterUnlockFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NotificationRowMenuFeatureId,
+            name = "Notification Row Menu",
+            preferenceKey = "system_notifrowmenu",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NotificationRowMenuFeature.evaluateEnabled(prefs) },
+            factory = { NotificationRowMenuFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideDismissViewFeatureId,
+            name = "Hide Dismiss View",
+            preferenceKey = "system_removedismiss",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideDismissViewFeature.evaluateEnabled(prefs) },
+            factory = { HideDismissViewFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideNotificationAccessIconFeatureId,
+            name = "Hide Notification Access Icon",
+            preferenceKey = "system_drawer_removeshortcut",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideNotificationAccessIconFeature.evaluateEnabled(prefs) },
+            factory = { HideNotificationAccessIconFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideNoNotificationsFeatureId,
+            name = "Hide No Notifications",
+            preferenceKey = "system_drawer_remove_emptynotify",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideNoNotificationsFeature.evaluateEnabled(prefs) },
+            factory = { HideNoNotificationsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideNavBarFeatureId,
+            name = "Hide Nav Bar",
+            preferenceKey = "controls_nonavbar",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideNavBarFeature.evaluateEnabled(prefs) },
+            factory = { HideNavBarFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideNavBarBeforeScreenshotFeatureId,
+            name = "Hide Nav Bar Before Screenshot",
+            preferenceKey = "controls_hidenavbar_whenscreenshot",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideNavBarBeforeScreenshotFeature.evaluateEnabled(prefs) },
+            factory = { HideNavBarBeforeScreenshotFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = AudioVisualizerFeatureId,
+            name = "Audio Visualizer",
+            preferenceKey = "system_visualizer",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> AudioVisualizerFeature.evaluateEnabled(prefs) },
+            factory = { AudioVisualizerFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ControlCenterPluginFeatureId,
+            name = "Control Center Plugin",
+            preferenceKey = null,
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ControlCenterPluginFeature.evaluateEnabled(prefs) },
+            factory = { ControlCenterPluginFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = BatteryIndicatorFeatureId,
+            name = "Battery Indicator",
+            preferenceKey = "system_batteryindicator",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> BatteryIndicatorFeature.evaluateEnabled(prefs) },
+            factory = { BatteryIndicatorFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DisableAnyNotificationFeatureId,
+            name = "Disable Any Notification",
+            preferenceKey = "system_disableanynotif",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DisableAnyNotificationFeature.evaluateEnabled(prefs) },
+            factory = { DisableAnyNotificationFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LockScreenShortcutFeatureId,
+            name = "Lock Screen Shortcut",
+            preferenceKey = "system_lockscreenshortcuts",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> LockScreenShortcutFeature.evaluateEnabled(prefs) },
+            factory = { LockScreenShortcutFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = MobileNetworkTypeFeatureId,
+            name = "Mobile Network Type",
+            preferenceKey = "system_4gtolte",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> MobileNetworkTypeFeature.evaluateEnabled(prefs) },
+            factory = { MobileNetworkTypeFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = StatusBarIconsPositionAdjustFeatureId,
+            name = "Status Bar Icons Position Adjust",
+            preferenceKey = "system_statusbar_alarm_atright",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> StatusBarIconsPositionAdjustFeature.evaluateEnabled(prefs) },
+            factory = { StatusBarIconsPositionAdjustFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = MonitorDeviceInfoFeatureId,
+            name = "Monitor Device Info",
+            preferenceKey = "system_statusbar_batterytempandcurrent",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> MonitorDeviceInfoFeature.evaluateEnabled(prefs) },
+            factory = { MonitorDeviceInfoFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = StatusBarClockPositionFeatureId,
+            name = "Status Bar Clock Position",
+            preferenceKey = "system_statusbar_clock_position",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> StatusBarClockPositionFeature.evaluateEnabled(prefs) },
+            factory = { StatusBarClockPositionFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = StatusBarStyleBatteryIconFeatureId,
+            name = "Status Bar Style Battery Icon",
+            preferenceKey = "system_statusbar_batterystyle",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> StatusBarStyleBatteryIconFeature.evaluateEnabled(prefs) },
+            factory = { StatusBarStyleBatteryIconFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LockScreenTopMarginFeatureId,
+            name = "Lock Screen Top Margin",
+            preferenceKey = "system_statusbar_topmargin",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> LockScreenTopMarginFeature.evaluateEnabled(prefs) },
+            factory = { LockScreenTopMarginFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HorizMarginFeatureId,
+            name = "Horiz Margin",
+            preferenceKey = "system_statusbar_horizmargin",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HorizMarginFeature.evaluateEnabled(prefs) },
+            factory = { HorizMarginFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = BrightnessPctFeatureId,
+            name = "Brightness Pct",
+            preferenceKey = "system_showpct",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> BrightnessPctFeature.evaluateEnabled(prefs) },
+            factory = { BrightnessPctFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideLockScreenStatusBarFeatureId,
+            name = "Hide Lock Screen Status Bar",
+            preferenceKey = "system_hidelsstatusbar",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideLockScreenStatusBarFeature.evaluateEnabled(prefs) },
+            factory = { HideLockScreenStatusBarFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideLockScreenClockFeatureId,
+            name = "Hide Lock Screen Clock",
+            preferenceKey = "system_hidelsclock",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideLockScreenClockFeature.evaluateEnabled(prefs) },
+            factory = { HideLockScreenClockFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ForceClockUseSystemFontsFeatureId,
+            name = "Force Clock Use System Fonts",
+            preferenceKey = "system_ls_force_systemfonts",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ForceClockUseSystemFontsFeature.evaluateEnabled(prefs) },
+            factory = { ForceClockUseSystemFontsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideLockScreenHintFeatureId,
+            name = "Hide Lock Screen Hint",
+            preferenceKey = "system_hidelshint",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideLockScreenHintFeature.evaluateEnabled(prefs) },
+            factory = { HideLockScreenHintFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = AllowAllKeyguardFeatureId,
+            name = "Allow All Keyguard",
+            preferenceKey = "system_allownotifonkeyguard",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> AllowAllKeyguardFeature.evaluateEnabled(prefs) },
+            factory = { AllowAllKeyguardFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = AllowAllFloatFeatureId,
+            name = "Allow All Float",
+            preferenceKey = "system_allownotiffloat",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> AllowAllFloatFeature.evaluateEnabled(prefs) },
+            factory = { AllowAllFloatFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LockScreenAlarmFeatureId,
+            name = "Lock Screen Alarm",
+            preferenceKey = "system_lsalarm",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> LockScreenAlarmFeature.evaluateEnabled(prefs) },
+            factory = { LockScreenAlarmFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = StatusBarGesturesFeatureId,
+            name = "Status Bar Gestures",
+            preferenceKey = "system_statusbarcontrols",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> StatusBarGesturesFeature.evaluateEnabled(prefs) },
+            factory = { StatusBarGesturesFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NetSpeedIntervalFeatureId,
+            name = "Net Speed Interval",
+            preferenceKey = "system_netspeedinterval",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NetSpeedIntervalFeature.evaluateEnabled(prefs) },
+            factory = { NetSpeedIntervalFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DetailedNetSpeedFeatureId,
+            name = "Detailed Net Speed",
+            preferenceKey = "system_detailednetspeed_style",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DetailedNetSpeedFeature.evaluateEnabled(prefs) },
+            factory = { DetailedNetSpeedFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NetSpeedStyleFeatureId,
+            name = "Net Speed Style",
+            preferenceKey = "system_detailednetspeed_style",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NetSpeedStyleFeature.evaluateEnabled(prefs) },
+            factory = { NetSpeedStyleFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = TapToUnlockFeatureId,
+            name = "Tap To Unlock",
+            preferenceKey = "system_taptounlock",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> TapToUnlockFeature.evaluateEnabled(prefs) },
+            factory = { TapToUnlockFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NoSOSFeatureId,
+            name = "No SOS",
+            preferenceKey = "system_nosos",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NoSOSFeature.evaluateEnabled(prefs) },
+            factory = { NoSOSFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = RemovePackageNotificationsLimitFeatureId,
+            name = "Remove Package Notifications Limit",
+            preferenceKey = "system_morenotif",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> RemovePackageNotificationsLimitFeature.evaluateEnabled(prefs) },
+            factory = { RemovePackageNotificationsLimitFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DisableFoldNotificationsFeatureId,
+            name = "Disable Fold Notifications",
+            preferenceKey = "system_notif_disable_fold",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DisableFoldNotificationsFeature.evaluateEnabled(prefs) },
+            factory = { DisableFoldNotificationsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DisableStrongToastFeatureId,
+            name = "Disable Strong Toast",
+            preferenceKey = "system_notif_disable_strong_toast",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DisableStrongToastFeature.evaluateEnabled(prefs) },
+            factory = { DisableStrongToastFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ChargingInfoFeatureId,
+            name = "Charging Info",
+            preferenceKey = "system_charginginfo",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ChargingInfoFeature.evaluateEnabled(prefs) },
+            factory = { ChargingInfoFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = SecureQSTilesFeatureId,
+            name = "Secure QS Tiles",
+            preferenceKey = "system_secureqs",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> SecureQSTilesFeature.evaluateEnabled(prefs) },
+            factory = { SecureQSTilesFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = MuteVisibleNotificationsFeatureId,
+            name = "Mute Visible Notifications",
+            preferenceKey = "system_mutevisiblenotif",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> MuteVisibleNotificationsFeature.evaluateEnabled(prefs) },
+            factory = { MuteVisibleNotificationsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideIconsBattery1FeatureId,
+            name = "Hide Icons Battery1",
+            preferenceKey = "system_statusbaricons_battery1",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideIconsBattery1Feature.evaluateEnabled(prefs) },
+            factory = { HideIconsBattery1Feature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideIconsBattery2FeatureId,
+            name = "Hide Icons Battery2",
+            preferenceKey = "system_statusbaricons_battery3",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideIconsBattery2Feature.evaluateEnabled(prefs) },
+            factory = { HideIconsBattery2Feature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DisplayWifiStandardFeatureId,
+            name = "Display WiFi Standard",
+            preferenceKey = "system_statusbaricons_wifistandard",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DisplayWifiStandardFeature.evaluateEnabled(prefs) },
+            factory = { DisplayWifiStandardFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HidePrivacyIndicatorFeatureId,
+            name = "Hide Privacy Indicator",
+            preferenceKey = "system_statusbaricons_privacy_prompt",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HidePrivacyIndicatorFeature.evaluateEnabled(prefs) },
+            factory = { HidePrivacyIndicatorFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideIconsSignalFeatureId,
+            name = "Hide Icons Signal",
+            preferenceKey = "system_statusbaricons_signal",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideIconsSignalFeature.evaluateEnabled(prefs) },
+            factory = { HideIconsSignalFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideIconsVoWiFiFeatureId,
+            name = "Hide Icons VoWiFi",
+            preferenceKey = "system_statusbaricons_vowifi",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideIconsVoWiFiFeature.evaluateEnabled(prefs) },
+            factory = { HideIconsVoWiFiFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideIconsSelectiveAlarmFeatureId,
+            name = "Hide Icons Selective Alarm",
+            preferenceKey = "system_statusbaricons_alarm",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideIconsSelectiveAlarmFeature.evaluateEnabled(prefs) },
+            factory = { HideIconsSelectiveAlarmFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ReplaceShortcutAppFeatureId,
+            name = "Replace Shortcut App",
+            preferenceKey = "system_shortcut_app",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ReplaceShortcutAppFeature.evaluateEnabled(prefs) },
+            factory = { ReplaceShortcutAppFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = QSHapticFeatureId,
+            name = "QS Haptic",
+            preferenceKey = "system_qshaptics",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> QSHapticFeature.evaluateEnabled(prefs) },
+            factory = { QSHapticFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = CollapseCCAfterClickFeatureId,
+            name = "Collapse CC After Click",
+            preferenceKey = "system_cc_collapse_after_clicked",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> CollapseCCAfterClickFeature.evaluateEnabled(prefs) },
+            factory = { CollapseCCAfterClickFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LongClickTileOpenInFreeFormFeatureId,
+            name = "Long Click Tile Open In Free Form",
+            preferenceKey = "system_cc_freeform_when_longclick",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> LongClickTileOpenInFreeFormFeature.evaluateEnabled(prefs) },
+            factory = { LongClickTileOpenInFreeFormFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = SwitchCCAndNotificationFeatureId,
+            name = "Switch CC And Notification",
+            preferenceKey = "system_cc_switch_qsandnotification",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> SwitchCCAndNotificationFeature.evaluateEnabled(prefs) },
+            factory = { SwitchCCAndNotificationFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ExpandNotificationsFeatureId,
+            name = "Expand Notifications",
+            preferenceKey = "system_expandnotifs",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ExpandNotificationsFeature.evaluateEnabled(prefs) },
+            factory = { ExpandNotificationsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideMobileNetworkIndicatorFeatureId,
+            name = "Hide Mobile Network Indicator",
+            preferenceKey = "system_mobiletypeicon",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideMobileNetworkIndicatorFeature.evaluateEnabled(prefs) },
+            factory = { HideMobileNetworkIndicatorFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ExtendedPowerMenuFeatureId,
+            name = "Extended Power Menu",
+            preferenceKey = "system_epm",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ExtendedPowerMenuFeature.evaluateEnabled(prefs) },
+            factory = { ExtendedPowerMenuFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideIconsFeatureId,
+            name = "Hide Icons",
+            preferenceKey = "system_statusbaricons_wifi",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideIconsFeature.evaluateEnabled(prefs) },
+            factory = { HideIconsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideIconsFromSystemManagerFeatureId,
+            name = "Hide Icons From System Manager",
+            preferenceKey = "system_statusbaricons_privacy",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideIconsFromSystemManagerFeature.evaluateEnabled(prefs) },
+            factory = { HideIconsFromSystemManagerFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = BetterPopupsAllowFloatFeatureId,
+            name = "Better Popups Allow Float",
+            preferenceKey = "system_betterpopups_allowfloat",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> BetterPopupsAllowFloatFeature.evaluateEnabled(prefs) },
+            factory = { BetterPopupsAllowFloatFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = AutoDismissExpandedPopupsFeatureId,
+            name = "Auto Dismiss Expanded Popups",
+            preferenceKey = "system_betterpopups_autoclose_expanded",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> AutoDismissExpandedPopupsFeature.evaluateEnabled(prefs) },
+            factory = { AutoDismissExpandedPopupsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DisableHeadsUpWhenMuteFeatureId,
+            name = "Disable Heads Up When Mute",
+            preferenceKey = "system_betterpopups_disablewhenmute",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DisableHeadsUpWhenMuteFeature.evaluateEnabled(prefs) },
+            factory = { DisableHeadsUpWhenMuteFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = MinimalNotificationViewFeatureId,
+            name = "Minimal Notification View",
+            preferenceKey = "system_minimalnotifview",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> MinimalNotificationViewFeature.evaluateEnabled(prefs) },
+            factory = { MinimalNotificationViewFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NotificationChannelSettingsFeatureId,
+            name = "Notification Channel Settings",
+            preferenceKey = "system_notifchannelsettings",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NotificationChannelSettingsFeature.evaluateEnabled(prefs) },
+            factory = { NotificationChannelSettingsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = MaxNotificationIconsFeatureId,
+            name = "Max Notification Icons",
+            preferenceKey = "system_maxsbicons",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> MaxNotificationIconsFeature.evaluateEnabled(prefs) },
+            factory = { MaxNotificationIconsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = MobileTypeSingleFeatureId,
+            name = "Mobile Type Single",
+            preferenceKey = "system_statusbar_mobiletype_single",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> MobileTypeSingleFeature.evaluateEnabled(prefs) },
+            factory = { MobileTypeSingleFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = StatusBarDigitalSignalFeatureId,
+            name = "Status Bar Digital Signal",
+            preferenceKey = "system_statusbar_mobile_digital_signal",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> StatusBarDigitalSignalFeature.evaluateEnabled(prefs) },
+            factory = { StatusBarDigitalSignalFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DualRowSignalFeatureId,
+            name = "Dual Row Signal",
+            preferenceKey = "system_statusbar_dualsimin2rows",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DualRowSignalFeature.evaluateEnabled(prefs) },
+            factory = { DualRowSignalFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DualRowsStatusbarFeatureId,
+            name = "Dual Rows Statusbar",
+            preferenceKey = "system_statusbar_dualrows",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DualRowsStatusbarFeature.evaluateEnabled(prefs) },
+            factory = { DualRowsStatusbarFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = ColorizeNotificationCardFeatureId,
+            name = "Colorize Notification Card",
+            preferenceKey = "system_colorizenotifs",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> ColorizeNotificationCardFeature.evaluateEnabled(prefs) },
+            factory = { ColorizeNotificationCardFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = OpenNotifyInFloatingWindowFeatureId,
+            name = "Open Notify In Floating Window",
+            preferenceKey = "system_notify_openinfw",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> OpenNotifyInFloatingWindowFeature.evaluateEnabled(prefs) },
+            factory = { OpenNotifyInFloatingWindowFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DisableSideBarSuggestionFeatureId,
+            name = "Disable Side Bar Suggestion",
+            preferenceKey = "system_fw_noblacklist",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DisableSideBarSuggestionFeature.evaluateEnabled(prefs) },
+            factory = { DisableSideBarSuggestionFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideSafeVolumeDlgFeatureId,
+            name = "Hide Safe Volume Dlg",
+            preferenceKey = "system_nosafevolume",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideSafeVolumeDlgFeature.evaluateEnabled(prefs) },
+            factory = { HideSafeVolumeDlgFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideLockscreenZenModeFeatureId,
+            name = "Hide Lockscreen Zen Mode",
+            preferenceKey = "system_lockscreen_hidezenmode",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideLockscreenZenModeFeature.evaluateEnabled(prefs) },
+            factory = { HideLockscreenZenModeFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = DisableKeyguardEditorFeatureId,
+            name = "Disable Keyguard Editor",
+            preferenceKey = "system_lockscreen_disable_edit",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> DisableKeyguardEditorFeature.evaluateEnabled(prefs) },
+            factory = { DisableKeyguardEditorFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NoPasswordFeatureId,
+            name = "No Password",
+            preferenceKey = "system_nopassword",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NoPasswordFeature.evaluateEnabled(prefs) },
+            factory = { NoPasswordFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NotificationImportanceFeatureId,
+            name = "Notification Importance",
+            preferenceKey = "system_notifimportance",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NotificationImportanceFeature.evaluateEnabled(prefs) },
+            factory = { NotificationImportanceFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = NoLightUpOnChargeSystemUiFeatureId,
+            name = "No Light Up On Charge System UI",
+            preferenceKey = "system_nolightuponcharges",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> NoLightUpOnChargeSystemUiFeature.evaluateEnabled(prefs) },
+            factory = { NoLightUpOnChargeSystemUiFeature(lpparam, mPrefs) },
+        ),
     )
+}
+
+private fun computeStatusBarIconsAdjust(prefs: PrefMap): Pair<Boolean, Boolean> {
+    val dualRows = prefs.getBoolean("system_statusbar_dualrows")
+    val netspeedAtRow2 = dualRows && prefs.getBoolean("system_statusbar_netspeed_atsecondrow")
+    val showBatteryDetail = prefs.getBoolean("system_statusbar_batterytempandcurrent")
+    val showDeviceTemp = prefs.getBoolean("system_statusbar_showdevicetemperature")
+    val batteryAtRight = showBatteryDetail && !dualRows && prefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
+    val tempAtRight = showDeviceTemp && !dualRows && prefs.getBoolean("system_statusbar_showdevicetemperature_atright")
+    val batteryAtLeft = showBatteryDetail && !prefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
+    val tempAtLeft = showDeviceTemp && !prefs.getBoolean("system_statusbar_showdevicetemperature_atright")
+
+    val alwaysShowAtRight = prefs.getBoolean("system_statusbar_alarm_atright") ||
+        prefs.getBoolean("system_statusbar_nfc_atright") ||
+        prefs.getBoolean("system_statusbar_btbattery_atright") ||
+        prefs.getBoolean("system_statusbar_headset_atright") ||
+        prefs.getBoolean("system_statusbar_vpn_atright") ||
+        batteryAtRight || tempAtRight
+    val moveLeft = prefs.getBoolean("system_statusbar_alarm_atleft") ||
+        prefs.getBoolean("system_statusbar_sound_atleft") ||
+        prefs.getBoolean("system_statusbar_netspeed_atleft") ||
+        prefs.getBoolean("system_statusbar_dnd_atleft") ||
+        prefs.getBoolean("system_statusbar_gps_atleft") ||
+        prefs.getBoolean("system_statusbaricons_wifi_mobile_atleft") ||
+        batteryAtLeft || tempAtLeft
+    val needsAdjust = alwaysShowAtRight || moveLeft || netspeedAtRow2 ||
+        prefs.getBoolean("system_statusbaricons_swap_wifi_mobile")
+    return needsAdjust to moveLeft
 }
