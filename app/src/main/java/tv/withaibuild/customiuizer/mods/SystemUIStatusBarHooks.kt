@@ -260,6 +260,8 @@ object SystemUIStatusBarHooks {
     fun DualRowsStatusbarHook(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
+                val sbView = param.getThisObject() as FrameLayout
+                if (XposedHelpers.getAdditionalInstanceField(sbView, "dualRowsLayoutAdded") != null) return
                 var firstRowLeftPadding = 0
                 var firstRowRightPadding = 0
                 if (MainModule.mPrefs.getBoolean("system_statusbar_dualrows_firstrow_horizmargin")) {
@@ -267,7 +269,6 @@ object SystemUIStatusBarHooks {
                     firstRowRightPadding = MainModule.mPrefs.getInt("system_statusbar_dualrows_firstrow_horizmargin_right", 0)
                 }
                 val clock2Rows = MainModule.mPrefs.getBoolean("system_statusbar_dualrows_clock_span2rows")
-                val sbView = param.getThisObject() as FrameLayout
                 val mContext = sbView.context
                 val leftContainer = XposedHelpers.getObjectField(sbView, "mStatusBarLeftContainer") as LinearLayout
                 leftContainer.setTag("mStatusBarLeftContainer")
@@ -365,6 +366,7 @@ object SystemUIStatusBarHooks {
 
                 XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "leftLayout", leftLayout)
                 XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "rightLayout", rightLayout)
+                XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "dualRowsLayoutAdded", true)
 
                 if (MainModule.mPrefs.getBoolean("system_statusbar_netspeed_atsecondrow")) {
                     ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.StatusBarIconControllerImpl", lpparam.classLoader, "setNetworkSpeedIcon", object : MethodHook() {
@@ -924,6 +926,8 @@ object SystemUIStatusBarHooks {
             ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onAttachedToWindow", object : MethodHook() {
                 override fun after(param: AfterHookCallback) {
                     val mStatusBar = param.getThisObject() as FrameLayout
+                    val existingContainer = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconContainer") as? LinearLayout
+                    if (existingContainer != null && existingContainer.parent != null) return
                     val IconsContainer = XposedHelpers.findClass("com.android.systemui.statusbar.views.MiuiStatusIconContainer", lpparam.classLoader)
                     val iconContainer = XposedHelpers.newInstance(IconsContainer, mStatusBar.context) as LinearLayout
                     iconContainer.layoutDirection = View.LAYOUT_DIRECTION_RTL
@@ -950,6 +954,7 @@ object SystemUIStatusBarHooks {
                     val iconController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.phone.StatusBarIconController")
                     XposedHelpers.callMethod(iconController, "addIconGroup", mDarkIconManager)
                     XposedHelpers.callMethod(iconContainer, "setIgnoredSlots", leftBlockList)
+                    XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconContainer", iconContainer)
                 }
             })
 
@@ -991,6 +996,7 @@ object SystemUIStatusBarHooks {
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val sbView = param.getThisObject() as FrameLayout
+                if (XposedHelpers.getAdditionalInstanceField(sbView, "clockPositionInitialized") != null) return
                 val mContext = sbView.context
                 val mClockView = XposedHelpers.getObjectField(param.getThisObject(), "mClock") as TextView
                 val leftIconsContainer = mClockView.parent as LinearLayout
@@ -1012,6 +1018,7 @@ object SystemUIStatusBarHooks {
                 } else {
                     rightContainer.addView(mClockView, lp)
                 }
+                XposedHelpers.setAdditionalInstanceField(sbView, "clockPositionInitialized", true)
             }
         })
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "updateLayoutForCutout", object : MethodHook() {

@@ -253,12 +253,22 @@ object DeviceInfoMonitor {
                     val type = XposedHelpers.getIntField(iconHolder, "mType")
                     if (type != 91 && type != 92) return
 
+                    val i = param.getArg(0) as Int
+                    val mGroup = XposedHelpers.getObjectField(param.getThisObject(), "mGroup") as ViewGroup
+
+                    for (j in 0 until mGroup.childCount) {
+                        val child = mGroup.getChildAt(j)
+                        if (child.getTag(SystemUIStatusBarHooks.textIconTagId) == type) {
+                            param.returnAndSkip(child)
+                            return
+                        }
+                    }
+
                     val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
                     val lp = XposedHelpers.callMethod(param.getThisObject(), "onCreateLayoutParams") as LinearLayout.LayoutParams
                     val iconView = SystemUIStatusBarHooks.createStatusbarTextIcon(mContext, lp, type, true)
-                    val i = param.getArg(0) as Int
-                    val mGroup = XposedHelpers.getObjectField(param.getThisObject(), "mGroup") as ViewGroup
-                    mGroup.addView(iconView, i)
+                    val safeIndex = StatusbarViewMaths.clampStatusIconInsertIndex(i, mGroup.childCount)
+                    mGroup.addView(iconView, safeIndex)
                     SystemUIStatusBarHooks.registerStatusbarTextIcon(iconView)
                     param.returnAndSkip(iconView)
                 }
