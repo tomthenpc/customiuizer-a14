@@ -1,6 +1,6 @@
 # A14 Runtime Hardening
 
-This document covers the runtime hardening work on `devin/a14-runtime-hardening` at HEAD `71ff6e9f`.
+This document covers the runtime hardening work on `devin/a14-runtime-hardening` at HEAD `fdc9ad3b`.
 Scope is the LSPosed module's runtime inside `system_server`, `com.android.systemui`,
 `com.miui.home` and other scoped packages on HyperOS 1 / Android 14 (SDK 34).
 Target API 102, minimum API 101, `applicationId tv.withaibuild.customiuizer.r14`.
@@ -129,6 +129,25 @@ handlePreferenceChanged` (`:92-99`) already isolates each observer and logs fail
 - `onSafeLifecycle()` (`:105-117`) increments a global lifecycle and resets the dependency-method cache
   so `MethodMissing` / `DependencyNotReady` results can be retried at a safe boundary.
 
+## Feature Install Result & State Slimming
+
+In commits `c9852a1a` and `fdc9ad3b` the feature-install infrastructure was refactored to reduce object
+allocations and share per-process state:
+
+- `FeatureInstallResult` is now an `enum` (`FeatureInstallResult.kt:9`) with singleton values for
+  `INSTALLED`, `ALREADY_INSTALLED`, `SKIPPED`, `FAILED_TRANSIENT`, `FAILED_PERMANENT` and `RESTART_LATER`.
+  This removes the per-call `data class` allocations for skipped and failed features.
+- `FeatureInstallRegistry` no longer forces a result list: `installAll()` takes an optional
+  `collectResults` flag and returns `emptyList()` when the caller does not need the results.
+- `FeatureId` now carries a stable integer `id` (`FeatureId.kt:11`) and all 245 feature identities in
+  `FeatureIds.kt` were assigned compact, stable IDs.
+- `FeatureInstallState` (`FeatureInstallState.kt`) is a process-scoped object that stores
+  `FeatureState` keyed by the integer feature ID.  `FeatureInstallRegistry` now delegates to it,
+  removing the per-installer `HashMap<FeatureId, FeatureState>` that each registry used to create.
+
+This set the foundation for the next step: filtering disabled features before instantiating them in
+`XxxFeatures.all()` and moving each installer to a shared, single-state installation path.
+
 ## Verification
 
 Commands used for this baseline:
@@ -141,11 +160,11 @@ python tools/check-invariants.py
 ./gradlew --no-daemon lintDebug
 ```
 
-At HEAD `71ff6e9f` we executed the equivalent of the `full` pipeline:
+At HEAD `fdc9ad3b` we executed the equivalent of the `full` pipeline:
 
-- `python tools/check-invariants.py` reports `152 files, no violations`.
+- `python tools/check-invariants.py` reports `153 files, no violations`.
 - `compileDebugKotlin` and `compileDebugJavaWithJavac` succeed.
-- `testDebugUnitTest` succeeds.
+- `testDebugUnitTest` succeeds (330 tests).
 - `lintDebug` succeeds.
 
 What the static gate confirms:
