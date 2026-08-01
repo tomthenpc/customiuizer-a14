@@ -113,11 +113,11 @@ def check_static_rules() -> int:
     # Legacy Xposed package must not appear outside the three allowed boundary files.
     allowed_legacy = {
         "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-        "app/src/main/java/tv/withaibuild/customiuizer/XposedHelpers.java",
-        "app/src/main/java/tv/withaibuild/customiuizer/utils/MemberUtilsX.java",
+        "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/XposedHelpers.java",
+        "app/src/main/java/org/apache/commons/lang3/reflect/MemberUtilsX.java",
     }
     source_root = REPO_ROOT / "app" / "src" / "main" / "java"
-    for path in source_root.rglob("*.kt"):
+    for path in list(source_root.rglob("*.kt")) + list(source_root.rglob("*.java")):
         rel = path.relative_to(REPO_ROOT).as_posix()
         text = path.read_text(encoding="utf-8")
         if "de.robv.android.xposed" in text and rel not in allowed_legacy:

@@ -38,9 +38,6 @@ keystore.properties
 # Devin local task state and command logs
 /.devin/
 
-# Broadcast probe build outputs
-tools/broadcast-probe/build/
-
 # Python test cache
 tools/__pycache__/
 tools/tests/__pycache__/

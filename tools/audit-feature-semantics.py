@@ -594,7 +594,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     features = discover_features(args.repo_root)
     inventory = generate_inventory(args.repo_root, features)
     INVENTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with INVENTORY_PATH.open("w", encoding="utf-8") as f:
+    with INVENTORY_PATH.open("w", encoding="utf-8", newline="\n") as f:
         json.dump(inventory, f, indent=2, ensure_ascii=False)
         f.write("\n")
     print(f"Wrote {len(inventory['entries'])} entries to {INVENTORY_PATH}")
@@ -643,9 +643,8 @@ def cmd_markdown(args: argparse.Namespace) -> int:
         return 2
     md = generate_markdown(inventory)
     MARKDOWN_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with MARKDOWN_PATH.open("w", encoding="utf-8") as f:
+    with MARKDOWN_PATH.open("w", encoding="utf-8", newline="\n") as f:
         f.write(md)
-        f.write("\n")
     print(f"Wrote markdown to {MARKDOWN_PATH}")
     return 0
 
