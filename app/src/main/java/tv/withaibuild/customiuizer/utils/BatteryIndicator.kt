@@ -1,6 +1,5 @@
 package tv.withaibuild.customiuizer.utils
 
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -38,6 +37,10 @@ class BatteryIndicator @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : AppCompatImageView(context, attrs, defStyleAttr) {
+
+    private companion object {
+        const val RECEIVER_KEY = "batteryIndicator"
+    }
 
     protected var mDisplayWidth = 0
     protected var mDensity = 0f
@@ -85,21 +88,16 @@ class BatteryIndicator @JvmOverloads constructor(
 
     private var mStatusBarHeightResId = 0
 
-    private val viewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val viewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main + ModuleHelper.coroutineFailureHandler)
     private var testJob: Job? = null
-    private inner class IndicatorBroadcastReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
-            if ("miui.intent.TAKE_SCREENSHOT" == intent.action) {
-                val finished = intent.getBooleanExtra("IsFinished", true)
-                updateScreenShotState(!finished)
-            } else {
-                testJob?.cancel()
-                startTest()
-            }
+    private var updatePosted = false
+    private val updateRunnable = Runnable {
+        ModuleHelper.guarded {
+            updatePosted = false
+            if (isAttachedToWindow) update()
         }
     }
-    private val broadcastReceiver = IndicatorBroadcastReceiver()
-    private var receiverRegistered = false
+    private var broadcastReceiver: android.content.BroadcastReceiver? = null
 
     enum class ColorMode {
         DUMMY, DISCRETE, GRADUAL, RAINBOW
@@ -119,6 +117,8 @@ class BatteryIndicator @JvmOverloads constructor(
             paint.isAntiAlias = true
             shape.setIntrinsicWidth(9999)
             setImageDrawable(shape)
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (t: Throwable) {
             XposedHelpers.log(t)
         }
@@ -140,9 +140,26 @@ class BatteryIndicator @JvmOverloads constructor(
         if (MainModule.mPrefs.getBoolean("system_hidestatusbar_whenscreenshot")) {
             intentFilter.addAction("miui.intent.TAKE_SCREENSHOT")
         }
-        if (!receiverRegistered) {
-            context.registerReceiver(broadcastReceiver, intentFilter, Context.RECEIVER_EXPORTED)
-            receiverRegistered = true
+        if (broadcastReceiver == null) {
+            broadcastReceiver = ModuleHelper.registerOwnedReceiver(
+                context,
+                this,
+                RECEIVER_KEY,
+                intentFilter,
+                Context.RECEIVER_EXPORTED
+            ) { _, owner, _, intent ->
+                (owner as BatteryIndicator).handleBroadcast(intent)
+            }
+        }
+    }
+
+    private fun handleBroadcast(intent: Intent) {
+        if ("miui.intent.TAKE_SCREENSHOT" == intent.action) {
+            val finished = intent.getBooleanExtra("IsFinished", true)
+            updateScreenShotState(!finished)
+        } else {
+            testJob?.cancel()
+            startTest()
         }
     }
 
@@ -168,7 +185,9 @@ class BatteryIndicator @JvmOverloads constructor(
     }
 
     private fun postUpdate() {
-        viewScope.launch { update() }
+        if (updatePosted) return
+        updatePosted = true
+        if (!post(updateRunnable)) updatePosted = false
     }
 
     fun updateScreenShotState(screenshot: Boolean) {
@@ -199,9 +218,10 @@ class BatteryIndicator @JvmOverloads constructor(
     }
 
     fun onBatteryLevelChanged(powerLevel: Int, isCharging: Boolean, isCharged: Boolean) {
-        if (mPowerLevel == powerLevel && mIsBeingCharged == isCharging && !isCharged) return
+        val charging = isCharging && !isCharged
+        if (mPowerLevel == powerLevel && mIsBeingCharged == charging) return
         mPowerLevel = powerLevel
-        mIsBeingCharged = isCharging && !isCharged
+        mIsBeingCharged = charging
         update()
     }
 
@@ -233,12 +253,15 @@ class BatteryIndicator @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        ModuleHelper.unregisterPreferenceObserver(this)
-        if (receiverRegistered) {
-            context.unregisterReceiver(broadcastReceiver)
-            receiverRegistered = false
+        ModuleHelper.guarded {
+            removeCallbacks(updateRunnable)
+            updatePosted = false
+            ModuleHelper.unregisterPreferenceObserver(this)
+            ModuleHelper.unregisterOwnedReceiver(this, RECEIVER_KEY, broadcastReceiver)
+            broadcastReceiver = null
+            mStatusBar = null
+            viewScope.cancel()
         }
-        viewScope.cancel()
     }
 
     fun update() {
@@ -285,7 +308,9 @@ class BatteryIndicator @JvmOverloads constructor(
 
         try {
             imageAlpha = 255 - (255 * mTransparency / 100f).roundToInt()
-        } catch (ignored: Throwable) {
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (_: Throwable) {
         }
         this.visibility = mVisibility
         this.scaleType = if (mCentered) ImageView.ScaleType.CENTER else ImageView.ScaleType.MATRIX
@@ -340,6 +365,8 @@ class BatteryIndicator @JvmOverloads constructor(
                             mTintColor
                         }
                     }
+                } catch (oom: OutOfMemoryError) {
+                    throw oom
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
@@ -441,6 +468,8 @@ class BatteryIndicator @JvmOverloads constructor(
             }
 
             invalidate()
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (t: Throwable) {
             XposedHelpers.log(t)
         }

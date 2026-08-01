@@ -454,6 +454,28 @@ WeatherDataController.initContext(mContext, thisObject)
         findings = self.mod.check_weather_data_lifecycle(path, unsafe)
         self.assertEqual(1, len(findings))
 
+    def test_battery_indicator_skips_duplicate_work_and_owns_callbacks(self):
+        path = self._source_path("tv/withaibuild/customiuizer/utils/BatteryIndicator.kt")
+        clean = """
+val charging = isCharging && !isCharged
+if (mIsBeingCharged == charging) return
+if (updatePosted) return
+if (!post(updateRunnable)) updatePosted = false
+ModuleHelper.registerOwnedReceiver(
+ModuleHelper.unregisterOwnedReceiver(this, RECEIVER_KEY, broadcastReceiver)
+removeCallbacks(updateRunnable)
+CoroutineScope(SupervisorJob() + Dispatchers.Main + ModuleHelper.coroutineFailureHandler)
+"""
+        self.assertEqual([], self.mod.check_battery_indicator_lifecycle(path, clean))
+
+        unsafe = """
+if (mIsBeingCharged == isCharging && !isCharged) return
+viewScope.launch { update() }
+context.registerReceiver(broadcastReceiver, filter, flags)
+"""
+        findings = self.mod.check_battery_indicator_lifecycle(path, unsafe)
+        self.assertEqual(11, len(findings))
+
     def test_reflection_cache_get_declared_method_oom_ok(self):
         text = """
     private fun resolveDependencyMethod(loaderState: LoaderState, classLoader: ClassLoader?): Method? {

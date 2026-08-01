@@ -443,6 +443,7 @@ SYSTEM_LOCK_SCREEN_HOOKS = "tv/withaibuild/customiuizer/mods/SystemLockScreenHoo
 LOCK_SCREEN_ALBUM_ART_CONTROLLER = "tv/withaibuild/customiuizer/mods/utils/LockScreenAlbumArtController.kt"
 HOOK_UTILS = "tv/withaibuild/customiuizer/utils/HookUtils.kt"
 CONTROLS = "tv/withaibuild/customiuizer/mods/Controls.kt"
+BATTERY_INDICATOR = "tv/withaibuild/customiuizer/utils/BatteryIndicator.kt"
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
@@ -842,6 +843,35 @@ def check_weather_data_lifecycle(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def check_battery_indicator_lifecycle(path: Path, text: str) -> list[Finding]:
+    """Battery indicator callbacks must avoid duplicate redraw work and follow the View lifetime."""
+    if rel_posix(path) != BATTERY_INDICATOR:
+        return []
+    findings = []
+    required = (
+        ("val charging = isCharging && !isCharged", "normalize charging state before comparing it"),
+        ("mIsBeingCharged == charging", "skip duplicate full-charge redraws"),
+        ("if (updatePosted) return", "coalesce repeated layout/configuration updates"),
+        ("if (!post(updateRunnable)) updatePosted = false", "recover when the View cannot enqueue an update"),
+        ("ModuleHelper.registerOwnedReceiver(", "bind the receiver to the indicator owner"),
+        ("ModuleHelper.unregisterOwnedReceiver(this, RECEIVER_KEY, broadcastReceiver)", "release the owned receiver on detach"),
+        ("removeCallbacks(updateRunnable)", "release the pending View callback on detach"),
+        ("Dispatchers.Main + ModuleHelper.coroutineFailureHandler", "isolate ordinary coroutine failures without swallowing OOM"),
+    )
+    for token, detail in required:
+        if token not in text:
+            findings.append(Finding("battery-indicator-lifecycle", path, 1, detail))
+    forbidden = (
+        ("mIsBeingCharged == isCharging && !isCharged", "full-charge events force duplicate redraws"),
+        ("viewScope.launch { update() }", "layout changes allocate a coroutine job per update"),
+        ("context.registerReceiver(broadcastReceiver", "receiver bypasses the owner registry"),
+    )
+    for token, detail in forbidden:
+        if token in text:
+            findings.append(Finding("battery-indicator-lifecycle", path, 1, detail))
+    return findings
+
+
 REFLECTION_CACHE = "tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt"
 
 
@@ -946,6 +976,7 @@ RULES = (
     check_album_art_memory_lifecycle,
     check_nav_bar_dark_hot_path,
     check_weather_data_lifecycle,
+    check_battery_indicator_lifecycle,
     check_reflection_cache_get_declared_method_oom,
 )
 
