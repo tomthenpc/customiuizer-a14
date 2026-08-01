@@ -275,15 +275,15 @@ Launcher 的重命名功能就是这个形状：在 `ShortcutInfo` 上存 `mLabe
 - **零 public→public 调用**；
 - 16 处共享状态，每处只被 1–2 个函数使用，且都落在同一个域内。
 
-没有任何东西跨域。**如果这几项不成立，就不要拆** —— `tools/split-hook-domain.py` 会直接拒绝
-（检查"留下的成员是否还引用被搬走的"以及反向）。
+没有任何东西跨域。**如果这几项不成立，就不要拆**。拆分脚本 `tools/split-hook-domain.py` 与
+`tools/repoint-hook-calls.py` 已在 A14 文档清理中移除；当前 `MainModule` 的结构见
+[A14_RUNTIME_HARDENING.md](A14_RUNTIME_HARDENING.md)。
 
 ### 工具与保证
 
-| 工具 | 保证 |
+| 工具 / 当前替代 | 保证 |
 | --- | --- |
-| `tools/split-hook-domain.py` | 域不自足就拒绝执行；源文件按行区间**原样删除**而不是重新拼接（否则会重排保留成员之间的空行，diff 就不再是纯删除）；搬移后逐成员比对文本 |
-| `tools/repoint-hook-calls.py` | 只改接收者类型；改完比对**有序调用序列**，不一致就拒绝写入 |
+| `tools/split-hook-domain.py` / `tools/repoint-hook-calls.py` | 拆分脚本已在 A14 文档清理中移除。当前由 `check-invariants.py` 的 `check_main_module_calls_covered` 与 `check_no_direct_hook_installation` 等规则保证注册点可追溯，具体结构见 [A14_RUNTIME_HARDENING.md](A14_RUNTIME_HARDENING.md)。 |
 
 ### 本次证据
 

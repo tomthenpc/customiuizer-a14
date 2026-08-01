@@ -111,7 +111,7 @@
 * `system` 与 `android` 作用域；
 * APK SHA-256 与正式签名证书。
 
-本次发布未执行完整单元测试、Lint、工程 Audit、ADB regression 或全功能实机回归。APK 构建和元数据检查不能证明所有 Hook 在全部 HyperOS 1 ROM 上均可用。
+正式构建之外，开发分支使用 `python tools/verify.py full` 与 `python tools/check-invariants.py` 进行离线静态验证；ADB 和设备自动化脚本已从仓库移除。APK 构建和元数据检查不能证明所有 Hook 在全部 HyperOS 1 ROM 上均可用。
 
 ## 反馈
 

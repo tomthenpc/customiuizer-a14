@@ -22,6 +22,7 @@
 
 只进行：
 
+- `python tools/verify.py full`（`check-invariants` + 编译 + 单元测试 + `lintDebug` 的统一离线入口）
 - `python tools/check-invariants.py`
 - 针对性单元测试：`./gradlew test`
 - Debug Kotlin/Java 编译：`./gradlew compileDebugKotlin compileDebugJavaWithJavac`

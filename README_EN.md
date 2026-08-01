@@ -123,9 +123,9 @@ build state.
 * `system` and `android` scopes;
 * APK SHA-256 and the production signing certificate.
 
-This release did not run the full unit test suite, Lint, project Audit, ADB regression, or full
-real-device smoke tests. APK build and metadata checks do not prove that every hook works on every
-HyperOS 1 ROM.
+Beyond the official build, the development branch is validated offline with `python tools/verify.py full`
+and `python tools/check-invariants.py`; ADB and device-automation scripts have been removed from the
+repository. APK build and metadata checks do not prove that every hook works on every HyperOS 1 ROM.
 
 ## Feedback
 

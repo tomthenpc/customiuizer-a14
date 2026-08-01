@@ -8,9 +8,10 @@
 1. 根目录 `AGENTS.md` 和本轮用户任务；
 2. [项目谱系](PROJECT_LINEAGE.md)；
 3. [libxposed API 101/102 双兼容说明](LIBXPOSED_API_101_102_COMPATIBILITY.md)；
-4. [验证记录](VERIFICATION.md)；
-5. [工程方法](ENGINEERING_METHOD.md)；
-6. 与任务直接相关的入口、调用链、测试和 R8 规则。
+4. [A14 运行时加固](A14_RUNTIME_HARDENING.md)；
+5. [验证记录](VERIFICATION.md)；
+6. [工程方法](ENGINEERING_METHOD.md)；
+7. 与任务直接相关的入口、调用链、测试和 R8 规则。
 
 不要从历史会话、旧分支名、旧 Release 或上游 README 推断当前代码状态。
 
@@ -19,8 +20,9 @@
 | 项目 | 当前值 |
 | --- | --- |
 | 源码仓库 | `tomthenpc/customiuizer-a14` |
-| 正常分支 | `main` |
-| 稳定版本 | `r14.12.0` / versionCode 174 |
+| 当前分支 | `devin/a14-runtime-hardening` |
+| 当前 HEAD | `71ff6e9f` |
+| 候选版本 | `r14.15.3` / versionCode 191 |
 | applicationId | `tv.withaibuild.customiuizer.r14` |
 | 运行平台 | HyperOS 1 / Android 14 / SDK 34 / `arm64-v8a` |
 | libxposed | `minApiVersion=101` / `targetApiVersion=102` |
