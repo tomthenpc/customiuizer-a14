@@ -132,6 +132,38 @@ public static void closeBridge() {
             self.assertEqual(1, len(findings))
             self.assertIn("rethrow", findings[0].detail)
 
+    def test_java_runtime_boundary_requires_oom_rethrow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            boundary = Path(tmp) / "Boundary.java"
+            boundary.write_text(
+                """
+void safe() {
+    try { work(); }
+    catch (OutOfMemoryError oom) { throw oom; }
+    catch (Throwable ignored) {}
+}
+void propagating() {
+    try { work(); }
+    catch (Throwable t) { log(t); throw t; }
+}
+""",
+                encoding="utf-8",
+            )
+            self.assertEqual([], self.mod.check_java_fatal_boundaries((boundary,)))
+
+            boundary.write_text(
+                """
+void unsafe() {
+    try { work(); }
+    catch (Throwable ignored) {}
+}
+""",
+                encoding="utf-8",
+            )
+            findings = self.mod.check_java_fatal_boundaries((boundary,))
+            self.assertEqual(1, len(findings))
+            self.assertIn("OOM", findings[0].detail)
+
     def test_early_restart_enabled_ok(self):
         text = """
     fun onPreferenceChanged(key: String?, prefs: PrefMap) {

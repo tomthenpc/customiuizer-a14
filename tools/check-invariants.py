@@ -651,6 +651,10 @@ def changed_kotlin_files() -> list[Path]:
 MANIFEST = REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml"
 MAIN_MODULE = REPO_ROOT / "app" / "src" / "main" / "java" / "tv" / "withaibuild" / "customiuizer" / "MainModule.java"
 XPOSED_HELPERS = SOURCE_ROOT / "tv" / "withaibuild" / "customiuizer" / "mods" / "utils" / "XposedHelpers.java"
+JAVA_FATAL_BOUNDARIES = (
+    MAIN_MODULE,
+    XPOSED_HELPERS,
+)
 
 
 CONTRACTS_DIR = REPO_ROOT / "rom-contracts"
@@ -687,6 +691,43 @@ def check_dexkit_close_oom(path: Path | None = None) -> list[Finding]:
             )
         ]
     return []
+
+
+def check_java_fatal_boundaries(paths: tuple[Path, ...] | None = None) -> list[Finding]:
+    """Java runtime boundaries may isolate Throwable only after explicitly rethrowing OOM."""
+    if paths is None:
+        paths = JAVA_FATAL_BOUNDARIES
+    findings = []
+    for path in paths:
+        text = strip_comments(path.read_text(encoding="utf-8"))
+        for generic in re.finditer(r"catch\s*\(\s*Throwable\s+(\w+)\s*\)", text):
+            body, _ = block_at(text, generic.start())
+            variable = generic.group(1)
+            if re.search(rf"\bthrow\s+{re.escape(variable)}\s*;", body):
+                continue
+
+            preceding = None
+            for oom in re.finditer(r"catch\s*\(\s*OutOfMemoryError\s+(\w+)\s*\)", text[:generic.start()]):
+                preceding = oom
+            if preceding is not None:
+                oom_body, oom_body_start = block_at(text, preceding.start())
+                between = text[oom_body_start + len(oom_body):generic.start()]
+                oom_variable = preceding.group(1)
+                if not between.strip() and re.search(
+                    rf"\bthrow\s+{re.escape(oom_variable)}\s*;",
+                    oom_body,
+                ):
+                    continue
+
+            findings.append(
+                Finding(
+                    "java-fatal-boundary",
+                    path,
+                    line_of(text, generic.start()),
+                    "catch(Throwable) must rethrow it or be immediately preceded by an OOM rethrow catch",
+                )
+            )
+    return findings
 
 
 def smali_to_fqcn(class_desc: str) -> str:
@@ -827,6 +868,7 @@ def main() -> int:
     findings.extend(check_rom_contracts())
     findings.extend(check_docs_zero_object_wording())
     findings.extend(check_dexkit_close_oom())
+    findings.extend(check_java_fatal_boundaries())
 
     if not findings:
         print(f"check-invariants: {len(files)} files, no violations")

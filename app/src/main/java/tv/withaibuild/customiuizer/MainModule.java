@@ -199,6 +199,8 @@ public class MainModule extends XposedModule {
                     Object mContextField;
                     try {
                         mContextField = XposedHelpers.getObjectField(param.getThisObject(), "mContext");
+                    } catch (OutOfMemoryError oom) {
+                        throw oom;
                     } catch (Throwable t) {
                         XposedHelpers.log(t);
                         return;
@@ -228,6 +230,8 @@ public class MainModule extends XposedModule {
                             isHooked = true;
                             HookDiagnostics.printSummaryForStage("post-init");
                         }
+                    } catch (OutOfMemoryError oom) {
+                        throw oom;
                     } catch (Throwable t) {
                         XposedHelpers.log(t);
                         // Do not set isHooked: one failed init step must not mark the whole pass as complete.
@@ -256,6 +260,8 @@ public class MainModule extends XposedModule {
                     long restartTime = Settings.System.getLong(mContext.getContentResolver(), "systemui_restart_time", 0L);
                     long currentTime = java.lang.System.currentTimeMillis();
                     if (currentTime - restartTime < 10000) skipNonEssential = true;
+                } catch (OutOfMemoryError oom) {
+                    throw oom;
                 } catch (Throwable t) {
                     XposedHelpers.log(t);
                 }

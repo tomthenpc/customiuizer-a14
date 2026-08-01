@@ -472,6 +472,8 @@ public final class XposedHelpers {
                 if (appLoader != null) applicationClassLoader = appLoader;
                 return appLoader;
             }
+        } catch (OutOfMemoryError oom) {
+            throw oom;
         } catch (Throwable ignored) {}
         return null;
     }
