@@ -24,7 +24,7 @@ object CallbackGuard {
         try {
             block()
         } catch (t: Throwable) {
-            if (t is OutOfMemoryError) throw t
+            if (t is OutOfMemoryError || t is ThreadDeath || t is VirtualMachineError) throw t
             XposedHelpers.log(t)
         }
     }
@@ -40,7 +40,7 @@ object CallbackGuard {
         return try {
             block()
         } catch (t: Throwable) {
-            if (t is OutOfMemoryError) throw t
+            if (t is OutOfMemoryError || t is ThreadDeath || t is VirtualMachineError) throw t
             XposedHelpers.log(t)
             fallback
         }
