@@ -39,7 +39,7 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper;
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks;
 import tv.withaibuild.customiuizer.mods.utils.XposedApiCapabilities;
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers;
-import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition;
+import tv.withaibuild.customiuizer.mods.utils.FeatureSpec;
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry;
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget;
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase;
@@ -170,7 +170,7 @@ public class MainModule extends XposedModule {
         }
 
         FeatureInstallRegistry commonRegistry = new FeatureInstallRegistry();
-        for (FeatureDefinition feature : CommonPackageFeatures.all(lpparam, mPrefs)) {
+        for (FeatureSpec feature : CommonPackageFeatures.all(lpparam, mPrefs)) {
             commonRegistry.register(feature);
         }
         commonRegistry.installAll(FeatureTarget.ANY, InstallPhase.PACKAGE_READY, mPrefs);

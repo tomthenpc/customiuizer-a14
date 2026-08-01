@@ -9,35 +9,41 @@ import tv.withaibuild.customiuizer.utils.RestartRequirement
  * A feature is the unit of "one preference, one hook site, one process".  The [id] is its typed
  * identity; [name] is only for diagnostics.  The registry handles ordering, idempotency and
  * per-preference invalidation.
+ *
+ * A [FeatureDefinition] is also a [FeatureSpec] whose [create] returns itself.  This lets the
+ * install registry accept either a ready-to-install [FeatureDefinition] or a lazy [FeatureSpec]
+ * that defers construction.
  */
-interface FeatureDefinition {
+interface FeatureDefinition : FeatureSpec {
+
+    override fun create(): FeatureDefinition = this
 
     /** Typed identity.  Equality is identity-based (usually an `object` or `data object`). */
-    val id: FeatureId
+    override val id: FeatureId
 
     /** Human-readable name for diagnostics and late-preference tracking. */
-    val name: String
+    override val name: String
 
     /** The preference key that enables this feature, or null if it is always enabled. */
-    val preferenceKey: String?
+    override val preferenceKey: String?
 
     /** The process/apk in which this feature must be installed. */
-    val target: FeatureTarget
+    override val target: FeatureTarget
 
     /** The earliest lifecycle phase at which this feature may be installed. */
-    val phase: InstallPhase
+    override val phase: InstallPhase
 
     /** Policy for whether this feature may be installed after its preferred [InstallPhase]. */
-    val lateInstallPolicy: LateInstallPolicy get() = LateInstallPolicy.NONE
+    override val lateInstallPolicy: LateInstallPolicy get() = LateInstallPolicy.NONE
 
     /** The restart/exit action required for a preference change to take effect. */
-    val restartRequirement: RestartRequirement get() = RestartRequirement.NONE
+    override val restartRequirement: RestartRequirement get() = RestartRequirement.NONE
 
     /**
      * Whether the feature should be installed now, based on the current preference snapshot.
      * The registry calls this before [install] so disabled features cost one map lookup.
      */
-    fun isEnabled(prefs: PrefMap): Boolean
+    override fun isEnabled(prefs: PrefMap): Boolean
 
     /**
      * Attempt to install the feature.  Implementations must be idempotent and must not throw.

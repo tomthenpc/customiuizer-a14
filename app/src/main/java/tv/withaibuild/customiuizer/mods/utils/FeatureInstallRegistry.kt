@@ -6,9 +6,9 @@ import tv.withaibuild.customiuizer.utils.PrefMap
  * Registry of all features the module can install.
  *
  * Each feature is identified by its [FeatureId] and is installed at most once per process.  The
- * registry matches by [FeatureTarget] and [InstallPhase], checks [FeatureDefinition.isEnabled]
- * once, and records the result.  A failing feature is recorded once and does not stop the
- * installation of the remaining features.
+ * registry matches by [FeatureTarget] and [InstallPhase], checks [FeatureSpec.isEnabled]
+ * once, creates the [FeatureDefinition] only when enabled, and records the result.  A failing
+ * feature is recorded once and does not stop the installation of the remaining features.
  *
  * This registry is intentionally a plain (non-concurrent) structure because it is only used from
  * the single LSPosed init thread during one installation call.  The process-scoped state is held
@@ -16,15 +16,16 @@ import tv.withaibuild.customiuizer.utils.PrefMap
  */
 class FeatureInstallRegistry {
 
-    private val orderedFeatures = ArrayList<FeatureDefinition>()
-    private val definitions = HashMap<FeatureId, FeatureDefinition>()
+    private val orderedFeatures = ArrayList<FeatureSpec>()
+    private val definitions = HashMap<FeatureId, FeatureSpec>()
+    private val activeDefinitions = HashMap<FeatureId, FeatureDefinition>()
 
     /**
-     * Register a feature definition.  Safe to call multiple times with the same definition.
-     * A different definition under the same [FeatureId] is rejected and recorded.
+     * Register a feature spec.  Safe to call multiple times with the same spec.
+     * A different spec under the same [FeatureId] is rejected and recorded.
      */
     @Synchronized
-    fun register(feature: FeatureDefinition) {
+    fun register(feature: FeatureSpec) {
         val existing = definitions.putIfAbsent(feature.id, feature)
         if (existing != null && existing !== feature) {
             val message = "Duplicate feature id ${feature.id.name}: ${existing::class.java.name} vs ${feature::class.java.name}"
@@ -59,21 +60,21 @@ class FeatureInstallRegistry {
         collectResults: Boolean = false,
     ): List<FeatureInstallResult> {
         val results = if (collectResults) ArrayList<FeatureInstallResult>() else null
-        for (feature in orderedFeatures) {
-            if (feature.target != target && feature.target != FeatureTarget.ANY) continue
-            if (feature.phase != phase) continue
-            val result = installOne(feature, prefs)
+        for (spec in orderedFeatures) {
+            if (spec.target != target && spec.target != FeatureTarget.ANY) continue
+            if (spec.phase != phase) continue
+            val result = installOne(spec, prefs)
             if (results != null) results.add(result)
         }
         return results ?: emptyList()
     }
 
-    private fun installOne(feature: FeatureDefinition, prefs: PrefMap): FeatureInstallResult {
-        if (!feature.isEnabled(prefs)) {
+    private fun installOne(spec: FeatureSpec, prefs: PrefMap): FeatureInstallResult {
+        if (!spec.isEnabled(prefs)) {
             return FeatureInstallResult.SKIPPED
         }
 
-        val id = feature.id
+        val id = spec.id
         val state = FeatureInstallState.get(id)
 
         return when (state) {
@@ -82,15 +83,23 @@ class FeatureInstallRegistry {
             FeatureState.RESTART_REQUIRED -> FeatureInstallResult.RESTART_LATER
             FeatureState.FAILED_TRANSIENT, FeatureState.NOT_INSTALLED -> {
                 FeatureInstallState.set(id, FeatureState.INSTALLING)
-                val result = try {
-                    feature.install()
+                val (definition, result) = try {
+                    val created = spec.create()
+                    activeDefinitions[id] = created
+                    val installResult = created.install()
+                    Pair(created, installResult)
                 } catch (oom: OutOfMemoryError) {
                     FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
                     throw oom
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
-                    recordInstallFailure(feature, t)
-                    FeatureInstallResult.FAILED_TRANSIENT
+                    recordInstallFailure(spec, t)
+                    Pair(null, FeatureInstallResult.FAILED_TRANSIENT)
+                }
+                if (result != FeatureInstallResult.FAILED_TRANSIENT && definition != null) {
+                    activeDefinitions[id] = definition
+                } else {
+                    activeDefinitions.remove(id)
                 }
                 FeatureInstallState.set(id, toState(result))
                 result
@@ -98,14 +107,14 @@ class FeatureInstallRegistry {
         }
     }
 
-    private fun recordInstallFailure(feature: FeatureDefinition, t: Throwable) {
+    private fun recordInstallFailure(spec: FeatureSpec, t: Throwable) {
         if (t is OutOfMemoryError) throw t
         HookDiagnostics.record(
             process = HookDiagnostics.currentProcessName ?: android.os.Process.myPid().toString(),
             kind = HookDiagnostics.Kind.FEATURE,
-            targetClass = feature::class.java.name,
-            targetMember = feature.id.name,
-            descriptor = feature.name,
+            targetClass = spec::class.java.name,
+            targetMember = spec.id.name,
+            descriptor = spec.name,
             status = HookDiagnostics.Status.INSTALL_FAILED,
             exceptionType = t.javaClass.name,
         )
@@ -121,16 +130,18 @@ class FeatureInstallRegistry {
      */
     @Synchronized
     fun onPreferenceChanged(key: String?, prefs: PrefMap) {
-        for (feature in orderedFeatures) {
-            val prefKey = feature.preferenceKey
+        for (spec in orderedFeatures) {
+            val prefKey = spec.preferenceKey
             if (prefKey == null || (key != null && key != prefKey && !key.startsWith(prefKey))) continue
 
-            val state = FeatureInstallState.get(feature.id)
+            val state = FeatureInstallState.get(spec.id)
             when (state) {
-                FeatureState.INSTALLED, FeatureState.INSTALLING -> feature.onPreferenceChanged(key, prefs)
+                FeatureState.INSTALLED, FeatureState.INSTALLING -> {
+                    activeDefinitions[spec.id]?.onPreferenceChanged(key, prefs)
+                }
                 FeatureState.NOT_INSTALLED, FeatureState.FAILED_TRANSIENT -> {
-                    if (feature.phase.isEarly) {
-                        FeatureInstallState.set(feature.id, FeatureState.RESTART_REQUIRED)
+                    if (spec.phase.isEarly) {
+                        FeatureInstallState.set(spec.id, FeatureState.RESTART_REQUIRED)
                     }
                 }
                 FeatureState.FAILED_PERMANENT, FeatureState.RESTART_REQUIRED -> { /* nothing to do */ }
@@ -141,11 +152,12 @@ class FeatureInstallRegistry {
     /** Mark a feature as needing re-evaluation.  Only safe for transient failures; not a reinstall hook. */
     @Synchronized
     fun markForReinstall(featureName: String) {
-        for (feature in orderedFeatures) {
-            if (feature.name == featureName) {
-                val current = FeatureInstallState.get(feature.id)
+        for (spec in orderedFeatures) {
+            if (spec.name == featureName) {
+                val current = FeatureInstallState.get(spec.id)
                 if (current == FeatureState.FAILED_TRANSIENT || current == FeatureState.RESTART_REQUIRED) {
-                    FeatureInstallState.set(feature.id, FeatureState.NOT_INSTALLED)
+                    FeatureInstallState.set(spec.id, FeatureState.NOT_INSTALLED)
+                    activeDefinitions.remove(spec.id)
                 }
             }
         }
