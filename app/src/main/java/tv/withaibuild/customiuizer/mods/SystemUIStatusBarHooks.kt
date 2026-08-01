@@ -44,7 +44,6 @@ import java.lang.ref.WeakReference
 import java.net.NetworkInterface
 import java.util.ArrayList
 import java.util.HashSet
-import java.util.Locale
 
 /**
  * Status bar content hooks.
@@ -67,6 +66,13 @@ internal fun resolveNetSpeedLineSpacing(
 
 internal fun resolveNetSpeedTypefaceStyle(baseStyle: Int, bold: Boolean): Int =
     if (bold) baseStyle or Typeface.BOLD else baseStyle and Typeface.BOLD.inv()
+
+internal fun formatNetSpeedValue(value: Float): String {
+    if (value >= 100.0f) return Math.round(value).toString()
+
+    val tenths = Math.round(value * 10.0f)
+    return "${tenths / 10}.${tenths % 10}"
+}
 
 object SystemUIStatusBarHooks {
 
@@ -1084,7 +1090,11 @@ object SystemUIStatusBarHooks {
 
     private var rxSpeed = 0L
 
-    private fun getTrafficBytes(): Pair<Long, Long> {
+    private var sampledTxBytes = -1L
+
+    private var sampledRxBytes = -1L
+
+    private fun sampleTrafficBytes() {
         var tx = -1L
         var rx = -1L
 
@@ -1103,7 +1113,8 @@ object SystemUIStatusBarHooks {
             rx = TrafficStats.getTotalRxBytes()
         }
 
-        return Pair(tx, rx)
+        sampledTxBytes = tx
+        sampledRxBytes = rx
     }
 
     private fun humanReadableByteCount(ctx: Context, bytes: Long): String {
@@ -1118,7 +1129,7 @@ object SystemUIStatusBarHooks {
                 f /= 1024.0f
             }
             val pre = modRes.getString(R.string.speedunits)[expIndex]
-            val number = if (f < 100.0f) String.format(Locale.ROOT, "%.1f", f) else String.format(Locale.ROOT, "%.0f", f)
+            val number = formatNetSpeedValue(f)
             return "$number$pre$unitSuffix"
         } catch (t: Throwable) {
             XposedHelpers.log(t)
@@ -1154,16 +1165,17 @@ object SystemUIStatusBarHooks {
                         val nanoTime = java.lang.System.nanoTime()
                         var newTime = nanoTime - measureTime
                         measureTime = nanoTime
-                        if (newTime > 12000000000L || newTime == 0L) newTime = Math.round(4 * Math.pow(10.0, 9.0))
-                        val bytes = getTrafficBytes()
-                        val newTxBytes = bytes.first!!
-                        val newRxBytes = bytes.second!!
+                        if (newTime > 12_000_000_000L || newTime == 0L) newTime = 4_000_000_000L
+                        sampleTrafficBytes()
+                        val newTxBytes = sampledTxBytes
+                        val newRxBytes = sampledRxBytes
                         var newTxBytesFixed = newTxBytes - txBytesTotal
                         var newRxBytesFixed = newRxBytes - rxBytesTotal
                         if (newTxBytesFixed < 0 || txBytesTotal == 0L) newTxBytesFixed = 0
                         if (newRxBytesFixed < 0 || rxBytesTotal == 0L) newRxBytesFixed = 0
-                        txSpeed = Math.round(newTxBytesFixed / (newTime / Math.pow(10.0, 9.0)))
-                        rxSpeed = Math.round(newRxBytesFixed / (newTime / Math.pow(10.0, 9.0)))
+                        val elapsedSeconds = newTime / 1_000_000_000.0
+                        txSpeed = Math.round(newTxBytesFixed / elapsedSeconds)
+                        rxSpeed = Math.round(newRxBytesFixed / elapsedSeconds)
                         txBytesTotal = newTxBytes
                         rxBytesTotal = newRxBytes
                     } else {
