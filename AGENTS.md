@@ -70,3 +70,13 @@
 ## 6. 汇报
 
 只报有价值的事实：分支/HEAD/工作区状态、证据与根因、文件与行为变化、对 hook/JVM/API/R8/生命周期的影响、实际跑过的验证、commit/push 状态，以及 **已验证 / 待实机 / 无法确认** 分档。
+
+## 7. 文档阅读策略
+
+- 运行时任务：默认只读取目标 `installer`、目标 `FeatureDefinition`、目标 `Hook/Controller`、对应测试和本文件。
+- 需要当前架构、进程路由或组件状态时，读取 `docs/A14_RUNTIME_HARDENING.md`。
+- 需要理解静态门禁规则或真实缺陷案例时，读取 `docs/RUNTIME_INVARIANTS.md`。
+- 发布/对外说明任务才读取 `README.md`、`README_EN.md`、`CHANGELOG.md` / `CHANGELOG_EN.md`。
+- 验证/签名/APK 相关任务才读取 `docs/VERIFICATION.md`。
+- 日志任务才读取 `docs/LSPOSED_LOG_ANALYSIS.md`。
+- 工程文档优先级保持为：用户明确要求 > `AGENTS.md` > `docs/A14_RUNTIME_HARDENING.md` > `docs/RUNTIME_INVARIANTS.md` > Git 历史 > 上游。

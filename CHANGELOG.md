@@ -21,8 +21,7 @@ Agent 工作记录、临时 APK 和未经同条件测量的性能数字不作为
 | `r14.8.0` | 2026-07-25 | 旧签名回退点；升级到新版本前必须备份并重装 |
 | `r14.7.4` | 2026-07-25 | r14.7.x Kotlin/Coroutine 迁移合并版 |
 
-Release 标题统一为纯版本号。已移除版本的资产名、大小与 SHA-256 见
-[历史 Release 归档](docs/RELEASE_ARCHIVE.md)；对应源码仍可通过 Git tag 获取。
+Release 标题统一为纯版本号。已移除版本的历史资产信息见 Git tag 与对应 GitHub Release；对应源码仍可通过 Git tag 获取。
 
 ## [r14.15.3] - 2026-07-31
 
@@ -80,8 +79,7 @@ versionCode / versionName：`191 / r14.15.3`
 - `versionName` 保持 `r14.15.0`。
 - `GlobalActionSystemServerHooks` 的 `phoneWindowManagerActionReceiver.onReceive()` 增加 `ModuleHelper.guarded` 顶层异常隔离：异常时调用 `XposedHelpers.log(t)`，有序广播设置 `GlobalActions.ACTION_FAILED`，不重新抛出。
 - 新增 `app/src/test/java/tv/withaibuild/customiuizer/GlobalActionSystemServerReceiverSafetyTest.kt`，静态验证 Receiver 顶层边界、有序广播结果与信任验证。
-- 新增 `docs/SYSTEM_SERVER_STARTING_AUDIT.md`，记录 `system_server` Global Action Receiver 的 P0 风险与修复。
-- 更新 `docs/SYSTEM_SCOPE_AUDIT.md`，补充 P0 resolved 说明。
+- 将 `system_server` Global Action Receiver 的 P0 风险与修复结论合并到 `docs/RUNTIME_INVARIANTS.md`。
 
 ### 验证
 
@@ -369,8 +367,7 @@ API 101/102 单 APK 兼容边界。使用与 `r14.13.4` 相同的新正式签名
 ### 重要：r14.13.4 已撤回
 
 - `r14.13.4` 存在首页搜索导航回归，已被 `r14.13.5` 取代。
-- 已删除 `r14.13.4` 的 GitHub Release 与 tag；历史资产信息见
-  [RELEASE_ARCHIVE.md](docs/RELEASE_ARCHIVE.md)。
+- 已删除 `r14.13.4` 的 GitHub Release 与 tag；历史资产信息见 Git tag 与对应 GitHub Release。
 - 如已安装 `r14.13.4`，可直接覆盖安装 `r14.13.5`，无需卸载。
 
 ## [r14.13.4] - 2026-07-28

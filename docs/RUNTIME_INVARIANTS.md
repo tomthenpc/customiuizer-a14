@@ -227,9 +227,9 @@ Java 的 `String.split("\\|")` 走单字符快路径，不碰正则引擎。
 - 两个不同但 `equals` 的对象会**共用同一份字段表**；
 - 一旦改动了参与 `hashCode` 的字段，该对象的条目就落到别的桶里、**永远找不回来**，存进去的值直接丢。
 
-Launcher 的重命名功能就是这个形状：在 `ShortcutInfo` 上存 `mLabelOrig`（`Launcher.kt:511`），
-然后改写同一个对象的 `mLabel`（`Launcher.kt:456`），之后再读回 `mLabelOrig` 来恢复原名
-（`Launcher.kt:453`）。这段能不能读到，取决于 ROM 的 `ShortcutInfo` 是否用 label 算 hash ——
+Launcher 的重命名功能就是这个形状：在 `ShortcutInfo` 上存 `mLabelOrig`（`Launcher.kt`），
+然后改写同一个对象的 `mLabel`（`Launcher.kt`），之后再读回 `mLabelOrig` 来恢复原名
+（`Launcher.kt`）。这段能不能读到，取决于 ROM 的 `ShortcutInfo` 是否用 label 算 hash ——
 模块不该依赖这种事。
 
 现在的实现：键是**按身份比较的弱引用**，读路径无锁、零分配（线程内复用探针，用完即释放，
@@ -253,59 +253,25 @@ Launcher 的重命名功能就是这个形状：在 `ShortcutInfo` 上存 `mLabe
 
 ---
 
-## 8. 大文件按功能域拆分：怎么做才是可证明安全的
+## 8. `guard-system-server-receiver`
 
-`mods/System.kt` 曾经是 4898 行 / 129 个成员。此前一直没做，理由写的是"要等有实机回归能力"。
-实际卡住的**不是设备，是验证手段**。
+`system_server` 中的 Global Action Receiver 运行在 `com.android.server.policy.BaseMiuiPhoneWindowManager` 里。
+这个 Receiver 处理 `SimulateMenu`、`ForceClose`、`ToggleColorInversion`、`SwitchToPrevApp` 等自定义动作。
 
-关键认识：**hook 注册顺序是 `MainModule` 调用序列的属性，与被调用者在哪个文件无关。**
-所以一次拆分只需要机械证明两件事：
+### 缺陷
 
-1. 每个被搬动的成员，文本逐字节不变；
-2. `MainModule` 的有序调用序列不变。
+之前的实现只在局部业务分支里加了 try/catch，没有覆盖整个 `onReceive()` 回调。
+未捕获的 `RuntimeException`、`SecurityException`、反射异常或 ROM API 异常会逃逸到 `system_server`，
+导致 system_server 崩溃或系统软重启。
 
-两条都能脚本化，都不需要设备。
+### 契约
 
-### 先量，再动
+整个 `onReceive` 业务体必须包裹在 `ModuleHelper.guarded { ... }` 内：
 
-拆之前先量耦合，`System.kt` 的实际结果比它的行数好得多：
+- `action == null` 与非信任广播拒绝使用 `return@guarded`，确保统一进入 ordered-broadcast 收尾。
+- `completed` 仅在 `when (action)` 业务分支完整执行后置为 `true`。
+- 正常路径设置 `GlobalActions.ACTION_HANDLED`；异常或被拒绝路径设置 `GlobalActions.ACTION_FAILED`。
+- 不重新抛出异常，异常不会传播到 `system_server`。
 
-- 94 个 public 入口，**全部且仅**被 `MainModule` 调用；
-- 19 个私有辅助函数，每个只被**同域**函数调用；
-- **零 public→public 调用**；
-- 16 处共享状态，每处只被 1–2 个函数使用，且都落在同一个域内。
-
-没有任何东西跨域。**如果这几项不成立，就不要拆**。拆分脚本 `tools/split-hook-domain.py` 与
-`tools/repoint-hook-calls.py` 已在 A14 文档清理中移除；当前 `MainModule` 的结构见
-[A14_RUNTIME_HARDENING.md](A14_RUNTIME_HARDENING.md)。
-
-### 工具与保证
-
-| 工具 / 当前替代 | 保证 |
-| --- | --- |
-| `tools/split-hook-domain.py` / `tools/repoint-hook-calls.py` | 拆分脚本已在 A14 文档清理中移除。当前由 `check-invariants.py` 的 `check_main_module_calls_covered` 与 `check_no_direct_hook_installation` 等规则保证注册点可追溯，具体结构见 [A14_RUNTIME_HARDENING.md](A14_RUNTIME_HARDENING.md)。 |
-
-### 本次证据
-
-- 119/119 个成员逐字节一致，无遗漏；`System.kt` 的 diff 是**纯删除，新增 0 行**
-- `MainModule` 前后各 268 个调用点，85 个接收者变化，**序列完全一致**
-- R8 保留方法数前后均 **7887**；唯一的 15 处差异是 Kotlin `access$` 桥接方法的参数类型
-  从 `mods.System` 变成新的宿主类，一一对应。**没有方法丢失，没有入口不可达**
-- Release APK **3,065,633 字节，与拆分前完全相同**；`META-INF/xposed` 完好
-- `proguard-rules.pro` 无需改动：`-keepclassmembers class tv.withaibuild.customiuizer.mods.**` 是通配的
-
-### 结果
-
-```
-System.kt              4898 -> 593
-SystemLockScreenHooks       1445   锁屏 / 解锁 / 应用锁
-SystemNotificationHooks      730   通知栏 / 悬浮通知
-SystemAudioHooks             634   可视化 / 媒体会话 / 振动
-SystemWindowHooks            566   旋转 / 小窗 / 分屏 / 覆盖层
-SystemDisplayHooks           534   息屏动画 / 亮度 / 壁纸
-SystemShareMenuHooks         288   分享面板 / 打开方式
-SystemSecurityHooks          243   签名 / 完整性 / FLAG_SECURE
-```
-
-`SystemUI.kt`（3681 行）和 `Launcher.kt` 可以用同一套工具照做，但**必须先量耦合**，
-不要假定它们和 `System.kt` 一样干净。
+This matches the same `guard-framework-callbacks` principle but with the additional requirement
+that the ordered-broadcast cleanup must complete even on early-return and exception paths.

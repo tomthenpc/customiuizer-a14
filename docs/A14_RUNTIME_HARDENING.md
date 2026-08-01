@@ -1,199 +1,130 @@
 # A14 Runtime Hardening
 
-This document covers the runtime hardening work on `devin/a14-runtime-hardening` at HEAD `fdc9ad3b`.
-Scope is the LSPosed module's runtime inside `system_server`, `com.android.systemui`,
-`com.miui.home` and other scoped packages on HyperOS 1 / Android 14 (SDK 34).
-Target API 102, minimum API 101, `applicationId tv.withaibuild.customiuizer.r14`.
+This document describes the active A14 runtime architecture. The code is the source of truth; this file only records what cannot be automatically inferred.
 
-## Summary
+Scope: HyperOS 1 / Android 14 (SDK 34), `applicationId tv.withaibuild.customiuizer.r14`, libxposed target API 102, minimum API 101, `staticScope=false`.
 
-- **MainModule package-installer split** — `MainModule.java` no longer installs every hook itself.
-  Package-specific `*Installer` classes were extracted in `9a0938b3` (SystemUI), `5846c746` (Launcher),
-  `0b9a9ab7` (input method), `4c615c00` (settings), `141a1c51` (security center),
-  `0c2545c3` (remaining packages) and `a9f293f1` (finalize split).
-- **Owner receiver active/stale state** — `WeakOwnerReceiver` gained an `AtomicBoolean active` flag and
-  `ReceiverRegistry` bounded stale queues for failed unregisters. See `53de4a25`.
-- **ModuleHelper split** — `ReceiverRegistry`, `PreferenceObserverRegistry`, `ContextResolver`,
-  `CallbackGuard` and `HookInstallerFacade` were extracted from `ModuleHelper.kt` in `40e9af87`,
-  `d4051de7`, `a0502c91`, `2ef0a28b` and `1701cf7a`.
-- **Callback-guard audit** — every framework-invoked callback in `mods/` and `mods/utils/` was wrapped
-  with `ModuleHelper.guarded`. Audited in `1570792d` (`mods/utils/`), `11bd74a5` (Controls/GlobalActions),
-  `039879df` (System/Launcher), `e5417d00` (SystemUI/GlobalActionSystemServerHooks) and
-  `697d7565` (remaining `mods/`).
-- **Hot-path / memory audit** — `ReflectionCache` bounded per-loader state in `35a35c33`,
-  and `ResourceHooks` replaced boxed `HashMap<Int, *>` with `SparseArray`/`SparseIntArray` in `71ff6e9f`.
+## Current architecture
 
-## Architecture
+`MainModule.java` is a routing layer. It does not install hooks itself. It delegates each package/process to a dedicated installer in `app/src/main/java/tv/withaibuild/customiuizer/installers/`.
 
-The module is split into package-specific installers under `app/src/main/java/tv/withaibuild/customiuizer/installers/`.
-Each installer is a stateless class that builds a `FeatureInstallRegistry`, registers `FeatureDefinition`
-instances and calls `installAll` for the matching `FeatureTarget` and `InstallPhase`.
+- `FeatureDefinition` (`mods/utils/FeatureDefinition.kt`) describes one feature: `id`, `name`, `preferenceKey`, `target`, `phase`, `isEnabled(prefs)`, `install()`, `onPreferenceChanged()`.
+- `FeatureId` (`mods/utils/FeatureId.kt`) carries a stable integer `id` plus a human name. `FeatureIds.kt` is the single registry of all feature identities.
+- `FeatureInstallState` (`mods/utils/FeatureInstallState.kt`) is a process-scoped object keyed by the stable feature `id`. It replaces per-installer install-state maps.
+- `FeatureInstallRegistry` (`mods/utils/FeatureInstallRegistry.kt`) filters by `FeatureTarget` and `InstallPhase`, checks `isEnabled` once, records the result, and dispatches preference changes.
+- `FeatureInstallResult` is an `enum` with singleton values. There are no `data class` allocations for skipped or failed features.
+- `InstallPhase` (`mods/utils/InstallPhase.kt`) and `FeatureTarget` (`mods/utils/FeatureTarget.kt`) give the registry its process and lifecycle filters.
+- Base classes in `mods/utils/feature/` implement `FeatureDefinition` for each process/phase and keep hook installation separate from preference checks.
 
-- `FeatureDefinition.kt` (`app/.../mods/utils/FeatureDefinition.kt:13`) declares a feature as a typed
-  `id: FeatureId`, `name`, `preferenceKey`, `target`, `phase`, `lateInstallPolicy`, `restartRequirement`,
-  `isEnabled(prefs)`, `install()` and `onPreferenceChanged(key, prefs)`.
-- `FeatureInstallRegistry.kt` (`:14`) installs each `FeatureId` at most once per process, tracks
-  `FeatureState` (`:67-91`) and handles preference changes without resetting an installed hook
-  to uninstalled (`:101-118`).
-- `FeatureTarget.kt` (`:9-27`) and `InstallPhase.kt` (`:10-31`) give the registry the process and
-  lifecycle filters it needs.
-- Base classes such as `BasePackageReadyFeature` (`feature/BasePackageFeatures.kt:13`) and
-  `BaseSystemServerFeature` (`feature/SystemServerFeatures.kt:24`) implement `FeatureDefinition` and
-  keep hook installation and preference checks separate.
+`ReceiverRegistry`, `PreferenceObserverRegistry`, `ContextResolver`, `CallbackGuard`, `HookInstallerFacade`, `ReflectionCache` and `ResourceHooks` are dedicated boundaries extracted from the historical `ModuleHelper`. Do not merge them back.
 
-`MainModule.java` is now a routing layer:
+## Process routing
 
-- `onSystemServerStarting` (`:111`) sets the package name to `android` and calls `SystemServerInstaller`.
-- There is no `MainModule.loadPackage()`; package hooks enter through `onPackageReady` (`:131`).
-  It filters non-first packages and excluded packages, then delegates to the installers:
-  `AndroidPackageInstaller.install` (`:152`), `InputMethodInstaller.install` (`:165`),
-  a `CommonPackageFeatures` registry for `ANY` / `PACKAGE_READY` (`:170-174`),
-  `MediaInstaller.install` (`:179`), `SystemUiInstaller.install` (`:266`),
-  `GuardProviderInstaller.install` (`:270`), `PhoneInstaller.install` (`:274`),
-  `SecurityCenterInstaller.install` (`:278`), `PowerKeeperInstaller.install` (`:282`),
-  `SettingsInstaller.install` (`:286`), `PackageInstallerRouter.install` (`:290`),
-  `LauncherInstaller.install` (`:297`) and `GenericAppInstaller.installPostAttach` (`:306`).
-- `loadDexKit()` (`:100`) is no longer called unconditionally. Features that need DexKit
-  (`MediaFeatures.kt:51`, `GuardProviderFeatures.kt:33`) call it from their `install()` body.
-- `ReflectionCache.onSafeLifecycle(classLoader)` is called before `SystemUiInstaller.install` (`:182`)
-  and `LauncherInstaller.install` (`:296`) so cached misses can be retried at a safe boundary.
+| Process / package | Installer | Phase | Notes |
+|---|---|---|---|
+| `system` / `android` | `SystemServerInstaller` | `SYSTEM_SERVER_STARTING` | Also sets up global actions when configured. |
+| `com.android.systemui` | `SystemUiInstaller` | `PACKAGE_READY` / `SYSTEM_UI_INITIALIZED` | Calls `ReflectionCache.onSafeLifecycle` first. |
+| `com.miui.home` | `LauncherInstaller` | `PACKAGE_READY` / `APPLICATION_ATTACHED` | Calls `ReflectionCache.onSafeLifecycle` first. |
+| `com.android.settings` | `SettingsInstaller` | `PACKAGE_READY` | |
+| `com.miui.securitycenter` | `SecurityCenterInstaller` | `PACKAGE_READY` | |
+| `com.android.packageinstaller` / `com.miui.packageinstaller` | `PackageInstallerRouter` | `PACKAGE_READY` | Routes to package installer features. |
+| `com.android.incallui` | `PhoneInstaller` | `PACKAGE_READY` | |
+| `com.miui.powerkeeper` | `PowerKeeperInstaller` | `PACKAGE_READY` | |
+| `com.miui.guardprovider` | `GuardProviderInstaller` | `PACKAGE_READY` | Loads DexKit on demand. |
+| media / download providers | `MediaInstaller` | `PACKAGE_READY` | Loads DexKit on demand. |
+| input method packages | `InputMethodInstaller` | `PACKAGE_READY` | |
+| generic apps with post-attach hooks | `GenericAppInstaller` | `APPLICATION_ATTACHED` | Uses `LauncherPostAttachFeatures` for selected packages. |
+| remaining packages (ANY target) | `CommonPackageFeatures` via `MainModule` | `PACKAGE_READY` | For hooks that do not need a dedicated installer. |
 
-## Lifecycle & Receiver Safety
+Phase rules:
+- `MODULE_LOADED` and `SYSTEM_SERVER_STARTING` run when the process itself is created.
+- `PACKAGE_READY` runs at `IXposedHookZygoteInit` / `onPackageReady` boundary.
+- `SYSTEM_UI_INITIALIZED` and `APPLICATION_ATTACHED` run after the target app class loader is attached.
 
-`ModuleHelper.kt` now delegates all registration to `ReceiverRegistry.kt`:
+## Runtime invariants
 
-- `registerModuleReceiver` (`ReceiverRegistry.kt:72`) is for process-scoped, single-receiver registrations.
-  It replaces any previous registration under the same key, retries stale unregisters first,
-  performs the framework registration outside the map lock, and self-unregisters if a concurrent
-  replacement won the race (`:127-142`). Failed unregisters are kept in a bounded stale queue
-  (`MAX_STALE_MODULE_RECEIVERS = 3`, `:37`; `recordStaleModuleReceiver`, `:200-238`) and retried on
-  the next same-key operation.
-- `registerOwnedReceiver` (`:392`) is for multi-instance hook targets. It holds the owner and context
-  through `WeakReference`, sweeps collected owners, and keeps only one registration per owner/key
-  (`:407-427`). Framework registration is again outside the map lock, with a loser self-unregister
-  race check (`:435-450`).
-- `replaceModuleRegistration` (`:521`) is the non-receiver equivalent for content observers, listeners
-  or other teardownable registrations. It records a `Runnable` cleanup under a key, runs the previous
-  cleanup, and tracks failed cleanups in a bounded stale queue (`MAX_STALE_MODULE_REGISTRATIONS = 3`,
-  `:505`; `recordStaleModuleRegistration`, `:560-595`).
-- `WeakOwnerReceiver` is an internal class in `ReceiverRegistry.kt` (`:300`). It stores a
-  `WeakReference<Any>` owner and an `AtomicBoolean active` (`:305-306`). `markInactive()` (`:308`)
-  disables the receiver. `onReceive` (`:312`) wraps its body with `ModuleHelper.guarded`; if `active`
-  is false or the owner was collected, it removes the registration and unregisters itself.
+The static gate `tools/check-invariants.py` enforces these. See `docs/RUNTIME_INVARIANTS.md` for the real defect behind each rule.
 
-`OutOfMemoryError` is rethrown through all these paths because continuing after an OOM would leave
-system_server, SystemUI or Launcher in a corrupt state. Non-OOM throwables are logged and swallowed.
+- Every framework callback (`onReceive`, `onChange`, `run`, listener lambdas, `Handler.handleMessage`, animation/observer callbacks) is wrapped with `ModuleHelper.guarded`.
+- Every receiver/observer has a tracked owner and a bounded stale-registration queue.
+- Hook callbacks do not use `XposedHelpers.getArgsArray()` for read-only parameters.
+- `Handler()` always receives an explicit `Looper`.
+- No Legacy `de.robv.android.xposed` API is used in runtime paths.
+- API 102-only symbols do not enter API 101 cold paths.
 
-## Callback Guarding
+## libxposed API boundary
 
-`ModuleHelper.guarded` is an `inline` wrapper that forwards to `CallbackGuard.kt` (`:23-30` and `:39-47`).
-It catches `Throwable`, logs it through `XposedHelpers.log(t)`, and rethrows only `OutOfMemoryError`.
-The value-returning overload returns a `fallback` on non-OOM failure.
+- Compiled against `io.github.libxposed:api:102.0.0` and `service:102.0.0`.
+- Public hook paths only use API 101 symbols: `XposedModule` lifecycle, `HookBuilder`, `Hooker.intercept`, `Chain.proceed`, `HookHandle.unhook`.
+- API 102 `HotReloadingParam`, `onHotReloading`, `HookBuilder.setId`, `HookHandle.getId` and `replaceHook` are not used.
+- `MainModule.java` remains a stable, API 101-compatible entry point. `staticScope=false`; Hot Reload is off.
 
-Callbacks must be guarded because `Handler.handleMessage`, `BroadcastReceiver.onReceive`,
-`ContentObserver.onChange`, `Runnable.run` and listener lambdas run outside the `MethodHook` try/catch.
-A reflective miss, a `NumberFormatException` from a malformed preference, or a ROM-renamed field inside
-one of those bodies can take down a system process. The fallback for value-returning callbacks must be
-chosen so the host's default behavior is preserved.
+## Hot-path and memory boundaries
 
-The audit covered:
+`ResourceHooks` keeps resource replacement on the hot path fast:
+- `fakes` is a `SparseIntArray`; `resourceIdReplacements` is a `SparseArray` published copy-on-write.
+- Theme staging uses local `SparseIntArray` / `SparseArray` once, then writes back to the framework map once.
 
-- `mods/utils/` (`1570792d`), including `ReceiverRegistry.kt`, `PreferenceObserverRegistry.kt` and
-  `ResourceHooks.kt`.
-- `mods/Controls.kt` and `mods/GlobalActions.kt` (`11bd74a5`).
-- `mods/System*.kt` and `mods/Launcher*.kt` (`039879df`).
-- `mods/SystemUI*.kt` and `mods/GlobalActionSystemServerHooks.kt` (`e5417d00`).
-- the remainder of `mods/` (`697d7565`).
+`ReflectionCache` keeps reflection on the cold path:
+- Bounded `LoaderState` per class loader (max 4 loaders, 64 classes each).
+- `onSafeLifecycle` resets dependency-method cache at process/package boundaries.
 
-`PreferenceObserver.onChange` is not required to wrap itself because `PreferenceObserverRegistry.
-handlePreferenceChanged` (`:92-99`) already isolates each observer and logs failures.
+`FeatureInstallState` stores install state keyed by the stable feature `id`. There is one state map per process, not one per installer.
 
-## Hot Path & Memory
+`FeatureInstallResult` is an `enum`; common results are singletons.
 
-`ResourceHooks.kt` replaced hot-path `Map<Int, *>` lookups with unboxed sparse collections:
+## Project lineage
 
-- `fakes` is a `SparseIntArray` (`:54`) and `resourceIdReplacements` is a `SparseArray<ResourceValue>`
-  (`:57`). Both are published copy-on-write under `replacementsLock` (`:51-58`) so the `mReplaceHook`
-  `intercept` method (`:61-98`) only does fast `SparseArray` reads on every `Resources` call.
-- `initThemeHook()` (`:105-178`) builds per-call `SparseIntArray`, `SparseArray<IntArray>` and
-  `SparseArray<Array<String>>` for staged theme values, then writes them back to the framework
-  `HashMap` only once. This removes `Integer` boxing from the local staging path.
+- Original upstream: `Mikanoshi/CustoMIUIzer`.
+- Android 14 functional upstream (read-only reference): `MonwF/customiuizer v24.10.12`.
+- Current independent project: `tomthenpc/customiuizer-a14`.
 
-`ReflectionCache.kt` keeps reflection on the cold path:
+The current repo is the source of truth. Do not reset, rebase or merge to upstream; do not copy upstream files over the current Kotlin implementation.
 
-- `MAX_LOADERS = 4` and `MAX_CLASSES_PER_LOADER = 64` (`:60-61`).
-- Each `ClassLoader` gets a bounded `LoaderState` (`:34-49`) with an LRU `LinkedHashMap` for
-  `classResults` and a cached `Dependency` method.
-- After a successful lookup, `getDepInstance()` (`:87-93`) returns the dependency with a single map
-  read and a `when` branch; no reflection is re-run on the hot path.
-- `onSafeLifecycle()` (`:105-117`) increments a global lifecycle and resets the dependency-method cache
-  so `MethodMissing` / `DependencyNotReady` results can be retried at a safe boundary.
+## Current component status
 
-## Feature Install Result & State Slimming
+| Component | Status |
+|---|---|
+| Installer split | Done. `MainModule` only routes. |
+| Feature registry | Done. `FeatureInstallRegistry` plus `FeatureInstallState`. |
+| Stable feature IDs | Done. 245 compact integer IDs. |
+| Enum install results | Done. `FeatureInstallResult` no longer allocates common results. |
+| Callback guarding | Done. `ModuleHelper.guarded` and `CallbackGuard`. |
+| Receiver/Observer registry | Done. `ReceiverRegistry` and `PreferenceObserverRegistry`. |
+| ReflectionCache | Done. Bounded per-loader state. |
+| ResourceHooks sparse | Done. `SparseArray`/`SparseIntArray` hot path. |
+| `all()` static isEnabled | Not started. Feature objects are still created before the preference check. |
+| Bitmap / View lifecycle, periodic SystemUI work | Not started. Deferred to A14-6. |
 
-In commits `c9852a1a` and `fdc9ad3b` the feature-install infrastructure was refactored to reduce object
-allocations and share per-process state:
+## Remaining static tasks
 
-- `FeatureInstallResult` is now an `enum` (`FeatureInstallResult.kt:9`) with singleton values for
-  `INSTALLED`, `ALREADY_INSTALLED`, `SKIPPED`, `FAILED_TRANSIENT`, `FAILED_PERMANENT` and `RESTART_LATER`.
-  This removes the per-call `data class` allocations for skipped and failed features.
-- `FeatureInstallRegistry` no longer forces a result list: `installAll()` takes an optional
-  `collectResults` flag and returns `emptyList()` when the caller does not need the results.
-- `FeatureId` now carries a stable integer `id` (`FeatureId.kt:11`) and all 245 feature identities in
-  `FeatureIds.kt` were assigned compact, stable IDs.
-- `FeatureInstallState` (`FeatureInstallState.kt`) is a process-scoped object that stores
-  `FeatureState` keyed by the integer feature ID.  `FeatureInstallRegistry` now delegates to it,
-  removing the per-installer `HashMap<FeatureId, FeatureState>` that each registry used to create.
+- Add static `isEnabled` predicates and filter disabled features before instantiating them in `XxxFeatures.all()`.
+- Make installers share `FeatureInstallState` and remove per-installer `FeatureInstallRegistry` where possible.
+- Consolidate small feature definitions that share the same target, phase and lifecycle domain.
+- Remove confirmed pass-through helpers/facades that are pure single-call delegation and have no state, no lock and no independent test value.
+- Audit dead source, tests and resources that have no production or test caller.
 
-This set the foundation for the next step: filtering disabled features before instantiating them in
-`XxxFeatures.all()` and moving each installer to a shared, single-state installation path.
+## Device-only validation
 
-## Verification
+These cannot be proven by static checks:
 
-Commands used for this baseline:
+- `WeakOwnerReceiver` cleanup under real GC and concurrent framework registration.
+- `ReflectionCache.onSafeLifecycle` trigger timing on different ROMs.
+- Resource-replacement latency and memory profile across SystemUI and Launcher theme changes.
+- Whether any `guarded` fallback hides a real failure inside `system_server`.
+- Fast-reboot receiver setup and the 10-second restart guard.
+
+## Verification entry points
 
 ```bash
 python tools/verify.py full
 python tools/check-invariants.py
-./gradlew --no-daemon testDebugUnitTest
-./gradlew --no-daemon compileDebugKotlin compileDebugJavaWithJavac
-./gradlew --no-daemon lintDebug
+python -m unittest discover -s tools/tests -p "test_*.py"
 ```
 
-At HEAD `fdc9ad3b` we executed the equivalent of the `full` pipeline:
+At the current `devin/a14-runtime-hardening` HEAD:
 
-- `python tools/check-invariants.py` reports `153 files, no violations`.
-- `compileDebugKotlin` and `compileDebugJavaWithJavac` succeed.
-- `testDebugUnitTest` succeeds (330 tests).
-- `lintDebug` succeeds.
+- `check-invariants.py` reports 153 files, no violations.
+- `compileDebugKotlin`, `compileDebugJavaWithJavac`, `testDebugUnitTest` and `lintDebug` pass.
 
-What the static gate confirms:
-
-- Every framework callback in `mods/` is guarded (`check_guard_framework_callbacks` and
-  `check_guard_deferred_callbacks` in `tools/check-invariants.py:117-189`).
-- No raw `Context.registerReceiver` in `mods/` except in `ModuleHelper.kt` and `ReceiverRegistry.kt`
-  (`check_no_raw_register_receiver`, `:219-269`).
-- Hook installation goes through `ModuleHelper`/`HookInstallerFacade`
-  (`check_no_direct_hook_installation`, `:316-330`).
-- No legacy `de.robv.android.xposed` references outside the three boundary files
-  (`check_no_legacy_xposed`, `:333-345`).
-- `Handler()` always has an explicit Looper; no redundant argument marshalling in hooks;
-  no single-character `toRegex()` splits in hot paths (`:272-378`).
-
-What still requires on-device validation:
-
-- Whether `WeakOwnerReceiver` cleanup under real GC and framework broadcast timing is race-free.
-- Whether the `ReflectionCache` `onSafeLifecycle` boundary is triggered late enough on every ROM.
-- Whether the `SparseArray` resource-replacement path keeps the same latency and memory profile
-  across SystemUI and Launcher theme changes.
-- Whether any `guarded` fallback hides a real failure inside system_server.
-- The 10-second restart guard behavior (`MainModule.java:250-264`) and fast-reboot receiver setup.
-
-## Related Docs
-
-- [Runtime invariants and the rules behind them](RUNTIME_INVARIANTS.md)
-- [System server starting audit](SYSTEM_SERVER_STARTING_AUDIT.md)
-- [System scope audit](SYSTEM_SCOPE_AUDIT.md)
-- [Verification record](VERIFICATION.md)
-- [LSPosed log analysis](LSPOSED_LOG_ANALYSIS.md)
-- [Agent rules](../AGENTS.md)
+See `docs/VERIFICATION.md` for the current verification record and `docs/LSPOSED_LOG_ANALYSIS.md` for log triage.

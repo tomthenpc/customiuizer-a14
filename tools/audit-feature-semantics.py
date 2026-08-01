@@ -4,7 +4,7 @@
 Modes:
   --init      Build feature-semantics/a14.json from source extraction.
   --validate  Validate a14.json against the schema and current source.
-  --markdown  Render docs/FEATURE_EFFECT_AND_RESTART_MATRIX.md.
+  (no markdown output; feature matrix is now generated on demand)
 
 Exit codes:
   0  success / valid
@@ -28,7 +28,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 SCHEMA_PATH = REPO_ROOT / "feature-semantics" / "schema.json"
 INVENTORY_PATH = REPO_ROOT / "feature-semantics" / "a14.json"
-MARKDOWN_PATH = REPO_ROOT / "docs" / "FEATURE_EFFECT_AND_RESTART_MATRIX.md"
 
 XML_KEY_RE = re.compile(r'android:key="([^"]+)"')
 XML_DEFAULT_RE = re.compile(r'android:defaultValue="([^"]*)"')
@@ -632,37 +631,17 @@ def cmd_validate(args: argparse.Namespace) -> int:
     return code
 
 
-def cmd_markdown(args: argparse.Namespace) -> int:
-    if not INVENTORY_PATH.is_file():
-        print(f"Inventory not found: {INVENTORY_PATH}", file=sys.stderr)
-        return 2
-    try:
-        inventory = load_inventory(INVENTORY_PATH)
-    except (json.JSONDecodeError, OSError) as e:
-        print(f"Failed to load inventory: {e}", file=sys.stderr)
-        return 2
-    md = generate_markdown(inventory)
-    MARKDOWN_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with MARKDOWN_PATH.open("w", encoding="utf-8", newline="\n") as f:
-        f.write(md)
-    print(f"Wrote markdown to {MARKDOWN_PATH}")
-    return 0
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Feature semantics auditor for CustoMIUIzer A14")
     parser.add_argument("--repo-root", type=Path, default=REPO_ROOT, help="repository root (default: parent of tools/)")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--init", action="store_true", help="generate feature-semantics/a14.json")
     group.add_argument("--validate", action="store_true", help="validate a14.json")
-    group.add_argument("--markdown", action="store_true", help="generate docs/FEATURE_EFFECT_AND_RESTART_MATRIX.md")
     args = parser.parse_args(argv)
     if args.init:
         return cmd_init(args)
     if args.validate:
         return cmd_validate(args)
-    if args.markdown:
-        return cmd_markdown(args)
     return 2
 
 

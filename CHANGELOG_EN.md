@@ -22,8 +22,8 @@ and performance figures without same-condition measurements are not release chan
 | `r14.8.0` | 2026-07-25 | Old-signature rollback point; back up and reinstall before upgrading |
 | `r14.7.4` | 2026-07-25 | Consolidated r14.7.x Kotlin/coroutine migration release |
 
-Release titles contain only the version number. Asset names, sizes, and SHA-256 digests for
-removed releases are in the [historical Release archive](docs/RELEASE_ARCHIVE.md); the
+Release titles contain only the version number. Historical asset information for removed
+releases is available through Git tags and the corresponding GitHub Release; the
 corresponding source remains available through Git tags.
 
 ## [r14.15.3] - 2026-07-31
@@ -88,8 +88,7 @@ This guard does not change normal business results, action names, permissions, s
 - `versionName` stays `r14.15.0`.
 - Wrapped `phoneWindowManagerActionReceiver.onReceive()` in `GlobalActionSystemServerHooks` with `ModuleHelper.guarded`: on failure it calls `XposedHelpers.log(t)` and sets `GlobalActions.ACTION_FAILED` for ordered broadcasts; the exception is not rethrown.
 - Added `app/src/test/java/tv/withaibuild/customiuizer/GlobalActionSystemServerReceiverSafetyTest.kt` to statically verify the receiver boundary, ordered broadcast results, and sender trust validation.
-- Added `docs/SYSTEM_SERVER_STARTING_AUDIT.md` documenting the P0 risk and resolution for the `system_server` Global Action Receiver.
-- Updated `docs/SYSTEM_SCOPE_AUDIT.md` with the P0 resolved statement.
+- Merged the P0 risk and resolution for the `system_server` Global Action Receiver into `docs/RUNTIME_INVARIANTS.md`.
 
 ### Verification
 
@@ -402,8 +401,7 @@ libxposed API 101/102 compatibility boundary. It is signed with the same new off
 ### Important: r14.13.4 is withdrawn
 
 - `r14.13.4` has a home search navigation regression and is superseded by `r14.13.5`.
-- The `r14.13.4` GitHub Release and tag have been removed; historical asset information is in
-  [RELEASE_ARCHIVE.md](docs/RELEASE_ARCHIVE.md).
+- The `r14.13.4` GitHub Release and tag have been removed; historical asset information is available through Git tags and the corresponding GitHub Release.
 - If you already have `r14.13.4` installed, you can install `r14.13.5` over it without uninstalling.
 
 ## [r14.13.4] - 2026-07-28
