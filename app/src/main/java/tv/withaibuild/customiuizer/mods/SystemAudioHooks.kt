@@ -567,7 +567,6 @@ object SystemAudioHooks {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 val thisObject = chain.thisObject
                 try {
 
@@ -593,7 +592,7 @@ object SystemAudioHooks {
                         else -> ratio_other
                     }
                     if (ratio == 1.0f) {
-                        return XposedHelpers.proceedOrThrow(chain, args, throwable)
+                        return XposedHelpers.proceedOrThrow(chain, throwable)
                     }
 
                     val startMinutes =
@@ -609,13 +608,14 @@ object SystemAudioHooks {
                     } else {
                         nowMinutes < endMinutes || nowMinutes > startMinutes
                     }
-                    if (!insidePeriod) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (!insidePeriod) { return XposedHelpers.proceedOrThrow(chain, throwable) }
 
                     var mSupportsAmplitudeControl = false
                     try {
                         mSupportsAmplitudeControl = XposedHelpers.getBooleanField(thisObject, "mSupportsAmplitudeControl")
                     } catch (ignore: Throwable) {}
 
+                    val args = XposedHelpers.getArgsArray(chain)
                     if (mSupportsAmplitudeControl)
                         args[1] = Math.round((if (args[1] as Int == -1) XposedHelpers.getIntField(thisObject, "mDefaultVibrationAmplitude") else args[1] as Int) * ratio)
                     else

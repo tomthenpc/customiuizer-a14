@@ -878,15 +878,16 @@ object Controls {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
                     val thisObject = chain.thisObject
 
                     val pct = MainModule.mPrefs.getInt("controls_fsg_width", 100)
-                    if (pct == 100) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (pct == 100) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     val mGestureStubDefaultSize = XposedHelpers.getIntField(thisObject, "mGestureStubDefaultSize")
-                    if ((args[0] as Int) == mGestureStubDefaultSize) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
-                    args[0] = Math.round((args[0] as Int) * pct / 100f)
+                    val requestedSize = chain.getArg(0) as Int
+                    if (requestedSize == mGestureStubDefaultSize) { return XposedHelpers.proceedOrThrow(chain, throwable) }
+                    val args = XposedHelpers.getArgsArray(chain)
+                    args[0] = Math.round(requestedSize * pct / 100f)
 
                     result = chain.proceed(args)
                 } catch (t: Throwable) {

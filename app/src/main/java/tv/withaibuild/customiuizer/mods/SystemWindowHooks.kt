@@ -205,14 +205,14 @@ object SystemWindowHooks {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val windowType = args[4] as Int
+                    val windowType = chain.getArg(4) as Int
                     if (windowType != WindowManager.LayoutParams.TYPE_PHONE
                         && windowType != WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY
                         && windowType != WindowManager.LayoutParams.TYPE_SYSTEM_ALERT
-                        && windowType != WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                        && windowType != WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY) { return XposedHelpers.proceedOrThrow(chain, throwable) }
+                    val args = XposedHelpers.getArgsArray(chain)
                     var flags = args[flagIndex] as Int
                     val skipFlag = 64
                     flags = flags or skipFlag

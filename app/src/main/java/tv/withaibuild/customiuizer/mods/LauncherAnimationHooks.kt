@@ -26,12 +26,12 @@ object LauncherAnimationHooks {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
                     var scale = Helpers.getAnimationScale(2)
-                    if (scale == 1.0f) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    if (scale == 1.0f) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     if (scale == 0f) scale = 0.01f
+                    val args = XposedHelpers.getArgsArray(chain)
                     args[2] = scaleStiffness(args[2] as Float, scale)
 
                     result = chain.proceed(args)

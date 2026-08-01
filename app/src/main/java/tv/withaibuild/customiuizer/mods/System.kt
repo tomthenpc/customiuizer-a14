@@ -406,10 +406,10 @@ object System {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var result: Any? = null
                     var throwable: Throwable? = null
-                    val args = XposedHelpers.getArgsArray(chain)
                     try {
 
-                        if (args.size < 7) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                        if (chain.args.size < 7) { return XposedHelpers.proceedOrThrow(chain, throwable) }
+                        val args = XposedHelpers.getArgsArray(chain)
                         val compress = if (format <= 2) Bitmap.CompressFormat.JPEG else if (format == 3) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.WEBP
                         args[4] = compress
 
@@ -435,17 +435,17 @@ object System {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    var quality = args[1] as Int
-                    if (quality != 100 || (args[2] is ByteArrayOutputStream)) { return XposedHelpers.proceedOrThrow(chain, args, throwable) }
+                    var quality = chain.getArg(1) as Int
+                    if (quality != 100 || (chain.getArg(2) is ByteArrayOutputStream)) { return XposedHelpers.proceedOrThrow(chain, throwable) }
                     val format2 = MainModule.mPrefs.getStringAsInt("system_screenshot_format", 2)
                     quality = MainModule.mPrefs.getInt("system_screenshot_quality", 100)
                     if (format2 == 3) {
                         quality = 100
                     }
                     val compress = if (format2 <= 2) Bitmap.CompressFormat.JPEG else if (format2 == 3) Bitmap.CompressFormat.PNG else Bitmap.CompressFormat.WEBP
+                    val args = XposedHelpers.getArgsArray(chain)
                     args[0] = compress
                     args[1] = quality
 
