@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.database.Cursor
 import android.net.Uri
+import android.view.View
 import android.widget.TextView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -40,6 +41,7 @@ object StepCounterController : ScreenStateController.ScreenStateListener {
     private var timeTickReceiver: BroadcastReceiver? = null
     private var pendingUpdateJob: Job? = null
     private var timeTickRegistered = false
+    private var screenStateRegistered = false
 
     private var scope: CoroutineScope = newScope()
     private val queryMutex = Mutex()
@@ -62,22 +64,26 @@ object StepCounterController : ScreenStateController.ScreenStateListener {
     }
 
     @JvmStatic
-    fun removeStepViewByTag(tag: String) {
-        cleanupDeadViews()
-        stepViewList.removeAll { it.get()?.tag == tag }
-        if (stepViewList.isEmpty()) {
-            pendingUpdateJob?.cancel()
-            pendingUpdateJob = null
-            context?.let { unregisterTick(it) }
-        }
+    fun bindStepView(sv: TextView) {
+        sv.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(view: View) = ModuleHelper.guarded {
+                addStepView(view as TextView)
+            }
+
+            override fun onViewDetachedFromWindow(view: View) = ModuleHelper.guarded {
+                removeStepView(view as TextView)
+            }
+        })
+        addStepView(sv)
     }
 
-    @JvmStatic
-    fun addStepView(sv: TextView) {
+    private fun addStepView(sv: TextView) {
         cleanupDeadViews()
+        if (stepViewList.any { it.get() === sv }) return
         stepViewList.add(WeakReference(sv))
 
         val ctx = context ?: return
+        ensureScreenStateRegistered(ctx)
         if (ScreenStateController.isScreenOn()) {
             ensureTickRegistered(ctx)
         }
@@ -87,6 +93,11 @@ object StepCounterController : ScreenStateController.ScreenStateListener {
             delay(3000L)
             if (ScreenStateController.isScreenOn()) refreshSteps(ctx)
         }
+    }
+
+    private fun removeStepView(sv: TextView) {
+        stepViewList.removeAll { val view = it.get(); view == null || view === sv }
+        if (stepViewList.isEmpty()) releaseInactiveState()
     }
 
     @JvmStatic
@@ -101,8 +112,12 @@ object StepCounterController : ScreenStateController.ScreenStateListener {
         val oldContext = this.context
         oldContext?.let { unregisterTick(it) }
 
-        this.context = context
-        ScreenStateController.addListener(context, this)
+        if (screenStateRegistered) {
+            screenStateRegistered = false
+            ScreenStateController.removeListener(this)
+        }
+
+        this.context = context.applicationContext
 
         // Receiver will be registered when the first view appears while the
         // screen is on; do not pay for TIME_TICK while no one is observing.
@@ -111,6 +126,12 @@ object StepCounterController : ScreenStateController.ScreenStateListener {
                 if (!ScreenStateController.isScreenOn()) return@guarded
                 scope.launch { refreshSteps(context) }
             }
+        }
+
+        if (hasActiveViews()) {
+            val ctx = this.context ?: return
+            ensureScreenStateRegistered(ctx)
+            if (ScreenStateController.isScreenOn()) ensureTickRegistered(ctx)
         }
     }
 
@@ -121,6 +142,22 @@ object StepCounterController : ScreenStateController.ScreenStateListener {
 
     private fun cleanupDeadViews() {
         stepViewList.removeAll { it.get() == null }
+    }
+
+    private fun ensureScreenStateRegistered(ctx: Context) {
+        if (screenStateRegistered) return
+        screenStateRegistered = true
+        ScreenStateController.addListener(ctx, this)
+    }
+
+    private fun releaseInactiveState() {
+        pendingUpdateJob?.cancel()
+        pendingUpdateJob = null
+        context?.let { unregisterTick(it) }
+        if (screenStateRegistered) {
+            screenStateRegistered = false
+            ScreenStateController.removeListener(this)
+        }
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")

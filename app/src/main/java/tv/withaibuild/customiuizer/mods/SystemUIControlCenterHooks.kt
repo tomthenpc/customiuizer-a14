@@ -278,7 +278,6 @@ object SystemUIControlCenterHooks {
                     val headerView = XposedHelpers.callMethod(param.getThisObject(), "getView") as ViewGroup
                     var stepView = headerView.findViewWithTag<TextView>(tag)
                     if (stepView == null) {
-                        StepCounterController.removeStepViewByTag(tag)
                         stepView = TextView(headerView.context)
                         stepView.id = stepViewId
                         val res = headerView.resources
@@ -286,7 +285,7 @@ object SystemUIControlCenterHooks {
                         stepView.setTextAppearance(styleId)
                         stepView.setTag(tag)
                         headerView.addView(stepView)
-                        StepCounterController.addStepView(stepView)
+                        StepCounterController.bindStepView(stepView)
                     }
                 }
             }
