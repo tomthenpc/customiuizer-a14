@@ -2,6 +2,7 @@ package tv.withaibuild.customiuizer.mods.utils
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.utils.PrefMap
@@ -287,4 +288,39 @@ class FeatureInstallRegistryTest {
             assertTrue(FeatureInstallState.get(spec.id) == FeatureState.FAILED_TRANSIENT)
         }
     }
-}
+
+    @Test(expected = OutOfMemoryError::class)
+    fun installOne_createdDefinitionRemovedWhenInstallThrowsOom() {
+        val registry = FeatureInstallRegistry()
+        val definition = object : FeatureDefinition {
+            override val id = TestId("oom-install")
+            override val name = "OOM Install"
+            override val preferenceKey = "oom_install"
+            override val target = FeatureTarget.SYSTEM_UI
+            override val phase = InstallPhase.PACKAGE_READY
+            override fun isEnabled(prefs: PrefMap) = true
+            override fun install(): FeatureInstallResult {
+                throw OutOfMemoryError("OOM in install")
+            }
+        }
+        val spec = LazyFeatureSpec(
+            id = definition.id,
+            name = definition.name,
+            preferenceKey = definition.preferenceKey,
+            target = definition.target,
+            phase = definition.phase,
+            enabled = { true },
+            factory = { definition },
+        )
+        registry.register(spec)
+
+        try {
+            registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
+        } finally {
+            assertTrue(FeatureInstallState.get(spec.id) == FeatureState.FAILED_TRANSIENT)
+            assertNull(
+                "active definition must be removed after install OOM",
+                registry.activeDefinitionForTest(spec.id)
+            )
+        }
+    }

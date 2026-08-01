@@ -89,6 +89,7 @@ class FeatureInstallRegistry {
                     val installResult = created.install()
                     Pair(created, installResult)
                 } catch (oom: OutOfMemoryError) {
+                    activeDefinitions.remove(id)
                     FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
                     throw oom
                 } catch (t: Throwable) {
@@ -173,4 +174,7 @@ class FeatureInstallRegistry {
         FeatureInstallResult.RESTART_LATER -> FeatureState.RESTART_REQUIRED
         FeatureInstallResult.SKIPPED -> FeatureState.NOT_INSTALLED
     }
+
+    /** Test-only access to the active definition map. */
+    internal fun activeDefinitionForTest(id: FeatureId): FeatureDefinition? = activeDefinitions[id]
 }
