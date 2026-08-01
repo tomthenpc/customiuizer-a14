@@ -275,3 +275,38 @@ Launcher 的重命名功能就是这个形状：在 `ShortcutInfo` 上存 `mLabe
 
 This matches the same `guard-framework-callbacks` principle but with the additional requirement
 that the ordered-broadcast cleanup must complete even on early-return and exception paths.
+
+---
+
+## 9. `api102-isolation`
+
+The project compiles against libxposed API 102 but keeps `minApiVersion=101`. API 101 AAR
+contains `XposedInterface.HookBuilder` but **not** `setId(String)`; it also does not contain
+`HookHandle.getId()` or `HookHandle.replaceHook(Hooker)`. If a class that references those
+methods is loaded and verified on an API 101 host, a `NoSuchMethodError` / verify error can
+brick the module on older LSPosed versions.
+
+### Contract
+
+- `HookBuilder.setId` may only appear in `Api102HookBridge.kt`.
+- `HookHandle.replaceHook` and the `HotReloadingParam` / `HotReloadedParam` types are not used.
+- `XposedInterface.getApiVersion()` may only be called from `MainModule.java` and
+  `XposedApiCapabilities.kt` (the cold module entry path).
+- No hook callback queries the API version.
+
+---
+
+## 10. `no-feature-definition-before-enabled`
+
+`FeatureDefinition` objects used to be created in every `XxxFeatures.all()` call before the
+preference check. For ~245 features this meant allocating installer closures, hook objects,
+receivers and context holders even when every preference was off.
+
+### Contract
+
+- `FeatureSpec` carries fixed metadata and an `isEnabled(prefs)` predicate.
+- `FeatureInstallRegistry` must filter by `target`, then `phase`, then `isEnabled`, and only
+  then call `spec.create()` to obtain the runtime `FeatureDefinition`.
+- `FeatureDefinition` may still be its own spec (`create() = this`) during migration, but new
+  code must return `LazyFeatureSpec` from `all()` and keep the `FeatureDefinition` heavy
+  objects inside the `factory` lambda.

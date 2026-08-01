@@ -50,7 +50,11 @@ The static gate `tools/check-invariants.py` enforces these. See `docs/RUNTIME_IN
 - Hook callbacks do not use `XposedHelpers.getArgsArray()` for read-only parameters.
 - `Handler()` always receives an explicit `Looper`.
 - No Legacy `de.robv.android.xposed` API is used in runtime paths.
-- API 102-only symbols do not enter API 101 cold paths.
+- API 102-only symbols do not enter API 101 cold paths:
+  `setId`, `replaceHook`, `HotReloadingParam`, `HotReloadedParam` and `getApiVersion()`
+  in callbacks are blocked by `tools/check-invariants.py`.
+- Out-of-memory errors are rethrown at the boundaries of `HookInstallerFacade`,
+  `ModuleHelper`, `FeatureInstallRegistry`, `ReflectionCache` and `ReceiverRegistry`.
 
 ## libxposed API boundary
 
@@ -91,10 +95,11 @@ The current repo is the source of truth. Do not reset, rebase or merge to upstre
 | Enum install results | Done. `FeatureInstallResult` no longer allocates common results. |
 | Callback guarding | Done. `ModuleHelper.guarded` and `CallbackGuard`. |
 | Receiver/Observer registry | Done. `ReceiverRegistry` and `PreferenceObserverRegistry`. |
-| ReflectionCache | Done. Bounded per-loader state. |
-| ResourceHooks sparse | Done. `SparseArray`/`SparseIntArray` hot path. |
-| `all()` static isEnabled | Not started. Feature objects are still created before the preference check. |
-| Bitmap / View lifecycle, periodic SystemUI work | Not started. Deferred to A14-6. |
+| ReflectionCache | Done. Bounded per-loader state; OOM does not write negative caches. |
+| ResourceHooks sparse | Done. `SparseArray`/`SparseIntArray` hot path; real hook results honored. |
+| Feature spec / lazy definition | Done. All package features return `LazyFeatureSpec`; `FeatureInstallRegistry` creates `FeatureDefinition` only when enabled. |
+| API 102 stable hook ID | READY_NOT_WIRED. `XposedApiCapabilities` + `Api102HookBridge` isolated; `setId` not wired to production path yet. |
+| Bitmap / View lifecycle, periodic SystemUI work | Not started. Deferred to A14-6G. |
 
 ## Remaining static tasks
 
@@ -124,7 +129,7 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 
 At the current `devin/a14-runtime-hardening` HEAD:
 
-- `check-invariants.py` reports 153 files, no violations.
+- `check-invariants.py` reports 157 files, no violations.
 - `compileDebugKotlin`, `compileDebugJavaWithJavac`, `testDebugUnitTest` and `lintDebug` pass.
 
 See `docs/VERIFICATION.md` for the current verification record and `docs/LSPOSED_LOG_ANALYSIS.md` for log triage.

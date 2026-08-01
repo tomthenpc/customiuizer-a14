@@ -4,7 +4,7 @@
 
 ## 当前静态基线
 
-当前 HEAD：`devin/a14-runtime-hardening`
+当前分支：`devin/a14-runtime-hardening`
 
 ```bash
 python tools/verify.py full
@@ -22,6 +22,13 @@ python -m unittest discover -s tools/tests -p "test_*.py"
   - 编排 `check-invariants`、Gradle `compile` / `test` / `lintDebug`。
   - `full` 用于完整验证；`fast` / `--changed` 用于本地增量验证。
 
+## 本轮 A14-6F 静态验证结果
+
+- `check-invariants.py`：157 个文件，0 个违规。
+- `compileDebugKotlin`、`compileDebugJavaWithJavac`、`testDebugUnitTest`、`lintDebug` 均通过。
+- `python -m unittest discover -s tools/tests -p "test_*.py"`：Python 工具测试通过。
+- 未执行 `assemble*`、`package`、`bundle`、`install`、`sign`、`publish`、`officialRelease`。
+
 ## 最近一次可信实机验证
 
 版本：`r14.13.8` / versionCode `186`
@@ -37,6 +44,9 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 ## 当前待实机验证项
 
 - 新 `FeatureInstallResult` enum 与 `FeatureInstallState` 在 `system_server` / SystemUI / Launcher 的加载顺序和异常路径。
+- `FeatureSpec` 到 `FeatureDefinition` 的延迟创建在不同进程的加载行为。
+- `XposedApiCapabilities` 在 API 101 与 API 102 宿主上的初始化结果。
+- `Api102HookBridge` 的 `setId` 隔离（目前未接线到生产路径，因此无需设备验证 setId）。
 - `WeakOwnerReceiver` 在真实 GC 与框架广播竞争下的清理行为。
 - `ReflectionCache.onSafeLifecycle` 在不同 ROM 上的触发时机。
 - 热路径 `ResourceHooks` 在主题切换、SystemUI 与 Launcher 重建时的延迟与内存。
