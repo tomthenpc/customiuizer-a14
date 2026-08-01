@@ -21,8 +21,8 @@ import java.lang.ref.WeakReference
 /**
  * Weather data cache for the status bar clock.
  *
- * - The context and update runnable are held as weak references so a destroyed
- *   clock controller does not keep SystemUI objects alive.
+ * - Only the application context is retained. The clock controller is weakly
+ *   referenced so rebuilding SystemUI clock controllers cannot leak old views.
  * - The ContentProvider query is protected by a Mutex so ticks do not pile up
  *   while a query is already in flight.
  * - TIME_TICK is only registered while the screen is on; screen off stops both
@@ -33,10 +33,10 @@ import java.lang.ref.WeakReference
 object WeatherDataController : ScreenStateController.ScreenStateListener {
 
     @JvmField
+    @Volatile
     var weatherInfo: String = ""
 
-    private var weakReferenceContext: WeakReference<Context>? = null
-    private var weakReferenceRunnable: Runnable? = null
+    private var updateTarget: WeakReference<Any>? = null
     private var timeTickReceiver: BroadcastReceiver? = null
     private var context: Context? = null
 
@@ -44,6 +44,7 @@ object WeatherDataController : ScreenStateController.ScreenStateListener {
     private val queryMutex = Mutex()
     private var timeTickRegistered = false
     private var pendingForceRefresh = false
+    private var queryFailureLogged = false
 
     private fun newScope(): CoroutineScope =
         CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + ModuleHelper.coroutineFailureHandler)
@@ -64,7 +65,7 @@ object WeatherDataController : ScreenStateController.ScreenStateListener {
     }
 
     private fun queryWeather() {
-        val ctx = weakReferenceContext?.get() ?: return
+        val ctx = context ?: return
 
         var cursor: Cursor? = null
         try {
@@ -84,7 +85,14 @@ object WeatherDataController : ScreenStateController.ScreenStateListener {
                 }
                 weatherInfo = newWeather
             }
-        } catch (ignored: Throwable) {
+            queryFailureLogged = false
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            if (!queryFailureLogged) {
+                queryFailureLogged = true
+                XposedHelpers.log(t)
+            }
         } finally {
             cursor?.close()
         }
@@ -104,27 +112,30 @@ object WeatherDataController : ScreenStateController.ScreenStateListener {
                 queryMutex.withLock { queryWeather() }
             }
             if (forceRefresh) {
-                weakReferenceRunnable?.run()
+                val target = updateTarget?.get()
+                if (target != null) {
+                    ModuleHelper.guarded { XposedHelpers.callMethod(target, "updateTime") }
+                }
             }
         }
     }
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @JvmStatic
-    fun initContext(context: Context, updateTimeRunnable: Runnable) {
+    fun initContext(context: Context, clockController: Any) {
         // Cancel any pending work from a previous context and start fresh.
         controllerScope.cancel()
         controllerScope = newScope()
         pendingForceRefresh = false
 
+        val appContext = context.applicationContext
         val oldContext = this.context
         oldContext?.let { unregisterTick(it) }
 
-        weakReferenceContext = WeakReference(context)
-        weakReferenceRunnable = updateTimeRunnable
-        this.context = context
+        updateTarget = WeakReference(clockController)
+        this.context = appContext
 
-        ScreenStateController.addListener(context, this)
+        ScreenStateController.addListener(appContext, this)
 
         timeTickReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
@@ -134,7 +145,7 @@ object WeatherDataController : ScreenStateController.ScreenStateListener {
         }
 
         if (ScreenStateController.isScreenOn()) {
-            ensureTickRegistered(context)
+            ensureTickRegistered(appContext)
             controllerScope.launch {
                 delay(1800)
                 if (ScreenStateController.isScreenOn()) refreshWeatherData(true)

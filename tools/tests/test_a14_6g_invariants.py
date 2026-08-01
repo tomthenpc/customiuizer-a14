@@ -386,6 +386,74 @@ fun NavBarButtonsHook(param: Any) {
         findings = self.mod.check_nav_bar_dark_hot_path(path, unsafe)
         self.assertEqual(4, len(findings))
 
+    def test_weather_data_lifecycle_rejects_strong_controller_capture(self):
+        path = self._source_path("tv/withaibuild/customiuizer/mods/utils/WeatherDataController.kt")
+        clean = """
+private var updateTarget: WeakReference<Any>? = null
+val appContext = context.applicationContext
+updateTarget = WeakReference(clockController)
+@Volatile
+    var weatherInfo: String = ""
+try {
+    query()
+} catch (oom: OutOfMemoryError) {
+    throw oom
+} catch (t: Throwable) {
+    if (!queryFailureLogged) log(t)
+}
+"""
+        self.assertEqual([], self.mod.check_weather_data_lifecycle(path, clean))
+
+        unsafe = """
+private var weakReferenceRunnable: Runnable? = null
+private var context: Context? = null
+try {
+    query()
+} catch (t: Throwable) {
+}
+"""
+        findings = self.mod.check_weather_data_lifecycle(path, unsafe)
+        self.assertEqual(7, len(findings))
+
+    def test_coroutine_failure_handler_must_rethrow_oom(self):
+        path = self._source_path("tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt")
+        clean = """
+val coroutineFailureHandler: CoroutineExceptionHandler =
+    CoroutineExceptionHandler { _, throwable ->
+        if (throwable is OutOfMemoryError) throw throwable
+        log(throwable)
+    }
+"""
+        self.assertEqual([], self.mod.check_weather_data_lifecycle(path, clean))
+
+        unsafe = """
+val coroutineFailureHandler: CoroutineExceptionHandler =
+    CoroutineExceptionHandler { _, throwable -> log(throwable) }
+"""
+        findings = self.mod.check_weather_data_lifecycle(path, unsafe)
+        self.assertEqual(1, len(findings))
+
+    def test_weather_hook_boundary_must_rethrow_oom(self):
+        path = self._source_path("tv/withaibuild/customiuizer/mods/SystemClockHooks.kt")
+        clean = """
+WeatherDataController.initContext(mContext, thisObject)
+} catch (oom: OutOfMemoryError) {
+    throw oom
+} catch (t: Throwable) {
+    log(t)
+}
+"""
+        self.assertEqual([], self.mod.check_weather_data_lifecycle(path, clean))
+
+        unsafe = """
+WeatherDataController.initContext(mContext, thisObject)
+} catch (t: Throwable) {
+    log(t)
+}
+"""
+        findings = self.mod.check_weather_data_lifecycle(path, unsafe)
+        self.assertEqual(1, len(findings))
+
     def test_reflection_cache_get_declared_method_oom_ok(self):
         text = """
     private fun resolveDependencyMethod(loaderState: LoaderState, classLoader: ClassLoader?): Method? {

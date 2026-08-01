@@ -659,7 +659,10 @@ class ModuleHelper private constructor() {
          */
         @JvmField
         val coroutineFailureHandler: CoroutineExceptionHandler =
-            CoroutineExceptionHandler { _, throwable -> XposedHelpers.log(throwable) }
+            CoroutineExceptionHandler { _, throwable ->
+                if (throwable is OutOfMemoryError) throw throwable
+                XposedHelpers.log(throwable)
+            }
 
         /**
          * Runs [block], logging instead of propagating any failure.

@@ -762,6 +762,86 @@ def check_nav_bar_dark_hot_path(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def check_weather_data_lifecycle(path: Path, text: str) -> list[Finding]:
+    """The process weather singleton must not retain rebuilt SystemUI controllers or View contexts."""
+    rel = rel_posix(path)
+    if rel == "tv/withaibuild/customiuizer/mods/SystemClockHooks.kt":
+        findings = []
+        if "val mWeatherRunnable = Runnable" in text:
+            findings.append(
+                Finding(
+                    "weather-data-lifecycle",
+                    path,
+                    1,
+                    "do not allocate a controller-capturing Runnable for the process singleton",
+                )
+            )
+        if "WeatherDataController.initContext(mContext, thisObject)" not in text:
+            findings.append(
+                Finding(
+                    "weather-data-lifecycle",
+                    path,
+                    1,
+                    "pass the clock controller itself so WeatherDataController can retain it weakly",
+                )
+            )
+        init_call = text.find("WeatherDataController.initContext(mContext, thisObject)")
+        oom_catch = text.find("catch (oom: OutOfMemoryError)", init_call)
+        generic_catch = text.find("catch (t: Throwable)", init_call)
+        if init_call >= 0 and (oom_catch < 0 or generic_catch < 0 or oom_catch > generic_catch):
+            findings.append(
+                Finding(
+                    "weather-data-lifecycle",
+                    path,
+                    line_of(text, init_call),
+                    "weather hook initialization must rethrow OOM before isolating ordinary failures",
+                )
+            )
+        return findings
+
+    if rel == "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt":
+        handler = text.find("val coroutineFailureHandler: CoroutineExceptionHandler")
+        if handler < 0:
+            return [Finding("weather-data-lifecycle", path, 1, "coroutine failure handler is missing")]
+        body, _ = block_at(text, handler)
+        if "if (throwable is OutOfMemoryError) throw throwable" not in body:
+            return [
+                Finding(
+                    "weather-data-lifecycle",
+                    path,
+                    line_of(text, handler),
+                    "coroutine failure handler must rethrow OutOfMemoryError",
+                )
+            ]
+        return []
+
+    if rel != "tv/withaibuild/customiuizer/mods/utils/WeatherDataController.kt":
+        return []
+
+    findings = []
+    required = (
+        ("private var updateTarget: WeakReference<Any>?", "retain the clock controller through WeakReference"),
+        ("val appContext = context.applicationContext", "retain only the application context"),
+        ("updateTarget = WeakReference(clockController)", "replace the weak update target on controller rebuild"),
+        ("@Volatile\n    var weatherInfo", "publish weather updates safely from the I/O dispatcher"),
+        ("if (!queryFailureLogged)", "rate-limit repeated weather provider diagnostics"),
+        ("catch (oom: OutOfMemoryError)", "rethrow query OutOfMemoryError before isolating ordinary failures"),
+    )
+    for token, detail in required:
+        if token not in text:
+            findings.append(Finding("weather-data-lifecycle", path, 1, detail))
+    if "private var weakReferenceRunnable: Runnable?" in text:
+        findings.append(
+            Finding(
+                "weather-data-lifecycle",
+                path,
+                1,
+                "process singleton must not strongly retain a controller-capturing Runnable",
+            )
+        )
+    return findings
+
+
 REFLECTION_CACHE = "tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt"
 
 
@@ -865,6 +945,7 @@ RULES = (
     check_charging_info_hot_path,
     check_album_art_memory_lifecycle,
     check_nav_bar_dark_hot_path,
+    check_weather_data_lifecycle,
     check_reflection_cache_get_declared_method_oom,
 )
 

@@ -236,11 +236,10 @@ object SystemClockHooks {
                     val thisObject = chain.thisObject
 
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
-                    val mWeatherRunnable = Runnable {
-                        ModuleHelper.guarded { XposedHelpers.callMethod(thisObject, "updateTime") }
-                    }
-                    WeatherDataController.initContext(mContext, mWeatherRunnable)
+                    WeatherDataController.initContext(mContext, thisObject)
 
+                } catch (oom: OutOfMemoryError) {
+                    throw oom
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                 }
