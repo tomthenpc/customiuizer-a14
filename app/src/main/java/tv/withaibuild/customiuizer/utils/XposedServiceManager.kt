@@ -7,6 +7,11 @@ import android.os.SystemClock
 import io.github.libxposed.service.RemotePreferences
 import io.github.libxposed.service.XposedService
 import io.github.libxposed.service.XposedServiceHelper
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Single application-level owner for the LSPosed/Vector service connection.
@@ -113,9 +118,11 @@ object XposedServiceManager {
     var state: State = State.UNKNOWN
 
     @JvmField
+    @Volatile
     var service: XposedService? = null
 
     @JvmField
+    @Volatile
     var remotePrefs: RemotePreferences? = null
 
     private const val NOT_STARTED = 0L
@@ -132,20 +139,23 @@ object XposedServiceManager {
     private val mirrorState = PrefsMirrorState()
 
     /**
-     * The mirror runs here, and it is deliberately the main looper rather than a worker.
+     * UI deadlines and delayed retry triggers live on the main looper. Preference snapshots,
+     * map copies and RemotePreferences editor updates run on [mirrorScope] instead.
      *
-     * Both halves of a pass were checked against the libxposed 102.0.0 bytecode:
-     * `RemotePreferences.getAll` copies an in-memory map with no binder call at all, and
-     * `RemotePreferences.Editor.apply` updates that local map and then hands the one binder
-     * call to the library's own executor, so it does not block either. What is left on this
-     * thread is two map copies and a diff over a few hundred keys. The one call that *is*
-     * blocking - `getRemotePreferences` in [init] - already runs on the daemon's binder
-     * thread, where it always did.
-     *
-     * The rule this handler exists to keep is the other one: nothing reads or writes the
-     * mirror on the daemon's binder thread, because holding that up holds up the daemon.
+     * libxposed 102 `RemotePreferences.Editor.apply()` sends Binder work through its own
+     * executor, but it first clones and updates the complete in-memory map on the caller.
+     * Doing that from SharedPreferences' main-thread listener delays the switch rebind and
+     * makes a successful tap look ignored. A shared Default worker avoids a dedicated thread;
+     * limited parallelism preserves editor order without locks around remote calls.
      */
     private val handler = Handler(Looper.getMainLooper())
+    private val mirrorFailureHandler = CoroutineExceptionHandler { _, throwable ->
+        if (throwable is OutOfMemoryError) throw throwable
+        AppHelper.log(LOG_TAG, "mirror worker failed: $throwable")
+    }
+    private val mirrorScope = CoroutineScope(
+        SupervisorJob() + Dispatchers.Default.limitedParallelism(1) + mirrorFailureHandler
+    )
 
     /**
      * Upper bound on how long [state] may stay [State.UNKNOWN].
@@ -227,20 +237,43 @@ object XposedServiceManager {
             return@OnSharedPreferenceChangeListener
         }
 
-        val written = try {
-            val value = sharedPreferences.all[key]
-            val edit = remote.edit()
-            if (value == null) edit.remove(key) else putValue(edit, key, value)
-            edit.apply()
-            true
-        } catch (t: Throwable) {
-            AppHelper.log(LOG_TAG, "remote write for '$key' failed: $t")
-            false
-        }
+        requestPreferenceWrite(sharedPreferences, key, generation)
+    }
 
-        if (!written) {
-            markUndelivered("remote write failed")
-            scheduleMirrorRetry(generation)
+    /** Leaves the SharedPreferences callback after a constant-time enqueue. */
+    private fun requestPreferenceWrite(
+        sharedPreferences: SharedPreferences,
+        key: String,
+        generation: Long
+    ) {
+        mirrorScope.launch {
+            if (!mirrorState.isCurrent(generation)) {
+                markUndelivered("generation changed before remote write")
+                return@launch
+            }
+            val remote = remotePrefs
+            if (remote == null) {
+                markUndelivered("remote preferences disappeared before write")
+                return@launch
+            }
+            val written = try {
+                // getAll() copies the local map; keep it off the input frame as well.
+                val value = sharedPreferences.all[key]
+                val edit = remote.edit()
+                if (value == null) edit.remove(key) else putValue(edit, key, value)
+                edit.apply()
+                true
+            } catch (oom: OutOfMemoryError) {
+                throw oom
+            } catch (t: Throwable) {
+                AppHelper.log(LOG_TAG, "remote write for '$key' failed: $t")
+                false
+            }
+
+            if (!written) {
+                markUndelivered("remote write failed")
+                scheduleMirrorRetry(generation)
+            }
         }
     }
 
@@ -272,7 +305,7 @@ object XposedServiceManager {
 
     /** Queues a pass off the caller's thread. Stale generations are dropped by [runMirror]. */
     private fun requestMirrorPass(generation: Long, reason: String) {
-        handler.post { runMirror(generation, reason) }
+        mirrorScope.launch { runMirror(generation, reason) }
     }
 
     /**
@@ -286,7 +319,7 @@ object XposedServiceManager {
         if (!mirrorState.claimRetry(generation)) return
         handler.postDelayed({
             if (mirrorState.isCurrent(generation)) {
-                runMirror(generation, "retry after a failed write")
+                requestMirrorPass(generation, "retry after a failed write")
             }
         }, MIRROR_RETRY_DELAY_MS)
     }
@@ -329,6 +362,8 @@ object XposedServiceManager {
                 AppHelper.log(LOG_TAG, "mirrored ${plan.size} setting(s) to the module ($reason)")
             }
             true
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (t: Throwable) {
             AppHelper.log(LOG_TAG, "mirror pass failed ($reason): $t")
             markUndelivered("mirror pass failed")

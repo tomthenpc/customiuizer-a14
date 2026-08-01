@@ -476,6 +476,38 @@ context.registerReceiver(broadcastReceiver, filter, flags)
         findings = self.mod.check_battery_indicator_lifecycle(path, unsafe)
         self.assertEqual(11, len(findings))
 
+    def test_preference_callback_only_enqueues_remote_write(self):
+        path = self._source_path("tv/withaibuild/customiuizer/utils/XposedServiceManager.kt")
+        clean = """
+private val prefsChanged = Listener { sharedPreferences, key ->
+    requestPreferenceWrite(sharedPreferences, key, generation)
+}
+val scope = Dispatchers.Default.limitedParallelism(1)
+if (throwable is OutOfMemoryError) throw throwable
+private fun requestMirrorPass(generation: Long, reason: String) {
+    mirrorScope.launch { runMirror(generation, reason) }
+}
+"""
+        self.assertEqual([], self.mod.check_preference_click_feedback(path, clean))
+
+        unsafe = """
+private val prefsChanged = Listener { sharedPreferences, key ->
+    val value = sharedPreferences.all[key]
+    val edit = remote.edit()
+    edit.apply()
+}
+"""
+        findings = self.mod.check_preference_click_feedback(path, unsafe)
+        self.assertEqual(7, len(findings))
+
+    def test_switch_inherits_row_pressed_state(self):
+        path = self._source_path("tv/withaibuild/customiuizer/prefs/CheckBoxPreferenceEx.kt")
+        clean = """
+holder.findViewById(android.R.id.switch_widget)?.isDuplicateParentStateEnabled = true
+"""
+        self.assertEqual([], self.mod.check_preference_click_feedback(path, clean))
+        self.assertEqual(2, len(self.mod.check_preference_click_feedback(path, "")))
+
     def test_reflection_cache_get_declared_method_oom_ok(self):
         text = """
     private fun resolveDependencyMethod(loaderState: LoaderState, classLoader: ClassLoader?): Method? {

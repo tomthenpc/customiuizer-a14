@@ -444,6 +444,8 @@ LOCK_SCREEN_ALBUM_ART_CONTROLLER = "tv/withaibuild/customiuizer/mods/utils/LockS
 HOOK_UTILS = "tv/withaibuild/customiuizer/utils/HookUtils.kt"
 CONTROLS = "tv/withaibuild/customiuizer/mods/Controls.kt"
 BATTERY_INDICATOR = "tv/withaibuild/customiuizer/utils/BatteryIndicator.kt"
+XPOSED_SERVICE_MANAGER = "tv/withaibuild/customiuizer/utils/XposedServiceManager.kt"
+CHECKBOX_PREFERENCE = "tv/withaibuild/customiuizer/prefs/CheckBoxPreferenceEx.kt"
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
@@ -872,6 +874,62 @@ def check_battery_indicator_lifecycle(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def check_preference_click_feedback(path: Path, text: str) -> list[Finding]:
+    """Preference clicks must render before remote mirroring and switches need pressed feedback."""
+    rel = rel_posix(path)
+    if rel == CHECKBOX_PREFERENCE:
+        findings = []
+        if "android.R.id.switch_widget" not in text:
+            findings.append(Finding("preference-click-feedback", path, 1, "bind the platform switch widget"))
+        if "isDuplicateParentStateEnabled = true" not in text:
+            findings.append(
+                Finding(
+                    "preference-click-feedback",
+                    path,
+                    1,
+                    "propagate the row pressed state to the switch for immediate touch feedback",
+                )
+            )
+        return findings
+
+    if rel != XPOSED_SERVICE_MANAGER:
+        return []
+
+    listener_start = text.find("private val prefsChanged")
+    if listener_start < 0:
+        return [Finding("preference-click-feedback", path, 1, "preference change listener is missing")]
+    listener, _ = block_at(text, listener_start)
+    findings = []
+    if "requestPreferenceWrite(sharedPreferences, key, generation)" not in listener:
+        findings.append(
+            Finding(
+                "preference-click-feedback",
+                path,
+                line_of(text, listener_start),
+                "enqueue the remote write instead of executing it in the SharedPreferences callback",
+            )
+        )
+    for token in ("sharedPreferences.all", "remote.edit()", "edit.apply()"):
+        if token in listener:
+            findings.append(
+                Finding(
+                    "preference-click-feedback",
+                    path,
+                    line_of(text, listener_start),
+                    f"'{token}' must not run inside the input-frame preference callback",
+                )
+            )
+    required = (
+        ("Dispatchers.Default.limitedParallelism(1)", "serialize mirror work on a shared background dispatcher"),
+        ("mirrorScope.launch { runMirror(generation, reason) }", "run full mirror passes off the main looper"),
+        ("if (throwable is OutOfMemoryError) throw throwable", "preserve OOM at the mirror worker boundary"),
+    )
+    for token, detail in required:
+        if token not in text:
+            findings.append(Finding("preference-click-feedback", path, 1, detail))
+    return findings
+
+
 REFLECTION_CACHE = "tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt"
 
 
@@ -977,6 +1035,7 @@ RULES = (
     check_nav_bar_dark_hot_path,
     check_weather_data_lifecycle,
     check_battery_indicator_lifecycle,
+    check_preference_click_feedback,
     check_reflection_cache_get_declared_method_oom,
 )
 

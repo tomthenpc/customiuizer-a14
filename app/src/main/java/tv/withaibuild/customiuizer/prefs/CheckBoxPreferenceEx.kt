@@ -45,6 +45,9 @@ class CheckBoxPreferenceEx(context: Context, attrs: AttributeSet?) : SwitchPrefe
         super.onBindViewHolder(holder)
         val title = holder.findViewById(android.R.id.title) as? TextView
         title?.maxLines = 2
+        // The row owns the click. Propagate its pressed state to the non-clickable Switch so
+        // the thumb/track responds on ACTION_DOWN, before persistence and adapter rebind.
+        holder.findViewById(android.R.id.switch_widget)?.isDuplicateParentStateEnabled = true
         getView(holder.itemView)
     }
 
