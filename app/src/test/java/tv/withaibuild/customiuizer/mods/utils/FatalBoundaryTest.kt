@@ -46,6 +46,14 @@ class FatalBoundaryTest {
         }
     }
 
+    private class VmThrowingClassLoader : ClassLoader(FatalBoundaryTest::class.java.classLoader) {
+        override fun loadClass(name: String?, resolve: Boolean): Class<*> {
+            if (name == "android.app.ActivityThread") throw InternalError("simulated application class loader VM error")
+            if (name == "nonexistent.target.Class") throw ClassNotFoundException(name)
+            return super.loadClass(name, resolve)
+        }
+    }
+
     private class FakeDependency {
         companion object {
             @JvmStatic
@@ -149,6 +157,42 @@ class FatalBoundaryTest {
     @Test(expected = InternalError::class)
     fun namedThrowableLogger_rethrowsVirtualMachineError() {
         XposedHelpers.log("test", InternalError("boom"))
+    }
+
+    @Test
+    fun findClassIfExists_propagatesVirtualMachineErrorFromApplicationClassLoader() {
+        val applicationClassLoaderField = XposedHelpers::class.java.getDeclaredField("applicationClassLoader")
+            .apply { isAccessible = true }
+        applicationClassLoaderField.set(null, null)
+
+        val loader = VmThrowingClassLoader()
+        try {
+            XposedHelpers.findClassIfExists("nonexistent.target.Class", loader)
+            fail("InternalError from getApplicationClassLoader must propagate")
+        } catch (e: InternalError) {
+            // expected
+        }
+    }
+
+    @Test
+    fun findClassIfExists_propagatesThreadDeathFromApplicationClassLoader() {
+        val applicationClassLoaderField = XposedHelpers::class.java.getDeclaredField("applicationClassLoader")
+            .apply { isAccessible = true }
+        applicationClassLoaderField.set(null, null)
+
+        val loader = object : ClassLoader(FatalBoundaryTest::class.java.classLoader) {
+            override fun loadClass(name: String?, resolve: Boolean): Class<*> {
+                if (name == "android.app.ActivityThread") throw ThreadDeath()
+                if (name == "nonexistent.target.Class") throw ClassNotFoundException(name)
+                return super.loadClass(name, resolve)
+            }
+        }
+        try {
+            XposedHelpers.findClassIfExists("nonexistent.target.Class", loader)
+            fail("ThreadDeath from getApplicationClassLoader must propagate")
+        } catch (e: ThreadDeath) {
+            // expected
+        }
     }
 
     @Test

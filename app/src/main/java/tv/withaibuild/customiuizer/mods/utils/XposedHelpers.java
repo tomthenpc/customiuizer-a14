@@ -480,7 +480,10 @@ public final class XposedHelpers {
             }
         } catch (OutOfMemoryError oom) {
             throw oom;
-        } catch (Throwable ignored) {}
+        } catch (Throwable t) {
+            if (t instanceof VirtualMachineError) throw (VirtualMachineError) t;
+            if (t instanceof ThreadDeath) throw (ThreadDeath) t;
+        }
         return null;
     }
 
