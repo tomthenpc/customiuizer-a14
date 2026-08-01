@@ -52,10 +52,8 @@ internal class PackagePermissionsFeature(
     override val phase = InstallPhase.SYSTEM_SERVER_STARTING
     override fun isEnabled(prefs: PrefMap) = true
 
-    override fun install(): FeatureInstallResult = try {
+    override fun install(): FeatureInstallResult {
         PackagePermissions.hook(lpparam)
-        FeatureInstallResult.INSTALLED
-    } catch (t: Throwable) {
-        FeatureInstallResult.FAILED_TRANSIENT
+        return FeatureInstallResult.INSTALLED
     }
 }

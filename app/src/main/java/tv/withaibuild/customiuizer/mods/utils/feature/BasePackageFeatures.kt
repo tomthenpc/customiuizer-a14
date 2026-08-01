@@ -29,11 +29,9 @@ internal abstract class BasePackageReadyFeature(
 
     final override fun isEnabled(prefs: PrefMap) = isEnabledCondition(prefs)
 
-    open override fun install(): FeatureInstallResult = try {
+    open override fun install(): FeatureInstallResult {
         installHook()
-        FeatureInstallResult.INSTALLED
-    } catch (t: Throwable) {
-        FeatureInstallResult.FAILED_TRANSIENT
+        return FeatureInstallResult.INSTALLED
     }
 }
 
@@ -56,10 +54,8 @@ internal abstract class BaseApplicationAttachedFeature(
 
     final override fun isEnabled(prefs: PrefMap) = isEnabledCondition(prefs)
 
-    open override fun install(): FeatureInstallResult = try {
+    open override fun install(): FeatureInstallResult {
         installHook()
-        FeatureInstallResult.INSTALLED
-    } catch (t: Throwable) {
-        FeatureInstallResult.FAILED_TRANSIENT
+        return FeatureInstallResult.INSTALLED
     }
 }

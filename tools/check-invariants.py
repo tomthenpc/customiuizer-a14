@@ -434,6 +434,8 @@ def check_api102_isolation(path: Path, text: str) -> list[Finding]:
 
 
 FEATURE_INSTALL_REGISTRY = "tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistry.kt"
+FEATURE_DEFINITION_ROOT = "tv/withaibuild/customiuizer/mods/utils/feature/"
+SYSTEM_SERVER_INSTALLER = "tv/withaibuild/customiuizer/mods/utils/SystemServerInstaller.kt"
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
@@ -471,6 +473,27 @@ def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
                 )
             )
     return findings
+
+
+def check_feature_install_boundary(path: Path, text: str) -> list[Finding]:
+    """Feature definitions must delegate Throwable isolation to FeatureInstallRegistry.
+
+    A local catch(Throwable) hides OutOfMemoryError from the registry's fatal boundary and also
+    loses the feature id/name diagnostics recorded by that boundary.
+    """
+    rel = rel_posix(path)
+    if not rel.startswith(FEATURE_DEFINITION_ROOT) and rel != SYSTEM_SERVER_INSTALLER:
+        return []
+
+    return [
+        Finding(
+            "feature-install-boundary",
+            path,
+            line_of(text, match.start()),
+            "feature installer must not catch Throwable; let FeatureInstallRegistry isolate and record it",
+        )
+        for match in re.finditer(r"catch\s*\([^)]*\bThrowable\b[^)]*\)", text)
+    ]
 
 
 def check_early_restart_enabled(path: Path, text: str) -> list[Finding]:
@@ -597,6 +620,7 @@ RULES = (
     check_no_regex_split_on_literal,
     check_api102_isolation,
     check_feature_install_oom_cleanup,
+    check_feature_install_boundary,
     check_early_restart_enabled,
     check_reflection_cache_get_declared_method_oom,
 )
@@ -626,6 +650,7 @@ def changed_kotlin_files() -> list[Path]:
 
 MANIFEST = REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml"
 MAIN_MODULE = REPO_ROOT / "app" / "src" / "main" / "java" / "tv" / "withaibuild" / "customiuizer" / "MainModule.java"
+XPOSED_HELPERS = SOURCE_ROOT / "tv" / "withaibuild" / "customiuizer" / "mods" / "utils" / "XposedHelpers.java"
 
 
 CONTRACTS_DIR = REPO_ROOT / "rom-contracts"
@@ -639,6 +664,29 @@ EXPECTED_PROCESS_PACKAGE = {
 }
 
 FRAMEWORK_TARGETS = {"framework"}
+
+
+def check_dexkit_close_oom(path: Path | None = None) -> list[Finding]:
+    """DexKit bridge cleanup must not swallow OutOfMemoryError."""
+    if path is None:
+        path = XPOSED_HELPERS
+    text = strip_comments(path.read_text(encoding="utf-8"))
+    method = text.find("public static void closeBridge()")
+    if method < 0:
+        return [Finding("dexkit-close-oom", path, 1, "closeBridge method is missing")]
+
+    body, _ = block_at(text, method)
+    oom = re.search(r"catch\s*\(\s*OutOfMemoryError\s+oom\s*\)", body)
+    if oom is None or "throw oom;" not in body[oom.start():]:
+        return [
+            Finding(
+                "dexkit-close-oom",
+                path,
+                line_of(text, method),
+                "closeBridge must catch and rethrow OutOfMemoryError before generic Throwable",
+            )
+        ]
+    return []
 
 
 def smali_to_fqcn(class_desc: str) -> str:
@@ -778,6 +826,7 @@ def main() -> int:
 
     findings.extend(check_rom_contracts())
     findings.extend(check_docs_zero_object_wording())
+    findings.extend(check_dexkit_close_oom())
 
     if not findings:
         print(f"check-invariants: {len(files)} files, no violations")

@@ -80,6 +80,58 @@ class A14_6GInvariantsTest(unittest.TestCase):
         self.assertEqual(1, len(findings))
         self.assertIn("activeDefinitions", findings[0].detail)
 
+    def test_feature_definition_delegates_throwable_boundary(self):
+        path = self._source_path(
+            "tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt"
+        )
+        clean = """
+    override fun install(): FeatureInstallResult {
+        installHook()
+        return FeatureInstallResult.INSTALLED
+    }
+"""
+        swallowed = """
+    override fun install(): FeatureInstallResult = try {
+        installHook()
+        FeatureInstallResult.INSTALLED
+    } catch (t: Throwable) {
+        FeatureInstallResult.FAILED_TRANSIENT
+    }
+"""
+
+        self.assertEqual([], self.mod.check_feature_install_boundary(path, clean))
+        findings = self.mod.check_feature_install_boundary(path, swallowed)
+        self.assertEqual(1, len(findings))
+        self.assertIn("FeatureInstallRegistry", findings[0].detail)
+
+    def test_dexkit_close_requires_oom_rethrow(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            helper = Path(tmp) / "XposedHelpers.java"
+            helper.write_text(
+                """
+public static void closeBridge() {
+    try { bridge.close(); }
+    catch (OutOfMemoryError oom) { throw oom; }
+    catch (Throwable t) { log(t); }
+}
+""",
+                encoding="utf-8",
+            )
+            self.assertEqual([], self.mod.check_dexkit_close_oom(helper))
+
+            helper.write_text(
+                """
+public static void closeBridge() {
+    try { bridge.close(); }
+    catch (Throwable t) { log(t); }
+}
+""",
+                encoding="utf-8",
+            )
+            findings = self.mod.check_dexkit_close_oom(helper)
+            self.assertEqual(1, len(findings))
+            self.assertIn("rethrow", findings[0].detail)
+
     def test_early_restart_enabled_ok(self):
         text = """
     fun onPreferenceChanged(key: String?, prefs: PrefMap) {

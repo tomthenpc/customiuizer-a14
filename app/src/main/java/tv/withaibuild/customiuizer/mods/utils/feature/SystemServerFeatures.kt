@@ -38,11 +38,9 @@ internal abstract class BaseSystemServerFeature(
 
     final override fun isEnabled(prefs: PrefMap): Boolean = isEnabledCondition(prefs)
 
-    final override fun install(): FeatureInstallResult = try {
+    final override fun install(): FeatureInstallResult {
         installHook()
-        FeatureInstallResult.INSTALLED
-    } catch (t: Throwable) {
-        FeatureInstallResult.FAILED_TRANSIENT
+        return FeatureInstallResult.INSTALLED
     }
 }
 

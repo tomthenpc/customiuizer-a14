@@ -2111,6 +2111,9 @@ public final class XposedHelpers {
         if (bridge != null) {
             try {
                 bridge.close();
+            } catch (OutOfMemoryError oom) {
+                bridge = null;
+                throw oom;
             } catch (Throwable t) {
                 HookDiagnostics.recordDexKit("DexKitBridge", "close", t.getClass().getName());
                 log(t);

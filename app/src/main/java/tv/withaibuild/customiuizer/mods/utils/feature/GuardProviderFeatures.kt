@@ -43,15 +43,14 @@ internal class GuardProviderDisableDefraudAppsFeature(
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
-    override fun install(): FeatureInstallResult = try {
-        MainModule.loadDexKit()
-        XposedHelpers.createBridge(lpparam.applicationInfo.sourceDir)
-        Various.DisableDefraudAppsCheck(lpparam)
-        FeatureInstallResult.INSTALLED
-    } catch (t: Throwable) {
-        XposedHelpers.log(t)
-        FeatureInstallResult.FAILED_TRANSIENT
-    } finally {
-        XposedHelpers.closeBridge()
+    override fun install(): FeatureInstallResult {
+        try {
+            MainModule.loadDexKit()
+            XposedHelpers.createBridge(lpparam.applicationInfo.sourceDir)
+            Various.DisableDefraudAppsCheck(lpparam)
+            return FeatureInstallResult.INSTALLED
+        } finally {
+            XposedHelpers.closeBridge()
+        }
     }
 }

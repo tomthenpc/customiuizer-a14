@@ -82,16 +82,15 @@ internal class MediaScreenshotConfigFeature(
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs, packageName)
-    override fun install(): FeatureInstallResult = try {
-        MainModule.loadDexKit()
-        XposedHelpers.createBridge(lpparam.applicationInfo.sourceDir)
-        ModsSystem.ScreenshotConfigHook(lpparam)
-        FeatureInstallResult.INSTALLED
-    } catch (t: Throwable) {
-        XposedHelpers.log(t)
-        FeatureInstallResult.FAILED_TRANSIENT
-    } finally {
-        XposedHelpers.closeBridge()
+    override fun install(): FeatureInstallResult {
+        try {
+            MainModule.loadDexKit()
+            XposedHelpers.createBridge(lpparam.applicationInfo.sourceDir)
+            ModsSystem.ScreenshotConfigHook(lpparam)
+            return FeatureInstallResult.INSTALLED
+        } finally {
+            XposedHelpers.closeBridge()
+        }
     }
 }
 

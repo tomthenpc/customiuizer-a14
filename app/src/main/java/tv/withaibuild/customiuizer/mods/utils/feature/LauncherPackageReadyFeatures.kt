@@ -223,12 +223,10 @@ internal class LauncherUnlockGridsFeature(
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
-    override fun install(): FeatureInstallResult = try {
+    override fun install(): FeatureInstallResult {
         LauncherLayoutHooks.UnlockGridsRes()
         LauncherLayoutHooks.UnlockGridsHook(lpparam)
-        FeatureInstallResult.INSTALLED
-    } catch (t: Throwable) {
-        FeatureInstallResult.FAILED_TRANSIENT
+        return FeatureInstallResult.INSTALLED
     }
 }
 

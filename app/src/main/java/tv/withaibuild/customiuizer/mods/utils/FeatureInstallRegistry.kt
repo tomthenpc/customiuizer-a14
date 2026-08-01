@@ -83,11 +83,12 @@ class FeatureInstallRegistry {
             FeatureState.RESTART_REQUIRED -> FeatureInstallResult.RESTART_LATER
             FeatureState.FAILED_TRANSIENT, FeatureState.NOT_INSTALLED -> {
                 FeatureInstallState.set(id, FeatureState.INSTALLING)
-                val (definition, result) = try {
+                var definition: FeatureDefinition? = null
+                val result = try {
                     val created = spec.create()
+                    definition = created
                     activeDefinitions[id] = created
-                    val installResult = created.install()
-                    Pair(created, installResult)
+                    created.install()
                 } catch (oom: OutOfMemoryError) {
                     activeDefinitions.remove(id)
                     FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
@@ -95,7 +96,7 @@ class FeatureInstallRegistry {
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)
                     recordInstallFailure(spec, t)
-                    Pair(null, FeatureInstallResult.FAILED_TRANSIENT)
+                    FeatureInstallResult.FAILED_TRANSIENT
                 }
                 if (result != FeatureInstallResult.FAILED_TRANSIENT && definition != null) {
                     activeDefinitions[id] = definition

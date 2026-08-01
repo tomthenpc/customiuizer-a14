@@ -91,12 +91,10 @@ internal class GenericAppStatusBarBackgroundFeature(
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs, packageName)
-    override fun install(): FeatureInstallResult = try {
+    override fun install(): FeatureInstallResult {
         SystemStatusBarBackgroundHooks.StatusBarBackgroundCompatHook(lpparam)
         SystemStatusBarBackgroundHooks.StatusBarBackgroundHook(lpparam)
-        FeatureInstallResult.INSTALLED
-    } catch (t: Throwable) {
-        FeatureInstallResult.FAILED_TRANSIENT
+        return FeatureInstallResult.INSTALLED
     }
 }
 
