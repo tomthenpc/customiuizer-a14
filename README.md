@@ -1,129 +1,64 @@
-# 米客 A14 Kotlin 重构
+# CustoMIUIzer A14
 
 简体中文 | [English](README_EN.md)
 
-面向 **HyperOS 1 / Android 14** 的 CustoMIUIzer Kotlin 重构维护版。
+CustoMIUIzer A14 是面向 **HyperOS 1 / Android 14（SDK 34）** 的系统界面与交互定制模块，基于 CustoMIUIzer 项目持续维护。它使用独立包名、版本线和签名，不是上游官方版本。
 
-本项目以 MonwF/customiuizer v24.10.12 作为 Android 14 功能语义参考，使用独立包名、版本线、签名和现代 libxposed API。项目不是上游官方版本，也不支持 Android 15、Android 16 或其他 MIUI / HyperOS 大版本。
+- 当前正式版：`r14.16.1`（versionCode `192`）
+- 应用 ID：`tv.withaibuild.customiuizer.r14`
+- 源码仓库：<https://github.com/tomthenpc/customiuizer-a14>
+- 用户下载：<https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases>
 
-## 当前版本
+## 核心功能
 
-| 项目           | 值                                          |
-| ------------ | ------------------------------------------ |
-| 版本           | `r14.15.3`                                 |
-| versionCode  | `191`                                      |
-| 系统           | HyperOS 1 / Android 14（API 34）             |
-| ABI          | `arm64-v8a`                                |
-| 应用 ID        | `tv.withaibuild.customiuizer.r14`          |
-| libxposed    | `minApiVersion=101`、`targetApiVersion=102` |
-| staticScope  | `false`                                    |
-| APK          | `CustoMIUIzer-A14-r14.15.3.apk`            |
-| APK SHA-256  | `F7AB34722B0193DD8C97DF0146C968E5A6064655AD497061E902CD1545375E7E` |
-| 签名证书 SHA-256 | `C0EFF2DC4E662717195490DA78B12A984C6F2E6BD38ACF4EDAD14D53E3D22E70` |
+- 状态栏图标、电池、信号、网速、日期与温度；
+- 控制中心、通知、音量、亮度、锁屏、充电和媒体界面；
+- Launcher、最近任务、文件夹、图标与桌面手势；
+- 导航栏、按键、自定义动作、电源菜单和系统动画；
+- 应用、权限、安装、分享、隐私应用和应用锁行为。
 
-上一个公开版本为 `r14.13.8`。
-
-面向 LSPosed 用户的下载页面位于：
-
-`Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14`
-
-> Releases 页面仅保留当前正式版。旧版本的变更记录已合并到当前 Release 和 CHANGELOG；旧版 APK 不再提供下载，历史源码 tag 继续保留。
-
-## r14.15.3 更新重点
-
-* 恢复此前误删的 `system` 作用域，修复 `system_server` Hook 未加载、相关系统级功能静默失效的问题；
-* 加固 Global Actions 在 `system_server` 中的 BroadcastReceiver 异常边界、信任检查和有序广播结果；
-* 完善 Receiver / Observer 的 owner 绑定、替换、清理和并发注册处理，避免重复注册及已注册但未跟踪的 Receiver；
-* 改进 Hook 加载诊断、兼容信息和运行时错误记录；
-* 状态栏网速粗体保留 SystemUI 当前字体家族，并增加无有效粗体字形时的兜底；
-* 新增双排网速行距 `70%–130%` 调整及相关本地化提示；
-* 修复设置控件文本样式继承和 About 页面署名、版本文字换行；
-* 合并 `r14.13.8` 之后的运行时安全、作用域、网速显示和 UI 修复。
-
-完整变化见 [CHANGELOG.md](CHANGELOG.md)。
+功能是否可用取决于具体 ROM 与系统应用版本。请勿与上游版或其他 CustoMIUIzer 派生模块同时启用。
 
 ## 兼容范围
 
-| 项目            | 值                                                 |
-| ------------- | ------------------------------------------------- |
-| 系统            | HyperOS 1 / Android 14                            |
-| Android SDK   | 34                                                |
-| ABI           | `arm64-v8a`                                       |
-| 框架            | 实现 libxposed API 101 或 API 102 的 LSPosed / Vector |
-| Android 15/16 | 不支持                                               |
+| 项目 | 支持范围 |
+| --- | --- |
+| 系统 | HyperOS 1 / Android 14 |
+| SDK | minSdk 34 / targetSdk 34 |
+| ABI | `arm64-v8a` |
+| Xposed 框架 | 实现 libxposed API 101 或 102 的 LSPosed / Vector |
+| 模块元数据 | `minApiVersion=101`、`targetApiVersion=102`、`staticScope=false` |
 
-具体功能是否可用取决于设备 ROM 和系统应用版本。厂商更新可能改变 Hook 类、方法或字段。
+不支持 Android 15、Android 16 或其他 MIUI / HyperOS 大版本。API 102 能力保持隔离，未接入 API 101 必经的生产 Hook 路径。
 
-不要与上游版或其他 CustoMIUIzer 派生模块同时启用。
+## 运行期框架
 
-## 主要功能
+- 按目标进程和功能开关延迟安装 Feature，关闭功能不创建业务 Hook、Receiver、Observer 或任务；
+- Feature 采用进程内稳定 ID 和一次安装状态，偏好变化不会重复安装已存在 Hook；
+- Receiver、Observer、View 和控制器注册绑定所有者，并具备替换、失效与释放闭环；
+- 反射缓存按 ClassLoader 隔离且有界，反射、DexKit、磁盘 I/O 保留在冷路径；
+- Hook 和回调隔离普通异常，但 `OutOfMemoryError` 始终继续抛出；
+- 模块加载日志包含版本与短 Git SHA，便于精确确认构建来源。
 
-* 状态栏图标、电池、信号、网速、日期和温度；
-* 控制中心、音量面板、亮度和通知行为；
-* 锁屏、充电信息、媒体界面和快捷操作；
-* Launcher、最近任务、文件夹、图标和桌面手势；
-* 导航栏、按键、自定义动作、电源菜单和系统动画；
-* 应用、权限、安装、分享、隐私应用和应用锁行为。
+架构与约束详见 [A14_RUNTIME_HARDENING](docs/A14_RUNTIME_HARDENING.md) 和 [RUNTIME_INVARIANTS](docs/RUNTIME_INVARIANTS.md)。
 
-## 重要升级说明
+## 构建与验证
 
-`r14.13.5` 及之后的新签名版本可直接覆盖安装。
-
-`r14.12.0` 及更早公开版本使用的旧签名私钥已经遗失，不能直接覆盖安装。升级前必须：
-
-1. 备份模块设置；
-2. 记录 LSPosed / Vector 作用域；
-3. 卸载旧版；
-4. 安装新版本；
-5. 重新启用作用域；
-6. 恢复设置；
-7. 完整重启设备。
-
-不要在完成备份前卸载旧版本。
-
-## 安装
-
-1. 从 LSPosed 发布仓库下载正式 APK；
-2. 核对 APK SHA-256；
-3. 安装 APK；
-4. 在 LSPosed / Vector 中启用模块；
-5. 确认推荐作用域包含 `system`；
-6. 打开一次模块设置并完整重启设备。
-
-## 构建
-
-需要 JDK 17 和对应 Android SDK。
+需要 JDK 17、Android SDK 34 和 `arm64-v8a` 构建环境。
 
 ```bash
+python tools/verify.py full
 ./gradlew :app:assembleRelease -PofficialRelease=true
 ```
 
-正式签名配置位于仓库之外。不得提交 keystore、密码、令牌、真实 `keystore.properties`、APK、签名备份、私人日志、缓存与构建目录。
+正式签名配置必须位于仓库外。不得提交 keystore、密码、令牌、真实 `keystore.properties`、APK、私人日志或构建缓存。APK 构建、签名和静态测试不能替代目标 ROM 上的逐项行为验证。
 
-## 验证说明
+## 开发说明
 
-`r14.15.3` 已完成正式 Release APK 构建及以下基础检查：
+- 稳定与行为保持优先；兼容逻辑限制在 ROM / ClassLoader 边界；
+- 高频 Hook 避免临时数组、集合、Regex、格式化、重复反射和远程偏好读取；
+- Java 到 Kotlin 只做小批量行为等价迁移，每批配套测试和静态门禁；
+- 保留 `MainModule.java`、`XposedHelpers.java`、`MemberUtilsX.java` 的 JVM / 框架边界；
+- 细粒度历史见 Git commits 和 tags，发布变化见 [CHANGELOG.md](CHANGELOG.md)。
 
-* APK v2 签名；
-* zipalign；
-* applicationId、versionCode、versionName；
-* libxposed module.prop、scope.list 和 java_init.list；
-* `system` 与 `android` 作用域；
-* APK SHA-256 与正式签名证书。
-
-正式构建之外，开发分支使用 `python tools/verify.py full` 与 `python tools/check-invariants.py` 进行离线静态验证；ADB 和设备自动化脚本已从仓库移除。APK 构建和元数据检查不能证明所有 Hook 在全部 HyperOS 1 ROM 上均可用。
-
-## 反馈
-
-提交问题时请提供：
-
-* 模块版本和 APK 来源；
-* 设备、ROM 与系统应用版本；
-* 框架名称和实际 libxposed API；
-* 实际启用作用域；
-* 完整重启后的 `system_server`、SystemUI 或 Launcher 日志；
-* 可重复的功能开关和操作步骤。
-
-## 许可证与致谢
-
-项目派生自 Mikanoshi/CustoMIUIzer，并参考 MonwF/customiuizer 的 Android 14 工作，依据 GPL-3.0 分发。
+项目依据 GPL-3.0 分发，派生自 Mikanoshi/CustoMIUIzer，并参考 MonwF/customiuizer 的 Android 14 工作。

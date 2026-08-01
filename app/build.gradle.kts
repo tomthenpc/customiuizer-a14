@@ -25,8 +25,8 @@ if (officialRelease) {
     }
 }
 
-val lastVersion = 191
-val lastVersionName = "r14.15.3"
+val lastVersion = 192
+val lastVersionName = "r14.16.1"
 val buildRevision = providers.exec {
     workingDir(rootDir)
     commandLine("git", "rev-parse", "--short=8", "HEAD")
