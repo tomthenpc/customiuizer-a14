@@ -43,6 +43,8 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureSpec;
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry;
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget;
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase;
+import tv.withaibuild.customiuizer.mods.utils.ProcessRouter;
+import tv.withaibuild.customiuizer.mods.utils.ProcessScope;
 import tv.withaibuild.customiuizer.mods.utils.feature.CommonPackageFeatures;
 import tv.withaibuild.customiuizer.utils.PrefMap;
 
@@ -136,12 +138,8 @@ public class MainModule extends XposedModule {
         if (!lpparam.isFirstPackage()) return;
 
         String pkg = lpparam.getPackageName();
-        if (
-            pkg.equals("com.android.settings") && !"com.android.settings".equals(processName)
-            || pkg.equals("com.miui.securitycenter") && "com.miui.securitycenter.bootaware".equals(processName)
-            || pkg.equals("com.android.location.fused")
-            || pkg.startsWith("com.android.networkstack")
-        ) {
+        ProcessScope scope = ProcessRouter.resolve(pkg, processName);
+        if (!scope.isInstallable()) {
             return;
         }
 
@@ -151,20 +149,11 @@ public class MainModule extends XposedModule {
             HookDiagnostics.recordPreferencesMissed(pkg, preferenceBootstrap.getState().name());
         }
 
-        if (pkg.equals("android")) {
+        if (scope == ProcessScope.SYSTEM_SERVER) {
             AndroidPackageInstaller.install(lpparam, mPrefs);
         }
 
-        if (pkg.equals("com.baidu.input")
-            || pkg.equals("com.baidu.input_mi")
-            || pkg.equals("com.iflytek.inputmethod")
-            || pkg.equals("com.iflytek.inputmethod.miui")
-            || pkg.equals("com.sohu.inputmethod.sogou")
-            || pkg.equals("com.sohu.inputmethod.sogou.xiaomi")
-            || pkg.startsWith("com.google.android.inputmethod")
-            || pkg.startsWith("com.touchtype.swiftkey")
-            || pkg.startsWith("com.tencent.wetype")
-        ) {
+        if (scope == ProcessScope.INPUT_METHOD) {
             InputMethodInstaller.install(lpparam, mPrefs);
             HookDiagnostics.printSummaryForStage("onPackageReady");
             return;
@@ -178,12 +167,10 @@ public class MainModule extends XposedModule {
             commonRegistry.installAll(FeatureTarget.ANY, InstallPhase.PACKAGE_READY, mPrefs);
         }
 
-        if (pkg.equals("com.miui.miwallpaper")
-            || pkg.equals("com.miui.screenshot")
-            || pkg.equals("com.miui.gallery")) {
+        if (scope == ProcessScope.MEDIA || scope == ProcessScope.WALLPAPER) {
             MediaInstaller.install(lpparam, mPrefs);
         }
-        if (pkg.equals("com.android.systemui")) {
+        if (scope == ProcessScope.SYSTEM_UI) {
             ReflectionCache.onSafeLifecycle(lpparam.getClassLoader());
 
             // 1. The SystemUIInitializer.init hook is always installed first. It is the only place
@@ -277,31 +264,31 @@ public class MainModule extends XposedModule {
             SystemUiInstaller.install(lpparam, mPrefs);
         }
 
-        if (pkg.equals("com.miui.guardprovider")) {
+        if (scope == ProcessScope.GUARD_PROVIDER) {
             GuardProviderInstaller.install(lpparam, mPrefs);
         }
 
-        if (pkg.equals("com.android.incallui")) {
+        if (scope == ProcessScope.PHONE) {
             PhoneInstaller.install(lpparam, mPrefs);
         }
 
-        if (pkg.equals("com.miui.securitycenter")) {
+        if (scope == ProcessScope.SECURITY_CENTER_MAIN) {
             SecurityCenterInstaller.install(lpparam, mPrefs);
         }
 
-        if (pkg.equals("com.miui.powerkeeper")) {
+        if (scope == ProcessScope.POWER_KEEPER) {
             PowerKeeperInstaller.install(lpparam, mPrefs);
         }
 
-        if (pkg.equals("com.android.settings")) {
+        if (scope == ProcessScope.SETTINGS_MAIN) {
             SettingsInstaller.install(lpparam, mPrefs);
         }
 
-        if (pkg.equals("com.miui.packageinstaller")) {
+        if (scope == ProcessScope.PACKAGE_INSTALLER) {
             PackageInstallerRouter.install(lpparam, mPrefs);
         }
 
-        final boolean isLauncherPkg = pkg.equals("com.miui.home");
+        final boolean isLauncherPkg = scope == ProcessScope.LAUNCHER;
 
         if (isLauncherPkg) {
             ReflectionCache.onSafeLifecycle(lpparam.getClassLoader());

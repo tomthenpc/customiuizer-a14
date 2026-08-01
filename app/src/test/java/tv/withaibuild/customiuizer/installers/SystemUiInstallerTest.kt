@@ -11,8 +11,8 @@ class SystemUiInstallerTest {
     fun installerIsWiredInMainModule() {
         val main = source("app/src/main/java/tv/withaibuild/customiuizer/MainModule.java")
         val section = main.section(
-            "if (pkg.equals(\"com.android.systemui\")) {",
-            "if (pkg.equals(\"com.miui.guardprovider\"))"
+            "if (scope == ProcessScope.SYSTEM_UI) {",
+            "if (scope == ProcessScope.GUARD_PROVIDER) {"
         )
 
         assertTrue(
