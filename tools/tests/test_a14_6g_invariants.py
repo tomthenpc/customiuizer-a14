@@ -210,6 +210,27 @@ override fun afterHook(callback: AfterHookCallback) {
         self.assertEqual(2, len(findings))
         self.assertTrue(all("OutOfMemoryError" in item.detail for item in findings))
 
+    def test_module_helper_requires_oom_rethrow_before_generic_catch(self):
+        path = self._source_path(
+            "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt"
+        )
+        clean = """
+fun silent(): Any? = try { work() }
+catch (oom: OutOfMemoryError) { throw oom }
+catch (_: Throwable) { null }
+fun propagating() = try { work() }
+catch (t: Throwable) { throw t }
+"""
+        self.assertEqual([], self.mod.check_module_helper_fatal_boundaries(path, clean))
+
+        unsafe = """
+fun silent(): Any? = try { work() }
+catch (_: Throwable) { null }
+"""
+        findings = self.mod.check_module_helper_fatal_boundaries(path, unsafe)
+        self.assertEqual(1, len(findings))
+        self.assertIn("OOM", findings[0].detail)
+
     def test_reflection_cache_get_declared_method_oom_ok(self):
         text = """
     private fun resolveDependencyMethod(loaderState: LoaderState, classLoader: ClassLoader?): Method? {

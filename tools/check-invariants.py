@@ -438,6 +438,7 @@ FEATURE_DEFINITION_ROOT = "tv/withaibuild/customiuizer/mods/utils/feature/"
 SYSTEM_SERVER_INSTALLER = "tv/withaibuild/customiuizer/mods/utils/SystemServerInstaller.kt"
 DEVICE_INFO_MONITOR = "tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt"
 HOOKER_CLASS_HELPER = "tv/withaibuild/customiuizer/mods/utils/HookerClassHelper.kt"
+MODULE_HELPER = "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt"
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
@@ -566,6 +567,43 @@ def check_method_hook_fatal_boundary(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def check_module_helper_fatal_boundaries(path: Path, text: str) -> list[Finding]:
+    """Shared runtime helpers may isolate ordinary failures but must propagate OOM."""
+    if rel_posix(path) != MODULE_HELPER:
+        return []
+    findings = []
+    for generic in re.finditer(r"catch\s*\(\s*([_A-Za-z]\w*)\s*:\s*Throwable\s*\)", text):
+        body, _ = block_at(text, generic.start())
+        variable = generic.group(1)
+        if variable != "_" and re.search(rf"\bthrow\s+{re.escape(variable)}\b", body):
+            continue
+
+        preceding = None
+        for oom in re.finditer(
+            r"catch\s*\(\s*([A-Za-z]\w*)\s*:\s*OutOfMemoryError\s*\)",
+            text[:generic.start()],
+        ):
+            preceding = oom
+        safe = False
+        if preceding is not None:
+            oom_body, oom_body_start = block_at(text, preceding.start())
+            between = text[oom_body_start + len(oom_body):generic.start()]
+            safe = not between.strip() and re.search(
+                rf"\bthrow\s+{re.escape(preceding.group(1))}\b",
+                oom_body,
+            ) is not None
+        if not safe:
+            findings.append(
+                Finding(
+                    "module-helper-fatal-boundary",
+                    path,
+                    line_of(text, generic.start()),
+                    "ModuleHelper catch(Throwable) must rethrow it or follow an OOM rethrow catch",
+                )
+            )
+    return findings
+
+
 REFLECTION_CACHE = "tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt"
 
 
@@ -665,6 +703,7 @@ RULES = (
     check_feature_install_boundary,
     check_device_info_monitor_hot_path,
     check_method_hook_fatal_boundary,
+    check_module_helper_fatal_boundaries,
     check_reflection_cache_get_declared_method_oom,
 )
 

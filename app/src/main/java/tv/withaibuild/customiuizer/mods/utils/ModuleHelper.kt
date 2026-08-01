@@ -118,6 +118,8 @@ class ModuleHelper private constructor() {
         fun callMethodSilently(obj: Any?, methodName: String, vararg args: Any?): Any? {
             return try {
                 XposedHelpers.callMethod(obj, methodName, *args)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (e: Throwable) {
                 XposedHelpers.log(e)
                 NOT_EXIST_SYMBOL
@@ -497,6 +499,8 @@ class ModuleHelper private constructor() {
         fun getStaticObjectFieldSilently(clazz: Class<*>, fieldName: String): Any? {
             return try {
                 XposedHelpers.getStaticObjectField(clazz, fieldName)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 NOT_EXIST_SYMBOL
             }
@@ -506,6 +510,8 @@ class ModuleHelper private constructor() {
         fun getObjectFieldSilently(obj: Any?, fieldName: String): Any? {
             return try {
                 XposedHelpers.getObjectField(obj, fieldName)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
             } catch (t: Throwable) {
                 NOT_EXIST_SYMBOL
             }
@@ -530,7 +536,9 @@ class ModuleHelper private constructor() {
                         context = XposedHelpers.callMethod(currentActivityThread, "getSystemContext") as? Context
                     }
                 }
-            } catch (ignore: Throwable) {
+            } catch (oom: OutOfMemoryError) {
+                throw oom
+            } catch (_: Throwable) {
             }
             if (context != null) mCachedContext = context
             return context
@@ -559,7 +567,9 @@ class ModuleHelper private constructor() {
                 intent.putExtra("package_name", pkg)
                 if (user != 0) intent.putExtra("miui.intent.extra.USER_ID", user)
                 context.startActivity(intent)
-            } catch (t: Throwable) {
+            } catch (oom: OutOfMemoryError) {
+                throw oom
+            } catch (_: Throwable) {
                 try {
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
@@ -570,6 +580,8 @@ class ModuleHelper private constructor() {
                     } else {
                         context.startActivity(intent)
                     }
+                } catch (oom: OutOfMemoryError) {
+                    throw oom
                 } catch (t2: Throwable) {
                     XposedHelpers.log(t2)
                 }
@@ -828,6 +840,8 @@ class ModuleHelper private constructor() {
             for (i in 2 until 40 step 2) {
                 val sensorType = try {
                     RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$i/type", "r").use { it.readLine() }
+                } catch (oom: OutOfMemoryError) {
+                    throw oom
                 } catch (ign: Throwable) {
                     null
                 }
