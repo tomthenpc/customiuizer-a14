@@ -1,7 +1,7 @@
 package tv.withaibuild.customiuizer.installers;
 
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
-import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition;
+import tv.withaibuild.customiuizer.mods.utils.FeatureSpec;
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry;
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget;
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase;
@@ -23,7 +23,7 @@ public final class InputMethodInstaller {
     public static void install(PackageReadyParam lpparam, PrefMap mPrefs) {
         FeatureInstallRegistry registry = new FeatureInstallRegistry();
 
-        for (FeatureDefinition feature : InputMethodFeatures.all(lpparam, mPrefs)) {
+        for (FeatureSpec feature : InputMethodFeatures.all(lpparam, mPrefs)) {
             registry.register(feature);
         }
 

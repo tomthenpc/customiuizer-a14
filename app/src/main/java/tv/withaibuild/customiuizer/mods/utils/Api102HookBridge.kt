@@ -22,6 +22,7 @@ internal object Api102HookBridge {
      */
     @JvmStatic
     fun setStableHookId(builder: XposedInterface.HookBuilder, id: String): XposedInterface.HookBuilder {
+        if (!XposedApiCapabilities.supportsStableHookId()) return builder
         return builder.setId(id)
     }
 
