@@ -1,0 +1,2699 @@
+{
+  "apkPath": "app\\build\\outputs\\apk\\develop\\CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk",
+  "sha256": "bd2f0fc688be0211067a0548e3414f09de7fd831fd531d407e1ad4a3d51ba261",
+  "totalBytes": 3624553,
+  "fileCount": 537,
+  "dexTotalBytes": 1792108,
+  "resourcesArscBytes": 782132,
+  "libTotalBytes": 381024,
+  "resTotalBytes": 613605,
+  "assetsTotalBytes": 38703,
+  "metaTotalBytes": 497,
+  "files": [
+    {
+      "name": "classes.dex",
+      "size": 1792108,
+      "bucket": "dex"
+    },
+    {
+      "name": "resources.arsc",
+      "size": 782132,
+      "bucket": "arsc"
+    },
+    {
+      "name": "lib/arm64-v8a/libdexkit.so",
+      "size": 381024,
+      "bucket": "lib"
+    },
+    {
+      "name": "res/yi.xml",
+      "size": 40400,
+      "bucket": "res"
+    },
+    {
+      "name": "assets/test1.mp3",
+      "size": 22569,
+      "bucket": "assets"
+    },
+    {
+      "name": "AndroidManifest.xml",
+      "size": 14756,
+      "bucket": "manifest"
+    },
+    {
+      "name": "assets/test0.png",
+      "size": 12499,
+      "bucket": "assets"
+    },
+    {
+      "name": "res/dh.xml",
+      "size": 11888,
+      "bucket": "res"
+    },
+    {
+      "name": "res/RJ.png",
+      "size": 11799,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VL.xml",
+      "size": 8960,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ot.xml",
+      "size": 8044,
+      "bucket": "res"
+    },
+    {
+      "name": "res/as.png",
+      "size": 7277,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BJ.xml",
+      "size": 7164,
+      "bucket": "res"
+    },
+    {
+      "name": "res/UU.xml",
+      "size": 6888,
+      "bucket": "res"
+    },
+    {
+      "name": "res/YK.xml",
+      "size": 6728,
+      "bucket": "res"
+    },
+    {
+      "name": "res/uT.xml",
+      "size": 4972,
+      "bucket": "res"
+    },
+    {
+      "name": "res/XJ.xml",
+      "size": 4872,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Lf.png",
+      "size": 4708,
+      "bucket": "res"
+    },
+    {
+      "name": "res/93.xml",
+      "size": 4400,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Dz.xml",
+      "size": 4392,
+      "bucket": "res"
+    },
+    {
+      "name": "res/XT.xml",
+      "size": 4392,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Bz.png",
+      "size": 4343,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0-.xml",
+      "size": 4168,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Em.png",
+      "size": 3843,
+      "bucket": "res"
+    },
+    {
+      "name": "res/wL.xml",
+      "size": 3832,
+      "bucket": "res"
+    },
+    {
+      "name": "res/-f.xml",
+      "size": 3696,
+      "bucket": "res"
+    },
+    {
+      "name": "res/jZ.xml",
+      "size": 3640,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1T.xml",
+      "size": 3592,
+      "bucket": "res"
+    },
+    {
+      "name": "res/dO.xml",
+      "size": 3472,
+      "bucket": "res"
+    },
+    {
+      "name": "res/US.xml",
+      "size": 3432,
+      "bucket": "res"
+    },
+    {
+      "name": "res/90.xml",
+      "size": 3360,
+      "bucket": "res"
+    },
+    {
+      "name": "res/i0.xml",
+      "size": 3296,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Uq.xml",
+      "size": 3232,
+      "bucket": "res"
+    },
+    {
+      "name": "res/t1.xml",
+      "size": 3096,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Oi.xml",
+      "size": 2896,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qD.9.png",
+      "size": 2834,
+      "bucket": "res"
+    },
+    {
+      "name": "res/MF.9.png",
+      "size": 2816,
+      "bucket": "res"
+    },
+    {
+      "name": "res/fe.png",
+      "size": 2789,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qx.xml",
+      "size": 2780,
+      "bucket": "res"
+    },
+    {
+      "name": "res/pw.xml",
+      "size": 2720,
+      "bucket": "res"
+    },
+    {
+      "name": "res/C4.png",
+      "size": 2715,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rC.xml",
+      "size": 2708,
+      "bucket": "res"
+    },
+    {
+      "name": "res/80.xml",
+      "size": 2688,
+      "bucket": "res"
+    },
+    {
+      "name": "res/U8.xml",
+      "size": 2660,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Be.xml",
+      "size": 2648,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0S.xml",
+      "size": 2544,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Cp.xml",
+      "size": 2536,
+      "bucket": "res"
+    },
+    {
+      "name": "res/kj.xml",
+      "size": 2520,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NA.9.png",
+      "size": 2505,
+      "bucket": "res"
+    },
+    {
+      "name": "res/fw.xml",
+      "size": 2492,
+      "bucket": "res"
+    },
+    {
+      "name": "res/WV.9.png",
+      "size": 2480,
+      "bucket": "res"
+    },
+    {
+      "name": "res/i6.xml",
+      "size": 2464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/zV.9.png",
+      "size": 2463,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5h.xml",
+      "size": 2448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Ke.xml",
+      "size": 2360,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Iy.xml",
+      "size": 2352,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5e.xml",
+      "size": 2348,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Bd.xml",
+      "size": 2344,
+      "bucket": "res"
+    },
+    {
+      "name": "res/K7.xml",
+      "size": 2340,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1I.9.png",
+      "size": 2305,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Pk.xml",
+      "size": 2292,
+      "bucket": "res"
+    },
+    {
+      "name": "res/8x.xml",
+      "size": 2280,
+      "bucket": "res"
+    },
+    {
+      "name": "res/F1.xml",
+      "size": 2280,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Gf.xml",
+      "size": 2232,
+      "bucket": "res"
+    },
+    {
+      "name": "res/10.xml",
+      "size": 2228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/wW.xml",
+      "size": 2228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/EX.xml",
+      "size": 2216,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Rd.xml",
+      "size": 2216,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Ex.xml",
+      "size": 2160,
+      "bucket": "res"
+    },
+    {
+      "name": "res/h4.xml",
+      "size": 2124,
+      "bucket": "res"
+    },
+    {
+      "name": "res/og.png",
+      "size": 2117,
+      "bucket": "res"
+    },
+    {
+      "name": "res/2j.xml",
+      "size": 2072,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Ly.xml",
+      "size": 2056,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Ci.xml",
+      "size": 2052,
+      "bucket": "res"
+    },
+    {
+      "name": "res/3s.xml",
+      "size": 2028,
+      "bucket": "res"
+    },
+    {
+      "name": "res/2f.xml",
+      "size": 1916,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Xk.xml",
+      "size": 1916,
+      "bucket": "res"
+    },
+    {
+      "name": "res/eA.xml",
+      "size": 1868,
+      "bucket": "res"
+    },
+    {
+      "name": "res/w4.xml",
+      "size": 1848,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Y4.xml",
+      "size": 1844,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Li.9.png",
+      "size": 1779,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Ip.xml",
+      "size": 1768,
+      "bucket": "res"
+    },
+    {
+      "name": "res/OZ.xml",
+      "size": 1768,
+      "bucket": "res"
+    },
+    {
+      "name": "res/A5.xml",
+      "size": 1732,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Eh.xml",
+      "size": 1732,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1J.9.png",
+      "size": 1731,
+      "bucket": "res"
+    },
+    {
+      "name": "DebugProbesKt.bin",
+      "size": 1728,
+      "bucket": "other"
+    },
+    {
+      "name": "res/Nu.xml",
+      "size": 1728,
+      "bucket": "res"
+    },
+    {
+      "name": "res/D-.xml",
+      "size": 1720,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Eg.xml",
+      "size": 1716,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Bk.png",
+      "size": 1684,
+      "bucket": "res"
+    },
+    {
+      "name": "assets/dexopt/baseline.prof",
+      "size": 1670,
+      "bucket": "assets"
+    },
+    {
+      "name": "res/Zc.xml",
+      "size": 1668,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tC.png",
+      "size": 1666,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Zz.xml",
+      "size": 1664,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9T1.xml",
+      "size": 1656,
+      "bucket": "res"
+    },
+    {
+      "name": "res/K5.xml",
+      "size": 1656,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Lf.xml",
+      "size": 1656,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Ol.xml",
+      "size": 1656,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qz.xml",
+      "size": 1656,
+      "bucket": "res"
+    },
+    {
+      "name": "res/hP1.xml",
+      "size": 1584,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9V.xml",
+      "size": 1560,
+      "bucket": "res"
+    },
+    {
+      "name": "res/k8.xml",
+      "size": 1560,
+      "bucket": "res"
+    },
+    {
+      "name": "res/U1.png",
+      "size": 1557,
+      "bucket": "res"
+    },
+    {
+      "name": "res/IX.9.png",
+      "size": 1544,
+      "bucket": "res"
+    },
+    {
+      "name": "res/io.9.png",
+      "size": 1526,
+      "bucket": "res"
+    },
+    {
+      "name": "assets/test2.mp4",
+      "size": 1493,
+      "bucket": "assets"
+    },
+    {
+      "name": "res/hk.png",
+      "size": 1460,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ps.xml",
+      "size": 1448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/pl.xml",
+      "size": 1428,
+      "bucket": "res"
+    },
+    {
+      "name": "res/bL.xml",
+      "size": 1408,
+      "bucket": "res"
+    },
+    {
+      "name": "res/vG.xml",
+      "size": 1396,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rs.png",
+      "size": 1394,
+      "bucket": "res"
+    },
+    {
+      "name": "res/o1.xml",
+      "size": 1376,
+      "bucket": "res"
+    },
+    {
+      "name": "res/G6.png",
+      "size": 1372,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Fu.xml",
+      "size": 1352,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0Z.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0z.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/15.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1L.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/6g.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/6l.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/EY.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Ej.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Ib.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Kw.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/MS.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NE.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NN.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Nk.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Nq.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/R2.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/RV.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Rp.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Rq.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Uj.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Vf.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/X6.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/YJ.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Yu.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_e.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/c0.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cU.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cw.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ka.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/lq.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/mZ.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/n0.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ni.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/py.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/s0.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tC.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/uQ.xml",
+      "size": 1312,
+      "bucket": "res"
+    },
+    {
+      "name": "res/EJ.xml",
+      "size": 1296,
+      "bucket": "res"
+    },
+    {
+      "name": "res/8s.xml",
+      "size": 1276,
+      "bucket": "res"
+    },
+    {
+      "name": "res/v9.xml",
+      "size": 1260,
+      "bucket": "res"
+    },
+    {
+      "name": "res/G2.9.png",
+      "size": 1243,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1I.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/2k.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/3n.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/4V.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/4k.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5G.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7X.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/8w.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/AL.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/CU.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Lw.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/MY.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Mx.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/PH.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Pm.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/RY.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/S-.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Tl.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VI.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Vf1.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/XB.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_l.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/a7.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/as.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ec.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/im.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/jF.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/lT.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/n3.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ns.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/nw.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/pD.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/s1.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/sl.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/zC.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ze.xml",
+      "size": 1220,
+      "bucket": "res"
+    },
+    {
+      "name": "res/GR.xml",
+      "size": 1208,
+      "bucket": "res"
+    },
+    {
+      "name": "res/nf.png",
+      "size": 1208,
+      "bucket": "res"
+    },
+    {
+      "name": "res/M7.xml",
+      "size": 1196,
+      "bucket": "res"
+    },
+    {
+      "name": "res/u0.xml",
+      "size": 1196,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ON.xml",
+      "size": 1184,
+      "bucket": "res"
+    },
+    {
+      "name": "res/GK.xml",
+      "size": 1172,
+      "bucket": "res"
+    },
+    {
+      "name": "res/nT.xml",
+      "size": 1160,
+      "bucket": "res"
+    },
+    {
+      "name": "res/jm.png",
+      "size": 1142,
+      "bucket": "res"
+    },
+    {
+      "name": "res/IS.png",
+      "size": 1137,
+      "bucket": "res"
+    },
+    {
+      "name": "res/db.png",
+      "size": 1132,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cj.xml",
+      "size": 1124,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_q.xml",
+      "size": 1120,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_default.xml",
+      "size": 1120,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7G.xml",
+      "size": 1116,
+      "bucket": "res"
+    },
+    {
+      "name": "res/j3.xml",
+      "size": 1100,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rj.9.png",
+      "size": 1098,
+      "bucket": "res"
+    },
+    {
+      "name": "res/GD.xml",
+      "size": 1096,
+      "bucket": "res"
+    },
+    {
+      "name": "res/h7.9.png",
+      "size": 1096,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0E.xml",
+      "size": 1088,
+      "bucket": "res"
+    },
+    {
+      "name": "res/2q.png",
+      "size": 1081,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Oq.png",
+      "size": 1075,
+      "bucket": "res"
+    },
+    {
+      "name": "res/e0.png",
+      "size": 1065,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0M.xml",
+      "size": 1064,
+      "bucket": "res"
+    },
+    {
+      "name": "res/L_.xml",
+      "size": 1064,
+      "bucket": "res"
+    },
+    {
+      "name": "res/si.png",
+      "size": 1057,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Eq.xml",
+      "size": 1056,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9T2.xml",
+      "size": 1028,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Zg.xml",
+      "size": 1028,
+      "bucket": "res"
+    },
+    {
+      "name": "res/vq.xml",
+      "size": 1020,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Gt.xml",
+      "size": 1012,
+      "bucket": "res"
+    },
+    {
+      "name": "res/t8.xml",
+      "size": 1012,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ZN.xml",
+      "size": 1000,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Kf.xml",
+      "size": 992,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cW.xml",
+      "size": 992,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Gf.png",
+      "size": 984,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Qt.xml",
+      "size": 980,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ij.xml",
+      "size": 976,
+      "bucket": "res"
+    },
+    {
+      "name": "res/uL.9.png",
+      "size": 966,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/preference_primary_text.xml",
+      "size": 960,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/preference_secondary_text.xml",
+      "size": 960,
+      "bucket": "res"
+    },
+    {
+      "name": "res/8h.png",
+      "size": 946,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9T.xml",
+      "size": 932,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cm.xml",
+      "size": 920,
+      "bucket": "res"
+    },
+    {
+      "name": "res/A1.xml",
+      "size": 872,
+      "bucket": "res"
+    },
+    {
+      "name": "res/V1.xml",
+      "size": 864,
+      "bucket": "res"
+    },
+    {
+      "name": "res/hP.xml",
+      "size": 864,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ML.xml",
+      "size": 856,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5T.xml",
+      "size": 852,
+      "bucket": "res"
+    },
+    {
+      "name": "res/aM.xml",
+      "size": 852,
+      "bucket": "res"
+    },
+    {
+      "name": "res/dG.xml",
+      "size": 852,
+      "bucket": "res"
+    },
+    {
+      "name": "res/d5.9.png",
+      "size": 851,
+      "bucket": "res"
+    },
+    {
+      "name": "res/8g.xml",
+      "size": 848,
+      "bucket": "res"
+    },
+    {
+      "name": "res/uJ.xml",
+      "size": 848,
+      "bucket": "res"
+    },
+    {
+      "name": "res/bt.xml",
+      "size": 840,
+      "bucket": "res"
+    },
+    {
+      "name": "res/AS.xml",
+      "size": 832,
+      "bucket": "res"
+    },
+    {
+      "name": "res/R5.xml",
+      "size": 832,
+      "bucket": "res"
+    },
+    {
+      "name": "res/RH.xml",
+      "size": 832,
+      "bucket": "res"
+    },
+    {
+      "name": "res/GC.xml",
+      "size": 828,
+      "bucket": "res"
+    },
+    {
+      "name": "res/fM.9.png",
+      "size": 825,
+      "bucket": "res"
+    },
+    {
+      "name": "res/kn.xml",
+      "size": 816,
+      "bucket": "res"
+    },
+    {
+      "name": "res/oP.xml",
+      "size": 816,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7_.9.png",
+      "size": 813,
+      "bucket": "res"
+    },
+    {
+      "name": "res/D5.xml",
+      "size": 812,
+      "bucket": "res"
+    },
+    {
+      "name": "res/YG.xml",
+      "size": 812,
+      "bucket": "res"
+    },
+    {
+      "name": "res/hG.xml",
+      "size": 812,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Bv.xml",
+      "size": 804,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Qd1.xml",
+      "size": 796,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Mp.xml",
+      "size": 792,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Th.png",
+      "size": 785,
+      "bucket": "res"
+    },
+    {
+      "name": "res/j4.png",
+      "size": 785,
+      "bucket": "res"
+    },
+    {
+      "name": "res/46.xml",
+      "size": 780,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Nk.9.png",
+      "size": 776,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Tn.xml",
+      "size": 768,
+      "bucket": "res"
+    },
+    {
+      "name": "res/4u.xml",
+      "size": 756,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ZL.xml",
+      "size": 756,
+      "bucket": "res"
+    },
+    {
+      "name": "res/d3.xml",
+      "size": 756,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ut.9.png",
+      "size": 754,
+      "bucket": "res"
+    },
+    {
+      "name": "res/jW.png",
+      "size": 753,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Pa.9.png",
+      "size": 738,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tL.xml",
+      "size": 716,
+      "bucket": "res"
+    },
+    {
+      "name": "res/JP.xml",
+      "size": 712,
+      "bucket": "res"
+    },
+    {
+      "name": "res/4_.xml",
+      "size": 692,
+      "bucket": "res"
+    },
+    {
+      "name": "res/6Q.xml",
+      "size": 688,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rW.xml",
+      "size": 688,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VN.xml",
+      "size": 684,
+      "bucket": "res"
+    },
+    {
+      "name": "res/A4.xml",
+      "size": 680,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rx.xml",
+      "size": 680,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Oa.xml",
+      "size": 676,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tk.xml",
+      "size": 676,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_edittext.xml",
+      "size": 668,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_spinner.xml",
+      "size": 668,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_switch_track.xml",
+      "size": 664,
+      "bucket": "res"
+    },
+    {
+      "name": "res/o_.png",
+      "size": 651,
+      "bucket": "res"
+    },
+    {
+      "name": "res/bP.xml",
+      "size": 644,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BJ1.xml",
+      "size": 640,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VT.xml",
+      "size": 640,
+      "bucket": "res"
+    },
+    {
+      "name": "res/cL.xml",
+      "size": 640,
+      "bucket": "res"
+    },
+    {
+      "name": "res/u_.xml",
+      "size": 640,
+      "bucket": "res"
+    },
+    {
+      "name": "res/um.xml",
+      "size": 636,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Pb.png",
+      "size": 631,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_btn_checkable.xml",
+      "size": 624,
+      "bucket": "res"
+    },
+    {
+      "name": "res/KH.9.png",
+      "size": 618,
+      "bucket": "res"
+    },
+    {
+      "name": "res/hq.xml",
+      "size": 612,
+      "bucket": "res"
+    },
+    {
+      "name": "res/B_.xml",
+      "size": 604,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Qd.xml",
+      "size": 604,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qQ.xml",
+      "size": 604,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9P.xml",
+      "size": 600,
+      "bucket": "res"
+    },
+    {
+      "name": "res/49.png",
+      "size": 595,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9z.png",
+      "size": 593,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_search_url_text.xml",
+      "size": 588,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xj.xml",
+      "size": 588,
+      "bucket": "res"
+    },
+    {
+      "name": "res/g-.png",
+      "size": 585,
+      "bucket": "res"
+    },
+    {
+      "name": "res/yV.xml",
+      "size": 576,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_hint_foreground_material_dark.xml",
+      "size": 564,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_hint_foreground_material_light.xml",
+      "size": 564,
+      "bucket": "res"
+    },
+    {
+      "name": "res/RV.png",
+      "size": 563,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rY.xml",
+      "size": 548,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_color_highlight_material.xml",
+      "size": 544,
+      "bucket": "res"
+    },
+    {
+      "name": "res/fS.xml",
+      "size": 544,
+      "bucket": "res"
+    },
+    {
+      "name": "res/33.9.png",
+      "size": 541,
+      "bucket": "res"
+    },
+    {
+      "name": "res/aG.xml",
+      "size": 532,
+      "bucket": "res"
+    },
+    {
+      "name": "res/vJ.xml",
+      "size": 528,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7o.9.png",
+      "size": 525,
+      "bucket": "res"
+    },
+    {
+      "name": "res/gZ.9.png",
+      "size": 524,
+      "bucket": "res"
+    },
+    {
+      "name": "res/3W.xml",
+      "size": 516,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5z.xml",
+      "size": 516,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BJ2.xml",
+      "size": 516,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Sc.xml",
+      "size": 516,
+      "bucket": "res"
+    },
+    {
+      "name": "res/XK.xml",
+      "size": 516,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Xx.xml",
+      "size": 516,
+      "bucket": "res"
+    },
+    {
+      "name": "res/bb.xml",
+      "size": 516,
+      "bucket": "res"
+    },
+    {
+      "name": "res/q6.xml",
+      "size": 516,
+      "bucket": "res"
+    },
+    {
+      "name": "res/MQ.png",
+      "size": 513,
+      "bucket": "res"
+    },
+    {
+      "name": "res/u3.png",
+      "size": 513,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VW.png",
+      "size": 510,
+      "bucket": "res"
+    },
+    {
+      "name": "res/KI.xml",
+      "size": 508,
+      "bucket": "res"
+    },
+    {
+      "name": "res/UX.xml",
+      "size": 508,
+      "bucket": "res"
+    },
+    {
+      "name": "res/k_.xml",
+      "size": 508,
+      "bucket": "res"
+    },
+    {
+      "name": "res/pV.xml",
+      "size": 504,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_seek_thumb.xml",
+      "size": 500,
+      "bucket": "res"
+    },
+    {
+      "name": "res/RH.png",
+      "size": 498,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Xw.png",
+      "size": 498,
+      "bucket": "res"
+    },
+    {
+      "name": "res/fF.png",
+      "size": 488,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NM.xml",
+      "size": 484,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Qj.xml",
+      "size": 484,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_G.xml",
+      "size": 484,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/color_selector.xml",
+      "size": 484,
+      "bucket": "res"
+    },
+    {
+      "name": "res/iR.9.png",
+      "size": 484,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tG.png",
+      "size": 476,
+      "bucket": "res"
+    },
+    {
+      "name": "res/GS.png",
+      "size": 475,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1x.xml",
+      "size": 472,
+      "bucket": "res"
+    },
+    {
+      "name": "res/e-.xml",
+      "size": 472,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rA.png",
+      "size": 471,
+      "bucket": "res"
+    },
+    {
+      "name": "res/In.xml",
+      "size": 468,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_background_cache_hint_selector_material_dark.xml",
+      "size": 468,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_background_cache_hint_selector_material_light.xml",
+      "size": 468,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7H.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7i.png",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Hd.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Jl.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_disable_only_material_dark.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_disable_only_material_light.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_material_dark.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_material_light.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_secondary_text_material_dark.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_secondary_text_material_light.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/switch_thumb_material_dark.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/switch_thumb_material_light.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/sA.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/zq.xml",
+      "size": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/zX.png",
+      "size": 462,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Sl.png",
+      "size": 457,
+      "bucket": "res"
+    },
+    {
+      "name": "res/jk.png",
+      "size": 454,
+      "bucket": "res"
+    },
+    {
+      "name": "res/4B.xml",
+      "size": 452,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qA.xml",
+      "size": 452,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BW.xml",
+      "size": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/aU.9.png",
+      "size": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/X_.png",
+      "size": 441,
+      "bucket": "res"
+    },
+    {
+      "name": "res/6Y.png",
+      "size": 440,
+      "bucket": "res"
+    },
+    {
+      "name": "res/8G.png",
+      "size": 439,
+      "bucket": "res"
+    },
+    {
+      "name": "res/wL.9.png",
+      "size": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/G1.png",
+      "size": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/t4.png",
+      "size": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/d3.png",
+      "size": 432,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7C.9.png",
+      "size": 430,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5b.png",
+      "size": 427,
+      "bucket": "res"
+    },
+    {
+      "name": "res/QL.png",
+      "size": 427,
+      "bucket": "res"
+    },
+    {
+      "name": "res/13.png",
+      "size": 425,
+      "bucket": "res"
+    },
+    {
+      "name": "res/A2.png",
+      "size": 425,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Cg.xml",
+      "size": 424,
+      "bucket": "res"
+    },
+    {
+      "name": "res/MO.xml",
+      "size": 424,
+      "bucket": "res"
+    },
+    {
+      "name": "res/UR.png",
+      "size": 422,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Z8.png",
+      "size": 420,
+      "bucket": "res"
+    },
+    {
+      "name": "res/nA.png",
+      "size": 420,
+      "bucket": "res"
+    },
+    {
+      "name": "res/z9.9.png",
+      "size": 417,
+      "bucket": "res"
+    },
+    {
+      "name": "res/KM.png",
+      "size": 415,
+      "bucket": "res"
+    },
+    {
+      "name": "res/SR.png",
+      "size": 412,
+      "bucket": "res"
+    },
+    {
+      "name": "res/lr.png",
+      "size": 411,
+      "bucket": "res"
+    },
+    {
+      "name": "res/r2.png",
+      "size": 411,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tn.png",
+      "size": 411,
+      "bucket": "res"
+    },
+    {
+      "name": "res/52.png",
+      "size": 409,
+      "bucket": "res"
+    },
+    {
+      "name": "res/dY.png",
+      "size": 404,
+      "bucket": "res"
+    },
+    {
+      "name": "res/s0.png",
+      "size": 403,
+      "bucket": "res"
+    },
+    {
+      "name": "res/sn.xml",
+      "size": 400,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5U.png",
+      "size": 396,
+      "bucket": "res"
+    },
+    {
+      "name": "res/yg.9.png",
+      "size": 395,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ar.png",
+      "size": 391,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1a.xml",
+      "size": 388,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9z.xml",
+      "size": 388,
+      "bucket": "res"
+    },
+    {
+      "name": "res/rj.xml",
+      "size": 388,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/color_popmenu_background.xml",
+      "size": 376,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/color_popup_background.xml",
+      "size": 376,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/preference_primary_text_disable.xml",
+      "size": 376,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7N.xml",
+      "size": 372,
+      "bucket": "res"
+    },
+    {
+      "name": "res/YW.xml",
+      "size": 372,
+      "bucket": "res"
+    },
+    {
+      "name": "res/eR.png",
+      "size": 356,
+      "bucket": "res"
+    },
+    {
+      "name": "res/3V.xml",
+      "size": 352,
+      "bucket": "res"
+    },
+    {
+      "name": "res/7I.9.png",
+      "size": 345,
+      "bucket": "res"
+    },
+    {
+      "name": "res/mm.9.png",
+      "size": 345,
+      "bucket": "res"
+    },
+    {
+      "name": "res/27.xml",
+      "size": 336,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Wr.png",
+      "size": 335,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NF.xml",
+      "size": 328,
+      "bucket": "res"
+    },
+    {
+      "name": "res/VM.xml",
+      "size": 328,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Tj.9.png",
+      "size": 327,
+      "bucket": "res"
+    },
+    {
+      "name": "res/zE.png",
+      "size": 324,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NG.png",
+      "size": 322,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tS.png",
+      "size": 321,
+      "bucket": "res"
+    },
+    {
+      "name": "res/DZ.xml",
+      "size": 320,
+      "bucket": "res"
+    },
+    {
+      "name": "res/lN.xml",
+      "size": 320,
+      "bucket": "res"
+    },
+    {
+      "name": "res/-N.png",
+      "size": 318,
+      "bucket": "res"
+    },
+    {
+      "name": "res/eT.9.png",
+      "size": 318,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_o.xml",
+      "size": 316,
+      "bucket": "res"
+    },
+    {
+      "name": "res/c5.xml",
+      "size": 316,
+      "bucket": "res"
+    },
+    {
+      "name": "res/EP.png",
+      "size": 310,
+      "bucket": "res"
+    },
+    {
+      "name": "res/FW.png",
+      "size": 307,
+      "bucket": "res"
+    },
+    {
+      "name": "res/V7.xml",
+      "size": 304,
+      "bucket": "res"
+    },
+    {
+      "name": "res/op.9.png",
+      "size": 286,
+      "bucket": "res"
+    },
+    {
+      "name": "res/-B.png",
+      "size": 281,
+      "bucket": "res"
+    },
+    {
+      "name": "res/JJ.9.png",
+      "size": 280,
+      "bucket": "res"
+    },
+    {
+      "name": "res/te.png",
+      "size": 278,
+      "bucket": "res"
+    },
+    {
+      "name": "res/pk.png",
+      "size": 275,
+      "bucket": "res"
+    },
+    {
+      "name": "res/5D.9.png",
+      "size": 272,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ly.png",
+      "size": 272,
+      "bucket": "res"
+    },
+    {
+      "name": "res/jv.png",
+      "size": 271,
+      "bucket": "res"
+    },
+    {
+      "name": "assets/dexopt/baseline.profm",
+      "size": 268,
+      "bucket": "assets"
+    },
+    {
+      "name": "res/0c.9.png",
+      "size": 267,
+      "bucket": "res"
+    },
+    {
+      "name": "res/dW.png",
+      "size": 267,
+      "bucket": "res"
+    },
+    {
+      "name": "res/m0.png",
+      "size": 267,
+      "bucket": "res"
+    },
+    {
+      "name": "res/XY.xml",
+      "size": 264,
+      "bucket": "res"
+    },
+    {
+      "name": "res/2P.png",
+      "size": 262,
+      "bucket": "res"
+    },
+    {
+      "name": "res/o9.9.png",
+      "size": 260,
+      "bucket": "res"
+    },
+    {
+      "name": "res/3u.9.png",
+      "size": 258,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Uj.png",
+      "size": 256,
+      "bucket": "res"
+    },
+    {
+      "name": "res/s3.9.png",
+      "size": 245,
+      "bucket": "res"
+    },
+    {
+      "name": "res/CK.9.png",
+      "size": 244,
+      "bucket": "res"
+    },
+    {
+      "name": "res/bX.9.png",
+      "size": 244,
+      "bucket": "res"
+    },
+    {
+      "name": "META-INF/xposed/scope.list",
+      "size": 243,
+      "bucket": "meta"
+    },
+    {
+      "name": "res/gj.9.png",
+      "size": 237,
+      "bucket": "res"
+    },
+    {
+      "name": "res/jS.9.png",
+      "size": 236,
+      "bucket": "res"
+    },
+    {
+      "name": "res/65.9.png",
+      "size": 235,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BL.9.png",
+      "size": 229,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ZN.9.png",
+      "size": 229,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ev.9.png",
+      "size": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/iO.png",
+      "size": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/6t.png",
+      "size": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/sg.9.png",
+      "size": 226,
+      "bucket": "res"
+    },
+    {
+      "name": "res/kp1.png",
+      "size": 224,
+      "bucket": "res"
+    },
+    {
+      "name": "res/UE.9.png",
+      "size": 222,
+      "bucket": "res"
+    },
+    {
+      "name": "res/X3.9.png",
+      "size": 221,
+      "bucket": "res"
+    },
+    {
+      "name": "res/W4.9.png",
+      "size": 217,
+      "bucket": "res"
+    },
+    {
+      "name": "res/py.9.png",
+      "size": 217,
+      "bucket": "res"
+    },
+    {
+      "name": "res/K_.9.png",
+      "size": 216,
+      "bucket": "res"
+    },
+    {
+      "name": "res/42.9.png",
+      "size": 214,
+      "bucket": "res"
+    },
+    {
+      "name": "res/w_.png",
+      "size": 214,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Y7.9.png",
+      "size": 212,
+      "bucket": "res"
+    },
+    {
+      "name": "res/hh.9.png",
+      "size": 212,
+      "bucket": "res"
+    },
+    {
+      "name": "res/x3.9.png",
+      "size": 212,
+      "bucket": "res"
+    },
+    {
+      "name": "res/SV.9.png",
+      "size": 211,
+      "bucket": "res"
+    },
+    {
+      "name": "res/62.9.png",
+      "size": 210,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0x.9.png",
+      "size": 209,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Yt.9.png",
+      "size": 209,
+      "bucket": "res"
+    },
+    {
+      "name": "res/kJ.9.png",
+      "size": 208,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tU.9.png",
+      "size": 208,
+      "bucket": "res"
+    },
+    {
+      "name": "res/v4.9.png",
+      "size": 208,
+      "bucket": "res"
+    },
+    {
+      "name": "res/8h.9.png",
+      "size": 207,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Pg.9.png",
+      "size": 207,
+      "bucket": "res"
+    },
+    {
+      "name": "res/nI.9.png",
+      "size": 207,
+      "bucket": "res"
+    },
+    {
+      "name": "res/gt.9.png",
+      "size": 205,
+      "bucket": "res"
+    },
+    {
+      "name": "res/uu.9.png",
+      "size": 204,
+      "bucket": "res"
+    },
+    {
+      "name": "res/H-.png",
+      "size": 203,
+      "bucket": "res"
+    },
+    {
+      "name": "res/YG.9.png",
+      "size": 203,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Gt.9.png",
+      "size": 202,
+      "bucket": "res"
+    },
+    {
+      "name": "res/-D.png",
+      "size": 201,
+      "bucket": "res"
+    },
+    {
+      "name": "res/4k.png",
+      "size": 201,
+      "bucket": "res"
+    },
+    {
+      "name": "res/EA.9.png",
+      "size": 200,
+      "bucket": "res"
+    },
+    {
+      "name": "res/No.9.png",
+      "size": 199,
+      "bucket": "res"
+    },
+    {
+      "name": "res/tZ.9.png",
+      "size": 198,
+      "bucket": "res"
+    },
+    {
+      "name": "res/qp.png",
+      "size": 197,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Wz.png",
+      "size": 196,
+      "bucket": "res"
+    },
+    {
+      "name": "res/uj.9.png",
+      "size": 196,
+      "bucket": "res"
+    },
+    {
+      "name": "res/0z.png",
+      "size": 194,
+      "bucket": "res"
+    },
+    {
+      "name": "res/lP.9.png",
+      "size": 194,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xR.9.png",
+      "size": 194,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9X.9.png",
+      "size": 192,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BG.9.png",
+      "size": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/QJ.9.png",
+      "size": 189,
+      "bucket": "res"
+    },
+    {
+      "name": "res/9N.9.png",
+      "size": 187,
+      "bucket": "res"
+    },
+    {
+      "name": "res/X4.9.png",
+      "size": 187,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Yw.9.png",
+      "size": 186,
+      "bucket": "res"
+    },
+    {
+      "name": "res/i6.9.png",
+      "size": 186,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xH.png",
+      "size": 186,
+      "bucket": "res"
+    },
+    {
+      "name": "res/yY.9.png",
+      "size": 186,
+      "bucket": "res"
+    },
+    {
+      "name": "res/yH.9.png",
+      "size": 184,
+      "bucket": "res"
+    },
+    {
+      "name": "res/NZ.9.png",
+      "size": 182,
+      "bucket": "res"
+    },
+    {
+      "name": "res/vz.9.png",
+      "size": 181,
+      "bucket": "res"
+    },
+    {
+      "name": "assets/test4.zip",
+      "size": 179,
+      "bucket": "assets"
+    },
+    {
+      "name": "res/9n.9.png",
+      "size": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/DL.9.png",
+      "size": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/D_.9.png",
+      "size": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Su.9.png",
+      "size": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ps.9.png",
+      "size": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/_q.png",
+      "size": 173,
+      "bucket": "res"
+    },
+    {
+      "name": "res/1e.9.png",
+      "size": 171,
+      "bucket": "res"
+    },
+    {
+      "name": "res/Wh.png",
+      "size": 171,
+      "bucket": "res"
+    },
+    {
+      "name": "res/ej.9.png",
+      "size": 167,
+      "bucket": "res"
+    },
+    {
+      "name": "res/hZ.9.png",
+      "size": 167,
+      "bucket": "res"
+    },
+    {
+      "name": "res/jS1.9.png",
+      "size": 167,
+      "bucket": "res"
+    },
+    {
+      "name": "res/BM.png",
+      "size": 159,
+      "bucket": "res"
+    },
+    {
+      "name": "res/2d.png",
+      "size": 145,
+      "bucket": "res"
+    },
+    {
+      "name": "res/lL.xml",
+      "size": 136,
+      "bucket": "res"
+    },
+    {
+      "name": "res/kp.png",
+      "size": 128,
+      "bucket": "res"
+    },
+    {
+      "name": "res/QZ.xml",
+      "size": 124,
+      "bucket": "res"
+    },
+    {
+      "name": "res/XW.xml",
+      "size": 124,
+      "bucket": "res"
+    },
+    {
+      "name": "res/aW.xml",
+      "size": 124,
+      "bucket": "res"
+    },
+    {
+      "name": "res/YG.png",
+      "size": 123,
+      "bucket": "res"
+    },
+    {
+      "name": "META-INF/version-control-info.textproto",
+      "size": 120,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/xposed/module.prop",
+      "size": 57,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/com/android/build/gradle/app-metadata.properties",
+      "size": 56,
+      "bucket": "meta"
+    },
+    {
+      "name": "assets/test3.txt",
+      "size": 25,
+      "bucket": "assets"
+    },
+    {
+      "name": "META-INF/kotlinx_coroutines_android.version",
+      "size": 6,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/kotlinx_coroutines_core.version",
+      "size": 6,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/services/d4",
+      "size": 3,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/services/rg",
+      "size": 3,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/xposed/java_init.list",
+      "size": 3,
+      "bucket": "meta"
+    }
+  ]
+}
