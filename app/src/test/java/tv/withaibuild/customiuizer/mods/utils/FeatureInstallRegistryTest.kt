@@ -202,4 +202,89 @@ class FeatureInstallRegistryTest {
         assertTrue(results[0] == FeatureInstallResult.FAILED_PERMANENT)
         assertTrue(results[1] == FeatureInstallResult.FAILED_TRANSIENT)
     }
+
+    @Test
+    fun lazySpec_disabledFeatureDoesNotCreateDefinition() {
+        val registry = FeatureInstallRegistry()
+        var createCalls = 0
+        val spec = LazyFeatureSpec(
+            id = TestId("lazy-off"),
+            name = "Lazy Off",
+            preferenceKey = "lazy_off",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { false },
+            factory = {
+                createCalls++
+                DummyFeature("lazy-off")
+            },
+        )
+
+        registry.register(spec)
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] == FeatureInstallResult.SKIPPED)
+        assertEquals("disabled feature must not call factory", 0, createCalls)
+    }
+
+    @Test
+    fun lazySpec_enabledFeatureCreatesAndInstalls() {
+        val registry = FeatureInstallRegistry()
+        var createCalls = 0
+        val definition = object : FeatureDefinition {
+            override val id = TestId("lazy-on")
+            override val name = "Lazy On"
+            override val preferenceKey = "lazy_on"
+            override val target = FeatureTarget.SYSTEM_UI
+            override val phase = InstallPhase.PACKAGE_READY
+            var installCalls = 0
+            override fun isEnabled(prefs: PrefMap) = true
+            override fun install(): FeatureInstallResult {
+                installCalls++
+                return FeatureInstallResult.INSTALLED
+            }
+        }
+        val spec = LazyFeatureSpec(
+            id = definition.id,
+            name = definition.name,
+            preferenceKey = definition.preferenceKey,
+            target = definition.target,
+            phase = definition.phase,
+            enabled = { true },
+            factory = {
+                createCalls++
+                definition
+            },
+        )
+
+        registry.register(spec)
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
+
+        assertEquals(1, results.size)
+        assertTrue(results[0] == FeatureInstallResult.INSTALLED)
+        assertEquals(1, createCalls)
+        assertEquals(1, definition.installCalls)
+    }
+
+    @Test(expected = OutOfMemoryError::class)
+    fun installOne_rethrowsOutOfMemoryErrorAndRollsBackState() {
+        val registry = FeatureInstallRegistry()
+        val spec = LazyFeatureSpec(
+            id = TestId("oom"),
+            name = "OOM",
+            preferenceKey = "oom",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { true },
+            factory = { throw OutOfMemoryError("OOM in factory") },
+        )
+        registry.register(spec)
+
+        try {
+            registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
+        } finally {
+            assertTrue(FeatureInstallState.get(spec.id) == FeatureState.FAILED_TRANSIENT)
+        }
+    }
 }

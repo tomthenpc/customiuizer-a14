@@ -116,7 +116,7 @@ class RemainingFeaturesWiringTest {
         assertEquals(FeatureTarget.SYSTEM_PACKAGE, android.target)
         assertEquals(InstallPhase.PACKAGE_READY, android.phase)
 
-        val generic = GenericAppFeatures.all(fakePackageReadyParam(), PrefMap()).first { it is GenericAppStatusBarBackgroundFeature }
+        val generic = GenericAppFeatures.all(fakePackageReadyParam(), PrefMap()).first { it.preferenceKey == "system_statusbarcolor" }
         assertEquals(FeatureTarget.ANY, generic.target)
         assertEquals(InstallPhase.APPLICATION_ATTACHED, generic.phase)
         assertEquals("system_statusbarcolor", generic.preferenceKey)

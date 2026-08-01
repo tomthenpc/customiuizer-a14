@@ -156,6 +156,22 @@ class ReflectionCacheTest {
     }
 
     @Test
+    fun loaderCache_isBounded() {
+        ReflectionCache.dependencyClassName = "does.not.exist.Dependency"
+
+        for (i in 0 until 100) {
+            val loader = object : ClassLoader(javaClass.classLoader) {}
+            ReflectionCache.getDepInstance(loader, "java.lang.Runnable")
+        }
+
+        val loaders = ReflectionCache.loaderCountForTest()
+        assertTrue(
+            "global loader cache must stay within ${ReflectionCache.MAX_LOADERS}, was $loaders",
+            loaders <= ReflectionCache.MAX_LOADERS
+        )
+    }
+
+    @Test
     fun classResultCache_isBounded() {
         val loader = object : ClassLoader(javaClass.classLoader) {}
         ReflectionCache.dependencyClassName = "does.not.exist.Dependency"

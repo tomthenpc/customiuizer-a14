@@ -1,5 +1,6 @@
 package tv.withaibuild.customiuizer.mods.utils
 
+import android.annotation.SuppressLint
 import io.github.libxposed.api.XposedInterface
 
 /**
@@ -21,6 +22,7 @@ internal object Api102HookBridge {
      * The returned [HookBuilder] is the same builder, so the call can be chained.
      */
     @JvmStatic
+    @SuppressLint("XposedNewApi")
     fun setStableHookId(builder: XposedInterface.HookBuilder, id: String): XposedInterface.HookBuilder {
         if (!XposedApiCapabilities.supportsStableHookId()) return builder
         return builder.setId(id)

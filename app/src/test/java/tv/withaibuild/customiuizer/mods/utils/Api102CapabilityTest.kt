@@ -5,9 +5,16 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 class Api102CapabilityTest {
+
+    @Before
+    fun resetCapabilities() {
+        // Reset to a clean state before each test so order does not leak.
+        XposedApiCapabilities.initialize(101)
+    }
 
     @Test
     fun api101_flagsAreZero() {
@@ -36,6 +43,8 @@ class Api102CapabilityTest {
 
     @Test
     fun bridge_setStableHookId_appliesToBuilder() {
+        XposedApiCapabilities.initialize(102)
+
         val builder = object : XposedInterface.HookBuilder {
             var appliedId: String? = null
             override fun setPriority(priority: Int) = this

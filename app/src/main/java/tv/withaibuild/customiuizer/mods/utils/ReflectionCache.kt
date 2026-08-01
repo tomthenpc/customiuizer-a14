@@ -247,6 +247,9 @@ object ReflectionCache {
     internal fun loaderStateForTest(classLoader: ClassLoader?): LoaderState? = loaderStates[classLoader]
 
     @JvmStatic
+    internal fun loaderCountForTest(): Int = loaderStates.size
+
+    @JvmStatic
     internal fun clearForTests() {
         lifecycle.set(0L)
         loaderStates.clear()
