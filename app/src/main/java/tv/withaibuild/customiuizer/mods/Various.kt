@@ -1403,27 +1403,6 @@ object Various {
         })
     }
 
-    private fun createTitleTextView(context: Context, lp: ViewGroup.LayoutParams, resId: Int): TextView {
-        val tv = TextView(context)
-        tv.maxLines = 1
-        tv.setSingleLine(true)
-        tv.gravity = Gravity.START
-        tv.layoutParams = lp
-        tv.setTextAppearance(if (resId != -1) resId else android.R.style.TextAppearance_DeviceDefault)
-        return tv
-    }
-
-    private fun createValueTextView(context: Context, lp: ViewGroup.LayoutParams, resId: Int, gravity: Int): TextView {
-        val tv = TextView(context)
-        tv.maxLines = 1
-        tv.setSingleLine(true)
-        tv.gravity = gravity
-        tv.ellipsize = TextUtils.TruncateAt.START
-        tv.layoutParams = lp
-        tv.setTextAppearance(if (resId != -1) resId else android.R.style.TextAppearance_DeviceDefault)
-        return tv
-    }
-
     @JvmStatic
     @Suppress("UNCHECKED_CAST")
     fun AppInfoDuringMiuiInstallHook(lpparam: PackageReadyParam) {
