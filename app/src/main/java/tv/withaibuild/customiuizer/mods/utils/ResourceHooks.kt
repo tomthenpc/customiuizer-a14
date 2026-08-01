@@ -131,9 +131,9 @@ class ResourceHooks {
                                 args[0] == ModuleHelper.currentPackageName
                                 || "miui.systemui.plugin" == args[0]
                             )) {
-                                val themeIntValues = HashMap<Int, Int>()
-                                val themeIntegerArrays = HashMap<Int, IntArray>()
-                                val themeStringArrays = HashMap<Int, Array<String>>()
+                                val themeIntValues = SparseIntArray()
+                                val themeIntegerArrays = SparseArray<IntArray>()
+                                val themeStringArrays = SparseArray<Array<String>>()
                                 val mResources = XposedHelpers.getObjectField(mThemeResources, "mResources") as Resources
                                 val nightMode = XposedHelpers.getBooleanField(mThemeResources, "mNightMode")
                                 val mThemeValues = args[1]
@@ -151,15 +151,21 @@ class ResourceHooks {
                                     }
                                     if (tv.resId > 0) {
                                         when (tv.themeValueType) {
-                                            "string-array" -> themeStringArrays[tv.resId] = (if (nightMode) tv.mNightValue else tv.mValue) as Array<String>
-                                            "integer-array" -> themeIntegerArrays[tv.resId] = (if (nightMode) tv.mNightValue else tv.mValue) as IntArray
-                                            else -> themeIntValues[tv.resId] = (if (nightMode) tv.mNightValue else tv.mValue) as Int
+                                            "string-array" -> themeStringArrays.put(tv.resId, (if (nightMode) tv.mNightValue else tv.mValue) as Array<String>)
+                                            "integer-array" -> themeIntegerArrays.put(tv.resId, (if (nightMode) tv.mNightValue else tv.mValue) as IntArray)
+                                            else -> themeIntValues.put(tv.resId, (if (nightMode) tv.mNightValue else tv.mValue) as Int)
                                         }
                                     }
                                 }
-                                mIntegers.putAll(themeIntValues)
-                                mIntegerArrays.putAll(themeIntegerArrays)
-                                mStringArrays.putAll(themeStringArrays)
+                                for (i in 0 until themeIntValues.size()) {
+                                    mIntegers[themeIntValues.keyAt(i)] = themeIntValues.valueAt(i)
+                                }
+                                for (i in 0 until themeIntegerArrays.size()) {
+                                    mIntegerArrays[themeIntegerArrays.keyAt(i)] = themeIntegerArrays.valueAt(i) ?: continue
+                                }
+                                for (i in 0 until themeStringArrays.size()) {
+                                    mStringArrays[themeStringArrays.keyAt(i)] = themeStringArrays.valueAt(i) ?: continue
+                                }
                             }
                         }
                     } catch (t: Throwable) {
