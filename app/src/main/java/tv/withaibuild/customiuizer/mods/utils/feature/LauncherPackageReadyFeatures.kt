@@ -104,9 +104,9 @@ internal class LauncherUnlockGridsFeature(
     override fun install(): FeatureInstallResult = try {
         LauncherLayoutHooks.UnlockGridsRes()
         LauncherLayoutHooks.UnlockGridsHook(lpparam)
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     }
 }
 

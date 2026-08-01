@@ -43,7 +43,7 @@ class FeatureRegistryWiringTest {
         )
         assertTrue(
             "PackagePermissions feature install() must return Installed",
-            classBody.contains("FeatureInstallResult.Installed")
+            classBody.contains("FeatureInstallResult.INSTALLED")
         )
     }
 
@@ -75,7 +75,7 @@ class FeatureRegistryWiringTest {
             override val target = FeatureTarget.SYSTEM_SERVER
             override val phase = InstallPhase.SYSTEM_SERVER_STARTING
             override fun isEnabled(prefs: PrefMap) = true
-            override fun install() = FeatureInstallResult.Installed
+            override fun install() = FeatureInstallResult.INSTALLED
         }
 
         assertEquals(LateInstallPolicy.NONE, def.lateInstallPolicy)

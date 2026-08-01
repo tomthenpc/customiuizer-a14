@@ -33,10 +33,10 @@ internal class GuardProviderDisableDefraudAppsFeature(
         MainModule.loadDexKit()
         XposedHelpers.createBridge(lpparam.applicationInfo.sourceDir)
         Various.DisableDefraudAppsCheck(lpparam)
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
         XposedHelpers.log(t)
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     } finally {
         XposedHelpers.closeBridge()
     }

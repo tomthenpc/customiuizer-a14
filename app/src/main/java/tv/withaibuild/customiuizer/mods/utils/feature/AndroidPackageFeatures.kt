@@ -63,8 +63,8 @@ internal class AndroidAllRotationsFeature(
     override fun install(): FeatureInstallResult = try {
         val allRotations = mPrefs.getStringAsInt("system_allrotations2", 1)
         MainModule.resHooks.setThemeValueReplacement("android", "bool", "config_allowAllRotations", allRotations == 2)
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     }
 }

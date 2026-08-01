@@ -38,9 +38,9 @@ internal abstract class BaseSystemServerFeature(
 
     final override fun install(): FeatureInstallResult = try {
         installHook()
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     }
 }
 

@@ -16,7 +16,7 @@ class FeatureInstallRegistryTest {
         override val target: FeatureTarget = FeatureTarget.SYSTEM_UI,
         override val phase: InstallPhase = InstallPhase.PACKAGE_READY,
         val enabled: Boolean = true,
-        val result: FeatureInstallResult = FeatureInstallResult.Installed,
+        val result: FeatureInstallResult = FeatureInstallResult.INSTALLED,
     ) : FeatureDefinition {
         override val id = TestId(name)
         var installCalls = 0
@@ -42,10 +42,10 @@ class FeatureInstallRegistryTest {
         registry.register(wrongTarget)
         registry.register(wrongPhase)
 
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
 
         assertEquals(1, results.size)
-        assertEquals(FeatureInstallResult.Installed, results[0])
+        assertEquals(FeatureInstallResult.INSTALLED, results[0])
         assertEquals(1, hit.installCalls)
         assertEquals(0, wrongTarget.installCalls)
         assertEquals(0, wrongPhase.installCalls)
@@ -56,10 +56,10 @@ class FeatureInstallRegistryTest {
         val registry = FeatureInstallRegistry()
         registry.register(DummyFeature("off", enabled = false))
 
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
 
         assertEquals(1, results.size)
-        assertTrue(results[0] is FeatureInstallResult.Skipped)
+        assertTrue(results[0] == FeatureInstallResult.SKIPPED)
     }
 
     @Test
@@ -68,25 +68,25 @@ class FeatureInstallRegistryTest {
         val f = DummyFeature("idempotent")
         registry.register(f)
 
-        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
 
         assertEquals(1, f.installCalls)
-        assertEquals(FeatureInstallResult.AlreadyInstalled, results[0])
+        assertEquals(FeatureInstallResult.ALREADY_INSTALLED, results[0])
     }
 
     @Test
     fun installAll_failureRecordedOnce() {
         val registry = FeatureInstallRegistry()
-        val f = DummyFeature("fail", result = FeatureInstallResult.FailedPermanent("missing"))
+        val f = DummyFeature("fail", result = FeatureInstallResult.FAILED_PERMANENT)
         registry.register(f)
 
-        val r1 = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
-        val r2 = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        val r1 = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
+        val r2 = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
 
         assertEquals(1, f.installCalls)
-        assertTrue(r1[0] is FeatureInstallResult.FailedPermanent)
-        assertTrue(r2[0] is FeatureInstallResult.FailedPermanent)
+        assertTrue(r1[0] == FeatureInstallResult.FAILED_PERMANENT)
+        assertTrue(r2[0] == FeatureInstallResult.FAILED_PERMANENT)
     }
 
     @Test
@@ -103,9 +103,9 @@ class FeatureInstallRegistryTest {
         }
         registry.register(f)
 
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
 
-        assertTrue(results[0] is FeatureInstallResult.FailedTransient)
+        assertTrue(results[0] == FeatureInstallResult.FAILED_TRANSIENT)
     }
 
     @Test
@@ -115,10 +115,10 @@ class FeatureInstallRegistryTest {
         registry.register(f)
         registry.register(f)
 
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
 
         assertEquals(1, results.size)
-        assertEquals(FeatureInstallResult.Installed, results[0])
+        assertEquals(FeatureInstallResult.INSTALLED, results[0])
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -132,7 +132,7 @@ class FeatureInstallRegistryTest {
             override val target = FeatureTarget.SYSTEM_UI
             override val phase = InstallPhase.PACKAGE_READY
             override fun isEnabled(prefs: PrefMap) = true
-            override fun install() = FeatureInstallResult.Installed
+            override fun install() = FeatureInstallResult.INSTALLED
         }
         val b = object : FeatureDefinition {
             override val id = sharedId
@@ -141,7 +141,7 @@ class FeatureInstallRegistryTest {
             override val target = FeatureTarget.SYSTEM_UI
             override val phase = InstallPhase.PACKAGE_READY
             override fun isEnabled(prefs: PrefMap) = true
-            override fun install() = FeatureInstallResult.Installed
+            override fun install() = FeatureInstallResult.INSTALLED
         }
         registry.register(a)
         registry.register(b)
@@ -152,7 +152,7 @@ class FeatureInstallRegistryTest {
         val registry = FeatureInstallRegistry()
         val f = DummyFeature("statusbar", preferenceKey = "system_statusbarheight")
         registry.register(f)
-        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
         assertEquals(1, f.installCalls)
 
         registry.onPreferenceChanged("system_statusbarheight", PrefMap())
@@ -168,32 +168,32 @@ class FeatureInstallRegistryTest {
         registry.register(f)
 
         registry.onPreferenceChanged("system_statusbarheight", PrefMap())
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.MODULE_LOADED, PrefMap())
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.MODULE_LOADED, PrefMap(), collectResults = true)
 
         assertEquals(0, f.installCalls)
         assertEquals(1, results.size)
-        assertTrue(results[0] is FeatureInstallResult.RestartLater)
+        assertTrue(results[0] == FeatureInstallResult.RESTART_LATER)
     }
 
     @Test
     fun markForReinstall_onlyResetsTransientFailures() {
         val registry = FeatureInstallRegistry()
-        val permanent = DummyFeature("permanent", result = FeatureInstallResult.FailedPermanent("missing"))
-        val transient = DummyFeature("transient", result = FeatureInstallResult.FailedTransient("missing"))
+        val permanent = DummyFeature("permanent", result = FeatureInstallResult.FAILED_PERMANENT)
+        val transient = DummyFeature("transient", result = FeatureInstallResult.FAILED_TRANSIENT)
         registry.register(permanent)
         registry.register(transient)
 
-        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
         assertEquals(1, permanent.installCalls)
         assertEquals(1, transient.installCalls)
 
         registry.markForReinstall("permanent")
         registry.markForReinstall("transient")
 
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
         assertEquals(1, permanent.installCalls)
         assertEquals(2, transient.installCalls)
-        assertTrue(results[0] is FeatureInstallResult.FailedPermanent)
-        assertTrue(results[1] is FeatureInstallResult.FailedTransient)
+        assertTrue(results[0] == FeatureInstallResult.FAILED_PERMANENT)
+        assertTrue(results[1] == FeatureInstallResult.FAILED_TRANSIENT)
     }
 }

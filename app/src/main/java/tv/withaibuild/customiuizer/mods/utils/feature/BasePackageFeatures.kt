@@ -31,9 +31,9 @@ internal abstract class BasePackageReadyFeature(
 
     open override fun install(): FeatureInstallResult = try {
         installHook()
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     }
 }
 
@@ -58,8 +58,8 @@ internal abstract class BaseApplicationAttachedFeature(
 
     open override fun install(): FeatureInstallResult = try {
         installHook()
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     }
 }

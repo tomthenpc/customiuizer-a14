@@ -50,9 +50,9 @@ internal class SettingsDisableAnyNotificationFeature(
     override fun install(): FeatureInstallResult = try {
         SystemNotificationHooks.DisableAnyNotificationHook(lpparam)
         SystemNotificationHooks.DisableAnyNotificationBlockHook(lpparam)
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     }
 }
 

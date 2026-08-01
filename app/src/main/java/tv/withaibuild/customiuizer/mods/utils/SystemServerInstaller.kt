@@ -54,8 +54,8 @@ internal class PackagePermissionsFeature(
 
     override fun install(): FeatureInstallResult = try {
         PackagePermissions.hook(lpparam)
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     }
 }

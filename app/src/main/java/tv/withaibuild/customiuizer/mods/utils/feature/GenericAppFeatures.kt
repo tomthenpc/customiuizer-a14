@@ -51,9 +51,9 @@ internal class GenericAppStatusBarBackgroundFeature(
     override fun install(): FeatureInstallResult = try {
         SystemStatusBarBackgroundHooks.StatusBarBackgroundCompatHook(lpparam)
         SystemStatusBarBackgroundHooks.StatusBarBackgroundHook(lpparam)
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     }
 }
 

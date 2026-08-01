@@ -51,10 +51,10 @@ internal class MediaScreenshotConfigFeature(
         MainModule.loadDexKit()
         XposedHelpers.createBridge(lpparam.applicationInfo.sourceDir)
         ModsSystem.ScreenshotConfigHook(lpparam)
-        FeatureInstallResult.Installed
+        FeatureInstallResult.INSTALLED
     } catch (t: Throwable) {
         XposedHelpers.log(t)
-        FeatureInstallResult.FailedTransient(t.javaClass.name)
+        FeatureInstallResult.FAILED_TRANSIENT
     } finally {
         XposedHelpers.closeBridge()
     }
