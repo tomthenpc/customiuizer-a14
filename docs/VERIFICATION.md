@@ -69,6 +69,15 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 - 热路径 `ResourceHooks` 在主题切换、SystemUI 与 Launcher 重建时的延迟与内存。
 - 快速重启 Receiver 和 10 秒重启守卫。
 
+## A14-7C 构建身份前置
+
+- 模块加载标记包含 `BuildConfig.BUILD_REVISION`，格式为
+  `CustoMIUIzer <versionName> (<versionCode>) [<short SHA>] loaded in <process>`。
+- `BUILD_REVISION` 在 Gradle 配置期从当前 `HEAD` 解析为 8 位短 SHA；Git 元数据不可用时明确写入
+  `unknown`，不得仅凭版本号推断精确源码。
+- 该项只证明新构建具备可审计身份。当前 A14-7A APK 仍是旧日志格式；在新 APK 完成实机行为验证前，
+  `deviceVerified` 继续为 `false`，A14-7C 功能状态继续为 `NOT_EXERCISED` 或 `BEHAVIOR_PENDING`。
+
 ## 发布资产边界
 
 - 不提交 APK、keystore、密码、构建缓存或本地日志。

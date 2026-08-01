@@ -27,6 +27,13 @@ if (officialRelease) {
 
 val lastVersion = 191
 val lastVersionName = "r14.15.3"
+val buildRevision = providers.exec {
+    workingDir(rootDir)
+    commandLine("git", "rev-parse", "--short=8", "HEAD")
+    isIgnoreExitValue = true
+}.standardOutput.asText.map { output ->
+    output.trim().takeIf { it.matches(Regex("[0-9a-fA-F]{8}")) } ?: "unknown"
+}.getOrElse("unknown")
 val supportedLocales = setOf(
     "ru-rRU",
     "zh-rCN",
@@ -64,6 +71,7 @@ android {
         targetSdk = 34
         versionCode = lastVersion
         versionName = lastVersionName
+        buildConfigField("String", "BUILD_REVISION", "\"$buildRevision\"")
         ndk {
             abiFilters += "arm64-v8a"
         }

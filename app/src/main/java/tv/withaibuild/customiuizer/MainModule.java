@@ -67,7 +67,7 @@ public class MainModule extends XposedModule {
         // version, which is the first thing anyone reading the log needs to know.
         // Once per process, on the coldest path there is.
         XposedHelpers.log("CustoMIUIzer " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE
-                + ") loaded in " + processName);
+                + ") [" + BuildConfig.BUILD_REVISION + "] loaded in " + processName);
 
         preferenceBootstrap = PreferenceBootstrap.create(mPrefs, new PreferenceBootstrap.RemotePreferenceSource() {
             @Override
@@ -119,7 +119,8 @@ public class MainModule extends XposedModule {
         }
         if (!mSystemServerLoadMarkerLogged) {
             mSystemServerLoadMarkerLogged = true;
-            XposedHelpers.log("CustoMIUIzer " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE + ") loaded in " + processName);
+            XposedHelpers.log("CustoMIUIzer " + BuildConfig.VERSION_NAME + " (" + BuildConfig.VERSION_CODE
+                    + ") [" + BuildConfig.BUILD_REVISION + "] loaded in " + processName);
         }
         boolean prefReady = initPrefs();
         if (!prefReady) {
