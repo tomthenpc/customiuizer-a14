@@ -10,6 +10,7 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Point
+import android.graphics.drawable.BitmapDrawable
 import android.os.Build
 import android.util.LruCache
 import android.view.View
@@ -46,6 +47,8 @@ import tv.withaibuild.customiuizer.utils.HookUtils
 object LockScreenAlbumArtController {
 
     private const val BLUR_MAX_PIXELS = 512 * 512
+    private const val APPLIED_DRAWABLE_FIELD = "custo_lock_screen_album_art_drawable"
+    private const val LIFECYCLE_LISTENER_FIELD = "custo_lock_screen_album_art_lifecycle"
 
     private data class CacheKey(
         val sourceId: Int,
@@ -70,6 +73,20 @@ object LockScreenAlbumArtController {
     private var pendingBlur: Int = 0
     private var pendingRescale: Int = 1
     private var pendingGrayscale: Boolean = false
+
+    private val drawPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val drawMatrix = Matrix()
+    private val grayscaleFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
+
+    private val backgroundLifecycleListener = object : View.OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(view: View) = ModuleHelper.guarded {
+            applyTo(view)
+        }
+
+        override fun onViewDetachedFromWindow(view: View) = ModuleHelper.guarded {
+            clearViewBackground(view)
+        }
+    }
 
     private val controllerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1) + ModuleHelper.coroutineFailureHandler)
     private var generationJob: Job? = null
@@ -103,6 +120,8 @@ object LockScreenAlbumArtController {
         generationJob = null
         pendingSource = null
         albumArtCache?.evictAll()
+        albumArtCache = null
+        cacheBudgetBytes = 0
     }
 
     @JvmStatic
@@ -143,6 +162,7 @@ object LockScreenAlbumArtController {
 
     @JvmStatic
     fun applyTo(view: View): Boolean {
+        ensureLifecycleListener(view)
         lastViewRef = WeakReference(view)
         val processed = getStaticAlbumArt()
         return if (processed != null && processed.width == view.width && processed.height == view.height && view.width > 0 && view.height > 0) {
@@ -151,21 +171,45 @@ object LockScreenAlbumArtController {
         } else if (pendingSource != null && view.width > 0 && view.height > 0) {
             val ctx = lastContextRef?.get() ?: view.context
             generate(ctx, pendingSource!!, pendingBlur, pendingRescale, pendingGrayscale, view.width, view.height)
+            clearViewBackground(view)
             false
         } else {
+            clearViewBackground(view)
             false
         }
     }
 
+    private fun ensureLifecycleListener(view: View) {
+        if (XposedHelpers.getAdditionalInstanceField(view, LIFECYCLE_LISTENER_FIELD) === backgroundLifecycleListener) return
+        view.addOnAttachStateChangeListener(backgroundLifecycleListener)
+        XposedHelpers.setAdditionalInstanceField(view, LIFECYCLE_LISTENER_FIELD, backgroundLifecycleListener)
+    }
+
     private fun setViewBackground(view: View, bitmap: Bitmap) {
-        view.background = android.graphics.drawable.BitmapDrawable(view.resources, bitmap)
+        val current = XposedHelpers.getAdditionalInstanceField(view, APPLIED_DRAWABLE_FIELD) as? BitmapDrawable
+        if (current != null && view.background === current && current.bitmap === bitmap) {
+            view.visibility = View.VISIBLE
+            return
+        }
+        val drawable = BitmapDrawable(view.resources, bitmap)
+        XposedHelpers.setAdditionalInstanceField(view, APPLIED_DRAWABLE_FIELD, drawable)
+        view.background = drawable
         view.visibility = View.VISIBLE
+    }
+
+    private fun clearViewBackground(view: View) {
+        val applied = XposedHelpers.removeAdditionalInstanceField(view, APPLIED_DRAWABLE_FIELD)
+        if (applied != null && view.background === applied) {
+            view.background = null
+        }
     }
 
     private fun getStaticAlbumArt(): Bitmap? {
         val cls = miuiThemeUtilsClass ?: return null
         return try {
             XposedHelpers.getAdditionalStaticField(cls, "mAlbumArt") as Bitmap?
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (_: Throwable) {
             null
         }
@@ -175,6 +219,8 @@ object LockScreenAlbumArtController {
         val cls = miuiThemeUtilsClass ?: return null
         return try {
             XposedHelpers.getAdditionalStaticField(cls, "mAlbumArtSource") as Bitmap?
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (_: Throwable) {
             null
         }
@@ -223,6 +269,8 @@ object LockScreenAlbumArtController {
             val wallpaperColors = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
                 try {
                     WallpaperColors.fromBitmap(processed)
+                } catch (oom: OutOfMemoryError) {
+                    throw oom
                 } catch (_: Throwable) {
                     null
                 }
@@ -278,26 +326,53 @@ object LockScreenAlbumArtController {
         val cache = cacheFor(width, height)
         cache?.get(key)?.let { return it }
 
-        if (!isCurrent(generation)) return null
-        val blurred = if (blur > 0) blurArt(art, blur) else art
+        var blurred: Bitmap? = null
+        var processed: Bitmap? = null
+        try {
+            if (!isCurrent(generation)) return null
+            blurred = if (blur > 0) blurArt(art, blur) else art
 
-        if (!isCurrent(generation)) return null
-        val processed = drawAlbumArt(blurred, rescale, grayscale, width, height) ?: return null
+            if (!isCurrent(generation)) return null
+            processed = drawAlbumArt(blurred, rescale, grayscale, width, height) ?: return null
 
-        if (!isCurrent(generation)) return null
-        cache?.put(key, processed)
-        return processed
+            if (!isCurrent(generation)) {
+                recycleIntermediate(processed, art, null)
+                processed = null
+                return null
+            }
+            cache?.put(key, processed)
+            return processed
+        } finally {
+            recycleIntermediate(blurred, art, processed)
+        }
     }
 
     private fun blurArt(art: Bitmap, blur: Int): Bitmap? {
         val small = downsampleForBlur(art, BLUR_MAX_PIXELS)
-        return HookUtils.fastBlur(small, blur + 1) ?: small
+        return try {
+            val blurred = HookUtils.fastBlur(small, blur + 1)
+            if (blurred != null) {
+                recycleIntermediate(small, art, blurred)
+                blurred
+            } else {
+                small
+            }
+        } catch (t: Throwable) {
+            recycleIntermediate(small, art, null)
+            throw t
+        }
+    }
+
+    private fun recycleIntermediate(bitmap: Bitmap?, source: Bitmap, retained: Bitmap?) {
+        if (bitmap != null && bitmap !== source && bitmap !== retained && !bitmap.isRecycled) {
+            bitmap.recycle()
+        }
     }
 
     private fun downsampleForBlur(art: Bitmap, maxPixels: Int): Bitmap {
-        val pixels = art.width * art.height
+        val pixels = art.width.toLong() * art.height.toLong()
         if (pixels <= maxPixels) return art
-        val ratio = sqrt(maxPixels.toFloat() / pixels)
+        val ratio = sqrt(maxPixels.toDouble() / pixels).toFloat()
         val w = (art.width * ratio).toInt().coerceAtLeast(1)
         val h = (art.height * ratio).toInt().coerceAtLeast(1)
         return Bitmap.createScaledBitmap(art, w, h, true)
@@ -322,14 +397,8 @@ object LockScreenAlbumArtController {
         if (bitmap == null) return null
         if (width <= 0 || height <= 0) return bitmap
 
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-        val transformation = Matrix()
-
-        if (grayscale) {
-            val matrix = ColorMatrix()
-            matrix.setSaturation(0f)
-            paint.colorFilter = ColorMatrixColorFilter(matrix)
-        }
+        drawPaint.colorFilter = if (grayscale) grayscaleFilter else null
+        drawMatrix.reset()
 
         val originalWidth = bitmap.width.toFloat()
         val originalHeight = bitmap.height.toFloat()
@@ -341,12 +410,12 @@ object LockScreenAlbumArtController {
         }
         val xTranslation = (width - originalWidth * scale) / 2.0f
         val yTranslation = (height - originalHeight * scale) / 2.0f
-        transformation.setScale(scale, scale)
-        transformation.preTranslate(xTranslation, yTranslation)
+        drawMatrix.setScale(scale, scale)
+        drawMatrix.preTranslate(xTranslation, yTranslation)
 
         val processed = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(processed)
-        canvas.drawBitmap(bitmap, transformation, paint)
+        canvas.drawBitmap(bitmap, drawMatrix, drawPaint)
         return processed
     }
 

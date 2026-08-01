@@ -88,9 +88,8 @@ object HookUtils {
 
     @JvmStatic
     fun fastBlur(sentBitmap: Bitmap, radius: Int): Bitmap? {
-        val bitmap = sentBitmap.copy(sentBitmap.config!!, true)
-
         if (radius < 1) return null
+        val bitmap = sentBitmap.copy(sentBitmap.config ?: Bitmap.Config.ARGB_8888, true)
 
         val w = bitmap.width
         val h = bitmap.height

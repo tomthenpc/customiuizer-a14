@@ -440,6 +440,8 @@ DEVICE_INFO_MONITOR = "tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.
 HOOKER_CLASS_HELPER = "tv/withaibuild/customiuizer/mods/utils/HookerClassHelper.kt"
 MODULE_HELPER = "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt"
 SYSTEM_LOCK_SCREEN_HOOKS = "tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt"
+LOCK_SCREEN_ALBUM_ART_CONTROLLER = "tv/withaibuild/customiuizer/mods/utils/LockScreenAlbumArtController.kt"
+HOOK_UTILS = "tv/withaibuild/customiuizer/utils/HookUtils.kt"
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
@@ -641,6 +643,84 @@ def check_charging_info_hot_path(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def check_album_art_memory_lifecycle(path: Path, text: str) -> list[Finding]:
+    """Full-screen album-art frames need detach cleanup, reuse and owned-intermediate release."""
+    rel = rel_posix(path)
+    if rel == HOOK_UTILS:
+        method = text.find("fun fastBlur(")
+        if method < 0:
+            return [Finding("album-art-memory-lifecycle", path, 1, "fastBlur is missing")]
+        body, _ = block_at(text, method)
+        radius = body.find("if (radius < 1) return null")
+        bitmap_copy = body.find("sentBitmap.copy(")
+        findings = []
+        if radius < 0 or bitmap_copy < 0 or radius > bitmap_copy:
+            findings.append(
+                Finding(
+                    "album-art-memory-lifecycle",
+                    path,
+                    line_of(text, method),
+                    "fastBlur must reject an invalid radius before copying the bitmap",
+                )
+            )
+        if "sentBitmap.config ?: Bitmap.Config.ARGB_8888" not in body:
+            findings.append(
+                Finding(
+                    "album-art-memory-lifecycle",
+                    path,
+                    line_of(text, method),
+                    "fastBlur must support bitmaps whose config is null",
+                )
+            )
+        return findings
+
+    if rel != LOCK_SCREEN_ALBUM_ART_CONTROLLER:
+        return []
+
+    findings = []
+    required = (
+        ("current.bitmap === bitmap", "reuse the existing BitmapDrawable for the same bitmap"),
+        ("onViewDetachedFromWindow", "release the controller-owned background when the view detaches"),
+        ("removeAdditionalInstanceField(view, APPLIED_DRAWABLE_FIELD)", "remove the controller-owned drawable reference"),
+        ("recycleIntermediate(blurred, art, processed)", "release the blurred intermediate on every process exit"),
+        ("recycleIntermediate(small, art, blurred)", "release an owned blur downsample after copying"),
+        ("art.width.toLong() * art.height.toLong()", "calculate source pixels without Int overflow"),
+    )
+    for token, detail in required:
+        if token not in text:
+            findings.append(Finding("album-art-memory-lifecycle", path, 1, detail))
+
+    for generic in re.finditer(r"catch\s*\(\s*([_A-Za-z]\w*)\s*:\s*Throwable\s*\)", text):
+        body, _ = block_at(text, generic.start())
+        variable = generic.group(1)
+        if variable != "_" and re.search(rf"\bthrow\s+{re.escape(variable)}\b", body):
+            continue
+        preceding = None
+        for oom in re.finditer(
+            r"catch\s*\(\s*([A-Za-z]\w*)\s*:\s*OutOfMemoryError\s*\)",
+            text[:generic.start()],
+        ):
+            preceding = oom
+        safe = False
+        if preceding is not None:
+            oom_body, oom_body_start = block_at(text, preceding.start())
+            between = text[oom_body_start + len(oom_body):generic.start()]
+            safe = not between.strip() and re.search(
+                rf"\bthrow\s+{re.escape(preceding.group(1))}\b",
+                oom_body,
+            ) is not None
+        if not safe:
+            findings.append(
+                Finding(
+                    "album-art-memory-lifecycle",
+                    path,
+                    line_of(text, generic.start()),
+                    "album-art catch(Throwable) must rethrow it or follow an OOM rethrow catch",
+                )
+            )
+    return findings
+
+
 REFLECTION_CACHE = "tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt"
 
 
@@ -742,6 +822,7 @@ RULES = (
     check_method_hook_fatal_boundary,
     check_module_helper_fatal_boundaries,
     check_charging_info_hot_path,
+    check_album_art_memory_lifecycle,
     check_reflection_cache_get_declared_method_oom,
 )
 

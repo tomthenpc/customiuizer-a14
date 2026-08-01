@@ -321,6 +321,49 @@ fun ChargingInfoHook(param: Any) {
         findings = self.mod.check_charging_info_hot_path(path, unsafe)
         self.assertEqual(2, len(findings))
 
+    def test_album_art_requires_detach_cleanup_and_owned_bitmap_release(self):
+        path = self._source_path(
+            "tv/withaibuild/customiuizer/mods/utils/LockScreenAlbumArtController.kt"
+        )
+        clean = """
+current.bitmap === bitmap
+onViewDetachedFromWindow(view)
+removeAdditionalInstanceField(view, APPLIED_DRAWABLE_FIELD)
+recycleIntermediate(blurred, art, processed)
+recycleIntermediate(small, art, blurred)
+val pixels = art.width.toLong() * art.height.toLong()
+try { read() }
+catch (oom: OutOfMemoryError) { throw oom }
+catch (_: Throwable) { null }
+"""
+        self.assertEqual([], self.mod.check_album_art_memory_lifecycle(path, clean))
+
+        unsafe = """
+try { read() }
+catch (_: Throwable) { null }
+"""
+        findings = self.mod.check_album_art_memory_lifecycle(path, unsafe)
+        self.assertEqual(7, len(findings))
+
+    def test_fast_blur_rejects_before_copy_and_accepts_null_config(self):
+        path = self._source_path("tv/withaibuild/customiuizer/utils/HookUtils.kt")
+        clean = """
+fun fastBlur(sentBitmap: Bitmap, radius: Int): Bitmap? {
+    if (radius < 1) return null
+    val bitmap = sentBitmap.copy(sentBitmap.config ?: Bitmap.Config.ARGB_8888, true)
+}
+"""
+        self.assertEqual([], self.mod.check_album_art_memory_lifecycle(path, clean))
+
+        unsafe = """
+fun fastBlur(sentBitmap: Bitmap, radius: Int): Bitmap? {
+    val bitmap = sentBitmap.copy(sentBitmap.config!!, true)
+    if (radius < 1) return null
+}
+"""
+        findings = self.mod.check_album_art_memory_lifecycle(path, unsafe)
+        self.assertEqual(2, len(findings))
+
     def test_reflection_cache_get_declared_method_oom_ok(self):
         text = """
     private fun resolveDependencyMethod(loaderState: LoaderState, classLoader: ClassLoader?): Method? {
