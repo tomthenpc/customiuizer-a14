@@ -10,58 +10,403 @@ import tv.withaibuild.customiuizer.mods.LauncherIconHooks
 import tv.withaibuild.customiuizer.mods.LauncherLayoutHooks
 import tv.withaibuild.customiuizer.mods.System as ModsSystem
 import tv.withaibuild.customiuizer.mods.SystemWindowHooks
-import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
+import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
+import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
 import tv.withaibuild.customiuizer.utils.PrefMap
 
 object LauncherPostAttachFeatures {
     @JvmStatic
-    fun all(lpparam: PackageReadyParam, mPrefs: PrefMap): List<FeatureDefinition> = listOf(
-        LauncherHomescreenSwipesFeature(lpparam, mPrefs),
-        LauncherHotSeatSwipesFeature(lpparam, mPrefs),
-        LauncherShakeFeature(lpparam, mPrefs),
-        LauncherDoubleTapFeature(lpparam, mPrefs),
-        LauncherPinchFeature(lpparam, mPrefs),
-        LauncherFolderColumnsFeature(lpparam, mPrefs),
-        LauncherIconScaleFeature(lpparam, mPrefs),
-        LauncherTitleFontSizeFeature(lpparam, mPrefs),
-        LauncherTitleTopMarginFeature(lpparam, mPrefs),
-        LauncherNoClockHideFeature(lpparam, mPrefs),
-        LauncherRenameShortcutsFeature(lpparam, mPrefs),
-        LauncherTitleShadowFeature(lpparam, mPrefs),
-        LauncherHideNavBarFeature(lpparam, mPrefs),
-        LauncherInfiniteScrollFeature(lpparam, mPrefs),
-        LauncherHideTitlesFeature(lpparam, mPrefs),
-        LauncherFixAppInfoLaunchFeature(lpparam, mPrefs),
-        LauncherNoWidgetOnlyFeature(lpparam, mPrefs),
-        LauncherReversePortraitFeature(lpparam, mPrefs),
-        LauncherMaxHotseatIconsFeature(lpparam, mPrefs),
-        LauncherCloseFolderOnLaunchFeature(lpparam, mPrefs),
-        LauncherRecentsBlurFeature(lpparam, mPrefs),
-        LauncherBackGestureAreaHeightFeature(lpparam, mPrefs),
-        LauncherBackGestureAreaWidthFeature(lpparam, mPrefs),
-        LauncherFsgesturesFeature(lpparam, mPrefs),
-        LauncherHideMemoryCleanFeature(lpparam, mPrefs),
-        LauncherDisableWallpaperScaleFeature(lpparam, mPrefs),
-        LauncherHideStatusBarInRecentsFeature(lpparam, mPrefs),
-        LauncherMultiWindowPlusFeature(lpparam, mPrefs),
-        LauncherFixAnimFeature(lpparam, mPrefs),
-        LauncherHideSeekPointsFeature(lpparam, mPrefs),
-        LauncherPrivacyFolderFeature(lpparam, mPrefs),
-        LauncherHideFromRecentsFeature(lpparam, mPrefs),
-        LauncherFolderBlurFeature(lpparam, mPrefs),
-        LauncherNoUnlockAnimationFeature(lpparam, mPrefs),
-        LauncherNoZoomAnimationFeature(lpparam, mPrefs),
-        LauncherUseOldLaunchAnimationFeature(lpparam, mPrefs),
-        LauncherCloseDrawerOnLaunchFeature(lpparam, mPrefs),
-        LauncherHorizontalWidgetSpacingFeature(lpparam, mPrefs),
-        LauncherAssistGestureActionFeature(lpparam, mPrefs),
-        LauncherSwipeAndStopActionFeature(lpparam, mPrefs),
-        LauncherCloseOnLaunchFeature(lpparam, mPrefs),
-        LauncherResizableWidgetsFeature(lpparam, mPrefs),
-        LauncherWallpaperColorModeFeature(lpparam, mPrefs),
+    fun all(lpparam: PackageReadyParam, mPrefs: PrefMap): List<FeatureSpec> = listOf(
+        LazyFeatureSpec(
+            id = LauncherHomescreenSwipesFeatureId,
+            name = "Launcher Homescreen Swipes",
+            preferenceKey = "launcher_swipedown_action",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherHomescreenSwipesFeature.evaluateEnabled(prefs) },
+            factory = { LauncherHomescreenSwipesFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherHotSeatSwipesFeatureId,
+            name = "Launcher Hot Seat Swipes",
+            preferenceKey = "launcher_swipeleft_action",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherHotSeatSwipesFeature.evaluateEnabled(prefs) },
+            factory = { LauncherHotSeatSwipesFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherShakeFeatureId,
+            name = "Launcher Shake",
+            preferenceKey = "launcher_shake_action",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherShakeFeature.evaluateEnabled(prefs) },
+            factory = { LauncherShakeFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherDoubleTapFeatureId,
+            name = "Launcher Double Tap",
+            preferenceKey = "launcher_doubletap_action",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherDoubleTapFeature.evaluateEnabled(prefs) },
+            factory = { LauncherDoubleTapFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherPinchFeatureId,
+            name = "Launcher Pinch",
+            preferenceKey = "launcher_pinch_action",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherPinchFeature.evaluateEnabled(prefs) },
+            factory = { LauncherPinchFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherFolderColumnsFeatureId,
+            name = "Launcher Folder Columns",
+            preferenceKey = "launcher_folder_cols",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherFolderColumnsFeature.evaluateEnabled(prefs) },
+            factory = { LauncherFolderColumnsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherIconScaleFeatureId,
+            name = "Launcher Icon Scale",
+            preferenceKey = "launcher_iconscale",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherIconScaleFeature.evaluateEnabled(prefs) },
+            factory = { LauncherIconScaleFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherTitleFontSizeFeatureId,
+            name = "Launcher Title Font Size",
+            preferenceKey = "launcher_titlefontsize",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherTitleFontSizeFeature.evaluateEnabled(prefs) },
+            factory = { LauncherTitleFontSizeFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherTitleTopMarginFeatureId,
+            name = "Launcher Title Top Margin",
+            preferenceKey = "launcher_titletopmargin",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherTitleTopMarginFeature.evaluateEnabled(prefs) },
+            factory = { LauncherTitleTopMarginFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherNoClockHideFeatureId,
+            name = "Launcher No Clock Hide",
+            preferenceKey = "launcher_noclockhide",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherNoClockHideFeature.evaluateEnabled(prefs) },
+            factory = { LauncherNoClockHideFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherRenameShortcutsFeatureId,
+            name = "Launcher Rename Shortcuts",
+            preferenceKey = "launcher_renameapps",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherRenameShortcutsFeature.evaluateEnabled(prefs) },
+            factory = { LauncherRenameShortcutsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherTitleShadowFeatureId,
+            name = "Launcher Title Shadow",
+            preferenceKey = "launcher_darkershadow",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherTitleShadowFeature.evaluateEnabled(prefs) },
+            factory = { LauncherTitleShadowFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherHideNavBarFeatureId,
+            name = "Launcher Hide Nav Bar",
+            preferenceKey = "controls_nonavbar",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherHideNavBarFeature.evaluateEnabled(prefs) },
+            factory = { LauncherHideNavBarFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherInfiniteScrollFeatureId,
+            name = "Launcher Infinite Scroll",
+            preferenceKey = "launcher_infinitescroll",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherInfiniteScrollFeature.evaluateEnabled(prefs) },
+            factory = { LauncherInfiniteScrollFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherHideTitlesFeatureId,
+            name = "Launcher Hide Titles",
+            preferenceKey = "launcher_hidetitles",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherHideTitlesFeature.evaluateEnabled(prefs) },
+            factory = { LauncherHideTitlesFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherFixAppInfoLaunchFeatureId,
+            name = "Launcher Fix App Info Launch",
+            preferenceKey = "launcher_fixlaunch",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherFixAppInfoLaunchFeature.evaluateEnabled(prefs) },
+            factory = { LauncherFixAppInfoLaunchFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherNoWidgetOnlyFeatureId,
+            name = "Launcher No Widget Only",
+            preferenceKey = "launcher_nowidgetonly",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherNoWidgetOnlyFeature.evaluateEnabled(prefs) },
+            factory = { LauncherNoWidgetOnlyFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherReversePortraitFeatureId,
+            name = "Launcher Reverse Portrait",
+            preferenceKey = "launcher_sensorportrait",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherReversePortraitFeature.evaluateEnabled(prefs) },
+            factory = { LauncherReversePortraitFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherMaxHotseatIconsFeatureId,
+            name = "Launcher Max Hotseat Icons",
+            preferenceKey = "launcher_unlockhotseat",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherMaxHotseatIconsFeature.evaluateEnabled(prefs) },
+            factory = { LauncherMaxHotseatIconsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherCloseFolderOnLaunchFeatureId,
+            name = "Launcher Close Folder On Launch",
+            preferenceKey = "launcher_closefolders",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherCloseFolderOnLaunchFeature.evaluateEnabled(prefs) },
+            factory = { LauncherCloseFolderOnLaunchFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherRecentsBlurFeatureId,
+            name = "Launcher Recents Blur",
+            preferenceKey = "system_recents_blur",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherRecentsBlurFeature.evaluateEnabled(prefs) },
+            factory = { LauncherRecentsBlurFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherBackGestureAreaHeightFeatureId,
+            name = "Launcher Back Gesture Area Height",
+            preferenceKey = "controls_fsg_coverage",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherBackGestureAreaHeightFeature.evaluateEnabled(prefs) },
+            factory = { LauncherBackGestureAreaHeightFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherBackGestureAreaWidthFeatureId,
+            name = "Launcher Back Gesture Area Width",
+            preferenceKey = "controls_fsg_width",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherBackGestureAreaWidthFeature.evaluateEnabled(prefs) },
+            factory = { LauncherBackGestureAreaWidthFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherFsgesturesFeatureId,
+            name = "Launcher Fsgestures",
+            preferenceKey = "controls_fsg_horiz",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherFsgesturesFeature.evaluateEnabled(prefs) },
+            factory = { LauncherFsgesturesFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherHideMemoryCleanFeatureId,
+            name = "Launcher Hide Memory Clean",
+            preferenceKey = "system_removecleaner",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherHideMemoryCleanFeature.evaluateEnabled(prefs) },
+            factory = { LauncherHideMemoryCleanFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherDisableWallpaperScaleFeatureId,
+            name = "Launcher Disable Wallpaper Scale",
+            preferenceKey = "system_recents_disable_wallpaperscale",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherDisableWallpaperScaleFeature.evaluateEnabled(prefs) },
+            factory = { LauncherDisableWallpaperScaleFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherHideStatusBarInRecentsFeatureId,
+            name = "Launcher Hide Status Bar In Recents",
+            preferenceKey = "system_recents_hide_statusbar",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherHideStatusBarInRecentsFeature.evaluateEnabled(prefs) },
+            factory = { LauncherHideStatusBarInRecentsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherMultiWindowPlusFeatureId,
+            name = "Launcher Multi Window Plus",
+            preferenceKey = "system_fw_splitscreen",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherMultiWindowPlusFeature.evaluateEnabled(prefs) },
+            factory = { LauncherMultiWindowPlusFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherFixAnimFeatureId,
+            name = "Launcher Fix Anim",
+            preferenceKey = "launcher_fixanim",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherFixAnimFeature.evaluateEnabled(prefs) },
+            factory = { LauncherFixAnimFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherHideSeekPointsFeatureId,
+            name = "Launcher Hide Seek Points",
+            preferenceKey = "launcher_hideseekpoints",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherHideSeekPointsFeature.evaluateEnabled(prefs) },
+            factory = { LauncherHideSeekPointsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherPrivacyFolderFeatureId,
+            name = "Launcher Privacy Folder",
+            preferenceKey = "launcher_privacyapps_gest",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherPrivacyFolderFeature.evaluateEnabled(prefs) },
+            factory = { LauncherPrivacyFolderFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherHideFromRecentsFeatureId,
+            name = "Launcher Hide From Recents",
+            preferenceKey = "system_hidefromrecents",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherHideFromRecentsFeature.evaluateEnabled(prefs) },
+            factory = { LauncherHideFromRecentsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherFolderBlurFeatureId,
+            name = "Launcher Folder Blur",
+            preferenceKey = "launcher_folderblur_opacity",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherFolderBlurFeature.evaluateEnabled(prefs) },
+            factory = { LauncherFolderBlurFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherNoUnlockAnimationFeatureId,
+            name = "Launcher No Unlock Animation",
+            preferenceKey = "launcher_nounlockanim",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherNoUnlockAnimationFeature.evaluateEnabled(prefs) },
+            factory = { LauncherNoUnlockAnimationFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherNoZoomAnimationFeatureId,
+            name = "Launcher No Zoom Animation",
+            preferenceKey = "launcher_nozoomanim",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherNoZoomAnimationFeature.evaluateEnabled(prefs) },
+            factory = { LauncherNoZoomAnimationFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherUseOldLaunchAnimationFeatureId,
+            name = "Launcher Use Old Launch Animation",
+            preferenceKey = "launcher_oldlaunchanim",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherUseOldLaunchAnimationFeature.evaluateEnabled(prefs) },
+            factory = { LauncherUseOldLaunchAnimationFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherCloseDrawerOnLaunchFeatureId,
+            name = "Launcher Close Drawer On Launch",
+            preferenceKey = "launcher_closedrawer",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherCloseDrawerOnLaunchFeature.evaluateEnabled(prefs) },
+            factory = { LauncherCloseDrawerOnLaunchFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherHorizontalWidgetSpacingFeatureId,
+            name = "Launcher Horizontal Widget Spacing",
+            preferenceKey = "launcher_horizwidgetmargin",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherHorizontalWidgetSpacingFeature.evaluateEnabled(prefs) },
+            factory = { LauncherHorizontalWidgetSpacingFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherAssistGestureActionFeatureId,
+            name = "Launcher Assist Gesture Action",
+            preferenceKey = "controls_fsg_assist_left_action",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherAssistGestureActionFeature.evaluateEnabled(prefs) },
+            factory = { LauncherAssistGestureActionFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherSwipeAndStopActionFeatureId,
+            name = "Launcher Swipe And Stop Action",
+            preferenceKey = "controls_fsg_swipeandstop_action",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherSwipeAndStopActionFeature.evaluateEnabled(prefs) },
+            factory = { LauncherSwipeAndStopActionFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherCloseOnLaunchFeatureId,
+            name = "Launcher Close On Launch",
+            preferenceKey = "launcher_closefolders",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherCloseOnLaunchFeature.evaluateEnabled(prefs) },
+            factory = { LauncherCloseOnLaunchFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherResizableWidgetsFeatureId,
+            name = "Launcher Resizable Widgets",
+            preferenceKey = "system_resizablewidgets",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherResizableWidgetsFeature.evaluateEnabled(prefs) },
+            factory = { LauncherResizableWidgetsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = LauncherWallpaperColorModeFeatureId,
+            name = "Launcher Wallpaper Color Mode",
+            preferenceKey = "launcher_wallpaper_colormode",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherWallpaperColorModeFeature.evaluateEnabled(prefs) },
+            factory = { LauncherWallpaperColorModeFeature(lpparam, mPrefs) },
+        ),
     )
 }
 
@@ -76,7 +421,12 @@ internal class LauncherHomescreenSwipesFeature(
     "launcher_swipedown_action",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_swipedown_action", 1) != 1 || prefs.getInt("launcher_swipeup_action", 1) != 1 || prefs.getInt("launcher_swipedown2_action", 1) != 1 || prefs.getInt("launcher_swipeup2_action", 1) != 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_swipedown_action", 1) != 1 || prefs.getInt("launcher_swipeup_action", 1) != 1 || prefs.getInt("launcher_swipedown2_action", 1) != 1 || prefs.getInt("launcher_swipeup2_action", 1) != 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherGestureHooks.HomescreenSwipesHook(lpparam)
 }
 
@@ -91,7 +441,12 @@ internal class LauncherHotSeatSwipesFeature(
     "launcher_swipeleft_action",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_swipeleft_action", 1) != 1 || prefs.getInt("launcher_swiperight_action", 1) != 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_swipeleft_action", 1) != 1 || prefs.getInt("launcher_swiperight_action", 1) != 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherGestureHooks.HotSeatSwipesHook(lpparam)
 }
 
@@ -106,7 +461,12 @@ internal class LauncherShakeFeature(
     "launcher_shake_action",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_shake_action", 1) != 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_shake_action", 1) != 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherGestureHooks.ShakeHook(lpparam)
 }
 
@@ -121,7 +481,12 @@ internal class LauncherDoubleTapFeature(
     "launcher_doubletap_action",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_doubletap_action", 1) != 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_doubletap_action", 1) != 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherGestureHooks.LauncherDoubleTapHook(lpparam)
 }
 
@@ -136,7 +501,12 @@ internal class LauncherPinchFeature(
     "launcher_pinch_action",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_pinch_action", 1) != 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_pinch_action", 1) != 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherGestureHooks.LauncherPinchHook(lpparam)
 }
 
@@ -151,7 +521,12 @@ internal class LauncherFolderColumnsFeature(
     "launcher_folder_cols",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_folder_cols", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_folder_cols", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherFolderHooks.FolderColumnsHook(lpparam)
 }
 
@@ -166,7 +541,12 @@ internal class LauncherIconScaleFeature(
     "launcher_iconscale",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_iconscale", 45) > 45
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_iconscale", 45) > 45
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherIconHooks.IconScaleHook(lpparam)
 }
 
@@ -181,7 +561,12 @@ internal class LauncherTitleFontSizeFeature(
     "launcher_titlefontsize",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_titlefontsize", 5) > 5
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_titlefontsize", 5) > 5
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherIconHooks.TitleFontSizeHook(lpparam)
 }
 
@@ -196,7 +581,12 @@ internal class LauncherTitleTopMarginFeature(
     "launcher_titletopmargin",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_titletopmargin", 0) > 0
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_titletopmargin", 0) > 0
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherIconHooks.TitleTopMarginHook(lpparam)
 }
 
@@ -211,7 +601,12 @@ internal class LauncherNoClockHideFeature(
     "launcher_noclockhide",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_noclockhide")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_noclockhide")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherIconHooks.NoClockHideHook(lpparam)
 }
 
@@ -226,7 +621,12 @@ internal class LauncherRenameShortcutsFeature(
     "launcher_renameapps",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_renameapps")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_renameapps")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherIconHooks.RenameShortcutsHook(lpparam)
 }
 
@@ -241,7 +641,12 @@ internal class LauncherTitleShadowFeature(
     "launcher_darkershadow",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_darkershadow")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_darkershadow")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherIconHooks.TitleShadowHook(lpparam)
 }
 
@@ -256,7 +661,12 @@ internal class LauncherHideNavBarFeature(
     "controls_nonavbar",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("controls_nonavbar")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("controls_nonavbar")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Launcher.HideNavBarHook(lpparam)
 }
 
@@ -271,7 +681,12 @@ internal class LauncherInfiniteScrollFeature(
     "launcher_infinitescroll",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_infinitescroll")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_infinitescroll")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherLayoutHooks.InfiniteScrollHook(lpparam)
 }
 
@@ -286,7 +701,12 @@ internal class LauncherHideTitlesFeature(
     "launcher_hidetitles",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_hidetitles")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_hidetitles")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherIconHooks.HideTitlesHook(lpparam)
 }
 
@@ -301,7 +721,12 @@ internal class LauncherFixAppInfoLaunchFeature(
     "launcher_fixlaunch",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_fixlaunch")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_fixlaunch")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Launcher.FixAppInfoLaunchHook(lpparam)
 }
 
@@ -316,7 +741,12 @@ internal class LauncherNoWidgetOnlyFeature(
     "launcher_nowidgetonly",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_nowidgetonly")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_nowidgetonly")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherLayoutHooks.NoWidgetOnlyHook(lpparam)
 }
 
@@ -331,7 +761,12 @@ internal class LauncherReversePortraitFeature(
     "launcher_sensorportrait",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_sensorportrait")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_sensorportrait")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Launcher.ReverseLauncherPortraitHook(lpparam)
 }
 
@@ -346,7 +781,12 @@ internal class LauncherMaxHotseatIconsFeature(
     "launcher_unlockhotseat",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_unlockhotseat")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_unlockhotseat")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherLayoutHooks.MaxHotseatIconsCountHook(lpparam)
 }
 
@@ -361,7 +801,12 @@ internal class LauncherCloseFolderOnLaunchFeature(
     "launcher_closefolders",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("launcher_closefolders", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("launcher_closefolders", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherFolderHooks.CloseFolderOnLaunchHook(lpparam)
 }
 
@@ -376,7 +821,12 @@ internal class LauncherRecentsBlurFeature(
     "system_recents_blur",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("system_recents_blur", 100) < 100
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("system_recents_blur", 100) < 100
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Launcher.RecentsBlurRatioHook(lpparam)
 }
 
@@ -391,7 +841,12 @@ internal class LauncherBackGestureAreaHeightFeature(
     "controls_fsg_coverage",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("controls_fsg_coverage", 60) != 60
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("controls_fsg_coverage", 60) != 60
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.BackGestureAreaHeightHook(lpparam)
 }
 
@@ -406,7 +861,12 @@ internal class LauncherBackGestureAreaWidthFeature(
     "controls_fsg_width",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("controls_fsg_width", 100) > 100
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("controls_fsg_width", 100) > 100
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.BackGestureAreaWidthHook(lpparam)
 }
 
@@ -421,7 +881,12 @@ internal class LauncherFsgesturesFeature(
     "controls_fsg_horiz",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("controls_fsg_horiz")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("controls_fsg_horiz")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherGestureHooks.FSGesturesHook(lpparam)
 }
 
@@ -436,7 +901,12 @@ internal class LauncherHideMemoryCleanFeature(
     "system_removecleaner",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_removecleaner")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_removecleaner")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = ModsSystem.HideMemoryCleanHook(lpparam, true)
 }
 
@@ -451,7 +921,12 @@ internal class LauncherDisableWallpaperScaleFeature(
     "system_recents_disable_wallpaperscale",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_recents_disable_wallpaperscale") || prefs.getBoolean("launcher_disable_wallpaperscale")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_recents_disable_wallpaperscale") || prefs.getBoolean("launcher_disable_wallpaperscale")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherAnimationHooks.DisableLauncherWallpaperScale(lpparam)
 }
 
@@ -466,7 +941,12 @@ internal class LauncherHideStatusBarInRecentsFeature(
     "system_recents_hide_statusbar",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_recents_hide_statusbar")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_recents_hide_statusbar")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Launcher.HideStatusBarInRecentsHook(lpparam)
 }
 
@@ -481,7 +961,12 @@ internal class LauncherMultiWindowPlusFeature(
     "system_fw_splitscreen",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_fw_splitscreen")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_fw_splitscreen")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.MultiWindowPlusHook(lpparam)
 }
 
@@ -496,7 +981,12 @@ internal class LauncherFixAnimFeature(
     "launcher_fixanim",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_fixanim")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_fixanim")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherAnimationHooks.FixAnimHook(lpparam)
 }
 
@@ -511,7 +1001,12 @@ internal class LauncherHideSeekPointsFeature(
     "launcher_hideseekpoints",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_hideseekpoints")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_hideseekpoints")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherLayoutHooks.HideSeekPointsHook(lpparam)
 }
 
@@ -526,7 +1021,12 @@ internal class LauncherPrivacyFolderFeature(
     "launcher_privacyapps_gest",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_privacyapps_gest") || prefs.getInt("launcher_spread_action", 1) != 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_privacyapps_gest") || prefs.getInt("launcher_spread_action", 1) != 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherFolderHooks.PrivacyFolderHook(lpparam)
 }
 
@@ -541,7 +1041,12 @@ internal class LauncherHideFromRecentsFeature(
     "system_hidefromrecents",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_hidefromrecents")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_hidefromrecents")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Launcher.HideFromRecentsHook(lpparam)
 }
 
@@ -556,7 +1061,12 @@ internal class LauncherFolderBlurFeature(
     "launcher_folderblur_opacity",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_folderblur_opacity", 0) > 0
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_folderblur_opacity", 0) > 0
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherFolderHooks.FolderBlurHook(lpparam)
 }
 
@@ -571,7 +1081,12 @@ internal class LauncherNoUnlockAnimationFeature(
     "launcher_nounlockanim",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_nounlockanim")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_nounlockanim")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherAnimationHooks.NoUnlockAnimationHook(lpparam)
 }
 
@@ -586,7 +1101,12 @@ internal class LauncherNoZoomAnimationFeature(
     "launcher_nozoomanim",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_nozoomanim")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_nozoomanim")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherAnimationHooks.NoZoomAnimationHook(lpparam)
 }
 
@@ -601,7 +1121,12 @@ internal class LauncherUseOldLaunchAnimationFeature(
     "launcher_oldlaunchanim",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_oldlaunchanim")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_oldlaunchanim")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherAnimationHooks.UseOldLaunchAnimationHook(lpparam)
 }
 
@@ -616,7 +1141,12 @@ internal class LauncherCloseDrawerOnLaunchFeature(
     "launcher_closedrawer",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("launcher_closedrawer")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("launcher_closedrawer")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherFolderHooks.CloseDrawerOnLaunchHook(lpparam)
 }
 
@@ -631,7 +1161,12 @@ internal class LauncherHorizontalWidgetSpacingFeature(
     "launcher_horizwidgetmargin",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("launcher_horizwidgetmargin", 0) > 0
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_horizwidgetmargin", 0) > 0
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherLayoutHooks.HorizontalWidgetSpacingHook(lpparam)
 }
 
@@ -646,7 +1181,12 @@ internal class LauncherAssistGestureActionFeature(
     "controls_fsg_assist_left_action",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("controls_fsg_assist_left_action", 1) > 1 || prefs.getInt("controls_fsg_assist_right_action", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("controls_fsg_assist_left_action", 1) > 1 || prefs.getInt("controls_fsg_assist_right_action", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherGestureHooks.AssistGestureActionHook(lpparam)
 }
 
@@ -661,7 +1201,12 @@ internal class LauncherSwipeAndStopActionFeature(
     "controls_fsg_swipeandstop_action",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getInt("controls_fsg_swipeandstop_action", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("controls_fsg_swipeandstop_action", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherGestureHooks.SwipeAndStopActionHook(lpparam)
 }
 
@@ -676,7 +1221,12 @@ internal class LauncherCloseOnLaunchFeature(
     "launcher_closefolders",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("launcher_closefolders", 1) > 1 || prefs.getBoolean("launcher_closedrawer")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("launcher_closefolders", 1) > 1 || prefs.getBoolean("launcher_closedrawer")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherFolderHooks.CloseFolderOrDrawerOnLaunchShortcutMenuHook(lpparam)
 }
 
@@ -691,7 +1241,12 @@ internal class LauncherResizableWidgetsFeature(
     "system_resizablewidgets",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getBoolean("system_resizablewidgets")
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_resizablewidgets")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherLayoutHooks.ResizableWidgetsHook(lpparam)
 }
 
@@ -706,6 +1261,11 @@ internal class LauncherWallpaperColorModeFeature(
     "launcher_wallpaper_colormode",
     FeatureTarget.LAUNCHER,
 ) {
-    override fun isEnabledCondition(prefs: PrefMap) = prefs.getStringAsInt("launcher_wallpaper_colormode", 1) > 1
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("launcher_wallpaper_colormode", 1) > 1
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = LauncherAnimationHooks.WallpaperColorModeHook(lpparam)
 }
