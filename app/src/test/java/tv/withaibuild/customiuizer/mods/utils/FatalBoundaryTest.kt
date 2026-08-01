@@ -95,7 +95,6 @@ class FatalBoundaryTest {
             override fun install(): FeatureInstallResult {
                 throw OutOfMemoryError("simulated install OOM")
             }
-            override fun onPreferenceChanged(key: String?, prefs: PrefMap) {}
         }
 
         registry.register(feature)

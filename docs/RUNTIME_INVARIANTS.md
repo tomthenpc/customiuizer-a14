@@ -317,32 +317,19 @@ receivers and context holders) live inside the `factory` lambda and are created 
 
 ## 11. `feature-install-oom-cleanup`
 
-`FeatureInstallRegistry` must not leave a half-installed feature in `activeDefinitions` when
-`install()` throws `OutOfMemoryError`. If `spec.create()` succeeds and `activeDefinitions[id]` is
-written, an OOM from `install()` must:
+`FeatureInstallRegistry` is a short-lived install transaction and must not retain created
+`FeatureDefinition` objects. If `spec.create()` or `install()` throws `OutOfMemoryError`, it must:
 
-- remove the entry from `activeDefinitions`;
 - set `FeatureInstallState` to `FAILED_TRANSIENT`;
 - rethrow the `OutOfMemoryError` so the framework fatal-boundary handler can catch it.
 
-Ordinary exceptions must also remove the pseudo-active object and record a transient failure.
+Ordinary exceptions must be recorded as a transient failure. Runtime preference changes are
+handled by the process-local `PrefMap` and dedicated controllers/observers; the install registry
+does not own a second preference-dispatch state machine.
 
 ---
 
-## 12. `early-preference-restart-semantics`
-
-`FeatureInstallRegistry.onPreferenceChanged()` is called for every preference change. For
-features in an early phase (`MODULE_LOADED` or `SYSTEM_SERVER_STARTING`) that are not yet
-installed, the registry must re-evaluate `spec.isEnabled(prefs)` before deciding whether a
-restart is required:
-
-- If the new preference snapshot enables the feature, mark `FeatureState.RESTART_REQUIRED`.
-- If the feature is still disabled, keep the previous `NOT_INSTALLED` or `FAILED_TRANSIENT` state.
-- Do not call `spec.create()` while handling a preference change.
-
----
-
-## 13. `reflection-cache-dependency-method-oom`
+## 12. `reflection-cache-dependency-method-oom`
 
 `ReflectionCache.resolveDependencyMethod()` resolves the `Dependency.get(Class)` method at
 cold path. An `OutOfMemoryError` thrown by `depClass.getDeclaredMethod(...)` must be caught and

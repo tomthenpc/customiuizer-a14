@@ -440,21 +440,12 @@ DEVICE_INFO_MONITOR = "tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
-    """Feature install OOM must clean activeDefinitions and set FAILED_TRANSIENT before rethrowing."""
+    """Feature install OOM must set FAILED_TRANSIENT before rethrowing."""
     if rel_posix(path) != FEATURE_INSTALL_REGISTRY:
         return []
     findings = []
     for match in re.finditer(r"catch\s*\(\s*oom\s*:\s*OutOfMemoryError\s*\)\s*\{", text):
         body, _ = block_at(text, match.start())
-        if "activeDefinitions.remove" not in body:
-            findings.append(
-                Finding(
-                    "feature-install-oom-cleanup",
-                    path,
-                    line_of(text, match.start()),
-                    "install OOM catch must remove activeDefinitions before rethrowing",
-                )
-            )
         if "FeatureInstallState.set" not in body or "FAILED_TRANSIENT" not in body:
             findings.append(
                 Finding(
@@ -537,34 +528,6 @@ def check_device_info_monitor_hot_path(path: Path, text: str) -> list[Finding]:
                 )
             )
     return findings
-
-
-def check_early_restart_enabled(path: Path, text: str) -> list[Finding]:
-    """Early-phase preference changes must re-check isEnabled before marking RESTART_REQUIRED."""
-    if rel_posix(path) != FEATURE_INSTALL_REGISTRY:
-        return []
-    match = re.search(
-        r"FeatureState\.NOT_INSTALLED,\s*FeatureState\.FAILED_TRANSIENT\s*->\s*\{",
-        text,
-    )
-    if not match:
-        return []
-    body, _ = block_at(text, match.start())
-    restart_marker = "FeatureInstallState.set(spec.id, FeatureState.RESTART_REQUIRED)"
-    if restart_marker not in body:
-        return []
-    is_enabled_pos = body.find("spec.isEnabled(prefs)")
-    restart_pos = body.find(restart_marker)
-    if is_enabled_pos == -1 or is_enabled_pos > restart_pos:
-        return [
-            Finding(
-                "early-preference-restart-enabled",
-                path,
-                line_of(text, match.start()),
-                "RESTART_REQUIRED for early feature must be guarded by spec.isEnabled(prefs)",
-            )
-        ]
-    return []
 
 
 REFLECTION_CACHE = "tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt"
@@ -665,7 +628,6 @@ RULES = (
     check_feature_install_oom_cleanup,
     check_feature_install_boundary,
     check_device_info_monitor_hot_path,
-    check_early_restart_enabled,
     check_reflection_cache_get_declared_method_oom,
 )
 

@@ -8,7 +8,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.utils.feature.PackagePermissionsFeatureId
 import tv.withaibuild.customiuizer.utils.PrefMap
-import tv.withaibuild.customiuizer.utils.RestartRequirement
 import java.io.File
 import java.lang.reflect.Proxy
 
@@ -56,30 +55,12 @@ class FeatureRegistryWiringTest {
         assertNull(feature.preferenceKey)
         assertEquals(FeatureTarget.SYSTEM_SERVER, feature.target)
         assertEquals(InstallPhase.SYSTEM_SERVER_STARTING, feature.phase)
-        assertEquals(LateInstallPolicy.NONE, feature.lateInstallPolicy)
-        assertEquals(RestartRequirement.NONE, feature.restartRequirement)
         assertTrue(feature.isEnabled(PrefMap()))
     }
 
     @Test
     fun featureTargetSystemServerExists() {
         assertEquals(FeatureTarget.SYSTEM_SERVER, FeatureTarget.valueOf("SYSTEM_SERVER"))
-    }
-
-    @Test
-    fun featureDefinitionHasLateInstallPolicyAndRestartRequirementDefaults() {
-        val def = object : FeatureDefinition {
-            override val id = object : FeatureId { override val id = 0; override val name = "test" }
-            override val name = "test"
-            override val preferenceKey = null
-            override val target = FeatureTarget.SYSTEM_SERVER
-            override val phase = InstallPhase.SYSTEM_SERVER_STARTING
-            override fun isEnabled(prefs: PrefMap) = true
-            override fun install() = FeatureInstallResult.INSTALLED
-        }
-
-        assertEquals(LateInstallPolicy.NONE, def.lateInstallPolicy)
-        assertEquals(RestartRequirement.NONE, def.restartRequirement)
     }
 
     private fun fakeSystemServerStartingParam(): XposedModuleInterface.SystemServerStartingParam {

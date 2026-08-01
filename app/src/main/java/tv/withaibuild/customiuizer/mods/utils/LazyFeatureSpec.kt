@@ -1,7 +1,6 @@
 package tv.withaibuild.customiuizer.mods.utils
 
 import tv.withaibuild.customiuizer.utils.PrefMap
-import tv.withaibuild.customiuizer.utils.RestartRequirement
 
 /**
  * Minimal [FeatureSpec] that defers [FeatureDefinition] construction to [create].
@@ -16,8 +15,6 @@ internal data class LazyFeatureSpec(
     override val preferenceKey: String?,
     override val target: FeatureTarget,
     override val phase: InstallPhase,
-    override val lateInstallPolicy: LateInstallPolicy = LateInstallPolicy.NONE,
-    override val restartRequirement: RestartRequirement = RestartRequirement.NONE,
     private val enabled: (PrefMap) -> Boolean,
     private val factory: () -> FeatureDefinition,
 ) : FeatureSpec {

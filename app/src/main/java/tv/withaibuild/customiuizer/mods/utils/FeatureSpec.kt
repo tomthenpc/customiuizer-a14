@@ -1,7 +1,6 @@
 package tv.withaibuild.customiuizer.mods.utils
 
 import tv.withaibuild.customiuizer.utils.PrefMap
-import tv.withaibuild.customiuizer.utils.RestartRequirement
 
 /**
  * Lightweight declaration of a feature without creating its runtime [FeatureDefinition].
@@ -27,12 +26,6 @@ interface FeatureSpec {
 
     /** The earliest lifecycle phase at which this feature may be installed. */
     val phase: InstallPhase
-
-    /** Policy for late installation. */
-    val lateInstallPolicy: LateInstallPolicy get() = LateInstallPolicy.NONE
-
-    /** Restart/exit action required for a preference change to take effect. */
-    val restartRequirement: RestartRequirement get() = RestartRequirement.NONE
 
     /**
      * Whether the feature should be installed now.  This is the gate: the registry calls this

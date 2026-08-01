@@ -23,11 +23,9 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureId
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
-import tv.withaibuild.customiuizer.mods.utils.LateInstallPolicy
 import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
 import tv.withaibuild.customiuizer.utils.PrefMap
-import tv.withaibuild.customiuizer.utils.RestartRequirement
 
 /**
  * Base class for all SystemUI features registered by [SystemUiInstaller].
@@ -42,8 +40,6 @@ internal abstract class BaseSystemUiFeature(
 
     override val target = FeatureTarget.SYSTEM_UI
     override val phase = InstallPhase.PACKAGE_READY
-    override val lateInstallPolicy = LateInstallPolicy.NONE
-    override val restartRequirement = RestartRequirement.NONE
 
     protected abstract fun isEnabledCondition(prefs: PrefMap): Boolean
     protected abstract fun installHook()

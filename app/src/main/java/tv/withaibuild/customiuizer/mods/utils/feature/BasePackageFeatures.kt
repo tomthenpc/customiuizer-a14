@@ -6,9 +6,7 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureId
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
-import tv.withaibuild.customiuizer.mods.utils.LateInstallPolicy
 import tv.withaibuild.customiuizer.utils.PrefMap
-import tv.withaibuild.customiuizer.utils.RestartRequirement
 
 internal abstract class BasePackageReadyFeature(
     protected val lpparam: PackageReadyParam,
@@ -20,8 +18,6 @@ internal abstract class BasePackageReadyFeature(
 ) : FeatureDefinition {
 
     override val phase = InstallPhase.PACKAGE_READY
-    override val lateInstallPolicy = LateInstallPolicy.NONE
-    override val restartRequirement = RestartRequirement.NONE
     protected val packageName: String by lazy { lpparam.packageName.orEmpty() }
 
     protected abstract fun isEnabledCondition(prefs: PrefMap): Boolean
@@ -45,8 +41,6 @@ internal abstract class BaseApplicationAttachedFeature(
 ) : FeatureDefinition {
 
     override val phase = InstallPhase.APPLICATION_ATTACHED
-    override val lateInstallPolicy = LateInstallPolicy.NONE
-    override val restartRequirement = RestartRequirement.NONE
     protected val packageName: String by lazy { lpparam.packageName.orEmpty() }
 
     protected abstract fun isEnabledCondition(prefs: PrefMap): Boolean

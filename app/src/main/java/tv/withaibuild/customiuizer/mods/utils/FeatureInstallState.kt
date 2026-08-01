@@ -16,6 +16,29 @@ object FeatureInstallState {
 
     private val states = HashMap<Int, FeatureState>()
 
+    /** Initialize a feature without overwriting state recorded by an earlier registry. */
+    @JvmStatic
+    fun initialize(featureId: FeatureId) {
+        synchronized(states) {
+            if (!states.containsKey(featureId.id)) {
+                states[featureId.id] = FeatureState.NOT_INSTALLED
+            }
+        }
+    }
+
+    /**
+     * Atomically claim installation for a new or transiently failed feature.
+     * Returns the state observed before the claim.
+     */
+    @JvmStatic
+    fun beginInstall(featureId: FeatureId): FeatureState = synchronized(states) {
+        val previous = states[featureId.id] ?: FeatureState.NOT_INSTALLED
+        if (previous == FeatureState.NOT_INSTALLED || previous == FeatureState.FAILED_TRANSIENT) {
+            states[featureId.id] = FeatureState.INSTALLING
+        }
+        previous
+    }
+
     /** Return the current state for [featureId], defaulting to [FeatureState.NOT_INSTALLED]. */
     @JvmStatic
     fun get(featureId: Int): FeatureState = synchronized(states) {

@@ -2,7 +2,6 @@ package tv.withaibuild.customiuizer.mods.utils
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.utils.PrefMap
@@ -27,14 +26,10 @@ class FeatureInstallRegistryTest {
     ) : FeatureDefinition {
         override val id = TestId(name)
         var installCalls = 0
-        var onPreferenceChangedCalls = 0
         override fun isEnabled(prefs: PrefMap): Boolean = enabled
         override fun install(): FeatureInstallResult {
             installCalls++
             return result
-        }
-        override fun onPreferenceChanged(key: String?, prefs: PrefMap) {
-            onPreferenceChangedCalls++
         }
     }
 
@@ -80,6 +75,35 @@ class FeatureInstallRegistryTest {
 
         assertEquals(1, f.installCalls)
         assertEquals(FeatureInstallResult.ALREADY_INSTALLED, results[0])
+    }
+
+    @Test
+    fun separateRegistriesDoNotResetInstalledProcessState() {
+        val feature = DummyFeature("process-idempotent")
+        val first = FeatureInstallRegistry()
+        first.register(feature)
+        first.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+
+        val second = FeatureInstallRegistry()
+        second.register(feature)
+        val results = second.installAll(
+            FeatureTarget.SYSTEM_UI,
+            InstallPhase.PACKAGE_READY,
+            PrefMap(),
+            collectResults = true
+        )
+
+        assertEquals(1, feature.installCalls)
+        assertEquals(FeatureInstallResult.ALREADY_INSTALLED, results.single())
+    }
+
+    @Test
+    fun beginInstallClaimIsAtomic() {
+        val id = TestId("atomic-claim")
+        FeatureInstallState.initialize(id)
+
+        assertEquals(FeatureState.NOT_INSTALLED, FeatureInstallState.beginInstall(id))
+        assertEquals(FeatureState.INSTALLING, FeatureInstallState.beginInstall(id))
     }
 
     @Test
@@ -152,56 +176,6 @@ class FeatureInstallRegistryTest {
         }
         registry.register(a)
         registry.register(b)
-    }
-
-    @Test
-    fun onPreferenceChanged_callsInstalledFeature() {
-        val registry = FeatureInstallRegistry()
-        val f = DummyFeature("statusbar", preferenceKey = "system_statusbarheight")
-        registry.register(f)
-        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-        assertEquals(1, f.installCalls)
-
-        registry.onPreferenceChanged("system_statusbarheight", PrefMap())
-
-        assertEquals(1, f.installCalls)
-        assertEquals(1, f.onPreferenceChangedCalls)
-    }
-
-    @Test
-    fun onPreferenceChanged_marksEarlyNotInstalledAsRestartRequired() {
-        val registry = FeatureInstallRegistry()
-        val f = DummyFeature("early", phase = InstallPhase.MODULE_LOADED, preferenceKey = "system_statusbarheight")
-        registry.register(f)
-
-        registry.onPreferenceChanged("system_statusbarheight", PrefMap())
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.MODULE_LOADED, PrefMap(), collectResults = true)
-
-        assertEquals(0, f.installCalls)
-        assertEquals(1, results.size)
-        assertTrue(results[0] == FeatureInstallResult.RESTART_LATER)
-    }
-
-    @Test
-    fun markForReinstall_onlyResetsTransientFailures() {
-        val registry = FeatureInstallRegistry()
-        val permanent = DummyFeature("permanent", result = FeatureInstallResult.FAILED_PERMANENT)
-        val transient = DummyFeature("transient", result = FeatureInstallResult.FAILED_TRANSIENT)
-        registry.register(permanent)
-        registry.register(transient)
-
-        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-        assertEquals(1, permanent.installCalls)
-        assertEquals(1, transient.installCalls)
-
-        registry.markForReinstall("permanent")
-        registry.markForReinstall("transient")
-
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-        assertEquals(1, permanent.installCalls)
-        assertEquals(2, transient.installCalls)
-        assertTrue(results[0] == FeatureInstallResult.FAILED_PERMANENT)
-        assertTrue(results[1] == FeatureInstallResult.FAILED_TRANSIENT)
     }
 
     @Test
@@ -290,7 +264,7 @@ class FeatureInstallRegistryTest {
     }
 
     @Test(expected = OutOfMemoryError::class)
-    fun installOne_createdDefinitionRemovedWhenInstallThrowsOom() {
+    fun installOne_rethrowsOomFromCreatedDefinition() {
         val registry = FeatureInstallRegistry()
         val definition = object : FeatureDefinition {
             override val id = TestId("oom-install")
@@ -318,59 +292,6 @@ class FeatureInstallRegistryTest {
             registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
         } finally {
             assertTrue(FeatureInstallState.get(spec.id) == FeatureState.FAILED_TRANSIENT)
-            assertNull(
-                "active definition must be removed after install OOM",
-                registry.activeDefinitionForTest(spec.id)
-            )
         }
-    }
-
-    @Test
-    fun onPreferenceChanged_earlyDisabledRemainsDisabled() {
-        val registry = FeatureInstallRegistry()
-        var factoryCalls = 0
-        val spec = LazyFeatureSpec(
-            id = TestId("early-disabled"),
-            name = "Early Disabled",
-            preferenceKey = "early_disabled",
-            target = FeatureTarget.SYSTEM_UI,
-            phase = InstallPhase.MODULE_LOADED,
-            enabled = { prefs -> prefs.getBoolean("early_disabled") },
-            factory = {
-                factoryCalls++
-                DummyFeature("early-disabled", phase = InstallPhase.MODULE_LOADED)
-            },
-        )
-        registry.register(spec)
-
-        registry.onPreferenceChanged("early_disabled", PrefMap())
-
-        assertTrue(FeatureInstallState.get(spec.id) == FeatureState.NOT_INSTALLED)
-        assertEquals("factory must not be called for disabled early feature", 0, factoryCalls)
-    }
-
-    @Test
-    fun onPreferenceChanged_earlyEnabledRequiresRestart() {
-        val registry = FeatureInstallRegistry()
-        var factoryCalls = 0
-        val spec = LazyFeatureSpec(
-            id = TestId("early-enabled"),
-            name = "Early Enabled",
-            preferenceKey = "early_enabled",
-            target = FeatureTarget.SYSTEM_UI,
-            phase = InstallPhase.MODULE_LOADED,
-            enabled = { prefs -> prefs.getBoolean("early_enabled") },
-            factory = {
-                factoryCalls++
-                DummyFeature("early-enabled", phase = InstallPhase.MODULE_LOADED)
-            },
-        )
-        registry.register(spec)
-
-        val prefs = PrefMap().apply { put("early_enabled", true) }
-        registry.onPreferenceChanged("early_enabled", prefs)
-
-        assertTrue(FeatureInstallState.get(spec.id) == FeatureState.RESTART_REQUIRED)
-        assertEquals("factory must not be called for early restart decision", 0, factoryCalls)
     }
 }

@@ -35,13 +35,7 @@ enum class FeatureInstallResult {
      * Installation failed and should not be retried automatically (for example, a class or method
      * is missing in this ROM and the feature cannot work).  The failure is recorded once.
      */
-    FAILED_PERMANENT,
-
-    /**
-     * The feature's setup was deferred because a full installation requires a process restart.
-     * The module remembers the result and tries to finish installation when the process reloads.
-     */
-    RESTART_LATER;
+    FAILED_PERMANENT;
 
     /** Whether this result means the feature is active in the target process. */
     val isActive: Boolean

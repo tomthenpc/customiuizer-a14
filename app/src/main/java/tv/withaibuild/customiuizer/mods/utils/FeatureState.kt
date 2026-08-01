@@ -12,5 +12,4 @@ enum class FeatureState {
     INSTALLED,
     FAILED_TRANSIENT,
     FAILED_PERMANENT,
-    RESTART_REQUIRED,
 }

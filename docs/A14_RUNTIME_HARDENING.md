@@ -8,10 +8,10 @@ Scope: HyperOS 1 / Android 14 (SDK 34), `applicationId tv.withaibuild.customiuiz
 
 `MainModule.java` is a routing layer. It does not install hooks itself. It delegates each package/process to a dedicated installer in `app/src/main/java/tv/withaibuild/customiuizer/installers/`.
 
-- `FeatureDefinition` (`mods/utils/FeatureDefinition.kt`) describes one feature: `id`, `name`, `preferenceKey`, `target`, `phase`, `isEnabled(prefs)`, `install()`, `onPreferenceChanged()`.
+- `FeatureDefinition` (`mods/utils/FeatureDefinition.kt`) describes one feature: `id`, `name`, `preferenceKey`, `target`, `phase`, `isEnabled(prefs)`, `install()`.
 - `FeatureId` (`mods/utils/FeatureId.kt`) carries a stable integer `id` plus a human name. `FeatureIds.kt` is the single registry of all feature identities.
 - `FeatureInstallState` (`mods/utils/FeatureInstallState.kt`) is a process-scoped object keyed by the stable feature `id`. It replaces per-installer install-state maps.
-- `FeatureInstallRegistry` (`mods/utils/FeatureInstallRegistry.kt`) filters by `FeatureTarget` and `InstallPhase`, checks `isEnabled` once, records the result, and dispatches preference changes.
+- `FeatureInstallRegistry` (`mods/utils/FeatureInstallRegistry.kt`) is a short-lived install transaction: it filters by `FeatureTarget` and `InstallPhase`, checks `isEnabled` once, installs enabled definitions, and records process-scoped state without retaining definitions after the transaction.
 - `FeatureInstallResult` is an `enum` with singleton values. There are no `data class` allocations for skipped or failed features.
 - `InstallPhase` (`mods/utils/InstallPhase.kt`) and `FeatureTarget` (`mods/utils/FeatureTarget.kt`) give the registry its process and lifecycle filters.
 - Base classes in `mods/utils/feature/` implement `FeatureDefinition` for each process/phase and keep hook installation separate from preference checks.

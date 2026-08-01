@@ -35,13 +35,13 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 |---|---|
 | Feature lazy construction | VERIFIED_STATIC |
 | Install OOM cleanup | VERIFIED_STATIC |
-| Early preference restart semantics | VERIFIED_STATIC |
+| Registry does not retain FeatureDefinition objects | VERIFIED_STATIC |
 | ReflectionCache fatal boundary | VERIFIED_STATIC |
 | API102 stable hook ID | READY_NOT_WIRED |
 | Device validation | DEFERRED_EXTERNAL |
 
-- `FeatureInstallRegistry` 在 `spec.create()` 写入 `activeDefinitions` 后、如果 `install()` 抛出 `OutOfMemoryError`，会移除 `activeDefinitions`、状态置为 `FAILED_TRANSIENT` 并重新抛出 OOM；普通异常同样不保留伪激活对象。
-- `onPreferenceChanged()` 对未安装的 early Feature 会先调用 `spec.isEnabled(prefs)`：仍关闭则保持 `NOT_INSTALLED`/`FAILED_TRANSIENT`，启用才标记 `RESTART_REQUIRED`，全程不调用 `spec.create()`。
+- `FeatureInstallRegistry` 不保留已创建的 `FeatureDefinition`；如果 `spec.create()` 或 `install()` 抛出 `OutOfMemoryError`，状态会置为 `FAILED_TRANSIENT` 并重新抛出 OOM。
+- 运行时偏好变化由进程本地 `PrefMap` 和专用 Controller/Observer 处理，不再维护不可达的第二套 Feature 偏好分发状态机。
 - `ReflectionCache.resolveDependencyMethod()` 中 `depClass.getDeclaredMethod(...)` 的 OOM 被单独捕获并重新抛出，不写 `dependencyMethodResolved`、不写 negative cache。
 - 文档使用新措辞说明：关闭功能时不创建 `FeatureDefinition`、业务 installer 对象或 Hook 对象，仅保留固定 `LazyFeatureSpec` 元数据和轻量 lambda。
 - `check-invariants.py` 新增对应静态规则，未引入第三方 AST 库。

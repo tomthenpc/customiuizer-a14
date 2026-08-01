@@ -35,11 +35,8 @@ class A14_6GInvariantsTest(unittest.TestCase):
         FeatureInstallState.set(id, FeatureState.INSTALLING)
         val (definition, result) = try {
             val created = spec.create()
-            activeDefinitions[id] = created
-            val installResult = created.install()
-            Pair(created, installResult)
+            created.install()
         } catch (oom: OutOfMemoryError) {
-            activeDefinitions.remove(id)
             FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
             throw oom
         } catch (t: Throwable) {
@@ -56,16 +53,13 @@ class A14_6GInvariantsTest(unittest.TestCase):
         )
         self.assertEqual([], findings)
 
-    def test_feature_install_oom_cleanup_missing_remove(self):
+    def test_feature_install_oom_cleanup_missing_state_rollback(self):
         text = """
     private fun installOne(spec: FeatureSpec, prefs: PrefMap): FeatureInstallResult {
         val (definition, result) = try {
             val created = spec.create()
-            activeDefinitions[id] = created
-            val installResult = created.install()
-            Pair(created, installResult)
+            created.install()
         } catch (oom: OutOfMemoryError) {
-            FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
             throw oom
         } catch (t: Throwable) {
             Pair(null, FeatureInstallResult.FAILED_TRANSIENT)
@@ -78,7 +72,7 @@ class A14_6GInvariantsTest(unittest.TestCase):
             text,
         )
         self.assertEqual(1, len(findings))
-        self.assertIn("activeDefinitions", findings[0].detail)
+        self.assertIn("FAILED_TRANSIENT", findings[0].detail)
 
     def test_feature_definition_delegates_throwable_boundary(self):
         path = self._source_path(
@@ -183,51 +177,6 @@ catch (_: Throwable) { return null }
 """
         findings = self.mod.check_device_info_monitor_hot_path(path, unsafe)
         self.assertEqual(2, len(findings))
-
-    def test_early_restart_enabled_ok(self):
-        text = """
-    fun onPreferenceChanged(key: String?, prefs: PrefMap) {
-        for (spec in orderedFeatures) {
-            val state = FeatureInstallState.get(spec.id)
-            when (state) {
-                FeatureState.NOT_INSTALLED, FeatureState.FAILED_TRANSIENT -> {
-                    if (spec.phase.isEarly && spec.isEnabled(prefs)) {
-                        FeatureInstallState.set(spec.id, FeatureState.RESTART_REQUIRED)
-                    }
-                }
-                else -> {}
-            }
-        }
-    }
-"""
-        findings = self.mod.check_early_restart_enabled(
-            self._source_path("tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistry.kt"),
-            text,
-        )
-        self.assertEqual([], findings)
-
-    def test_early_restart_enabled_missing_is_enabled(self):
-        text = """
-    fun onPreferenceChanged(key: String?, prefs: PrefMap) {
-        for (spec in orderedFeatures) {
-            val state = FeatureInstallState.get(spec.id)
-            when (state) {
-                FeatureState.NOT_INSTALLED, FeatureState.FAILED_TRANSIENT -> {
-                    if (spec.phase.isEarly) {
-                        FeatureInstallState.set(spec.id, FeatureState.RESTART_REQUIRED)
-                    }
-                }
-                else -> {}
-            }
-        }
-    }
-"""
-        findings = self.mod.check_early_restart_enabled(
-            self._source_path("tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistry.kt"),
-            text,
-        )
-        self.assertEqual(1, len(findings))
-        self.assertIn("spec.isEnabled(prefs)", findings[0].detail)
 
     def test_reflection_cache_get_declared_method_oom_ok(self):
         text = """
