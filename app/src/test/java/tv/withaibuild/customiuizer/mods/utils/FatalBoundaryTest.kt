@@ -180,6 +180,34 @@ class FatalBoundaryTest {
     }
 
     @Test
+    fun featureInstallRegistry_installVmError_leavesFailedTransientAndRethrows() {
+        val registry = FeatureInstallRegistry()
+        val feature = object : FeatureDefinition {
+            override val id = object : FeatureId {
+                override val id = 778
+                override val name = "vmErrorFeature"
+            }
+            override val name = "vmErrorFeature"
+            override val preferenceKey: String? = null
+            override val target = FeatureTarget.SYSTEM_UI
+            override val phase = InstallPhase.PACKAGE_READY
+            override fun isEnabled(prefs: PrefMap) = true
+            override fun install(): FeatureInstallResult {
+                throw InternalError("simulated VM error")
+            }
+        }
+
+        registry.register(feature)
+
+        try {
+            registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+            fail("InternalError must propagate")
+        } catch (e: InternalError) {
+            assertEquals(FeatureState.FAILED_TRANSIENT, FeatureInstallState.get(feature.id))
+        }
+    }
+
+    @Test
     fun reflectionCache_classLookupOom_doesNotCacheClassMissing() {
         ReflectionCache.dependencyClassName = "does.not.exist.Dependency"
         val loader = OomClassLoader()

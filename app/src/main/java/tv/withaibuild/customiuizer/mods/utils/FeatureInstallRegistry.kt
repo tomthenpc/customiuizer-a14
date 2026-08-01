@@ -86,6 +86,7 @@ class FeatureInstallRegistry {
                     FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
                     throw oom
                 } catch (t: Throwable) {
+                    FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
                     XposedHelpers.log(t)
                     recordInstallFailure(spec, t)
                     FeatureInstallResult.FAILED_TRANSIENT
