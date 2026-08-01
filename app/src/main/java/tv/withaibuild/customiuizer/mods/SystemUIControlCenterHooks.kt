@@ -37,7 +37,14 @@ import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.util.ArrayList
 import java.util.Comparator
+import java.lang.System
 import tv.withaibuild.customiuizer.utils.HookUtils
+import tv.withaibuild.customiuizer.mods.utils.gesture.GestureConfigResolver
+import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEntry
+import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEvent
+import tv.withaibuild.customiuizer.mods.utils.gesture.GestureMachine
+import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureDependenciesResolver
+import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureEffectExecutor
 
 /**
  * Control centre, volume dialog and brightness UI hooks.
@@ -940,8 +947,35 @@ object SystemUIControlCenterHooks {
                 }
             }
         }
-        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onInterceptTouchEvent", MotionEvent::class.java, hook)
-        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onTouchEvent", MotionEvent::class.java, hook)
+        val statusBarMachine = GestureMachine(
+            classLoaderIdentity = lpparam.packageName.orEmpty(),
+            configResolver = { GestureConfigResolver.resolve(MainModule.mPrefs) },
+            depsResolver = StatusBarGestureDependenciesResolver(lpparam.classLoader),
+            effectExecutor = StatusBarGestureEffectExecutor(),
+        )
+        val statusBarHook = object : MethodHook() {
+            override fun before(param: BeforeHookCallback) {
+                val thisObject = param.getThisObject() as? View ?: return
+                val event = param.getArg(0) as? MotionEvent ?: return
+                val entry = if (param.getMember().name == "onTouchEvent") GestureEntry.STATUS_BAR_TOUCH else GestureEntry.STATUS_BAR_INTERCEPT
+                val gestureEvent = GestureEvent(
+                    entry = entry,
+                    actionMasked = event.actionMasked,
+                    downTime = event.downTime,
+                    eventTime = event.eventTime,
+                    x = event.x,
+                    y = event.y,
+                    pointerCount = event.pointerCount,
+                    ownerId = System.identityHashCode(thisObject),
+                )
+                ModuleHelper.guarded {
+                    statusBarMachine.dispatch(gestureEvent, thisObject)
+                }
+            }
+        }
+
+        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onInterceptTouchEvent", MotionEvent::class.java, statusBarHook)
+        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onTouchEvent", MotionEvent::class.java, statusBarHook)
         ModuleHelper.hookAllMethods("com.android.systemui.shared.plugins.PluginInstance\$PluginFactory", lpparam.classLoader, "createPlugin", object : MethodHook() {
             private var isHooked = false
             override fun before(param: BeforeHookCallback) {

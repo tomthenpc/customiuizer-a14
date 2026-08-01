@@ -6,14 +6,17 @@ package tv.withaibuild.customiuizer.mods.utils.gesture
  *  - dependency preparation with `Ready / NotReady / FailedTransient`
  *  - the pure [GestureStateMachine]
  *  - the [GestureSideEffectGate]
+ *  - a single [GestureEffectExecutor]
  *
- * The caller still has to run the resulting [GestureCommand] list through a
- * [GestureEffectExecutor].  This class itself does not call Android APIs.
+ * The [context] passed to [dispatch] is forwarded to the resolver and the effect
+ * executor.  The orchestrator itself does not call Android services, but it does
+ * need the Android Context for the concrete resolver/executor supplied by the caller.
  */
 class GestureMachine(
     private val classLoaderIdentity: String,
     private val configResolver: () -> GestureConfig,
     private val depsResolver: GestureDependenciesResolver,
+    private val effectExecutor: GestureEffectExecutor,
     private val gate: GestureSideEffectGate = GestureSideEffectGate(),
 ) {
 
@@ -22,18 +25,18 @@ class GestureMachine(
     private val configs = mutableMapOf<Int, GestureConfig>()
 
     /**
-     * Process one [event] and return the commands that are allowed to execute.
+     * Process one [event] and execute the allowed side-effects through [effectExecutor].
      */
-    fun dispatch(event: GestureEvent): List<GestureCommand> {
+    fun dispatch(event: GestureEvent, context: Any) {
         val ownerId = event.ownerId
 
         if (event.actionMasked == GestureAction.DOWN) {
             configs[ownerId] = configResolver()
         }
 
-        val config = configs[ownerId] ?: return passThrough(event)
+        val config = configs[ownerId] ?: return
 
-        val deps = ensureDependencies(ownerId) ?: return passThrough(event)
+        val deps = ensureDependencies(ownerId, context) ?: return
 
         val current = snapshots[ownerId] ?: GestureSnapshot()
         val (next, commands) = GestureStateMachine.process(
@@ -44,26 +47,30 @@ class GestureMachine(
         )
         snapshots[ownerId] = next
 
-        return gate.filter(event.entry, event, commands)
+        val allowed = gate.filter(event.entry, event, commands)
+        effectExecutor.execute(allowed, deps, config, context)
     }
 
-    private fun passThrough(event: GestureEvent): List<GestureCommand> {
-        return gate.filter(event.entry, event, listOf(GestureCommand.PassThrough))
-    }
-
-    private fun ensureDependencies(ownerId: Int): GestureDependencies? {
+    private fun ensureDependencies(ownerId: Int, context: Any): GestureDependencies? {
         val existing = dependencies[ownerId]
         if (existing != null && existing.classLoaderIdentity == classLoaderIdentity) {
             return existing
         }
 
-        return when (val result = depsResolver.prepare(ownerId, classLoaderIdentity)) {
-            is GestureDependenciesResult.Ready -> {
-                dependencies[ownerId] = result.dependencies
-                result.dependencies
+        return try {
+            when (val result = depsResolver.prepare(ownerId, classLoaderIdentity, context)) {
+                is GestureDependenciesResult.Ready -> {
+                    dependencies[ownerId] = result.dependencies
+                    result.dependencies
+                }
+                is GestureDependenciesResult.NotReady,
+                is GestureDependenciesResult.FailedTransient -> null
             }
-            is GestureDependenciesResult.NotReady,
-            is GestureDependenciesResult.FailedTransient -> null
+        } catch (err: Throwable) {
+            when (err) {
+                is OutOfMemoryError, is ThreadDeath, is VirtualMachineError -> throw err
+                else -> null
+            }
         }
     }
 

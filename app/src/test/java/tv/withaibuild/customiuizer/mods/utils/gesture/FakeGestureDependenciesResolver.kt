@@ -8,7 +8,11 @@ class FakeGestureDependenciesResolver : GestureDependenciesResolver {
         results[ownerId to classLoaderIdentity] = result
     }
 
-    override fun prepare(ownerId: Int, classLoaderIdentity: String): GestureDependenciesResult {
+    override fun prepare(
+        ownerId: Int,
+        classLoaderIdentity: String,
+        context: Any,
+    ): GestureDependenciesResult {
         return results[ownerId to classLoaderIdentity] ?: GestureDependenciesResult.NotReady
     }
 }

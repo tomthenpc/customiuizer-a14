@@ -33,19 +33,22 @@ class GestureMachineTest {
         volumeSensitivityFactor = 1.0f,
     )
 
-    private fun machine(
-        depsResolver: GestureDependenciesResolver = readyResolver(),
-    ): GestureMachine =
-        GestureMachine(
+    private val dummyContext = Any()
+
+    private fun machine(exec: FakeGestureEffectExecutor = FakeGestureEffectExecutor()): Pair<GestureMachine, FakeGestureEffectExecutor> {
+        val m = GestureMachine(
             classLoaderIdentity = "cl-1",
             configResolver = { config },
-            depsResolver = depsResolver,
+            depsResolver = object : GestureDependenciesResolver {
+                override fun prepare(
+                    ownerId: Int,
+                    classLoaderIdentity: String,
+                    context: Any,
+                ): GestureDependenciesResult = GestureDependenciesResult.Ready(deps)
+            },
+            effectExecutor = exec,
         )
-
-    private fun readyResolver() = object : GestureDependenciesResolver {
-        override fun prepare(ownerId: Int, classLoaderIdentity: String): GestureDependenciesResult {
-            return GestureDependenciesResult.Ready(deps)
-        }
+        return m to exec
     }
 
     private fun event(
@@ -70,12 +73,11 @@ class GestureMachineTest {
 
     @Test
     fun statusBarTouch_brightnessCycle() {
-        val m = machine()
-        val exec = FakeGestureEffectExecutor()
+        val (m, exec) = machine()
 
-        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L))
-        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L)).forEach { execute(it, exec) }
-        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L)).forEach { execute(it, exec) }
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L), dummyContext)
 
         assertEquals(1, exec.brightnessApplied.size)
         assertEquals(1, exec.brightnessCommitted.size)
@@ -84,12 +86,11 @@ class GestureMachineTest {
 
     @Test
     fun interceptObservesButDoesNotExecute() {
-        val m = machine()
-        val exec = FakeGestureEffectExecutor()
+        val (m, exec) = machine()
 
-        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, entry = GestureEntry.STATUS_BAR_INTERCEPT))
-        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, entry = GestureEntry.STATUS_BAR_INTERCEPT))
-        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, entry = GestureEntry.STATUS_BAR_INTERCEPT))
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
 
         assertTrue(exec.brightnessApplied.isEmpty())
         assertTrue(exec.brightnessCommitted.isEmpty())
@@ -97,56 +98,47 @@ class GestureMachineTest {
 
     @Test
     fun sameEventInterceptThenTouch_allowsOnce() {
-        val m = machine()
-        val exec = FakeGestureEffectExecutor()
+        val (m, exec) = machine()
 
-        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1, entry = GestureEntry.STATUS_BAR_INTERCEPT))
-        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1, entry = GestureEntry.STATUS_BAR_TOUCH))
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1, entry = GestureEntry.STATUS_BAR_TOUCH), dummyContext)
 
         val e = event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L, ownerId = 1)
-        m.dispatch(e.copy(entry = GestureEntry.STATUS_BAR_INTERCEPT))
-        m.dispatch(e.copy(entry = GestureEntry.STATUS_BAR_TOUCH)).forEach { execute(it, exec) }
-        m.dispatch(e.copy(entry = GestureEntry.STATUS_BAR_TOUCH)).forEach { execute(it, exec) }
+        m.dispatch(e.copy(entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.dispatch(e.copy(entry = GestureEntry.STATUS_BAR_TOUCH), dummyContext)
+        m.dispatch(e.copy(entry = GestureEntry.STATUS_BAR_TOUCH), dummyContext)
 
         assertEquals(1, exec.brightnessApplied.size)
     }
 
     @Test
     fun dependencyNotReady_returnsPassThrough() {
-        val m = machine(object : GestureDependenciesResolver {
-            override fun prepare(ownerId: Int, classLoaderIdentity: String) = GestureDependenciesResult.NotReady
-        })
-        val commands = m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L))
-        assertEquals(GestureCommand.PassThrough, commands.single())
+        val exec = FakeGestureEffectExecutor()
+        val m = GestureMachine(
+            classLoaderIdentity = "cl-1",
+            configResolver = { config },
+            depsResolver = object : GestureDependenciesResolver {
+                override fun prepare(
+                    ownerId: Int,
+                    classLoaderIdentity: String,
+                    context: Any,
+                ): GestureDependenciesResult = GestureDependenciesResult.NotReady
+            },
+            effectExecutor = exec,
+        )
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        assertTrue(exec.brightnessApplied.isEmpty())
     }
 
     @Test
     fun ownerChange_isIndependent() {
-        val m = machine()
-        val exec = FakeGestureEffectExecutor()
+        val (m, exec) = machine()
 
-        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1))
-        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 2))
-        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L, ownerId = 2)).forEach { execute(it, exec) }
-        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 60L, downTime = 0L, ownerId = 1)).forEach { execute(it, exec) }
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1), dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 2), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L, ownerId = 2), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 60L, downTime = 0L, ownerId = 1), dummyContext)
 
         assertEquals(2, exec.brightnessApplied.size)
-    }
-
-    private fun execute(command: GestureCommand, exec: FakeGestureEffectExecutor) {
-        when (command) {
-            is GestureCommand.ApplyTemporaryBrightness -> exec.applyTemporaryBrightness(command.ratio)
-            is GestureCommand.CommitBrightness -> exec.commitBrightness(command.ratio)
-            is GestureCommand.AdjustVolume -> exec.adjustVolume(command.raise)
-            is GestureCommand.TriggerDoubleTap -> exec.triggerDoubleTap(command.position, config)
-            is GestureCommand.TriggerLongPress -> exec.triggerLongPress(config)
-            is GestureCommand.Reset -> exec.reset()
-            else -> { /* pass through */ }
-        }
-    }
-
-    private fun List<GestureCommand>.single(): GestureCommand {
-        assertEquals(1, size)
-        return first()
     }
 }

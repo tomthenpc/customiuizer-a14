@@ -9,27 +9,22 @@ class FakeGestureEffectExecutor : GestureEffectExecutor {
     var longPresses = 0
     var resets = 0
 
-    override fun applyTemporaryBrightness(ratio: Float) {
-        brightnessApplied.add(ratio)
-    }
-
-    override fun commitBrightness(ratio: Float) {
-        brightnessCommitted.add(ratio)
-    }
-
-    override fun adjustVolume(raise: Boolean) {
-        volumeAdjusted.add(raise)
-    }
-
-    override fun triggerDoubleTap(position: DoubleTapPosition, config: GestureConfig) {
-        doubleTaps.add(position)
-    }
-
-    override fun triggerLongPress(config: GestureConfig) {
-        longPresses++
-    }
-
-    override fun reset() {
-        resets++
+    override fun execute(
+        commands: List<GestureCommand>,
+        dependencies: GestureDependencies,
+        config: GestureConfig,
+        context: Any?,
+    ) {
+        for (command in commands) {
+            when (command) {
+                is GestureCommand.ApplyTemporaryBrightness -> brightnessApplied.add(command.ratio)
+                is GestureCommand.CommitBrightness -> brightnessCommitted.add(command.ratio)
+                is GestureCommand.AdjustVolume -> volumeAdjusted.add(command.raise)
+                is GestureCommand.TriggerDoubleTap -> doubleTaps.add(command.position)
+                is GestureCommand.TriggerLongPress -> longPresses++
+                is GestureCommand.Reset -> resets++
+                else -> { /* ignore */ }
+            }
+        }
     }
 }
