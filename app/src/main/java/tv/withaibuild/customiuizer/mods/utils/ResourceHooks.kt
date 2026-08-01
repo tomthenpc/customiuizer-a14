@@ -9,7 +9,6 @@ import android.util.SparseIntArray
 import io.github.libxposed.api.XposedInterface
 import miui.content.res.ThemeValues
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 
 class ResourceHooks {
 
@@ -79,6 +78,27 @@ class ResourceHooks {
         FAILED,
     }
 
+    /**
+     * Fixed failure domains for per-callback logging.  Keeps the throttle state to a small
+     * `LongArray` indexed by the domain ordinal instead of an unbounded `Map<String, Long>`.
+     */
+    private enum class ResourceFailureDomain {
+        GET_TEXT,
+        GET_STRING,
+        GET_LAYOUT,
+        GET_DRAWABLE,
+        THEME_MERGE,
+    }
+
+    /**
+     * Per-getter install state.  One lock per state, fixed array of four entries.
+     */
+    private class GetterInstallState {
+        val lock = Any()
+        var status = HookStatus.FAILED
+        var attempts = 0
+    }
+
     private val themeValueReplacements = ConcurrentHashMap<String, ThemeValue>()
 
     /**
@@ -97,17 +117,21 @@ class ResourceHooks {
     @Volatile
     private var resourceIdReplacements = SparseArray<ResourceValue>()
 
-    private val hookedGetters = ConcurrentHashMap<ResourceGetterKind, HookStatus>()
-    private val getterLocks = ConcurrentHashMap<ResourceGetterKind, Any>()
-    private val getterAttempts = ConcurrentHashMap<ResourceGetterKind, AtomicInteger>()
+    private val getterStates =
+        Array(ResourceGetterKind.entries.size) { GetterInstallState() }
+    private val themeHookState = GetterInstallState()
 
-    private val themeHookLock = Any()
-    private var themeHookStatus = HookStatus.FAILED
-    private var themeHookAttempts = 0
+    private val lastFailureLogTimes =
+        LongArray(ResourceFailureDomain.entries.size) { -1L }
 
-    private val exceptionLogTimes = ConcurrentHashMap<String, Long>()
-
-    // Test-only seams.  All are null in production.
+    /**
+     * Test-only seams.  All are null/unused in production.
+     *
+     * The hot path `ReplaceHook.intercept` pays for one field read each for [testReplacements],
+     * [testFakes] and [testModuleRes] plus a null branch.  This is the minimum seam needed because
+     * `android.util.SparseArray` is a stub in JVM unit tests and cannot hold values.  The extra
+     * reads are only executed when the primary lookup has already found a potential match.
+     */
     internal var testModuleRes: Resources? = null
     internal var hookInstallerForTest: ((ResourceGetterKind, HookerClassHelper.MethodHook) -> Boolean)? = null
     internal var themeHookInstallerForTest: (() -> Boolean)? = null
@@ -136,9 +160,7 @@ class ResourceHooks {
                     } else if (kind.supportsIdReplacement) {
                         val moduleRes = resolveModuleRes()
                         if (moduleRes != null) {
-                            val (density, theme) = extraArgs(chain)
-                            val modResId = replacement.mValue as Int
-                            val value = kind.getValue(moduleRes, modResId, density, theme)
+                            val value = resolveModuleValue(chain, moduleRes, replacement.mValue as Int)
                             if (value != null) {
                                 skipValue = value
                                 shouldSkip = true
@@ -150,8 +172,7 @@ class ResourceHooks {
                     if (modResId != 0) {
                         val moduleRes = resolveModuleRes()
                         if (moduleRes != null) {
-                            val (density, theme) = extraArgs(chain)
-                            val value = kind.getValue(moduleRes, modResId, density, theme)
+                            val value = resolveModuleValue(chain, moduleRes, modResId)
                             if (value != null) {
                                 skipValue = value
                                 shouldSkip = true
@@ -161,19 +182,26 @@ class ResourceHooks {
                 }
             } catch (t: Throwable) {
                 if (t is OutOfMemoryError) throw t
-                logThrottled(t)
+                logThrottled(t, failureDomain())
             }
             return if (shouldSkip) skipValue else chain.proceed()
         }
 
-        private fun extraArgs(chain: XposedInterface.Chain): Pair<Int, Resources.Theme?> {
+        private fun resolveModuleValue(chain: XposedInterface.Chain, moduleRes: Resources, modResId: Int): Any? {
             return if (kind == ResourceGetterKind.GET_DRAWABLE_FOR_DENSITY) {
                 val density = chain.getArg(1) as Int
                 val theme = chain.getArg(2) as Resources.Theme?
-                Pair(density, theme)
+                kind.getValue(moduleRes, modResId, density, theme)
             } else {
-                Pair(0, null)
+                kind.getValue(moduleRes, modResId)
             }
+        }
+
+        private fun failureDomain() = when (kind) {
+            ResourceGetterKind.GET_TEXT -> ResourceFailureDomain.GET_TEXT
+            ResourceGetterKind.GET_STRING -> ResourceFailureDomain.GET_STRING
+            ResourceGetterKind.GET_LAYOUT -> ResourceFailureDomain.GET_LAYOUT
+            ResourceGetterKind.GET_DRAWABLE_FOR_DENSITY -> ResourceFailureDomain.GET_DRAWABLE
         }
     }
 
@@ -183,18 +211,19 @@ class ResourceHooks {
         return ModuleHelper.getModuleRes(context)
     }
 
-    private fun logThrottled(t: Throwable) {
+    private fun logThrottled(t: Throwable, domain: ResourceFailureDomain) {
+        if (t is OutOfMemoryError) throw t
         val now = SystemClock.elapsedRealtime()
-        val key = t::class.java.name
-        val last = exceptionLogTimes.putIfAbsent(key, now)
-        if (last == null || now - last > EXCEPTION_LOG_THROTTLE_MS) {
-            exceptionLogTimes[key] = now
+        val idx = domain.ordinal
+        val last = lastFailureLogTimes[idx]
+        if (last < 0L || now - last > EXCEPTION_LOG_THROTTLE_MS) {
+            lastFailureLogTimes[idx] = now
             logSinkForTest?.invoke(t) ?: XposedHelpers.log(t)
         }
     }
 
-    private fun initThemeHook() {
-        ModuleHelper.findAndHookMethod(
+    private fun initThemeHook(): HookerClassHelper.CustomMethodUnhooker? {
+        return ModuleHelper.findAndHookMethod(
             miui.content.res.ThemeResources::class.java,
             "mergeThemeValues",
             String::class.java,
@@ -262,7 +291,7 @@ class ResourceHooks {
                         }
                     } catch (t: Throwable) {
                         if (t is OutOfMemoryError) throw t
-                        logThrottled(t)
+                        logThrottled(t, ResourceFailureDomain.THEME_MERGE)
                     }
                     return XposedHelpers.throwOrReturn(throwable, result)
                 }
@@ -290,46 +319,50 @@ class ResourceHooks {
     }
 
     private fun installGetter(kind: ResourceGetterKind) {
-        val lock = getterLocks.getOrPut(kind) { Any() }
-        val attempts = getterAttempts.getOrPut(kind) { AtomicInteger(0) }
+        val state = getterStates[kind.ordinal]
 
-        synchronized(lock) {
-            when (hookedGetters[kind]) {
+        synchronized(state.lock) {
+            when (state.status) {
                 HookStatus.HOOKED -> return
-                HookStatus.FAILED -> if (attempts.get() >= MAX_HOOK_ATTEMPTS) return
+                HookStatus.FAILED -> if (state.attempts >= MAX_HOOK_ATTEMPTS) return
                 HookStatus.PENDING -> return
-                else -> {}
             }
-            hookedGetters[kind] = HookStatus.PENDING
+            state.status = HookStatus.PENDING
         }
 
         val hook = ReplaceHook(kind)
         var installed = false
         var error: Throwable? = null
         try {
-            val testInstaller = hookInstallerForTest
-            installed = if (testInstaller != null) {
-                testInstaller(kind, hook)
+            val unhooker = if (hookInstallerForTest != null) {
+                if (hookInstallerForTest!!.invoke(kind, hook)) TestUnhooker() else null
             } else {
                 ModuleHelper.findAndHookMethod(Resources::class.java, kind.methodName, *kind.paramTypes, hook)
-                true
             }
+            installed = unhooker != null
+            if (!installed) {
+                error = IllegalStateException("findAndHookMethod returned null for Resources.${kind.methodName}")
+            }
+        } catch (oom: OutOfMemoryError) {
+            synchronized(state.lock) {
+                state.status = HookStatus.FAILED
+            }
+            throw oom
         } catch (t: Throwable) {
-            if (t is OutOfMemoryError) throw t
             error = t
         }
 
-        synchronized(lock) {
-            if (installed) {
-                hookedGetters[kind] = HookStatus.HOOKED
-                attempts.set(0)
+        synchronized(state.lock) {
+            if (installed && error == null) {
+                state.status = HookStatus.HOOKED
+                state.attempts = 0
             } else {
-                hookedGetters[kind] = HookStatus.FAILED
-                attempts.incrementAndGet()
+                state.attempts++
+                state.status = HookStatus.FAILED
             }
         }
 
-        if (!installed && error != null) {
+        if (error != null) {
             XposedHelpers.log("Failed to hook Resources.${kind.methodName}: $error")
         }
     }
@@ -436,41 +469,49 @@ class ResourceHooks {
     }
 
     private fun tryInitThemeHook() {
-        synchronized(themeHookLock) {
-            when (themeHookStatus) {
+        val state = themeHookState
+
+        synchronized(state.lock) {
+            when (state.status) {
                 HookStatus.HOOKED -> return
-                HookStatus.FAILED -> if (themeHookAttempts >= MAX_HOOK_ATTEMPTS) return
+                HookStatus.FAILED -> if (state.attempts >= MAX_HOOK_ATTEMPTS) return
                 HookStatus.PENDING -> return
             }
-            themeHookStatus = HookStatus.PENDING
+            state.status = HookStatus.PENDING
         }
 
         var installed = false
         var error: Throwable? = null
         try {
-            val testInstaller = themeHookInstallerForTest
-            installed = if (testInstaller != null) {
-                testInstaller()
+            val unhooker = if (themeHookInstallerForTest != null) {
+                if (themeHookInstallerForTest!!()) TestUnhooker() else null
             } else {
                 initThemeHook()
-                true
             }
+            installed = unhooker != null
+            if (!installed) {
+                error = IllegalStateException("initThemeHook returned null")
+            }
+        } catch (oom: OutOfMemoryError) {
+            synchronized(state.lock) {
+                state.status = HookStatus.FAILED
+            }
+            throw oom
         } catch (t: Throwable) {
-            if (t is OutOfMemoryError) throw t
             error = t
         }
 
-        synchronized(themeHookLock) {
-            if (installed) {
-                themeHookStatus = HookStatus.HOOKED
-                themeHookAttempts = 0
+        synchronized(state.lock) {
+            if (installed && error == null) {
+                state.status = HookStatus.HOOKED
+                state.attempts = 0
             } else {
-                themeHookStatus = HookStatus.FAILED
-                themeHookAttempts++
+                state.attempts++
+                state.status = HookStatus.FAILED
             }
         }
 
-        if (!installed && error != null) {
+        if (error != null) {
             XposedHelpers.log("Failed to hook ThemeResources.mergeThemeValues: $error")
         }
     }
@@ -489,17 +530,21 @@ class ResourceHooks {
     }
 
     internal fun clearThrottlingForTest() {
-        exceptionLogTimes.clear()
+        lastFailureLogTimes.fill(-1L)
     }
 
-    internal fun getterStatusForTest(kind: ResourceGetterKind): HookStatus? = hookedGetters[kind]
-    internal fun getterAttemptCountForTest(kind: ResourceGetterKind): Int = getterAttempts[kind]?.get() ?: 0
+    internal fun getterStatusForTest(kind: ResourceGetterKind): HookStatus = getterStates[kind.ordinal].status
+    internal fun getterAttemptCountForTest(kind: ResourceGetterKind): Int = getterStates[kind.ordinal].attempts
 
-    internal fun themeHookStatusForTest(): HookStatus = themeHookStatus
-    internal fun themeHookAttemptCountForTest(): Int = themeHookAttempts
+    internal fun themeHookStatusForTest(): HookStatus = themeHookState.status
+    internal fun themeHookAttemptCountForTest(): Int = themeHookState.attempts
 
     internal fun installGetterForTest(kind: ResourceGetterKind) = installGetter(kind)
     internal fun tryInitThemeHookForTest() = tryInitThemeHook()
+
+    private class TestUnhooker : HookerClassHelper.CustomMethodUnhooker {
+        override fun unhook() {}
+    }
 
     companion object {
         @JvmStatic

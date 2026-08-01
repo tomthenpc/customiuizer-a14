@@ -84,6 +84,8 @@ class ResourceHooksTest {
         assertTrue("getArg used", calls.any { it.startsWith("getArg:") })
         assertFalse("getArgs must not be used", calls.any { it == "getArgs" })
         assertFalse("executable must not be used", calls.any { it == "getExecutable" })
+        assertFalse("arg1 must not be read for string", calls.any { it == "getArg:1" })
+        assertFalse("arg2 must not be read for string", calls.any { it == "getArg:2" })
     }
 
     @Test
@@ -100,8 +102,9 @@ class ResourceHooksTest {
 
     @Test
     fun replaceHookRespectsDrawableExtraArgs() {
+        val calls = mutableListOf<String>()
         val expectedDrawable = ColorDrawable()
-        val chain = fakeChain(resId = 7, density = 3, proceedValue = "proceed")
+        val chain = fakeChain(resId = 7, density = 3, proceedValue = "proceed", callLog = calls)
         hooks.setResourceIdReplacementForTest(7, ResourceHooks.ReplacementType.ID, 200)
         hooks.testModuleRes = FakeResources(mapOf(200 to expectedDrawable))
 
@@ -109,6 +112,9 @@ class ResourceHooksTest {
         val result = hook.intercept(chain)
 
         assertSame(expectedDrawable, result)
+        assertTrue(calls.contains("getArg:0"))
+        assertTrue(calls.contains("getArg:1"))
+        assertTrue(calls.contains("getArg:2"))
     }
 
     @Test
@@ -288,6 +294,118 @@ class ResourceHooksTest {
 
         assertEquals(ResourceHooks.HookStatus.FAILED, hooks.themeHookStatusForTest())
         assertEquals(3, hooks.themeHookAttemptCountForTest())
+    }
+
+    @Test
+    fun installGetterNullUnhookerIsFailed() {
+        hooks.hookInstallerForTest = { _, _ -> false }
+
+        hooks.installGetterForTest(ResourceHooks.ResourceGetterKind.GET_TEXT)
+
+        assertEquals(ResourceHooks.HookStatus.FAILED, hooks.getterStatusForTest(ResourceHooks.ResourceGetterKind.GET_TEXT))
+        assertEquals(1, hooks.getterAttemptCountForTest(ResourceHooks.ResourceGetterKind.GET_TEXT))
+    }
+
+    @Test
+    fun installGetterNullUnhookerIsRetryable() {
+        hooks.hookInstallerForTest = { _, _ -> false }
+        hooks.installGetterForTest(ResourceHooks.ResourceGetterKind.GET_TEXT)
+
+        hooks.hookInstallerForTest = { _, _ -> true }
+        hooks.installGetterForTest(ResourceHooks.ResourceGetterKind.GET_TEXT)
+
+        assertEquals(ResourceHooks.HookStatus.HOOKED, hooks.getterStatusForTest(ResourceHooks.ResourceGetterKind.GET_TEXT))
+        assertEquals(0, hooks.getterAttemptCountForTest(ResourceHooks.ResourceGetterKind.GET_TEXT))
+    }
+
+    @Test
+    fun themeHookNullUnhookerIsFailedAndRetryable() {
+        hooks.themeHookInstallerForTest = { false }
+        hooks.tryInitThemeHookForTest()
+        assertEquals(ResourceHooks.HookStatus.FAILED, hooks.themeHookStatusForTest())
+
+        hooks.themeHookInstallerForTest = { true }
+        hooks.tryInitThemeHookForTest()
+        assertEquals(ResourceHooks.HookStatus.HOOKED, hooks.themeHookStatusForTest())
+    }
+
+    @Test
+    fun installGetterOutOfMemoryDoesNotLeavePending() {
+        hooks.hookInstallerForTest = { _, _ -> throw OutOfMemoryError("oom") }
+
+        try {
+            hooks.installGetterForTest(ResourceHooks.ResourceGetterKind.GET_TEXT)
+            fail("OutOfMemoryError expected")
+        } catch (_: OutOfMemoryError) {
+            assertEquals(ResourceHooks.HookStatus.FAILED, hooks.getterStatusForTest(ResourceHooks.ResourceGetterKind.GET_TEXT))
+        }
+    }
+
+    @Test
+    fun themeHookOutOfMemoryDoesNotLeavePending() {
+        hooks.themeHookInstallerForTest = { throw OutOfMemoryError("oom") }
+
+        try {
+            hooks.tryInitThemeHookForTest()
+            fail("OutOfMemoryError expected")
+        } catch (_: OutOfMemoryError) {
+            assertEquals(ResourceHooks.HookStatus.FAILED, hooks.themeHookStatusForTest())
+        }
+    }
+
+    @Test
+    fun installGetterStatesAreIndependent() {
+        hooks.hookInstallerForTest = { kind, _ ->
+            kind == ResourceHooks.ResourceGetterKind.GET_DRAWABLE_FOR_DENSITY
+        }
+
+        for (kind in ResourceHooks.ResourceGetterKind.entries) {
+            hooks.installGetterForTest(kind)
+        }
+
+        assertEquals(ResourceHooks.HookStatus.HOOKED, hooks.getterStatusForTest(ResourceHooks.ResourceGetterKind.GET_DRAWABLE_FOR_DENSITY))
+        assertEquals(ResourceHooks.HookStatus.FAILED, hooks.getterStatusForTest(ResourceHooks.ResourceGetterKind.GET_LAYOUT))
+        assertEquals(ResourceHooks.HookStatus.FAILED, hooks.getterStatusForTest(ResourceHooks.ResourceGetterKind.GET_TEXT))
+        assertEquals(ResourceHooks.HookStatus.FAILED, hooks.getterStatusForTest(ResourceHooks.ResourceGetterKind.GET_STRING))
+    }
+
+    @Test
+    fun exceptionThrottleUsesFixedDomainPerKind() {
+        val logged = AtomicInteger(0)
+        hooks.logSinkForTest = { logged.incrementAndGet() }
+
+        val runtimeChainText = fakeChain(resId = 0, throwRuntimeOnGetArg = true)
+        val runtimeChainString = fakeChain(resId = 0, throwRuntimeOnGetArg = true)
+        val hookText = hooks.createReplaceHookForTest(ResourceHooks.ResourceGetterKind.GET_TEXT)
+        val hookString = hooks.createReplaceHookForTest(ResourceHooks.ResourceGetterKind.GET_STRING)
+
+        // GET_TEXT and GET_STRING share different fixed domains, so each logs once.
+        try { hookText.intercept(runtimeChainText) } catch (_: RuntimeException) {}
+        try { hookString.intercept(runtimeChainString) } catch (_: RuntimeException) {}
+        assertEquals(2, logged.get())
+
+        // Same kind again within window does not log.
+        val runtimeChainText2 = fakeChain(resId = 0, throwRuntimeOnGetArg = true)
+        try { hookText.intercept(runtimeChainText2) } catch (_: RuntimeException) {}
+        assertEquals(2, logged.get())
+
+        // After clearing, one more logs.
+        hooks.clearThrottlingForTest()
+        val runtimeChainText3 = fakeChain(resId = 0, throwRuntimeOnGetArg = true)
+        try { hookText.intercept(runtimeChainText3) } catch (_: RuntimeException) {}
+        assertEquals(3, logged.get())
+    }
+
+    @Test
+    fun installGetterSuccessResetsAttempts() {
+        hooks.hookInstallerForTest = { _, _ -> false }
+        hooks.installGetterForTest(ResourceHooks.ResourceGetterKind.GET_TEXT)
+        assertEquals(1, hooks.getterAttemptCountForTest(ResourceHooks.ResourceGetterKind.GET_TEXT))
+
+        hooks.hookInstallerForTest = { _, _ -> true }
+        hooks.installGetterForTest(ResourceHooks.ResourceGetterKind.GET_TEXT)
+        assertEquals(0, hooks.getterAttemptCountForTest(ResourceHooks.ResourceGetterKind.GET_TEXT))
+        assertEquals(ResourceHooks.HookStatus.HOOKED, hooks.getterStatusForTest(ResourceHooks.ResourceGetterKind.GET_TEXT))
     }
 
     // ---- helpers ----

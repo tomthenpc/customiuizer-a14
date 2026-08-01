@@ -40,15 +40,30 @@ object HookInstallerFacade {
         }
         return try {
             val unhooker = XposedHelpers.findAndHookMethod(hookClass, methodName, *parameterTypesAndCallback)
-            HookDiagnostics.record(
-                PreferenceObserverRegistry.processName(),
-                HookDiagnostics.Kind.METHOD,
-                className,
-                methodName,
-                argList(*parameterTypesAndCallback),
-                HookDiagnostics.Status.INSTALLED,
-            )
+            if (unhooker != null) {
+                HookDiagnostics.record(
+                    PreferenceObserverRegistry.processName(),
+                    HookDiagnostics.Kind.METHOD,
+                    className,
+                    methodName,
+                    argList(*parameterTypesAndCallback),
+                    HookDiagnostics.Status.INSTALLED,
+                )
+            } else {
+                HookDiagnostics.record(
+                    PreferenceObserverRegistry.processName(),
+                    HookDiagnostics.Kind.METHOD,
+                    className,
+                    methodName,
+                    argList(*parameterTypesAndCallback),
+                    HookDiagnostics.Status.INSTALL_FAILED,
+                    "unhooker-null",
+                )
+                XposedHelpers.log("Failed to hook " + methodName + " method in " + className + " (unhooker is null)")
+            }
             unhooker
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (t: Throwable) {
             XposedHelpers.log("Failed to hook " + methodName + " method in " + className)
             val status = when {
@@ -73,15 +88,30 @@ object HookInstallerFacade {
         val className = clazz.canonicalName ?: clazz.name
         return try {
             val unhooker = XposedHelpers.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback)
-            HookDiagnostics.record(
-                PreferenceObserverRegistry.processName(),
-                HookDiagnostics.Kind.METHOD,
-                className,
-                methodName,
-                argList(*parameterTypesAndCallback),
-                HookDiagnostics.Status.INSTALLED,
-            )
+            if (unhooker != null) {
+                HookDiagnostics.record(
+                    PreferenceObserverRegistry.processName(),
+                    HookDiagnostics.Kind.METHOD,
+                    className,
+                    methodName,
+                    argList(*parameterTypesAndCallback),
+                    HookDiagnostics.Status.INSTALLED,
+                )
+            } else {
+                HookDiagnostics.record(
+                    PreferenceObserverRegistry.processName(),
+                    HookDiagnostics.Kind.METHOD,
+                    className,
+                    methodName,
+                    argList(*parameterTypesAndCallback),
+                    HookDiagnostics.Status.INSTALL_FAILED,
+                    "unhooker-null",
+                )
+                XposedHelpers.log("Failed to hook " + methodName + " method in " + className + " (unhooker is null)")
+            }
             unhooker
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (t: Throwable) {
             XposedHelpers.log("Failed to hook " + methodName + " method in " + className)
             val status = when {
@@ -118,7 +148,8 @@ object HookInstallerFacade {
             return false
         }
         return try {
-            val ok = XposedHelpers.findAndHookMethod(hookClass, methodName, *parameterTypesAndCallback) != null
+            val unhooker = XposedHelpers.findAndHookMethod(hookClass, methodName, *parameterTypesAndCallback)
+            val ok = unhooker != null
             HookDiagnostics.record(
                 PreferenceObserverRegistry.processName(),
                 HookDiagnostics.Kind.METHOD,
@@ -126,8 +157,11 @@ object HookInstallerFacade {
                 methodName,
                 argList(*parameterTypesAndCallback),
                 if (ok) HookDiagnostics.Status.INSTALLED else HookDiagnostics.Status.SILENTLY_SKIPPED,
+                if (ok) "" else "unhooker-null",
             )
             ok
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (t: Throwable) {
             HookDiagnostics.record(
                 PreferenceObserverRegistry.processName(),
@@ -147,7 +181,8 @@ object HookInstallerFacade {
     fun findAndHookMethodSilently(clazz: Class<*>, methodName: String, vararg parameterTypesAndCallback: Any?): Boolean {
         val className = clazz.canonicalName ?: clazz.name
         return try {
-            val ok = XposedHelpers.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback) != null
+            val unhooker = XposedHelpers.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback)
+            val ok = unhooker != null
             HookDiagnostics.record(
                 PreferenceObserverRegistry.processName(),
                 HookDiagnostics.Kind.METHOD,
@@ -155,8 +190,11 @@ object HookInstallerFacade {
                 methodName,
                 argList(*parameterTypesAndCallback),
                 if (ok) HookDiagnostics.Status.INSTALLED else HookDiagnostics.Status.SILENTLY_SKIPPED,
+                if (ok) "" else "unhooker-null",
             )
             ok
+        } catch (oom: OutOfMemoryError) {
+            throw oom
         } catch (t: Throwable) {
             HookDiagnostics.record(
                 PreferenceObserverRegistry.processName(),
