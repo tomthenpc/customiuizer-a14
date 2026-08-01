@@ -7,6 +7,8 @@ runs lintVitalRelease/R8.
 
 Examples:
     python tools/verify.py fast
+    python tools/verify.py fast --changed
+    python tools/verify.py fast --staged
     python tools/verify.py fast --tests PreferenceBootstrapTest
     python tools/verify.py fast --tests PreferenceBootstrapTest ModuleReceiverRegistrationTest
     python tools/verify.py full
@@ -45,10 +47,25 @@ def fail(message: str) -> None:
     sys.exit(1)
 
 
+def _summarize(output: str, tail_lines: int = 12) -> str:
+    """Return the first and last few lines of a long output."""
+    lines = output.rstrip().splitlines()
+    if len(lines) <= tail_lines * 2:
+        return "\n".join(lines)
+    return "\n".join(lines[:4] + ["..."] + lines[-tail_lines:])
+
+
 def run(cmd: list[str]) -> int:
-    """Run a command in the repo root, streaming output."""
+    """Run a command in the repo root; on success only print a summary, on failure print full output."""
     print(f"\n=== {' '.join(cmd)} ===")
-    return subprocess.call(cmd, cwd=REPO_ROOT)
+    result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    output = (result.stdout or "") + (result.stderr or "")
+    if result.returncode != 0:
+        print(output)
+        return result.returncode
+    print(_summarize(output))
+    print(f"verify: {' '.join(cmd)} ok")
+    return 0
 
 
 def gradle(*tasks: str) -> int:
@@ -61,8 +78,13 @@ def gradle(*tasks: str) -> int:
     return run([str(GRADLEW_PATH), "--no-daemon", *tasks])
 
 
-def check_invariants() -> int:
-    return run([sys.executable, str(REPO_ROOT / "tools" / "check-invariants.py")])
+def check_invariants(changed: bool = False, staged: bool = False) -> int:
+    cmd = [sys.executable, str(REPO_ROOT / "tools" / "check-invariants.py")]
+    if changed:
+        cmd.append("--changed")
+    elif staged:
+        cmd.append("--staged")
+    return run(cmd)
 
 
 def read_build_gradle() -> str:
@@ -127,22 +149,42 @@ def check_static_rules() -> int:
     return 0
 
 
-def fast(tests: list[str] | None) -> int:
+def changed_files(ref: str = "HEAD") -> list[str]:
+    """Return files changed relative to the given ref (staged or unstaged)."""
+    result = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=ACMR", ref],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [ln for ln in result.stdout.splitlines() if ln]
+
+
+def fast(tests: list[str] | None, changed: bool = False, staged: bool = False) -> int:
     code = check_static_rules()
     if code != 0:
         return code
-    code = check_invariants()
+    code = check_invariants(changed=changed, staged=staged)
     if code != 0:
         return code
+
+    if changed or staged:
+        changed = changed_files("HEAD" if changed else "--cached")
+        if not any(p.startswith("app/src") for p in changed):
+            print("verify: no app source changes; skipping gradle")
+            return 0
 
     if tests:
         test_args = []
         for t in tests:
             test_args.extend(["--tests", t])
-        code = gradle("testDebugUnitTest", *test_args)
-    else:
-        code = gradle("compileDebugKotlin", "compileDebugJavaWithJavac")
-    return code
+        return gradle("testDebugUnitTest", *test_args)
+
+    if changed or staged:
+        if any(p.startswith("app/src/test") for p in changed):
+            return gradle("testDebugUnitTest")
+    return gradle("compileDebugKotlin", "compileDebugJavaWithJavac")
 
 
 def full() -> int:
@@ -175,13 +217,23 @@ def main() -> int:
         nargs="+",
         help="run only these test classes (e.g. PreferenceBootstrapTest)",
     )
+    fast_parser.add_argument(
+        "--changed",
+        action="store_true",
+        help="only check source files changed relative to HEAD",
+    )
+    fast_parser.add_argument(
+        "--staged",
+        action="store_true",
+        help="only check source files staged in the index",
+    )
 
     subparsers.add_parser("full", help="static checks + invariants + compile + tests + lintDebug")
 
     args = parser.parse_args()
 
     if args.command == "fast":
-        return fast(args.tests)
+        return fast(args.tests, changed=args.changed, staged=args.staged)
     if args.command == "full":
         return full()
     return 2

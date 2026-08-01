@@ -380,20 +380,26 @@ RULES = (
 )
 
 
-def staged_kotlin_files() -> list[Path]:
-    result = subprocess.run(
-        ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+def _git_changed_files(ref: str | None = None) -> list[Path]:
+    cmd = ["git", "diff", "--name-only", "--diff-filter=ACMR"]
+    if ref:
+        cmd.extend([ref])
+    result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, check=True)
     files = []
     for name in result.stdout.splitlines():
         path = REPO_ROOT / name
         if path.suffix == ".kt" and path.is_file() and SOURCE_ROOT in path.parents:
             files.append(path)
     return files
+
+
+def staged_kotlin_files() -> list[Path]:
+    return _git_changed_files("--cached")
+
+
+def changed_kotlin_files() -> list[Path]:
+    """Files changed relative to HEAD (staged or unstaged)."""
+    return _git_changed_files("HEAD")
 
 
 MANIFEST = REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml"
@@ -530,9 +536,18 @@ def check_rom_contracts() -> list[Finding]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--staged", action="store_true", help="check only files staged in git")
+    parser.add_argument("--changed", action="store_true", help="check files changed relative to HEAD (staged or unstaged)")
     args = parser.parse_args()
 
-    files = staged_kotlin_files() if args.staged else sorted(SOURCE_ROOT.rglob("*.kt"))
+    if args.staged and args.changed:
+        parser.error("--staged and --changed are mutually exclusive")
+
+    if args.staged:
+        files = staged_kotlin_files()
+    elif args.changed:
+        files = changed_kotlin_files()
+    else:
+        files = sorted(SOURCE_ROOT.rglob("*.kt"))
     findings: list[Finding] = []
     for path in files:
         text = strip_comments(path.read_text(encoding="utf-8"))
