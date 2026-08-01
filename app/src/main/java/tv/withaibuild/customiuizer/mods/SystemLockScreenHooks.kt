@@ -37,6 +37,8 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import tv.withaibuild.customiuizer.mods.utils.formatMonitorOneDecimal
+import tv.withaibuild.customiuizer.mods.utils.formatMonitorTwoDecimals
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.HookUtils
 import tv.withaibuild.customiuizer.utils.PrefPair
@@ -1141,35 +1143,36 @@ object SystemLockScreenHooks {
                         val showVolt = MainModule.mPrefs.getBoolean("system_charginginfo_voltage")
                         val showWatt = MainModule.mPrefs.getBoolean("system_charginginfo_wattage")
                         val showTemp = MainModule.mPrefs.getBoolean("system_charginginfo_temp")
+                        if (!showCurr && !showVolt && !showWatt && !showTemp) {
+                            return XposedHelpers.throwOrReturn(throwable, result)
+                        }
 
-                        val values = ArrayList<String>()
-                        var props: Properties? = null
-                        var fis: FileInputStream? = null
-                        try {
-                            fis = FileInputStream("/sys/class/power_supply/battery/uevent")
-                            props = Properties()
-                            props.load(fis)
-                        } catch (ign: Throwable) {
-                        } finally {
-                            try {
-                                fis?.close()
-                            } catch (ign: Throwable) {
+                        val values = ArrayList<String>(4)
+                        val props = try {
+                            Properties().apply {
+                                FileInputStream("/sys/class/power_supply/battery/uevent").use { input ->
+                                    load(input)
+                                }
                             }
+                        } catch (oom: OutOfMemoryError) {
+                            throw oom
+                        } catch (_: Throwable) {
+                            null
                         }
                         if (props != null) {
                             val currVal = Math.abs(Integer.parseInt(props.getProperty("POWER_SUPPLY_CURRENT_NOW") ?: "0")) / 1000f / 1000f
-                            if (showCurr) values.add(String.format(Locale.US, "%.2f", currVal) + " A")
+                            if (showCurr) values.add(formatMonitorTwoDecimals(currVal) + " A")
                             val voltVal = Integer.parseInt(props.getProperty("POWER_SUPPLY_VOLTAGE_NOW") ?: "0") / 1000f / 1000f
                             if (showVolt)
-                                values.add(String.format(Locale.US, "%.1f", voltVal) + " V")
+                                values.add(formatMonitorOneDecimal(voltVal) + " V")
                             if (showWatt)
-                                values.add(String.format(Locale.US, "%.1f", voltVal * currVal) + " W")
+                                values.add(formatMonitorOneDecimal(voltVal * currVal) + " W")
                             if (showTemp) {
                                 val tempVal = Integer.parseInt(props.getProperty("POWER_SUPPLY_TEMP") ?: "0")
                                 values.add(Math.round(tempVal / 10f).toString() + " ℃")
                             }
                         }
-                        if (values.size == 0) { return XposedHelpers.throwOrReturn(throwable, result) }
+                        if (values.isEmpty()) { return XposedHelpers.throwOrReturn(throwable, result) }
                         val info = TextUtils.join(" · ", values)
 
                         if (hint.contains(info)) { return XposedHelpers.throwOrReturn(throwable, result) }

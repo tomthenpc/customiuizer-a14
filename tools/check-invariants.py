@@ -439,6 +439,7 @@ SYSTEM_SERVER_INSTALLER = "tv/withaibuild/customiuizer/mods/utils/SystemServerIn
 DEVICE_INFO_MONITOR = "tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt"
 HOOKER_CLASS_HELPER = "tv/withaibuild/customiuizer/mods/utils/HookerClassHelper.kt"
 MODULE_HELPER = "tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt"
+SYSTEM_LOCK_SCREEN_HOOKS = "tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt"
 
 
 def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
@@ -604,6 +605,42 @@ def check_module_helper_fatal_boundaries(path: Path, text: str) -> list[Finding]
     return findings
 
 
+def check_charging_info_hot_path(path: Path, text: str) -> list[Finding]:
+    """Charging hint updates must skip disabled detail I/O and avoid Formatter churn."""
+    if rel_posix(path) != SYSTEM_LOCK_SCREEN_HOOKS:
+        return []
+    method = re.search(r"fun\s+ChargingInfoHook\s*\(", text)
+    if method is None:
+        return [Finding("charging-info-hot-path", path, 1, "ChargingInfoHook is missing")]
+    body, _ = block_at(text, method.start())
+    findings = []
+    for match in re.finditer(r"\bString\.format\s*\(", body):
+        findings.append(
+            Finding(
+                "charging-info-hot-path",
+                path,
+                line_of(text, method.start() + match.start()),
+                "charging hint hot path must use cached fixed-decimal formatters",
+            )
+        )
+    disabled_return = body.find("!showCurr && !showVolt && !showWatt && !showTemp")
+    detail_allocation = body.find("ArrayList<String>")
+    sysfs_read = body.find("/sys/class/power_supply/battery/uevent")
+    if disabled_return < 0 or any(
+        position >= 0 and disabled_return > position
+        for position in (detail_allocation, sysfs_read)
+    ):
+        findings.append(
+            Finding(
+                "charging-info-hot-path",
+                path,
+                line_of(text, method.start()),
+                "all-disabled charging details must return before collection allocation and sysfs I/O",
+            )
+        )
+    return findings
+
+
 REFLECTION_CACHE = "tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt"
 
 
@@ -704,6 +741,7 @@ RULES = (
     check_device_info_monitor_hot_path,
     check_method_hook_fatal_boundary,
     check_module_helper_fatal_boundaries,
+    check_charging_info_hot_path,
     check_reflection_cache_get_declared_method_oom,
 )
 

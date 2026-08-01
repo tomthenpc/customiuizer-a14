@@ -260,6 +260,34 @@ catch (_: Throwable) { null }
         self.assertEqual(1, len(findings))
         self.assertIn("OOM", findings[0].detail)
 
+    def test_charging_info_skips_disabled_io_and_formatter_allocations(self):
+        path = self._source_path(
+            "tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt"
+        )
+        clean = """
+fun ChargingInfoHook(param: Any) {
+    val showCurr = enabled()
+    val showVolt = enabled()
+    val showWatt = enabled()
+    val showTemp = enabled()
+    if (!showCurr && !showVolt && !showWatt && !showTemp) return
+    val values = ArrayList<String>(4)
+    read("/sys/class/power_supply/battery/uevent")
+    values.add(formatMonitorOneDecimal(1f))
+}
+"""
+        self.assertEqual([], self.mod.check_charging_info_hot_path(path, clean))
+
+        unsafe = """
+fun ChargingInfoHook(param: Any) {
+    val values = ArrayList<String>()
+    read("/sys/class/power_supply/battery/uevent")
+    values.add(String.format("%.1f", 1f))
+}
+"""
+        findings = self.mod.check_charging_info_hot_path(path, unsafe)
+        self.assertEqual(2, len(findings))
+
     def test_reflection_cache_get_declared_method_oom_ok(self):
         text = """
     private fun resolveDependencyMethod(loaderState: LoaderState, classLoader: ClassLoader?): Method? {
