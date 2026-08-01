@@ -298,9 +298,11 @@ brick the module on older LSPosed versions.
 
 ## 10. `no-feature-definition-before-enabled`
 
-`FeatureDefinition` objects used to be created in every `XxxFeatures.all()` call before the
-preference check. For ~245 features this meant allocating installer closures, hook objects,
-receivers and context holders even when every preference was off.
+A disabled feature must not allocate a `FeatureDefinition`, a business installer object, or a
+Hook object. Only the fixed `LazyFeatureSpec` metadata and a lightweight `isEnabled` / `factory`
+lambda are retained. The `FeatureDefinition` heavy objects (installer closures, hook objects,
+receivers and context holders) live inside the `factory` lambda and are created only when
+`FeatureInstallRegistry` first evaluates `isEnabled(prefs)` to true.
 
 ### Contract
 
@@ -310,3 +312,40 @@ receivers and context holders even when every preference was off.
 - `FeatureDefinition` may still be its own spec (`create() = this`) during migration, but new
   code must return `LazyFeatureSpec` from `all()` and keep the `FeatureDefinition` heavy
   objects inside the `factory` lambda.
+
+---
+
+## 11. `feature-install-oom-cleanup`
+
+`FeatureInstallRegistry` must not leave a half-installed feature in `activeDefinitions` when
+`install()` throws `OutOfMemoryError`. If `spec.create()` succeeds and `activeDefinitions[id]` is
+written, an OOM from `install()` must:
+
+- remove the entry from `activeDefinitions`;
+- set `FeatureInstallState` to `FAILED_TRANSIENT`;
+- rethrow the `OutOfMemoryError` so the framework fatal-boundary handler can catch it.
+
+Ordinary exceptions must also remove the pseudo-active object and record a transient failure.
+
+---
+
+## 12. `early-preference-restart-semantics`
+
+`FeatureInstallRegistry.onPreferenceChanged()` is called for every preference change. For
+features in an early phase (`MODULE_LOADED` or `SYSTEM_SERVER_STARTING`) that are not yet
+installed, the registry must re-evaluate `spec.isEnabled(prefs)` before deciding whether a
+restart is required:
+
+- If the new preference snapshot enables the feature, mark `FeatureState.RESTART_REQUIRED`.
+- If the feature is still disabled, keep the previous `NOT_INSTALLED` or `FAILED_TRANSIENT` state.
+- Do not call `spec.create()` while handling a preference change.
+
+---
+
+## 13. `reflection-cache-dependency-method-oom`
+
+`ReflectionCache.resolveDependencyMethod()` resolves the `Dependency.get(Class)` method at
+cold path. An `OutOfMemoryError` thrown by `depClass.getDeclaredMethod(...)` must be caught and
+rethrown immediately, before `dependencyMethodResolved` is set or any negative cache is written.
+This prevents a transient resource exhaustion from being recorded as a permanent
+`MethodMissing`/`ClassMissing` result.

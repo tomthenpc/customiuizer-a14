@@ -97,9 +97,20 @@ The current repo is the source of truth. Do not reset, rebase or merge to upstre
 | Receiver/Observer registry | Done. `ReceiverRegistry` and `PreferenceObserverRegistry`. |
 | ReflectionCache | Done. Bounded per-loader state; OOM does not write negative caches. |
 | ResourceHooks sparse | Done. `SparseArray`/`SparseIntArray` hot path; real hook results honored. |
-| Feature spec / lazy definition | Done. All package features return `LazyFeatureSpec`; `FeatureInstallRegistry` creates `FeatureDefinition` only when enabled. |
+| Feature spec / lazy definition | Done. All package features return `LazyFeatureSpec`. A disabled feature costs only the fixed metadata and a lightweight lambda; zero `FeatureDefinition`, zero business installer object, zero Hook object. |
 | API 102 stable hook ID | READY_NOT_WIRED. `XposedApiCapabilities` + `Api102HookBridge` isolated; `setId` not wired to production path yet. |
 | Bitmap / View lifecycle, periodic SystemUI work | Not started. Deferred to A14-6G. |
+
+## A14-6G final correctness status
+
+| Item | Status |
+|---|---|
+| Feature lazy construction | VERIFIED_STATIC |
+| Install OOM cleanup | VERIFIED_STATIC |
+| Early preference restart semantics | VERIFIED_STATIC |
+| ReflectionCache fatal boundary | VERIFIED_STATIC |
+| API102 stable hook ID | READY_NOT_WIRED |
+| Device validation | DEFERRED_EXTERNAL |
 
 ## Remaining static tasks
 
@@ -131,5 +142,6 @@ At the current `devin/a14-runtime-hardening` HEAD:
 
 - `check-invariants.py` reports 157 files, no violations.
 - `compileDebugKotlin`, `compileDebugJavaWithJavac`, `testDebugUnitTest` and `lintDebug` pass.
+- A14-6G correctness cleanup is complete; see `docs/VERIFICATION.md` for the final status matrix.
 
 See `docs/VERIFICATION.md` for the current verification record and `docs/LSPOSED_LOG_ANALYSIS.md` for log triage.

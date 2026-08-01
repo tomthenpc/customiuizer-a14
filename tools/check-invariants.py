@@ -433,6 +433,158 @@ def check_api102_isolation(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+FEATURE_INSTALL_REGISTRY = "tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistry.kt"
+
+
+def check_feature_install_oom_cleanup(path: Path, text: str) -> list[Finding]:
+    """Feature install OOM must clean activeDefinitions and set FAILED_TRANSIENT before rethrowing."""
+    if rel_posix(path) != FEATURE_INSTALL_REGISTRY:
+        return []
+    findings = []
+    for match in re.finditer(r"catch\s*\(\s*oom\s*:\s*OutOfMemoryError\s*\)\s*\{", text):
+        body, _ = block_at(text, match.start())
+        if "activeDefinitions.remove" not in body:
+            findings.append(
+                Finding(
+                    "feature-install-oom-cleanup",
+                    path,
+                    line_of(text, match.start()),
+                    "install OOM catch must remove activeDefinitions before rethrowing",
+                )
+            )
+        if "FeatureInstallState.set" not in body or "FAILED_TRANSIENT" not in body:
+            findings.append(
+                Finding(
+                    "feature-install-oom-cleanup",
+                    path,
+                    line_of(text, match.start()),
+                    "install OOM catch must set FeatureInstallState to FAILED_TRANSIENT",
+                )
+            )
+        if "throw oom" not in body:
+            findings.append(
+                Finding(
+                    "feature-install-oom-cleanup",
+                    path,
+                    line_of(text, match.start()),
+                    "install OOM catch must rethrow the OutOfMemoryError",
+                )
+            )
+    return findings
+
+
+def check_early_restart_enabled(path: Path, text: str) -> list[Finding]:
+    """Early-phase preference changes must re-check isEnabled before marking RESTART_REQUIRED."""
+    if rel_posix(path) != FEATURE_INSTALL_REGISTRY:
+        return []
+    match = re.search(
+        r"FeatureState\.NOT_INSTALLED,\s*FeatureState\.FAILED_TRANSIENT\s*->\s*\{",
+        text,
+    )
+    if not match:
+        return []
+    body, _ = block_at(text, match.start())
+    restart_marker = "FeatureInstallState.set(spec.id, FeatureState.RESTART_REQUIRED)"
+    if restart_marker not in body:
+        return []
+    is_enabled_pos = body.find("spec.isEnabled(prefs)")
+    restart_pos = body.find(restart_marker)
+    if is_enabled_pos == -1 or is_enabled_pos > restart_pos:
+        return [
+            Finding(
+                "early-preference-restart-enabled",
+                path,
+                line_of(text, match.start()),
+                "RESTART_REQUIRED for early feature must be guarded by spec.isEnabled(prefs)",
+            )
+        ]
+    return []
+
+
+REFLECTION_CACHE = "tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt"
+
+
+def check_reflection_cache_get_declared_method_oom(path: Path, text: str) -> list[Finding]:
+    """ReflectionCache.getDeclaredMethod must catch and rethrow OOM before the generic Throwable handler."""
+    if rel_posix(path) != REFLECTION_CACHE:
+        return []
+    match = re.search(r"\bgetDeclaredMethod\s*\(", text)
+    if not match:
+        return []
+    # Find the nearest preceding try block.
+    try_match = None
+    for m in re.finditer(r"\btry\s*\{", text[: match.start()]):
+        try_match = m
+    if try_match is None:
+        return [
+            Finding(
+                "reflection-cache-getdeclaredmethod-oom",
+                path,
+                line_of(text, match.start()),
+                "getDeclaredMethod is not inside a try block",
+            )
+        ]
+    block, block_start = block_at(text, try_match.start())
+    block_end = block_start + len(block)
+    if match.start() < try_match.end() or match.end() > block_end:
+        return [
+            Finding(
+                "reflection-cache-getdeclaredmethod-oom",
+                path,
+                line_of(text, match.start()),
+                "getDeclaredMethod is not inside the nearest try block",
+            )
+        ]
+    after = text[block_end:]
+    oom_catch = re.search(r"catch\s*\(\s*oom\s*:\s*OutOfMemoryError\s*\)\s*\{\s*throw\s+oom\s*\}", after)
+    t_catch = re.search(r"catch\s*\(\s*t\s*:\s*Throwable\s*\)", after)
+    if not oom_catch:
+        return [
+            Finding(
+                "reflection-cache-getdeclaredmethod-oom",
+                path,
+                line_of(text, match.start()),
+                "getDeclaredMethod try block lacks catch (oom: OutOfMemoryError) { throw oom }",
+            )
+        ]
+    if not t_catch or oom_catch.start() > t_catch.start():
+        return [
+            Finding(
+                "reflection-cache-getdeclaredmethod-oom",
+                path,
+                line_of(text, match.start()),
+                "catch (oom: OutOfMemoryError) must precede catch (t: Throwable)",
+            )
+        ]
+    return []
+
+
+def check_docs_zero_object_wording(docs_dir: Path | None = None) -> list[Finding]:
+    """Docs must not use the old "disabled feature zero objects" wording."""
+    if docs_dir is None:
+        docs_dir = REPO_ROOT / "docs"
+    if not docs_dir.is_dir():
+        return []
+    findings = []
+    banned = (
+        (re.compile(r"关闭功能\s*零运行对象"), "关闭功能零FeatureDefinition；零业务installer对象；零Hook对象；仅保留固定LazyFeatureSpec元数据和轻量lambda"),
+        (re.compile(r"disabled\s+feature\s+(?:zero|0)\s+(?:running\s+)?objects?", re.IGNORECASE), "zero FeatureDefinition / zero installer / zero Hook wording"),
+    )
+    for path in docs_dir.rglob("*.md"):
+        file_text = path.read_text(encoding="utf-8")
+        for pattern, suggestion in banned:
+            for m in pattern.finditer(file_text):
+                findings.append(
+                    Finding(
+                        "docs-zero-object-wording",
+                        path,
+                        line_of(file_text, m.start()),
+                        f"forbidden wording; use '{suggestion}'",
+                    )
+                )
+    return findings
+
+
 RULES = (
     check_guard_framework_callbacks,
     check_guard_deferred_callbacks,
@@ -444,6 +596,9 @@ RULES = (
     check_no_legacy_xposed,
     check_no_regex_split_on_literal,
     check_api102_isolation,
+    check_feature_install_oom_cleanup,
+    check_early_restart_enabled,
+    check_reflection_cache_get_declared_method_oom,
 )
 
 
@@ -622,6 +777,7 @@ def main() -> int:
             findings.extend(rule(path, text))
 
     findings.extend(check_rom_contracts())
+    findings.extend(check_docs_zero_object_wording())
 
     if not findings:
         print(f"check-invariants: {len(files)} files, no violations")
