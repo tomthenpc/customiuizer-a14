@@ -18,7 +18,6 @@ class FeatureInstallRegistry {
 
     private val orderedFeatures = ArrayList<FeatureDefinition>()
     private val definitions = HashMap<FeatureId, FeatureDefinition>()
-    private val states = HashMap<FeatureId, FeatureState>()
 
     /**
      * Register a feature definition.  Safe to call multiple times with the same definition.
@@ -41,7 +40,7 @@ class FeatureInstallRegistry {
         }
         if (existing == null) {
             orderedFeatures.add(feature)
-            states.putIfAbsent(feature.id, FeatureState.NOT_INSTALLED)
+            FeatureInstallState.set(feature.id, FeatureState.NOT_INSTALLED)
         }
     }
 
@@ -75,14 +74,14 @@ class FeatureInstallRegistry {
         }
 
         val id = feature.id
-        val state = states[id] ?: FeatureState.NOT_INSTALLED
+        val state = FeatureInstallState.get(id)
 
         return when (state) {
             FeatureState.INSTALLED, FeatureState.INSTALLING -> FeatureInstallResult.ALREADY_INSTALLED
             FeatureState.FAILED_PERMANENT -> FeatureInstallResult.FAILED_PERMANENT
             FeatureState.RESTART_REQUIRED -> FeatureInstallResult.RESTART_LATER
             FeatureState.FAILED_TRANSIENT, FeatureState.NOT_INSTALLED -> {
-                states[id] = FeatureState.INSTALLING
+                FeatureInstallState.set(id, FeatureState.INSTALLING)
                 val result = try {
                     feature.install()
                 } catch (t: Throwable) {
@@ -90,7 +89,7 @@ class FeatureInstallRegistry {
                     recordInstallFailure(feature, t)
                     FeatureInstallResult.FAILED_TRANSIENT
                 }
-                states[id] = toState(result)
+                FeatureInstallState.set(id, toState(result))
                 result
             }
         }
@@ -122,12 +121,12 @@ class FeatureInstallRegistry {
             val prefKey = feature.preferenceKey
             if (prefKey == null || (key != null && key != prefKey && !key.startsWith(prefKey))) continue
 
-            val state = states[feature.id] ?: FeatureState.NOT_INSTALLED
+            val state = FeatureInstallState.get(feature.id)
             when (state) {
                 FeatureState.INSTALLED, FeatureState.INSTALLING -> feature.onPreferenceChanged(key, prefs)
                 FeatureState.NOT_INSTALLED, FeatureState.FAILED_TRANSIENT -> {
                     if (feature.phase.isEarly) {
-                        states[feature.id] = FeatureState.RESTART_REQUIRED
+                        FeatureInstallState.set(feature.id, FeatureState.RESTART_REQUIRED)
                     }
                 }
                 FeatureState.FAILED_PERMANENT, FeatureState.RESTART_REQUIRED -> { /* nothing to do */ }
@@ -140,9 +139,9 @@ class FeatureInstallRegistry {
     fun markForReinstall(featureName: String) {
         for (feature in orderedFeatures) {
             if (feature.name == featureName) {
-                val current = states[feature.id]
+                val current = FeatureInstallState.get(feature.id)
                 if (current == FeatureState.FAILED_TRANSIENT || current == FeatureState.RESTART_REQUIRED) {
-                    states[feature.id] = FeatureState.NOT_INSTALLED
+                    FeatureInstallState.set(feature.id, FeatureState.NOT_INSTALLED)
                 }
             }
         }

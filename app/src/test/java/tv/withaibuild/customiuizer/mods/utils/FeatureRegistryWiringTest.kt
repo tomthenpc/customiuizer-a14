@@ -69,7 +69,7 @@ class FeatureRegistryWiringTest {
     @Test
     fun featureDefinitionHasLateInstallPolicyAndRestartRequirementDefaults() {
         val def = object : FeatureDefinition {
-            override val id = object : FeatureId { override val name = "test" }
+            override val id = object : FeatureId { override val id = 0; override val name = "test" }
             override val name = "test"
             override val preferenceKey = null
             override val target = FeatureTarget.SYSTEM_SERVER

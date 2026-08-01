@@ -8,7 +8,13 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 
 class FeatureInstallRegistryTest {
 
-    private class TestId(override val name: String) : FeatureId
+    private class TestId(override val name: String) : FeatureId {
+        companion object {
+            private var counter = 10000
+            fun nextId(): Int = counter++
+        }
+        override val id = nextId()
+    }
 
     private class DummyFeature(
         override val name: String,
