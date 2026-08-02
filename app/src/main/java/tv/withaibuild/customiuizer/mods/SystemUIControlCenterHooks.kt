@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.drawable.GradientDrawable
-import android.media.AudioManager
 import android.os.Handler
 import android.util.TypedValue
 import android.view.Gravity
@@ -32,7 +31,6 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallba
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
-import tv.withaibuild.customiuizer.mods.utils.ShadeExpansionTracker
 import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.util.ArrayList
@@ -774,180 +772,8 @@ object SystemUIControlCenterHooks {
         ModuleHelper.hookAllMethods("miui.systemui.controlcenter.qs.tileview.QSTileItemIconView", pluginLoader, "getActiveBackgroundDrawable", radiusHook)
     }
 
-    private var isSlidingStart = false
-
-    private var isSliding = false
-
-    private var tapStartX = 0f
-
-    private var tapStartY = 0f
-
-    private var tapStartPointers = 0f
-
-    private var tapStartBrightness = 0f
-
-    private var topMinimumBacklight = 0.0f
-
-    private var topMaximumBacklight = 1.0f
-
-    private var currentTouchX = 0f
-
-    private var currentTouchTime = 0L
-
-    private var currentDownTime = 0L
-
-    private var currentDownX = 0f
-
-    private var nextBrightNess = -999f
-
-    private val shadeExpansionTracker = ShadeExpansionTracker(0.33f)
-
     @JvmStatic
     fun StatusBarGesturesHook(lpparam: PackageReadyParam) {
-        ModuleHelper.findAndHookMethod("com.android.systemui.shade.MiuiNotificationPanelViewController", lpparam.classLoader, "setExpandedHeightInternal", Float::class.javaPrimitiveType!!, object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                val mExpandedFraction = XposedHelpers.getFloatField(param.getThisObject(), "mExpandedFraction")
-                if (shadeExpansionTracker.update(mExpandedFraction) && mExpandedFraction > 0.33f) {
-                    currentTouchTime = 0L
-                    currentTouchX = 0f
-                    currentDownTime = 0L
-                    currentDownX = 0f
-                }
-            }
-        })
-
-        val hook = object : MethodHook() {
-            private var mBrightnessController: Any? = null
-            private var mDisplayManager: Any? = null
-            private var mDisplayId: Int = -1
-            private var sbHeight = -1
-
-            @SuppressLint("SetTextI18n")
-            override fun before(param: BeforeHookCallback) {
-                val clsName = param.getThisObject()!!.javaClass.simpleName
-                val isInControlCenter = "ControlCenterWindowViewImpl" == clsName
-                if (isInControlCenter) {
-                    if (param.getArgs().size == 2 && (param.getArg(1) as Boolean)) {
-                        return
-                    }
-                    val statusBarStateController = XposedHelpers.getObjectField(param.getThisObject(), "statusBarStateController")
-                    val state = XposedHelpers.callMethod(statusBarStateController, "getState") as Int
-                    if (state == 1 || state == 2) {
-                        return
-                    }
-                }
-                val mContext = (param.getThisObject() as View).context
-                val res = mContext.resources
-                if (sbHeight == -1) {
-                    sbHeight = res.getDimensionPixelSize(res.getIdentifier("status_bar_height_default", "dimen", "android"))
-                }
-                val event = param.getArg(0) as MotionEvent
-                when (event.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        tapStartX = event.x
-                        tapStartY = event.y
-                        isSlidingStart = !isInControlCenter || tapStartY <= sbHeight
-                        tapStartPointers = 1f
-                        if (mBrightnessController == null) {
-                            val mControlCenterController: Any? = if (isInControlCenter) {
-                                XposedHelpers.getObjectField(param.getThisObject(), "controlCenterController")
-                            } else {
-                                ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.controlcenter.policy.ControlCenterControllerImpl")
-                            }
-                            mBrightnessController = XposedHelpers.callMethod(XposedHelpers.getObjectField(mControlCenterController, "brightnessController"), "get")
-                            mDisplayManager = XposedHelpers.getObjectField(mBrightnessController, "mDisplayManager")
-                            mDisplayId = XposedHelpers.getIntField(mBrightnessController, "mDisplayId")
-                        }
-                        topMinimumBacklight = XposedHelpers.getObjectField(mBrightnessController, "mMinimumBacklight") as Float
-                        topMaximumBacklight = XposedHelpers.getObjectField(mBrightnessController, "mMaximumBacklight") as Float
-                        tapStartBrightness = XposedHelpers.callMethod(mDisplayManager, "getBrightness", mDisplayId) as Float
-                        if (isSlidingStart) {
-                            currentDownTime = java.lang.System.currentTimeMillis()
-                            currentDownX = tapStartX
-                        } else {
-                            currentDownTime = 0L
-                            currentDownX = 0f
-                        }
-                        nextBrightNess = -999f
-                    }
-                    MotionEvent.ACTION_POINTER_DOWN -> {
-                        tapStartPointers = event.pointerCount.toFloat()
-                    }
-                    MotionEvent.ACTION_UP -> {
-                        val lastTouchTime = currentTouchTime
-                        val lastTouchX = currentTouchX
-                        currentTouchTime = java.lang.System.currentTimeMillis()
-                        currentTouchX = event.x
-                        val mTouchX = currentTouchX
-                        val mTouchTime = currentTouchTime
-                        if (currentTouchTime - lastTouchTime < 250L && Math.abs(currentTouchX - lastTouchX) < 80F) {
-                            currentTouchTime = 0L
-                            currentTouchX = 0F
-                            val screenWidth = res.displayMetrics.widthPixels
-                            var actionKey = "system_statusbarcontrols_dt"
-                            if (mTouchX * 5 < screenWidth) {
-                                actionKey = "system_statusbarcontrols_dt_left"
-                            } else if (mTouchX > screenWidth * 0.8) {
-                                actionKey = "system_statusbarcontrols_dt_right"
-                            }
-                            GlobalActions.handleAction(mContext, actionKey)
-                        } else if ((mTouchTime - currentDownTime > 600 && mTouchTime - currentDownTime < 4000)
-                            && Math.abs(mTouchX - currentDownX) < 80F) {
-                            if (MainModule.mPrefs.getBoolean("system_statusbarcontrols_longpress_vibrate")) {
-                                val ignoreOff = MainModule.mPrefs.getBoolean("system_statusbarcontrols_longpress_vibrate_ignoreoff")
-                                HookUtils.performStrongVibration(mContext, ignoreOff)
-                            }
-                            GlobalActions.handleAction(mContext, "system_statusbarcontrols_longpress")
-                        }
-                        if (nextBrightNess > -10 && mDisplayManager != null) {
-                            XposedHelpers.callMethod(mDisplayManager, "setBrightness", mDisplayId, nextBrightNess)
-                            nextBrightNess = -999f
-                        }
-                        currentDownTime = 0L
-                        currentDownX = 0f
-                        isSlidingStart = false
-                        isSliding = false
-                        nextBrightNess = -999f
-                    }
-                    MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
-                        isSlidingStart = false
-                        isSliding = false
-                        nextBrightNess = -999f
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        if (!isSlidingStart) return
-                        if (event.y - tapStartY > sbHeight) {
-                            currentDownTime = 0L
-                            currentDownX = 0f
-                            return
-                        }
-                        val metrics = res.displayMetrics
-                        val delta = event.x - tapStartX
-                        if (delta == 0f) return
-                        if (!isSliding && Math.abs(delta) > metrics.widthPixels / 10f) isSliding = true
-                        if (!isSliding) return
-                        val opt = MainModule.mPrefs.getStringAsInt(if (tapStartPointers == 2f) "system_statusbarcontrols_dual" else "system_statusbarcontrols_single", 1)
-                        if (opt == 2) {
-                            val sens = MainModule.mPrefs.getStringAsInt("system_statusbarcontrols_sens_bright", 2)
-                            var ratio = delta / metrics.widthPixels
-                            ratio = (if (sens == 1) 0.66f else if (sens == 3) 1.66f else 1.0f) * ratio * 0.618f
-                            val nextLevel = Math.min(topMaximumBacklight, Math.max(topMinimumBacklight, tapStartBrightness + (topMaximumBacklight - topMinimumBacklight) * ratio))
-                            if (mDisplayManager != null) {
-                                XposedHelpers.callMethod(mDisplayManager, "setTemporaryBrightness", mDisplayId, nextLevel)
-                            }
-                            nextBrightNess = nextLevel
-                        } else if (opt == 3) {
-                            val sens = MainModule.mPrefs.getStringAsInt("system_statusbarcontrols_sens_vol", 2)
-                            if (Math.abs(delta) < metrics.widthPixels / ((if (sens == 1) 0.66f else if (sens == 3) 1.66f else 1.0f) * 20 * metrics.density)) return
-                            tapStartX = event.x
-                            val audioManager = mContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-                            @Suppress("WrongConstant")
-                            audioManager.adjustVolume(if (delta > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER, (1 shl 12) or AudioManager.FLAG_SHOW_UI or AudioManager.FLAG_ALLOW_RINGER_MODES or AudioManager.FLAG_VIBRATE)
-                        }
-                    }
-                }
-            }
-        }
         val statusBarMachine = GestureMachine(
             classLoaderIdentity = lpparam.packageName.orEmpty(),
             configResolver = { GestureConfigResolver.resolve(MainModule.mPrefs) },
