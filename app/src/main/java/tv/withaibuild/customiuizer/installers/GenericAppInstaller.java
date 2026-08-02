@@ -26,22 +26,7 @@ public final class GenericAppInstaller {
 
     private GenericAppInstaller() {}
 
-    public static void installPostAttach(PackageReadyParam lpparam, PrefMap mPrefs) {
-        String pkg = lpparam.getPackageName();
-
-        boolean isLauncherPkg = "com.miui.home".equals(pkg);
-        boolean isStatusBarColor = mPrefs.getBoolean("system_statusbarcolor")
-            && mPrefs.getStringSet("system_statusbarcolor_apps").contains(pkg);
-        boolean isNoOverscroll = mPrefs.getBoolean("system_nooverscroll")
-            && mPrefs.getStringSet("system_nooverscroll_apps").contains(pkg);
-        boolean controlMedia = (mPrefs.getStringAsInt("controls_volumemedia_up", 0) > 0
-            || mPrefs.getStringAsInt("controls_volumemedia_down", 0) > 0)
-            && mPrefs.getStringSet("controls_mediaplayer_apps").contains(pkg);
-
-        if (!isLauncherPkg && !isStatusBarColor && !isNoOverscroll && !controlMedia) {
-            return;
-        }
-
+    public static void installPostAttach(PackageReadyParam lpparam, PrefMap mPrefs, boolean isLauncherPkg, boolean isStatusBarColor, boolean isNoOverscroll, boolean controlMedia) {
         ModuleHelper.findAndHookMethod(
             Application.class,
             "attach",
