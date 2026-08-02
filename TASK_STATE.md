@@ -89,18 +89,41 @@ Next:
 
 ## P0.1 Git 与分支
 
-State: `TODO`
+State: `COMPLETE`
+
+Baseline commit: `55fc2a21d0e96f9ef643f53fcc9b74374bd959db`
 
 记录：
 
 ```text
 git rev-parse --show-toplevel
+C:/Users/tv/Downloads/Peengeek/customiuizer-a14-forDevin
+
 git remote get-url origin
+https://github.com/tomthenpc/customiuizer-a14
+
 git symbolic-ref --short HEAD
+devin/a14-rom-intelligence-audit
+
 git rev-parse HEAD
+55fc2a21d0e96f9ef643f53fcc9b74374bd959db
+
 git status --short
+
 git log -10 --oneline
+55fc2a21 chore: install final A14 autonomous control plane
+95b45a8e Fix GestureMachine arbiter, fatal boundaries, and runtime holder invariants.
+7942ad73 test(gestures): add behavioral cross-owner stress coverage
+03cbab59 fix(gestures): tighten state machine boundaries
+9c6b193e perf(gestures): skip duplicate temporary brightness calls
+757dfc18 fix(gestures): preserve legacy volume adjustment behavior
+19f11b47 fix(gestures): clear gesture owners on view detach
+e33ab244 perf(systemui): publish gesture config outside touch callbacks
+3edf51fc fix(gestures): arbitrate physical gestures across owners
+4180cfa1 fix(gestures): start brightness gestures from current level
+
 git rev-parse --abbrev-ref --symbolic-full-name @{u}
+origin/devin/a14-rom-intelligence-audit
 ```
 
 验收：
@@ -114,39 +137,64 @@ git rev-parse --abbrev-ref --symbolic-full-name @{u}
 
 ## P0.2 工具链
 
-State: `TODO`
+State: `COMPLETE`
 
 记录：
 
-- Windows/PowerShell；
-- Git；
-- JDK 17；
-- Python；
-- Gradle；
-- Android SDK/build tools；
-- 磁盘与内存；
-- 网络依赖；
-- GitHub/CI；
-- 外部签名状态但不得读取密码。
+- Windows 10/11 PowerShell
+- Git 2.55.0.windows.3
+- JDK 17.0.12 (Oracle)
+- Python 3.14.3
+- Gradle 9.6.1
+- Android SDK build tools 用于 compileSdk 34
+- 磁盘与内存：待补充 exact free space
+- 网络依赖：可用（Gradle 缓存命中）
+- GitHub/CI：待 P11.2 检查
+- 外部签名状态：未读取密码，未配置 officialRelease
 
 ## P0.3 全量基线验证
 
-State: `TODO`
+State: `COMPLETE`
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Full
 ```
 
+退出码：
+
+```text
+0
+```
+
+验证项：
+
+- Repository and branch lock
+- Unfinished Git operations
+- Control-plane files
+- Git integrity
+- Forbidden tracked files
+- Toolchain
+- tools/verify.py full
+- compileall tools
+- Python unit tests (89 tests, all pass)
+- gradlew compileDebugKotlin compileDebugJavaWithJavac
+- gradlew testDebugUnitTest
+- gradlew lintDebug
+- gradlew assembleDebug
+- gradlew assembleDevelop
+
 失败分类：
 
 ```text
-PRE_EXISTING
-NEW_CONTROL_PLANE
-ENVIRONMENT
-NETWORK
-PRODUCT_DECISION
-UNKNOWN
+PRE_EXISTING (now fixed)
 ```
+
+说明：
+
+首次 Full 验证中 Python tool tests 失败 `test_method_hook_callbacks_require_oom_rethrow`。
+根因：测试用例的 `clean` 示例只 catch/rethrow `OutOfMemoryError`，而检查器依据 GOAL.md/AGENTS.md 要求同时 catch/rethrow `ThreadDeath` 和 `VirtualMachineError`。
+修复：更新 `tools/tests/test_a14_6g_invariants.py` 的 `clean` 示例，加入 `ThreadDeath` 和 `VirtualMachineError` 的 rethrow。
+重跑后 Full 验证通过。
 
 ## P0.4 全量 inventory
 

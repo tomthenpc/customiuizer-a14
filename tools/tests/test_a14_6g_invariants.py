@@ -248,11 +248,15 @@ catch (_: Throwable) { return null }
 override fun beforeHook(callback: BeforeHookCallback) {
     try { before(callback) }
     catch (oom: OutOfMemoryError) { throw oom }
+    catch (td: ThreadDeath) { throw td }
+    catch (vme: VirtualMachineError) { throw vme }
     catch (t: Throwable) { log(t) }
 }
 override fun afterHook(callback: AfterHookCallback) {
     try { after(callback) }
     catch (oom: OutOfMemoryError) { throw oom }
+    catch (td: ThreadDeath) { throw td }
+    catch (vme: VirtualMachineError) { throw vme }
     catch (t: Throwable) { log(t) }
 }
 """
