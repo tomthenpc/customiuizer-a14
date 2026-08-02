@@ -943,7 +943,7 @@ DOCUMENTATION_CURRENT
 - 不新建分支；
 - 不合并 main；
 - 不 tag/release；
-- 进入 `CONTINUOUS_MAINTENANCE`；
+- 进入 `LTS`（Long-Term Support）生命周期；
 - 继续 evidence-driven 维护。
 
 ---
@@ -958,8 +958,8 @@ P0 完成后重建，不得删除未解决条目。
 | VERIFY-001 | P0 | Build | COMPLETE | 控制层 Fast/Full/Audit 验证器已运行并通过（含 targeted tests 和 Python 工具） | P0.3 |
 | ARCH-001 | P1 | Registry | COMPLETE | 已盘点 Feature/Registry/Installer/state 并产出工具和文档 | P2 完成 |
 | API-001 | P1 | API 101/102 | COMPLETE | API 102-only 类型/调用已分类并文档化，API 101 路径保持完整 | P4 完成 |
-| GESTURE-001 | P1 | Gesture | COMPLETE | 唯一生产状态机、事件模型、side-effect gate 和 stress tests 已通过 | P5 完成 |
-| LIFECYCLE-001 | P1 | SystemUI | COMPLETE | 已以当前 HEAD 重审 status bar custom View、icon group、周期监控和 Bitmap/Drawable/View 生命周期 | P6 完成 |
+| GESTURE-001 | P1 | Gesture | CORE_COMPLETE | 核心状态机和事件模型落地，P5.5 pointer/Gate/Arbiter 边界仍在进行 | P5.5 完成后重审 |
+| LIFECYCLE-001 | P1 | SystemUI | CORE_COMPLETE | 核心生命周期 owner 盘点完成，P6.5 owner inventory / stale cleanup 仍在进行 | P6.5 完成后重审 |
 | ALG-001 | P1 | MainModule | COMPLETE | `SystemUiBootstrapCoordinator` 已提取，`MainModule` 只负责路由调用 | P3.2 完成 |
 | ALG-002 | P1 | Fatal | COMPLETE | `FatalErrors` helper 已创建，`MainModule` 所有 catch(Throwable) 已调用 `rethrowIfFatal` | P3.2 完成 |
 | ALG-003 | P1 | Gesture | TODO | pointerCount contract 未在 production adapter 唯一归一化 | P5.5 完成 |

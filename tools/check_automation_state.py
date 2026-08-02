@@ -38,6 +38,8 @@ SMART_REQUIRED_KEYS = {
     "LastStandardSweepCommit",
     "LastDeepSweepCommit",
     "LastFullVerificationCommit",
+    "LastVerifiedTree",
+    "LastVerifiedMode",
     "LastCIState",
     "LastCleanupCommit",
     "LastToolCreated",

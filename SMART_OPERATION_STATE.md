@@ -2,20 +2,22 @@
 
 ```text
 Mode: PROFESSIONAL_AUTONOMOUS_STEWARDSHIP
-CheckpointCount: 14
-CheckpointsSinceStandardSweep: 3
-CheckpointsSinceDeepSweep: 14
-LastQualifyingCheckpoint: 8cb27bf2
-LastLightSweepCommit: 8cb27bf2
-LastStandardSweepCommit: 59a93b9c
-LastDeepSweepCommit: pending
-LastFullVerificationCommit: 8cb27bf2
+CheckpointCount: 15
+CheckpointsSinceStandardSweep: 0
+CheckpointsSinceDeepSweep: 0
+LastQualifyingCheckpoint: HEAD
+LastLightSweepCommit: HEAD
+LastStandardSweepCommit: HEAD
+LastDeepSweepCommit: HEAD
+LastFullVerificationCommit: HEAD
+LastVerifiedTree: HEAD^{tree}
+LastVerifiedMode: Final
 LastCIState: NOT_CONFIGURED
-LastCleanupCommit: pending
-LastToolCreated: scripts/check-signing-config.ps1
-LastFailureClass: RemainingFeaturesWiringTest.installersNoLongerContainDirectPreferenceChecks
-CurrentObjective: Deep sweep v6: fix UNKNOWN hook ownership, progress generator, APK baseline
-ResumeTask: P5.5 pointer contract after deep sweep
+LastCleanupCommit: HEAD
+LastToolCreated: tools/progress_snapshot.py
+LastFailureClass: none
+CurrentObjective: P5.5 pointer/Gate/Arbiter contract
+ResumeTask: after P5.5 continue P6.5 owner inventory / P7.5 observe hot path / P8 performance
 ```
 
 本文件只记录执行节奏，不保存、替代或重置产品任务。
