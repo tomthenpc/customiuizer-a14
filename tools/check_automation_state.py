@@ -41,6 +41,9 @@ SMART_REQUIRED_KEYS = {
     "LastVerifiedTree",
     "LastVerifiedMode",
     "LastCIState",
+    "LastCIRun",
+    "LastCIJob",
+    "LastCICommit",
     "LastCleanupCommit",
     "LastToolCreated",
     "LastFailureClass",
@@ -49,7 +52,9 @@ SMART_REQUIRED_KEYS = {
     "CurrentObjectiveStartEvidence",
     "NextObjectiveFirstAction",
     "ResumeTask",
+    "DeepSweepDue",
 }
+VALID_MODES = {"PROFESSIONAL_AUTONOMOUS_STEWARDSHIP"}
 VALID_CI_STATES = {"NOT_CONFIGURED", "PENDING", "PASS", "FAIL", "UNAVAILABLE"}
 VALID_OBJECTIVE_STATES = {"ACTIVE", "PAUSED", "BLOCKED", "COMPLETE"}
 
@@ -118,11 +123,47 @@ def check_smart_state(path: Path, raw_text: str, repo_root: Path) -> list[str]:
     for key in sorted(missing):
         errors.append(f"SMART_OPERATION_STATE missing key: {key}")
 
+    mode = state.get("Mode", "")
+    if mode and mode not in VALID_MODES:
+        errors.append(f"SMART_OPERATION_STATE invalid Mode: {mode}")
+
     ci = state.get("LastCIState", "")
     if ci and ci not in VALID_CI_STATES:
         errors.append(f"SMART_OPERATION_STATE invalid LastCIState: {ci}")
-    if ci == "PENDING":
-        errors.append("SMART_OPERATION_STATE LastCIState is PENDING; set NOT_CONFIGURED if no workflow exists")
+
+    workflow_files = list((repo_root / ".github" / "workflows").glob("a14-*.yml"))
+    has_workflow = bool(workflow_files)
+
+    if ci == "NOT_CONFIGURED" and has_workflow:
+        errors.append("SMART_OPERATION_STATE LastCIState=NOT_CONFIGURED but A14 workflows exist")
+
+    if ci == "PENDING" and not has_workflow:
+        errors.append("SMART_OPERATION_STATE LastCIState=PENDING but no A14 workflow exists")
+
+    if ci in ("PASS", "FAIL"):
+        for key in ("LastCIRun", "LastCIJob", "LastCICommit"):
+            value = state.get(key, "")
+            if not value or value.lower() == "pending":
+                errors.append(f"SMART_OPERATION_STATE LastCIState={ci} but {key} is missing")
+        ci_commit = state.get("LastCICommit", "")
+        if ci_commit and ci_commit.lower() != "pending" and not git_object_exists(ci_commit, repo_root):
+            errors.append(f"SMART_OPERATION_STATE LastCIState={ci} but LastCICommit does not resolve: {ci_commit}")
+
+    if ci == "PASS":
+        # PASS must reference the current HEAD, not an ancestor.
+        try:
+            head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            ci_commit = state.get("LastCICommit", "")
+            if ci_commit and ci_commit.lower() != "pending" and ci_commit != head:
+                errors.append("SMART_OPERATION_STATE LastCIState=PASS but LastCICommit is not the current HEAD")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass
 
     for key in ("LastStandardSweepCommit", "LastDeepSweepCommit", "LastFullVerificationCommit"):
         value = state.get(key, "")
@@ -160,9 +201,33 @@ def check_smart_state(path: Path, raw_text: str, repo_root: Path) -> list[str]:
     if any(token in resume for token in (" or ", " / ")):
         errors.append("SMART_OPERATION_STATE ResumeTask must not contain ' or ' or ' / '")
 
-    # LastCIState is a remote fact; do not claim PASS without a real CI run.
-    if ci == "PASS":
-        errors.append("SMART_OPERATION_STATE LastCIState=PASS must be set only after remote Fast CI passes")
+    # LastVerifiedTree must be an actual 40-character tree hash, not a symbolic reference.
+    verified_tree = state.get("LastVerifiedTree", "")
+    if not re.fullmatch(r"[0-9a-f]{40}", verified_tree.lower()):
+        errors.append(f"SMART_OPERATION_STATE LastVerifiedTree must be a 40-char lowercase hex tree SHA: {verified_tree}")
+    else:
+        # Confirm it is the tree object of a known commit if possible.
+        try:
+            result = subprocess.run(
+                ["git", "cat-file", "-t", verified_tree],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            if result.stdout.strip() != "tree":
+                errors.append(f"SMART_OPERATION_STATE LastVerifiedTree is not a tree object: {verified_tree}")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            errors.append(f"SMART_OPERATION_STATE LastVerifiedTree does not exist in repo: {verified_tree}")
+
+    # Deep sweep accounting.
+    deep_sweep_count = state.get("CheckpointsSinceDeepSweep", "")
+    try:
+        deep_count = int(deep_sweep_count) if deep_sweep_count else 0
+        if deep_count >= 10 and state.get("DeepSweepDue", "").lower() != "true":
+            errors.append("SMART_OPERATION_STATE CheckpointsSinceDeepSweep >= 10 but DeepSweepDue is not true")
+    except ValueError:
+        pass
 
     return errors
 
@@ -173,11 +238,12 @@ SECTION_RE = re.compile(r"^#{1,2} (P\d+(?:\.\d+)?)(?:\s|—|$)", re.MULTILINE)
 def parse_task_sections(text: str) -> dict[str, dict[str, Any]]:
     """Parse TASK_STATE.md sections like P3, P3.1, P5, etc."""
     sections: dict[str, dict[str, Any]] = {}
-    for match in SECTION_RE.finditer(text):
+    matches = list(SECTION_RE.finditer(text))
+    for i, match in enumerate(matches):
         sid = match.group(1)
-        end = match.end()
-        # State should appear within the next few lines of the section header.
-        window = text[end : end + 200]
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        window = text[start:end]
         state_match = re.search(r"State: `([^`]+)`", window)
         sections[sid] = {
             "state": state_match.group(1) if state_match else "UNKNOWN",
@@ -313,6 +379,9 @@ def check_current_objective(smart_text: str, task_text: str) -> list[str]:
     current = state.get("CurrentObjective", "")
     obj_state = state.get("CurrentObjectiveState", "")
 
+    if obj_state == "COMPLETE":
+        errors.append("SMART_OPERATION_STATE CurrentObjectiveState must not be COMPLETE; move to next incomplete objective")
+
     # Find the matching P# section in TASK_STATE.md.
     sections = parse_task_sections(task_text)
     section_id = None
@@ -338,7 +407,7 @@ def check_current_objective(smart_text: str, task_text: str) -> list[str]:
         errors.append(f"SMART_OPERATION_STATE CurrentObjective '{current}' does not match any P# section")
 
     # Block choosing P2/P3 while an unblocked P1 is not COMPLETE/BLOCKED_EXTERNAL/CORE_COMPLETE.
-    allowed_incomplete_p1 = {"COMPLETE", "BLOCKED_EXTERNAL", "NOT_APPLICABLE", "CORE_COMPLETE"}
+    allowed_incomplete_p1 = {"COMPLETE", "BLOCKED_EXTERNAL", "NOT_APPLICABLE"}
     issues = parse_issue_table(task_text)
     unblocked_p1 = [
         i for i in issues
@@ -388,6 +457,21 @@ def main() -> int:
 
     if smart_path.exists() and task_path.exists():
         all_errors.extend(check_current_objective(read_text(smart_path), task_text))
+
+    progress_snapshot = repo_root / "tools" / "progress_snapshot.py"
+    if progress_snapshot.is_file():
+        try:
+            result = subprocess.run(
+                [sys.executable, str(progress_snapshot), "--check"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                all_errors.append(f"progress_snapshot.py --check failed: {result.stdout.strip() or result.stderr.strip()}")
+        except (OSError, subprocess.SubprocessError) as e:
+            all_errors.append(f"could not run progress_snapshot.py --check: {e}")
 
     texts = {
         "GOAL.md": read_text(goal_path) if goal_path.exists() else "",

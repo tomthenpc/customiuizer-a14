@@ -679,6 +679,8 @@ State: `TODO`
 
 ## P8.1 Disabled path
 
+State: `TODO`
+
 ```text
 0 definition
 0 Hook object
@@ -691,9 +693,13 @@ State: `TODO`
 
 ## P8.2 Hot path
 
+State: `TODO`
+
 检查 Regex、args array、collections、formatter、reflection、preference、I/O、blocking、logs、Handler、cache。
 
 ## P8.3 APK/R8
+
+State: `TODO`
 
 - debug baseline/final；
 - develop unsigned R8 baseline/final；
@@ -704,6 +710,8 @@ State: `TODO`
 
 ## P8.4 Smoothness
 
+State: `TODO`
+
 SystemUI/Launcher event frequency、frame-sensitive path、coalescing、UI update gating。
 
 ---
@@ -713,6 +721,8 @@ SystemUI/Launcher event frequency、frame-sensitive path、coalescing、UI updat
 State: `TODO`
 
 ## P9.1 分类
+
+State: `TODO`
 
 全部 production Java：
 
@@ -728,9 +738,13 @@ UNCLASSIFIED
 
 ## P9.2 迁移
 
+State: `TODO`
+
 行为等价小批次，每批 focused tests。
 
 ## P9.3 Allowlist
+
+State: `TODO`
 
 生成：
 
@@ -753,6 +767,8 @@ State: `TODO`
 
 ## P10.1 HyperOS 1 / Android 14 samples
 
+State: `TODO`
+
 - package/version/build；
 - class/member/variant；
 - process；
@@ -762,12 +778,16 @@ State: `TODO`
 
 ## P10.2 Contract/variant
 
+State: `TODO`
+
 - required 不降级；
 - complete variant；
 - fallback 有 diagnostics；
 - candidate 不宣传 verified。
 
 ## P10.3 Generated consistency
+
+State: `TODO`
 
 Feature semantics、process matrix、target matrix、retirement audit、runtime routes 一致。
 
@@ -811,6 +831,14 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 
 State: `IN_PROGRESS`
 
+证据：
+
+- Fast CI job 91462556688 因 `platforms;android-37` 包名不存在而失败；
+- 已把 Fast/Full workflow 改为先运行 `sdkmanager --list --channel=0` 探测 API 37 平台包（`platforms;android-37` 或 `platforms;android-CinnamonBun`）和 build-tools 37.x；
+- 已移除 `app/build.gradle.kts` 中硬编码的 `buildToolsVersion`，让 AGP 选择已安装兼容版本；
+- Full CI 增加 `push` 入口，仅当 `[full-ci]` 出现在 commit message 或 workflow_dispatch 时运行；
+- 本地通过 `tools/verify.py full`、`assembleDebug`、`assembleDevelop`。
+
 唯一授权分支 push 后运行：
 
 - JDK 17；
@@ -825,6 +853,8 @@ State: `IN_PROGRESS`
 Agent 自动修复红色 CI。
 
 ## P11.3 Artifact
+
+State: `TODO`
 
 记录：
 
@@ -980,13 +1010,13 @@ P0 完成后重建，不得删除未解决条目。
 | ARCH-001 | P1 | Registry | COMPLETE | 已盘点 Feature/Registry/Installer/state 并产出工具和文档 | P2 完成 |
 | API-001 | P1 | API 101/102 | COMPLETE | API 102-only 类型/调用已分类并文档化，API 101 路径保持完整 | P4 完成 |
 | GESTURE-001 | P1 | Gesture | COMPLETE | 唯一生产状态机、事件模型、side-effect gate、arbiter bound/cleanup、pointerCount contract 均已落地并通过测试 | P5.5 完成 |
-| LIFECYCLE-001 | P1 | SystemUI | CORE_COMPLETE | `PhoneStatusBarView` 与 `ControlCenterWindowViewImpl` 的 `onDetachedFromWindow` 已清理 per-owner；`ControlCenterGestureRuntimeHolder` 已提供 `unbind()`；plugin/ClassLoader 销毁入口未发现，标记 DEVICE_LIFECYCLE_ENTRY_BLOCKED | P6.5 完成后重审 |
+| LIFECYCLE-001 | P1 | SystemUI | BLOCKED_EXTERNAL | `PhoneStatusBarView` 与 `ControlCenterWindowViewImpl` 的 `onDetachedFromWindow` 已清理 per-owner；`ControlCenterGestureRuntimeHolder` 已提供 `unbind()`；plugin/ClassLoader 销毁入口未发现，标记 DEVICE_LIFECYCLE_ENTRY_BLOCKED | P6.5 完成后重审 |
 | ALG-001 | P1 | MainModule | COMPLETE | `SystemUiBootstrapCoordinator` 已提取，`MainModule` 只负责路由调用 | P3.2 完成 |
 | ALG-002 | P1 | Fatal | COMPLETE | `FatalErrors` helper 已创建，`MainModule` 所有 catch(Throwable) 已调用 `rethrowIfFatal` | P3.2 完成 |
 | ALG-003 | P1 | Gesture | COMPLETE | `GestureEvent` 新增 `activePointerCount`，默认归一化 `ACTION_UP`/`ACTION_POINTER_UP`；`GestureStateMachine` 使用 active 计数；测试已更新 | P5.5 完成 |
 | ALG-004 | P1 | Gesture | COMPLETE | `GestureSideEffectGate.filter` 改用 `commands.any(::isBusinessEffect)`，避免热路径分配中间列表 | P5.5 完成 |
 | ALG-005 | P1 | Gesture | COMPLETE | `PhysicalGestureArbiter` 已加 `MAX_HELD_TOKENS` 硬上限、`STALE_TOKEN_AGE_MS` 清理、`reapStaleTokens` 兜底；`GestureMachine` 在 UP/CANCEL/Reset/detach 时释放 token；测试覆盖 | P5.5 完成 |
-| ALG-006 | P1 | Lifecycle | CORE_COMPLETE | `ControlCenterGestureRuntimeHolder.unbind()` 已实现并测试；per-View `onDetachedFromWindow` 调用 `controlCenterMachine.clear(ownerId)`；新 ClassLoader 触发 `bind` 时清理旧 runtime；plugin/ClassLoader 销毁入口未发现，不猜测 Hook | P6.5 完成 |
+| ALG-006 | P1 | Lifecycle | BLOCKED_EXTERNAL | `ControlCenterGestureRuntimeHolder.unbind()` 已实现并测试；per-View `onDetachedFromWindow` 调用 `controlCenterMachine.clear(ownerId)`；新 ClassLoader 触发 `bind` 时清理旧 runtime；plugin/ClassLoader 销毁入口未发现，不猜测 Hook | P6.5 完成 |
 | ALG-007 | P1 | HotPath | COMPLETE | `SystemUIControlCenterHooks` 的 `onInterceptTouchEvent` 不再调用 `statusBarMachine.observe()`，避免未使用返回值的热路径计算 | P7.5 完成 |
 | DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |
 | CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |

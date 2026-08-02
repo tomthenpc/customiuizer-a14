@@ -1,6 +1,9 @@
 name: A14 Full CI
 
 on:
+  push:
+    branches:
+      - devin/a14-rom-intelligence-audit
   schedule:
     - cron: '0 0 * * 0'
   workflow_dispatch:
@@ -16,6 +19,9 @@ jobs:
   full:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[full-ci]')
 
     steps:
       - name: Checkout
@@ -36,12 +42,52 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
-      - name: Install Android SDK 37
+      - name: Resolve and install Android SDK 37
         shell: bash
         run: |
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
-          sdkmanager "platforms;android-37" "build-tools;37.0.0"
+          set -euo pipefail
+
+          SDK_LIST="$(sdkmanager --list --channel=0)"
+
+          if printf '%s\n' "$SDK_LIST" | grep -qE '^[[:space:]]*platforms;android-37[[:space:]]*\|'; then
+            PLATFORM_PACKAGE="platforms;android-37"
+          elif printf '%s\n' "$SDK_LIST" | grep -qE '^[[:space:]]*platforms;android-CinnamonBun[[:space:]]*\|'; then
+            PLATFORM_PACKAGE="platforms;android-CinnamonBun"
+          else
+            echo "::error::No Android 17 / API 37 platform package is available"
+            printf '%s\n' "$SDK_LIST" | grep -E 'platforms;android-(37|CinnamonBun)' || true
+            exit 1
+          fi
+
+          BUILD_TOOLS_PACKAGE="$(
+            printf '%s\n' "$SDK_LIST" |
+              awk -F'|' '
+                /build-tools;37\./ {
+                  gsub(/^[ \t]+|[ \t]+$/, "", $1)
+                  print $1
+                }
+              ' |
+              sort -V |
+              tail -n 1
+          )"
+
+          if [ -z "$BUILD_TOOLS_PACKAGE" ]; then
+            echo "::error::No Android SDK Build-Tools 37.x package is available"
+            printf '%s\n' "$SDK_LIST" | grep -E 'build-tools;37\.' || true
+            exit 1
+          fi
+
+          echo "Resolved platform: $PLATFORM_PACKAGE"
+          echo "Resolved build tools: $BUILD_TOOLS_PACKAGE"
+
+          sdkmanager --channel=0 "$PLATFORM_PACKAGE" "$BUILD_TOOLS_PACKAGE"
+
+          test -f "$ANDROID_SDK_ROOT/platforms/$(basename "$PLATFORM_PACKAGE")/android.jar"
+          test -d "$ANDROID_SDK_ROOT/build-tools/${BUILD_TOOLS_PACKAGE#build-tools;}"
+
           printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
 
       - name: Set up Gradle

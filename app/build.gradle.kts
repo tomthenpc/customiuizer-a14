@@ -56,7 +56,6 @@ val supportedLocales = setOf(
 android {
     namespace = "tv.withaibuild.customiuizer"
     compileSdk = 37
-    buildToolsVersion = "37.0.0"
 
     signingConfigs {
         if (officialRelease) {

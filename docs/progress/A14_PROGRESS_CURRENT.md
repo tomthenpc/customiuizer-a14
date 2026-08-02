@@ -1,84 +1,87 @@
-# A14 Progress Current
+# A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-02T14:01:54.392386+08:00
+GeneratedAt: 2026-08-02T14:27:40.249225+08:00
+SourceCommit: dde936ea73cc9e5bef4cc1f392ad43cc1f78558c
+SourceTree: e4df65d29876e42232ba57d8b5e3d7938ef1ad5f
+VerifiedTree: 9c192d1e762445573049a1a65d600004004f757c
+VerifiedMode: Final
+CIState: FAIL
+CIRun: https://github.com/tomthenpc/customiuizer-a14/actions/runs/30735170349
+CIJob: https://github.com/tomthenpc/customiuizer-a14/actions/runs/30735170349/job/91462556688
+CICommit: dde936ea73cc9e5bef4cc1f392ad43cc1f78558c
 ```
-
-## SMART State
-
-| Key | Value |
-|---|---|
-| Mode | PROFESSIONAL_AUTONOUS_STEWARDSHIP |
-| CheckpointCount | 22 |
-| CheckpointsSinceStandardSweep | 1 |
-| CheckpointsSinceDeepSweep | 1 |
-| LastQualifyingCheckpoint | 3c61ee8f |
-| LastLightSweepCommit | 3c61ee8f |
-| LastStandardSweepCommit | 3c61ee8f |
-| LastDeepSweepCommit | 3c61ee8f |
-| LastFullVerificationCommit | 3c61ee8f |
-| LastVerifiedTree | 3c61ee8f^{tree} |
-| LastVerifiedMode | Final |
-| LastCIState | NOT_CONFIGURED |
-| LastCleanupCommit | 3c61ee8f |
-| LastToolCreated | tools/check_ci_portability.py |
-| LastFailureClass | none |
-| CurrentObjective | P11.2 CI preflight |
-| CurrentObjectiveState | ACTIVE |
-| CurrentObjectiveStartEvidence | python tools/check_ci_portability.py passes for .github/workflows/a14-fast-ci.yml and a14-full-ci.yml |
-| NextObjectiveFirstAction | read app/proguard-rules.pro |
-| ResumeTask | push branch and read GitHub Fast CI logs |
 
 ## Progress
 
-- ProjectProgress: 69.0%
-- MachineProgress: 73.8%
-- Tasks: 29 COMPLETE / 4 IN_PROGRESS / 7 not started of 42
-- Issues: 13 complete / 16 total
+- ProjectProgress: 55.8%
+- MachineProgress: 58.8%
+- Stage: ARCHITECTURE_AND_ROUTING
+- OpenP0: 0
+- OpenP1: 7
+- ExternalBlocks: 1
 
-## Tasks
+## Domain Scores
 
-| Task | State |
-|---|---|
-| P0.1 Git 与分支 | COMPLETE |
-| P0.2 工具链 | COMPLETE |
-| P0.3 全量基线验证 | COMPLETE |
-| P0.4 全量 inventory | COMPLETE |
-| P1.1 Feature identity | COMPLETE |
-| P1.2 Hook ownership | COMPLETE |
-| P1.3 Process/phase inventory | COMPLETE |
-| P2 — Feature Registry 最终收口 | COMPLETE |
-| P3 — MainModule、ProcessRouter 与 Installer | IN_PROGRESS |
-| P3.2 — SystemUI bootstrap 与 fatal 边界 | COMPLETE |
-| P4 — API 101/102 边界 | COMPLETE |
-| P4.1 API 101 完整路径 | COMPLETE |
-| P4.2 API 102 bridge | COMPLETE |
-| P5 — Gesture/Control Center | COMPLETE |
-| P5.1 生产状态机 | COMPLETE |
-| P5.2 事件模型 | COMPLETE |
-| P5.3 Side effect | COMPLETE |
-| P5.4 Stress | COMPLETE |
-| P5.5 Pointer contract / Gate / Arbiter | COMPLETE |
-| P6 — SystemUI/Launcher lifecycle | IN_PROGRESS |
-| P6.1 Status bar custom View | COMPLETE |
-| P6.2 周期与监控 | COMPLETE |
-| P6.3 Bitmap/Drawable/View | COMPLETE |
-| P6.4 Launcher | COMPLETE |
-| P6.5 Lifecycle owner inventory | STATIC_OWNER_COMPLETE |
-| P7 — Runtime safety、并发与缓存 | COMPLETE |
-| P7.1 Fatal propagation | COMPLETE |
-| P7.2 Half-state cleanup | COMPLETE |
-| P7.3 Callback/deferred boundary | COMPLETE |
-| P7.4 Cache/concurrency | COMPLETE |
-| P7.5 Observe / hot-path eligibility | COMPLETE |
-| P8 — 性能、内存、APK 与 R8 | TODO |
-| P9 — Java → Kotlin 最终收口 | TODO |
-| P10 — ROM intelligence | TODO |
-| P11 — 测试、CI 与持续构建 | IN_PROGRESS |
-| P11.1 Local | COMPLETE |
-| P11.2 CI | IN_PROGRESS |
-| P12 — 文档、dead code 与 release candidate | TODO |
-| P13 — Discovery sweep | TODO |
-| P14 — MACHINE_COMPLETE | TODO |
-| P15 — DEVICE_VALIDATED | BLOCKED_EXTERNAL |
-| P16 — PROJECT_COMPLETE | TODO |
+| Domain | Weight | Earned | Percent |
+|---|---:|---:|---:|
+| Baseline and control | 8 | 7.0 | 87.5% |
+| Runtime architecture / routing / ownership | 22 | 22.0 | 100.0% |
+| Runtime safety / lifecycle / concurrency | 18 | 17.64 | 98.0% |
+| Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
+| ROM intelligence / compatibility | 10 | 0.0 | 0.0% |
+| Java / Kotlin boundary | 8 | 3.2 | 40.0% |
+| Build / CI / signing / artifacts | 12 | 6.0 | 50.0% |
+| Documentation / provenance | 5 | 0.0 | 0.0% |
+| Device validation | 5 | 0.0 | 0.0% |
+
+## Capability Items
+
+| ID | Domain | Weight | State | Factor | Earned |
+|---|---|---|---:|---:|---:|
+| P0.1 | Baseline and control | 1.0 | COMPLETE | 1.0 | 1.0 |
+| P0.2 | Baseline and control | 1.0 | COMPLETE | 1.0 | 1.0 |
+| P0.3 | Baseline and control | 1.0 | COMPLETE | 1.0 | 1.0 |
+| P0.4 | Baseline and control | 1.0 | COMPLETE | 1.0 | 1.0 |
+| P1.1 | Baseline and control | 1.0 | COMPLETE | 1.0 | 1.0 |
+| P1.2 | Baseline and control | 1.0 | COMPLETE | 1.0 | 1.0 |
+| P1.3 | Baseline and control | 1.0 | COMPLETE | 1.0 | 1.0 |
+| P2 | Runtime architecture / routing / ownership | 11.0 | COMPLETE | 1.0 | 11.0 |
+| P3.2 | Runtime architecture / routing / ownership | 11.0 | COMPLETE | 1.0 | 11.0 |
+| P4.1 | Java / Kotlin boundary | 1.6 | COMPLETE | 1.0 | 1.6 |
+| P4.2 | Java / Kotlin boundary | 1.6 | COMPLETE | 1.0 | 1.6 |
+| P5.1 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P5.2 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P5.3 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P5.4 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P5.5 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P6.1 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P6.2 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P6.3 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P6.4 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P6.5 | Runtime safety / lifecycle / concurrency | 1.2 | STATIC_OWNER_COMPLETE | 0.7 | 0.84 |
+| P7.1 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P7.2 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P7.3 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P7.4 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P7.5 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
+| P8.1 | Performance / memory / APK / R8 | 3.0 | TODO | 0.0 | 0.0 |
+| P8.2 | Performance / memory / APK / R8 | 3.0 | TODO | 0.0 | 0.0 |
+| P8.3 | Performance / memory / APK / R8 | 3.0 | TODO | 0.0 | 0.0 |
+| P8.4 | Performance / memory / APK / R8 | 3.0 | TODO | 0.0 | 0.0 |
+| P9.1 | Java / Kotlin boundary | 1.6 | TODO | 0.0 | 0.0 |
+| P9.2 | Java / Kotlin boundary | 1.6 | TODO | 0.0 | 0.0 |
+| P9.3 | Java / Kotlin boundary | 1.6 | TODO | 0.0 | 0.0 |
+| P10.1 | ROM intelligence / compatibility | 3.33 | TODO | 0.0 | 0.0 |
+| P10.2 | ROM intelligence / compatibility | 3.33 | TODO | 0.0 | 0.0 |
+| P10.3 | ROM intelligence / compatibility | 3.33 | TODO | 0.0 | 0.0 |
+| P11.1 | Build / CI / signing / artifacts | 4.0 | COMPLETE | 1.0 | 4.0 |
+| P11.2 | Build / CI / signing / artifacts | 4.0 | IN_PROGRESS | 0.5 | 2.0 |
+| P11.3 | Build / CI / signing / artifacts | 4.0 | TODO | 0.0 | 0.0 |
+| P12 | Documentation / provenance | 5.0 | TODO | 0.0 | 0.0 |
+| P13 | Baseline and control | 1.0 | TODO | 0.0 | 0.0 |
+| DEVICE-001 | Device validation | 5 | BLOCKED_EXTERNAL | 0.0 | 0.0 |
+
+## Notes
+
+v7 capability-scored snapshot; device domain excluded from machine progress.
