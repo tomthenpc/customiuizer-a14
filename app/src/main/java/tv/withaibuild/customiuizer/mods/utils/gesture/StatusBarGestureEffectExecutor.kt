@@ -4,7 +4,6 @@ import android.content.Context
 import android.media.AudioManager
 import android.view.View
 import tv.withaibuild.customiuizer.mods.GlobalActions
-import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
@@ -32,25 +31,15 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
         for (command in commands) {
             when (command) {
                 is GestureCommand.ApplyTemporaryBrightness -> {
-                    dependencies.setTemporaryBrightnessMethod?.invoke(
+                    dependencies.setTemporaryBrightnessMethod!!.invoke(
                         dependencies.displayManager,
-                        dependencies.displayId,
-                        command.ratio,
-                    ) ?: XposedHelpers.callMethod(
-                        dependencies.displayManager,
-                        "setTemporaryBrightness",
                         dependencies.displayId,
                         command.ratio,
                     )
                 }
                 is GestureCommand.CommitBrightness -> {
-                    dependencies.setBrightnessMethod?.invoke(
+                    dependencies.setBrightnessMethod!!.invoke(
                         dependencies.displayManager,
-                        dependencies.displayId,
-                        command.ratio,
-                    ) ?: XposedHelpers.callMethod(
-                        dependencies.displayManager,
-                        "setBrightness",
                         dependencies.displayId,
                         command.ratio,
                     )

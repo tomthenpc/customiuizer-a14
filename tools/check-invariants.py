@@ -1014,7 +1014,30 @@ def check_docs_zero_object_wording(docs_dir: Path | None = None) -> list[Finding
     return findings
 
 
+def check_gesture_hot_path_no_reflection(path: Path, text: str) -> list[Finding]:
+    """The gesture state machine hot path must not perform reflection at dispatch time."""
+    if "customiuizer/mods/utils/gesture/" not in path.as_posix():
+        return []
+    if rel_posix(path) in {
+        "tv/withaibuild/customiuizer/mods/utils/gesture/StatusBarGestureDependenciesResolver.kt",
+        "tv/withaibuild/customiuizer/mods/utils/gesture/ControlCenterGestureDependenciesResolver.kt",
+    }:
+        return []
+    findings = []
+    for match in REFLECTION.finditer(text):
+        findings.append(
+            Finding(
+                "gesture-hot-path-no-reflection",
+                path,
+                line_of(text, match.start()),
+                "gesture hot path uses reflection or XposedHelpers",
+            )
+        )
+    return findings
+
+
 RULES = (
+    check_gesture_hot_path_no_reflection,
     check_guard_framework_callbacks,
     check_guard_deferred_callbacks,
     check_coroutine_scopes_handle_failure,
