@@ -94,8 +94,21 @@ jobs:
 
           sdkmanager --channel=0 "$PLATFORM_PACKAGE" "$BUILD_TOOLS_PACKAGE"
 
-          test -f "$ANDROID_SDK_ROOT/platforms/$(basename "$PLATFORM_PACKAGE")/android.jar"
-          test -d "$ANDROID_SDK_ROOT/build-tools/${BUILD_TOOLS_PACKAGE#build-tools;}"
+          PLATFORM_DIR="$(find "$ANDROID_SDK_ROOT/platforms" -maxdepth 1 -type d \( -name 'android-37*' -o -name 'android-CinnamonBun' \) | head -n 1)"
+          if [ -z "$PLATFORM_DIR" ] || [ ! -f "$PLATFORM_DIR/android.jar" ]; then
+            echo "::error::API 37 platform installed but android.jar not found"
+            ls -R "$ANDROID_SDK_ROOT/platforms" || true
+            exit 1
+          fi
+          echo "Installed platform dir: $PLATFORM_DIR"
+
+          BUILD_TOOLS_DIR="$(find "$ANDROID_SDK_ROOT/build-tools" -maxdepth 1 -type d -name '37*' | head -n 1)"
+          if [ -z "$BUILD_TOOLS_DIR" ] || [ ! -x "$BUILD_TOOLS_DIR/aapt" ]; then
+            echo "::error::Build-Tools 37.x installed but aapt not found"
+            ls -R "$ANDROID_SDK_ROOT/build-tools" || true
+            exit 1
+          fi
+          echo "Installed build-tools dir: $BUILD_TOOLS_DIR"
 
           printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
 
