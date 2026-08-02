@@ -288,20 +288,12 @@ public class MainModule extends XposedModule {
             PackageInstallerRouter.install(lpparam, mPrefs);
         }
 
-        final boolean isLauncherPkg = scope == ProcessScope.LAUNCHER;
-
-        if (isLauncherPkg) {
+        if (scope == ProcessScope.LAUNCHER) {
             ReflectionCache.onSafeLifecycle(lpparam.getClassLoader());
             LauncherInstaller.install(lpparam, mPrefs);
         }
 
-        final boolean isStatusBarColor = mPrefs.getBoolean("system_statusbarcolor") && mPrefs.getStringSet("system_statusbarcolor_apps").contains(pkg);
-        final boolean isNoOverscroll = mPrefs.getBoolean("system_nooverscroll") && mPrefs.getStringSet("system_nooverscroll_apps").contains(pkg);
-        final boolean controlMedia = (mPrefs.getStringAsInt("controls_volumemedia_up", 0) > 0
-            || mPrefs.getStringAsInt("controls_volumemedia_down", 0) > 0) && mPrefs.getStringSet("controls_mediaplayer_apps").contains(pkg);
-        if (isLauncherPkg || isStatusBarColor || isNoOverscroll || controlMedia) {
-            GenericAppInstaller.installPostAttach(lpparam, mPrefs, isLauncherPkg, isStatusBarColor, isNoOverscroll, controlMedia);
-        }
+        GenericAppInstaller.installPostAttach(lpparam, mPrefs);
 
         HookDiagnostics.printSummaryForStage("onPackageReady");
     }
