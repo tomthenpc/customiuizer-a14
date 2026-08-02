@@ -18,6 +18,7 @@ class GestureMachine(
     private val depsResolver: GestureDependenciesResolver,
     private val effectExecutor: GestureEffectExecutor,
     private val gate: GestureSideEffectGate = GestureSideEffectGate(),
+    private val arbiter: PhysicalGestureArbiter? = null,
 ) {
 
     private val snapshots = mutableMapOf<Int, GestureSnapshot>()
@@ -84,6 +85,13 @@ class GestureMachine(
         }
         val deps = dependencies[ownerId]!!
 
+        if (event.actionMasked == GestureAction.DOWN) {
+            arbiter?.releaseOwner(ownerId)
+        }
+        if (arbiter != null && !arbiter.tryAcquire(ownerId, event)) {
+            return
+        }
+
         val current = snapshots[ownerId] ?: GestureSnapshot()
         val currentBrightness = if (event.actionMasked == GestureAction.DOWN) readBrightness(deps) else -1f
         val (next, commands) = GestureStateMachine.process(
@@ -96,6 +104,10 @@ class GestureMachine(
 
         val allowed = gate.filter(event.entry, event, commands)
         effectExecutor.execute(allowed, deps, config, context)
+
+        if (arbiter != null && (GestureCommand.Reset in allowed || event.actionMasked == GestureAction.UP || event.actionMasked == GestureAction.CANCEL)) {
+            arbiter.release(ownerId, event)
+        }
     }
 
     private fun readBrightness(deps: GestureDependencies): Float {
@@ -141,11 +153,12 @@ class GestureMachine(
         }
     }
 
-    /** Drop all per-owner state and the side-effect gate. */
+    /** Drop all per-owner state, arbiter tokens and the side-effect gate. */
     fun clear(ownerId: Int) {
         snapshots.remove(ownerId)
         dependencies.remove(ownerId)
         configs.remove(ownerId)
+        arbiter?.releaseOwner(ownerId)
     }
 
     /** Reset the whole machine, e.g. when the ClassLoader is torn down. */
@@ -154,5 +167,6 @@ class GestureMachine(
         dependencies.clear()
         configs.clear()
         gate.clear()
+        arbiter?.releaseAll()
     }
 }

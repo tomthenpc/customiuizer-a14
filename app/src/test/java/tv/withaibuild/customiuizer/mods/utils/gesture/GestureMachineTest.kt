@@ -48,6 +48,7 @@ class GestureMachineTest {
         exec: FakeGestureEffectExecutor = FakeGestureEffectExecutor(),
         testConfig: GestureConfig = config,
         testDeps: GestureDependencies = deps,
+        testArbiter: PhysicalGestureArbiter? = null,
     ): Pair<GestureMachine, FakeGestureEffectExecutor> {
         val m = GestureMachine(
             classLoaderIdentity = "cl-1",
@@ -60,6 +61,7 @@ class GestureMachineTest {
                 ): GestureDependenciesResult = GestureDependenciesResult.Ready(testDeps)
             },
             effectExecutor = exec,
+            arbiter = testArbiter,
         )
         return m to exec
     }
@@ -73,6 +75,8 @@ class GestureMachineTest {
         pointerCount: Int = 1,
         entry: GestureEntry = GestureEntry.STATUS_BAR_TOUCH,
         ownerId: Int = 1,
+        deviceId: Int = 0,
+        source: Int = 0,
     ) = GestureEvent(
         entry = entry,
         actionMasked = action,
@@ -82,6 +86,8 @@ class GestureMachineTest {
         y = y,
         pointerCount = pointerCount,
         ownerId = ownerId,
+        deviceId = deviceId,
+        source = source,
     )
 
     @Test
@@ -244,5 +250,67 @@ class GestureMachineTest {
         val expected = 0.1f + 200f / 1080f * config.brightnessSensitivityFactor
         assertEquals(1, exec.brightnessApplied.size)
         assertEquals(expected, exec.brightnessApplied[0], 0.0001f)
+    }
+
+    @Test
+    fun statusBarAndControlCenter_sharePhysicalOwner() {
+        val arbiter = PhysicalGestureArbiter()
+        val exec = FakeGestureEffectExecutor()
+        val (statusBar, _) = machine(exec = exec, testArbiter = arbiter)
+        val (controlCenter, _) = machine(exec = exec, testArbiter = arbiter)
+
+        statusBar.prepare(1, dummyContext)
+        controlCenter.prepare(2, dummyContext)
+
+        val token = event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 3, source = 0x1002)
+        statusBar.dispatch(token, dummyContext)
+        statusBar.dispatch(token.copy(actionMasked = GestureAction.MOVE, eventTime = 50L, x = 300f), dummyContext)
+
+        val sharedUp = token.copy(actionMasked = GestureAction.UP, eventTime = 100L, x = 300f)
+        controlCenter.dispatch(sharedUp.copy(ownerId = 2, entry = GestureEntry.CONTROL_CENTER_TOUCH), dummyContext)
+        controlCenter.dispatch(sharedUp.copy(ownerId = 2, entry = GestureEntry.CONTROL_CENTER_TOUCH, actionMasked = GestureAction.MOVE, eventTime = 60L), dummyContext)
+        statusBar.dispatch(sharedUp, dummyContext)
+
+        assertEquals(1, exec.brightnessApplied.size)
+        assertEquals(1, exec.brightnessCommitted.size)
+    }
+
+    @Test
+    fun cancelReleasesPhysicalOwner() {
+        val arbiter = PhysicalGestureArbiter()
+        val exec = FakeGestureEffectExecutor()
+        val (m1, _) = machine(exec = exec, testArbiter = arbiter)
+        val (m2, _) = machine(exec = exec, testArbiter = arbiter)
+
+        m1.prepare(1, dummyContext)
+        m2.prepare(2, dummyContext)
+
+        val token = event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 4, source = 0x1002)
+        m1.dispatch(token, dummyContext)
+        m1.dispatch(token.copy(actionMasked = GestureAction.CANCEL, eventTime = 50L), dummyContext)
+
+        val sameToken = token.copy(ownerId = 2, entry = GestureEntry.CONTROL_CENTER_TOUCH)
+        m2.dispatch(sameToken, dummyContext)
+        m2.dispatch(sameToken.copy(actionMasked = GestureAction.MOVE, eventTime = 50L, x = 300f), dummyContext)
+
+        assertEquals(1, exec.brightnessApplied.size)
+    }
+
+    @Test
+    fun sameTimeDifferentDevice_isDifferentToken() {
+        val arbiter = PhysicalGestureArbiter()
+        val exec = FakeGestureEffectExecutor()
+        val (m1, _) = machine(exec = exec, testArbiter = arbiter)
+        val (m2, _) = machine(exec = exec, testArbiter = arbiter)
+
+        m1.prepare(1, dummyContext)
+        m2.prepare(2, dummyContext)
+
+        m1.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 5, source = 0x1002, ownerId = 1), dummyContext)
+        m1.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L, deviceId = 5, source = 0x1002, ownerId = 1), dummyContext)
+        m2.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 6, source = 0x1002, ownerId = 2, entry = GestureEntry.CONTROL_CENTER_TOUCH), dummyContext)
+        m2.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L, deviceId = 6, source = 0x1002, ownerId = 2, entry = GestureEntry.CONTROL_CENTER_TOUCH), dummyContext)
+
+        assertEquals(2, exec.brightnessApplied.size)
     }
 }

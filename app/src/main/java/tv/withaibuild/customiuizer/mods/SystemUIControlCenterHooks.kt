@@ -41,6 +41,7 @@ import tv.withaibuild.customiuizer.mods.utils.gesture.GestureConfigResolver
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEntry
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEvent
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureMachine
+import tv.withaibuild.customiuizer.mods.utils.gesture.PhysicalGestureArbiter
 import tv.withaibuild.customiuizer.mods.utils.gesture.ControlCenterGestureDependenciesResolver
 import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureDependenciesResolver
 import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureEffectExecutor
@@ -774,11 +775,13 @@ object SystemUIControlCenterHooks {
 
     @JvmStatic
     fun StatusBarGesturesHook(lpparam: PackageReadyParam) {
+        val arbiter = PhysicalGestureArbiter()
         val statusBarMachine = GestureMachine(
             classLoaderIdentity = lpparam.packageName.orEmpty(),
             configResolver = { GestureConfigResolver.resolve(MainModule.mPrefs) },
             depsResolver = StatusBarGestureDependenciesResolver(lpparam.classLoader),
             effectExecutor = StatusBarGestureEffectExecutor(),
+            arbiter = arbiter,
         )
         val statusBarHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
@@ -794,6 +797,8 @@ object SystemUIControlCenterHooks {
                     y = event.y,
                     pointerCount = event.pointerCount,
                     ownerId = System.identityHashCode(thisObject),
+                    deviceId = event.deviceId,
+                    source = event.source,
                 )
                 ModuleHelper.guarded {
                     if (entry == GestureEntry.STATUS_BAR_TOUCH) {
@@ -827,6 +832,7 @@ object SystemUIControlCenterHooks {
                     configResolver = { GestureConfigResolver.resolve(MainModule.mPrefs) },
                     depsResolver = ControlCenterGestureDependenciesResolver(),
                     effectExecutor = StatusBarGestureEffectExecutor(),
+                    arbiter = arbiter,
                 )
                 val controlCenterHook = object : MethodHook() {
                     override fun before(param: BeforeHookCallback) {
@@ -845,6 +851,8 @@ object SystemUIControlCenterHooks {
                             y = event.y,
                             pointerCount = event.pointerCount,
                             ownerId = System.identityHashCode(thisObject),
+                            deviceId = event.deviceId,
+                            source = event.source,
                         )
                         ModuleHelper.guarded {
                             controlCenterMachine.dispatch(gestureEvent, thisObject)

@@ -1,10 +1,13 @@
 package tv.withaibuild.customiuizer.mods.utils.gesture
 
+import android.view.MotionEvent
+
 /**
  * Pure data representation of a touch event passed to the gesture state machine.
  *
  * The [entry] and [ownerId] allow the machine to keep per-owner state; the physical
- * coordinates and timing are kept as primitives to avoid Android object coupling.
+ * identity is described by [downTime], [deviceId] and [source].  The coordinates and
+ * timing are kept as primitives to avoid Android object coupling.
  */
 data class GestureEvent(
     val entry: GestureEntry,
@@ -15,4 +18,6 @@ data class GestureEvent(
     val y: Float,
     val pointerCount: Int,
     val ownerId: Int,
+    val deviceId: Int = 0,
+    val source: Int = 0,
 )

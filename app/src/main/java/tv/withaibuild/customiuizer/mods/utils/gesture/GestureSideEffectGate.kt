@@ -36,11 +36,12 @@ class GestureSideEffectGate(
 
     private fun fingerprint(event: GestureEvent): GestureEventFingerprint =
         GestureEventFingerprint(
-            ownerId = event.ownerId,
             downTime = event.downTime,
             eventTime = event.eventTime,
             actionMasked = event.actionMasked,
             pointerCount = event.pointerCount,
+            deviceId = event.deviceId,
+            source = event.source,
         )
 
     /**

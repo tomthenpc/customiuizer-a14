@@ -17,6 +17,8 @@ class GestureSideEffectGateTest {
         pointerCount: Int = 1,
         ownerId: Int = 1,
         entry: GestureEntry = GestureEntry.STATUS_BAR_TOUCH,
+        deviceId: Int = 0,
+        source: Int = 0,
     ) = GestureEvent(
         entry = entry,
         actionMasked = action,
@@ -26,6 +28,8 @@ class GestureSideEffectGateTest {
         y = y,
         pointerCount = pointerCount,
         ownerId = ownerId,
+        deviceId = deviceId,
+        source = source,
     )
 
     @Test
@@ -80,9 +84,20 @@ class GestureSideEffectGateTest {
     }
 
     @Test
-    fun differentOwner_sameTimestamp_notDeduped() {
-        val e1 = event(GestureAction.UP, eventTime = 100L, ownerId = 1)
-        val e2 = event(GestureAction.UP, eventTime = 100L, ownerId = 2)
+    fun samePhysicalEvent_crossOwner_isDeduped() {
+        val e1 = event(GestureAction.UP, eventTime = 100L, ownerId = 1, deviceId = 1, source = 256)
+        val e2 = event(GestureAction.UP, eventTime = 100L, ownerId = 2, deviceId = 1, source = 256)
+        val commands = listOf<GestureCommand>(GestureCommand.TriggerDoubleTap(DoubleTapPosition.CENTER))
+        val first = gate.filter(GestureEntry.STATUS_BAR_TOUCH, e1, commands)
+        val second = gate.filter(GestureEntry.CONTROL_CENTER_TOUCH, e2, commands)
+        assertEquals(commands, first)
+        assertTrue(second.isEmpty())
+    }
+
+    @Test
+    fun differentPhysicalDevice_sameTimestamp_isNotDeduped() {
+        val e1 = event(GestureAction.UP, eventTime = 100L, ownerId = 1, deviceId = 1, source = 256)
+        val e2 = event(GestureAction.UP, eventTime = 100L, ownerId = 1, deviceId = 2, source = 256)
         val commands = listOf<GestureCommand>(GestureCommand.TriggerDoubleTap(DoubleTapPosition.CENTER))
         val first = gate.filter(GestureEntry.STATUS_BAR_TOUCH, e1, commands)
         val second = gate.filter(GestureEntry.STATUS_BAR_TOUCH, e2, commands)
