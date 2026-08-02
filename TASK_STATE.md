@@ -404,10 +404,28 @@ State: `IN_PROGRESS`
 - reflection lifecycle；
 - process-local state。
 
-初始发现：
+进展：
 
-- `MainModule.onPackageReady` 的 `SYSTEM_UI` 分支包含 SystemUI 初始化、fast-reboot receiver、status-bar setup、10s restart check 和 preference watch 逻辑，超出 bootstrap/routing 职责。
-- 需要将这些 SystemUI-specific 初始化移入 `SystemUiInstaller`。
+| 子项 | 状态 | 证据 |
+|---|---|---|
+| `GenericAppInstaller` 路由 | `COMPLETE` | `MainModule` 不再计算 `isLauncherPkg` / `isStatusBarColor` / `isNoOverscroll` / `controlMedia`；这些由 `GenericAppInstaller.installPostAttach(lpparam, mPrefs)` 内部从 `PrefMap` 和 `lpparam.getPackageName()` 推导。 |
+| `ProcessRouter` 事实源 | `COMPLETE` | `MainModule.onPackageReady` 使用 `ProcessRouter.resolve(pkg, processName)` 得到 `ProcessScope`。 |
+| `isFirstPackage` | `COMPLETE` | `MainModule.onPackageReady` 在开头检查 `!lpparam.isFirstPackage()` 并返回。 |
+| `SystemUI` 分支初始化 | `IN_PROGRESS` | 仍包含 SystemUI 初始化、fast-reboot receiver、status-bar setup、10s restart check 和 preference watch；计划移入 `SystemUiInstaller` 以完成 `MainModule` 仅 bootstrap/routing。 |
+
+命令：
+
+```text
+.\gradlew.bat --no-daemon compileDebugKotlin compileDebugJavaWithJavac
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
+```
+
+退出码：
+
+```text
+0
+0
+```
 
 ---
 
