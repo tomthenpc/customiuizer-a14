@@ -1,21 +1,21 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-02T20:23:25.056233+08:00
-SourceCommit: 782b3e50c122d3901553e40e941da3ed74f96336
-SourceTree: 03a14b9da55bdceb54cfefcdbae6c8320099dd15
-VerifiedTree: d38c4ebff9b953190904cd4397954887c553cb4c
+GeneratedAt: 2026-08-02T21:01:52.272165+08:00
+SourceCommit: bd5efb24e49be5383f2cb0921c7dd321350cd90a
+SourceTree: 17b3a7281a469d9c93d3a1768458e45e0e6a8221
+VerifiedTree: 17b3a7281a469d9c93d3a1768458e45e0e6a8221
 VerifiedMode: Fast
 CIState: PASS
 CIRun: 30747399434
 CIJob: 91495213418
-CICommit: 782b3e50aa7a3f07dcbd7e8c30e2b799fbdd276f
+CICommit: 782b3e50
 ```
 
 ## Progress
 
-- ProjectProgress: 80.5%
-- MachineProgress: 84.7%
+- ProjectProgress: 80.2%
+- MachineProgress: 84.4%
 - Stage: FINALIZATION_AND_DEVICE
 - OpenP0: 0
 - OpenP1: 7
@@ -30,7 +30,7 @@ CICommit: 782b3e50aa7a3f07dcbd7e8c30e2b799fbdd276f
 | Runtime safety / lifecycle / concurrency | 18 | 17.64 | 98.0% |
 | Performance / memory / APK / R8 | 12 | 10.2 | 85.0% |
 | ROM intelligence / compatibility | 10 | 4.66 | 46.6% |
-| Java / Kotlin boundary | 8 | 7.28 | 91.0% |
+| Java / Kotlin boundary | 8 | 6.96 | 87.0% |
 | Build / CI / signing / artifacts | 12 | 11.2 | 93.3% |
 | Documentation / provenance | 5 | 0.0 | 0.0% |
 | Device validation | 5 | 0.0 | 0.0% |
@@ -69,9 +69,9 @@ CICommit: 782b3e50aa7a3f07dcbd7e8c30e2b799fbdd276f
 | P8.2 | Performance / memory / APK / R8 | 3.0 | VERIFIED_BUILD | 0.85 | 2.55 |
 | P8.3 | Performance / memory / APK / R8 | 3.0 | VERIFIED_BUILD | 0.85 | 2.55 |
 | P8.4 | Performance / memory / APK / R8 | 3.0 | VERIFIED_BUILD | 0.85 | 2.55 |
-| P9.1 | Java / Kotlin boundary | 1.6 | VERIFIED_BUILD | 0.85 | 1.36 |
-| P9.2 | Java / Kotlin boundary | 1.6 | VERIFIED_BUILD | 0.85 | 1.36 |
-| P9.3 | Java / Kotlin boundary | 1.6 | VERIFIED_BUILD | 0.85 | 1.36 |
+| P9.1 | Java / Kotlin boundary | 1.6 | VERIFIED_STATIC | 0.7 | 1.12 |
+| P9.2 | Java / Kotlin boundary | 1.6 | VERIFIED_CI | 0.95 | 1.52 |
+| P9.3 | Java / Kotlin boundary | 1.6 | VERIFIED_STATIC | 0.7 | 1.12 |
 | P10.1 | ROM intelligence / compatibility | 3.33 | BLOCKED_EXTERNAL | 0.0 | 0.0 |
 | P10.2 | ROM intelligence / compatibility | 3.33 | VERIFIED_STATIC | 0.7 | 2.33 |
 | P10.3 | ROM intelligence / compatibility | 3.33 | VERIFIED_STATIC | 0.7 | 2.33 |

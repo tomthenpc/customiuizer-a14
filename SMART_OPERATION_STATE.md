@@ -10,7 +10,9 @@ LastLightSweepCommit: 782b3e50
 LastStandardSweepCommit: 3c61ee8f
 LastDeepSweepCommit: 3c61ee8f
 LastFullVerificationCommit: 782b3e50
-LastVerifiedTree: 03a14b9da55bdceb54cfefcdbae6c8320099dd15
+LastVerifiedTree: 17b3a7281a469d9c93d3a1768458e45e0e6a8221
+LastVerifiedTreeSource: Fast-verify
+LastVerifiedTreeCommand: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
 LastVerifiedMode: Fast
 LastCIState: PASS
 LastCIRun: 30747399434

@@ -72,7 +72,16 @@ class ProgressSnapshotV7Test(unittest.TestCase):
         leaves = progress_snapshot.parse_task_sections(text)
         issues = progress_snapshot.parse_issue_table(text)
         items = progress_snapshot.build_capability_items(leaves, issues)
-        buckets = {"complete": 0, "in_progress": 0, "not_started": 0, "blocked_internal": 0, "blocked_external": 0}
+        buckets = {
+            "complete": 0,
+            "verified": 0,
+            "in_progress": 0,
+            "not_started": 0,
+            "blocked_internal": 0,
+            "blocked_external": 0,
+            "excluded": 0,
+            "fail": 0,
+        }
         for it in items:
             buckets[it.bucket] = buckets.get(it.bucket, 0) + 1
         self.assertEqual(sum(buckets.values()), progress_snapshot.compute_progress(items)["taskCounts"]["total"])
@@ -97,7 +106,29 @@ class ProgressSnapshotV7Test(unittest.TestCase):
         items = progress_snapshot.build_capability_items(leaves, issues)
         progress = progress_snapshot.compute_progress(items)
         counts = progress["taskCounts"]
-        self.assertEqual(counts["total"], counts["complete"] + counts["in_progress"] + counts["not_started"] + counts["blocked_internal"] + counts["blocked_external"])
+        total = (
+            counts["complete"]
+            + counts["verified"]
+            + counts["in_progress"]
+            + counts["not_started"]
+            + counts["blocked_internal"]
+            + counts["blocked_external"]
+            + counts["excluded"]
+            + counts["fail"]
+        )
+        self.assertEqual(counts["total"], total)
+
+    def test_state_factor_bucket_consistency(self):
+        """Every known state maps to a recognized bucket and a non-negative factor."""
+        known_buckets = set(progress_snapshot.compute_progress([])["taskCounts"].keys()) - {"total"}
+        for state, factor in progress_snapshot.STATE_FACTORS.items():
+            bucket = progress_snapshot.item_bucket(state)
+            self.assertIn(bucket, known_buckets, f"{state} maps to unknown bucket {bucket}")
+            self.assertGreaterEqual(factor, 0.0, f"{state} factor must be non-negative")
+
+    def test_unknown_and_not_applicable_buckets(self):
+        self.assertEqual("fail", progress_snapshot.item_bucket("UNKNOWN"))
+        self.assertEqual("excluded", progress_snapshot.item_bucket("NOT_APPLICABLE"))
 
 
 if __name__ == "__main__":

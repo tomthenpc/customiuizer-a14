@@ -39,6 +39,8 @@ SMART_REQUIRED_KEYS = {
     "LastDeepSweepCommit",
     "LastFullVerificationCommit",
     "LastVerifiedTree",
+    "LastVerifiedTreeSource",
+    "LastVerifiedTreeCommand",
     "LastVerifiedMode",
     "LastCIState",
     "LastCIRun",

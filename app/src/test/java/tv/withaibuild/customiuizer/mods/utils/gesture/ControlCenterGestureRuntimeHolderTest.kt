@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -45,6 +46,47 @@ class ControlCenterGestureRuntimeHolderTest {
             installHooks = { loader, machine -> installed.add(loader to machine) },
         )
         return h to installed
+    }
+
+    @Test
+    fun activeRuntime_isNotPublishedBeforeInstallHooksSucceed() {
+        val loader = FakeClassLoader()
+        val (h, _) = holder(BrightnessDisplayStub(), PhysicalGestureArbiter())
+
+        val runtime = h.bind(loader)
+
+        assertNotNull(h.activeRuntime())
+        assertSame(loader, h.activeRuntime()?.classLoader)
+    }
+
+    @Test
+    fun installHooksFailure_doesNotPublishActiveRuntime() {
+        val loader = FakeClassLoader()
+        var callCount = 0
+        val resolver = object : GestureDependenciesResolver {
+            override fun prepare(ownerId: Int, classLoaderIdentity: String, context: Any): GestureDependenciesResult {
+                return GestureDependenciesResult.NotReady
+            }
+        }
+        val h = ControlCenterGestureRuntimeHolder(
+            configPublisher = configPublisher,
+            effectExecutor = effectExecutor,
+            arbiter = PhysicalGestureArbiter(),
+            dependenciesResolver = resolver,
+            installHooks = { _, _ ->
+                callCount++
+                throw RuntimeException("install hooks failed")
+            },
+        )
+
+        try {
+            h.bind(loader)
+        } catch (_: RuntimeException) {
+            // expected
+        }
+
+        assertEquals(1, callCount)
+        assertNull(h.activeRuntime())
     }
 
     @Test

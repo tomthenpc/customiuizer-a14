@@ -755,7 +755,7 @@ State: `VERIFIED_BUILD`
 
 ## P9.1 分类
 
-State: `VERIFIED_BUILD`
+State: `VERIFIED_STATIC`
 
 全部 production Java 已分类，结果写入 `docs/JAVA_BOUNDARY_ALLOWLIST.md`：
 
@@ -771,7 +771,7 @@ UNCLASSIFIED -> 0
 
 ## P9.2 迁移
 
-State: `VERIFIED_BUILD`
+State: `VERIFIED_CI`
 
 行为等价小批次，每批 focused tests。
 
@@ -813,7 +813,7 @@ State: `VERIFIED_BUILD`
 
 ## P9.3 Allowlist
 
-State: `VERIFIED_BUILD`
+State: `VERIFIED_STATIC`
 
 已生成 `docs/JAVA_BOUNDARY_ALLOWLIST.md`，记录：
 

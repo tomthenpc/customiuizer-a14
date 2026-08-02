@@ -46,8 +46,13 @@ internal class ControlCenterGestureRuntimeHolder(
             arbiter = arbiter,
         )
         val runtime = ControlCenterGestureRuntime(classLoader, machine)
-        activeRuntime = runtime
-        installHooks(classLoader, machine)
+        try {
+            installHooks(classLoader, machine)
+            activeRuntime = runtime
+        } catch (e: Throwable) {
+            machine.clear()
+            throw e
+        }
         return runtime
     }
 

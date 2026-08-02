@@ -170,14 +170,22 @@ def state_factor(state: str) -> float:
 
 def item_bucket(state: str) -> str:
     s = state.upper()
-    if s == "COMPLETE":
-        return "complete"
+    if s == "TODO":
+        return "not_started"
     if s in ("IN_PROGRESS", "STATIC_OWNER_COMPLETE", "CORE_COMPLETE"):
         return "in_progress"
-    if s == "BLOCKED_EXTERNAL":
-        return "blocked_external"
+    if s in ("VERIFIED_STATIC", "VERIFIED_BUILD", "VERIFIED_CI", "VERIFIED_DEVICE"):
+        return "verified"
+    if s == "COMPLETE":
+        return "complete"
     if s in ("BLOCKED_INTERNAL", "DIAGNOSTIC_MODE"):
         return "blocked_internal"
+    if s == "BLOCKED_EXTERNAL":
+        return "blocked_external"
+    if s == "NOT_APPLICABLE":
+        return "excluded"
+    if s == "UNKNOWN":
+        return "fail"
     return "not_started"
 
 
@@ -259,10 +267,13 @@ def build_capability_items(leaves: dict[str, dict[str, Any]], issues: list[dict[
 def compute_progress(items: list[CapabilityItem]) -> dict[str, Any]:
     buckets = {
         "complete": 0,
+        "verified": 0,
         "in_progress": 0,
         "not_started": 0,
         "blocked_internal": 0,
         "blocked_external": 0,
+        "excluded": 0,
+        "fail": 0,
     }
     for it in items:
         buckets[it.bucket] = buckets.get(it.bucket, 0) + 1

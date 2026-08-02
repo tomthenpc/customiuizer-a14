@@ -129,6 +129,7 @@ object SystemUIControlCenterHooks {
                 val mSafetyWarning = try {
                     XposedHelpers.getObjectField(param.getThisObject(), "mIsSafetyShowing") as Boolean
                 } catch (e: Throwable) {
+                    FatalErrors.rethrowIfFatal(e)
                     XposedHelpers.getObjectField(param.getThisObject(), "mSafetyWarning") as Boolean
                 }
                 if (mSafetyWarning) {
@@ -404,11 +405,11 @@ object SystemUIControlCenterHooks {
 
         ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelController", pluginLoader, "setUseSeparatedPanels", Boolean::class.java, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                if (param.getArg(0) == null) {
+                if (param.getArgs().isEmpty() || param.getArg(0) == null) {
                     param.returnAndSkip(null)
                     return
                 }
-                val bool = param.getArg(0) as Boolean
+                val bool = param.getArg(0) as? Boolean ?: return
                 val oldVal = XposedHelpers.getObjectField(param.getThisObject(), "useSeparatedPanels")
                 if (bool == oldVal) {
                     param.returnAndSkip(null)
@@ -490,6 +491,10 @@ object SystemUIControlCenterHooks {
                 if (leftAdapter) {
                     val companion = XposedHelpers.getStaticObjectField(MainPanelAdapter, "Companion")
                     val contentMap = XposedHelpers.getObjectField(adapter, "contentMap")
+                    if (param.getArgs().isEmpty()) {
+                        param.returnAndSkip(cols)
+                        return
+                    }
                     val panelItem = XposedHelpers.callMethod(companion, "getItem", contentMap, param.getArg(0))
                     if (panelItem == null) {
                         param.returnAndSkip(cols)
@@ -598,6 +603,7 @@ object SystemUIControlCenterHooks {
                 val rawChildControllers = try {
                     XposedHelpers.getObjectField(thisObj, "childControllers")
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     return
                 }
 
@@ -615,6 +621,7 @@ object SystemUIControlCenterHooks {
                 try {
                     XposedHelpers.setObjectField(thisObj, "childControllers", childControllers)
                 } catch (ignored: Throwable) {
+                    FatalErrors.rethrowIfFatal(ignored)
                     // final or unmodifiable field: rely on the distributePanels fallback
                 }
             }
@@ -627,11 +634,13 @@ object SystemUIControlCenterHooks {
                 val rightPanelContent = try {
                     XposedHelpers.getObjectField(thisObj, "rightPanelContent") as? ArrayList<*>
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     null
                 } ?: return
                 val leftPanelContent = try {
                     XposedHelpers.getObjectField(thisObj, "leftPanelContent") as? ArrayList<*>
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     null
                 } ?: return
 
@@ -806,6 +815,7 @@ object SystemUIControlCenterHooks {
         val statusBarHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
                 val thisObject = param.getThisObject() as? View ?: return
+                if (param.getArgs().isEmpty()) return
                 val event = param.getArg(0) as? MotionEvent ?: return
                 // INTERCEPT events do not yet own the touch stream; only process TOUCH.
                 if (param.getMember().name != "onTouchEvent") return
@@ -923,6 +933,7 @@ object SystemUIControlCenterHooks {
                 pct.setTextColor(modRes.getColor(R.color.color_on_surface_variant, context.theme))
                 pct.background = ResourcesCompat.getDrawable(modRes, R.drawable.input_background, context.theme)
             } catch (err: Throwable) {
+                FatalErrors.rethrowIfFatal(err)
                 XposedHelpers.log(err)
             }
             container.addView(pct)
@@ -1121,6 +1132,10 @@ object SystemUIControlCenterHooks {
                 if (useCC) {
                     val bar = param.getThisObject() as FrameLayout
                     val mControlPanelWindowManager = XposedHelpers.getObjectField(param.getThisObject(), "mControlPanelWindowManager")
+                    if (param.getArgs().isEmpty()) {
+                        param.returnAndSkip(false)
+                        return
+                    }
                     val dispatchToControlPanel = XposedHelpers.callMethod(mControlPanelWindowManager, "dispatchToControlPanel", param.getArg(0), bar.width) as Boolean
                     XposedHelpers.callMethod(mControlPanelWindowManager, "setTransToControlPanel", dispatchToControlPanel)
                     param.returnAndSkip(dispatchToControlPanel)
@@ -1136,7 +1151,11 @@ object SystemUIControlCenterHooks {
                     val controlCenterController = XposedHelpers.getObjectField(param.getThisObject(), "controlCenterController")
                     val useCC = XposedHelpers.getBooleanField(controlCenterController, "useControlCenter")
                     if (useCC) {
-                        val motionEvent = param.getArg(0) as MotionEvent
+                        if (param.getArgs().size < 2) {
+                            param.returnAndSkip(false)
+                            return
+                        }
+                        val motionEvent = param.getArg(0) as? MotionEvent ?: return
                         if (motionEvent.actionMasked == MotionEvent.ACTION_DOWN) {
                             XposedHelpers.setObjectField(param.getThisObject(), "mDownX", motionEvent.rawX)
                         }
@@ -1145,7 +1164,7 @@ object SystemUIControlCenterHooks {
                             param.returnAndSkip(false)
                         } else {
                             val mDownX = XposedHelpers.getFloatField(param.getThisObject(), "downX")
-                            val width = param.getArg(1) as Float
+                            val width = param.getArg(1) as? Float ?: return
                             if (mDownX < width / 2.0f) {
                                 param.returnAndSkip(XposedHelpers.callMethod(controlCenterWindowView, "handleMotionEvent", motionEvent, true))
                             } else {
