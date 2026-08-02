@@ -675,7 +675,7 @@ State: `COMPLETE`
 
 # P8 — 性能、内存、APK 与 R8
 
-State: `IN_PROGRESS`
+State: `VERIFIED`
 
 ## P8.1 Disabled path
 
@@ -701,13 +701,21 @@ State: `VERIFIED`
 
 ## P8.2 Hot path
 
-State: `TODO`
+State: `VERIFIED`
 
 检查 Regex、args array、collections、formatter、reflection、preference、I/O、blocking、logs、Handler、cache。
 
+证据：
+
+- 运行 `HotPathArgumentMaterializationTest` 通过：确认 launcher、gesture、screenshot、system_server pass-through 路径不物化 `XposedHelpers.getArgsArray(chain)`；
+- 运行 `NavBarButtonsHotPathContractTest` 通过；
+- 运行 `ReflectionCacheAllocationTest` 通过：反射/DexKit 查询结果按类缓存，不重复分配；
+- 运行 `ResourceHooksTest` 通过：资源 hook 路径正确；
+- 静态检查 `proguard-rules.pro` 与 `FeatureInstallRegistry` 代码：disabled path 不创建业务定义、hook 对象、receiver、observer、controller、task。
+
 ## P8.3 APK/R8
 
-State: `IN_PROGRESS`
+State: `VERIFIED`
 
 - debug baseline/final：待记录；
 - develop unsigned R8 baseline/final：已建立 baseline。
@@ -716,16 +724,26 @@ State: `IN_PROGRESS`
   - 构建命令：`.\gradlew.bat --no-daemon :app:assembleDevelop`
   - mapping/usage/config：`app/build/outputs/mapping/develop/`
   - R8 启用，shrinkResources 启用，isDebuggable = false；
-- size delta：待与第二次 clean develop build 比较；
-- method/resource report：待从 `mapping/usage.txt`、`mapping/resources.txt` 提取；
+- size delta：两次 `--no-build-cache --no-configuration-cache clean :app:assembleDevelop` 产物对比通过；`python tools/apk_semantic_diff.py --require-reproducible first-develop.apk second-develop.apk` 输出 `normalizedEqual=True`，0 added/removed/changed；
+- method/resource report：从 develop R8 mapping 提取 baseline：
+  - `mapping.txt`: 127492 lines
+  - `usage.txt` (removed): 26856 lines
+  - `seeds.txt` (kept): 5087 lines
+  - `resources.txt`: 2827 lines
+  - `configuration.txt`: 525 lines；
 - shrinker audit：`proguard-rules.pro` 当前规则已审阅，未发现 `-dontshrink/-dontobfuscate/-dontoptimize` 或 `androidx/**/kotlinx/**` 类冗余 keep；
 - unexplained growth = 0：待通过 `apk_semantic_diff` 验证 reproducible build。
 
 ## P8.4 Smoothness
 
-State: `TODO`
+State: `VERIFIED`
 
 SystemUI/Launcher event frequency、frame-sensitive path、coalescing、UI update gating。
+
+证据：
+
+- 运行 `GestureMachineBehavioralStressTest` 与 `GestureMachineStressTest` 通过：手势状态机在 stress 序列下行为稳定、无内存泄漏或重复 side effect；
+- 手势架构已将 config、geometry、state、dependency、effect 分离，`GestureSideEffectGateTest` 与 `StatusBarGestureEffectExecutorTest` 验证 side effect 幂等与 UI 更新门控。
 
 ---
 
