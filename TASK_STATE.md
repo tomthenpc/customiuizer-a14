@@ -275,24 +275,42 @@ python tmp_check_feature_ids.py
 
 ## P1.2 Hook ownership
 
-State: `TODO`
+State: `COMPLETE`
 
 全部生产 Hook 分类：
 
-```text
-REGISTRY_FEATURE
-INSTALLER_INFRASTRUCTURE
-RESOURCE_INFRASTRUCTURE
-API_BRIDGE
-LEGACY_EXCEPTION
-DEAD_CANDIDATE
-UNKNOWN
-```
+| Category | Count |
+|---|---|
+| REGISTRY_FEATURE | 720 |
+| INSTALLER_INFRASTRUCTURE | 25 |
+| API_BRIDGE | 9 |
+| RESOURCE_INFRASTRUCTURE | 2 |
+| LEGACY_EXCEPTION | 0 |
+| DEAD_CANDIDATE | 0 |
+| UNKNOWN | 0 |
 
 最终：
 
 ```text
 UNKNOWN = 0
+```
+
+证据：
+
+- 新工具 `tools/audit_hook_ownership.py` 扫描 `app/src/main/java` 下所有 `.kt` / `.java` 文件，识别 756 个 hook 调用点。
+- 按文件路径和语义自动分类：业务 Feature 定义（`mods/*.kt`）、Installer/MainModule 基础设施、`mods/utils/XposedHelpers.java` / `HookerClassHelper.kt` 桥接、`ResourceHooks.kt` 资源替换。
+- 输出 `docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md`。
+
+命令：
+
+```text
+python tools/audit_hook_ownership.py
+```
+
+退出码：
+
+```text
+0
 ```
 
 ## P1.3 Process/phase inventory
