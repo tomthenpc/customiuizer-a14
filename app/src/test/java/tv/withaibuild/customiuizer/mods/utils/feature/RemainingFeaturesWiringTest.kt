@@ -165,9 +165,26 @@ class RemainingFeaturesWiringTest {
 
     private fun source(relativePath: String): String {
         var directory = File(System.getProperty("user.dir").orEmpty()).absoluteFile
+        val candidates = when {
+            relativePath.endsWith(".java") -> {
+                listOf(
+                    relativePath.replace(".java", ".kt"),
+                    relativePath
+                )
+            }
+            relativePath.endsWith(".kt") -> {
+                listOf(
+                    relativePath,
+                    relativePath.replace(".kt", ".java")
+                )
+            }
+            else -> listOf(relativePath)
+        }
         while (true) {
-            val candidate = File(directory, relativePath)
-            if (candidate.isFile) return candidate.readText()
+            for (path in candidates) {
+                val candidate = File(directory, path)
+                if (candidate.isFile) return candidate.readText()
+            }
             directory = directory.parentFile
                 ?: error("Repository root not found while locating $relativePath")
         }

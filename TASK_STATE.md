@@ -749,29 +749,38 @@ SystemUI/Launcher event frequency、frame-sensitive path、coalescing、UI updat
 
 # P9 — Java → Kotlin 最终收口
 
-State: `TODO`
+State: `IN_PROGRESS`
 
 ## P9.1 分类
 
-State: `TODO`
+State: `VERIFIED`
 
-全部 production Java：
+全部 production Java 已分类，结果写入 `docs/JAVA_BOUNDARY_ALLOWLIST.md`：
 
 ```text
-MIGRATE_TO_KOTLIN
-KEEP_JAVA_FRAMEWORK_ENTRY
-KEEP_JAVA_JVM_BOUNDARY
-KEEP_JAVA_REFLECTION_ABI
-KEEP_JAVA_VENDOR_OR_GENERATED
-KEEP_JAVA_TEMPORARY_BLOCKER
-UNCLASSIFIED
+MIGRATE_TO_KOTLIN     -> 13 installer + XposedHelpers
+KEEP_JAVA_FRAMEWORK_ENTRY -> MainModule.java (XposedModule entry)
+KEEP_JAVA_VENDOR_OR_GENERATED -> org/apache/commons/lang3/reflect/MemberUtilsX.java
+KEEP_JAVA_TEMPORARY_BLOCKER -> 0
+UNCLASSIFIED -> 0
 ```
+
+无 `KEEP_JAVA_REFLECTION_ABI` 或 `KEEP_JAVA_JVM_BOUNDARY` 项；Installer 与 `XposedHelpers` 方法均为直接调用，不暴露反射 ABI。
 
 ## P9.2 迁移
 
-State: `TODO`
+State: `IN_PROGRESS`
 
 行为等价小批次，每批 focused tests。
+
+当前批次：13 installer Java → Kotlin（低风险，不影响 `MainModule` 调用点）。
+
+计划：
+
+1. 保留 `MainModule.java` 和 `MemberUtilsX.java` 不变；
+2. 将 `installers/*.java` 逐个转换为 Kotlin `object` 并加 `@JvmStatic`；
+3. 最后迁移 `mods/utils/XposedHelpers.java`（最大、中等风险）；
+4. 每批运行 `gradlew.bat :app:compileDebugKotlin compileDebugJavaWithJavac` 与相关 `testDebugUnitTest`。
 
 ## P9.3 Allowlist
 

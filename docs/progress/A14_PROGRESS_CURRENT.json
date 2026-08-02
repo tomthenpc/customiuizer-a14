@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-02T15:34:49.869147+08:00",
-  "sourceCommit": "4fa315b682a845a81adb97449071941249dbd53d",
-  "sourceTree": "6820b9b0caba7a06925646eb9905d16e6b349f21",
+  "generatedAt": "2026-08-02T15:48:51.964143+08:00",
+  "sourceCommit": "abb8a206de19e24eb8db8ea2d04614a9c92506a4",
+  "sourceTree": "63e37a902a6fac83d82c362a8ff9c29d197d20c8",
   "verifiedTree": "b210ffe06ad96f449aba0d3e0d4cce69bff128e7",
   "verifiedMode": "Final",
   "ciState": "PENDING",
   "ciRun": "pending",
   "ciJob": "pending",
   "ciCommit": "6c1ca7b4670b9a97ae3815546db8f3a80c87a9ed",
-  "projectProgress": 57.6,
-  "machineProgress": 60.7,
+  "projectProgress": 58.4,
+  "machineProgress": 61.5,
   "stage": "INTEGRATION_AND_EVIDENCE",
   "domainScores": {
     "Baseline and control": {
@@ -40,8 +40,8 @@
     },
     "Java / Kotlin boundary": {
       "weight": 8,
-      "earned": 3.2,
-      "percent": 40.0
+      "earned": 4.0,
+      "percent": 50.0
     },
     "Build / CI / signing / artifacts": {
       "weight": 12,
@@ -484,7 +484,7 @@
       "id": "P9.1",
       "domain": "Java / Kotlin boundary",
       "weight": 1.6,
-      "state": "TODO",
+      "state": "VERIFIED",
       "factor": 0.0,
       "earned": 0.0,
       "bucket": "not_started",
@@ -498,10 +498,10 @@
       "id": "P9.2",
       "domain": "Java / Kotlin boundary",
       "weight": 1.6,
-      "state": "TODO",
-      "factor": 0.0,
-      "earned": 0.0,
-      "bucket": "not_started",
+      "state": "IN_PROGRESS",
+      "factor": 0.5,
+      "earned": 0.8,
+      "bucket": "in_progress",
       "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],

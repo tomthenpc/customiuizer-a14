@@ -1,9 +1,9 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-02T15:34:49.869147+08:00
-SourceCommit: 4fa315b682a845a81adb97449071941249dbd53d
-SourceTree: 6820b9b0caba7a06925646eb9905d16e6b349f21
+GeneratedAt: 2026-08-02T15:48:51.964143+08:00
+SourceCommit: abb8a206de19e24eb8db8ea2d04614a9c92506a4
+SourceTree: 63e37a902a6fac83d82c362a8ff9c29d197d20c8
 VerifiedTree: b210ffe06ad96f449aba0d3e0d4cce69bff128e7
 VerifiedMode: Final
 CIState: PENDING
@@ -14,8 +14,8 @@ CICommit: 6c1ca7b4670b9a97ae3815546db8f3a80c87a9ed
 
 ## Progress
 
-- ProjectProgress: 57.6%
-- MachineProgress: 60.7%
+- ProjectProgress: 58.4%
+- MachineProgress: 61.5%
 - Stage: INTEGRATION_AND_EVIDENCE
 - OpenP0: 0
 - OpenP1: 7
@@ -30,7 +30,7 @@ CICommit: 6c1ca7b4670b9a97ae3815546db8f3a80c87a9ed
 | Runtime safety / lifecycle / concurrency | 18 | 17.64 | 98.0% |
 | Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
 | ROM intelligence / compatibility | 10 | 0.0 | 0.0% |
-| Java / Kotlin boundary | 8 | 3.2 | 40.0% |
+| Java / Kotlin boundary | 8 | 4.0 | 50.0% |
 | Build / CI / signing / artifacts | 12 | 7.8 | 65.0% |
 | Documentation / provenance | 5 | 0.0 | 0.0% |
 | Device validation | 5 | 0.0 | 0.0% |
@@ -69,8 +69,8 @@ CICommit: 6c1ca7b4670b9a97ae3815546db8f3a80c87a9ed
 | P8.2 | Performance / memory / APK / R8 | 3.0 | VERIFIED | 0.0 | 0.0 |
 | P8.3 | Performance / memory / APK / R8 | 3.0 | VERIFIED | 0.0 | 0.0 |
 | P8.4 | Performance / memory / APK / R8 | 3.0 | VERIFIED | 0.0 | 0.0 |
-| P9.1 | Java / Kotlin boundary | 1.6 | TODO | 0.0 | 0.0 |
-| P9.2 | Java / Kotlin boundary | 1.6 | TODO | 0.0 | 0.0 |
+| P9.1 | Java / Kotlin boundary | 1.6 | VERIFIED | 0.0 | 0.0 |
+| P9.2 | Java / Kotlin boundary | 1.6 | IN_PROGRESS | 0.5 | 0.8 |
 | P9.3 | Java / Kotlin boundary | 1.6 | TODO | 0.0 | 0.0 |
 | P10.1 | ROM intelligence / compatibility | 3.33 | TODO | 0.0 | 0.0 |
 | P10.2 | ROM intelligence / compatibility | 3.33 | TODO | 0.0 | 0.0 |
