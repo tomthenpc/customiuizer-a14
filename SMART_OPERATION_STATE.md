@@ -22,7 +22,7 @@ LastFailureClass: none
 CurrentObjective: P12 Emergency Repair (A14_CODE_ERROR_REPAIR_PROMPT_V2)
 CurrentObjectiveState: ACTIVE
 CurrentObjectiveStartEvidence: Fast CI 30744356086 job 91487300049 passed on e919c1da; P13 source hazard baseline established (1079 reviewed, 0 new); P8/P10 machine tasks VERIFIED
-NextObjectiveFirstAction: continue remaining emergency repair items: TASK_STATE VERIFIED classification, source_hazard_scan.py, catch parser, installer count/JVM ABI test, P8.3/P6.5 docs
+NextObjectiveFirstAction: finish emergency repair item 4 by writing the parameterized InstallerJvmAbiTest
 ResumeTask: P12 emergency repair item 3: replace VERIFIED with VERIFIED_STATIC/BUILD/CI/DEVICE
 DeepSweepDue: false
 ```

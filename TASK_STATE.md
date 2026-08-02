@@ -605,11 +605,13 @@ State: `COMPLETE`
 
 State: `STATIC_OWNER_COMPLETE`
 
-- `PhoneStatusBarView` 和 `ControlCenterWindowViewImpl` 的 `onAttachedToWindow` / `onDetachedFromWindow` 已分别调用 `statusBarMachine.clear(ownerId)` 和 `controlCenterMachine.clear(ownerId)`。
+- `PhoneStatusBarView` 的 `onAttachedToWindow` / `onDetachedFromWindow` 调用 `statusBarMachine.clear(ownerId)`。
+- `ControlCenterWindowViewImpl` 的 `onAttachedToWindow` / `onDetachedFromWindow` 在 `ControlCenterPluginRuntime.installControlCenterGestureHooks` 内调用 `controlCenterMachine.prepare(ownerId)` 和 `controlCenterMachine.clear(ownerId)`。
 - `ControlCenterGestureRuntimeHolder.bind` 在检测到新 ClassLoader 时调用 `existing?.machine?.clear()`，确保旧 runtime 的机器状态释放。
-- `ControlCenterGestureRuntimeHolder.unbind()` 已提供并验证幂等，可在未来发现可靠的 plugin/ClassLoader 销毁钩子时接入。
+- `ControlCenterPluginRuntime` 是 `PluginFactory.createPlugin` 的唯一所有者，提供对称 `clear()`，释放 `activeLoader`、`ControlCenterGestureRuntimeHolder` 和 `PhysicalGestureArbiter` 的全部状态。
+- `ControlCenterPluginRuntime.bind` 在 fatal 安装失败时先 `clear()` 再 rethrow，不发布半安装状态。
 - 已生成 `docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md` 记录 owner 清单、释放边界与已知缺口。
-- `DEVICE_LIFECYCLE_ENTRY_BLOCKED`: 当前仓库、framework stub 和 ROM intelligence 文档中均未发现 `PluginInstance$PluginFactory` 的 `destroyPlugin` / `onPluginUnloaded` / `unload` 等可靠销毁入口，不猜测 Hook。
+- `DEVICE_LIFECYCLE_ENTRY_BLOCKED`: 当前仓库、framework stub 和 ROM intelligence 文档中均未发现 `PluginInstance$PluginFactory` 的 `destroyPlugin` / `onPluginUnloaded` / `unload` 等可靠自动销毁入口，不猜测 Hook；`ControlCenterPluginRuntime.clear()` 已在架构上对称，可在发现可靠入口时直接调用。
 
 ---
 
@@ -675,11 +677,11 @@ State: `COMPLETE`
 
 # P8 — 性能、内存、APK 与 R8
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
 ## P8.1 Disabled path
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
 ```text
 0 definition
@@ -701,7 +703,7 @@ State: `VERIFIED`
 
 ## P8.2 Hot path
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
 检查 Regex、args array、collections、formatter、reflection、preference、I/O、blocking、logs、Handler、cache。
 
@@ -715,9 +717,9 @@ State: `VERIFIED`
 
 ## P8.3 APK/R8
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
-- debug baseline/final：待记录；
+- debug baseline/final：已通过 `.\\gradlew.bat --no-daemon :app:assembleDebug` 构建，输出已记录；
 - develop unsigned R8 baseline/final：已建立 baseline。
   - 文件：`app/build/outputs/apk/develop/CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk`
   - 大小：`3398166` bytes（3.24 MB）
@@ -732,11 +734,11 @@ State: `VERIFIED`
   - `resources.txt`: 2827 lines
   - `configuration.txt`: 525 lines；
 - shrinker audit：`proguard-rules.pro` 当前规则已审阅，未发现 `-dontshrink/-dontobfuscate/-dontoptimize` 或 `androidx/**/kotlinx/**` 类冗余 keep；
-- unexplained growth = 0：待通过 `apk_semantic_diff` 验证 reproducible build。
+- unexplained growth = 0：已通过 `python tools/apk_semantic_diff.py --require-reproducible` 验证，两次 clean develop 构建 `normalizedEqual=True`，0 added/removed/changed。
 
 ## P8.4 Smoothness
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
 SystemUI/Launcher event frequency、frame-sensitive path、coalescing、UI update gating。
 
@@ -749,11 +751,11 @@ SystemUI/Launcher event frequency、frame-sensitive path、coalescing、UI updat
 
 # P9 — Java → Kotlin 最终收口
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
 ## P9.1 分类
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
 全部 production Java 已分类，结果写入 `docs/JAVA_BOUNDARY_ALLOWLIST.md`：
 
@@ -769,7 +771,7 @@ UNCLASSIFIED -> 0
 
 ## P9.2 迁移
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
 行为等价小批次，每批 focused tests。
 
@@ -811,7 +813,7 @@ State: `VERIFIED`
 
 ## P9.3 Allowlist
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
 已生成 `docs/JAVA_BOUNDARY_ALLOWLIST.md`，记录：
 
@@ -944,7 +946,7 @@ Agent 自动修复红色 CI。
 
 ## P11.3 Artifact
 
-State: `VERIFIED`
+State: `VERIFIED_BUILD`
 
 记录：
 
@@ -1006,7 +1008,7 @@ State: `IN_PROGRESS`
 
 - 工具：`python tools/source_hazard_scan.py --write-baseline`
 - 输出：`docs/audit/SOURCE_HAZARD_BASELINE.json`
-- 结果：`1079` 条已评审 hazard，本轮 `0` 条新增
+- 结果：重写后按 fingerprint 去重，`415` 条已评审 hazard（原 `1079` 含重复指纹），本轮 `0` 条新增
 - 主要类别：
   - `CATCH_THROWABLE_NO_FATAL`：Xposed/反射/系统服务调用处吞非 fatal 异常并记录 diagnostics，需保持 fatal rethrow 语义；
   - `EMPTY_CATCH`：空 catch 块，多为不可恢复异常或预期不存在场景；
@@ -1016,7 +1018,7 @@ State: `IN_PROGRESS`
 
 证据：
 
-- `python tools/source_hazard_scan.py` 重新运行通过：`Source hazard scan passed: 1079 reviewed finding(s), 0 new`
+- `python tools/source_hazard_scan.py` 重新运行通过：`Source hazard scan passed: 415 reviewed finding(s), 0 new`
 - 已建立 baseline，后续 diff 只报告新增 hazard；
 - 本轮未引入新 P0/P1，无阻塞。
 
@@ -1139,6 +1141,9 @@ P0 完成后重建，不得删除未解决条目。
 | ALG-007 | P1 | HotPath | COMPLETE | `SystemUIControlCenterHooks` 的 `onInterceptTouchEvent` 不再调用 `statusBarMachine.observe()`，避免未使用返回值的热路径计算 | P7.5 完成 |
 | REPAIR-001 | P1 | Fatal | COMPLETE | `SystemUIControlCenterHooks.extractPluginLoader` 所有 `catch (Throwable)` 先调用 `FatalErrors.rethrowIfFatal`，fatal 错误继续抛出后再进入反射 fallback；新增 `SystemUIControlCenterHooksExtractPluginLoaderTest` | 紧急修复 V2 完成 |
 | REPAIR-002 | P1 | Lifecycle | COMPLETE | 合并 `PluginFactory.createPlugin` 所有权到 `ControlCenterPluginRuntime`；唯一运行时管理 `activeLoader`、`ControlCenterGestureRuntimeHolder`、`PhysicalGestureArbiter` 并提供对称 `clear()`；新增 `ControlCenterPluginRuntimeTest` | 紧急修复 V2 完成 |
+| REPAIR-003 | P2 | Docs | COMPLETE | `TASK_STATE.md` 所有 `VERIFIED` 已按证据拆分为 `VERIFIED_BUILD`/`VERIFIED_CI`/`VERIFIED_STATIC`；更新 P6.5、P8.3、P13 文档结论 | 紧急修复 V2 完成 |
+| REPAIR-004 | P2 | Tool | COMPLETE | 重写 `tools/source_hazard_scan.py`：新增 `--scope`（production/test/tools/all）、指纹去重、平衡括号 catch 块解析（跳过字符串/注释/嵌套花括号），更新 `SOURCE_HAZARD_BASELINE.json`（415 条去重后 hazard） | 紧急修复 V2 完成 |
+| REPAIR-005 | P1 | Test | COMPLETE | 新增参数化 `InstallerJvmAbiTest`：验证 12 个 installer 类的 `@JvmStatic install/installPostAttach(PackageReadyParam, PrefMap, ...)` 方法签名和 public static 修饰符 | 紧急修复 V2 完成 |
 | DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |
 | CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |
 | DEVICE-001 | P1 | Device | BLOCKED_EXTERNAL | 无本轮真实证据 | P15 完成 |

@@ -46,7 +46,7 @@ def classify(path: Path, line: int, text: str) -> str:
     if rel.startswith("tv/withaibuild/customiuizer/mods/") and not rel.startswith("tv/withaibuild/customiuizer/mods/utils/"):
         return "REGISTRY_FEATURE"
     # Business-feature helper classes in utils/ that still contain feature-specific hook calls.
-    if "DeviceInfoMonitor" in rel or "LockScreenAlbumArtController" in rel:
+    if "DeviceInfoMonitor" in rel or "LockScreenAlbumArtController" in rel or "ControlCenterPluginRuntime" in rel:
         return "REGISTRY_FEATURE"
     if "mods/utils/ModuleHelper" in rel:
         return "INSTALLER_INFRASTRUCTURE"

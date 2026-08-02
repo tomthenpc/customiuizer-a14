@@ -1,10 +1,10 @@
 # A14 Hook Ownership Inventory
 
-Total hook call sites scanned: 756
+Total hook call sites scanned: 755
 
 | Category | Count |
 |---|---|
-| REGISTRY_FEATURE | 720 |
+| REGISTRY_FEATURE | 719 |
 | INSTALLER_INFRASTRUCTURE | 25 |
 | API_BRIDGE | 9 |
 | RESOURCE_INFRASTRUCTURE | 2 |
@@ -440,78 +440,73 @@ Total hook call sites scanned: 756
 | `tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt` | 68 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.policy.MiuiBatteryControllerImpl", lpparam.classLoader, "` |
 | `tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt` | 78 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.policy.BatteryControllerImpl", lpparam.classLoader, "fire` |
 | `tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt` | 88 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.views.MiuiBatteryMeterView", lpparam.classLoader, "update` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 130 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "handl` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 131 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "onAtt` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 139 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "onDet` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 151 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "computeTimeoutH", ` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 200 | `onChange` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "updateDialogWindow` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 218 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "showH", Int::class` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 231 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.Util", classLoader, "isSupportBlurS", HookerClassHelper` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 238 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", loader, "vibrateH", HookerClassHelp` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 325 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.StatusHeaderController", classLoader, "adj` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 328 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.StatusHeaderController", classLoader, "onE` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 353 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.StatusHeaderController", classLoader, "cre` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 355 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.StatusHeaderController", classLoader, "upd` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 363 | `after` | `val constraintSet = XposedHelpers.newInstance(ConstraintSetClass)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 405 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.shared.plugins.PluginInstance\$PluginFactory", lpparam.classLoader, "c` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 436 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemView", pluginLoader, "updateSize", res` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 437 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemView", pluginLoader, "onFinishInflate"` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 438 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemView", pluginLoader, "updateContainerH` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 441 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "containerHeight", iconSize)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 445 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelController", pluginLoader, "setUseSepara` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 457 | `before` | `XposedHelpers.setObjectField(param.getThisObject(), "useSeparatedPanels", bool)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 470 | `before` | `XposedHelpers.setObjectField(param.getThisObject(), "panelMargin", marginEnd)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 479 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelContentDistributor", pluginLoader, "dist` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 508 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelController", pluginLoader, "updatePanelS` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 543 | `before` | `ModuleHelper.hookAllMethods("miui.systemui.controlcenter.panel.main.recyclerview.MainPanelAdapter\$Factory", pluginLoade` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 548 | `after` | `XposedHelpers.setAdditionalInstanceField(param.getResult(), "leftAdapter", true)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 552 | `after` | `ModuleHelper.findAndHookMethod(spanSizeLookup.javaClass, "getSpanSize", Int::class.javaPrimitiveType!!, spanSizeHook)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 562 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.HeaderSpaceController", pluginLoader, "get` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 563 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.security.SecurityFooterController", pluginLoader,` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 564 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.qs.EditButtonController", pluginLoader, "getSpanS` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 565 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.qs.QSListController\$EditModeDividerTextItem", pl` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 568 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelAnimController", pluginLoader, "updateVi` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 580 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelAnimController", pluginLoader, "forceToS` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 586 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelAnimController", pluginLoader, "onAnimUp` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 600 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelAnimController", pluginLoader, "onConfig` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 635 | `after` | `ModuleHelper.hookAllConstructors("miui.systemui.controlcenter.panel.main.MainPanelContentDistributor", pluginLoader, obj` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 656 | `after` | `XposedHelpers.setObjectField(thisObj, "childControllers", childControllers)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 664 | `after` | `ModuleHelper.hookAllMethods("miui.systemui.controlcenter.panel.main.MainPanelContentDistributor", pluginLoader, "distrib` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 692 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.QSController", pluginLoader, "getCardStyleTileSpecs", obj` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 724 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSCardItemIconView", loader, "updateResources", ` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 726 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "iconColor", iconColor)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 749 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeTimerDrawableHelper", pluginLoader, "initTime` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 767 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "mTimeSegmentTitle", mTimeSegmentTitle)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 770 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.TimerItem", pluginLoader, "getTimePos", Int::class.java` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 795 | `before` | `XposedHelpers.setIntField(param.getThisObject(), "mCurrentSegment", 0)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 799 | `after` | `XposedHelpers.setIntField(param.getThisObject(), "mCurrentSegment", prevSeg)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 803 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeTimerDrawableHelper", pluginLoader, "updateDr` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 808 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemIconView", pluginLoader, "getCornerRad` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 824 | `after` | `ModuleHelper.hookAllMethods("miui.systemui.controlcenter.qs.tileview.QSTileItemIconView", pluginLoader, "getDisabledBack` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 825 | `after` | `ModuleHelper.hookAllMethods("miui.systemui.controlcenter.qs.tileview.QSTileItemIconView", pluginLoader, "getActiveBackgr` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 872 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onInterc` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 873 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onTouchE` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 874 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onAttach` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 882 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onDetach` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 898 | `before` | `ModuleHelper.hookAllMethods("com.android.systemui.shared.plugins.PluginInstance\$PluginFactory", lpparam.classLoader, "c` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 953 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "click", View::class.` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 954 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "longClick", View::cl` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 955 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "secondaryClick", Vie` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1008 | `startShowPct` | `ModuleHelper.hookAllMethods("com.android.systemui.controlcenter.policy.MiuiBrightnessController", lpparam.classLoader, "` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1015 | `before` | `ModuleHelper.hookAllMethods("com.android.systemui.controlcenter.policy.MiuiBrightnessController", lpparam.classLoader, "` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1025 | `after` | `ModuleHelper.findAndHookMethod(mOnSeekBarChangeListener.javaClass, "onStartTrackingTouch", SeekBar::class.java, object :` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1036 | `before` | `ModuleHelper.hookAllMethods("com.android.systemui.controlcenter.policy.MiuiBrightnessController", lpparam.classLoader, "` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1043 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.controlcenter.policy.MiuiBrightnessController", lpparam.classLoader, "` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1060 | `after` | `ModuleHelper.findAndHookMethod(MiuiVolumeDialogImpl, "showVolumeDialogH", Int::class.javaPrimitiveType!!, object : Metho` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1068 | `after` | `ModuleHelper.findAndHookMethod(MiuiVolumeDialogImpl, "dismissH", Int::class.javaPrimitiveType!!, object : MethodHook() {` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1074 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.miui.volume.MiuiVolumeDialogImpl\$VolumeSeekBarChangeListener", plugin` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1115 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.volume.VolumeUI", lpparam.classLoader, "start", object : MethodHook` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1119 | `after` | `XposedHelpers.setObjectField(volumeDialogControllerImpl, "mShowSafetyWarning", false)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1128 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "handleLongClick", Vi` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1155 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "click", View::class.` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1172 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "hand` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1187 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.controlcenter.phone.ControlPanelWindowManager", lpparam.classLoader` |
-| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1196 | `before` | `XposedHelpers.setObjectField(param.getThisObject(), "mDownX", motionEvent.rawX)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 122 | `?` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "computeTimeoutH", ` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 171 | `onChange` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "updateDialogWindow` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 189 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "showH", Int::class` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 202 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.Util", classLoader, "isSupportBlurS", HookerClassHelper` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 208 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", loader, "vibrateH", HookerClassHelp` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 295 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.StatusHeaderController", classLoader, "adj` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 298 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.StatusHeaderController", classLoader, "onE` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 323 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.StatusHeaderController", classLoader, "cre` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 325 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.StatusHeaderController", classLoader, "upd` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 333 | `after` | `val constraintSet = XposedHelpers.newInstance(ConstraintSetClass)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 396 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemView", pluginLoader, "updateSize", res` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 397 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemView", pluginLoader, "onFinishInflate"` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 398 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemView", pluginLoader, "updateContainerH` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 401 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "containerHeight", iconSize)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 405 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelController", pluginLoader, "setUseSepara` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 417 | `before` | `XposedHelpers.setObjectField(param.getThisObject(), "useSeparatedPanels", bool)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 430 | `before` | `XposedHelpers.setObjectField(param.getThisObject(), "panelMargin", marginEnd)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 439 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelContentDistributor", pluginLoader, "dist` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 468 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelController", pluginLoader, "updatePanelS` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 503 | `before` | `ModuleHelper.hookAllMethods("miui.systemui.controlcenter.panel.main.recyclerview.MainPanelAdapter\$Factory", pluginLoade` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 508 | `after` | `XposedHelpers.setAdditionalInstanceField(param.getResult(), "leftAdapter", true)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 512 | `after` | `ModuleHelper.findAndHookMethod(spanSizeLookup.javaClass, "getSpanSize", Int::class.javaPrimitiveType!!, spanSizeHook)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 522 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.header.HeaderSpaceController", pluginLoader, "get` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 523 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.security.SecurityFooterController", pluginLoader,` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 524 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.qs.EditButtonController", pluginLoader, "getSpanS` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 525 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.qs.QSListController\$EditModeDividerTextItem", pl` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 528 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelAnimController", pluginLoader, "updateVi` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 540 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelAnimController", pluginLoader, "forceToS` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 546 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelAnimController", pluginLoader, "onAnimUp` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 560 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.panel.main.MainPanelAnimController", pluginLoader, "onConfig` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 595 | `after` | `ModuleHelper.hookAllConstructors("miui.systemui.controlcenter.panel.main.MainPanelContentDistributor", pluginLoader, obj` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 616 | `after` | `XposedHelpers.setObjectField(thisObj, "childControllers", childControllers)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 624 | `after` | `ModuleHelper.hookAllMethods("miui.systemui.controlcenter.panel.main.MainPanelContentDistributor", pluginLoader, "distrib` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 652 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.QSController", pluginLoader, "getCardStyleTileSpecs", obj` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 683 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSCardItemIconView", loader, "updateResources", ` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 685 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "iconColor", iconColor)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 708 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeTimerDrawableHelper", pluginLoader, "initTime` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 726 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "mTimeSegmentTitle", mTimeSegmentTitle)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 729 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.TimerItem", pluginLoader, "getTimePos", Int::class.java` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 754 | `before` | `XposedHelpers.setIntField(param.getThisObject(), "mCurrentSegment", 0)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 758 | `after` | `XposedHelpers.setIntField(param.getThisObject(), "mCurrentSegment", prevSeg)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 762 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeTimerDrawableHelper", pluginLoader, "updateDr` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 767 | `after` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSTileItemIconView", pluginLoader, "getCornerRad` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 783 | `after` | `ModuleHelper.hookAllMethods("miui.systemui.controlcenter.qs.tileview.QSTileItemIconView", pluginLoader, "getDisabledBack` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 784 | `after` | `ModuleHelper.hookAllMethods("miui.systemui.controlcenter.qs.tileview.QSTileItemIconView", pluginLoader, "getActiveBackgr` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 830 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onInterc` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 831 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onTouchE` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 832 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onAttach` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 840 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onDetach` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 898 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "click", View::class.` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 899 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "longClick", View::cl` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 900 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "secondaryClick", Vie` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 953 | `startShowPct` | `ModuleHelper.hookAllMethods("com.android.systemui.controlcenter.policy.MiuiBrightnessController", lpparam.classLoader, "` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 960 | `before` | `ModuleHelper.hookAllMethods("com.android.systemui.controlcenter.policy.MiuiBrightnessController", lpparam.classLoader, "` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 970 | `after` | `ModuleHelper.findAndHookMethod(mOnSeekBarChangeListener.javaClass, "onStartTrackingTouch", SeekBar::class.java, object :` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 981 | `before` | `ModuleHelper.hookAllMethods("com.android.systemui.controlcenter.policy.MiuiBrightnessController", lpparam.classLoader, "` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 988 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.controlcenter.policy.MiuiBrightnessController", lpparam.classLoader, "` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1005 | `after` | `ModuleHelper.findAndHookMethod(MiuiVolumeDialogImpl, "showVolumeDialogH", Int::class.javaPrimitiveType!!, object : Metho` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1013 | `after` | `ModuleHelper.findAndHookMethod(MiuiVolumeDialogImpl, "dismissH", Int::class.javaPrimitiveType!!, object : MethodHook() {` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1019 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.miui.volume.MiuiVolumeDialogImpl\$VolumeSeekBarChangeListener", plugin` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1060 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.volume.VolumeUI", lpparam.classLoader, "start", object : MethodHook` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1064 | `after` | `XposedHelpers.setObjectField(volumeDialogControllerImpl, "mShowSafetyWarning", false)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1073 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "handleLongClick", Vi` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1100 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.qs.tileimpl.QSTileImpl", lpparam.classLoader, "click", View::class.` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1117 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "hand` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1132 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.controlcenter.phone.ControlPanelWindowManager", lpparam.classLoader` |
+| `tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | 1141 | `before` | `XposedHelpers.setObjectField(param.getThisObject(), "mDownX", motionEvent.rawX)` |
 | `tv/withaibuild/customiuizer/mods/SystemUILockScreenHooks.kt` | 43 | `?` | `ModuleHelper.findAndHookMethod("com.android.systemui.SystemUIApplication", lpparam.classLoader, "onCreate", object : Met` |
 | `tv/withaibuild/customiuizer/mods/SystemUILockScreenHooks.kt` | 50 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiKeyguardStatusBarView", lpparam.classLoader, "u` |
 | `tv/withaibuild/customiuizer/mods/SystemUILockScreenHooks.kt` | 59 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiKeyguardStatusBarView", lpparam.classLoader, "o` |
@@ -668,6 +663,10 @@ Total hook call sites scanned: 756
 | `tv/withaibuild/customiuizer/mods/SystemWindowHooks.kt` | 496 | `intercept` | `ModuleHelper.hookAllMethods("com.miui.home.recents.views.RecentMenuView", lpparam.classLoader, "onMessageEvent", object ` |
 | `tv/withaibuild/customiuizer/mods/SystemWindowHooks.kt` | 522 | `intercept` | `XposedHelpers.setAdditionalInstanceField(thisObject, "multiWindowEnableRunnable", multiWindowEnableRunnable)` |
 | `tv/withaibuild/customiuizer/mods/SystemWindowHooks.kt` | 536 | `intercept` | `ModuleHelper.findAndHookMethod("com.android.server.wm.WindowState", lpparam.classLoader, "getTouchOcclusionMode", object` |
+| `tv/withaibuild/customiuizer/mods/utils/ControlCenterPluginRuntime.kt` | 63 | `?` | `ModuleHelper.hookAllMethods(` |
+| `tv/withaibuild/customiuizer/mods/utils/ControlCenterPluginRuntime.kt` | 159 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "handl` |
+| `tv/withaibuild/customiuizer/mods/utils/ControlCenterPluginRuntime.kt` | 160 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "onAtt` |
+| `tv/withaibuild/customiuizer/mods/utils/ControlCenterPluginRuntime.kt` | 168 | `before` | `ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "onDet` |
 | `tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt` | 222 | `hookIconSlots` | `ModuleHelper.hookAllConstructors(` |
 | `tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt` | 236 | `after` | `iconHolder = XposedHelpers.newInstance(StatusBarIconHolder)` |
 | `tv/withaibuild/customiuizer/mods/utils/DeviceInfoMonitor.kt` | 237 | `after` | `XposedHelpers.setObjectField(iconHolder, "mType", iconType)` |

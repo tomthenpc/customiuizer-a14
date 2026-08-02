@@ -1,22 +1,22 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-02T18:44:38.912407+08:00
-SourceCommit: c46ffb1a6d8c90711bc15e20ac01bdd9e340c062
-SourceTree: 4d89dba201c6a8d23dbaa41ba26f1dca9aaa7d00
+GeneratedAt: 2026-08-02T20:13:20.997841+08:00
+SourceCommit: d87753c45e53aa1c6952ddc416616e55dd0c376b
+SourceTree: d38c4ebff9b953190904cd4397954887c553cb4c
 VerifiedTree: 93534140994e6c793fe8fbc7ec34325f71d264d7
 VerifiedMode: Final
 CIState: PASS
-CIRun: 30743994719
-CIJob: 91486319640
-CICommit: c46ffb1a6d8c90711bc15e20ac01bdd9e340c062
+CIRun: 30744356086
+CIJob: 91487300049
+CICommit: e919c1da860d020856ecdc8106375989b9812587
 ```
 
 ## Progress
 
-- ProjectProgress: 62.8%
-- MachineProgress: 66.1%
-- Stage: INTEGRATION_AND_EVIDENCE
+- ProjectProgress: 80.5%
+- MachineProgress: 84.7%
+- Stage: FINALIZATION_AND_DEVICE
 - OpenP0: 0
 - OpenP1: 7
 - ExternalBlocks: 2
@@ -28,10 +28,10 @@ CICommit: c46ffb1a6d8c90711bc15e20ac01bdd9e340c062
 | Baseline and control | 8 | 7.5 | 93.8% |
 | Runtime architecture / routing / ownership | 22 | 22.0 | 100.0% |
 | Runtime safety / lifecycle / concurrency | 18 | 17.64 | 98.0% |
-| Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
+| Performance / memory / APK / R8 | 12 | 10.2 | 85.0% |
 | ROM intelligence / compatibility | 10 | 4.66 | 46.6% |
-| Java / Kotlin boundary | 8 | 3.2 | 40.0% |
-| Build / CI / signing / artifacts | 12 | 7.8 | 65.0% |
+| Java / Kotlin boundary | 8 | 7.28 | 91.0% |
+| Build / CI / signing / artifacts | 12 | 11.2 | 93.3% |
 | Documentation / provenance | 5 | 0.0 | 0.0% |
 | Device validation | 5 | 0.0 | 0.0% |
 
@@ -65,19 +65,19 @@ CICommit: c46ffb1a6d8c90711bc15e20ac01bdd9e340c062
 | P7.3 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
 | P7.4 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
 | P7.5 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
-| P8.1 | Performance / memory / APK / R8 | 3.0 | VERIFIED | 0.0 | 0.0 |
-| P8.2 | Performance / memory / APK / R8 | 3.0 | VERIFIED | 0.0 | 0.0 |
-| P8.3 | Performance / memory / APK / R8 | 3.0 | VERIFIED | 0.0 | 0.0 |
-| P8.4 | Performance / memory / APK / R8 | 3.0 | VERIFIED | 0.0 | 0.0 |
-| P9.1 | Java / Kotlin boundary | 1.6 | VERIFIED | 0.0 | 0.0 |
-| P9.2 | Java / Kotlin boundary | 1.6 | VERIFIED | 0.0 | 0.0 |
-| P9.3 | Java / Kotlin boundary | 1.6 | VERIFIED | 0.0 | 0.0 |
+| P8.1 | Performance / memory / APK / R8 | 3.0 | VERIFIED_BUILD | 0.85 | 2.55 |
+| P8.2 | Performance / memory / APK / R8 | 3.0 | VERIFIED_BUILD | 0.85 | 2.55 |
+| P8.3 | Performance / memory / APK / R8 | 3.0 | VERIFIED_BUILD | 0.85 | 2.55 |
+| P8.4 | Performance / memory / APK / R8 | 3.0 | VERIFIED_BUILD | 0.85 | 2.55 |
+| P9.1 | Java / Kotlin boundary | 1.6 | VERIFIED_BUILD | 0.85 | 1.36 |
+| P9.2 | Java / Kotlin boundary | 1.6 | VERIFIED_BUILD | 0.85 | 1.36 |
+| P9.3 | Java / Kotlin boundary | 1.6 | VERIFIED_BUILD | 0.85 | 1.36 |
 | P10.1 | ROM intelligence / compatibility | 3.33 | BLOCKED_EXTERNAL | 0.0 | 0.0 |
 | P10.2 | ROM intelligence / compatibility | 3.33 | VERIFIED_STATIC | 0.7 | 2.33 |
 | P10.3 | ROM intelligence / compatibility | 3.33 | VERIFIED_STATIC | 0.7 | 2.33 |
 | P11.1 | Build / CI / signing / artifacts | 4.0 | COMPLETE | 1.0 | 4.0 |
 | P11.2 | Build / CI / signing / artifacts | 4.0 | VERIFIED_CI | 0.95 | 3.8 |
-| P11.3 | Build / CI / signing / artifacts | 4.0 | VERIFIED | 0.0 | 0.0 |
+| P11.3 | Build / CI / signing / artifacts | 4.0 | VERIFIED_BUILD | 0.85 | 3.4 |
 | P12 | Documentation / provenance | 5.0 | TODO | 0.0 | 0.0 |
 | P13 | Baseline and control | 1.0 | IN_PROGRESS | 0.5 | 0.5 |
 | DEVICE-001 | Device validation | 5 | BLOCKED_EXTERNAL | 0.0 | 0.0 |
