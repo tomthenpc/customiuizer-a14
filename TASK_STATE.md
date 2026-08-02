@@ -675,11 +675,11 @@ State: `COMPLETE`
 
 # P8 — 性能、内存、APK 与 R8
 
-State: `TODO`
+State: `IN_PROGRESS`
 
 ## P8.1 Disabled path
 
-State: `TODO`
+State: `VERIFIED`
 
 ```text
 0 definition
@@ -691,6 +691,14 @@ State: `TODO`
 0 reflection/DexKit
 ```
 
+证据：
+
+- 全部生产 Feature 通过 `LazyFeatureSpec` 注册；`FeatureInstallRegistry.installOne` 仅在 `spec.isEnabled(prefs) == true` 时调用 `spec.create()`。
+- `LazyFeatureSpec` 的 `factory` lambda 只在 `isEnabled` 返回 true 时执行，确认不触发 `FeatureDefinition` 构造。
+- `FeatureInstallRegistryTest.lazySpec_disabledFeatureDoesNotCreateDefinition` 通过（`tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistryTest`）。
+- 唯一非 `LazyFeatureSpec` 注册的是 `PackagePermissionsFeature`，但它 `isEnabled = true` 且 `preferenceKey = null`，属于强制基线 hook，不是 disabled path。
+- 未发现 Installer 在 `installAll` 前绕过 Registry 直接创建 hook/receiver/observer/controller/task。
+
 ## P8.2 Hot path
 
 State: `TODO`
@@ -699,14 +707,19 @@ State: `TODO`
 
 ## P8.3 APK/R8
 
-State: `TODO`
+State: `IN_PROGRESS`
 
-- debug baseline/final；
-- develop unsigned R8 baseline/final；
-- size delta；
-- method/resource report；
-- shrinker audit；
-- unexplained growth = 0。
+- debug baseline/final：待记录；
+- develop unsigned R8 baseline/final：已建立 baseline。
+  - 文件：`app/build/outputs/apk/develop/CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk`
+  - 大小：`3398166` bytes（3.24 MB）
+  - 构建命令：`.\gradlew.bat --no-daemon :app:assembleDevelop`
+  - mapping/usage/config：`app/build/outputs/mapping/develop/`
+  - R8 启用，shrinkResources 启用，isDebuggable = false；
+- size delta：待与第二次 clean develop build 比较；
+- method/resource report：待从 `mapping/usage.txt`、`mapping/resources.txt` 提取；
+- shrinker audit：`proguard-rules.pro` 当前规则已审阅，未发现 `-dontshrink/-dontobfuscate/-dontoptimize` 或 `androidx/**/kotlinx/**` 类冗余 keep；
+- unexplained growth = 0：待通过 `apk_semantic_diff` 验证 reproducible build。
 
 ## P8.4 Smoothness
 

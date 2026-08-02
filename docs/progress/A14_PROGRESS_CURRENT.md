@@ -1,21 +1,21 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-02T15:07:39.994017+08:00
-SourceCommit: 378d0eef586288ba775ab6b441eb07ebc1d67c00
-SourceTree: b210ffe06ad96f449aba0d3e0d4cce69bff128e7
+GeneratedAt: 2026-08-02T15:25:14.086232+08:00
+SourceCommit: a6554694ea85576a97e0be72c55e3b878d2aa08f
+SourceTree: 91d9df35c13b69f28745471ee5143ceded2fdb5f
 VerifiedTree: b210ffe06ad96f449aba0d3e0d4cce69bff128e7
 VerifiedMode: Final
-CIState: PASS
-CIRun: https://github.com/tomthenpc/customiuizer-a14/actions/runs/30736883604
-CIJob: https://github.com/tomthenpc/customiuizer-a14/actions/runs/30736883604/job/91467179591
-CICommit: 378d0eef586288ba775ab6b441eb07ebc1d67c00
+CIState: PENDING
+CIRun: pending
+CIJob: pending
+CICommit: 6c1ca7b4670b9a97ae3815546db8f3a80c87a9ed
 ```
 
 ## Progress
 
-- ProjectProgress: 57.6%
-- MachineProgress: 60.7%
+- ProjectProgress: 59.1%
+- MachineProgress: 62.3%
 - Stage: INTEGRATION_AND_EVIDENCE
 - OpenP0: 0
 - OpenP1: 7
@@ -28,7 +28,7 @@ CICommit: 378d0eef586288ba775ab6b441eb07ebc1d67c00
 | Baseline and control | 8 | 7.0 | 87.5% |
 | Runtime architecture / routing / ownership | 22 | 22.0 | 100.0% |
 | Runtime safety / lifecycle / concurrency | 18 | 17.64 | 98.0% |
-| Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
+| Performance / memory / APK / R8 | 12 | 1.5 | 12.5% |
 | ROM intelligence / compatibility | 10 | 0.0 | 0.0% |
 | Java / Kotlin boundary | 8 | 3.2 | 40.0% |
 | Build / CI / signing / artifacts | 12 | 7.8 | 65.0% |
@@ -65,9 +65,9 @@ CICommit: 378d0eef586288ba775ab6b441eb07ebc1d67c00
 | P7.3 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
 | P7.4 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
 | P7.5 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
-| P8.1 | Performance / memory / APK / R8 | 3.0 | TODO | 0.0 | 0.0 |
+| P8.1 | Performance / memory / APK / R8 | 3.0 | VERIFIED | 0.0 | 0.0 |
 | P8.2 | Performance / memory / APK / R8 | 3.0 | TODO | 0.0 | 0.0 |
-| P8.3 | Performance / memory / APK / R8 | 3.0 | TODO | 0.0 | 0.0 |
+| P8.3 | Performance / memory / APK / R8 | 3.0 | IN_PROGRESS | 0.5 | 1.5 |
 | P8.4 | Performance / memory / APK / R8 | 3.0 | TODO | 0.0 | 0.0 |
 | P9.1 | Java / Kotlin boundary | 1.6 | TODO | 0.0 | 0.0 |
 | P9.2 | Java / Kotlin boundary | 1.6 | TODO | 0.0 | 0.0 |
