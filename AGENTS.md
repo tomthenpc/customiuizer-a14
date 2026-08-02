@@ -537,3 +537,30 @@ Next
 不得因为阶段结束、编译通过、任务较多或等待普通确认而停止。
 
 停止后不创建新分支、不合并 main、不 tag/release。
+---
+
+## Smart continuous operation
+
+智能执行由 [`SMART_CONTINUOUS_OPERATION.md`](SMART_CONTINUOUS_OPERATION.md) 定义。
+
+```text
+Repository: tomthenpc/customiuizer-a14
+AuthorizedBranch: devin/a14-rom-intelligence-audit
+BranchMode: EXACT_LOCK
+OperationMode: SMART_CONTINUOUS_OPERATION
+PlanningMode: EVIDENCE_DRIVEN_DYNAMIC
+TestSelectionMode: RISK_ADAPTIVE
+ToolCreationMode: AUTO_WHEN_REPEATABLE
+CleanupMode: EVIDENCE_GATED
+HumanReviewRequired: false
+RoutineConfirmationRequired: false
+AutoResume: true
+```
+
+每次新会话或恢复会话，读取本文件后继续读取 `SMART_CONTINUOUS_OPERATION.md`。
+
+本节只改变执行方式，不替换 `GOAL.md`，不重置 `TASK_STATE.md`，不降低测试、安全、分支、密钥、签名、设备或发布边界。
+
+Agent 应按风险自动选择测试；重复人工检查应工具化；重复缺陷应固化为测试或静态门禁；周期审计使用 checkpoint 计数；无关文件只能按证据分级清理。
+
+任务、阶段、验证、CI 和完成里程碑都不会触发主动停止。
