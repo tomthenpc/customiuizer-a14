@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-02T21:21:05.236595+08:00",
-  "sourceCommit": "0acf97514617abecd148f0a7fe84f56e96825131",
-  "sourceTree": "b6e74dcd847f48800b8becf373d97ba76a8c5425",
+  "generatedAt": "2026-08-02T22:14:22.600755+08:00",
+  "sourceCommit": "9e0e58a37b5a599d8d8c8b9531d182c408cf525e",
+  "sourceTree": "6932478364a54783a1476484a47a527dc2a2e131",
   "verifiedTree": "b6e74dcd847f48800b8becf373d97ba76a8c5425",
   "verifiedMode": "Final",
   "ciState": "PASS",
-  "ciRun": "30747399434",
-  "ciJob": "91495213418",
-  "ciCommit": "782b3e50",
-  "projectProgress": 80.2,
-  "machineProgress": 84.4,
+  "ciRun": "30749749010",
+  "ciJob": "91501580779",
+  "ciCommit": "e28b66a2",
+  "projectProgress": 83.7,
+  "machineProgress": 88.1,
   "stage": "FINALIZATION_AND_DEVICE",
   "domainScores": {
     "Baseline and control": {
@@ -50,8 +50,8 @@
     },
     "Documentation / provenance": {
       "weight": 5,
-      "earned": 0.0,
-      "percent": 0.0
+      "earned": 3.5,
+      "percent": 70.0
     },
     "Device validation": {
       "weight": 5,
@@ -607,13 +607,13 @@
       "device_evidence": ""
     },
     {
-      "id": "P12",
+      "id": "P12.1",
       "domain": "Documentation / provenance",
       "weight": 5.0,
-      "state": "TODO",
-      "factor": 0.0,
-      "earned": 0.0,
-      "bucket": "not_started",
+      "state": "VERIFIED_STATIC",
+      "factor": 0.7,
+      "earned": 3.5,
+      "bucket": "verified",
       "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],

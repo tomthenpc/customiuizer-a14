@@ -111,6 +111,8 @@ python tools/verify.py fast --tests PhysicalGestureArbiterTest
 # R0 risk-tier verification
 python tools/verify.py fast
 python tools/verify.py full
+python tools/progress_snapshot.py --check
+python tools/check_automation_state.py
 
 git diff --check
 git status --short

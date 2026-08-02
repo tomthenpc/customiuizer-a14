@@ -999,6 +999,10 @@ python tools/verify.py fast                                          # pass
 python tools/verify.py full                                          # pass
 ```
 
+补充产物：
+
+- `docs/progress/A14_PROGRESS_CURRENT.json` 与 `.md` 已按 P12.1 进展重新生成，`--check` 与 `check_automation_state.py` 通过。
+
 剩余：
 
 - 继续生成/验证其余 P12 文档：`CURRENT architecture`、`gesture event contract`、`APK delta`。

@@ -1,21 +1,21 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-02T21:21:05.236595+08:00
-SourceCommit: 0acf97514617abecd148f0a7fe84f56e96825131
-SourceTree: b6e74dcd847f48800b8becf373d97ba76a8c5425
+GeneratedAt: 2026-08-02T22:14:22.600755+08:00
+SourceCommit: 9e0e58a37b5a599d8d8c8b9531d182c408cf525e
+SourceTree: 6932478364a54783a1476484a47a527dc2a2e131
 VerifiedTree: b6e74dcd847f48800b8becf373d97ba76a8c5425
 VerifiedMode: Final
 CIState: PASS
-CIRun: 30747399434
-CIJob: 91495213418
-CICommit: 782b3e50
+CIRun: 30749749010
+CIJob: 91501580779
+CICommit: e28b66a2
 ```
 
 ## Progress
 
-- ProjectProgress: 80.2%
-- MachineProgress: 84.4%
+- ProjectProgress: 83.7%
+- MachineProgress: 88.1%
 - Stage: FINALIZATION_AND_DEVICE
 - OpenP0: 0
 - OpenP1: 7
@@ -32,7 +32,7 @@ CICommit: 782b3e50
 | ROM intelligence / compatibility | 10 | 4.66 | 46.6% |
 | Java / Kotlin boundary | 8 | 6.96 | 87.0% |
 | Build / CI / signing / artifacts | 12 | 11.2 | 93.3% |
-| Documentation / provenance | 5 | 0.0 | 0.0% |
+| Documentation / provenance | 5 | 3.5 | 70.0% |
 | Device validation | 5 | 0.0 | 0.0% |
 
 ## Capability Items
@@ -78,7 +78,7 @@ CICommit: 782b3e50
 | P11.1 | Build / CI / signing / artifacts | 4.0 | COMPLETE | 1.0 | 4.0 |
 | P11.2 | Build / CI / signing / artifacts | 4.0 | VERIFIED_CI | 0.95 | 3.8 |
 | P11.3 | Build / CI / signing / artifacts | 4.0 | VERIFIED_BUILD | 0.85 | 3.4 |
-| P12 | Documentation / provenance | 5.0 | TODO | 0.0 | 0.0 |
+| P12.1 | Documentation / provenance | 5.0 | VERIFIED_STATIC | 0.7 | 3.5 |
 | P13 | Baseline and control | 1.0 | IN_PROGRESS | 0.5 | 0.5 |
 | DEVICE-001 | Device validation | 5 | BLOCKED_EXTERNAL | 0.0 | 0.0 |
 
