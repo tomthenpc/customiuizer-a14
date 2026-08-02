@@ -2,7 +2,7 @@
 
 ```text
 Mode: SMART_CONTINUOUS_OPERATION
-CheckpointCount: 1
+CheckpointCount: 2
 CheckpointsSinceStandardSweep: 1
 CheckpointsSinceDeepSweep: 1
 LastLightSweepCommit: 27b19135
