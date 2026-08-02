@@ -91,6 +91,25 @@ object GlobalActions {
     fun handleAction(context: Context, key: String?, skipLock: Boolean, bundle: Bundle?): Boolean {
         if (key == null || key.isEmpty()) return false
         val action = MainModule.mPrefs.getInt(key + "_action", 1)
+        return handleResolvedAction(context, key, action, skipLock, bundle)
+    }
+
+    /**
+     * Executes the action identified by [action] for [key].
+     *
+     * This overload does not read `key + "_action"` again: the action type is fixed by the
+     * caller. The [key] is still used for action-specific payloads such as the launch target
+     * app, shortcut or toggle state, which are resolved by the existing helpers.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun handleResolvedAction(
+        context: Context,
+        key: String,
+        action: Int,
+        skipLock: Boolean = false,
+        bundle: Bundle? = null,
+    ): Boolean {
         if (action <= 1) return false
         if (action in 85..88) {
             if (isMediaActionsAllowed(context)) {
@@ -98,6 +117,16 @@ object GlobalActions {
             }
             return true
         }
+        return executeResolvedAction(context, key, action, skipLock, bundle)
+    }
+
+    private fun executeResolvedAction(
+        context: Context,
+        key: String,
+        action: Int,
+        skipLock: Boolean,
+        bundle: Bundle?,
+    ): Boolean {
         return when (action) {
             2 -> commonSendAction(context, "ExpandNotifications")
             3 -> commonSendAction(context, "ExpandSettings")

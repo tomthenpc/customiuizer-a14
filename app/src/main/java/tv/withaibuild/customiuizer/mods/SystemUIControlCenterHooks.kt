@@ -44,6 +44,7 @@ import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEvent
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureMachine
 import tv.withaibuild.customiuizer.mods.utils.gesture.PhysicalGestureArbiter
 import tv.withaibuild.customiuizer.mods.utils.gesture.ControlCenterGestureDependenciesResolver
+import tv.withaibuild.customiuizer.mods.utils.gesture.ControlCenterGestureRuntimeHolder
 import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureDependenciesResolver
 import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureEffectExecutor
 
@@ -92,6 +93,57 @@ object SystemUIControlCenterHooks {
             field.get(safeFactory)
         } ?: return null
         return XposedHelpers.callMethod(loaderFactory, "get") as? ClassLoader
+    }
+
+    /**
+     * Install the Control Center gesture hooks for a freshly detected plugin [classLoader].
+     *
+     * This is separated from the runtime holder so the same installation logic can be
+     * unit-tested without actually calling Xposed APIs.
+     */
+    private fun installControlCenterGestureHooks(classLoader: ClassLoader, controlCenterMachine: GestureMachine) {
+        val controlCenterHook = object : MethodHook() {
+            override fun before(param: BeforeHookCallback) {
+                val thisObject = param.getThisObject() as? View ?: return
+                if (param.getArgs().size == 2 && (param.getArg(1) as Boolean)) return
+                val statusBarStateController = XposedHelpers.getObjectField(thisObject, "statusBarStateController")
+                val state = XposedHelpers.callMethod(statusBarStateController, "getState") as Int
+                if (state == 1 || state == 2) return
+                val event = param.getArg(0) as? MotionEvent ?: return
+                val gestureEvent = GestureEvent(
+                    entry = GestureEntry.CONTROL_CENTER_TOUCH,
+                    actionMasked = event.actionMasked,
+                    downTime = event.downTime,
+                    eventTime = event.eventTime,
+                    x = event.x,
+                    y = event.y,
+                    pointerCount = event.pointerCount,
+                    ownerId = System.identityHashCode(thisObject),
+                    deviceId = event.deviceId,
+                    source = event.source,
+                )
+                ModuleHelper.guarded {
+                    controlCenterMachine.dispatch(gestureEvent, thisObject)
+                }
+            }
+        }
+        ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "handleMotionEvent", MotionEvent::class.java, Boolean::class.javaPrimitiveType!!, controlCenterHook)
+        ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "onAttachedToWindow", object : MethodHook() {
+            override fun before(param: BeforeHookCallback) {
+                val thisObject = param.getThisObject() as? View ?: return
+                ModuleHelper.guarded {
+                    controlCenterMachine.prepare(System.identityHashCode(thisObject), thisObject)
+                }
+            }
+        })
+        ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "onDetachedFromWindow", object : MethodHook() {
+            override fun before(param: BeforeHookCallback) {
+                val thisObject = param.getThisObject() as? View ?: return
+                ModuleHelper.guarded {
+                    controlCenterMachine.clear(System.identityHashCode(thisObject))
+                }
+            }
+        })
     }
 
     @JvmStatic
@@ -346,18 +398,17 @@ object SystemUIControlCenterHooks {
             || MainModule.mPrefs.getBoolean("system_cc_slider_color_enable")
     }
 
+    private var activeControlCenterLoader: ClassLoader? = null
+
     @JvmStatic
     fun ControlCenterPluginHook(lpparam: PackageReadyParam) {
         ModuleHelper.hookAllMethods("com.android.systemui.shared.plugins.PluginInstance\$PluginFactory", lpparam.classLoader, "createPlugin", object : MethodHook() {
-            private var isHooked = false
             override fun before(param: BeforeHookCallback) {
-                if (isHooked) return
                 val loader = extractPluginLoader(param.getThisObject()) ?: return
-                isHooked = true
-                if (pluginLoader == null) {
-                    pluginLoader = loader
-                    initControlCenter()
-                }
+                if (activeControlCenterLoader === loader) return
+                activeControlCenterLoader = loader
+                pluginLoader = loader
+                initControlCenter()
             }
         })
     }
@@ -839,62 +890,19 @@ object SystemUIControlCenterHooks {
                 }
             }
         })
+        val controlCenterRuntimeHolder = ControlCenterGestureRuntimeHolder(
+            configPublisher = configPublisher,
+            effectExecutor = StatusBarGestureEffectExecutor(),
+            arbiter = arbiter,
+            dependenciesResolver = ControlCenterGestureDependenciesResolver(),
+            installHooks = ::installControlCenterGestureHooks,
+        )
+
         ModuleHelper.hookAllMethods("com.android.systemui.shared.plugins.PluginInstance\$PluginFactory", lpparam.classLoader, "createPlugin", object : MethodHook() {
-            private var isHooked = false
             override fun before(param: BeforeHookCallback) {
-                if (isHooked) return
                 val loader = extractPluginLoader(param.getThisObject()) ?: return
-                isHooked = true
-                if (pluginLoader == null) pluginLoader = loader
-                val controlCenterMachine = GestureMachine(
-                    classLoaderIdentity = loader.toString(),
-                    configResolver = { configPublisher.get() },
-                    depsResolver = ControlCenterGestureDependenciesResolver(),
-                    effectExecutor = StatusBarGestureEffectExecutor(),
-                    arbiter = arbiter,
-                )
-                val controlCenterHook = object : MethodHook() {
-                    override fun before(param: BeforeHookCallback) {
-                        val thisObject = param.getThisObject() as? View ?: return
-                        if (param.getArgs().size == 2 && (param.getArg(1) as Boolean)) return
-                        val statusBarStateController = XposedHelpers.getObjectField(thisObject, "statusBarStateController")
-                        val state = XposedHelpers.callMethod(statusBarStateController, "getState") as Int
-                        if (state == 1 || state == 2) return
-                        val event = param.getArg(0) as? MotionEvent ?: return
-                        val gestureEvent = GestureEvent(
-                            entry = GestureEntry.CONTROL_CENTER_TOUCH,
-                            actionMasked = event.actionMasked,
-                            downTime = event.downTime,
-                            eventTime = event.eventTime,
-                            x = event.x,
-                            y = event.y,
-                            pointerCount = event.pointerCount,
-                            ownerId = System.identityHashCode(thisObject),
-                            deviceId = event.deviceId,
-                            source = event.source,
-                        )
-                        ModuleHelper.guarded {
-                            controlCenterMachine.dispatch(gestureEvent, thisObject)
-                        }
-                    }
-                }
-                ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", loader, "handleMotionEvent", MotionEvent::class.java, Boolean::class.javaPrimitiveType!!, controlCenterHook)
-                ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", loader, "onAttachedToWindow", object : MethodHook() {
-                    override fun before(param: BeforeHookCallback) {
-                        val thisObject = param.getThisObject() as? View ?: return
-                        ModuleHelper.guarded {
-                            controlCenterMachine.prepare(System.identityHashCode(thisObject), thisObject)
-                        }
-                    }
-                })
-                ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", loader, "onDetachedFromWindow", object : MethodHook() {
-                    override fun before(param: BeforeHookCallback) {
-                        val thisObject = param.getThisObject() as? View ?: return
-                        ModuleHelper.guarded {
-                            controlCenterMachine.clear(System.identityHashCode(thisObject))
-                        }
-                    }
-                })
+                controlCenterRuntimeHolder.bind(loader)
+                pluginLoader = loader
             }
         })
     }

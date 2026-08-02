@@ -12,8 +12,8 @@ sealed class GestureCommand {
     data class ApplyTemporaryBrightness(val ratio: Float) : GestureCommand()
     data class CommitBrightness(val ratio: Float) : GestureCommand()
     data class AdjustVolume(val raise: Boolean) : GestureCommand()
-    data class TriggerDoubleTap(val position: DoubleTapPosition) : GestureCommand()
-    object TriggerLongPress : GestureCommand()
+    data class TriggerDoubleTap(val position: DoubleTapPosition, val actionId: Int) : GestureCommand()
+    data class TriggerLongPress(val actionId: Int) : GestureCommand()
     object Reset : GestureCommand()
 }
 

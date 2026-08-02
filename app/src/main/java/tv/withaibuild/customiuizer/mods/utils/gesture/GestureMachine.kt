@@ -1,5 +1,8 @@
 package tv.withaibuild.customiuizer.mods.utils.gesture
 
+import java.lang.reflect.InvocationTargetException
+import java.lang.reflect.Method
+
 /**
  * Per-ClassLoader orchestrator that combines:
  *  - config snapshotting at [GestureAction.DOWN]
@@ -50,14 +53,14 @@ class GestureMachine(
         val deps = dependencies[ownerId] ?: return emptyList()
 
         val current = snapshots[ownerId] ?: GestureSnapshot()
-        val (_, commands) = GestureStateMachine.process(
+        val (candidate, commands) = GestureStateMachine.process(
             current,
             event,
             config,
             deps.toGeometry(),
         )
 
-        return gate.filter(event.entry, event, commands)
+        return gate.filter(event.entry, ownerId, event, commands)
     }
 
     /**
@@ -80,30 +83,52 @@ class GestureMachine(
         val config = configs[ownerId] ?: return
 
         if (dependencies[ownerId] == null) {
-            passThrough(event)
+            passThrough(event, config)
             return
         }
         val deps = dependencies[ownerId]!!
 
+        val current = snapshots[ownerId] ?: GestureSnapshot()
+
         if (event.actionMasked == GestureAction.DOWN) {
             arbiter?.releaseOwner(ownerId)
-        }
-        if (arbiter != null && !arbiter.tryAcquire(ownerId, event)) {
+            val currentBrightness = readBrightness(deps)
+            val (candidate, commands) = GestureStateMachine.process(
+                current,
+                event,
+                config,
+                deps.toGeometry(currentBrightness),
+            )
+            val validDown = candidate.state != GestureState.IDLE && GestureCommand.BeginTracking in commands
+            if (!validDown) {
+                snapshots[ownerId] = GestureSnapshot()
+                passThrough(event, config)
+                return
+            }
+            if (arbiter != null && !arbiter.tryAcquireOnDown(ownerId, event)) {
+                snapshots[ownerId] = GestureSnapshot()
+                return
+            }
+            snapshots[ownerId] = candidate
+            val allowed = gate.filter(event.entry, ownerId, event, commands)
+            effectExecutor.execute(allowed, deps, config, event)
             return
         }
 
-        val current = snapshots[ownerId] ?: GestureSnapshot()
-        val currentBrightness = if (event.actionMasked == GestureAction.DOWN) readBrightness(deps) else -1f
+        if (arbiter != null && !arbiter.isOwner(ownerId, event)) {
+            return
+        }
+
         val (next, commands) = GestureStateMachine.process(
             current,
             event,
             config,
-            deps.toGeometry(currentBrightness),
+            deps.toGeometry(),
         )
         snapshots[ownerId] = next
 
-        val allowed = gate.filter(event.entry, event, commands)
-        effectExecutor.execute(allowed, deps, config, context)
+        val allowed = gate.filter(event.entry, ownerId, event, commands)
+        effectExecutor.execute(allowed, deps, config, event)
 
         if (arbiter != null && (GestureCommand.Reset in allowed || event.actionMasked == GestureAction.UP || event.actionMasked == GestureAction.CANCEL)) {
             arbiter.release(ownerId, event)
@@ -112,22 +137,13 @@ class GestureMachine(
 
     private fun readBrightness(deps: GestureDependencies): Float {
         val method = deps.getBrightnessMethod ?: return -1f
-        return try {
-            method.invoke(deps.displayManager, deps.displayId) as? Float ?: -1f
-        } catch (err: Throwable) {
-            when (err) {
-                is OutOfMemoryError, is ThreadDeath, is VirtualMachineError -> throw err
-                is java.lang.reflect.InvocationTargetException -> when (val cause = err.targetException) {
-                    is OutOfMemoryError, is ThreadDeath, is VirtualMachineError -> throw cause
-                    else -> -1f
-                }
-                else -> -1f
-            }
-        }
+        return invokePrepared(method, deps.displayManager, deps.displayId) as? Float ?: -1f
     }
 
-    private fun passThrough(event: GestureEvent): List<GestureCommand> {
-        return gate.filter(event.entry, event, listOf(GestureCommand.PassThrough))
+    private fun passThrough(event: GestureEvent, config: GestureConfig) {
+        val deps = dependencies[event.ownerId] ?: return
+        val allowed = gate.filter(event.entry, event.ownerId, event, listOf(GestureCommand.PassThrough))
+        effectExecutor.execute(allowed, deps, config, event)
     }
 
     private fun ensureDependencies(ownerId: Int, context: Any): GestureDependencies? {
@@ -153,17 +169,37 @@ class GestureMachine(
         }
     }
 
+    private fun invokePrepared(method: Method?, receiver: Any?, vararg args: Any?): Any? {
+        if (method == null) return null
+        return try {
+            method.invoke(receiver, *args)
+        } catch (err: Throwable) {
+            when (err) {
+                is OutOfMemoryError, is ThreadDeath, is VirtualMachineError -> throw err
+                is InvocationTargetException -> when (val cause = err.targetException) {
+                    is OutOfMemoryError, is ThreadDeath, is VirtualMachineError -> throw cause
+                    else -> null
+                }
+                else -> null
+            }
+        }
+    }
+
     /** Expose the current snapshot for deterministic stress tests and diagnostics. */
     internal fun snapshot(ownerId: Int): GestureSnapshot = snapshots[ownerId] ?: GestureSnapshot()
+
+    /** Expose the ClassLoader identity for runtime holder tests and diagnostics. */
+    internal fun classLoaderIdentity(): String = classLoaderIdentity
 
     /** Expose the last resolved config for a given owner (null until the first DOWN). */
     internal fun resolvedConfig(ownerId: Int): GestureConfig? = configs[ownerId]
 
-    /** Drop all per-owner state, arbiter tokens and the side-effect gate. */
+    /** Drop all per-owner state, arbiter tokens, fingerprints and the side-effect gate. */
     fun clear(ownerId: Int) {
         snapshots.remove(ownerId)
         dependencies.remove(ownerId)
         configs.remove(ownerId)
+        gate.clearOwner(ownerId)
         arbiter?.releaseOwner(ownerId)
     }
 

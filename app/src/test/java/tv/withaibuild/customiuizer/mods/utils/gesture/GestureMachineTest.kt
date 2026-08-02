@@ -1,6 +1,7 @@
 package tv.withaibuild.customiuizer.mods.utils.gesture
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -452,5 +453,382 @@ class GestureMachineTest {
 
         assertEquals(1, exec.brightnessApplied.size)
         assertEquals(0, exec.brightnessCommitted.size)
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // PhysicalGestureArbiter invariants
+    // --------------------------------------------------------------------------------------------
+
+    @Test
+    fun idleMoveWithFreshToken_doesNotAcquire() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m, _) = machine(testArbiter = arbiter)
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L, deviceId = 7, source = 0x1002), dummyContext)
+
+        assertEquals(0, arbiter.heldTokenCount())
+        assertEquals(GestureState.IDLE, m.snapshot(1).state)
+    }
+
+    @Test
+    fun validDown_acquiresExactlyOneToken() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m, _) = machine(testArbiter = arbiter)
+
+        m.prepare(1, dummyContext)
+        val e = event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 7, source = 0x1002)
+        m.dispatch(e, dummyContext)
+
+        assertEquals(1, arbiter.heldTokenCount())
+        assertEquals(1, arbiter.tokensForOwner(1))
+        val token = PhysicalGestureArbiter.Token(e.downTime, e.deviceId, e.source)
+        assertEquals(1, arbiter.ownerOf(token))
+    }
+
+    @Test
+    fun nonOwnerMove_cannotStealToken() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m1, _) = machine(testArbiter = arbiter)
+        val (m2, _) = machine(testArbiter = arbiter)
+
+        m1.prepare(1, dummyContext)
+        m2.prepare(2, dummyContext)
+
+        val token = event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 8, source = 0x1002)
+        m1.dispatch(token, dummyContext)
+
+        val before = m2.snapshot(2)
+        m2.dispatch(token.copy(ownerId = 2, actionMasked = GestureAction.MOVE, eventTime = 50L, x = 300f, entry = GestureEntry.CONTROL_CENTER_TOUCH), dummyContext)
+
+        assertEquals(1, arbiter.heldTokenCount())
+        assertEquals(1, arbiter.tokensForOwner(1))
+        assertEquals(0, arbiter.tokensForOwner(2))
+        assertEquals(before, m2.snapshot(2))
+    }
+
+    @Test
+    fun nonOwnerUp_cannotReleaseToken() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m1, _) = machine(testArbiter = arbiter)
+        val (m2, _) = machine(testArbiter = arbiter)
+
+        m1.prepare(1, dummyContext)
+        m2.prepare(2, dummyContext)
+
+        val token = event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 9, source = 0x1002)
+        m1.dispatch(token, dummyContext)
+
+        m2.dispatch(token.copy(ownerId = 2, actionMasked = GestureAction.UP, eventTime = 100L, entry = GestureEntry.CONTROL_CENTER_TOUCH), dummyContext)
+
+        assertEquals(1, arbiter.heldTokenCount())
+        assertEquals(1, arbiter.tokensForOwner(1))
+        assertEquals(0, arbiter.tokensForOwner(2))
+    }
+
+    @Test
+    fun ownerCancel_releasesToken() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m, _) = machine(testArbiter = arbiter)
+
+        m.prepare(1, dummyContext)
+        val token = event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 10, source = 0x1002)
+        m.dispatch(token, dummyContext)
+        m.dispatch(token.copy(actionMasked = GestureAction.CANCEL, eventTime = 50L), dummyContext)
+
+        assertEquals(0, arbiter.heldTokenCount())
+        assertEquals(GestureState.IDLE, m.snapshot(1).state)
+    }
+
+    @Test
+    fun ownerUp_releasesToken() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m, _) = machine(testArbiter = arbiter)
+
+        m.prepare(1, dummyContext)
+        val token = event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 11, source = 0x1002)
+        m.dispatch(token, dummyContext)
+        m.dispatch(token.copy(actionMasked = GestureAction.UP, eventTime = 100L), dummyContext)
+
+        assertEquals(0, arbiter.heldTokenCount())
+        assertEquals(GestureState.IDLE, m.snapshot(1).state)
+    }
+
+    @Test
+    fun newValidDown_releasesPreviousOwnerToken() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m, _) = machine(testArbiter = arbiter)
+
+        m.prepare(1, dummyContext)
+        val tokenA = event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, deviceId = 12, source = 0x1002)
+        m.dispatch(tokenA, dummyContext)
+
+        val tokenB = event(GestureAction.DOWN, x = 500f, y = 10f, eventTime = 100L, deviceId = 13, source = 0x1002)
+        m.dispatch(tokenB, dummyContext)
+
+        assertEquals(1, arbiter.heldTokenCount())
+        assertEquals(1, arbiter.tokensForOwner(1))
+        val activeToken = PhysicalGestureArbiter.Token(tokenB.downTime, tokenB.deviceId, tokenB.source)
+        assertEquals(1, arbiter.ownerOf(activeToken))
+        val oldToken = PhysicalGestureArbiter.Token(tokenA.downTime, tokenA.deviceId, tokenA.source)
+        assertNull(arbiter.ownerOf(oldToken))
+    }
+
+    @Test
+    fun controlCenterDownOutsideStatusBar_doesNotAcquire() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m, exec) = machine(testArbiter = arbiter)
+
+        m.prepare(1, dummyContext)
+        m.dispatch(
+            event(
+                GestureAction.DOWN,
+                x = 100f,
+                y = 200f,
+                eventTime = 0L,
+                deviceId = 14,
+                source = 0x1002,
+                entry = GestureEntry.CONTROL_CENTER_TOUCH,
+            ),
+            dummyContext,
+        )
+
+        assertEquals(0, arbiter.heldTokenCount())
+        assertEquals(GestureState.IDLE, m.snapshot(1).state)
+        assertTrue(exec.brightnessApplied.isEmpty())
+    }
+
+    @Test
+    fun invalidControlCenterDown_doesNotBlockStatusBarOwner() {
+        val arbiter = PhysicalGestureArbiter()
+        val (statusBar, _) = machine(testArbiter = arbiter)
+        val (controlCenter, _) = machine(testArbiter = arbiter)
+
+        statusBar.prepare(1, dummyContext)
+        controlCenter.prepare(2, dummyContext)
+
+        val token = event(GestureAction.DOWN, x = 100f, y = 200f, eventTime = 0L, deviceId = 15, source = 0x1002, entry = GestureEntry.CONTROL_CENTER_TOUCH, ownerId = 2)
+        controlCenter.dispatch(token, dummyContext)
+
+        val statusBarDown = token.copy(ownerId = 1, y = 10f, entry = GestureEntry.STATUS_BAR_TOUCH)
+        statusBar.dispatch(statusBarDown, dummyContext)
+
+        assertEquals(1, arbiter.heldTokenCount())
+        assertEquals(1, arbiter.tokensForOwner(1))
+        assertEquals(0, arbiter.tokensForOwner(2))
+    }
+
+    @Test
+    fun invalidDown_doesNotMutateAuthoritativeSnapshot() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m, _) = machine(testArbiter = arbiter)
+
+        m.prepare(1, dummyContext)
+        val before = m.snapshot(1)
+        m.dispatch(
+            event(
+                GestureAction.DOWN,
+                x = 100f,
+                y = 200f,
+                eventTime = 0L,
+                deviceId = 16,
+                source = 0x1002,
+                entry = GestureEntry.CONTROL_CENTER_TOUCH,
+            ),
+            dummyContext,
+        )
+
+        assertEquals(before, m.snapshot(1))
+        assertEquals(0, arbiter.heldTokenCount())
+    }
+
+    @Test
+    fun idlePointerDownWithFreshToken_doesNotAcquire() {
+        val arbiter = PhysicalGestureArbiter()
+        val (m, _) = machine(testArbiter = arbiter)
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.POINTER_DOWN, x = 100f, y = 10f, eventTime = 50L, downTime = 0L, pointerCount = 2, deviceId = 17, source = 0x1002), dummyContext)
+
+        assertEquals(0, arbiter.heldTokenCount())
+        assertEquals(GestureState.IDLE, m.snapshot(1).state)
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Double-tap and long-press must use the action resolved at DOWN time
+    // --------------------------------------------------------------------------------------------
+
+    @Test
+    fun doubleTapActionChangeMidGesture_usesDownSnapshot() {
+        var currentConfig = config.copy(doubleTapAction = 2)
+        val exec = FakeGestureEffectExecutor()
+        val m = GestureMachine(
+            classLoaderIdentity = "cl-1",
+            configResolver = { currentConfig },
+            depsResolver = object : GestureDependenciesResolver {
+                override fun prepare(ownerId: Int, classLoaderIdentity: String, context: Any): GestureDependenciesResult =
+                    GestureDependenciesResult.Ready(deps)
+            },
+            effectExecutor = exec,
+        )
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 300f, y = 10f, eventTime = 0L), dummyContext)
+        val up1 = event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L)
+        m.dispatch(up1, dummyContext)
+
+        m.dispatch(event(GestureAction.DOWN, x = 300f, y = 10f, eventTime = 200L, downTime = 200L), dummyContext)
+        currentConfig = config.copy(doubleTapAction = 3)
+        val up2 = event(GestureAction.UP, x = 300f, y = 10f, eventTime = 250L, downTime = 200L)
+        m.dispatch(up2, dummyContext)
+
+        assertEquals(1, exec.doubleTaps.size)
+        assertEquals(2, exec.doubleTapActions[0])
+    }
+
+    @Test
+    fun doubleTapLeftActionChangeMidGesture_usesDownSnapshot() {
+        var currentConfig = config.copy(doubleTapLeftAction = 5)
+        val exec = FakeGestureEffectExecutor()
+        val m = GestureMachine(
+            classLoaderIdentity = "cl-1",
+            configResolver = { currentConfig },
+            depsResolver = object : GestureDependenciesResolver {
+                override fun prepare(ownerId: Int, classLoaderIdentity: String, context: Any): GestureDependenciesResult =
+                    GestureDependenciesResult.Ready(deps)
+            },
+            effectExecutor = exec,
+        )
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        val up1 = event(GestureAction.UP, x = 100f, y = 10f, eventTime = 100L, downTime = 0L)
+        m.dispatch(up1, dummyContext)
+
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 200L, downTime = 200L), dummyContext)
+        currentConfig = config.copy(doubleTapLeftAction = 6)
+        val up2 = event(GestureAction.UP, x = 100f, y = 10f, eventTime = 250L, downTime = 200L)
+        m.dispatch(up2, dummyContext)
+
+        assertEquals(1, exec.doubleTaps.size)
+        assertEquals(DoubleTapPosition.LEFT, exec.doubleTaps[0])
+        assertEquals(5, exec.doubleTapActions[0])
+    }
+
+    @Test
+    fun doubleTapRightActionChangeMidGesture_usesDownSnapshot() {
+        var currentConfig = config.copy(doubleTapRightAction = 7)
+        val exec = FakeGestureEffectExecutor()
+        val m = GestureMachine(
+            classLoaderIdentity = "cl-1",
+            configResolver = { currentConfig },
+            depsResolver = object : GestureDependenciesResolver {
+                override fun prepare(ownerId: Int, classLoaderIdentity: String, context: Any): GestureDependenciesResult =
+                    GestureDependenciesResult.Ready(deps)
+            },
+            effectExecutor = exec,
+        )
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 900f, y = 10f, eventTime = 0L), dummyContext)
+        val up1 = event(GestureAction.UP, x = 900f, y = 10f, eventTime = 100L, downTime = 0L)
+        m.dispatch(up1, dummyContext)
+
+        m.dispatch(event(GestureAction.DOWN, x = 900f, y = 10f, eventTime = 200L, downTime = 200L), dummyContext)
+        currentConfig = config.copy(doubleTapRightAction = 8)
+        val up2 = event(GestureAction.UP, x = 900f, y = 10f, eventTime = 250L, downTime = 200L)
+        m.dispatch(up2, dummyContext)
+
+        assertEquals(1, exec.doubleTaps.size)
+        assertEquals(DoubleTapPosition.RIGHT, exec.doubleTaps[0])
+        assertEquals(7, exec.doubleTapActions[0])
+    }
+
+    @Test
+    fun longPressActionChangeMidGesture_usesDownSnapshot() {
+        var currentConfig = config.copy(longPressAction = 4)
+        val exec = FakeGestureEffectExecutor()
+        val m = GestureMachine(
+            classLoaderIdentity = "cl-1",
+            configResolver = { currentConfig },
+            depsResolver = object : GestureDependenciesResolver {
+                override fun prepare(ownerId: Int, classLoaderIdentity: String, context: Any): GestureDependenciesResult =
+                    GestureDependenciesResult.Ready(deps)
+            },
+            effectExecutor = exec,
+        )
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 300f, y = 10f, eventTime = 0L), dummyContext)
+        currentConfig = config.copy(longPressAction = 5)
+        val up = event(GestureAction.UP, x = 300f, y = 10f, eventTime = 2000L, downTime = 0L)
+        m.dispatch(up, dummyContext)
+
+        assertEquals(1, exec.longPresses)
+        assertEquals(4, exec.longPressActions[0])
+    }
+
+    @Test
+    fun nextDoubleTapUsesRepublishedAction() {
+        var currentConfig = config.copy(doubleTapAction = 2)
+        val exec = FakeGestureEffectExecutor()
+        val m = GestureMachine(
+            classLoaderIdentity = "cl-1",
+            configResolver = { currentConfig },
+            depsResolver = object : GestureDependenciesResolver {
+                override fun prepare(ownerId: Int, classLoaderIdentity: String, context: Any): GestureDependenciesResult =
+                    GestureDependenciesResult.Ready(deps)
+            },
+            effectExecutor = exec,
+        )
+
+        m.prepare(1, dummyContext)
+
+        // First double-tap with action 2.
+        m.dispatch(event(GestureAction.DOWN, x = 300f, y = 10f, eventTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 300f, y = 10f, eventTime = 200L, downTime = 200L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 250L, downTime = 200L), dummyContext)
+
+        currentConfig = config.copy(doubleTapAction = 3)
+
+        // Second double-tap with action 3.
+        m.dispatch(event(GestureAction.DOWN, x = 300f, y = 10f, eventTime = 1000L, downTime = 1000L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 1100L, downTime = 1000L), dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 300f, y = 10f, eventTime = 1200L, downTime = 1200L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 1250L, downTime = 1200L), dummyContext)
+
+        assertEquals(2, exec.doubleTaps.size)
+        assertEquals(2, exec.doubleTapActions[0])
+        assertEquals(3, exec.doubleTapActions[1])
+    }
+
+    @Test
+    fun nextLongPressUsesRepublishedAction() {
+        var currentConfig = config.copy(longPressAction = 4)
+        val exec = FakeGestureEffectExecutor()
+        val m = GestureMachine(
+            classLoaderIdentity = "cl-1",
+            configResolver = { currentConfig },
+            depsResolver = object : GestureDependenciesResolver {
+                override fun prepare(ownerId: Int, classLoaderIdentity: String, context: Any): GestureDependenciesResult =
+                    GestureDependenciesResult.Ready(deps)
+            },
+            effectExecutor = exec,
+        )
+
+        m.prepare(1, dummyContext)
+
+        m.dispatch(event(GestureAction.DOWN, x = 300f, y = 10f, eventTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 2000L, downTime = 0L), dummyContext)
+
+        currentConfig = config.copy(longPressAction = 5)
+
+        m.dispatch(event(GestureAction.DOWN, x = 300f, y = 10f, eventTime = 3000L, downTime = 3000L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 5000L, downTime = 3000L), dummyContext)
+
+        assertEquals(2, exec.longPresses)
+        assertEquals(4, exec.longPressActions[0])
+        assertEquals(5, exec.longPressActions[1])
     }
 }

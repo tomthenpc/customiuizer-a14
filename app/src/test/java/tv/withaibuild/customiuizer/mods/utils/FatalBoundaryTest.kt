@@ -129,6 +129,48 @@ class FatalBoundaryTest {
         hook.afterHook(HookerClassHelper.AfterHookCallback(before, null, null))
     }
 
+    @Test(expected = ThreadDeath::class)
+    fun methodHook_beforeCallback_rethrowsThreadDeath() {
+        val hook = object : HookerClassHelper.MethodHook() {
+            override fun before(callback: HookerClassHelper.BeforeHookCallback) {
+                throw ThreadDeath()
+            }
+        }
+        hook.beforeHook(HookerClassHelper.BeforeHookCallback(emptyChain()))
+    }
+
+    @Test(expected = ThreadDeath::class)
+    fun methodHook_afterCallback_rethrowsThreadDeath() {
+        val before = HookerClassHelper.BeforeHookCallback(emptyChain())
+        val hook = object : HookerClassHelper.MethodHook() {
+            override fun after(callback: HookerClassHelper.AfterHookCallback) {
+                throw ThreadDeath()
+            }
+        }
+        hook.afterHook(HookerClassHelper.AfterHookCallback(before, null, null))
+    }
+
+    @Test(expected = InternalError::class)
+    fun methodHook_beforeCallback_rethrowsVirtualMachineError() {
+        val hook = object : HookerClassHelper.MethodHook() {
+            override fun before(callback: HookerClassHelper.BeforeHookCallback) {
+                throw InternalError("boom")
+            }
+        }
+        hook.beforeHook(HookerClassHelper.BeforeHookCallback(emptyChain()))
+    }
+
+    @Test(expected = InternalError::class)
+    fun methodHook_afterCallback_rethrowsVirtualMachineError() {
+        val before = HookerClassHelper.BeforeHookCallback(emptyChain())
+        val hook = object : HookerClassHelper.MethodHook() {
+            override fun after(callback: HookerClassHelper.AfterHookCallback) {
+                throw InternalError("boom")
+            }
+        }
+        hook.afterHook(HookerClassHelper.AfterHookCallback(before, null, null))
+    }
+
     @Test(expected = OutOfMemoryError::class)
     fun throwableLogger_rethrowsOutOfMemoryError() {
         XposedHelpers.log(OutOfMemoryError("boom"))

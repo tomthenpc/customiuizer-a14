@@ -162,11 +162,16 @@ object GestureStateMachine {
                     event.x > geometry.screenWidth * 0.8f -> DoubleTapPosition.RIGHT
                     else -> DoubleTapPosition.CENTER
                 }
-                commands.add(GestureCommand.TriggerDoubleTap(position))
+                val actionId = when (position) {
+                    DoubleTapPosition.LEFT -> config.doubleTapLeftAction
+                    DoubleTapPosition.CENTER -> config.doubleTapAction
+                    DoubleTapPosition.RIGHT -> config.doubleTapRightAction
+                }
+                commands.add(GestureCommand.TriggerDoubleTap(position, actionId))
             } else if (event.eventTime - session.startTime in 601..3999
                 && abs(event.x - session.startX) < 80f
             ) {
-                commands.add(GestureCommand.TriggerLongPress)
+                commands.add(GestureCommand.TriggerLongPress(config.longPressAction))
             }
         }
 

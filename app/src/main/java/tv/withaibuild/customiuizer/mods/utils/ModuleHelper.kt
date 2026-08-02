@@ -502,6 +502,7 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
+                if (t is ThreadDeath || t is VirtualMachineError) throw t
                 NOT_EXIST_SYMBOL
             }
         }
@@ -513,6 +514,7 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
+                if (t is ThreadDeath || t is VirtualMachineError) throw t
                 NOT_EXIST_SYMBOL
             }
         }

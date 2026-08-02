@@ -5,6 +5,9 @@ package tv.withaibuild.customiuizer.mods.utils.gesture
  *
  * Status Bar and Control Center share one arbiter so the same physical stream cannot
  * produce duplicated brightness, volume, double-tap or long-press side effects.
+ *
+ * Tokens are only created for a valid [GestureAction.DOWN]. All other events must use
+ * an already-held token via [isOwner].
  */
 class PhysicalGestureArbiter {
 
@@ -17,12 +20,15 @@ class PhysicalGestureArbiter {
     private val owners = mutableMapOf<Token, Int>()
 
     /**
-     * Attempt to claim authority over [event] for [ownerId].
+     * Try to claim authority over the physical [event] for [ownerId] on a DOWN.
      *
      * Returns `true` if this owner is the first to acquire the physical token, or if it
-     * already owns it.  Returns `false` if another owner has already claimed it.
+     * already owns it. Returns `false` if another owner has already claimed it.
+     *
+     * This method must only be called for a DOWN that the state machine has already
+     * validated as the start of a trackable gesture.
      */
-    fun tryAcquire(ownerId: Int, event: GestureEvent): Boolean {
+    fun tryAcquireOnDown(ownerId: Int, event: GestureEvent): Boolean {
         val token = tokenOf(event)
         val existing = owners[token]
         if (existing == null) {
@@ -30,6 +36,15 @@ class PhysicalGestureArbiter {
             return true
         }
         return existing == ownerId
+    }
+
+    /**
+     * Returns `true` if [ownerId] is the current owner of the physical [event].
+     *
+     * Non-DOWN events must use this check; they are never allowed to create a token.
+     */
+    fun isOwner(ownerId: Int, event: GestureEvent): Boolean {
+        return owners[tokenOf(event)] == ownerId
     }
 
     /**
@@ -43,7 +58,7 @@ class PhysicalGestureArbiter {
     }
 
     /**
-     * Release all tokens held by [ownerId].  Called when the owner is detached or reset.
+     * Release all tokens held by [ownerId]. Called when the owner is detached or reset.
      */
     fun releaseOwner(ownerId: Int) {
         val iterator = owners.iterator()
@@ -58,6 +73,18 @@ class PhysicalGestureArbiter {
     fun releaseAll() {
         owners.clear()
     }
+
+    /** Diagnostic only: the owner for a held token, or `null` if none. */
+    internal fun ownerOf(token: Token): Int? = owners[token]
+
+    /** Diagnostic only: the total number of held physical tokens. */
+    internal fun heldTokenCount(): Int = owners.size
+
+    /** Diagnostic only: the number of tokens held by the given owner. */
+    internal fun tokensForOwner(ownerId: Int): Int = owners.count { it.value == ownerId }
+
+    /** Diagnostic only: a snapshot of the current token map. */
+    internal fun heldTokens(): Map<Token, Int> = owners.toMap()
 
     private fun tokenOf(event: GestureEvent): Token =
         Token(event.downTime, event.deviceId, event.source)

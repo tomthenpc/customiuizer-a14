@@ -540,10 +540,11 @@ def check_device_info_monitor_hot_path(path: Path, text: str) -> list[Finding]:
 
 
 def check_method_hook_fatal_boundary(path: Path, text: str) -> list[Finding]:
-    """The shared before/after adapters must not turn OOM into a logged success."""
+    """The shared before/after adapters must not turn fatal errors into a logged success."""
     if rel_posix(path) != HOOKER_CLASS_HELPER:
         return []
     findings = []
+    fatal_types = ("OutOfMemoryError", "VirtualMachineError", "ThreadDeath")
     for callback_name in ("beforeHook", "afterHook"):
         match = re.search(rf"override\s+fun\s+{callback_name}\s*\(", text)
         if match is None:
@@ -557,18 +558,22 @@ def check_method_hook_fatal_boundary(path: Path, text: str) -> list[Finding]:
             )
             continue
         body, _ = block_at(text, match.start())
-        oom = re.search(
-            r"catch\s*\(\s*([A-Za-z]\w*)\s*:\s*OutOfMemoryError\s*\)\s*\{\s*throw\s+\1\s*\}",
-            body,
-        )
         generic = re.search(r"catch\s*\(\s*[A-Za-z]\w*\s*:\s*Throwable\s*\)", body)
-        if oom is None or generic is None or oom.start() > generic.start():
+        missing = []
+        for fatal in fatal_types:
+            fatal_match = re.search(
+                rf"catch\s*\(\s*([A-Za-z]\w*)\s*:\s*{fatal}\s*\)\s*\{{\s*throw\s+\1\s*\}}",
+                body,
+            )
+            if fatal_match is None or (generic is not None and fatal_match.start() > generic.start()):
+                missing.append(fatal)
+        if missing:
             findings.append(
                 Finding(
                     "method-hook-fatal-boundary",
                     path,
                     line_of(text, match.start()),
-                    f"{callback_name} must rethrow OutOfMemoryError before catch(Throwable)",
+                    f"{callback_name} must rethrow {', '.join(missing)} before catch(Throwable)",
                 )
             )
     return findings
@@ -1245,6 +1250,148 @@ def check_gesture_no_obsolete_hook_state(path: Path, text: str) -> list[Finding]
     return findings
 
 
+def check_gesture_arbiter_down_only(path: Path, text: str) -> list[Finding]:
+    """Tokens can only be acquired on ACTION_DOWN; no other event may grow the arbiter."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/gesture/PhysicalGestureArbiter.kt":
+        return []
+    if re.search(r"\bfun\s+tryAcquire\s*\(", text):
+        return [
+            Finding(
+                "gesture-arbiter-down-only",
+                path,
+                1,
+                "PhysicalGestureArbiter must expose only tryAcquireOnDown(), not tryAcquire()",
+            )
+        ]
+    return []
+
+
+def check_gesture_machine_uses_down_acquire(path: Path, text: str) -> list[Finding]:
+    """GestureMachine must request the token via tryAcquireOnDown()."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/gesture/GestureMachine.kt":
+        return []
+    if "tryAcquireOnDown" not in text:
+        return [
+            Finding(
+                "gesture-machine-uses-down-acquire",
+                path,
+                1,
+                "GestureMachine must call PhysicalGestureArbiter.tryAcquireOnDown()",
+            )
+        ]
+    return []
+
+
+def check_gesture_command_action_id(path: Path, text: str) -> list[Finding]:
+    """Double-tap and long-press commands must carry the resolved action id so it is snapshotted."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/gesture/GestureCommand.kt":
+        return []
+    findings = []
+    if "val actionId: Int" not in text:
+        findings.append(
+            Finding(
+                "gesture-command-action-id",
+                path,
+                1,
+                "GestureCommand.TriggerDoubleTap and TriggerLongPress must carry a snapshotted actionId",
+            )
+        )
+    return findings
+
+
+def check_gesture_executor_uses_action_launcher(path: Path, text: str) -> list[Finding]:
+    """StatusBarGestureEffectExecutor must launch actions through GestureActionLauncher, not GlobalActions."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/gesture/StatusBarGestureEffectExecutor.kt":
+        return []
+    if "GlobalActions" in text:
+        return [
+            Finding(
+                "gesture-executor-uses-action-launcher",
+                path,
+                1,
+                "StatusBarGestureEffectExecutor must not call GlobalActions directly; use actionLauncher.launch()",
+            )
+        ]
+    return []
+
+
+def check_gesture_control_center_no_ishooked(path: Path, text: str) -> list[Finding]:
+    """The Control Center plugin hook must rely on the runtime holder, not a stale isHooked flag."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt":
+        return []
+    if "isHooked" in text:
+        return [
+            Finding(
+                "gesture-control-center-no-ishooked",
+                path,
+                1,
+                "Control Center plugin hook must not use an isHooked flag; use ControlCenterGestureRuntimeHolder",
+            )
+        ]
+    return []
+
+
+def check_gesture_stress_no_bypass(path: Path, text: str) -> list[Finding]:
+    """The behavioural stress test must not force invalid events to look like valid ones."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/gesture/GestureMachineBehavioralStressTest.kt":
+        return []
+    findings = []
+    if re.search(r"\baction\s*=\s*GestureAction\.DOWN", text):
+        findings.append(
+            Finding(
+                "gesture-stress-no-bypass",
+                path,
+                1,
+                "stress test must not force every event to be a DOWN",
+            )
+        )
+    if "random.nextFloat() * 80f" in text:
+        findings.append(
+            Finding(
+                "gesture-stress-no-bypass",
+                path,
+                1,
+                "stress test must not force Control Center DOWN inside the status bar",
+            )
+        )
+    if re.search(r"heldTokens\(\)\s*\.\s*get|get\s*\(\s*ownerId\s*\).*arbiter", text):
+        findings.append(
+            Finding(
+                "gesture-stress-no-bypass",
+                path,
+                1,
+                "stress test should use arbiter.tokensForOwner() and arbiter.heldTokenCount(), not raw map access",
+            )
+        )
+    return findings
+
+
+def check_gesture_side_effect_gate_owner_cleanup(path: Path, text: str) -> list[Finding]:
+    """The side-effect gate must model owner identity and support owner-level cleanup."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/gesture/GestureSideEffectGate.kt":
+        return []
+    findings = []
+    if "data class OwnerFingerprint" not in text:
+        findings.append(
+            Finding(
+                "gesture-side-effect-gate-owner-cleanup",
+                path,
+                1,
+                "GestureSideEffectGate must define OwnerFingerprint(ownerId)",
+            )
+        )
+    if "fun clearOwner" not in text:
+        findings.append(
+            Finding(
+                "gesture-side-effect-gate-owner-cleanup",
+                path,
+                1,
+                "GestureSideEffectGate must expose clearOwner(ownerId)",
+            )
+        )
+    return findings
+
+
 RULES = (
     check_gesture_hot_path_no_reflection,
     check_gesture_machine_dispatch_rejects_intercept,
@@ -1256,6 +1403,13 @@ RULES = (
     check_gesture_shared_arbiter,
     check_gesture_detach_cleanup,
     check_gesture_no_obsolete_hook_state,
+    check_gesture_arbiter_down_only,
+    check_gesture_machine_uses_down_acquire,
+    check_gesture_command_action_id,
+    check_gesture_executor_uses_action_launcher,
+    check_gesture_control_center_no_ishooked,
+    check_gesture_stress_no_bypass,
+    check_gesture_side_effect_gate_owner_cleanup,
     check_guard_framework_callbacks,
     check_guard_framework_callbacks,
     check_guard_deferred_callbacks,

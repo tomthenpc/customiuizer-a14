@@ -6,7 +6,9 @@ class FakeGestureEffectExecutor : GestureEffectExecutor {
     val brightnessCommitted = mutableListOf<Float>()
     val volumeAdjusted = mutableListOf<Boolean>()
     val doubleTaps = mutableListOf<DoubleTapPosition>()
+    val doubleTapActions = mutableListOf<Int>()
     var longPresses = 0
+    val longPressActions = mutableListOf<Int>()
     var resets = 0
 
     override fun execute(
@@ -20,10 +22,16 @@ class FakeGestureEffectExecutor : GestureEffectExecutor {
                 is GestureCommand.ApplyTemporaryBrightness -> brightnessApplied.add(command.ratio)
                 is GestureCommand.CommitBrightness -> brightnessCommitted.add(command.ratio)
                 is GestureCommand.AdjustVolume -> volumeAdjusted.add(command.raise)
-                is GestureCommand.TriggerDoubleTap -> doubleTaps.add(command.position)
-                is GestureCommand.TriggerLongPress -> longPresses++
+                is GestureCommand.TriggerDoubleTap -> {
+                    doubleTaps.add(command.position)
+                    doubleTapActions.add(command.actionId)
+                }
+                is GestureCommand.TriggerLongPress -> {
+                    longPresses++
+                    longPressActions.add(command.actionId)
+                }
                 is GestureCommand.Reset -> resets++
-                else -> { /* ignore */ }
+                else -> { /* PassThrough / BeginTracking have no side effect here */ }
             }
         }
     }

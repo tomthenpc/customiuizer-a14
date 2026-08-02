@@ -1,8 +1,7 @@
 package tv.withaibuild.customiuizer.mods.utils.gesture
 
 /**
- * Deduplicates business side-effects of a physical touch event across multiple
- * MotionEvent entry points.
+ * Deduplicates business side-effects of a physical touch event per owner.
  *
  * The gate is not responsible for state transitions; it only decides which commands
  * from the pure state machine are allowed to reach the side-effect executor.
@@ -11,8 +10,8 @@ class GestureSideEffectGate(
     private val maxFingerprints: Int = 32,
 ) {
 
-    private val order = ArrayDeque<GestureEventFingerprint>(maxFingerprints)
-    private val seen = LinkedHashSet<GestureEventFingerprint>(maxFingerprints)
+    private val order = ArrayDeque<OwnerFingerprint>(maxFingerprints)
+    private val seen = LinkedHashSet<OwnerFingerprint>(maxFingerprints)
 
     /**
      * Entries that are allowed to update state and execute business side-effects.
@@ -30,28 +29,32 @@ class GestureSideEffectGate(
         is GestureCommand.AdjustVolume,
         is GestureCommand.CommitBrightness,
         is GestureCommand.TriggerDoubleTap,
-        GestureCommand.TriggerLongPress -> true
+        is GestureCommand.TriggerLongPress -> true
         else -> false
     }
 
-    private fun fingerprint(event: GestureEvent): GestureEventFingerprint =
-        GestureEventFingerprint(
-            downTime = event.downTime,
-            eventTime = event.eventTime,
-            actionMasked = event.actionMasked,
-            pointerCount = event.pointerCount,
-            deviceId = event.deviceId,
-            source = event.source,
+    private fun fingerprint(ownerId: Int, event: GestureEvent): OwnerFingerprint =
+        OwnerFingerprint(
+            ownerId = ownerId,
+            fingerprint = GestureEventFingerprint(
+                downTime = event.downTime,
+                eventTime = event.eventTime,
+                actionMasked = event.actionMasked,
+                pointerCount = event.pointerCount,
+                deviceId = event.deviceId,
+                source = event.source,
+            ),
         )
 
     /**
-     * Filters [commands] for the given [entry] and [event].
+     * Filters [commands] for the given [entry], [ownerId] and [event].
      *
-     * Returns the commands that are allowed to execute.  Business side-effects are
-     * dropped for non-effect entries and deduplicated by physical event identity.
+     * Returns the commands that are allowed to execute. Business side-effects are
+     * dropped for non-effect entries and deduplicated by owner and physical event identity.
      */
     fun filter(
         entry: GestureEntry,
+        ownerId: Int,
         event: GestureEvent,
         commands: List<GestureCommand>,
     ): List<GestureCommand> {
@@ -61,7 +64,7 @@ class GestureSideEffectGate(
         val business = commands.filter(::isBusinessEffect)
         if (business.isEmpty()) return commands
 
-        val fp = fingerprint(event)
+        val fp = fingerprint(ownerId, event)
         if (fp in seen) return emptyList()
 
         if (order.size >= maxFingerprints) {
@@ -74,9 +77,24 @@ class GestureSideEffectGate(
         return commands
     }
 
-    /** Clears all stored fingerprints, e.g. when the owner is destroyed. */
+    /** Clears every fingerprint held for [ownerId], e.g. when the view is detached. */
+    fun clearOwner(ownerId: Int) {
+        order.removeIf { it.ownerId == ownerId }
+        seen.removeIf { it.ownerId == ownerId }
+    }
+
+    /** Clears all stored fingerprints, e.g. when the ClassLoader is torn down. */
     fun clear() {
         order.clear()
         seen.clear()
     }
+
+    /**
+     * A fingerprint is scoped by [ownerId] so that detaching one owner does not remove
+     * another owner's deduplication records.
+     */
+    data class OwnerFingerprint(
+        val ownerId: Int,
+        val fingerprint: GestureEventFingerprint,
+    )
 }

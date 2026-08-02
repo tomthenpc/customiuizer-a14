@@ -1,7 +1,6 @@
 package tv.withaibuild.customiuizer.mods.utils.gesture
 
 import org.junit.Test
-import java.lang.reflect.Field
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -119,6 +118,8 @@ class GestureMachineBehavioralStressTest {
         val after: GestureSnapshot,
         val observed: List<GestureCommand>,
         val emitted: List<RecordingExecutor.RecordedCommand>,
+        val arbiterBefore: Map<PhysicalGestureArbiter.Token, Int>,
+        val arbiterAfter: Map<PhysicalGestureArbiter.Token, Int>,
     )
 
     @Test
@@ -160,10 +161,6 @@ class GestureMachineBehavioralStressTest {
 
         var time = 100_000L
         var stepIndex = -1
-
-        private val ownersField: Field = PhysicalGestureArbiter::class.java
-            .getDeclaredField("owners")
-            .apply { isAccessible = true }
 
         init {
             publisher.publish()
@@ -219,16 +216,6 @@ class GestureMachineBehavioralStressTest {
         private fun tokenOf(event: GestureEvent): PhysicalGestureArbiter.Token =
             PhysicalGestureArbiter.Token(event.downTime, event.deviceId, event.source)
 
-        @Suppress("UNCHECKED_CAST")
-        private fun readArbiterTokens(): MutableMap<PhysicalGestureArbiter.Token, Int> =
-            ownersField.get(arbiter) as MutableMap<PhysicalGestureArbiter.Token, Int>
-
-        private fun freshToken(): PhysicalGestureArbiter.Token = PhysicalGestureArbiter.Token(
-            downTime = time,
-            deviceId = random.nextInt(0, 1000),
-            source = random.nextInt(0, 1000),
-        )
-
         private fun isBusiness(command: GestureCommand): Boolean = when (command) {
             is GestureCommand.ApplyTemporaryBrightness,
             is GestureCommand.AdjustVolume,
@@ -257,41 +244,17 @@ class GestureMachineBehavioralStressTest {
         }
 
         private fun generateEvent(ownerId: Int): Step.Event {
-            var action = actions.random(random)
+            val action = actions.random(random)
             val entry = entries.random(random)
             val token = when (action) {
                 GestureAction.DOWN -> chooseDownToken(ownerId)
                 GestureAction.UP, GestureAction.CANCEL -> chooseUpOrCancelToken(ownerId)
-                else -> chooseNonDownToken(ownerId, action)
-            }
-
-            // Avoid generating idle, non-terminating events with a fresh token: a MOVE or
-            // POINTER event for an idle owner with a token nobody owns would acquire the
-            // token and never release it, leaving arbiter state behind.  Turn those into a
-            // DOWN (which starts a real gesture) unless this is an observe() event, where
-            // the arbiter is not involved.
-            val activeTokens = listOfNotNull(activeToken[1], activeToken[2])
-            val isFreshToken = token !in activeTokens
-            if (entry != GestureEntry.STATUS_BAR_INTERCEPT &&
-                activeToken[ownerId] == null &&
-                isFreshToken &&
-                action != GestureAction.DOWN &&
-                action != GestureAction.UP &&
-                action != GestureAction.CANCEL
-            ) {
-                action = GestureAction.DOWN
+                else -> chooseNonDownToken(ownerId)
             }
 
             val pointerCount = random.nextInt(1, 4) // 1..3
             val x = random.nextFloat() * 1080f
-            var y = random.nextFloat() * 200f
-
-            // A Control Center DOWN outside the status bar height is passed-through, but the
-            // machine still acquires an arbiter token and never releases it (no Reset).  Keep
-            // CC DOWNs inside the status bar so they become real tracked gestures.
-            if (entry == GestureEntry.CONTROL_CENTER_TOUCH && action == GestureAction.DOWN) {
-                y = random.nextFloat() * 80f
-            }
+            val y = random.nextFloat() * 200f
 
             time += random.nextLong(5L, 51L)
 
@@ -313,7 +276,7 @@ class GestureMachineBehavioralStressTest {
         private fun chooseDownToken(ownerId: Int): PhysicalGestureArbiter.Token {
             // Starting a new gesture for an already-active owner: use a brand-new token.
             // Starting a new gesture for an idle owner: sometimes deliberately reuse another
-            // owner's active token to exercise the arbiter conflict path.
+            // owner"s active token to exercise the arbiter conflict path.
             if (activeToken[ownerId] != null) {
                 return freshToken()
             }
@@ -328,17 +291,17 @@ class GestureMachineBehavioralStressTest {
         private fun chooseUpOrCancelToken(ownerId: Int): PhysicalGestureArbiter.Token {
             // A UP/CANCEL for an active gesture must use the active token, otherwise the
             // machine would not end the tracked session.  For an idle owner any token works
-            // because a stray UP/CANCEL simply acquires/releases or is rejected.
+            // because a stray UP/CANCEL is rejected by the arbiter.
             return activeToken[ownerId] ?: run {
                 val other = otherOwner(ownerId)
                 activeToken[other] ?: freshToken()
             }
         }
 
-        private fun chooseNonDownToken(ownerId: Int, action: Int): PhysicalGestureArbiter.Token {
+        private fun chooseNonDownToken(ownerId: Int): PhysicalGestureArbiter.Token {
             // For an active owner, prefer the active token.  Occasionally inject another
-            // owner's active token to make sure the arbiter rejects cross-owner events.
-            // For an idle owner, use another owner's active token (rejected if still held)
+            // owner"s active token to make sure the arbiter rejects cross-owner events.
+            // For an idle owner, use another owner"s active token (rejected if still held)
             // or a fresh token.
             val active = activeToken[ownerId]
             if (active != null) {
@@ -357,6 +320,12 @@ class GestureMachineBehavioralStressTest {
             return freshToken()
         }
 
+        private fun freshToken(): PhysicalGestureArbiter.Token = PhysicalGestureArbiter.Token(
+            downTime = time,
+            deviceId = random.nextInt(0, 1000),
+            source = random.nextInt(0, 1000),
+        )
+
         // ----------------------------------------------------------------------------------------
         // Step execution
         // ----------------------------------------------------------------------------------------
@@ -365,7 +334,7 @@ class GestureMachineBehavioralStressTest {
             return when (step) {
                 is Step.Event -> {
                     val ctx = runEvent(step)
-                    updateModel(step.ownerId, step.event)
+                    updateModel(step.ownerId)
                     ctx
                 }
                 is Step.Attach -> {
@@ -392,6 +361,7 @@ class GestureMachineBehavioralStressTest {
             val machine = machines.getValue(ownerId)
             val before = machine.snapshot(ownerId)
             val beforeCount = executor.commands.size
+            val arbiterBefore = arbiter.heldTokens()
 
             val observed: List<GestureCommand> = if (event.entry == GestureEntry.STATUS_BAR_INTERCEPT) {
                 machine.observe(event, event)
@@ -406,8 +376,9 @@ class GestureMachineBehavioralStressTest {
             } else {
                 executor.commands.subList(beforeCount, executor.commands.size).toList()
             }
+            val arbiterAfter = arbiter.heldTokens()
 
-            return EventContext(ownerId, event, before, after, observed, emitted)
+            return EventContext(ownerId, event, before, after, observed, emitted, arbiterBefore, arbiterAfter)
         }
 
         private fun attachOwner(ownerId: Int) {
@@ -435,24 +406,26 @@ class GestureMachineBehavioralStressTest {
             publisher.publish()
         }
 
-        private fun updateModel(ownerId: Int, event: GestureEvent) {
+        private fun updateModel(ownerId: Int) {
             val machine = machines.getValue(ownerId)
             val after = machine.snapshot(ownerId)
-            val token = tokenOf(event)
-            val arbiterMap = readArbiterTokens()
-
-            if (event.actionMasked == GestureAction.DOWN) {
-                // A DOWN that successfully owns the resulting token starts a new gesture.
-                if (after.state != GestureState.IDLE && arbiterMap[token] == ownerId) {
-                    activeToken[ownerId] = token
-                    gestureConfig[ownerId] = machine.resolvedConfig(ownerId)
-                }
-            }
 
             if (after.state == GestureState.IDLE) {
                 activeToken[ownerId] = null
                 gestureConfig[ownerId] = null
+                return
             }
+
+            // A non-IDLE snapshot must be backed by exactly one token owned by this owner.
+            val token = arbiter.heldTokens().entries.find { it.value == ownerId }?.key
+            if (token == null) {
+                activeToken[ownerId] = null
+                gestureConfig[ownerId] = null
+                return
+            }
+
+            activeToken[ownerId] = token
+            gestureConfig[ownerId] = machine.resolvedConfig(ownerId)
         }
 
         // ----------------------------------------------------------------------------------------
@@ -465,35 +438,47 @@ class GestureMachineBehavioralStressTest {
             if (step is Step.Event && context != null) {
                 checkEventInvariants(step, context)
             }
+            if (step is Step.Detach) {
+                checkDetachInvariant(step)
+            }
         }
 
         private fun checkArbiterIntegrity(step: Step) {
-            val tokens = readArbiterTokens()
+            val tokens = arbiter.heldTokens()
 
             // No token can be owned by two different owners simultaneously.  The map itself
             // enforces this, but we verify the contents explicitly.
             val reverse = mutableMapOf<PhysicalGestureArbiter.Token, Int>()
             for ((token, owner) in tokens) {
                 if (reverse.put(token, owner) != null) {
-                    fail(step, message = "Invariant 9: token $token is owned by more than one owner")
+                    fail(step, message = "Invariant: token $token is owned by more than one owner")
                 }
             }
 
-            // An owner with a non-IDLE snapshot must own the token of the active gesture.
             for (ownerId in listOf(1, 2)) {
                 val snapshot = machines.getValue(ownerId).snapshot(ownerId)
-                if (snapshot.state != GestureState.IDLE) {
-                    val token = activeToken[ownerId]
-                    val ownerForToken = if (token != null) tokens[token] else null
-                    if (ownerForToken != ownerId) {
-                        fail(
-                            step,
-                            ownerId = ownerId,
-                            after = snapshot,
-                            message = "Invariant 9: owner $ownerId has an active snapshot ($snapshot) " +
-                                "but the arbiter does not hold its token (token=$token, ownerForToken=$ownerForToken)",
-                        )
-                    }
+                val tokenCount = arbiter.tokensForOwner(ownerId)
+
+                if (tokenCount > 1) {
+                    fail(step, ownerId = ownerId, after = snapshot, message = "Invariant: owner $ownerId holds $tokenCount tokens")
+                }
+
+                if (snapshot.state != GestureState.IDLE && tokenCount == 0) {
+                    fail(
+                        step,
+                        ownerId = ownerId,
+                        after = snapshot,
+                        message = "Invariant: owner $ownerId has an active snapshot but no arbiter token",
+                    )
+                }
+
+                if (snapshot.state == GestureState.IDLE && tokenCount > 0) {
+                    fail(
+                        step,
+                        ownerId = ownerId,
+                        after = snapshot,
+                        message = "Invariant: owner $ownerId has an IDLE snapshot but still holds a token",
+                    )
                 }
             }
         }
@@ -510,7 +495,7 @@ class GestureMachineBehavioralStressTest {
                             step,
                             ownerId = ownerId,
                             after = snapshot,
-                            message = "Invariant 7: active snapshot has no resolved config",
+                            message = "Invariant: active snapshot has no resolved config",
                         )
                     }
                     if (expected == null) {
@@ -518,7 +503,7 @@ class GestureMachineBehavioralStressTest {
                             step,
                             ownerId = ownerId,
                             after = snapshot,
-                            message = "Invariant 7: active snapshot has no recorded gesture config",
+                            message = "Invariant: active snapshot has no recorded gesture config",
                         )
                     }
                     if (resolved != expected) {
@@ -526,11 +511,21 @@ class GestureMachineBehavioralStressTest {
                             step,
                             ownerId = ownerId,
                             after = snapshot,
-                            message = "Invariant 7: config changed while a gesture is in progress. " +
+                            message = "Invariant: config changed while a gesture is in progress. " +
                                 "resolved=$resolved, gestureConfig=$expected",
                         )
                     }
                 }
+            }
+        }
+
+        private fun checkDetachInvariant(step: Step.Detach) {
+            val snapshot = machines.getValue(step.ownerId).snapshot(step.ownerId)
+            if (snapshot.state != GestureState.IDLE) {
+                fail(step, ownerId = step.ownerId, after = snapshot, message = "Detach did not leave snapshot IDLE")
+            }
+            if (arbiter.tokensForOwner(step.ownerId) > 0) {
+                fail(step, ownerId = step.ownerId, after = snapshot, message = "Detach left an arbiter token for the owner")
             }
         }
 
@@ -542,6 +537,8 @@ class GestureMachineBehavioralStressTest {
             val emitted = context.emitted
             val machine = machines.getValue(ownerId)
             val token = tokenOf(event)
+            val arbiterBefore = context.arbiterBefore
+            val arbiterAfter = context.arbiterAfter
 
             // Invariant 1: observe() may not produce business side-effects and must not
             // change the authoritative snapshot.
@@ -555,6 +552,8 @@ class GestureMachineBehavioralStressTest {
                         before = before,
                         after = after,
                         commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
                         message = "Invariant 1: observe() produced business side-effects $business",
                     )
                 }
@@ -566,10 +565,91 @@ class GestureMachineBehavioralStressTest {
                         before = before,
                         after = after,
                         commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
                         message = "Invariant 1: observe() changed the authoritative snapshot",
                     )
                 }
                 return
+            }
+
+            // Non-DOWN events must never create a new token.
+            if (event.actionMasked != GestureAction.DOWN && arbiterAfter.size > arbiterBefore.size) {
+                fail(
+                    step,
+                    ownerId = ownerId,
+                    event = event,
+                    before = before,
+                    after = after,
+                    commands = emitted,
+                    arbiterBefore = arbiterBefore,
+                    arbiterAfter = arbiterAfter,
+                    message = "Invariant: non-DOWN event increased the held token count",
+                )
+            }
+
+            // DOWN-specific arbiter invariants.
+            if (event.actionMasked == GestureAction.DOWN) {
+                val acquired = arbiterAfter[token] == ownerId
+                val startedGesture = after.state != GestureState.IDLE
+
+                if (acquired != startedGesture) {
+                    fail(
+                        step,
+                        ownerId = ownerId,
+                        event = event,
+                        before = before,
+                        after = after,
+                        commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
+                        message = "Invariant: DOWN acquired=$acquired but startedGesture=$startedGesture",
+                    )
+                }
+
+                if (arbiterAfter.size > arbiterBefore.size && !acquired) {
+                    fail(
+                        step,
+                        ownerId = ownerId,
+                        event = event,
+                        before = before,
+                        after = after,
+                        commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
+                        message = "Invariant: token count increased but this owner did not acquire the DOWN token",
+                    )
+                }
+
+                if (!startedGesture) {
+                    val business = emitted.filter { isBusiness(it.command) }
+                    if (business.isNotEmpty()) {
+                        fail(
+                            step,
+                            ownerId = ownerId,
+                            event = event,
+                            before = before,
+                            after = after,
+                            commands = emitted,
+                            arbiterBefore = arbiterBefore,
+                            arbiterAfter = arbiterAfter,
+                            message = "Invariant: invalid/failed DOWN emitted business side-effects $business",
+                        )
+                    }
+                    if (arbiter.tokensForOwner(ownerId) > 0) {
+                        fail(
+                            step,
+                            ownerId = ownerId,
+                            event = event,
+                            before = before,
+                            after = after,
+                            commands = emitted,
+                            arbiterBefore = arbiterBefore,
+                            arbiterAfter = arbiterAfter,
+                            message = "Invariant: invalid/failed DOWN left an arbiter token for the owner",
+                        )
+                    }
+                }
             }
 
             // Invariant 2: CANCEL always leaves the machine in IDLE and releases the token.
@@ -582,10 +662,12 @@ class GestureMachineBehavioralStressTest {
                         before = before,
                         after = after,
                         commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
                         message = "Invariant 2: CANCEL did not leave snapshot IDLE (after=$after)",
                     )
                 }
-                if (arbiterHasTokenForOwner(ownerId)) {
+                if (arbiter.tokensForOwner(ownerId) > 0) {
                     fail(
                         step,
                         ownerId = ownerId,
@@ -593,6 +675,8 @@ class GestureMachineBehavioralStressTest {
                         before = before,
                         after = after,
                         commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
                         message = "Invariant 2: CANCEL left an arbiter token for owner $ownerId",
                     )
                 }
@@ -608,10 +692,12 @@ class GestureMachineBehavioralStressTest {
                         before = before,
                         after = after,
                         commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
                         message = "Invariant 3: UP after tracked gesture did not leave snapshot IDLE (after=$after)",
                     )
                 }
-                if (arbiterHasTokenForOwner(ownerId)) {
+                if (arbiter.tokensForOwner(ownerId) > 0) {
                     fail(
                         step,
                         ownerId = ownerId,
@@ -619,6 +705,8 @@ class GestureMachineBehavioralStressTest {
                         before = before,
                         after = after,
                         commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
                         message = "Invariant 3: UP after tracked gesture left an arbiter token for owner $ownerId",
                     )
                 }
@@ -640,6 +728,8 @@ class GestureMachineBehavioralStressTest {
                                 before = before,
                                 after = after,
                                 commands = emitted,
+                                arbiterBefore = arbiterBefore,
+                                arbiterAfter = arbiterAfter,
                                 message = "Invariant 4: more than one CommitBrightness for token $t",
                             )
                         }
@@ -654,6 +744,8 @@ class GestureMachineBehavioralStressTest {
                                 before = before,
                                 after = after,
                                 commands = emitted,
+                                arbiterBefore = arbiterBefore,
+                                arbiterAfter = arbiterAfter,
                                 message = "Invariant 5: more than one TriggerDoubleTap for token $t",
                             )
                         }
@@ -668,6 +760,8 @@ class GestureMachineBehavioralStressTest {
                                 before = before,
                                 after = after,
                                 commands = emitted,
+                                arbiterBefore = arbiterBefore,
+                                arbiterAfter = arbiterAfter,
                                 message = "Invariant 5: more than one TriggerLongPress for token $t",
                             )
                         }
@@ -687,6 +781,8 @@ class GestureMachineBehavioralStressTest {
                         before = before,
                         after = after,
                         commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
                         message = "Invariant 6: sliding state ${after.state} appeared from IDLE without a preceding DOWN",
                     )
                 }
@@ -699,6 +795,8 @@ class GestureMachineBehavioralStressTest {
                             before = before,
                             after = after,
                             commands = emitted,
+                            arbiterBefore = arbiterBefore,
+                            arbiterAfter = arbiterAfter,
                             message = "Invariant 6: transition to ${after.state} was caused by action ${event.actionMasked}, not MOVE",
                         )
                     }
@@ -710,6 +808,8 @@ class GestureMachineBehavioralStressTest {
                             before = before,
                             after = after,
                             commands = emitted,
+                            arbiterBefore = arbiterBefore,
+                            arbiterAfter = arbiterAfter,
                             message = "Invariant 6: transition to ${after.state} came from ${before.state}, not TRACKING",
                         )
                     }
@@ -721,6 +821,8 @@ class GestureMachineBehavioralStressTest {
                             before = before,
                             after = after,
                             commands = emitted,
+                            arbiterBefore = arbiterBefore,
+                            arbiterAfter = arbiterAfter,
                             message = "Invariant 6: sliding state requires a resolved config",
                         )
                     val effectiveAction = if (before.session.startPointerCount >= 2) {
@@ -738,6 +840,8 @@ class GestureMachineBehavioralStressTest {
                             before = before,
                             after = after,
                             commands = emitted,
+                            arbiterBefore = arbiterBefore,
+                            arbiterAfter = arbiterAfter,
                             message = "Invariant 6: transition to ${after.state} but |x-startX|=$delta <= threshold $threshold",
                         )
                     }
@@ -754,6 +858,8 @@ class GestureMachineBehavioralStressTest {
                             before = before,
                             after = after,
                             commands = emitted,
+                            arbiterBefore = arbiterBefore,
+                            arbiterAfter = arbiterAfter,
                             message = "Invariant 6: effectiveAction=$effectiveAction cannot produce a sliding state",
                         )
                     }
@@ -765,6 +871,8 @@ class GestureMachineBehavioralStressTest {
                             before = before,
                             after = after,
                             commands = emitted,
+                            arbiterBefore = arbiterBefore,
+                            arbiterAfter = arbiterAfter,
                             message = "Invariant 6: expected $expected from effectiveAction=$effectiveAction, got ${after.state}",
                         )
                     }
@@ -776,6 +884,8 @@ class GestureMachineBehavioralStressTest {
                             before = before,
                             after = after,
                             commands = emitted,
+                            arbiterBefore = arbiterBefore,
+                            arbiterAfter = arbiterAfter,
                             message = "Invariant 6: MOVE crossed vertical reset boundary yet produced ${after.state}",
                         )
                     }
@@ -792,14 +902,12 @@ class GestureMachineBehavioralStressTest {
                         before = before,
                         after = after,
                         commands = emitted,
+                        arbiterBefore = arbiterBefore,
+                        arbiterAfter = arbiterAfter,
                         message = "Invariant 8: business effect ${recorded.command} produced for detached owner ${recorded.ownerId}",
                     )
                 }
             }
-        }
-
-        private fun arbiterHasTokenForOwner(ownerId: Int): Boolean {
-            return readArbiterTokens().values.any { it == ownerId }
         }
 
         // ----------------------------------------------------------------------------------------
@@ -813,6 +921,8 @@ class GestureMachineBehavioralStressTest {
             before: GestureSnapshot? = null,
             after: GestureSnapshot? = null,
             commands: List<RecordingExecutor.RecordedCommand> = emptyList(),
+            arbiterBefore: Map<PhysicalGestureArbiter.Token, Int> = emptyMap(),
+            arbiterAfter: Map<PhysicalGestureArbiter.Token, Int> = emptyMap(),
             message: String,
         ): Nothing {
             val token = event?.let { tokenOf(it) }
@@ -833,7 +943,9 @@ class GestureMachineBehavioralStressTest {
                 if (commands.isNotEmpty()) {
                     appendLine("  commands emitted = $commands")
                 }
-                appendLine("  arbiter token state = ${readArbiterTokens()}")
+                appendLine("  arbiter before = $arbiterBefore")
+                appendLine("  arbiter after = $arbiterAfter")
+                appendLine("  current arbiter state = ${arbiter.heldTokens()}")
             }
             throw AssertionError(detail)
         }

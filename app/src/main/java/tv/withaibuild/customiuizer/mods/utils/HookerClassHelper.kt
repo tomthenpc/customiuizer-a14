@@ -205,6 +205,10 @@ class HookerClassHelper private constructor() {
                 before(callback)
             } catch (oom: OutOfMemoryError) {
                 throw oom
+            } catch (td: ThreadDeath) {
+                throw td
+            } catch (vme: VirtualMachineError) {
+                throw vme
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
             }
@@ -215,6 +219,10 @@ class HookerClassHelper private constructor() {
                 after(callback)
             } catch (oom: OutOfMemoryError) {
                 throw oom
+            } catch (td: ThreadDeath) {
+                throw td
+            } catch (vme: VirtualMachineError) {
+                throw vme
             } catch (t: Throwable) {
                 XposedHelpers.log(t)
             }
