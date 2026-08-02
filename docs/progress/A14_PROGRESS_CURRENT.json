@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-02T13:26:02.697292+08:00",
+  "generatedAt": "2026-08-02T13:57:30.234527+08:00",
   "smartState": {
     "Mode": "PROFESSIONAL_AUTONOMOUS_STEWARDSHIP",
     "CheckpointCount": "20",
@@ -17,26 +17,28 @@
     "LastCleanupCommit": "HEAD",
     "LastToolCreated": "tools/progress_snapshot.py",
     "LastFailureClass": "none",
-    "CurrentObjective": "P8 performance / R8 final review",
-    "ResumeTask": "after P8 continue P9 Java/Kotlin boundary or P10 ROM samples"
+    "CurrentObjective": "P6.5 Lifecycle owner inventory",
+    "CurrentObjectiveState": "BLOCKED",
+    "CurrentObjectiveStartEvidence": "git grep commands proved per-View onDetachedFromWindow calls controlCenterMachine.clear(ownerId) and PluginFactory.createPlugin binds ControlCenterGestureRuntimeHolder; no plugin/ClassLoader destruction entry found",
+    "NextObjectiveFirstAction": "git stash show --patch \"stash@{0}\"",
+    "ResumeTask": "classify stash@{0} and move to P11.2 CI preflight"
   },
   "progress": {
     "taskCounts": {
-      "total": 40,
-      "complete": 28,
-      "inProgress": 3,
-      "notStarted": 8
+      "total": 42,
+      "complete": 29,
+      "inProgress": 4,
+      "notStarted": 7
     },
     "issueCounts": {
       "COMPLETE": 11,
-      "CORE_COMPLETE": 1,
-      "IN_PROGRESS": 1,
+      "CORE_COMPLETE": 2,
       "TODO": 2,
       "BLOCKED_EXTERNAL": 1
     },
     "issueTotal": 16,
-    "issueComplete": 12,
-    "projectProgressPercent": 70.0,
+    "issueComplete": 13,
+    "projectProgressPercent": 69.0,
     "machineProgressPercent": 73.8
   },
   "tasks": [
@@ -138,7 +140,7 @@
     },
     {
       "title": "P6.5 Lifecycle owner inventory",
-      "state": "IN_PROGRESS"
+      "state": "STATIC_OWNER_COMPLETE"
     },
     {
       "title": "P7 \u2014 Runtime safety\u3001\u5e76\u53d1\u4e0e\u7f13\u5b58",
@@ -178,7 +180,15 @@
     },
     {
       "title": "P11 \u2014 \u6d4b\u8bd5\u3001CI \u4e0e\u6301\u7eed\u6784\u5efa",
-      "state": "TODO"
+      "state": "IN_PROGRESS"
+    },
+    {
+      "title": "P11.1 Local",
+      "state": "COMPLETE"
+    },
+    {
+      "title": "P11.2 CI",
+      "state": "IN_PROGRESS"
     },
     {
       "title": "P12 \u2014 \u6587\u6863\u3001dead code \u4e0e release candidate",

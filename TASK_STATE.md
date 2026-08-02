@@ -603,10 +603,13 @@ State: `COMPLETE`
 
 ## P6.5 Lifecycle owner inventory
 
-State: `IN_PROGRESS`
+State: `STATIC_OWNER_COMPLETE`
 
-- v4 audit 要求完整证明 `GestureMachine` snapshot/dependencies/configs 的 attach/detach 清理。
-- 生成 production lifecycle owner inventory 和测试，确保每个 owner 在 detach 时释放。
+- `PhoneStatusBarView` 和 `ControlCenterWindowViewImpl` 的 `onAttachedToWindow` / `onDetachedFromWindow` 已分别调用 `statusBarMachine.clear(ownerId)` 和 `controlCenterMachine.clear(ownerId)`。
+- `ControlCenterGestureRuntimeHolder.bind` 在检测到新 ClassLoader 时调用 `existing?.machine?.clear()`，确保旧 runtime 的机器状态释放。
+- `ControlCenterGestureRuntimeHolder.unbind()` 已提供并验证幂等，可在未来发现可靠的 plugin/ClassLoader 销毁钩子时接入。
+- 已生成 `docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md` 记录 owner 清单、释放边界与已知缺口。
+- `DEVICE_LIFECYCLE_ENTRY_BLOCKED`: 当前仓库、framework stub 和 ROM intelligence 文档中均未发现 `PluginInstance$PluginFactory` 的 `destroyPlugin` / `onPluginUnloaded` / `unload` 等可靠销毁入口，不猜测 Hook。
 
 ---
 
@@ -772,25 +775,41 @@ Feature semantics、process matrix、target matrix、retirement audit、runtime 
 
 # P11 — 测试、CI 与持续构建
 
-State: `TODO`
+State: `IN_PROGRESS`
 
 ## P11.1 Local
+
+State: `COMPLETE`
 
 稳定通过：
 
 ```text
-tools/verify.py full
-compileall
-Python unit tests
-Kotlin compile
-Java compile
-Android unit tests
-lint
-assembleDebug
-assembleDevelop
+python tools/verify.py full
+python -m compileall tools/*.py
+python -m unittest discover -s tools/tests -p "test_*.py"
+.\gradlew.bat --no-daemon compileDebugKotlin compileDebugJavaWithJavac
+.\gradlew.bat --no-daemon testDebugUnitTest
+.\gradlew.bat --no-daemon lintDebug
+.\gradlew.bat --no-daemon :app:assembleDebug
+.\gradlew.bat --no-daemon :app:assembleDevelop
+```
+
+退出码：
+
+```text
+0
+0
+0
+0
+0
+0
+0
+0
 ```
 
 ## P11.2 CI
+
+State: `IN_PROGRESS`
 
 唯一授权分支 push 后运行：
 
@@ -961,13 +980,13 @@ P0 完成后重建，不得删除未解决条目。
 | ARCH-001 | P1 | Registry | COMPLETE | 已盘点 Feature/Registry/Installer/state 并产出工具和文档 | P2 完成 |
 | API-001 | P1 | API 101/102 | COMPLETE | API 102-only 类型/调用已分类并文档化，API 101 路径保持完整 | P4 完成 |
 | GESTURE-001 | P1 | Gesture | COMPLETE | 唯一生产状态机、事件模型、side-effect gate、arbiter bound/cleanup、pointerCount contract 均已落地并通过测试 | P5.5 完成 |
-| LIFECYCLE-001 | P1 | SystemUI | CORE_COMPLETE | 核心生命周期 owner 盘点完成，P6.5 owner inventory / stale cleanup 仍在进行 | P6.5 完成后重审 |
+| LIFECYCLE-001 | P1 | SystemUI | CORE_COMPLETE | `PhoneStatusBarView` 与 `ControlCenterWindowViewImpl` 的 `onDetachedFromWindow` 已清理 per-owner；`ControlCenterGestureRuntimeHolder` 已提供 `unbind()`；plugin/ClassLoader 销毁入口未发现，标记 DEVICE_LIFECYCLE_ENTRY_BLOCKED | P6.5 完成后重审 |
 | ALG-001 | P1 | MainModule | COMPLETE | `SystemUiBootstrapCoordinator` 已提取，`MainModule` 只负责路由调用 | P3.2 完成 |
 | ALG-002 | P1 | Fatal | COMPLETE | `FatalErrors` helper 已创建，`MainModule` 所有 catch(Throwable) 已调用 `rethrowIfFatal` | P3.2 完成 |
 | ALG-003 | P1 | Gesture | COMPLETE | `GestureEvent` 新增 `activePointerCount`，默认归一化 `ACTION_UP`/`ACTION_POINTER_UP`；`GestureStateMachine` 使用 active 计数；测试已更新 | P5.5 完成 |
 | ALG-004 | P1 | Gesture | COMPLETE | `GestureSideEffectGate.filter` 改用 `commands.any(::isBusinessEffect)`，避免热路径分配中间列表 | P5.5 完成 |
 | ALG-005 | P1 | Gesture | COMPLETE | `PhysicalGestureArbiter` 已加 `MAX_HELD_TOKENS` 硬上限、`STALE_TOKEN_AGE_MS` 清理、`reapStaleTokens` 兜底；`GestureMachine` 在 UP/CANCEL/Reset/detach 时释放 token；测试覆盖 | P5.5 完成 |
-| ALG-006 | P1 | Lifecycle | IN_PROGRESS | 已给 `ControlCenterGestureRuntimeHolder` 增加 `unbind()` 以显式 `machine.clear()`；`StatusBar` 的 `onDetachedFromWindow` 已调用 `clear`；仍需把 `unbind` 接到控制中心 plugin/View 销毁生命周期 | P6.5 完成 |
+| ALG-006 | P1 | Lifecycle | CORE_COMPLETE | `ControlCenterGestureRuntimeHolder.unbind()` 已实现并测试；per-View `onDetachedFromWindow` 调用 `controlCenterMachine.clear(ownerId)`；新 ClassLoader 触发 `bind` 时清理旧 runtime；plugin/ClassLoader 销毁入口未发现，不猜测 Hook | P6.5 完成 |
 | ALG-007 | P1 | HotPath | COMPLETE | `SystemUIControlCenterHooks` 的 `onInterceptTouchEvent` 不再调用 `statusBarMachine.observe()`，避免未使用返回值的热路径计算 | P7.5 完成 |
 | DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |
 | CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |

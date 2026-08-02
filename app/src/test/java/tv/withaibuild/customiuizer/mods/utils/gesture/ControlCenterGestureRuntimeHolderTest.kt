@@ -206,6 +206,34 @@ class ControlCenterGestureRuntimeHolderTest {
         assertEquals(null, h.activeRuntime())
     }
 
+    @Test
+    fun unbind_twice_is_idempotent() {
+        val loader = FakeClassLoader()
+        val arbiter = PhysicalGestureArbiter()
+        val (h, _) = holder(BrightnessDisplayStub(), arbiter)
+
+        h.bind(loader)
+        h.unbind()
+        h.unbind()
+
+        assertEquals(0, arbiter.heldTokenCount())
+        assertEquals(null, h.activeRuntime())
+    }
+
+    @Test
+    fun bind_after_unbind_creates_new_runtime() {
+        val loader = FakeClassLoader()
+        val arbiter = PhysicalGestureArbiter()
+        val (h, _) = holder(BrightnessDisplayStub(), arbiter)
+
+        val runtimeA = h.bind(loader)
+        h.unbind()
+        val runtimeB = h.bind(loader)
+
+        assertNotSame(runtimeA, runtimeB)
+        assertEquals("cc-2", runtimeB.machine.classLoaderIdentity())
+    }
+
     private class FakeClassLoader : ClassLoader() {
         override fun toString(): String = "FakeClassLoader@${hashCode()}"
     }

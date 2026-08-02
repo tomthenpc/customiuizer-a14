@@ -1,7 +1,7 @@
 # A14 Progress Current
 
 ```text
-GeneratedAt: 2026-08-02T13:26:02.697292+08:00
+GeneratedAt: 2026-08-02T13:57:30.234527+08:00
 ```
 
 ## SMART State
@@ -23,15 +23,18 @@ GeneratedAt: 2026-08-02T13:26:02.697292+08:00
 | LastCleanupCommit | HEAD |
 | LastToolCreated | tools/progress_snapshot.py |
 | LastFailureClass | none |
-| CurrentObjective | P8 performance / R8 final review |
-| ResumeTask | after P8 continue P9 Java/Kotlin boundary or P10 ROM samples |
+| CurrentObjective | P6.5 Lifecycle owner inventory |
+| CurrentObjectiveState | BLOCKED |
+| CurrentObjectiveStartEvidence | git grep commands proved per-View onDetachedFromWindow calls controlCenterMachine.clear(ownerId) and PluginFactory.createPlugin binds ControlCenterGestureRuntimeHolder; no plugin/ClassLoader destruction entry found |
+| NextObjectiveFirstAction | git stash show --patch "stash@{0}" |
+| ResumeTask | classify stash@{0} and move to P11.2 CI preflight |
 
 ## Progress
 
-- ProjectProgress: 70.0%
+- ProjectProgress: 69.0%
 - MachineProgress: 73.8%
-- Tasks: 28 COMPLETE / 3 IN_PROGRESS / 8 not started of 40
-- Issues: 12 complete / 16 total
+- Tasks: 29 COMPLETE / 4 IN_PROGRESS / 7 not started of 42
+- Issues: 13 complete / 16 total
 
 ## Tasks
 
@@ -61,7 +64,7 @@ GeneratedAt: 2026-08-02T13:26:02.697292+08:00
 | P6.2 周期与监控 | COMPLETE |
 | P6.3 Bitmap/Drawable/View | COMPLETE |
 | P6.4 Launcher | COMPLETE |
-| P6.5 Lifecycle owner inventory | IN_PROGRESS |
+| P6.5 Lifecycle owner inventory | STATIC_OWNER_COMPLETE |
 | P7 — Runtime safety、并发与缓存 | COMPLETE |
 | P7.1 Fatal propagation | COMPLETE |
 | P7.2 Half-state cleanup | COMPLETE |
@@ -71,7 +74,9 @@ GeneratedAt: 2026-08-02T13:26:02.697292+08:00
 | P8 — 性能、内存、APK 与 R8 | TODO |
 | P9 — Java → Kotlin 最终收口 | TODO |
 | P10 — ROM intelligence | TODO |
-| P11 — 测试、CI 与持续构建 | TODO |
+| P11 — 测试、CI 与持续构建 | IN_PROGRESS |
+| P11.1 Local | COMPLETE |
+| P11.2 CI | IN_PROGRESS |
 | P12 — 文档、dead code 与 release candidate | TODO |
 | P13 — Discovery sweep | TODO |
 | P14 — MACHINE_COMPLETE | TODO |
