@@ -142,6 +142,10 @@ object GestureStateMachine {
         config: GestureConfig,
         geometry: GestureGeometry,
     ): Pair<GestureSnapshot, List<GestureCommand>> {
+        if (snapshot.state == GestureState.IDLE) {
+            return snapshot to emptyList()
+        }
+
         val session = snapshot.session
         val commands = mutableListOf<GestureCommand>()
 
@@ -149,7 +153,7 @@ object GestureStateMachine {
             commands.add(GestureCommand.CommitBrightness(session.currentBrightnessRatio))
         }
 
-        if (snapshot.state != GestureState.SLIDING_VOLUME) {
+        if (snapshot.state != GestureState.SLIDING_BRIGHTNESS && snapshot.state != GestureState.SLIDING_VOLUME) {
             val touchDelta = event.eventTime - session.lastTouchTime
             val touchXDelta = abs(event.x - session.lastTouchX)
             if (touchDelta in 1..249 && touchXDelta < 80f) {
@@ -169,7 +173,7 @@ object GestureStateMachine {
         commands.add(GestureCommand.Reset)
 
         var nextSession = session.copy(currentBrightnessRatio = -1f)
-        if (snapshot.state != GestureState.SLIDING_VOLUME) {
+        if (snapshot.state != GestureState.SLIDING_BRIGHTNESS && snapshot.state != GestureState.SLIDING_VOLUME) {
             val isDoubleTap = commands.any { it is GestureCommand.TriggerDoubleTap }
             if (!isDoubleTap) {
                 nextSession = nextSession.copy(lastTouchX = event.x, lastTouchTime = event.eventTime)

@@ -384,4 +384,73 @@ class GestureMachineTest {
 
         assertEquals(1, exec.brightnessApplied.size)
     }
+
+    @Test
+    fun upWithoutDown_doesNotTriggerDoubleTapOrLongPress() {
+        val (m, exec) = machine()
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 100f, y = 10f, eventTime = 100L), dummyContext)
+
+        assertTrue(exec.doubleTaps.isEmpty())
+        assertEquals(0, exec.longPresses)
+        assertTrue(exec.brightnessApplied.isEmpty())
+    }
+
+    @Test
+    fun cancelThenUp_doesNotCommitOrTriggerTap() {
+        val (m, exec) = machine()
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.CANCEL, x = 300f, y = 10f, eventTime = 60L, downTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L), dummyContext)
+
+        assertEquals(0, exec.brightnessCommitted.size)
+        assertTrue(exec.doubleTaps.isEmpty())
+        assertEquals(0, exec.longPresses)
+    }
+
+    @Test
+    fun brightnessSlideUp_onlyCommitsNoDoubleTapOrLongPress() {
+        val (m, exec) = machine()
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L), dummyContext)
+
+        assertEquals(1, exec.brightnessCommitted.size)
+        assertTrue(exec.doubleTaps.isEmpty())
+        assertEquals(0, exec.longPresses)
+    }
+
+    @Test
+    fun volumeSlideUp_doesNotDoubleTapOrLongPress() {
+        val (m, exec) = machine(testConfig = config.copy(singleAction = 3))
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L), dummyContext)
+
+        assertEquals(1, exec.volumeAdjusted.size)
+        assertTrue(exec.doubleTaps.isEmpty())
+        assertEquals(0, exec.longPresses)
+    }
+
+    @Test
+    fun newDownAbortsOldSession() {
+        val (m, exec) = machine()
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+
+        m.dispatch(event(GestureAction.DOWN, x = 500f, y = 10f, eventTime = 100L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 500f, y = 10f, eventTime = 150L, downTime = 100L), dummyContext)
+
+        assertEquals(1, exec.brightnessApplied.size)
+        assertEquals(0, exec.brightnessCommitted.size)
+    }
 }

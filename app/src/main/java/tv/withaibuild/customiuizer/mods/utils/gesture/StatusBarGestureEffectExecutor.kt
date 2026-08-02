@@ -85,8 +85,9 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
                     }
                     GlobalActions.handleAction(ctx, "system_statusbarcontrols_longpress")
                 }
-                GestureCommand.Reset -> { lastSentBrightnessRatio = -1f }
-                else -> { /* PassThrough / BeginTracking have no side effect here */ }
+                GestureCommand.Reset,
+                GestureCommand.BeginTracking -> { lastSentBrightnessRatio = -1f }
+                else -> { /* PassThrough has no side effect here */ }
             }
         }
     }
