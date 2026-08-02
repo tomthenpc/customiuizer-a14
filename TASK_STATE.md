@@ -964,7 +964,7 @@ P0 完成后重建，不得删除未解决条目。
 | ALG-002 | P1 | Fatal | COMPLETE | `FatalErrors` helper 已创建，`MainModule` 所有 catch(Throwable) 已调用 `rethrowIfFatal` | P3.2 完成 |
 | ALG-003 | P1 | Gesture | TODO | pointerCount contract 未在 production adapter 唯一归一化 | P5.5 完成 |
 | ALG-004 | P1 | Gesture | TODO | `commands.filter(::isBusinessEffect)` 在热路径创建中间列表 | P5.5 完成 |
-| ALG-005 | P1 | Gesture | TODO | `GestureArbiter` token map 无硬上限，UP/CANCEL/detach 时 token 可残留 | P5.5 完成 |
+| ALG-005 | P1 | Gesture | IN_PROGRESS | `PhysicalGestureArbiter` 已加 `MAX_HELD_TOKENS` 硬上限与 `STALE_TOKEN_AGE_MS` 清理，UP/CANCEL 释放仍存在，但 `GestureMachine` 已调用；需验证与 CANCEL 缺失测试 | P5.5 完成 |
 | ALG-006 | P1 | Lifecycle | TODO | `GestureMachine` 的 snapshot/dependencies/configs 依赖每个 detach 调用 clear；需完整 owner inventory | P6.5 完成 |
 | ALG-007 | P1 | HotPath | TODO | status bar intercept `observe()` 返回值未被使用，可能执行无效热路径计算 | P7.5 完成 |
 | DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |

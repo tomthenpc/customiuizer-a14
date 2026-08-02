@@ -17,6 +17,14 @@ class PhysicalGestureArbiter {
         val source: Int,
     )
 
+    /**
+     * Hard upper bound on the number of physical gesture tokens held at once.
+     *
+     * Exceeding this is treated as a stale/corrupted state and triggers cleanup
+     * before any further DOWN is accepted.
+     */
+    val maxHeldTokens: Int = MAX_HELD_TOKENS
+
     private val owners = mutableMapOf<Token, Int>()
 
     /**
@@ -32,6 +40,14 @@ class PhysicalGestureArbiter {
         val token = tokenOf(event)
         val existing = owners[token]
         if (existing == null) {
+            // Safety net for missing UP/CANCEL: a new DOWN implies a new gesture,
+            // so any token from a much older downTime is stale.
+            reapStaleTokens(event.downTime)
+
+            if (owners.size >= maxHeldTokens) {
+                return false
+            }
+
             owners[token] = ownerId
             return true
         }
@@ -69,6 +85,23 @@ class PhysicalGestureArbiter {
         }
     }
 
+    /**
+     * Remove tokens that are older than [STALE_TOKEN_AGE_MS] relative to [nowDownTime].
+     *
+     * This is the safety net for missing UP/CANCEL events: a new physical gesture
+     * should never share the same downTime as an old one, so any token old enough
+     * to outlive a reasonable gesture is considered stale.
+     */
+    fun reapStaleTokens(nowDownTime: Long) {
+        val cutoff = nowDownTime - STALE_TOKEN_AGE_MS
+        val iterator = owners.iterator()
+        while (iterator.hasNext()) {
+            if (iterator.next().key.downTime < cutoff) {
+                iterator.remove()
+            }
+        }
+    }
+
     /** Drop every held token, e.g. when the ClassLoader is torn down. */
     fun releaseAll() {
         owners.clear()
@@ -88,4 +121,9 @@ class PhysicalGestureArbiter {
 
     private fun tokenOf(event: GestureEvent): Token =
         Token(event.downTime, event.deviceId, event.source)
+
+    companion object {
+        const val MAX_HELD_TOKENS = 16
+        const val STALE_TOKEN_AGE_MS = 10_000L
+    }
 }
