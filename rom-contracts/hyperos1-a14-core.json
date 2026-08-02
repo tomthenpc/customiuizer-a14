@@ -21,8 +21,8 @@
     {
       "target": "systemui",
       "class": "Lcom/android/systemui/SystemUIInitializer;",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-      "sourceHookFunction": "onPackageReady",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/SystemUiBootstrapCoordinator.kt",
+      "sourceHookFunction": "install",
       "targetProcessPackage": "com.android.systemui",
       "methods": [
         {

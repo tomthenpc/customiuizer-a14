@@ -16,16 +16,35 @@ class SystemUiInstallerTest {
         )
 
         assertTrue(
-            "ReflectionCache.onSafeLifecycle must be called at package-ready for SystemUI",
-            section.contains("ReflectionCache.onSafeLifecycle(lpparam.getClassLoader());")
+            "MainModule must delegate SystemUI bootstrap to SystemUiBootstrapCoordinator",
+            section.contains("SystemUiBootstrapCoordinator.install(lpparam, mPrefs, this::initPrefs);")
+        )
+    }
+
+    @Test
+    fun coordinatorOwnsSystemUiLifecycle() {
+        val coordinator = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/SystemUiBootstrapCoordinator.kt")
+
+        assertTrue(
+            "SystemUiBootstrapCoordinator must install a hook on SystemUIInitializer.init",
+            coordinator.contains("com.android.systemui.SystemUIInitializer") &&
+                coordinator.contains("\"init\"")
         )
         assertTrue(
-            "MainModule must delegate non-essential SystemUI hooks to SystemUiInstaller",
-            section.contains("SystemUiInstaller.install(lpparam, mPrefs);")
+            "SystemUiBootstrapCoordinator must initialize ReflectionCache",
+            coordinator.contains("ReflectionCache.onSafeLifecycle")
         )
         assertTrue(
-            "10-second SystemUI restart helper must stay in MainModule",
-            section.contains("currentTime - restartTime < 10000")
+            "10-second restart guard must live in SystemUiBootstrapCoordinator",
+            coordinator.contains("currentTime - restartTime < restartThresholdMs")
+        )
+        assertTrue(
+            "SystemUiBootstrapCoordinator must delegate non-essential hooks to SystemUiInstaller",
+            coordinator.contains("SystemUiInstaller.install(lpparam, mPrefs)")
+        )
+        assertTrue(
+            "SystemUiBootstrapCoordinator must call FatalErrors.rethrowIfFatal in catch(Throwable)",
+            coordinator.contains("FatalErrors.rethrowIfFatal(")
         )
     }
 

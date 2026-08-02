@@ -9,27 +9,28 @@ import org.junit.Test
 class FastRebootContractTest {
 
     private val mainModule = source("app/src/main/java/tv/withaibuild/customiuizer/MainModule.java")
+    private val systemUiBootstrap = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/SystemUiBootstrapCoordinator.kt")
     private val hooks = source("app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActionSystemServerHooks.kt")
     private val actions = source("app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt")
     private val preferences = source("app/src/main/java/tv/withaibuild/customiuizer/PreferenceFragmentBase.kt")
 
     @Test
     fun fastRebootRegistersOnceWithoutDependingOnCustomActions() {
-        val registration = "GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext);"
+        val registration = "GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext)"
         val customActionGate =
-            "if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam);"
+            "if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)"
 
-        assertEquals(1, mainModule.countOccurrences(registration))
-        assertTrue(mainModule.indexOf(registration) < mainModule.indexOf(customActionGate))
+        assertEquals(1, systemUiBootstrap.countOccurrences(registration))
+        assertTrue(systemUiBootstrap.indexOf(registration) < systemUiBootstrap.indexOf(customActionGate))
         assertEquals(1, hooks.countOccurrences("\"fastRebootReceiver\""))
     }
 
     @Test
     fun customActionRegistrationConditionIsUnchanged() {
         val customActionGate =
-            "if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam);"
+            "if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)"
 
-        assertEquals(1, mainModule.countOccurrences(customActionGate))
+        assertEquals(1, systemUiBootstrap.countOccurrences(customActionGate))
     }
 
     @Test

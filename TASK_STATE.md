@@ -411,7 +411,7 @@ State: `IN_PROGRESS`
 | `GenericAppInstaller` 路由 | `REVERTED` | 尝试将 `isLauncherPkg` / `isStatusBarColor` / `isNoOverscroll` / `controlMedia` 移入 `GenericAppInstaller` 内部，但违反 `RemainingFeaturesWiringTest.installersNoLongerContainDirectPreferenceChecks` 不变量（installer 不得直接读取 `mPrefs`）。回退到 `MainModule` 计算并传参给 `GenericAppInstaller.installPostAttach(lpparam, mPrefs, ...)`。 |
 | `ProcessRouter` 事实源 | `COMPLETE` | `MainModule.onPackageReady` 使用 `ProcessRouter.resolve(pkg, processName)` 得到 `ProcessScope`。 |
 | `isFirstPackage` | `COMPLETE` | `MainModule.onPackageReady` 在开头检查 `!lpparam.isFirstPackage()` 并返回。 |
-| `SystemUI` 分支初始化 | `IN_PROGRESS` | v4 audit 确认 `MainModule` 仍包含 initializer hook、context、fast-reboot receiver、status-bar setup、preference watch、10s restart guard；需提取 `SystemUiBootstrapCoordinator`。 |
+| `SystemUI` 分支初始化 | `COMPLETE` | `MainModule` 已委托 `SystemUiBootstrapCoordinator.install`，coordinator 负责 hook、context、fast-reboot receiver、status-bar setup、preference watch、10s restart guard，然后调用 `SystemUiInstaller.install`。 |
 | `GenericAppEligibilityResolver` | `TODO` | 按 v4 方向：MainModule → GenericAppEligibilityResolver → immutable GenericAppSelection → GenericAppInstaller；resolver 读取 `mPrefs`，installer 只执行。 |
 | `helper/remote/isolated process` | `COMPLETE` | `ProcessScope.isInstallable` 拒绝 `SYSTEM_UI_PLUGIN`、`SETTINGS_REMOTE`、`SECURITY_CENTER_REMOTE`、`SECURITY_CENTER_BOOTAWARE`、`NETWORK_STACK`、`UNSUPORTED`。 |
 | `duplicate package handling` | `COMPLETE` | `MainModule.onPackageReady` 每个 `ProcessScope` 只调用一个 dedicated installer；`ProcessRouter.resolve` 保证 package→scope 唯一。 |
@@ -422,26 +422,25 @@ State: `IN_PROGRESS`
 
 ## P3.2 — SystemUI bootstrap 与 fatal 边界
 
-State: `IN_PROGRESS`
+State: `COMPLETE`
 
-- 提取 `SystemUiBootstrapCoordinator`，显式状态：`UNINITIALIZED` → `HOOK_INSTALLED` → `CONTEXT_READY` → `BASE_READY` → `PREFERENCE_READY` → `COMPLETE` / `FAILED_TRANSIENT`。
+- 提取 `SystemUiBootstrapCoordinator`：已完成，路径 `mods/utils/SystemUiBootstrapCoordinator.kt`，显式状态枚举 `UNINITIALIZED → HOOK_INSTALLED → CONTEXT_READY → BASE_READY → PREFERENCE_READY → COMPLETE / FAILED_TRANSIENT`。
 - 创建 `FatalErrors.rethrowIfFatal` / `FatalErrors.unwrapAndRethrowIfFatal` 共享 helper：已完成，路径 `mods/utils/FatalErrors.kt`。
 - 用 `FatalErrors.rethrowIfFatal` 替换 `MainModule` 中单独 rethrow `OutOfMemoryError` 的 `catch(Throwable)` 块：已完成。
-- 增加 `FatalErrorsTest` 和 `MainModuleFatalBoundaryTest`；已通过 Fast。
+- `MainModule.onPackageReady` 中 `ProcessScope.SYSTEM_UI` 分支现在只调用 `SystemUiBootstrapCoordinator.install(lpparam, mPrefs, this::initPrefs)`。
+- 更新 `rom-contracts/hyperos1-a14-core.json` sourceFile 指向 `SystemUiBootstrapCoordinator.kt`。
+- 更新 `SystemUiInstallerTest` 和 `FastRebootContractTest` 以验证新入口点与调用顺序。
+- 通过 `tools/verify.py full`（invariants + compile + test + lintDebug）。
 
 命令：
 
 ```text
-.\gradlew.bat --no-daemon compileDebugKotlin compileDebugJavaWithJavac
-.\gradlew.bat --no-daemon testDebugUnitTest --tests 'tv.withaibuild.customiuizer.mods.utils.FatalErrorsTest' --tests 'tv.withaibuild.customiuizer.MainModuleFatalBoundaryTest'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
+python tools/verify.py full
 ```
 
 退出码：
 
 ```text
-0
-0
 0
 ```
 
@@ -961,7 +960,7 @@ P0 完成后重建，不得删除未解决条目。
 | API-001 | P1 | API 101/102 | COMPLETE | API 102-only 类型/调用已分类并文档化，API 101 路径保持完整 | P4 完成 |
 | GESTURE-001 | P1 | Gesture | COMPLETE | 唯一生产状态机、事件模型、side-effect gate 和 stress tests 已通过 | P5 完成 |
 | LIFECYCLE-001 | P1 | SystemUI | COMPLETE | 已以当前 HEAD 重审 status bar custom View、icon group、周期监控和 Bitmap/Drawable/View 生命周期 | P6 完成 |
-| ALG-001 | P1 | MainModule | TODO | SystemUI bootstrap 仍在 MainModule（initializer hook / context / fast-reboot receiver / status-bar setup / preference watch / 10s restart guard） | P3.2 完成 |
+| ALG-001 | P1 | MainModule | COMPLETE | `SystemUiBootstrapCoordinator` 已提取，`MainModule` 只负责路由调用 | P3.2 完成 |
 | ALG-002 | P1 | Fatal | COMPLETE | `FatalErrors` helper 已创建，`MainModule` 所有 catch(Throwable) 已调用 `rethrowIfFatal` | P3.2 完成 |
 | ALG-003 | P1 | Gesture | TODO | pointerCount contract 未在 production adapter 唯一归一化 | P5.5 完成 |
 | ALG-004 | P1 | Gesture | TODO | `commands.filter(::isBusinessEffect)` 在热路径创建中间列表 | P5.5 完成 |

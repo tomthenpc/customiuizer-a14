@@ -713,3 +713,87 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode F
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Final
 ```
+
+---
+
+## 10. 长期产品与维护宪章（v5）
+
+本章节由仓库所有者通过 `A14_GOAL_EXTREME_V5.md` 与 `COMMON_LONG_HORIZON_CONSTITUTION_V5.md` 授权加入，补充长期治理，不扩大 A14 Android/ROM 产品边界。
+
+### 10.1 产品角色
+
+```text
+ProductRole: ANDROID_14_ACTIVE_STABLE_REFERENCE
+PrimaryPlatform: HyperOS 1 / Android 14
+DevelopmentPolicy: CORRECTNESS_AND_ARCHITECTURE_EVOLUTION
+FeaturePolicy: CONTROLLED
+CompatibilityPolicy: DEVICE_AND_CONTRACT_EVIDENCE
+```
+
+A14 同时承担：
+
+1. HyperOS 1 / Android 14 上稳定、低开销、可诊断的生产模块。
+2. 未来 Android/HyperOS 新仓库可继承的工程 reference 与迁移资产。
+
+第二项不得损害第一项。
+
+### 10.2 长期生命周期状态
+
+```text
+ACTIVE_HARDENING
+RELEASE_CANDIDATE
+STABLE
+LTS
+SECURITY_ONLY
+EXTERNAL_VALIDATION_REQUIRED
+ARCHIVE_READY
+ARCHIVED
+```
+
+- `ACTIVE_HARDENING`：当前状态。允许架构修复、性能优化、兼容补强和安全迁移。
+- `RELEASE_CANDIDATE`：机器门禁通过，等待真实设备、签名和最终回归。
+- `STABLE`：有正式设备证据、RC 和已知限制。
+- `LTS`：默认功能冻结，以稳定、兼容、构建恢复和高优先级修复为主。
+- `SECURITY_ONLY`：只处理 P0/P1、构建链失效、严重兼容、安全与供应链、设备 bootloop/fatal。
+- `ARCHIVE_READY`：源码可构建、依赖归档、artifact 可追溯、迁移资产已导出。
+- `ARCHIVED`：只读历史状态。
+
+### 10.3 永久不变量
+
+```text
+no silent fatal swallowing
+no wrong-process business install
+no duplicate business owner
+no false device evidence
+no mutable baseline
+no secret in repository
+no unbounded runtime container
+no user feature deletion without owner approval
+no current document contradicting current code
+no unsupported version marketing
+```
+
+### 10.4 发布阶段
+
+```text
+MACHINE_CANDIDATE
+DEVICE_CANDIDATE
+SIGNED_RC
+OWNER_APPROVED_RELEASE
+```
+
+Agent 只能推进到前三项，不能公开 `OWNER_APPROVED_RELEASE`、tag 或 Release。
+
+### 10.5 未来版本边界
+
+- A14 不直接扩展到 Android 15 / HyperOS 2+。
+- 新 Android/HyperOS 大版本必须新建仓库并独立验证。
+- A14 输出 `NEXT_REPO_BOOTSTRAP_KIT` 作为迁移资产。
+
+### 10.6 治理文档
+
+详细长期宪章、稳定性契约、性能预算、供应链与退役要求见：
+
+```text
+docs/governance/LONG_HORIZON_CONSTITUTION.md
+```

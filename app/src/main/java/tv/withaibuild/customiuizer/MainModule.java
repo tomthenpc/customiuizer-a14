@@ -1,9 +1,7 @@
 package tv.withaibuild.customiuizer;
 
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
-import android.provider.Settings;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -12,13 +10,11 @@ import io.github.libxposed.api.XposedModule;
 import io.github.libxposed.api.XposedModuleInterface;
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam;
-import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks;
 import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics;
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors;
 import tv.withaibuild.customiuizer.mods.utils.PreferenceBootstrap;
 import tv.withaibuild.customiuizer.mods.utils.ReflectionCache;
 import tv.withaibuild.customiuizer.mods.utils.SystemServerInstaller;
-import tv.withaibuild.customiuizer.mods.GlobalActions;
 import tv.withaibuild.customiuizer.mods.System;
 import tv.withaibuild.customiuizer.installers.AndroidPackageInstaller;
 import tv.withaibuild.customiuizer.installers.GenericAppInstaller;
@@ -31,11 +27,7 @@ import tv.withaibuild.customiuizer.installers.PhoneInstaller;
 import tv.withaibuild.customiuizer.installers.PowerKeeperInstaller;
 import tv.withaibuild.customiuizer.installers.SecurityCenterInstaller;
 import tv.withaibuild.customiuizer.installers.SettingsInstaller;
-import tv.withaibuild.customiuizer.installers.SystemUiInstaller;
-import tv.withaibuild.customiuizer.mods.SystemUIStatusBarHooks;
 import tv.withaibuild.customiuizer.mods.Various;
-import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback;
-import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook;
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper;
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks;
 import tv.withaibuild.customiuizer.mods.utils.XposedApiCapabilities;
@@ -46,6 +38,7 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureTarget;
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase;
 import tv.withaibuild.customiuizer.mods.utils.ProcessRouter;
 import tv.withaibuild.customiuizer.mods.utils.ProcessScope;
+import tv.withaibuild.customiuizer.mods.utils.SystemUiBootstrapCoordinator;
 import tv.withaibuild.customiuizer.mods.utils.feature.CommonPackageFeatures;
 import tv.withaibuild.customiuizer.utils.PrefMap;
 
@@ -173,100 +166,7 @@ public class MainModule extends XposedModule {
             MediaInstaller.install(lpparam, mPrefs);
         }
         if (scope == ProcessScope.SYSTEM_UI) {
-            ReflectionCache.onSafeLifecycle(lpparam.getClassLoader());
-
-            // 1. The SystemUIInitializer.init hook is always installed first. It is the only place
-            // where we can safely obtain a live Context and finish context-dependent init.
-            final boolean[] fastRebootReceiverReady = { false };
-            final boolean[] statusBarSetupDone = { false };
-            final boolean[] preferenceWatchDone = { false };
-
-            MethodHook initStatusBarHook = new MethodHook() {
-                private boolean isHooked = false;
-                @Override
-                protected void before(final BeforeHookCallback param) throws Throwable {
-                    if (isHooked || param.getThisObject() == null) return;
-
-                    Object mContextField;
-                    try {
-                        mContextField = XposedHelpers.getObjectField(param.getThisObject(), "mContext");
-                    } catch (OutOfMemoryError oom) {
-                        throw oom;
-                    } catch (Throwable t) {
-                        FatalErrors.rethrowIfFatal(t);
-                        XposedHelpers.log(t);
-                        return;
-                    }
-                    if (!(mContextField instanceof Context)) {
-                        XposedHelpers.log("MainModule: SystemUI mContext field is not a Context");
-                        return;
-                    }
-                    Context context = (Context) mContextField;
-                    if (context == null) {
-                        XposedHelpers.log("MainModule: SystemUI mContext is null in SystemUIInitializer.init, deferring context-dependent init");
-                        return;
-                    }
-
-                    try {
-                        if (!fastRebootReceiverReady[0]) {
-                            fastRebootReceiverReady[0] = GlobalActionSystemServerHooks.setupFastRebootReceiver(context);
-                        }
-                        if (!statusBarSetupDone[0]) {
-                            SystemUIStatusBarHooks.setupStatusBar(context);
-                            statusBarSetupDone[0] = true;
-                        }
-                        if (!preferenceWatchDone[0]) {
-                            preferenceWatchDone[0] = initPrefs();
-                        }
-                        if (fastRebootReceiverReady[0] && statusBarSetupDone[0] && preferenceWatchDone[0]) {
-                            isHooked = true;
-                            HookDiagnostics.printSummaryForStage("post-init");
-                        }
-                    } catch (OutOfMemoryError oom) {
-                        throw oom;
-                    } catch (Throwable t) {
-                        FatalErrors.rethrowIfFatal(t);
-                        XposedHelpers.log(t);
-                        // Do not set isHooked: one failed init step must not mark the whole pass as complete.
-                    }
-                }
-            };
-
-            ModuleHelper.findAndHookMethod("com.android.systemui.SystemUIInitializer", lpparam.getClassLoader(),
-                "init", boolean.class, initStatusBarHook);
-
-            // 2. Base hooks whose original install timing must never be skipped by the 10s restart check.
-            Context mContext = ModuleHelper.findContext(lpparam);
-            if (mContext != null) {
-                if (!fastRebootReceiverReady[0]) {
-                    fastRebootReceiverReady[0] = GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext);
-                }
-            } else {
-                XposedHelpers.log("MainModule: SystemUI context not ready at package ready, deferring FastReboot receiver");
-            }
-            if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam);
-
-            // 3. The 10s restart check is only allowed to skip the non-essential hooks below.
-            boolean skipNonEssential = false;
-            if (mContext != null) {
-                try {
-                    long restartTime = Settings.System.getLong(mContext.getContentResolver(), "systemui_restart_time", 0L);
-                    long currentTime = java.lang.System.currentTimeMillis();
-                    if (currentTime - restartTime < 10000) skipNonEssential = true;
-                } catch (OutOfMemoryError oom) {
-                    throw oom;
-                } catch (Throwable t) {
-                    FatalErrors.rethrowIfFatal(t);
-                    XposedHelpers.log(t);
-                }
-            }
-
-            if (skipNonEssential) {
-                HookDiagnostics.printSummaryForStage("onPackageReady");
-                return;
-            }
-
-            SystemUiInstaller.install(lpparam, mPrefs);
+            SystemUiBootstrapCoordinator.install(lpparam, mPrefs, this::initPrefs);
         }
 
         if (scope == ProcessScope.GUARD_PROVIDER) {
