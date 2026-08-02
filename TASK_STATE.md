@@ -328,7 +328,7 @@ MainModule、ProcessRouter、Installer、FeatureTarget、InstallPhase、scope li
 
 # P2 — Feature Registry 最终收口
 
-State: `TODO`
+State: `COMPLETE`
 
 任务：
 
@@ -344,20 +344,38 @@ State: `TODO`
 
 每个 Feature/批次：
 
-- [ ] identity
-- [ ] enabled/default
-- [ ] target
-- [ ] phase
-- [ ] lazy creation
-- [ ] exact hook behavior
-- [ ] disabled test
-- [ ] mismatch test
-- [ ] success test
-- [ ] idempotency
-- [ ] transient/permanent
-- [ ] fatal
-- [ ] inventory
-- [ ] no second route
+- [x] identity
+- [x] enabled/default
+- [x] target
+- [x] phase
+- [x] lazy creation
+- [x] exact hook behavior
+- [x] disabled test
+- [x] mismatch test
+- [x] success test
+- [x] idempotency
+- [x] transient/permanent
+- [x] fatal
+- [x] inventory
+- [x] no second route
+
+证据：
+
+- `mods/utils/feature/*.kt` 中 244 个 `LazyFeatureSpec(...)` 定义，全部使用 `FeatureInstallRegistry`。
+- `FeatureInstallRegistry` 实现 `isEnabled` 门控，`create()` 仅在 enabled 时调用。
+- `FeatureInstallState` 是单例 object，`HashMap<Int, FeatureState>`，跨 `FeatureInstallRegistry` 实例共享。
+- `FeatureInstallRegistryTest.kt` 覆盖：
+  - `installAll_onlyMatchesTargetAndPhase`
+  - `installAll_disabledFeatureSkipped`
+  - `installAll_idempotent`
+  - `separateRegistriesDoNotResetInstalledProcessState`
+  - `installAll_failureRecordedOnce`
+  - `installAll_exceptionBecomesTransient`
+  - `register_differentDefinitionSameIdThrows`
+  - `lazySpec_disabledFeatureDoesNotCreateDefinition`
+  - `lazySpec_enabledFeatureCreatesAndInstalls`
+  - `installOne_rethrowsOutOfMemoryErrorAndRollsBackState`
+  - `installOne_rethrowsOomFromCreatedDefinition`
 
 完成：
 
