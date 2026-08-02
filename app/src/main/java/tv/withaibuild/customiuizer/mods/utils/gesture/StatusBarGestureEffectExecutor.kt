@@ -14,6 +14,18 @@ import tv.withaibuild.customiuizer.utils.HookUtils
  */
 class StatusBarGestureEffectExecutor : GestureEffectExecutor {
 
+    /**
+     * Volume flags mirror the legacy GlobalActions implementation:
+     * FLAG_FROM_KEY, SHOW_UI, ALLOW_RINGER_MODES, PLAY_SOUND and VIBRATE.
+     */
+    internal companion object {
+        const val VOLUME_FLAGS = (1 shl 12) or
+            AudioManager.FLAG_SHOW_UI or
+            AudioManager.FLAG_ALLOW_RINGER_MODES or
+            AudioManager.FLAG_PLAY_SOUND or
+            AudioManager.FLAG_VIBRATE
+    }
+
     override fun execute(
         commands: List<GestureCommand>,
         dependencies: GestureDependencies,
@@ -48,7 +60,7 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
                     if (audioManager != null) {
                         val direction = if (command.raise) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
                         @Suppress("WrongConstant")
-                        audioManager.adjustVolume(direction, AudioManager.FLAG_PLAY_SOUND)
+                        audioManager.adjustVolume(direction, VOLUME_FLAGS)
                     }
                 }
                 is GestureCommand.TriggerDoubleTap -> {
