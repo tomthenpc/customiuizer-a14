@@ -85,16 +85,33 @@ class GestureMachine(
         val deps = dependencies[ownerId]!!
 
         val current = snapshots[ownerId] ?: GestureSnapshot()
+        val currentBrightness = if (event.actionMasked == GestureAction.DOWN) readBrightness(deps) else -1f
         val (next, commands) = GestureStateMachine.process(
             current,
             event,
             config,
-            deps.toGeometry(),
+            deps.toGeometry(currentBrightness),
         )
         snapshots[ownerId] = next
 
         val allowed = gate.filter(event.entry, event, commands)
         effectExecutor.execute(allowed, deps, config, context)
+    }
+
+    private fun readBrightness(deps: GestureDependencies): Float {
+        val method = deps.getBrightnessMethod ?: return -1f
+        return try {
+            method.invoke(deps.displayManager, deps.displayId) as? Float ?: -1f
+        } catch (err: Throwable) {
+            when (err) {
+                is OutOfMemoryError, is ThreadDeath, is VirtualMachineError -> throw err
+                is java.lang.reflect.InvocationTargetException -> when (val cause = err.targetException) {
+                    is OutOfMemoryError, is ThreadDeath, is VirtualMachineError -> throw cause
+                    else -> -1f
+                }
+                else -> -1f
+            }
+        }
     }
 
     private fun passThrough(event: GestureEvent): List<GestureCommand> {

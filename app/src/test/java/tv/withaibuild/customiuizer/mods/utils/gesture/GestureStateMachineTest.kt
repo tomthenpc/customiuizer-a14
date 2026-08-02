@@ -12,6 +12,7 @@ class GestureStateMachineTest {
         statusBarHeight = 80,
         minBacklight = 0.0f,
         maxBacklight = 1.0f,
+        currentBrightness = 0.5f,
     )
 
     private val config = GestureConfig(

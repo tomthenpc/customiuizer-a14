@@ -48,7 +48,7 @@ object GestureStateMachine {
             startY = event.y,
             startTime = event.eventTime,
             startPointerCount = event.pointerCount,
-            startBrightnessRatio = 0.5f,
+            startBrightnessRatio = geometry.currentBrightness,
             lastTouchX = snapshot.session.lastTouchX,
             lastTouchTime = snapshot.session.lastTouchTime,
             currentBrightnessRatio = -1f,
@@ -84,6 +84,9 @@ object GestureStateMachine {
                 3 -> GestureState.SLIDING_VOLUME
                 else -> GestureState.TRACKING
             }
+            if (nextState == GestureState.SLIDING_BRIGHTNESS && session.startBrightnessRatio < 0f) {
+                return snapshot to emptyList()
+            }
             if (nextState == snapshot.state) return snapshot to emptyList()
             val (nextSnapshot, commands) = handleMove(GestureSnapshot(nextState, session), event, config, geometry)
             return nextSnapshot to commands
@@ -103,6 +106,9 @@ object GestureStateMachine {
         geometry: GestureGeometry,
         session: GestureSession,
     ): Pair<GestureSnapshot, List<GestureCommand>> {
+        if (session.startBrightnessRatio < 0f) {
+            return snapshot to emptyList()
+        }
         val delta = event.x - session.startX
         val ratio = delta / geometry.screenWidth * config.brightnessSensitivityFactor
         var next = session.startBrightnessRatio + ratio

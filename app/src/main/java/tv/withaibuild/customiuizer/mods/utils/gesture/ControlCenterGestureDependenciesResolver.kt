@@ -40,6 +40,10 @@ class ControlCenterGestureDependenciesResolver : GestureDependenciesResolver {
                 res.getIdentifier("status_bar_height_default", "dimen", "android"),
             )
             val metrics = res.displayMetrics
+            val getBrightness = displayManager.javaClass.getMethod(
+                "getBrightness",
+                Int::class.java,
+            )
             val setTemporaryBrightness = displayManager.javaClass.getMethod(
                 "setTemporaryBrightness",
                 Int::class.java,
@@ -63,6 +67,7 @@ class ControlCenterGestureDependenciesResolver : GestureDependenciesResolver {
                     statusBarHeight = statusBarHeight,
                     screenWidth = metrics.widthPixels,
                     density = metrics.density,
+                    getBrightnessMethod = getBrightness,
                     setTemporaryBrightnessMethod = setTemporaryBrightness,
                     setBrightnessMethod = setBrightness,
                 ),

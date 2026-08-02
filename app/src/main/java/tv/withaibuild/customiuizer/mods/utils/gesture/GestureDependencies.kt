@@ -21,6 +21,7 @@ data class GestureDependencies(
     val statusBarHeight: Int,
     val screenWidth: Int,
     val density: Float,
+    val getBrightnessMethod: Method? = null,
     val setTemporaryBrightnessMethod: Method? = null,
     val setBrightnessMethod: Method? = null,
 )
