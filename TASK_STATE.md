@@ -825,7 +825,7 @@ State: `VERIFIED`
 
 # P10 — ROM intelligence
 
-State: `TODO`
+State: `IN_PROGRESS`
 
 ## P10.1 HyperOS 1 / Android 14 samples
 
@@ -849,9 +849,17 @@ State: `TODO`
 
 ## P10.3 Generated consistency
 
-State: `TODO`
+State: `VERIFIED_STATIC`
 
 Feature semantics、process matrix、target matrix、retirement audit、runtime routes 一致。
+
+证据：
+
+- `python tools/catalog_contract_probe.py --catalog ... --feature-id ... --matrix ...` 通过（`Catalog contract probe passed: 244 specs, 245 FeatureIds, 244 matrix rows`）
+- `python tools/ci_contract_scan.py --expected-branch devin/a14-rom-intelligence-audit --default-branch main` 通过（`CI contract scan passed: 2 workflow(s)`）
+- `python tools/check_document_contracts.py` 通过（`Document contract checks pass.`）
+- `python tools/progress_snapshot.py --check` 通过（`Progress snapshot is fresh.`）
+- Fast CI 30743003456 / job 91483652510 全部通过
 
 ---
 

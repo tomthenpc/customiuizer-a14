@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-02T16:39:19.212597+08:00",
-  "sourceCommit": "dcd238dfe8ddc8068754e14a625135a293c21532",
-  "sourceTree": "7de562237d085e9d0216e43ef32d4eccfbd4541e",
-  "verifiedTree": "b210ffe06ad96f449aba0d3e0d4cce69bff128e7",
+  "generatedAt": "2026-08-02T18:12:15.408135+08:00",
+  "sourceCommit": "1d1c8676ea32a019694bd0789c9c49fb57349105",
+  "sourceTree": "a9f63d5282fd90bc685b1c139c8445f7c43e2888",
+  "verifiedTree": "93534140994e6c793fe8fbc7ec34325f71d264d7",
   "verifiedMode": "Final",
-  "ciState": "PENDING",
-  "ciRun": "pending",
-  "ciJob": "A14 Fast CI",
-  "ciCommit": "dcd238df",
-  "projectProgress": 57.6,
-  "machineProgress": 60.7,
+  "ciState": "PASS",
+  "ciRun": "30743003456",
+  "ciJob": "91483652510",
+  "ciCommit": "1d1c8676ea32a019694bd0789c9c49fb57349105",
+  "projectProgress": 60.0,
+  "machineProgress": 63.1,
   "stage": "INTEGRATION_AND_EVIDENCE",
   "domainScores": {
     "Baseline and control": {
@@ -35,8 +35,8 @@
     },
     "ROM intelligence / compatibility": {
       "weight": 10,
-      "earned": 0.0,
-      "percent": 0.0
+      "earned": 2.33,
+      "percent": 23.3
     },
     "Java / Kotlin boundary": {
       "weight": 8,
@@ -554,9 +554,9 @@
       "id": "P10.3",
       "domain": "ROM intelligence / compatibility",
       "weight": 3.33,
-      "state": "TODO",
-      "factor": 0.0,
-      "earned": 0.0,
+      "state": "VERIFIED_STATIC",
+      "factor": 0.7,
+      "earned": 2.33,
       "bucket": "not_started",
       "evidence_level": "pending",
       "evidence_paths": [],
