@@ -14,6 +14,7 @@ import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam;
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam;
 import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks;
 import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics;
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors;
 import tv.withaibuild.customiuizer.mods.utils.PreferenceBootstrap;
 import tv.withaibuild.customiuizer.mods.utils.ReflectionCache;
 import tv.withaibuild.customiuizer.mods.utils.SystemServerInstaller;
@@ -105,6 +106,7 @@ public class MainModule extends XposedModule {
         try {
             java.lang.System.loadLibrary("dexkit");
         } catch (Throwable t) {
+            FatalErrors.rethrowIfFatal(t);
             HookDiagnostics.recordDexKit("dexkit", "loadLibrary", t.getClass().getName());
             XposedHelpers.log(t);
             throw t;
@@ -191,6 +193,7 @@ public class MainModule extends XposedModule {
                     } catch (OutOfMemoryError oom) {
                         throw oom;
                     } catch (Throwable t) {
+                        FatalErrors.rethrowIfFatal(t);
                         XposedHelpers.log(t);
                         return;
                     }
@@ -222,6 +225,7 @@ public class MainModule extends XposedModule {
                     } catch (OutOfMemoryError oom) {
                         throw oom;
                     } catch (Throwable t) {
+                        FatalErrors.rethrowIfFatal(t);
                         XposedHelpers.log(t);
                         // Do not set isHooked: one failed init step must not mark the whole pass as complete.
                     }
@@ -252,6 +256,7 @@ public class MainModule extends XposedModule {
                 } catch (OutOfMemoryError oom) {
                     throw oom;
                 } catch (Throwable t) {
+                    FatalErrors.rethrowIfFatal(t);
                     XposedHelpers.log(t);
                 }
             }

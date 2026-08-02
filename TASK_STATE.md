@@ -425,20 +425,22 @@ State: `IN_PROGRESS`
 State: `IN_PROGRESS`
 
 - 提取 `SystemUiBootstrapCoordinator`，显式状态：`UNINITIALIZED` → `HOOK_INSTALLED` → `CONTEXT_READY` → `BASE_READY` → `PREFERENCE_READY` → `COMPLETE` / `FAILED_TRANSIENT`。
-- 创建 `FatalErrors.rethrowIfFatal` / `FatalErrors.unwrapAndRethrowIfFatal` 共享 helper。
-- 用 helper 替换 `MainModule` 中单独 rethrow `OutOfMemoryError` 的 `catch(Throwable)` 块。
-- 增加 focused tests。
+- 创建 `FatalErrors.rethrowIfFatal` / `FatalErrors.unwrapAndRethrowIfFatal` 共享 helper：已完成，路径 `mods/utils/FatalErrors.kt`。
+- 用 `FatalErrors.rethrowIfFatal` 替换 `MainModule` 中单独 rethrow `OutOfMemoryError` 的 `catch(Throwable)` 块：已完成。
+- 增加 `FatalErrorsTest` 和 `MainModuleFatalBoundaryTest`；已通过 Fast。
 
 命令：
 
 ```text
 .\gradlew.bat --no-daemon compileDebugKotlin compileDebugJavaWithJavac
+.\gradlew.bat --no-daemon testDebugUnitTest --tests 'tv.withaibuild.customiuizer.mods.utils.FatalErrorsTest' --tests 'tv.withaibuild.customiuizer.MainModuleFatalBoundaryTest'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
 ```
 
 退出码：
 
 ```text
+0
 0
 0
 ```
@@ -960,7 +962,7 @@ P0 完成后重建，不得删除未解决条目。
 | GESTURE-001 | P1 | Gesture | COMPLETE | 唯一生产状态机、事件模型、side-effect gate 和 stress tests 已通过 | P5 完成 |
 | LIFECYCLE-001 | P1 | SystemUI | COMPLETE | 已以当前 HEAD 重审 status bar custom View、icon group、周期监控和 Bitmap/Drawable/View 生命周期 | P6 完成 |
 | ALG-001 | P1 | MainModule | TODO | SystemUI bootstrap 仍在 MainModule（initializer hook / context / fast-reboot receiver / status-bar setup / preference watch / 10s restart guard） | P3.2 完成 |
-| ALG-002 | P1 | Fatal | TODO | 部分 MainModule 只 rethrow OOM，catch(Throwable) 可能吞掉 ThreadDeath / VirtualMachineError / 包装 fatal | P3.2 完成 |
+| ALG-002 | P1 | Fatal | COMPLETE | `FatalErrors` helper 已创建，`MainModule` 所有 catch(Throwable) 已调用 `rethrowIfFatal` | P3.2 完成 |
 | ALG-003 | P1 | Gesture | TODO | pointerCount contract 未在 production adapter 唯一归一化 | P5.5 完成 |
 | ALG-004 | P1 | Gesture | TODO | `commands.filter(::isBusinessEffect)` 在热路径创建中间列表 | P5.5 完成 |
 | ALG-005 | P1 | Gesture | TODO | `GestureArbiter` token map 无硬上限，UP/CANCEL/detach 时 token 可残留 | P5.5 完成 |
