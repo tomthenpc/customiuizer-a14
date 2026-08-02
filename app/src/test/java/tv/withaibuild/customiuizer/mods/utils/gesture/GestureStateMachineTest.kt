@@ -102,15 +102,24 @@ class GestureStateMachineTest {
     }
 
     @Test
-    fun pointerDownAndUp_updatesPointerCount() {
+    fun pointerDownAndUp_updatesActivePointerCount() {
         val down = event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, pointerCount = 1)
         val (s1, _) = GestureStateMachine.process(GestureSnapshot(), down, config, geometry)
+        assertEquals(1, s1.session.startPointerCount)
+
         val ptrDown = event(GestureAction.POINTER_DOWN, x = 100f, y = 10f, eventTime = 50L, pointerCount = 2)
         val (s2, _) = GestureStateMachine.process(s1, ptrDown, config, geometry)
         assertEquals(2, s2.session.startPointerCount)
-        val ptrUp = event(GestureAction.POINTER_UP, x = 100f, y = 10f, eventTime = 60L, pointerCount = 1)
+
+        // Android reports pointerCount=2 for POINTER_UP while the active count after is 1.
+        val ptrUp = event(GestureAction.POINTER_UP, x = 100f, y = 10f, eventTime = 60L, pointerCount = 2)
         val (s3, _) = GestureStateMachine.process(s2, ptrUp, config, geometry)
         assertEquals(1, s3.session.startPointerCount)
+
+        // Final UP: raw pointerCount is 1, active count after release is 0.
+        val up = event(GestureAction.UP, x = 100f, y = 10f, eventTime = 70L, pointerCount = 1)
+        val (s4, _) = GestureStateMachine.process(s3, up, config, geometry)
+        assertEquals(0, s4.session.startPointerCount)
     }
 
     @Test

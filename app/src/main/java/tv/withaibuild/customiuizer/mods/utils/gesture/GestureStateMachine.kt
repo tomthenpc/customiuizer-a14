@@ -47,7 +47,7 @@ object GestureStateMachine {
             startX = event.x,
             startY = event.y,
             startTime = event.eventTime,
-            startPointerCount = event.pointerCount,
+            startPointerCount = event.activePointerCount,
             startBrightnessRatio = geometry.currentBrightness,
             lastTouchX = snapshot.session.lastTouchX,
             lastTouchTime = snapshot.session.lastTouchTime,
@@ -177,7 +177,10 @@ object GestureStateMachine {
 
         commands.add(GestureCommand.Reset)
 
-        var nextSession = session.copy(currentBrightnessRatio = -1f)
+        var nextSession = session.copy(
+            currentBrightnessRatio = -1f,
+            startPointerCount = event.activePointerCount,
+        )
         if (snapshot.state != GestureState.SLIDING_BRIGHTNESS && snapshot.state != GestureState.SLIDING_VOLUME) {
             val isDoubleTap = commands.any { it is GestureCommand.TriggerDoubleTap }
             if (!isDoubleTap) {
@@ -195,13 +198,13 @@ object GestureStateMachine {
 
     private fun handlePointerDown(snapshot: GestureSnapshot, event: GestureEvent): Pair<GestureSnapshot, List<GestureCommand>> {
         if (snapshot.state == GestureState.IDLE) return snapshot to emptyList()
-        val nextSession = snapshot.session.copy(startPointerCount = event.pointerCount)
+        val nextSession = snapshot.session.copy(startPointerCount = event.activePointerCount)
         return snapshot.copy(session = nextSession) to emptyList()
     }
 
     private fun handlePointerUp(snapshot: GestureSnapshot, event: GestureEvent): Pair<GestureSnapshot, List<GestureCommand>> {
         if (snapshot.state == GestureState.IDLE) return snapshot to emptyList()
-        val nextSession = snapshot.session.copy(startPointerCount = event.pointerCount)
+        val nextSession = snapshot.session.copy(startPointerCount = event.activePointerCount)
         return snapshot.copy(session = nextSession) to emptyList()
     }
 }

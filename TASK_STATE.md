@@ -962,7 +962,7 @@ P0 完成后重建，不得删除未解决条目。
 | LIFECYCLE-001 | P1 | SystemUI | CORE_COMPLETE | 核心生命周期 owner 盘点完成，P6.5 owner inventory / stale cleanup 仍在进行 | P6.5 完成后重审 |
 | ALG-001 | P1 | MainModule | COMPLETE | `SystemUiBootstrapCoordinator` 已提取，`MainModule` 只负责路由调用 | P3.2 完成 |
 | ALG-002 | P1 | Fatal | COMPLETE | `FatalErrors` helper 已创建，`MainModule` 所有 catch(Throwable) 已调用 `rethrowIfFatal` | P3.2 完成 |
-| ALG-003 | P1 | Gesture | TODO | pointerCount contract 未在 production adapter 唯一归一化 | P5.5 完成 |
+| ALG-003 | P1 | Gesture | COMPLETE | `GestureEvent` 新增 `activePointerCount`，默认归一化 `ACTION_UP`/`ACTION_POINTER_UP`；`GestureStateMachine` 使用 active 计数；测试已更新 | P5.5 完成 |
 | ALG-004 | P1 | Gesture | COMPLETE | `GestureSideEffectGate.filter` 改用 `commands.any(::isBusinessEffect)`，避免热路径分配中间列表 | P5.5 完成 |
 | ALG-005 | P1 | Gesture | IN_PROGRESS | `PhysicalGestureArbiter` 已加 `MAX_HELD_TOKENS` 硬上限与 `STALE_TOKEN_AGE_MS` 清理，UP/CANCEL 释放仍存在，但 `GestureMachine` 已调用；需验证与 CANCEL 缺失测试 | P5.5 完成 |
 | ALG-006 | P1 | Lifecycle | TODO | `GestureMachine` 的 snapshot/dependencies/configs 依赖每个 detach 调用 clear；需完整 owner inventory | P6.5 完成 |
