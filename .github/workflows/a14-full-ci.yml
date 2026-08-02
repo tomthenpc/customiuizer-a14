@@ -52,13 +52,22 @@ jobs:
 
           SDK_LIST="$(sdkmanager --list --channel=0)"
 
-          if printf '%s\n' "$SDK_LIST" | grep -qE '^[[:space:]]*platforms;android-37[[:space:]]*\|'; then
-            PLATFORM_PACKAGE="platforms;android-37"
-          elif printf '%s\n' "$SDK_LIST" | grep -qE '^[[:space:]]*platforms;android-CinnamonBun[[:space:]]*\|'; then
-            PLATFORM_PACKAGE="platforms;android-CinnamonBun"
-          else
+          PLATFORM_PACKAGE="$(
+            printf '%s\n' "$SDK_LIST" |
+              awk -F'|' '
+                /^[ \t]*platforms;android-37(\.[0-9]+)?[ \t]*\|/ ||
+                /^[ \t]*platforms;android-CinnamonBun[ \t]*\|/ {
+                  gsub(/^[ \t]+|[ \t]+$/, "", $1)
+                  print $1
+                }
+              ' |
+              sort -V |
+              tail -n 1
+          )"
+
+          if [ -z "$PLATFORM_PACKAGE" ]; then
             echo "::error::No Android 17 / API 37 platform package is available"
-            printf '%s\n' "$SDK_LIST" | grep -E 'platforms;android-(37|CinnamonBun)' || true
+            printf '%s\n' "$SDK_LIST" | grep -E 'platforms;android-(37(\.[0-9]+)?|CinnamonBun)' || true
             exit 1
           fi
 
