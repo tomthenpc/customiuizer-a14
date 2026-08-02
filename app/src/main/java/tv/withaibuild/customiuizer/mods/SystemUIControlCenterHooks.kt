@@ -831,6 +831,14 @@ object SystemUIControlCenterHooks {
                 }
             }
         })
+        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onDetachedFromWindow", object : MethodHook() {
+            override fun before(param: BeforeHookCallback) {
+                val thisObject = param.getThisObject() as? View ?: return
+                ModuleHelper.guarded {
+                    statusBarMachine.clear(System.identityHashCode(thisObject))
+                }
+            }
+        })
         ModuleHelper.hookAllMethods("com.android.systemui.shared.plugins.PluginInstance\$PluginFactory", lpparam.classLoader, "createPlugin", object : MethodHook() {
             private var isHooked = false
             override fun before(param: BeforeHookCallback) {
@@ -876,6 +884,14 @@ object SystemUIControlCenterHooks {
                         val thisObject = param.getThisObject() as? View ?: return
                         ModuleHelper.guarded {
                             controlCenterMachine.prepare(System.identityHashCode(thisObject), thisObject)
+                        }
+                    }
+                })
+                ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", loader, "onDetachedFromWindow", object : MethodHook() {
+                    override fun before(param: BeforeHookCallback) {
+                        val thisObject = param.getThisObject() as? View ?: return
+                        ModuleHelper.guarded {
+                            controlCenterMachine.clear(System.identityHashCode(thisObject))
                         }
                     }
                 })

@@ -344,4 +344,44 @@ class GestureMachineTest {
         assertEquals(1, exec.brightnessApplied.size)
         assertEquals(1, exec.volumeAdjusted.size)
     }
+
+    @Test
+    fun detachClearsOwnerState() {
+        val (m, exec) = machine()
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+
+        m.clear(1)
+
+        m.dispatch(event(GestureAction.MOVE, x = 400f, y = 10f, eventTime = 60L, downTime = 0L, ownerId = 1), dummyContext)
+
+        assertEquals(1, exec.brightnessApplied.size)
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 100L, ownerId = 1), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 150L, downTime = 100L, ownerId = 1), dummyContext)
+
+        assertEquals(2, exec.brightnessApplied.size)
+    }
+
+    @Test
+    fun repeatedAttachDetach_doesNotGrowMaps() {
+        val (m, exec) = machine()
+
+        repeat(1000) { index ->
+            m.prepare(1, dummyContext)
+            m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = index.toLong(), ownerId = 1), dummyContext)
+            m.clear(1)
+        }
+
+        assertTrue(exec.brightnessApplied.isEmpty())
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 1001L, ownerId = 1), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 1051L, downTime = 1001L, ownerId = 1), dummyContext)
+
+        assertEquals(1, exec.brightnessApplied.size)
+    }
 }
