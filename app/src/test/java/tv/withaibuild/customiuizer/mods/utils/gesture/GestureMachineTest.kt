@@ -313,4 +313,35 @@ class GestureMachineTest {
 
         assertEquals(2, exec.brightnessApplied.size)
     }
+
+    @Test
+    fun configChangeAppliesNextGestureOnly() {
+        var currentConfig = config
+        val exec = FakeGestureEffectExecutor()
+        val m = GestureMachine(
+            classLoaderIdentity = "cl-1",
+            configResolver = { currentConfig },
+            depsResolver = object : GestureDependenciesResolver {
+                override fun prepare(
+                    ownerId: Int,
+                    classLoaderIdentity: String,
+                    context: Any,
+                ): GestureDependenciesResult = GestureDependenciesResult.Ready(deps)
+            },
+            effectExecutor = exec,
+        )
+
+        m.prepare(1, dummyContext)
+
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        currentConfig = config.copy(singleAction = 3)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L), dummyContext)
+
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 200L), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 250L, downTime = 200L), dummyContext)
+
+        assertEquals(1, exec.brightnessApplied.size)
+        assertEquals(1, exec.volumeAdjusted.size)
+    }
 }

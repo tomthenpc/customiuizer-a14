@@ -37,6 +37,7 @@ import java.util.ArrayList
 import java.util.Comparator
 import java.lang.System
 import tv.withaibuild.customiuizer.utils.HookUtils
+import tv.withaibuild.customiuizer.mods.utils.gesture.GestureConfigPublisher
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureConfigResolver
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEntry
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEvent
@@ -776,9 +777,19 @@ object SystemUIControlCenterHooks {
     @JvmStatic
     fun StatusBarGesturesHook(lpparam: PackageReadyParam) {
         val arbiter = PhysicalGestureArbiter()
+        val configPublisher = GestureConfigPublisher(resolve = { GestureConfigResolver.resolve(MainModule.mPrefs) })
+        configPublisher.publish()
+
+        val statusBarObserver = object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) = ModuleHelper.guarded {
+                configPublisher.publish()
+            }
+        }
+        ModuleHelper.observePreferenceChange(statusBarObserver)
+
         val statusBarMachine = GestureMachine(
             classLoaderIdentity = lpparam.packageName.orEmpty(),
-            configResolver = { GestureConfigResolver.resolve(MainModule.mPrefs) },
+            configResolver = { configPublisher.get() },
             depsResolver = StatusBarGestureDependenciesResolver(lpparam.classLoader),
             effectExecutor = StatusBarGestureEffectExecutor(),
             arbiter = arbiter,
@@ -829,7 +840,7 @@ object SystemUIControlCenterHooks {
                 if (pluginLoader == null) pluginLoader = loader
                 val controlCenterMachine = GestureMachine(
                     classLoaderIdentity = loader.toString(),
-                    configResolver = { GestureConfigResolver.resolve(MainModule.mPrefs) },
+                    configResolver = { configPublisher.get() },
                     depsResolver = ControlCenterGestureDependenciesResolver(),
                     effectExecutor = StatusBarGestureEffectExecutor(),
                     arbiter = arbiter,
