@@ -792,15 +792,20 @@ State: `VERIFIED`
 
 `XposedHelpers.java` 的评估：
 
-- 该文件原始来源于 LSPosed，当前为 2136 行、87 KB，经过项目多次 runtime hardening 补丁；
-- 转换为 Kotlin 需要保持大量 `public static` 重载、异常契约和反射语义，风险高、收益低；
-- 按 `AGENTS.md` §18「不追求 100% Kotlin」，将其保留在 `docs/JAVA_BOUNDARY_ALLOWLIST.md` 的 `KEEP_JAVA_VENDOR_OR_GENERATED` 分类中。
+- LSPosed-derived GPL reflection/hooking core；
+- 2136 行、87 KB；
+- 大量 `public static` 重载；
+- checked `Throwable`、vararg、array、generic 和 nullability ABI；
+- allocation-sensitive reflection caches；
+- weak identity-key lifecycle；
+- 整体 Kotlin 迁移无已证明性能或维护收益；
+- 按 `AGENTS.md` §18「不追求 100% Kotlin」，保留在 `docs/JAVA_BOUNDARY_ALLOWLIST.md` 的 `KEEP_JAVA_REFLECTION_ABI` 分类中。
 
 剩余 Java 文件：
 
 - `MainModule.java` -> `KEEP_JAVA_FRAMEWORK_ENTRY`
+- `XposedHelpers.java` -> `KEEP_JAVA_REFLECTION_ABI`
 - `MemberUtilsX.java` -> `KEEP_JAVA_VENDOR_OR_GENERATED`
-- `XposedHelpers.java` -> `KEEP_JAVA_VENDOR_OR_GENERATED`
 
 无 `MIGRATE_TO_KOTLIN`、`KEEP_JAVA_TEMPORARY_BLOCKER` 或 `UNCLASSIFIED`。
 

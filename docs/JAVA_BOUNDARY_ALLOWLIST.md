@@ -21,12 +21,17 @@ No `KEEP_JAVA_TEMPORARY_BLOCKER` or `UNCLASSIFIED` files are allowed at PROJECT_
 |------|--------|
 | `app/src/main/java/tv/withaibuild/customiuizer/MainModule.java` | The libxposed `XposedModule` entry point. The framework discovers and instantiates this class by class name; converting it to Kotlin would change the compile-time class/signature and require a matching Xposed manifest update. Keep as Java. |
 
+### KEEP_JAVA_REFLECTION_ABI
+
+| File | Reason |
+|------|--------|
+| `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/XposedHelpers.java` | LSPosed-derived GPL reflection/hooking core (2136 lines, 87 KB). It exposes a large public static surface with checked `Throwable`, vararg, array, generic and nullability ABI; allocation-sensitive reflection caches; weak identity-key lifecycle. Converting to Kotlin would require preserving all of that with `@JvmStatic`, `@JvmOverloads`, `@JvmName`, `@Throws` and array-invariance semantics for no proven performance or maintainability gain. Kept as the stable Java reflection ABI boundary. |
+
 ### KEEP_JAVA_VENDOR_OR_GENERATED
 
 | File | Reason |
 |------|--------|
 | `app/src/main/java/org/apache/commons/lang3/reflect/MemberUtilsX.java` | Third-party Apache Commons Lang 3 patch for `MemberUtils`; not project code, should not be migrated. |
-| `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/XposedHelpers.java` | Originally from LSPosed, now a stable, project-patched reflection/utility helper (2136 lines). Converting to Kotlin would require preserving a very large surface of static overloads, exception contracts and reflection semantics with marginal maintainability gain. Per AGENTS.md §18 the project does not require 100% Kotlin; this file is retained as a vendor-derived utility. |
 
 ### MIGRATED (now `.kt`)
 
@@ -51,7 +56,7 @@ P9.2 is complete. The remaining production Java files are:
 
 ```text
 MainModule.java          -> KEEP_JAVA_FRAMEWORK_ENTRY
-XposedHelpers.java       -> KEEP_JAVA_VENDOR_OR_GENERATED
+XposedHelpers.java       -> KEEP_JAVA_REFLECTION_ABI
 MemberUtilsX.java        -> KEEP_JAVA_VENDOR_OR_GENERATED
 ```
 
