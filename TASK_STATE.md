@@ -919,6 +919,7 @@ State: `VERIFIED_CI`
 
 证据：
 
+- Fast CI run 30747399434 / job 91495213418 在 commit 782b3e50 全部通过；
 - Fast CI job 91462556688 因 `platforms;android-37` 包名不存在而失败；
 - 已把 Fast/Full workflow 改为先运行 `sdkmanager --list --channel=0` 探测 API 37 平台包（`platforms;android-37` 或 `platforms;android-CinnamonBun`）和 build-tools 37.x；
 - 已移除 `app/build.gradle.kts` 中硬编码的 `buildToolsVersion`，让 AGP 选择已安装兼容版本；
