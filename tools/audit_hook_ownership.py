@@ -54,6 +54,8 @@ def classify(path: Path, line: int, text: str) -> str:
         return "INSTALLER_INFRASTRUCTURE"
     if "PreferenceObserverRegistry" in rel:
         return "INSTALLER_INFRASTRUCTURE"
+    if "SystemUiBootstrapCoordinator" in rel:
+        return "INSTALLER_INFRASTRUCTURE"
     return "UNKNOWN"
 
 

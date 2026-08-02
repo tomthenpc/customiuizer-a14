@@ -761,8 +761,8 @@ Total hook call sites scanned: 756
 | `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 471 | `?` | `val ok = XposedHelpers.hookAllMethods(hookClass, methodName, callback).isNotEmpty()` |
 | `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 580 | `?` | `val userHandle = XposedHelpers.newInstance(UserHandle::class.java, user) as UserHandle` |
 | `tv/withaibuild/customiuizer/mods/utils/PreferenceObserverRegistry.kt` | 55 | `?` | `XposedHelpers.setAdditionalInstanceField(owner, PREF_OBSERVER_FIELD, prefObserver)` |
+| `tv/withaibuild/customiuizer/mods/utils/SystemUiBootstrapCoordinator.kt` | 103 | `before` | `ModuleHelper.findAndHookMethod(` |
 | `tv/withaibuild/customiuizer/installers/GenericAppInstaller.java` | 30 | `installPostAttach` | `ModuleHelper.findAndHookMethod(` |
-| `tv/withaibuild/customiuizer/MainModule.java` | 231 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.SystemUIInitializer", lpparam.getClassLoader(),` |
 
 ## API_BRIDGE
 

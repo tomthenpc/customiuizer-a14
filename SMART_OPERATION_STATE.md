@@ -2,20 +2,20 @@
 
 ```text
 Mode: PROFESSIONAL_AUTONOMOUS_STEWARDSHIP
-CheckpointCount: 13
-CheckpointsSinceStandardSweep: 2
-CheckpointsSinceDeepSweep: 13
-LastQualifyingCheckpoint: add5ba52
-LastLightSweepCommit: add5ba52
+CheckpointCount: 14
+CheckpointsSinceStandardSweep: 3
+CheckpointsSinceDeepSweep: 14
+LastQualifyingCheckpoint: 8cb27bf2
+LastLightSweepCommit: 8cb27bf2
 LastStandardSweepCommit: 59a93b9c
 LastDeepSweepCommit: pending
-LastFullVerificationCommit: add5ba52
+LastFullVerificationCommit: 8cb27bf2
 LastCIState: NOT_CONFIGURED
 LastCleanupCommit: pending
 LastToolCreated: scripts/check-signing-config.ps1
 LastFailureClass: RemainingFeaturesWiringTest.installersNoLongerContainDirectPreferenceChecks
-CurrentObjective: A14 signing config (gradle property + check script + docs + AGENTS)
-ResumeTask: P3.5 GenericAppEligibilityResolver
+CurrentObjective: Deep sweep v6: fix UNKNOWN hook ownership, progress generator, APK baseline
+ResumeTask: P5.5 pointer contract after deep sweep
 ```
 
 本文件只记录执行节奏，不保存、替代或重置产品任务。

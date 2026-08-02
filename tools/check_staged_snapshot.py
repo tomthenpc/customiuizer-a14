@@ -62,6 +62,7 @@ def check_staged_snapshot(commit_msg_path: str | None = None, is_qualifying: boo
     has_state = any(p.name in {"TASK_STATE.md", "SMART_OPERATION_STATE.md"} for p in files)
 
     for p in files:
+        p = p if p.is_absolute() else REPO_ROOT / p
         rel = p.relative_to(REPO_ROOT).as_posix()
         if rel == "tools/check_staged_snapshot.py":
             continue
