@@ -16,17 +16,18 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 
 
-@dataclass(frozen=True)
+@dataclass
 class Finding:
     rule: str
     path: str
     line: int
     snippet: str
+    disposition: str = "pending"
 
     @property
     def fingerprint(self) -> str:
         normalized = re.sub(r"\s+", " ", self.snippet.strip())
-        raw = f"{self.rule}\0{self.path}\0{normalized}".encode()
+        raw = f"{self.rule}\0{self.path}\0{self.line}\0{normalized}".encode()
         return hashlib.sha256(raw).hexdigest()[:20]
 
 
@@ -167,6 +168,157 @@ def find_block_end(text: str, open_brace_offset: int) -> int:
     return -1
 
 
+def _advance_past_string_or_comment(text: str, start: int) -> int:
+    """Return the first offset >= start that is not inside a string or comment.
+
+    Assumes the caller is positioned just before the opening delimiter.
+    """
+    i = start
+    n = len(text)
+    if i >= n:
+        return n
+    state = "normal"
+    while i < n:
+        c = text[i]
+        if state == "normal":
+            if c == '"':
+                state = "string"
+            elif c == "'":
+                state = "char"
+            elif c == "/" and i + 1 < n:
+                nxt = text[i + 1]
+                if nxt == "/":
+                    state = "line_comment"
+                    i += 1
+                elif nxt == "*":
+                    state = "block_comment"
+                    i += 1
+            i += 1
+        elif state == "string":
+            if c == "\\" and i + 1 < n:
+                i += 1
+            elif c == '"':
+                state = "normal"
+                return i + 1
+            i += 1
+        elif state == "char":
+            if c == "\\" and i + 1 < n:
+                i += 1
+            elif c == "'":
+                state = "normal"
+                return i + 1
+            i += 1
+        elif state == "line_comment":
+            if c == "\n":
+                state = "normal"
+                return i + 1
+            i += 1
+        elif state == "block_comment":
+            if c == "*" and i + 1 < n and text[i + 1] == "/":
+                state = "normal"
+                i += 1
+                return i + 1
+            i += 1
+    return n
+
+
+def _find_block_body_end(text: str, start: int) -> int:
+    """For a `fun` or `init` token at [start], find the matching `}` of its body.
+
+    Returns -1 for expression bodies, abstract/no-body declarations, or invalid syntax.
+    """
+    n = len(text)
+    i = _advance_past_string_or_comment(text, start)
+    state = "normal"
+    paren_depth = 0
+    seen_equals = False
+    while i < n:
+        c = text[i]
+        if state == "normal":
+            if c == '"':
+                state = "string"
+                i += 1
+                continue
+            if c == "'":
+                state = "char"
+                i += 1
+                continue
+            if c == "/" and i + 1 < n:
+                nxt = text[i + 1]
+                if nxt == "/":
+                    state = "line_comment"
+                    i += 2
+                    continue
+                if nxt == "*":
+                    state = "block_comment"
+                    i += 2
+                    continue
+            if c == "(":
+                paren_depth += 1
+            elif c == ")":
+                if paren_depth > 0:
+                    paren_depth -= 1
+            elif c == "=" and paren_depth == 0:
+                seen_equals = True
+            elif c == "{" and paren_depth == 0:
+                if seen_equals:
+                    return -1
+                return find_block_end(text, i)
+            elif c == ";" or c == "\n":
+                if seen_equals:
+                    # Expression body without a block.
+                    return -1
+            i += 1
+        elif state == "string":
+            if c == "\\" and i + 1 < n:
+                i += 2
+                continue
+            if c == '"':
+                state = "normal"
+            i += 1
+        elif state == "char":
+            if c == "\\" and i + 1 < n:
+                i += 2
+                continue
+            if c == "'":
+                state = "normal"
+            i += 1
+        elif state == "line_comment":
+            if c == "\n":
+                state = "normal"
+            i += 1
+        elif state == "block_comment":
+            if c == "*" and i + 1 < n and text[i + 1] == "/":
+                state = "normal"
+                i += 1
+            i += 1
+    return -1
+
+
+def kotlin_function_and_init_ranges(text: str) -> list[tuple[int, int]]:
+    """Return (start, end) offsets of Kotlin `fun` and `init` block bodies."""
+    ranges: list[tuple[int, int]] = []
+    token_pattern = re.compile(r"\b(?:fun|init)\b")
+    i = 0
+    n = len(text)
+    while True:
+        m = token_pattern.search(text, i)
+        if not m:
+            break
+        i = m.end()
+        # Skip if the token is inside a string or comment.
+        probe = _advance_past_string_or_comment(text, m.start())
+        if probe <= m.start():
+            continue
+        end = _find_block_body_end(text, m.start())
+        if end > 0:
+            # The body starts at the `{` we just found; store the open offset for containment checks.
+            body_open = text.rfind("{", m.start(), end)
+            if body_open >= 0:
+                ranges.append((body_open, end))
+    return ranges
+
+
 def check_catch_throwable_fatal(path: Path, repo_root: Path, text: str) -> list[Finding]:
     """Catch(Throwable) requires visible fatal propagation in the local block."""
     rel = path.relative_to(repo_root).as_posix()
@@ -203,6 +355,13 @@ def check_catch_throwable_fatal(path: Path, repo_root: Path, text: str) -> list[
     return findings
 
 
+def _inside_any(offset: int, ranges: list[tuple[int, int]]) -> bool:
+    for start, end in ranges:
+        if start < offset < end:
+            return True
+    return False
+
+
 def scan_file(path: Path, repo_root: Path) -> list[Finding]:
     try:
         text = path.read_text(encoding="utf-8")
@@ -210,8 +369,11 @@ def scan_file(path: Path, repo_root: Path) -> list[Finding]:
         return []
     rel = path.relative_to(repo_root).as_posix()
     findings: list[Finding] = []
+    fun_ranges = kotlin_function_and_init_ranges(text) if path.suffix == ".kt" else []
     for rule, pattern, _ in RULES:
         for match in pattern.finditer(text):
+            if rule == "STATIC_STRONG_ANDROID_OWNER" and fun_ranges and _inside_any(match.start(), fun_ranges):
+                continue
             line = line_number(text, match.start())
             source_line = text.splitlines()[line - 1] if text.splitlines() else ""
             if f"BRUTAL_ALLOW:{rule}" in source_line:
@@ -223,7 +385,7 @@ def scan_file(path: Path, repo_root: Path) -> list[Finding]:
     return findings
 
 
-def collect(root: Path, paths: list[str]) -> list[Finding]:
+def collect(root: Path, paths: list[str], baseline: dict[str, str] | None = None) -> list[Finding]:
     findings: list[Finding] = []
     seen: set[str] = set()
     for raw in paths:
@@ -238,15 +400,22 @@ def collect(root: Path, paths: list[str]) -> list[Finding]:
                 if f.fingerprint in seen:
                     continue
                 seen.add(f.fingerprint)
+                if baseline is not None:
+                    f.disposition = baseline.get(f.fingerprint, "pending")
                 findings.append(f)
     return findings
 
 
-def load_baseline(path: Path) -> set[str]:
+def load_baseline(path: Path) -> dict[str, str]:
     if not path.exists():
-        return set()
+        return {}
     data = json.loads(path.read_text(encoding="utf-8"))
-    return set(data.get("fingerprints", []))
+    by_fingerprint: dict[str, str] = {}
+    for entry in data.get("findings", []):
+        fp = entry.get("fingerprint")
+        if fp:
+            by_fingerprint[fp] = entry.get("disposition", "pending")
+    return by_fingerprint
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -272,13 +441,25 @@ def main(argv: list[str] | None = None) -> int:
 
     root = Path(args.repo_root).resolve()
     paths = args.path or SCOPES[args.scope]
-    findings = collect(root, paths)
     baseline_path = root / args.baseline
+    baseline = load_baseline(baseline_path) if baseline_path.exists() else {}
+    findings = collect(root, paths, baseline=baseline)
 
     if args.write_baseline:
         baseline_path.parent.mkdir(parents=True, exist_ok=True)
+        accepted = {f.fingerprint for f in findings}
+        # Preserve dispositions from an existing baseline, default new findings to accepted.
+        if baseline_path.exists():
+            old = load_baseline(baseline_path)
+        else:
+            old = {}
+        for f in findings:
+            if f.fingerprint in old:
+                f.disposition = old[f.fingerprint]
+            else:
+                f.disposition = "accepted"
         payload = {
-            "schema": 2,
+            "schema": 3,
             "scope": paths,
             "fingerprints": sorted({f.fingerprint for f in findings}),
             "findings": [dict(asdict(f), fingerprint=f.fingerprint) for f in findings],
@@ -287,8 +468,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Wrote baseline with {len(findings)} finding(s): {baseline_path}")
         return 0
 
-    baseline = set() if args.strict_all else load_baseline(baseline_path)
-    new_findings = [f for f in findings if f.fingerprint not in baseline]
+    if args.strict_all:
+        new_findings = [f for f in findings if f.disposition == "pending"]
+    else:
+        new_findings = [f for f in findings if f.fingerprint not in baseline]
     payload = {
         "total": len(findings),
         "baseline": len(baseline),
