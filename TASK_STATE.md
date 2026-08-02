@@ -3,7 +3,7 @@
 ## 0. 控制状态
 
 ```text
-OverallState: READY_FOR_BASELINE
+OverallState: BASELINE_LOCKED
 CompletionTarget: PROJECT_COMPLETE
 Repository: tomthenpc/customiuizer-a14
 AuthorizedBranch: devin/a14-rom-intelligence-audit
@@ -198,22 +198,41 @@ PRE_EXISTING (now fixed)
 
 ## P0.4 全量 inventory
 
-State: `TODO`
+State: `COMPLETE`
 
 生成：
 
-- Feature IDs/specs/definitions；
-- Registry/Installer/state；
-- Hook entries；
-- process/phase；
-- API 101/102；
-- gesture production path；
-- Receiver/Observer/View/Bitmap owner；
-- Java/Kotlin；
-- tests/tools/docs；
-- ROM/target/process matrix；
-- APK/R8 size；
-- device evidence。
+| 项 | 输出 | 状态 |
+|---|---|---|
+| Feature IDs/specs/definitions | `feature-semantics/a14.json` (1053 entries) | COMPLETE |
+| Registry/Installer/state | `docs/rom-intelligence/A14_PROCESS_MATRIX.{json,csv,md}` (240 features) | COMPLETE |
+| process/phase | `A14_PROCESS_MATRIX` + `A14_PROCESS_EXCEPTIONS_GENERATED.md` | COMPLETE |
+| APK/R8 size | `docs/performance/A14_APK_SIZE_BASELINE{,_DEVELOP}.json` | COMPLETE |
+| Hook entries | 待 P1.2 详细分类 | TODO |
+| API 101/102 | 待 P4 详细分类 | TODO |
+| gesture production path | 待 P5 盘点 | TODO |
+| Receiver/Observer/View/Bitmap owner | 待 P6 盘点 | TODO |
+| Java/Kotlin | 待 P9 盘点 | TODO |
+| ROM/target/process matrix | 机械生成；ROM 样本 catalog 待 P10 | COMPLETE (machine), EXTERNAL (samples) |
+| device evidence | `NOT_EXERCISED` | BLOCKED_EXTERNAL |
+
+命令：
+
+```text
+python tools/audit-feature-semantics.py --init
+python tools/extract_process_matrix.py
+python tools/apk_size_report.py ... --out docs/performance/A14_APK_SIZE_BASELINE.json
+python tools/apk_size_report.py ... --out docs/performance/A14_APK_SIZE_BASELINE_DEVELOP.json
+```
+
+退出码：
+
+```text
+0
+0
+0
+0
+```
 
 完成后：
 
@@ -227,16 +246,32 @@ OverallState: BASELINE_LOCKED
 
 ## P1.1 Feature identity
 
-State: `TODO`
+State: `COMPLETE`
 
 验证：
 
-- stable ID 唯一；
-- name/canonical identity 唯一；
-- no duplicate registration；
-- no orphan spec；
-- no unknown install route；
-- semantics inventory 与代码一致。
+- stable ID 唯一：`FeatureIds.kt` 245 个 entry，id 范围 0..244，无重复 id 或 name。
+- name/canonical identity 唯一：所有 `override val name` 无重复。
+- no duplicate registration：`FeatureInstallRegistry.register` 使用 `putIfAbsent` 并在冲突时抛异常；`tools/audit-feature-semantics.py --validate` 通过。
+- no orphan spec：`extract_process_matrix.py` 扫描 `mods/utils/feature/*.kt` 中所有 `LazyFeatureSpec(...)`，生成 240 行 feature matrix，与 `FeatureIds.kt` 一致。
+- no unknown install route：12 个 `installers/*.java` 全部通过 `FeatureInstallRegistry` 注册和安装；无其他手工绕过 Registry 的安装路径。
+- semantics inventory 与代码一致：`feature-semantics/a14.json` 与源码验证通过。
+
+命令：
+
+```text
+python tools/audit-feature-semantics.py --validate
+python tools/extract_process_matrix.py
+python tmp_check_feature_ids.py
+```
+
+退出码：
+
+```text
+0
+0
+-
+```
 
 ## P1.2 Hook ownership
 
@@ -262,9 +297,14 @@ UNKNOWN = 0
 
 ## P1.3 Process/phase inventory
 
-State: `TODO`
+State: `COMPLETE`
 
 MainModule、ProcessRouter、Installer、FeatureTarget、InstallPhase、scope list 和 generated matrix 一致。
+
+证据：
+
+- `docs/rom-intelligence/A14_PROCESS_MATRIX.{json,csv,md}` 覆盖 240 features、scope list 14 entries、package->installer routing 21 rows。
+- `tools/extract_process_matrix.py` 从 `MainModule.java`、`FeatureSpec` 定义和 `scope.list` 机械提取，验证通过。
 
 ---
 
