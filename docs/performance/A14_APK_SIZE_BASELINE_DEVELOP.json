@@ -1,8 +1,8 @@
 {
   "apkPath": "app\\build\\outputs\\apk\\develop\\CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk",
-  "sha256": "7fe732286d72e48a26462caf163646fd395e959f70ac91b91d173d30d3c925a8",
+  "sha256": "8f25e11a86efc4e5a6150f3ff246ea17ea9214667090abeb9ee864867b90d155",
   "apkFileBytes": 3381782,
-  "zipEntriesUncompressedBytes": 3647647,
+  "zipEntriesUncompressedBytes": 3647648,
   "zipEntriesCompressedBytes": 3326196,
   "fileCount": 537,
   "dexUncompressedBytes": 1815220,
@@ -13,10 +13,10 @@
   "libCompressedBytes": 381024,
   "resUncompressedBytes": 613605,
   "resCompressedBytes": 304560,
-  "assetsUncompressedBytes": 38685,
-  "assetsCompressedBytes": 38631,
+  "assetsUncompressedBytes": 38686,
+  "assetsCompressedBytes": 38632,
   "metaUncompressedBytes": 497,
-  "metaCompressedBytes": 361,
+  "metaCompressedBytes": 360,
   "manifestUncompressedBytes": 14756,
   "manifestCompressedBytes": 3494,
   "files": [
@@ -214,8 +214,8 @@
     },
     {
       "name": "assets/dexopt/baseline.prof",
-      "uncompressedSize": 1658,
-      "compressedSize": 1658,
+      "uncompressedSize": 1659,
+      "compressedSize": 1659,
       "bucket": "assets"
     },
     {
@@ -3161,7 +3161,7 @@
     {
       "name": "META-INF/version-control-info.textproto",
       "uncompressedSize": 120,
-      "compressedSize": 118,
+      "compressedSize": 117,
       "bucket": "meta"
     },
     {
