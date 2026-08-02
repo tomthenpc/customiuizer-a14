@@ -234,7 +234,7 @@
       "xmlSource": "",
       "defaultValue": "",
       "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:initPrefs",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:before",
       "targetPackage": "UNKNOWN",
       "installPhase": "UNKNOWN",
       "runtimeReadMode": "UNKNOWN",
@@ -244,7 +244,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:315",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:301",
       "notes": ""
     },
     {
@@ -498,7 +498,7 @@
       "xmlSource": "",
       "defaultValue": "",
       "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:initPrefs",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:before",
       "targetPackage": "UNKNOWN",
       "installPhase": "UNKNOWN",
       "runtimeReadMode": "UNKNOWN",
@@ -508,7 +508,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:315",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:301",
       "notes": ""
     },
     {
@@ -520,7 +520,7 @@
       "xmlSource": "",
       "defaultValue": "",
       "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:initPrefs",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:before",
       "targetPackage": "UNKNOWN",
       "installPhase": "UNKNOWN",
       "runtimeReadMode": "UNKNOWN",
@@ -530,7 +530,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:314",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:300",
       "notes": ""
     },
     {
@@ -552,7 +552,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:798",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:827",
       "notes": ""
     },
     {
@@ -574,7 +574,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:799",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:828",
       "notes": ""
     },
     {
@@ -684,7 +684,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "addFakeResource at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:503",
+      "evidence": "addFakeResource at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:532",
       "notes": ""
     },
     {
@@ -1564,7 +1564,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:518",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:547",
       "notes": ""
     },
     {
@@ -15424,7 +15424,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1451",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1458",
       "notes": ""
     },
     {
@@ -15798,7 +15798,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:212",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:273",
       "notes": ""
     },
     {
@@ -15820,7 +15820,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:218",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:279",
       "notes": ""
     },
     {
@@ -15842,7 +15842,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:651",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:711",
       "notes": ""
     },
     {
@@ -15864,7 +15864,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:661",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:721",
       "notes": ""
     },
     {
@@ -15886,7 +15886,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:656",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:716",
       "notes": ""
     },
     {
@@ -15908,7 +15908,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:658",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:718",
       "notes": ""
     },
     {
@@ -16150,7 +16150,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:207",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:268",
       "notes": ""
     },
     {
@@ -16172,7 +16172,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:208",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:269",
       "notes": ""
     },
     {
@@ -16216,7 +16216,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:198",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:259",
       "notes": ""
     },
     {
@@ -16238,7 +16238,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:199",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:260",
       "notes": ""
     },
     {
@@ -16260,7 +16260,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:221",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:282",
       "notes": ""
     },
     {
@@ -16282,7 +16282,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:679",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:739",
       "notes": ""
     },
     {
@@ -16304,7 +16304,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:674",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:734",
       "notes": ""
     },
     {
@@ -16326,7 +16326,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:215",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:276",
       "notes": ""
     },
     {
@@ -16348,7 +16348,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:641",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:701",
       "notes": ""
     },
     {
@@ -16370,7 +16370,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:645",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:705",
       "notes": ""
     },
     {
@@ -16392,7 +16392,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:191",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:252",
       "notes": ""
     },
     {
@@ -16414,7 +16414,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:194",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:255",
       "notes": ""
     },
     {
@@ -16436,7 +16436,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:203",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:264",
       "notes": ""
     },
     {
@@ -16722,7 +16722,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1346",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1353",
       "notes": ""
     },
     {
@@ -16744,7 +16744,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1200",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1207",
       "notes": ""
     },
     {
@@ -16766,7 +16766,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1192",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1199",
       "notes": ""
     },
     {
@@ -16788,7 +16788,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1193",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1200",
       "notes": ""
     },
     {
@@ -16810,7 +16810,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1123",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1130",
       "notes": ""
     },
     {
@@ -16832,7 +16832,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1195",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1202",
       "notes": ""
     },
     {
@@ -17404,7 +17404,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1701",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1708",
       "notes": ""
     },
     {
@@ -17426,7 +17426,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1302",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1309",
       "notes": ""
     },
     {
@@ -17448,7 +17448,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1313",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1320",
       "notes": ""
     },
     {
@@ -17470,7 +17470,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1305",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1312",
       "notes": ""
     },
     {
@@ -17492,7 +17492,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1337",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1344",
       "notes": ""
     },
     {
@@ -17514,7 +17514,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1339",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1346",
       "notes": ""
     },
     {
@@ -17536,7 +17536,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1358",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1365",
       "notes": ""
     },
     {
@@ -17558,7 +17558,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1414",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1421",
       "notes": ""
     },
     {
@@ -17580,7 +17580,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1341",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1348",
       "notes": ""
     },
     {
@@ -17602,7 +17602,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1439",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1446",
       "notes": ""
     },
     {
@@ -17624,7 +17624,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1702",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1709",
       "notes": ""
     },
     {
@@ -17636,7 +17636,7 @@
       "xmlSource": "",
       "defaultValue": "",
       "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:initPrefs",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:before",
       "targetPackage": "UNKNOWN",
       "installPhase": "UNKNOWN",
       "runtimeReadMode": "UNKNOWN",
@@ -17646,7 +17646,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:313",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:299",
       "notes": ""
     },
     {
@@ -17658,7 +17658,7 @@
       "xmlSource": "",
       "defaultValue": "",
       "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:initPrefs",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:before",
       "targetPackage": "UNKNOWN",
       "installPhase": "UNKNOWN",
       "runtimeReadMode": "UNKNOWN",
@@ -17668,7 +17668,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:313",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:299",
       "notes": ""
     },
     {
@@ -17800,7 +17800,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:176",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:237",
       "notes": ""
     },
     {
@@ -17976,7 +17976,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:197",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:258",
       "notes": ""
     },
     {
@@ -18174,7 +18174,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:966",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:922",
       "notes": ""
     },
     {
@@ -18196,7 +18196,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:964",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:920",
       "notes": ""
     },
     {
@@ -18218,7 +18218,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:971",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:927",
       "notes": ""
     },
     {
@@ -18240,7 +18240,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:968",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:924",
       "notes": ""
     },
     {
@@ -18262,7 +18262,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:981",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:937",
       "notes": ""
     },
     {
@@ -18284,7 +18284,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:967",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:923",
       "notes": ""
     },
     {
@@ -18306,7 +18306,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:965",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:921",
       "notes": ""
     },
     {
@@ -18328,7 +18328,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:969",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:925",
       "notes": ""
     },
     {
@@ -18350,7 +18350,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:970",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:926",
       "notes": ""
     },
     {
@@ -18372,7 +18372,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:963",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:919",
       "notes": ""
     },
     {
@@ -18438,7 +18438,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:1019",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:975",
       "notes": ""
     },
     {
@@ -18570,7 +18570,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:428",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:430",
       "notes": ""
     },
     {
@@ -18680,7 +18680,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:836",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:838",
       "notes": ""
     },
     {
@@ -18702,7 +18702,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:881",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:883",
       "notes": ""
     },
     {
@@ -18878,7 +18878,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:343",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:344",
       "notes": ""
     },
     {
@@ -18900,7 +18900,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:345",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:346",
       "notes": ""
     },
     {
@@ -19098,7 +19098,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:884",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:886",
       "notes": ""
     },
     {
@@ -19538,7 +19538,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:990",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:995",
       "notes": ""
     },
     {
@@ -19670,7 +19670,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:842",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:844",
       "notes": ""
     },
     {
@@ -19692,7 +19692,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:818",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:820",
       "notes": ""
     },
     {
@@ -19714,7 +19714,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:269",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:271",
       "notes": ""
     },
     {
@@ -19736,7 +19736,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:265",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:267",
       "notes": ""
     },
     {
@@ -19758,7 +19758,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:266",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:268",
       "notes": ""
     },
     {
@@ -19780,7 +19780,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:267",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:269",
       "notes": ""
     },
     {
@@ -19802,7 +19802,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:406",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:408",
       "notes": ""
     },
     {
@@ -19824,7 +19824,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:778",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:780",
       "notes": ""
     },
     {
@@ -19846,7 +19846,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:777",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:779",
       "notes": ""
     },
     {
@@ -19868,7 +19868,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:779",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:781",
       "notes": ""
     },
     {
@@ -19890,7 +19890,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:655",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:657",
       "notes": ""
     },
     {
@@ -19912,7 +19912,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:780",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:782",
       "notes": ""
     },
     {
@@ -19956,7 +19956,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:833",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:835",
       "notes": ""
     },
     {
@@ -19978,7 +19978,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:890",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:892",
       "notes": ""
     },
     {
@@ -20022,7 +20022,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1545",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1552",
       "notes": ""
     },
     {
@@ -20044,7 +20044,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1547",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1554",
       "notes": ""
     },
     {
@@ -20088,7 +20088,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:504",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:506",
       "notes": ""
     },
     {
@@ -20110,7 +20110,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:501",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:503",
       "notes": ""
     },
     {
@@ -20132,7 +20132,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1455",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1462",
       "notes": ""
     },
     {
@@ -20154,7 +20154,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1688",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1695",
       "notes": ""
     },
     {
@@ -20176,7 +20176,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:646",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:648",
       "notes": ""
     },
     {
@@ -20198,7 +20198,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1515",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1522",
       "notes": ""
     },
     {
@@ -20220,7 +20220,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1533",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1540",
       "notes": ""
     },
     {
@@ -20242,7 +20242,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1531",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1538",
       "notes": ""
     },
     {
@@ -20264,7 +20264,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1520",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1527",
       "notes": ""
     },
     {
@@ -20286,7 +20286,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1522",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1529",
       "notes": ""
     },
     {
@@ -20308,7 +20308,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1526",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1533",
       "notes": ""
     },
     {
@@ -20330,7 +20330,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:830",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:832",
       "notes": ""
     },
     {
@@ -20352,7 +20352,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:369",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:371",
       "notes": ""
     },
     {
@@ -20374,7 +20374,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:887",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:889",
       "notes": ""
     },
     {
@@ -20396,7 +20396,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:344",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:345",
       "notes": ""
     },
     {
@@ -20418,7 +20418,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:346",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:347",
       "notes": ""
     },
     {
@@ -20528,7 +20528,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:839",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:841",
       "notes": ""
     },
     {
@@ -20594,7 +20594,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:893",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:895",
       "notes": ""
     },
     {
@@ -20606,7 +20606,7 @@
       "xmlSource": "",
       "defaultValue": "",
       "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:initPrefs",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:before",
       "targetPackage": "UNKNOWN",
       "installPhase": "UNKNOWN",
       "runtimeReadMode": "UNKNOWN",
@@ -20616,7 +20616,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:312",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:298",
       "notes": ""
     },
     {
@@ -20628,7 +20628,7 @@
       "xmlSource": "",
       "defaultValue": "",
       "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:initPrefs",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:before",
       "targetPackage": "UNKNOWN",
       "installPhase": "UNKNOWN",
       "runtimeReadMode": "UNKNOWN",
@@ -20638,95 +20638,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:312",
-      "notes": ""
-    },
-    {
-      "featureId": "system_statusbarcontrols_longpress_vibrate",
-      "featureName": "system_statusbarcontrols_longpress_vibrate",
-      "preferenceKeys": [
-        "system_statusbarcontrols_longpress_vibrate"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:before",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "UNKNOWN",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "Applies hook when enabled",
-      "disableEffect": "Restores default behavior",
-      "valueChangeEffect": "Updates applied hook behavior",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:885",
-      "notes": ""
-    },
-    {
-      "featureId": "system_statusbarcontrols_longpress_vibrate_ignoreoff",
-      "featureName": "system_statusbarcontrols_longpress_vibrate_ignoreoff",
-      "preferenceKeys": [
-        "system_statusbarcontrols_longpress_vibrate_ignoreoff"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:before",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "UNKNOWN",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "Applies hook when enabled",
-      "disableEffect": "Restores default behavior",
-      "valueChangeEffect": "Updates applied hook behavior",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:886",
-      "notes": ""
-    },
-    {
-      "featureId": "system_statusbarcontrols_sens_bright",
-      "featureName": "system_statusbarcontrols_sens_bright",
-      "preferenceKeys": [
-        "system_statusbarcontrols_sens_bright"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:before",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "UNKNOWN",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "Applies hook when enabled",
-      "disableEffect": "Restores default behavior",
-      "valueChangeEffect": "Updates applied hook behavior",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:920",
-      "notes": ""
-    },
-    {
-      "featureId": "system_statusbarcontrols_sens_vol",
-      "featureName": "system_statusbarcontrols_sens_vol",
-      "preferenceKeys": [
-        "system_statusbarcontrols_sens_vol"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:before",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "UNKNOWN",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "Applies hook when enabled",
-      "disableEffect": "Restores default behavior",
-      "valueChangeEffect": "Updates applied hook behavior",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:929",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/MainModule.java:298",
       "notes": ""
     },
     {
@@ -20770,7 +20682,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1612",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1619",
       "notes": ""
     },
     {
@@ -20792,7 +20704,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1609",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1616",
       "notes": ""
     },
     {
@@ -20902,7 +20814,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1620",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1627",
       "notes": ""
     },
     {
@@ -20924,7 +20836,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1621",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1628",
       "notes": ""
     },
     {
@@ -20946,7 +20858,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1619",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1626",
       "notes": ""
     },
     {
@@ -20990,7 +20902,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1608",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1615",
       "notes": ""
     },
     {
@@ -21012,7 +20924,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1615",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1622",
       "notes": ""
     },
     {
@@ -21034,7 +20946,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1606",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1613",
       "notes": ""
     },
     {
@@ -21056,7 +20968,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1617",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1624",
       "notes": ""
     },
     {
@@ -21078,7 +20990,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1648",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1655",
       "notes": ""
     },
     {
@@ -21100,7 +21012,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1613",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1620",
       "notes": ""
     },
     {
@@ -21122,7 +21034,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1618",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1625",
       "notes": ""
     },
     {
@@ -21144,7 +21056,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1647",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1654",
       "notes": ""
     },
     {
@@ -21166,7 +21078,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1610",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1617",
       "notes": ""
     },
     {
@@ -21188,7 +21100,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1650",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1657",
       "notes": ""
     },
     {
@@ -21210,7 +21122,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1591",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1598",
       "notes": ""
     },
     {
@@ -21232,7 +21144,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1614",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1621",
       "notes": ""
     },
     {
@@ -21254,7 +21166,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1575",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1582",
       "notes": ""
     },
     {
@@ -21276,7 +21188,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1576",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1583",
       "notes": ""
     },
     {
@@ -21298,7 +21210,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1584",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1591",
       "notes": ""
     },
     {
@@ -21320,7 +21232,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1585",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1592",
       "notes": ""
     },
     {
@@ -21342,7 +21254,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1586",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1593",
       "notes": ""
     },
     {
@@ -21364,7 +21276,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1607",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1614",
       "notes": ""
     },
     {
@@ -21386,7 +21298,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1649",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1656",
       "notes": ""
     },
     {
@@ -21430,7 +21342,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:819",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:821",
       "notes": ""
     },
     {
@@ -21452,7 +21364,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1594",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1601",
       "notes": ""
     },
     {
@@ -21474,7 +21386,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1611",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1618",
       "notes": ""
     },
     {
@@ -21496,7 +21408,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1616",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1623",
       "notes": ""
     },
     {
@@ -21518,7 +21430,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:820",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:822",
       "notes": ""
     },
     {
@@ -21562,7 +21474,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1651",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:1658",
       "notes": ""
     },
     {
@@ -21826,7 +21738,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:185",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:246",
       "notes": ""
     },
     {
@@ -21848,7 +21760,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:133",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:194",
       "notes": ""
     },
     {
@@ -21870,7 +21782,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:134",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:195",
       "notes": ""
     },
     {
@@ -21892,7 +21804,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:179",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:240",
       "notes": ""
     },
     {
@@ -21914,7 +21826,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:103",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:164",
       "notes": ""
     },
     {
@@ -21936,7 +21848,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:188",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:249",
       "notes": ""
     },
     {
@@ -22244,7 +22156,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:649",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:651",
       "notes": ""
     },
     {
@@ -22266,7 +22178,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:648",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:650",
       "notes": ""
     },
     {
@@ -22288,7 +22200,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:650",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt:652",
       "notes": ""
     },
     {
@@ -22816,7 +22728,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:652",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:712",
       "notes": ""
     },
     {
@@ -22838,7 +22750,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:653",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:713",
       "notes": ""
     },
     {
@@ -22860,7 +22772,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:654",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:714",
       "notes": ""
     },
     {
@@ -22882,7 +22794,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:657",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:717",
       "notes": ""
     },
     {
@@ -22904,7 +22816,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:659",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:719",
       "notes": ""
     },
     {
@@ -22926,7 +22838,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:642",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:702",
       "notes": ""
     },
     {
@@ -22948,7 +22860,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:646",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:706",
       "notes": ""
     },
     {
@@ -22970,7 +22882,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:643",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:703",
       "notes": ""
     },
     {
@@ -22992,7 +22904,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:681",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:741",
       "notes": ""
     },
     {
@@ -23014,7 +22926,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:675",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:735",
       "notes": ""
     },
     {
@@ -23058,7 +22970,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:683",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:743",
       "notes": ""
     },
     {
@@ -23080,7 +22992,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:677",
+      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:737",
       "notes": ""
     },
     {
@@ -23234,7 +23146,7 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:634",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt:663",
       "notes": ""
     },
     {

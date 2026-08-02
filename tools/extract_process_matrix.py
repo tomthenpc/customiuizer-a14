@@ -260,6 +260,7 @@ def main() -> int:
     (out_dir / "A14_PROCESS_MATRIX.json").write_text(
         json.dumps({"features": rows, "scope": sorted(scope), "routing": routing}, indent=2, ensure_ascii=False),
         encoding="utf-8",
+        newline="\n",
     )
 
     with (out_dir / "A14_PROCESS_MATRIX.csv").open("w", newline="", encoding="utf-8") as f:
@@ -321,10 +322,10 @@ def main() -> int:
             f"{r['installer']} | `{hook}` | {r['allowedProcess']} | {r['deniedProcess']} |\n"
         )
 
-    (out_dir / "A14_PROCESS_MATRIX.md").write_text("".join(md), encoding="utf-8")
+    (out_dir / "A14_PROCESS_MATRIX.md").write_text("".join(md), encoding="utf-8", newline="\n")
 
     exceptions = [
-        "# A14 Process Exceptions\n\n",
+        "# A14 Process Exceptions (generated)\n\n",
         "This file captures process-routing gaps, package/process mismatches, and targeted verification notes.\n\n",
         "## Scope vs code\n\n",
         "- Input method packages are routed by `MainModule.java` to `InputMethodInstaller`, but are **not** listed in `scope.list`. "
@@ -355,7 +356,7 @@ def main() -> int:
         "- `XposedApiCapabilities.initialize(getApiVersion())` runs once per process but does not place API-102-only symbols on hot paths.\n",
         "- `tools/check-invariants.py` blocks `setId`, `replaceHook`, `HotReloadingParam`, `HotReloadedParam` and `getApiVersion()` in callbacks.\n\n",
     ]
-    (out_dir / "A14_PROCESS_EXCEPTIONS.md").write_text("".join(exceptions), encoding="utf-8")
+    (out_dir / "A14_PROCESS_EXCEPTIONS_GENERATED.md").write_text("".join(exceptions), encoding="utf-8", newline="\n")
 
     print(f"Wrote {len(rows)} features to {out_dir}/A14_PROCESS_MATRIX.*")
     return 0

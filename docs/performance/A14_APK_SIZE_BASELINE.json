@@ -1,12 +1,12 @@
 {
   "apkPath": "app\\build\\outputs\\apk\\debug\\CustoMIUIzer-A14-r14.16.1-debug.apk",
-  "sha256": "44dda7dfc46e930937ead329ca7afc007505003256847e8fd8a6ddcab456175c",
-  "apkFileBytes": 14477960,
-  "zipEntriesUncompressedBytes": 14579336,
-  "zipEntriesCompressedBytes": 14240218,
-  "fileCount": 636,
-  "dexUncompressedBytes": 12629172,
-  "dexCompressedBytes": 12629172,
+  "sha256": "0900bb64c4e941e280d31f3e9754a1986ba987663c049f572b0d946c520c0d6f",
+  "apkFileBytes": 14605299,
+  "zipEntriesUncompressedBytes": 14676808,
+  "zipEntriesCompressedBytes": 14337690,
+  "fileCount": 637,
+  "dexUncompressedBytes": 12726644,
+  "dexCompressedBytes": 12726644,
   "resourcesArscUncompressedBytes": 836568,
   "resourcesArscCompressedBytes": 836568,
   "libUncompressedBytes": 381024,
@@ -34,8 +34,8 @@
     },
     {
       "name": "classes3.dex",
-      "uncompressedSize": 809116,
-      "compressedSize": 809116,
+      "uncompressedSize": 818304,
+      "compressedSize": 818304,
       "bucket": "dex"
     },
     {
@@ -52,8 +52,8 @@
     },
     {
       "name": "classes4.dex",
-      "uncompressedSize": 320460,
-      "compressedSize": 320460,
+      "uncompressedSize": 320576,
+      "compressedSize": 320576,
       "bucket": "dex"
     },
     {
@@ -78,6 +78,12 @@
       "name": "classes9.dex",
       "uncompressedSize": 124292,
       "compressedSize": 124292,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes12.dex",
+      "uncompressedSize": 88168,
+      "compressedSize": 88168,
       "bucket": "dex"
     },
     {

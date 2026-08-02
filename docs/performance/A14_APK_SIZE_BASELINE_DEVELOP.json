@@ -1,20 +1,20 @@
 {
   "apkPath": "app\\build\\outputs\\apk\\develop\\CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk",
-  "sha256": "bd2f0fc688be0211067a0548e3414f09de7fd831fd531d407e1ad4a3d51ba261",
-  "apkFileBytes": 3365398,
-  "zipEntriesUncompressedBytes": 3624553,
-  "zipEntriesCompressedBytes": 3303102,
+  "sha256": "7fe732286d72e48a26462caf163646fd395e959f70ac91b91d173d30d3c925a8",
+  "apkFileBytes": 3381782,
+  "zipEntriesUncompressedBytes": 3647647,
+  "zipEntriesCompressedBytes": 3326196,
   "fileCount": 537,
-  "dexUncompressedBytes": 1792108,
-  "dexCompressedBytes": 1792108,
+  "dexUncompressedBytes": 1815220,
+  "dexCompressedBytes": 1815220,
   "resourcesArscUncompressedBytes": 782132,
   "resourcesArscCompressedBytes": 782132,
   "libUncompressedBytes": 381024,
   "libCompressedBytes": 381024,
   "resUncompressedBytes": 613605,
   "resCompressedBytes": 304560,
-  "assetsUncompressedBytes": 38703,
-  "assetsCompressedBytes": 38649,
+  "assetsUncompressedBytes": 38685,
+  "assetsCompressedBytes": 38631,
   "metaUncompressedBytes": 497,
   "metaCompressedBytes": 361,
   "manifestUncompressedBytes": 14756,
@@ -22,8 +22,8 @@
   "files": [
     {
       "name": "classes.dex",
-      "uncompressedSize": 1792108,
-      "compressedSize": 1792108,
+      "uncompressedSize": 1815220,
+      "compressedSize": 1815220,
       "bucket": "dex"
     },
     {
@@ -207,16 +207,16 @@
       "bucket": "res"
     },
     {
-      "name": "assets/dexopt/baseline.prof",
-      "uncompressedSize": 1670,
-      "compressedSize": 1670,
-      "bucket": "assets"
-    },
-    {
       "name": "res/tC.png",
       "uncompressedSize": 1666,
       "compressedSize": 1666,
       "bucket": "res"
+    },
+    {
+      "name": "assets/dexopt/baseline.prof",
+      "uncompressedSize": 1658,
+      "compressedSize": 1658,
+      "bucket": "assets"
     },
     {
       "name": "res/U1.png",
@@ -2307,12 +2307,6 @@
       "bucket": "res"
     },
     {
-      "name": "assets/dexopt/baseline.profm",
-      "uncompressedSize": 268,
-      "compressedSize": 268,
-      "bucket": "assets"
-    },
-    {
       "name": "res/zq.xml",
       "uncompressedSize": 464,
       "compressedSize": 268,
@@ -2347,6 +2341,12 @@
       "uncompressedSize": 452,
       "compressedSize": 265,
       "bucket": "res"
+    },
+    {
+      "name": "assets/dexopt/baseline.profm",
+      "uncompressedSize": 262,
+      "compressedSize": 262,
+      "bucket": "assets"
     },
     {
       "name": "res/2P.png",
@@ -3231,7 +3231,7 @@
       "bucket": "meta"
     },
     {
-      "name": "META-INF/services/rg",
+      "name": "META-INF/services/tg",
       "uncompressedSize": 3,
       "compressedSize": 5,
       "bucket": "meta"
