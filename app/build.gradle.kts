@@ -4,19 +4,26 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
-val keystorePropertiesFile = rootProject.file("../keystore.properties")
 val officialRelease = (project.findProperty("officialRelease")?.toString()?.toBoolean() ?: false)
+
+val keystorePropertiesPath =
+    providers.gradleProperty("customiuizerA14KeystoreProperties").orNull
+        ?: providers.environmentVariable("CUSTOMIUIZER_A14_KEYSTORE_PROPERTIES").orNull
+
+val keystorePropertiesFile = keystorePropertiesPath?.let(::file)
 
 val keystoreProperties = Properties()
 if (officialRelease) {
-    if (!keystorePropertiesFile.isFile) {
-        throw GradleException("officialRelease=true but ../keystore.properties was not found")
+    if (keystorePropertiesFile == null || !keystorePropertiesFile.isFile) {
+        throw GradleException(
+            "officialRelease=true but customiuizerA14KeystoreProperties property or CUSTOMIUIZER_A14_KEYSTORE_PROPERTIES env var must point to an existing keystore.properties file"
+        )
     }
     keystorePropertiesFile.inputStream().use(keystoreProperties::load)
     val required = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
     val missing = required.filter { keystoreProperties.getProperty(it).isNullOrEmpty() }
     if (missing.isNotEmpty()) {
-        throw GradleException("officialRelease=true but ../keystore.properties is missing: ${missing.joinToString(", ")}")
+        throw GradleException("officialRelease=true but keystore.properties is missing: ${missing.joinToString(", ")}")
     }
     val storeFileProp = keystoreProperties.getProperty("storeFile")!!
     val storeFile = file(storeFileProp)

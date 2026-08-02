@@ -5,17 +5,17 @@ Mode: PROFESSIONAL_AUTONOMOUS_STEWARDSHIP
 CheckpointCount: 13
 CheckpointsSinceStandardSweep: 2
 CheckpointsSinceDeepSweep: 13
-LastQualifyingCheckpoint: ab80e1a2
-LastLightSweepCommit: ab80e1a2
+LastQualifyingCheckpoint: add5ba52
+LastLightSweepCommit: add5ba52
 LastStandardSweepCommit: 59a93b9c
 LastDeepSweepCommit: pending
-LastFullVerificationCommit: ab80e1a2
+LastFullVerificationCommit: add5ba52
 LastCIState: NOT_CONFIGURED
 LastCleanupCommit: pending
-LastToolCreated: tools/check_goal_constitution.py
+LastToolCreated: scripts/check-signing-config.ps1
 LastFailureClass: RemainingFeaturesWiringTest.installersNoLongerContainDirectPreferenceChecks
-CurrentObjective: P3.2 — extract SystemUiBootstrapCoordinator
-ResumeTask: v5 GOAL/Constitution merged; continue P5.5 pointer contract / P3 remaining items
+CurrentObjective: A14 signing config (gradle property + check script + docs + AGENTS)
+ResumeTask: P3.5 GenericAppEligibilityResolver
 ```
 
 本文件只记录执行节奏，不保存、替代或重置产品任务。

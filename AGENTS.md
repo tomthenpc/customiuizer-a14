@@ -100,6 +100,23 @@ EXACT_LOCK
 
 ---
 
+## 5.1 签名配置
+
+```text
+SigningDiscoveryMode: EXACT_CONFIG_ONLY
+SigningGradleProperty: customiuizerA14KeystoreProperties
+SigningEnvironmentVariable: CUSTOMIUIZER_A14_KEYSTORE_PROPERTIES
+RecursiveSigningSearch: forbidden
+CrossProductKeyUse: forbidden
+```
+
+- 签名配置只能来自 `customiuizerA14KeystoreProperties` Gradle 属性或 `CUSTOMIUIZER_A14_KEYSTORE_PROPERTIES` 环境变量。
+- 实际 keystore 文件由 `keystore.properties` 中的 `storeFile` 定义。
+- 禁止递归扫描 `C:\Users\tv`、`Documents` 或 `*.jks/*.p12/*.keystore`。
+- 禁止猜测其他项目密钥、读取/打印密码、把路径或秘密提交到 Git。
+- 验证脚本：`scripts/check-signing-config.ps1`。
+- 签名配置文档：`docs/build/SIGNING_CONFIGURATION.md`。
+
 ## 5. 受保护控制层
 
 除仓库所有者明确更新控制层外，不得修改：

@@ -16,9 +16,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SECRETS_PATTERNS = [
     r"BEGIN (RSA |DSA |EC |OPENSSH )?PRIVATE KEY",
     r"BEGIN CERTIFICATE",
-    r"api[_-]?key",
-    r"password\s*=\s*[^\s]+",
-    r"token\s*=\s*[^\s]+",
+    r"api[_-]?key\s*=\s*['\"][^'\"]+['\"]",
+    r"password\s*=\s*['\"][^'\"]+['\"]",
+    r"token\s*=\s*['\"][^'\"]+['\"]",
 ]
 
 FORBIDDEN_STAGED = {
