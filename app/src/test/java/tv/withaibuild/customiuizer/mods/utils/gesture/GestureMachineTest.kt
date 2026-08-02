@@ -35,10 +35,13 @@ class GestureMachineTest {
 
     private val dummyContext = Any()
 
-    private fun machine(exec: FakeGestureEffectExecutor = FakeGestureEffectExecutor()): Pair<GestureMachine, FakeGestureEffectExecutor> {
+    private fun machine(
+        exec: FakeGestureEffectExecutor = FakeGestureEffectExecutor(),
+        testConfig: GestureConfig = config,
+    ): Pair<GestureMachine, FakeGestureEffectExecutor> {
         val m = GestureMachine(
             classLoaderIdentity = "cl-1",
-            configResolver = { config },
+            configResolver = { testConfig },
             depsResolver = object : GestureDependenciesResolver {
                 override fun prepare(
                     ownerId: Int,
@@ -90,9 +93,9 @@ class GestureMachineTest {
         val (m, exec) = machine()
 
         m.prepare(1, dummyContext)
-        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
-        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
-        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.observe(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.observe(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.observe(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
 
         assertTrue(exec.brightnessApplied.isEmpty())
         assertTrue(exec.brightnessCommitted.isEmpty())
@@ -103,15 +106,52 @@ class GestureMachineTest {
         val (m, exec) = machine()
 
         m.prepare(1, dummyContext)
-        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.observe(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
         m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1, entry = GestureEntry.STATUS_BAR_TOUCH), dummyContext)
 
         val e = event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L, ownerId = 1)
-        m.dispatch(e.copy(entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.observe(e.copy(entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
         m.dispatch(e.copy(entry = GestureEntry.STATUS_BAR_TOUCH), dummyContext)
         m.dispatch(e.copy(entry = GestureEntry.STATUS_BAR_TOUCH), dummyContext)
 
         assertEquals(1, exec.brightnessApplied.size)
+    }
+
+    @Test
+    fun interceptDown_thenTouchDown_stateOnlyChangesOnce() {
+        val (m, exec) = machine()
+
+        m.prepare(1, dummyContext)
+        m.observe(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, entry = GestureEntry.STATUS_BAR_TOUCH), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+
+        assertEquals(1, exec.brightnessApplied.size)
+    }
+
+    @Test
+    fun interceptMove_thenTouchMove_volumeExecutesOnce() {
+        val (m, exec) = machine(testConfig = config.copy(singleAction = 3))
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        m.observe(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+
+        assertEquals(1, exec.volumeAdjusted.size)
+    }
+
+    @Test
+    fun interceptUp_thenTouchUp_brightnessCommitsOnce() {
+        val (m, exec) = machine()
+
+        m.prepare(1, dummyContext)
+        m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
+        m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
+        m.observe(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
+        m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L), dummyContext)
+
+        assertEquals(1, exec.brightnessCommitted.size)
     }
 
     @Test

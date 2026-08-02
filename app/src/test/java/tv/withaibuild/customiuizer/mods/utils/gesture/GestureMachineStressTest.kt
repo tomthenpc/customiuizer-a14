@@ -110,7 +110,12 @@ class GestureMachineStressTest {
                 val owner = if (index % 3 == 0) 2 else 1
                 val action = randomAction()
                 time += random.nextLong(5L, 50L)
-                m.dispatch(randomEvent(owner, action, time), dummyContext)
+                val ev = randomEvent(owner, action, time)
+                if (ev.entry == GestureEntry.STATUS_BAR_INTERCEPT) {
+                    m.observe(ev, dummyContext)
+                } else {
+                    m.dispatch(ev, dummyContext)
+                }
             }
             // Ensure the sequence is deterministically reset so sequences are independent.
             m.clear(if (sequence % 2 == 0) 1 else 2)

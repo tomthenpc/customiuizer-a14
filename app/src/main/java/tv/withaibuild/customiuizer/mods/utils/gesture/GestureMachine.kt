@@ -35,9 +35,41 @@ class GestureMachine(
     }
 
     /**
+     * Observe one [event] without changing the authoritative [GestureSnapshot].
+     *
+     * This is the entry point for [GestureEntry.STATUS_BAR_INTERCEPT]: it lets the
+     * intercept path see what the state machine would do, but it must not advance
+     * the real session, execute business side effects, or consume the physical event.
+     */
+    fun observe(event: GestureEvent, context: Any): List<GestureCommand> {
+        val ownerId = event.ownerId
+
+        val config = configResolver()
+
+        val deps = dependencies[ownerId] ?: return emptyList()
+
+        val current = snapshots[ownerId] ?: GestureSnapshot()
+        val (_, commands) = GestureStateMachine.process(
+            current,
+            event,
+            config,
+            deps.toGeometry(),
+        )
+
+        return gate.filter(event.entry, event, commands)
+    }
+
+    /**
      * Process one [event] and execute the allowed side-effects through [effectExecutor].
+     *
+     * This is the authoritative entry point and is only allowed for
+     * [GestureEntry.STATUS_BAR_TOUCH] and [GestureEntry.CONTROL_CENTER_TOUCH].
      */
     fun dispatch(event: GestureEvent, context: Any) {
+        require(event.entry != GestureEntry.STATUS_BAR_INTERCEPT) {
+            "STATUS_BAR_INTERCEPT must use observe(), not dispatch()"
+        }
+
         val ownerId = event.ownerId
 
         if (event.actionMasked == GestureAction.DOWN) {

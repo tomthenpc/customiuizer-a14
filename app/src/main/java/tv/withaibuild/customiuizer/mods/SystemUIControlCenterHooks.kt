@@ -796,7 +796,11 @@ object SystemUIControlCenterHooks {
                     ownerId = System.identityHashCode(thisObject),
                 )
                 ModuleHelper.guarded {
-                    statusBarMachine.dispatch(gestureEvent, thisObject)
+                    if (entry == GestureEntry.STATUS_BAR_TOUCH) {
+                        statusBarMachine.dispatch(gestureEvent, thisObject)
+                    } else {
+                        statusBarMachine.observe(gestureEvent, thisObject)
+                    }
                 }
             }
         }
