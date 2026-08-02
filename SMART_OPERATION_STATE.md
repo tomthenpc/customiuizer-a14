@@ -23,7 +23,7 @@ LastToolCreated: tools/brutal_test_runner.py
 LastFailureClass: none
 CurrentObjective: P12 Documentation and release candidate record
 CurrentObjectiveState: ACTIVE
-CurrentObjectiveStartEvidence: Fast verify passed locally on 782b3e50; develop R8 assemble passed; Fast CI 30747399434 job 91495213418 passed on 782b3e50
+CurrentObjectiveStartEvidence: Fast verify passed locally on 782b3e50; develop R8 assemble passed; Fast CI 30747399434 job 91495213418 passed on 782b3e50; P12.1 `A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md` verified locally (Fast/Full) on base cd152365
 NextObjectiveFirstAction: begin P12 documentation sweep and release-candidate record
 ResumeTask: continue P12 documentation dead-code audit and P14 MACHINE_COMPLETE preparation
 DeepSweepDue: false

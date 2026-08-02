@@ -5,9 +5,9 @@ DocumentKind: CURRENT
 Product: CustoMIUIzer A14
 Repository: tomthenpc/customiuizer-a14
 Branch: devin/a14-rom-intelligence-audit
-EvidenceCommit: pending
-EvidenceState: STATIC
-GeneratedBy: tools/check-invariants.py + manual call chain audit
+EvidenceCommit: cd152365a1b258a7b36e978d1050db71f427fa83
+EvidenceState: MIXED
+GeneratedBy: tools/check-invariants.py + tools/tests/test_gesture_lifecycle_inventory.py + manual call chain audit
 SourceOfTruth: app/src/main/java/tv/withaibuild/customiuizer/mods/utils/gesture
 ```
 
@@ -41,7 +41,8 @@ DEVICE_LIFECYCLE_ENTRY_BLOCKED: no reliable plugin/ClassLoader destruction hook 
 
 ## 4. Evidence
 
-- `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` lines 874-889 and 131-146 contain the attach/detach hooks.
-- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/gesture/ControlCenterGestureRuntimeHolder.kt` implements `bind`/`unbind`/`activeRuntime`.
-- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/gesture/GestureMachine.kt` implements `clear()` and `clear(ownerId)`.
-- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/gesture/ControlCenterGestureRuntimeHolderTest.kt` covers bind/unbind/idempotency.
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` lines 842-857 contain the `PhoneStatusBarView` `onAttachedToWindow` / `onDetachedFromWindow` hooks, calling `statusBarMachine.prepare(ownerId)` and `statusBarMachine.clear(ownerId)`.
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ControlCenterPluginRuntime.kt` lines 267-287 install the `ControlCenterWindowViewImpl` `onAttachedToWindow` / `onDetachedFromWindow` hooks, calling `controlCenterMachine.prepare(ownerId)` and `controlCenterMachine.clear(ownerId)`.
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/gesture/ControlCenterGestureRuntimeHolder.kt` lines 32-71 implement `bind`, `unbind` and `activeRuntime`.
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/gesture/GestureMachine.kt` lines 197-207 implement `clear(ownerId: Int)` and `clear()`.
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/gesture/ControlCenterGestureRuntimeHolderTest.kt` lines 1-282 cover `bind`, `unbind`, `activeRuntime`, `sameLoader`, `newLoader`, `repeatedLoader` and `oldLoaderDetach` behavior.

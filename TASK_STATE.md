@@ -976,7 +976,34 @@ State: `VERIFIED_BUILD`
 
 # P12 — 文档、dead code 与 release candidate
 
-State: `TODO`
+State: `IN_PROGRESS`
+
+## P12.1 Gesture lifecycle owner inventory
+
+State: `VERIFIED_STATIC`
+
+文件：
+
+- `docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md`：更新 `EvidenceCommit`、`EvidenceState`、来源行号，并添加 `tools/tests/test_gesture_lifecycle_inventory.py` 为独立证据。
+- `tools/tests/test_gesture_lifecycle_inventory.py`：解析文档元数据，验证 `EvidenceCommit` 是 `HEAD` 的祖先，并校验每条引用行范围包含声明的符号。
+
+证据：
+
+```text
+python -m unittest discover -s tools/tests -p "test_*.py"          # 144 passed
+python tools/check-invariants.py                                     # no violations
+python tools/check_document_contracts.py                             # pass
+python tools/progress_snapshot.py --check                            # fresh
+python tools/verify.py fast --tests ControlCenterGestureRuntimeHolderTest ControlCenterPluginRuntimeTest GestureMachineTest GestureStateMachineTest PhysicalGestureArbiterTest  # pass
+python tools/verify.py fast                                          # pass
+python tools/verify.py full                                          # pass
+```
+
+剩余：
+
+- 继续生成/验证其余 P12 文档：`CURRENT architecture`、`gesture event contract`、`APK delta`。
+
+---
 
 更新：
 
@@ -1145,7 +1172,7 @@ P0 完成后重建，不得删除未解决条目。
 | REPAIR-003 | P2 | Docs | COMPLETE | `TASK_STATE.md` 所有 `VERIFIED` 已按证据拆分为 `VERIFIED_BUILD`/`VERIFIED_CI`/`VERIFIED_STATIC`；更新 P6.5、P8.3、P13 文档结论 | 紧急修复 V2 完成 |
 | REPAIR-004 | P2 | Tool | COMPLETE | 重写 `tools/source_hazard_scan.py`：新增 `--scope`（production/test/tools/all）、指纹去重、平衡括号 catch 块解析（跳过字符串/注释/嵌套花括号），更新 `SOURCE_HAZARD_BASELINE.json`（415 条去重后 hazard） | 紧急修复 V2 完成 |
 | REPAIR-005 | P1 | Test | COMPLETE | 新增参数化 `InstallerJvmAbiTest`：验证 12 个 installer 类的 `@JvmStatic install/installPostAttach(PackageReadyParam, PrefMap, ...)` 方法签名和 public static 修饰符 | 紧急修复 V2 完成 |
-| DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |
+| DOC-001 | P2 | Docs | IN_PROGRESS | P12.1 lifecycle owner inventory 已验证并提交；剩余 CURRENT architecture、gesture event contract、APK delta | 继续 P12.2+ |
 | CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |
 | DEVICE-001 | P1 | Device | BLOCKED_EXTERNAL | 无本轮真实证据 | P15 完成 |
 
