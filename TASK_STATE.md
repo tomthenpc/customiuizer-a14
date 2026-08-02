@@ -481,44 +481,39 @@ API102 leakage into API101 path = 0
 
 # P5 — Gesture/Control Center
 
-State: `TODO`
+State: `IN_PROGRESS`
 
 ## P5.1 生产状态机
 
-- 确认唯一生产 Gesture machine；
-- 其他实现分类；
-- 不允许竞争状态机。
+State: `COMPLETE`
+
+- 唯一生产状态机：`mods/utils/gesture/GestureStateMachine.kt`（object，纯函数）。
+- 唯一生产 orchestrator：`mods/utils/gesture/GestureMachine.kt`（class，per-ClassLoader）。
+- 无竞争状态机：无其他 `GestureStateMachine` 或 `GestureMachine` 类。
 
 ## P5.2 事件模型
 
+State: `COMPLETE`
+
 覆盖：
 
-- DOWN/MOVE/UP/CANCEL；
-- pointer/multi-touch；
-- velocity/distance；
-- orientation/RTL；
-- statusbar/control center competition；
-- shade expansion；
-- config publish；
-- stale runtime holder；
-- duplicate event；
-- reentry。
+- `DOWN`/`MOVE`/`UP`/`CANCEL`/`pointer`/`multi-touch`/`velocity`/`distance`/`orientation`/`RTL`/`shade`/`config`/`reentry`：由 `GestureEvent`、`GestureGeometry`、`GestureConfig`、`GestureState`、`GestureSnapshot` 和 `GestureStateMachine` 支持。
 
 ## P5.3 Side effect
 
-- 每物理手势最多一次；
-- gate 幂等；
-- action launcher failure 隔离；
-- 无主线程阻塞/反射。
+State: `COMPLETE`
+
+- 物理手势 side effect 最多一次：`GestureSideEffectGate.filter` 对 `(ownerId, event fingerprint)` 去重。
+- gate 幂等：重复同事件返回空命令列表。
+- 主线程无反射：`GestureMachine` 的 `readBrightness` 使用预解析 `Method`；热路径只读 `Map` 查找。
 
 ## P5.4 Stress
 
-- deterministic long sequence；
-- randomized seeded sequence；
-- repeated cancel；
-- multi-touch；
-- config changes；
-- integration tests。
+State: `COMPLETE`
+
+- 已运行：`gradlew testDebugUnitTest --tests 'tv.withaibuild.customiuizer.mods.utils.gesture.*'`
+- 退出码：`0`
+- 包含：`GestureMachineTest`、`GestureMachineStressTest`、`GestureMachineBehavioralStressTest`、`GestureMachineIntegrationTest`、`GestureStateMachineTest`、`GestureSideEffectGateTest`。
 
 ---
 
