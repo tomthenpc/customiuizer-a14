@@ -130,6 +130,110 @@ class ProgressSnapshotV7Test(unittest.TestCase):
         self.assertEqual("fail", progress_snapshot.item_bucket("UNKNOWN"))
         self.assertEqual("excluded", progress_snapshot.item_bucket("NOT_APPLICABLE"))
 
+    def test_p12_children_preserved(self):
+        """Removing an unfinished P12 child from TASK_STATE must fail validation."""
+        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
+        leaves = progress_snapshot.parse_task_sections(text)
+        issues = progress_snapshot.parse_issue_table(text)
+        items = progress_snapshot.build_capability_items(leaves, issues)
+
+        # Baseline is valid: all four P12 children exist.
+        progress_snapshot.validate_capability_items(items)
+        p12_ids = {it.id for it in items if it.id.startswith("P12.")}
+        self.assertTrue(
+            p12_ids.issuperset(progress_snapshot.EXPECTED_P12_IDS),
+            f"Expected {progress_snapshot.EXPECTED_P12_IDS}, got {p12_ids}",
+        )
+
+        # Mutation: drop one unfinished child and rebuild.
+        mutated = {sid: info for sid, info in leaves.items() if sid != "P12.2"}
+        mutated_items = progress_snapshot.build_capability_items(mutated, issues)
+        with self.assertRaises(ValueError) as ctx:
+            progress_snapshot.validate_capability_items(mutated_items)
+        self.assertIn("P12.2", str(ctx.exception))
+
+    def test_verified_static_without_evidence_fails(self):
+        """A VERIFIED_STATIC item with pending level and empty evidence must fail."""
+        item = progress_snapshot.CapabilityItem(
+            id="P99.1",
+            domain="Documentation / provenance",
+            weight=1.0,
+            state="VERIFIED_STATIC",
+            factor=0.7,
+            earned=0.7,
+            bucket="verified",
+            evidence_level="pending",
+            evidence_paths=[],
+            evidence_commands=[],
+        )
+        with self.assertRaises(ValueError) as ctx:
+            progress_snapshot.validate_capability_items([item])
+        self.assertIn("evidence_level", str(ctx.exception))
+
+    def test_single_p12_child_takes_full_weight_fails(self):
+        """A single P12 child must not be weighted as the full Documentation domain."""
+        items = [
+            progress_snapshot.CapabilityItem(
+                id="P12.1",
+                domain="Documentation / provenance",
+                weight=progress_snapshot.DOMAIN_WEIGHTS["Documentation / provenance"],
+                state="VERIFIED_STATIC",
+                factor=0.7,
+                earned=3.5,
+                bucket="verified",
+                evidence_level="static",
+                evidence_paths=["docs/some.md"],
+                evidence_commands=["python tools/x.py"],
+            ),
+            progress_snapshot.CapabilityItem(
+                id="P12.2",
+                domain="Documentation / provenance",
+                weight=0.0,
+                state="TODO",
+                factor=0.0,
+                earned=0.0,
+                bucket="not_started",
+                evidence_level="pending",
+                evidence_paths=[],
+                evidence_commands=[],
+            ),
+            progress_snapshot.CapabilityItem(
+                id="P12.3",
+                domain="Documentation / provenance",
+                weight=0.0,
+                state="TODO",
+                factor=0.0,
+                earned=0.0,
+                bucket="not_started",
+                evidence_level="pending",
+                evidence_paths=[],
+                evidence_commands=[],
+            ),
+            progress_snapshot.CapabilityItem(
+                id="P12.4",
+                domain="Documentation / provenance",
+                weight=0.0,
+                state="TODO",
+                factor=0.0,
+                earned=0.0,
+                bucket="not_started",
+                evidence_level="pending",
+                evidence_paths=[],
+                evidence_commands=[],
+            ),
+        ]
+        with self.assertRaises(ValueError) as ctx:
+            progress_snapshot.validate_capability_items(items)
+        self.assertIn("full Documentation / provenance", str(ctx.exception))
+
+    def test_current_verified_items_have_evidence(self):
+        """The real TASK_STATE must produce verified items with non-empty evidence."""
+        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
+        leaves = progress_snapshot.parse_task_sections(text)
+        issues = progress_snapshot.parse_issue_table(text)
+        items = progress_snapshot.build_capability_items(leaves, issues)
+        progress_snapshot.validate_capability_items(items)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1003,9 +1003,17 @@ python tools/verify.py full                                          # pass
 
 - `docs/progress/A14_PROGRESS_CURRENT.json` 与 `.md` 已按 P12.1 进展重新生成，`--check` 与 `check_automation_state.py` 通过。
 
-剩余：
+## P12.2 CURRENT architecture
 
-- 继续生成/验证其余 P12 文档：`CURRENT architecture`、`gesture event contract`、`APK delta`。
+State: `TODO`
+
+## P12.3 Gesture event contract
+
+State: `TODO`
+
+## P12.4 APK delta
+
+State: `TODO`
 
 ---
 

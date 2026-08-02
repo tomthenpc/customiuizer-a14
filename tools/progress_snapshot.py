@@ -74,6 +74,46 @@ DOMAIN_MAP = {
     "P12": "Documentation / provenance",
 }
 
+EVIDENCE_LEVELS = {
+    "VERIFIED_STATIC": "static",
+    "VERIFIED_BUILD": "build",
+    "VERIFIED_CI": "ci",
+    "VERIFIED_DEVICE": "device",
+    "COMPLETE": "complete",
+    "STATIC_OWNER_COMPLETE": "static",
+    "CORE_COMPLETE": "static",
+}
+
+# P12.1 is only one planned deliverable in a set of four; the remaining three are
+# explicitly named in TASK_STATE.md as unfinished TODO children.  progress_snapshot
+# enforces this distribution so that a single child cannot occupy the full parent
+# weight or hide the unfinished work.
+EXPECTED_P12_IDS = frozenset({"P12.1", "P12.2", "P12.3", "P12.4"})
+
+# Section markers used to locate evidence inside a task section.
+# "退出码" / "Exit codes" / "失败分类" are explicitly excluded from evidence.
+_REGION_RE = re.compile(
+    r"^((?:文件|Files|证据|Evidence|记录|Records|验证|Verification|验证命令|Verification commands|"
+    r"补充产物|Artifacts|退出码|Exit codes|失败分类|Failure class))[：:][ \t]*$",
+    re.MULTILINE,
+)
+_COMMAND_MARKERS = {
+    "证据",
+    "Evidence",
+    "验证",
+    "Verification",
+    "验证命令",
+    "Verification commands",
+    "补充产物",
+    "Artifacts",
+    "",  # fallback for sections without an explicit evidence marker
+}
+_PATH_RE = re.compile(
+    r"\b(?:docs|tools|app|feature-semantics|rom-contracts|\.github|local-rom-samples)/"
+    r"[^\s`'\"()\[\]，；：]+",
+    re.IGNORECASE,
+)
+
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
@@ -109,12 +149,17 @@ def parse_smart_state() -> dict[str, str]:
 def parse_task_sections(text: str) -> dict[str, dict[str, Any]]:
     """Parse top-level and nested P# sections, returning leaves with state and parent."""
     pattern = re.compile(r"^#{1,2} (P\d+(?:\.\d+)?)(?:\s|—|$)", re.MULTILINE)
+    # Section bodies may end at the next P# heading or at a top-level '---' separator.
+    dash_pattern = re.compile(r"^---\s*$", re.MULTILINE)
     sections: dict[str, dict[str, Any]] = {}
     matches = list(pattern.finditer(text))
     for i, match in enumerate(matches):
         sid = match.group(1)
         start = match.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        dash_match = dash_pattern.search(text, start, end)
+        if dash_match:
+            end = dash_match.start()
         window = text[start:end]
         state_match = re.search(r"State: `([^`]+)`", window)
         sections[sid] = {
@@ -189,6 +234,66 @@ def item_bucket(state: str) -> str:
     return "not_started"
 
 
+def evidence_level_for_state(state: str) -> str:
+    return EVIDENCE_LEVELS.get(state.upper(), "pending")
+
+
+def _extract_regions(text: str) -> list[tuple[str, str]]:
+    """Split a task section into labeled regions (files, evidence, records, etc.)."""
+    matches = list(_REGION_RE.finditer(text))
+    if not matches:
+        return [("", text)]
+
+    regions: list[tuple[str, str]] = []
+    for i, match in enumerate(matches):
+        marker = match.group(1)
+        if marker in ("退出码", "Exit codes", "失败分类", "Failure class"):
+            continue
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        regions.append((marker, text[start:end]))
+    return regions
+
+
+def extract_evidence(text: str, state: str) -> dict[str, Any]:
+    """Extract evidence paths and commands from a task section window."""
+    level = evidence_level_for_state(state)
+    paths: list[str] = []
+    commands: list[str] = []
+
+    for marker, region in _extract_regions(text):
+        # Path references can appear in any region.
+        for match in _PATH_RE.finditer(region):
+            p = match.group(0)
+            if p not in paths:
+                paths.append(p)
+
+        if marker not in _COMMAND_MARKERS:
+            continue
+
+        # Bullet lines.
+        for line in region.splitlines():
+            stripped = line.strip()
+            if stripped.startswith(("- ", "* ", "- ", "* ")):
+                content = stripped[2:].strip()
+                content = content.strip("`")
+                if content and content not in commands:
+                    commands.append(content)
+
+        # Code blocks inside evidence-style regions.
+        for block_match in re.finditer(r"```(?:\w+)?\n(.*?)```", region, re.S):
+            for code_line in block_match.group(1).splitlines():
+                code_line = code_line.strip()
+                if code_line and code_line not in commands:
+                    commands.append(code_line)
+
+    return {
+        "evidence_level": level,
+        "evidence_paths": paths,
+        "evidence_commands": commands,
+    }
+
+
 @dataclass
 class CapabilityItem:
     id: str
@@ -227,6 +332,7 @@ def build_capability_items(leaves: dict[str, dict[str, Any]], issues: list[dict[
         weight = DOMAIN_WEIGHTS[domain] / domain_counts[domain]
         state = info["state"].upper()
         factor = state_factor(state)
+        evidence = extract_evidence(info.get("text", ""), state)
         items.append(
             CapabilityItem(
                 id=sid,
@@ -236,6 +342,9 @@ def build_capability_items(leaves: dict[str, dict[str, Any]], issues: list[dict[
                 factor=round(factor, 2),
                 earned=round(weight * factor, 2),
                 bucket=item_bucket(state),
+                evidence_level=evidence["evidence_level"],
+                evidence_paths=evidence["evidence_paths"],
+                evidence_commands=evidence["evidence_commands"],
                 evidence_commit="pending",
                 device_evidence="NOT_EXERCISED" if domain == "Device validation" else "",
             )
@@ -262,6 +371,51 @@ def build_capability_items(leaves: dict[str, dict[str, Any]], issues: list[dict[
             )
 
     return items
+
+
+def validate_capability_items(items: list[CapabilityItem]) -> None:
+    """Reject invalid scoring and evidence semantics.
+
+    Verified items must carry a non-pending evidence level and at least one path
+    or command.  The P12 / Documentation domain must keep its planned children so
+    that a single completed subtask cannot be scored as if it were the whole
+    parent.
+    """
+    verified_states = {"VERIFIED_STATIC", "VERIFIED_BUILD", "VERIFIED_CI", "VERIFIED_DEVICE"}
+
+    p12_items = [it for it in items if it.id.startswith("P12.")]
+    if p12_items:
+        p12_ids = {it.id for it in p12_items}
+        missing = EXPECTED_P12_IDS - p12_ids
+        if missing:
+            raise ValueError(
+                f"P12 is missing expected children: {sorted(missing)}. "
+                "Unfinished P12 subtasks must remain visible."
+            )
+        doc_weight = DOMAIN_WEIGHTS["Documentation / provenance"]
+        for it in p12_items:
+            if it.weight >= doc_weight - 0.01:
+                raise ValueError(
+                    f"{it.id} weight {it.weight} equals the full Documentation / provenance "
+                    "domain weight; a single child must not take the whole parent."
+                )
+
+    for it in items:
+        if it.state in verified_states:
+            if it.evidence_level == "pending":
+                raise ValueError(
+                    f"{it.id} is {it.state} but evidence_level is still pending."
+                )
+            if not it.evidence_paths and not it.evidence_commands:
+                raise ValueError(
+                    f"{it.id} is {it.state} but has no evidence_paths or evidence_commands."
+                )
+            expected_level = evidence_level_for_state(it.state)
+            if it.evidence_level != expected_level:
+                raise ValueError(
+                    f"{it.id} evidence_level '{it.evidence_level}' does not match "
+                    f"state '{it.state}' (expected '{expected_level}')."
+                )
 
 
 def compute_progress(items: list[CapabilityItem]) -> dict[str, Any]:
@@ -343,6 +497,7 @@ def generate_snapshot(source_commit: str, source_tree: str) -> dict[str, Any]:
     leaves = parse_task_sections(task_text)
     issues = parse_issue_table(task_text)
     items = build_capability_items(leaves, issues)
+    validate_capability_items(items)
     progress = compute_progress(items)
 
     verified_tree = smart.get("LastVerifiedTree", "pending")
@@ -495,7 +650,11 @@ def main(argv: list[str] | None = None) -> int:
 
     source_commit = git_rev("HEAD")
     source_tree = git_rev("HEAD^{tree}")
-    snapshot = generate_snapshot(source_commit, source_tree)
+    try:
+        snapshot = generate_snapshot(source_commit, source_tree)
+    except ValueError as e:
+        print(f"progress_snapshot: {e}", file=sys.stderr)
+        return 1
 
     if args.print:
         print(json.dumps(snapshot, indent=2))
