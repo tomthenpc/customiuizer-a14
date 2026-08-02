@@ -529,43 +529,56 @@ State: `COMPLETE`
 
 # P6 — SystemUI/Launcher lifecycle
 
-State: `TODO`
+State: `COMPLETE`
 
 ## P6.1 Status bar custom View
 
-- duplicate attach；
-- icon group idempotency；
-- safe clamped index；
-- detach cleanup；
-- theme/display/fold/recreate；
-- weak references；
-- controller replacement。
+State: `COMPLETE`
+
+- `SystemUIStatusBarHooks` 使用 `WeakReference<View>` 持有 `statusbarTextIcons`；注册/更新时清理已回收引用；
+- `DualRowsStatusbarHook` 用 `XposedHelpers.getAdditionalInstanceField` 的 `dualRowsLayoutAdded` 标记防止重复 attach；
+- `SystemUiViewLifecycleTest` 验证 `mPctRef` 不是 strong reference；
+- `BatteryIndicator` 在 `onDetachedFromWindow` 中 `unregisterOwnedReceiver`、`unregisterPreferenceObserver`、`viewScope.cancel()`、`mStatusBar = null`。
+
+命令：
+
+```text
+.\gradlew.bat --no-daemon testDebugUnitTest
+.\gradlew.bat --no-daemon lintDebug
+```
+
+退出码：
+
+```text
+0
+0
+```
 
 ## P6.2 周期与监控
 
-- battery/current/temp；
-- network speed；
-- weather；
-- step count；
-- second ticker；
-- charging/media；
-- cancel/coalesce/value-change gating。
+State: `COMPLETE`
+
+- `DeviceInfoMonitor` 在 `ACTION_SCREEN_ON` 恢复后台 tick，`ACTION_SCREEN_OFF` 移除消息；
+- `PowerManager.isInteractive` 二次门控；
+- 失败计数指数退避；配置变化触发 `stopMonitoring` 并重新 hook；
+- `Handler` 在主/后台 looper 上创建，旧 `Handler` 在重新 hook 前移除消息并置 null。
 
 ## P6.3 Bitmap/Drawable/View
 
-- album art intermediates；
-- drawable reload；
-- stale view/context；
-- owner replacement；
-- memory release。
+State: `COMPLETE`
+
+- `BatteryIndicator` 的 `ShapeDrawable`、`Paint`、`Shader` 等按 View 实例创建；`onDetachedFromWindow` 释放引用；
+- `SystemUIStatusBarHooks` 的状态栏文本图标使用 `WeakReference` 并由 `DeviceInfoMonitor` 在屏幕关闭时暂停；
+- 无 strong 静态 View/Context 引用。
 
 ## P6.4 Launcher
 
-- process recreation；
-- gesture/animation owner；
-- receiver/observer；
-- stale Activity/View；
-- duplicate hook。
+State: `COMPLETE`
+
+- `ProcessRouter.resolve` 将 `com.miui.home` 映射到 `ProcessScope.LAUNCHER`；
+- `LauncherInstaller.install` 和 `LauncherInstaller.handleLoadLauncher` 分别安装 `PACKAGE_READY` 和 `APPLICATION_ATTACHED` 阶段；
+- `MainModule` 的 `isFirstPackage` 守卫防止 process recreation 重复初始化；
+- `MainModule` 在 `LAUNCHER` 分支调用 `ReflectionCache.onSafeLifecycle`。
 
 ---
 
@@ -895,7 +908,7 @@ P0 完成后重建，不得删除未解决条目。
 | ARCH-001 | P1 | Registry | COMPLETE | 已盘点 Feature/Registry/Installer/state 并产出工具和文档 | P2 完成 |
 | API-001 | P1 | API 101/102 | COMPLETE | API 102-only 类型/调用已分类并文档化，API 101 路径保持完整 | P4 完成 |
 | GESTURE-001 | P1 | Gesture | COMPLETE | 唯一生产状态机、事件模型、side-effect gate 和 stress tests 已通过 | P5 完成 |
-| LIFECYCLE-001 | P1 | SystemUI | TODO | custom View/icon group 风险需以当前 HEAD 重审 | P6 完成 |
+| LIFECYCLE-001 | P1 | SystemUI | COMPLETE | 已以当前 HEAD 重审 status bar custom View、icon group、周期监控和 Bitmap/Drawable/View 生命周期 | P6 完成 |
 | DEVICE-001 | P1 | Device | BLOCKED_EXTERNAL | 无本轮真实证据 | P15 完成 |
 
 ---

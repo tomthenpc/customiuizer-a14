@@ -15,11 +15,16 @@ Exits non-zero on:
 from __future__ import annotations
 
 import argparse
+import io
 import re
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+# Ensure stdout can emit UTF-8 text on Windows consoles.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -204,10 +209,12 @@ def check_issue_queue(text: str) -> list[str]:
         if state == "COMPLETE" and ("尚未" in evidence or "未运行" in evidence or evidence.strip() == ""):
             errors.append(f"TASK_STATE issue {issue_id} is COMPLETE but evidence is stale: {evidence}")
         if state == "TODO" and "完成" in acceptance:
-            # Allow if the referenced parent is not yet COMPLETE.
+            # Only flag if the referenced parent is already COMPLETE or the acceptance
+            # is a plain completion phrase with no pending parent.
             parent_match = re.search(r"P\d+(?:\.\d+)?", acceptance)
-            if parent_match and not parent_is_complete(text, parent_match.group(0)):
-                continue
+            if parent_match:
+                if not parent_is_complete(text, parent_match.group(0)):
+                    continue
             errors.append(f"TASK_STATE issue {issue_id} is TODO but acceptance implies complete: {acceptance}")
 
     return errors
