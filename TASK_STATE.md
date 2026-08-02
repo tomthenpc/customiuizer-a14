@@ -612,7 +612,7 @@ State: `IN_PROGRESS`
 
 # P7 — Runtime safety、并发与缓存
 
-State: `IN_PROGRESS`
+State: `COMPLETE`
 
 ## P7.1 Fatal propagation
 
@@ -651,10 +651,10 @@ State: `COMPLETE`
 
 ## P7.5 Observe / hot-path eligibility
 
-State: `IN_PROGRESS`
+State: `COMPLETE`
 
-- v4 audit 发现 status bar intercept 调用 `observe()` 但调用方忽略返回值，可能执行无效状态机/配置计算。
-- 证明是否需要 consume decision，或改为廉价 eligibility/no-op。
+- `SystemUIControlCenterHooks` 的 status bar `onInterceptTouchEvent` 不再调用 `statusBarMachine.observe()`；intercept 路径不拥有 touch 流，无需计算状态机/配置。
+- 消除了无返回值消费的热路径状态机计算。
 
 命令：
 
@@ -968,7 +968,7 @@ P0 完成后重建，不得删除未解决条目。
 | ALG-004 | P1 | Gesture | COMPLETE | `GestureSideEffectGate.filter` 改用 `commands.any(::isBusinessEffect)`，避免热路径分配中间列表 | P5.5 完成 |
 | ALG-005 | P1 | Gesture | COMPLETE | `PhysicalGestureArbiter` 已加 `MAX_HELD_TOKENS` 硬上限、`STALE_TOKEN_AGE_MS` 清理、`reapStaleTokens` 兜底；`GestureMachine` 在 UP/CANCEL/Reset/detach 时释放 token；测试覆盖 | P5.5 完成 |
 | ALG-006 | P1 | Lifecycle | IN_PROGRESS | 已给 `ControlCenterGestureRuntimeHolder` 增加 `unbind()` 以显式 `machine.clear()`；`StatusBar` 的 `onDetachedFromWindow` 已调用 `clear`；仍需把 `unbind` 接到控制中心 plugin/View 销毁生命周期 | P6.5 完成 |
-| ALG-007 | P1 | HotPath | TODO | status bar intercept `observe()` 返回值未被使用，可能执行无效热路径计算 | P7.5 完成 |
+| ALG-007 | P1 | HotPath | COMPLETE | `SystemUIControlCenterHooks` 的 `onInterceptTouchEvent` 不再调用 `statusBarMachine.observe()`，避免未使用返回值的热路径计算 | P7.5 完成 |
 | DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |
 | CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |
 | DEVICE-001 | P1 | Device | BLOCKED_EXTERNAL | 无本轮真实证据 | P15 完成 |

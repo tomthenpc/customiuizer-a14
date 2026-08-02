@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-02T13:20:52.517745+08:00",
+  "generatedAt": "2026-08-02T13:26:02.697292+08:00",
   "smartState": {
     "Mode": "PROFESSIONAL_AUTONOMOUS_STEWARDSHIP",
-    "CheckpointCount": "19",
-    "CheckpointsSinceStandardSweep": "4",
-    "CheckpointsSinceDeepSweep": "4",
+    "CheckpointCount": "20",
+    "CheckpointsSinceStandardSweep": "5",
+    "CheckpointsSinceDeepSweep": "5",
     "LastQualifyingCheckpoint": "HEAD",
     "LastLightSweepCommit": "HEAD",
     "LastStandardSweepCommit": "HEAD",
@@ -17,27 +17,27 @@
     "LastCleanupCommit": "HEAD",
     "LastToolCreated": "tools/progress_snapshot.py",
     "LastFailureClass": "none",
-    "CurrentObjective": "P6.5 owner inventory / stale cleanup",
-    "ResumeTask": "wire ControlCenterGestureRuntimeHolder.unbind to plugin/View destruction; then P7.5"
+    "CurrentObjective": "P8 performance / R8 final review",
+    "ResumeTask": "after P8 continue P9 Java/Kotlin boundary or P10 ROM samples"
   },
   "progress": {
     "taskCounts": {
       "total": 40,
-      "complete": 26,
-      "inProgress": 5,
+      "complete": 28,
+      "inProgress": 3,
       "notStarted": 8
     },
     "issueCounts": {
-      "COMPLETE": 10,
+      "COMPLETE": 11,
       "CORE_COMPLETE": 1,
       "IN_PROGRESS": 1,
-      "TODO": 3,
+      "TODO": 2,
       "BLOCKED_EXTERNAL": 1
     },
     "issueTotal": 16,
-    "issueComplete": 11,
-    "projectProgressPercent": 65.0,
-    "machineProgressPercent": 71.2
+    "issueComplete": 12,
+    "projectProgressPercent": 70.0,
+    "machineProgressPercent": 73.8
   },
   "tasks": [
     {
@@ -142,7 +142,7 @@
     },
     {
       "title": "P7 \u2014 Runtime safety\u3001\u5e76\u53d1\u4e0e\u7f13\u5b58",
-      "state": "IN_PROGRESS"
+      "state": "COMPLETE"
     },
     {
       "title": "P7.1 Fatal propagation",
@@ -162,7 +162,7 @@
     },
     {
       "title": "P7.5 Observe / hot-path eligibility",
-      "state": "IN_PROGRESS"
+      "state": "COMPLETE"
     },
     {
       "title": "P8 \u2014 \u6027\u80fd\u3001\u5185\u5b58\u3001APK \u4e0e R8",

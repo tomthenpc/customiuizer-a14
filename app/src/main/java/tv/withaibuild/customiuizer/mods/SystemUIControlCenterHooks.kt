@@ -849,9 +849,10 @@ object SystemUIControlCenterHooks {
             override fun before(param: BeforeHookCallback) {
                 val thisObject = param.getThisObject() as? View ?: return
                 val event = param.getArg(0) as? MotionEvent ?: return
-                val entry = if (param.getMember().name == "onTouchEvent") GestureEntry.STATUS_BAR_TOUCH else GestureEntry.STATUS_BAR_INTERCEPT
+                // INTERCEPT events do not yet own the touch stream; only process TOUCH.
+                if (param.getMember().name != "onTouchEvent") return
                 val gestureEvent = GestureEvent(
-                    entry = entry,
+                    entry = GestureEntry.STATUS_BAR_TOUCH,
                     actionMasked = event.actionMasked,
                     downTime = event.downTime,
                     eventTime = event.eventTime,
@@ -863,11 +864,7 @@ object SystemUIControlCenterHooks {
                     source = event.source,
                 )
                 ModuleHelper.guarded {
-                    if (entry == GestureEntry.STATUS_BAR_TOUCH) {
-                        statusBarMachine.dispatch(gestureEvent, thisObject)
-                    } else {
-                        statusBarMachine.observe(gestureEvent, thisObject)
-                    }
+                    statusBarMachine.dispatch(gestureEvent, thisObject)
                 }
             }
         }

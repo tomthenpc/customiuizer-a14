@@ -1,7 +1,7 @@
 # A14 Progress Current
 
 ```text
-GeneratedAt: 2026-08-02T13:20:52.517745+08:00
+GeneratedAt: 2026-08-02T13:26:02.697292+08:00
 ```
 
 ## SMART State
@@ -9,9 +9,9 @@ GeneratedAt: 2026-08-02T13:20:52.517745+08:00
 | Key | Value |
 |---|---|
 | Mode | PROFESSIONAL_AUTONOMOUS_STEWARDSHIP |
-| CheckpointCount | 19 |
-| CheckpointsSinceStandardSweep | 4 |
-| CheckpointsSinceDeepSweep | 4 |
+| CheckpointCount | 20 |
+| CheckpointsSinceStandardSweep | 5 |
+| CheckpointsSinceDeepSweep | 5 |
 | LastQualifyingCheckpoint | HEAD |
 | LastLightSweepCommit | HEAD |
 | LastStandardSweepCommit | HEAD |
@@ -23,15 +23,15 @@ GeneratedAt: 2026-08-02T13:20:52.517745+08:00
 | LastCleanupCommit | HEAD |
 | LastToolCreated | tools/progress_snapshot.py |
 | LastFailureClass | none |
-| CurrentObjective | P6.5 owner inventory / stale cleanup |
-| ResumeTask | wire ControlCenterGestureRuntimeHolder.unbind to plugin/View destruction; then P7.5 |
+| CurrentObjective | P8 performance / R8 final review |
+| ResumeTask | after P8 continue P9 Java/Kotlin boundary or P10 ROM samples |
 
 ## Progress
 
-- ProjectProgress: 65.0%
-- MachineProgress: 71.2%
-- Tasks: 26 COMPLETE / 5 IN_PROGRESS / 8 not started of 40
-- Issues: 11 complete / 16 total
+- ProjectProgress: 70.0%
+- MachineProgress: 73.8%
+- Tasks: 28 COMPLETE / 3 IN_PROGRESS / 8 not started of 40
+- Issues: 12 complete / 16 total
 
 ## Tasks
 
@@ -62,12 +62,12 @@ GeneratedAt: 2026-08-02T13:20:52.517745+08:00
 | P6.3 Bitmap/Drawable/View | COMPLETE |
 | P6.4 Launcher | COMPLETE |
 | P6.5 Lifecycle owner inventory | IN_PROGRESS |
-| P7 — Runtime safety、并发与缓存 | IN_PROGRESS |
+| P7 — Runtime safety、并发与缓存 | COMPLETE |
 | P7.1 Fatal propagation | COMPLETE |
 | P7.2 Half-state cleanup | COMPLETE |
 | P7.3 Callback/deferred boundary | COMPLETE |
 | P7.4 Cache/concurrency | COMPLETE |
-| P7.5 Observe / hot-path eligibility | IN_PROGRESS |
+| P7.5 Observe / hot-path eligibility | COMPLETE |
 | P8 — 性能、内存、APK 与 R8 | TODO |
 | P9 — Java → Kotlin 最终收口 | TODO |
 | P10 — ROM intelligence | TODO |
