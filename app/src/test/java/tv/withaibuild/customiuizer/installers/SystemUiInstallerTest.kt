@@ -1,9 +1,12 @@
 package tv.withaibuild.customiuizer.installers
 
+import io.github.libxposed.api.XposedModuleInterface
 import java.io.File
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tv.withaibuild.customiuizer.utils.PrefMap
 
 class SystemUiInstallerTest {
 
@@ -50,12 +53,29 @@ class SystemUiInstallerTest {
 
     @Test
     fun installerUsesLibxposedPackageReadyParam() {
-        val installer = source("app/src/main/java/tv/withaibuild/customiuizer/installers/SystemUiInstaller.java")
+        val installerClass = Class.forName("tv.withaibuild.customiuizer.installers.SystemUiInstaller")
 
-        assertTrue(
-            "install method signature missing or changed",
-            installer.contains("public static void install(PackageReadyParam lpparam, PrefMap mPrefs)")
+        val install = installerClass.getMethod(
+            "install",
+            XposedModuleInterface.PackageReadyParam::class.java,
+            PrefMap::class.java
         )
+
+        assertTrue("install method must be public", java.lang.reflect.Modifier.isPublic(install.modifiers))
+        assertTrue("install method must be static", java.lang.reflect.Modifier.isStatic(install.modifiers))
+        assertEquals("install must return void", Void.TYPE, install.returnType)
+        assertEquals(
+            "install first parameter must be libxposed PackageReadyParam",
+            XposedModuleInterface.PackageReadyParam::class.java,
+            install.parameterTypes[0]
+        )
+        assertEquals(
+            "install second parameter must be PrefMap",
+            PrefMap::class.java,
+            install.parameterTypes[1]
+        )
+
+        val installer = source("app/src/main/java/tv/withaibuild/customiuizer/installers/SystemUiInstaller.java")
         assertFalse(
             "installer must not reference legacy Xposed package",
             installer.contains("de.robv.android.xposed")
@@ -68,9 +88,22 @@ class SystemUiInstallerTest {
 
     private fun source(relativePath: String): String {
         var directory = File(System.getProperty("user.dir").orEmpty()).absoluteFile
+        val candidates = when {
+            relativePath.endsWith(".java") -> listOf(
+                relativePath.replace(".java", ".kt"),
+                relativePath
+            )
+            relativePath.endsWith(".kt") -> listOf(
+                relativePath,
+                relativePath.replace(".kt", ".java")
+            )
+            else -> listOf(relativePath)
+        }
         while (true) {
-            val candidate = File(directory, relativePath)
-            if (candidate.isFile) return candidate.readText()
+            for (path in candidates) {
+                val candidate = File(directory, path)
+                if (candidate.isFile) return candidate.readText()
+            }
             directory = directory.parentFile
                 ?: error("Repository root not found while locating $relativePath")
         }

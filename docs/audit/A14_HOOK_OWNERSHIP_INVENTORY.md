@@ -738,6 +738,7 @@ Total hook call sites scanned: 756
 
 | File | Line | Function | Snippet |
 |---|---|---|---|
+| `tv/withaibuild/customiuizer/installers/GenericAppInstaller.kt` | 35 | `?` | `ModuleHelper.findAndHookMethod(` |
 | `tv/withaibuild/customiuizer/mods/utils/HookInstallerFacade.kt` | 27 | `?` | `fun findAndHookMethod(className: String, classLoader: ClassLoader?, methodName: String, vararg parameterTypesAndCallback` |
 | `tv/withaibuild/customiuizer/mods/utils/HookInstallerFacade.kt` | 42 | `?` | `val unhooker = XposedHelpers.findAndHookMethod(hookClass, methodName, *parameterTypesAndCallback)` |
 | `tv/withaibuild/customiuizer/mods/utils/HookInstallerFacade.kt` | 87 | `?` | `fun findAndHookMethod(clazz: Class<*>, methodName: String, vararg parameterTypesAndCallback: Any?): CustomMethodUnhooker` |
@@ -762,7 +763,6 @@ Total hook call sites scanned: 756
 | `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 580 | `?` | `val userHandle = XposedHelpers.newInstance(UserHandle::class.java, user) as UserHandle` |
 | `tv/withaibuild/customiuizer/mods/utils/PreferenceObserverRegistry.kt` | 55 | `?` | `XposedHelpers.setAdditionalInstanceField(owner, PREF_OBSERVER_FIELD, prefObserver)` |
 | `tv/withaibuild/customiuizer/mods/utils/SystemUiBootstrapCoordinator.kt` | 103 | `before` | `ModuleHelper.findAndHookMethod(` |
-| `tv/withaibuild/customiuizer/installers/GenericAppInstaller.kt` | 30 | `installPostAttach` | `ModuleHelper.findAndHookMethod(` |
 
 ## API_BRIDGE
 

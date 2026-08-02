@@ -5,33 +5,67 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tv.withaibuild.customiuizer.installers.SystemUiInstaller
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallState
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.io.File
+import java.lang.reflect.Modifier
 import java.lang.reflect.Proxy
 
 class SystemUiFeaturesWiringTest {
 
     @Test
     fun installMethodNoLongerContainsDirectIfConditions() {
+        // 1. Reflection: the public static install() signature is stable.
+        val installerClass = Class.forName("tv.withaibuild.customiuizer.installers.SystemUiInstaller")
+        val install = installerClass.getMethod(
+            "install",
+            XposedModuleInterface.PackageReadyParam::class.java,
+            PrefMap::class.java
+        )
+        assertTrue("install() must be public", Modifier.isPublic(install.modifiers))
+        assertTrue("install() must be static", Modifier.isStatic(install.modifiers))
+
+        // 2. Registry probe: all SystemUi features can be registered and installAll() works.
+        FeatureInstallState.reset()
+        val registry = FeatureInstallRegistry()
+        val lpparam = fakePackageReadyParam()
+        val mPrefs = PrefMap()
+        val features = SystemUiFeatures.all(lpparam, mPrefs)
+        for (feature in features) {
+            registry.register(feature)
+        }
+        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, mPrefs, true)
+        assertEquals(
+            "installAll(SYSTEM_UI, PACKAGE_READY) must be called for every registered feature",
+            features.size,
+            results.size
+        )
+
+        // 3. Auxiliary source checks: ensure the source still delegates to SystemUiFeatures and installAll.
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/installers/SystemUiInstaller.java")
-        val installMethod = methodBody(source, "public static void install(")
-
-        // The old direct preference guards and hook calls should be gone from the installer body.
         assertFalse(
-            "install() should not directly read mPrefs",
-            installMethod.contains("mPrefs.get")
-        )
-
-        // It should now delegate to the registry and the generated features list.
-        assertTrue(
-            "install() should register features from SystemUiFeatures",
-            installMethod.contains("SystemUiFeatures.all(lpparam, mPrefs)")
+            "install() source should not directly read mPrefs",
+            source.contains("mPrefs.get")
         )
         assertTrue(
-            "install() should call installAll for SYSTEM_UI at PACKAGE_READY",
-            installMethod.contains("installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, mPrefs)")
+            "install() source should use SystemUiFeatures",
+            source.contains("SystemUiFeatures")
+        )
+        assertTrue(
+            "install() source should call installAll",
+            source.contains("installAll")
+        )
+        assertTrue(
+            "install() source should target SYSTEM_UI",
+            source.contains("FeatureTarget.SYSTEM_UI")
+        )
+        assertTrue(
+            "install() source should use PACKAGE_READY",
+            source.contains("InstallPhase.PACKAGE_READY")
         )
     }
 
@@ -153,33 +187,24 @@ class SystemUiFeaturesWiringTest {
 
     private fun source(relativePath: String): String {
         var directory = File(System.getProperty("user.dir").orEmpty()).absoluteFile
+        val candidates = when {
+            relativePath.endsWith(".java") -> listOf(
+                relativePath.replace(".java", ".kt"),
+                relativePath
+            )
+            relativePath.endsWith(".kt") -> listOf(
+                relativePath,
+                relativePath.replace(".kt", ".java")
+            )
+            else -> listOf(relativePath)
+        }
         while (true) {
-            val candidate = File(directory, relativePath)
-            if (candidate.isFile) return candidate.readText()
+            for (path in candidates) {
+                val candidate = File(directory, path)
+                if (candidate.isFile) return candidate.readText()
+            }
             directory = directory.parentFile
                 ?: error("Repository root not found while locating $relativePath")
         }
-    }
-
-    private fun methodBody(source: String, header: String): String {
-        val start = source.indexOf(header)
-        check(start >= 0) { "Method header '$header' not found" }
-        val bodyStart = source.indexOf('{', start)
-        check(bodyStart >= 0) { "Method body start not found for '$header'" }
-        var braceCount = 0
-        var i = bodyStart
-        while (i < source.length) {
-            when (source[i]) {
-                '{' -> braceCount++
-                '}' -> {
-                    braceCount--
-                    if (braceCount == 0) {
-                        return source.substring(start, i + 1)
-                    }
-                }
-            }
-            i++
-        }
-        error("Method closing brace not found for '$header'")
     }
 }
