@@ -43,6 +43,7 @@ import tv.withaibuild.customiuizer.mods.utils.gesture.GestureConfigResolver
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEntry
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEvent
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureMachine
+import tv.withaibuild.customiuizer.mods.utils.gesture.ControlCenterGestureDependenciesResolver
 import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureDependenciesResolver
 import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureEffectExecutor
 
@@ -983,7 +984,36 @@ object SystemUIControlCenterHooks {
                 val loader = extractPluginLoader(param.getThisObject()) ?: return
                 isHooked = true
                 if (pluginLoader == null) pluginLoader = loader
-                ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", loader, "handleMotionEvent", MotionEvent::class.java, Boolean::class.javaPrimitiveType!!, hook)
+                val controlCenterMachine = GestureMachine(
+                    classLoaderIdentity = loader.toString(),
+                    configResolver = { GestureConfigResolver.resolve(MainModule.mPrefs) },
+                    depsResolver = ControlCenterGestureDependenciesResolver(),
+                    effectExecutor = StatusBarGestureEffectExecutor(),
+                )
+                val controlCenterHook = object : MethodHook() {
+                    override fun before(param: BeforeHookCallback) {
+                        val thisObject = param.getThisObject() as? View ?: return
+                        if (param.getArgs().size == 2 && (param.getArg(1) as Boolean)) return
+                        val statusBarStateController = XposedHelpers.getObjectField(thisObject, "statusBarStateController")
+                        val state = XposedHelpers.callMethod(statusBarStateController, "getState") as Int
+                        if (state == 1 || state == 2) return
+                        val event = param.getArg(0) as? MotionEvent ?: return
+                        val gestureEvent = GestureEvent(
+                            entry = GestureEntry.CONTROL_CENTER_TOUCH,
+                            actionMasked = event.actionMasked,
+                            downTime = event.downTime,
+                            eventTime = event.eventTime,
+                            x = event.x,
+                            y = event.y,
+                            pointerCount = event.pointerCount,
+                            ownerId = System.identityHashCode(thisObject),
+                        )
+                        ModuleHelper.guarded {
+                            controlCenterMachine.dispatch(gestureEvent, thisObject)
+                        }
+                    }
+                }
+                ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", loader, "handleMotionEvent", MotionEvent::class.java, Boolean::class.javaPrimitiveType!!, controlCenterHook)
             }
         })
     }
