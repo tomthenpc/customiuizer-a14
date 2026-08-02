@@ -1,0 +1,76 @@
+name: A14 Fast CI
+
+on:
+  push:
+    branches:
+      - devin/a14-rom-intelligence-audit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a14-fast-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 37
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-37" "build-tools;37.0.0"
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-home-cache-cleanup: true
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: CI portability
+        run: python tools/check_ci_portability.py
+
+      - name: Python tool tests
+        run: python -m unittest discover -s tools/tests -p "test_*.py"
+
+      - name: Static governance checks
+        run: |
+          python tools/check-invariants.py
+          python tools/check_automation_state.py
+          python tools/check_document_contracts.py
+          python tools/check_goal_constitution.py
+          python tools/progress_snapshot.py --check
+
+      - name: Full machine verifier
+        run: python tools/verify.py full
+
+      - name: Safe debug and develop builds
+        run: |
+          ./gradlew --no-daemon :app:assembleDebug
+          ./gradlew --no-daemon :app:assembleDevelop
