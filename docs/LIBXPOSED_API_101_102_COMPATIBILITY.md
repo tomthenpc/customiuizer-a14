@@ -91,14 +91,11 @@ no `Map`, no `Handler`, no thread, and no `Receiver`.
 
 ## Wiring status
 
-| Capability | Status |
-|------------|--------|
-| Stable hook ID (`setId`) | `READY_NOT_WIRED` |
-| `replaceHook` | `NOT_USED` |
-| `getId` in callback | `NOT_USED` |
-| Hot reload | `NOT_ENABLED` |
+| Capability | Status | Rationale |
+|------------|--------|-----------|
+| Stable hook ID (`setId`) | `INTENTIONALLY_UNWIRED_DOCUMENTED` | Bridge (`Api102HookBridge`) exists and is isolated; not called from production install path because the module keeps `minApiVersion=101` and cannot statically prove an API 101 host will not attempt to verify the 102-only `setId` symbol. |
+| `replaceHook` | `INTENTIONALLY_UNWIRED_DOCUMENTED` | Capability is reported by `XposedApiCapabilities` but no production code calls `HookHandle.replaceHook`. Hot-swapping hooks is not required. |
+| `getId` in callback | `INTENTIONALLY_UNWIRED_DOCUMENTED` | No caller reads `HookHandle.getId()`; stable IDs are stored only in the bridge constants. |
+| Hot reload (`onHotReloading` / `onHotReloaded`) | `INTENTIONALLY_UNWIRED_DOCUMENTED` | Module does not override either callback and does not import `HotReloadingParam` or `HotReloadedParam`. |
 
-`setId` is isolated behind `Api102HookBridge`, but it is **not** called from the
-production install path because the project cannot yet statically prove that an
-API 101 host will not resolve the 102-only `setId` symbol when `doHookMethod` is
-verified. Once that proof is in place the status can be updated to `WIRED`.
+`setId` remains isolated behind `Api102HookBridge`. To move to `WIRED_WITH_SAFE_FALLBACK`, every `HookInstallerFacade` call must first prove (via a focused unit test on a stub `XposedInterface.HookBuilder`) that the 102-only symbol is resolved lazily or guarded by `supportsStableHookId()`.

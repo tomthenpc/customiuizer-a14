@@ -389,7 +389,7 @@ unknown production Feature = 0
 
 # P3 — MainModule、ProcessRouter 与 Installer
 
-State: `TODO`
+State: `IN_PROGRESS`
 
 检查：
 
@@ -404,11 +404,16 @@ State: `TODO`
 - reflection lifecycle；
 - process-local state。
 
+初始发现：
+
+- `MainModule.onPackageReady` 的 `SYSTEM_UI` 分支包含 SystemUI 初始化、fast-reboot receiver、status-bar setup、10s restart check 和 preference watch 逻辑，超出 bootstrap/routing 职责。
+- 需要将这些 SystemUI-specific 初始化移入 `SystemUiInstaller`。
+
 ---
 
 # P4 — API 101/102 边界
 
-State: `TODO`
+State: `COMPLETE`
 
 ## P4.1 API 101 完整路径
 
@@ -416,17 +421,36 @@ State: `TODO`
 - API 102 类型不进入冷启动必经类加载；
 - staticScope=false。
 
+证据：
+
+- `MainModule.java` 在 `onModuleLoaded` 调用 `XposedApiCapabilities.initialize(getApiVersion())`，不引用 API 102-only 类型。
+- `tools/check-invariants.py` 的 `check_api102_isolation` 每天检查：
+  - `setId` 只能由 `Api102HookBridge` 调用；
+  - `replaceHook` 不得使用；
+  - `HotReloadingParam` / `HotReloadedParam` 不得使用；
+  - `getApiVersion` 只能在冷启动路径读取。
+- `check-invariants.py` 无 violations。
+
 ## P4.2 API 102 bridge
 
 每项分类：
 
-```text
-WIRED_WITH_SAFE_FALLBACK
-INTENTIONALLY_UNWIRED_DOCUMENTED
-REMOVE_CONFIRMED_DEAD
-```
+| Capability | Classification |
+|---|---|
+| Stable hook ID (`setId`) | `INTENTIONALLY_UNWIRED_DOCUMENTED` |
+| `replaceHook` | `INTENTIONALLY_UNWIRED_DOCUMENTED` |
+| `getId` in callback | `INTENTIONALLY_UNWIRED_DOCUMENTED` |
+| Hot reload (`onHotReloading` / `onHotReloaded`) | `INTENTIONALLY_UNWIRED_DOCUMENTED` |
 
-处理 stable hook ID、replaceHook、hot reload/capability bridge。
+处理：
+
+- `Api102HookBridge` 是唯一引用 `HookBuilder.setId` 的文件，且通过 `XposedApiCapabilities.supportsStableHookId()` 门控。
+- 未在生产安装路径调用 `setStableHookId`。
+- `replaceHook` / `getId` / hot reload 无生产使用。
+
+更新文档：
+
+- `docs/LIBXPOSED_API_101_102_COMPATIBILITY.md`
 
 完成：
 
