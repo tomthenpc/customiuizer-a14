@@ -61,8 +61,8 @@ class GestureSideEffectGate(
         if (commands.isEmpty()) return commands
         if (entry !in effectEntries) return emptyList()
 
-        val business = commands.filter(::isBusinessEffect)
-        if (business.isEmpty()) return commands
+        val hasBusiness = commands.any(::isBusinessEffect)
+        if (!hasBusiness) return commands
 
         val fp = fingerprint(ownerId, event)
         if (fp in seen) return emptyList()
