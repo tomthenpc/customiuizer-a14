@@ -8,6 +8,7 @@ Outputs:
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 from datetime import datetime, timezone
@@ -81,7 +82,8 @@ def compute_progress(tasks: list[dict], issue_counts: dict) -> dict:
     }
 
 
-def main() -> int:
+def generate_snapshot() -> tuple[dict, str]:
+    """Generate the current snapshot and Markdown content."""
     smart = parse_smart_state()
     tasks = parse_task_state()
     text = TASK_STATE.read_text(encoding="utf-8")
@@ -97,9 +99,6 @@ def main() -> int:
         "progress": progress,
         "tasks": tasks,
     }
-
-    OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
-    OUT_JSON.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
 
     md = [
         "# A14 Progress Current\n\n",
@@ -124,7 +123,58 @@ def main() -> int:
     for t in tasks:
         md.append(f"| {t['title']} | {t['state']} |\n")
 
-    OUT_MD.write_text("".join(md), encoding="utf-8")
+    return snapshot, "".join(md)
+
+
+def check_snapshot() -> int:
+    """Return 0 if the generated snapshot matches the committed files."""
+    snapshot, md = generate_snapshot()
+    json_fresh = json.dumps(snapshot, indent=2)
+    md_fresh = md
+
+    errors = []
+    if OUT_JSON.is_file():
+        existing_json = OUT_JSON.read_text(encoding="utf-8")
+        # `generatedAt` is allowed to drift.
+        existing = json.loads(existing_json)
+        fresh = json.loads(json_fresh)
+        existing.pop("generatedAt", None)
+        fresh.pop("generatedAt", None)
+        if existing != fresh:
+            errors.append(f"{OUT_JSON.relative_to(REPO_ROOT)} is stale")
+    else:
+        errors.append(f"{OUT_JSON.relative_to(REPO_ROOT)} is missing")
+
+    if OUT_MD.is_file():
+        existing_md = OUT_MD.read_text(encoding="utf-8")
+        if not existing_md.startswith("# A14 Progress Current"):
+            errors.append(f"{OUT_MD.relative_to(REPO_ROOT)} is malformed")
+    else:
+        errors.append(f"{OUT_MD.relative_to(REPO_ROOT)} is missing")
+
+    if errors:
+        print("Progress snapshot drift:")
+        for e in errors:
+            print(f"  - {e}")
+        return 1
+
+    print("Progress snapshot is fresh.")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Generate or check A14 progress snapshot")
+    parser.add_argument("--check", action="store_true", help="check existing snapshot is up to date")
+    args = parser.parse_args(argv)
+
+    if args.check:
+        return check_snapshot()
+
+    snapshot, md = generate_snapshot()
+
+    OUT_JSON.parent.mkdir(parents=True, exist_ok=True)
+    OUT_JSON.write_text(json.dumps(snapshot, indent=2), encoding="utf-8")
+    OUT_MD.write_text(md, encoding="utf-8")
 
     print(f"Wrote {OUT_JSON}")
     print(f"Wrote {OUT_MD}")

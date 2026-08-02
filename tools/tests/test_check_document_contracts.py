@@ -19,10 +19,19 @@ class DocumentContractTests(unittest.TestCase):
     def test_parse_metadata_missing(self):
         self.assertIsNone(c.parse_metadata("# Title\n\nNo block"))
 
-    def test_git_commit_exists_checks(self):
-        # HEAD must exist.
-        self.assertTrue(c.git_commit_exists("HEAD"))
-        self.assertFalse(c.git_commit_exists("0000000000000000000000000000000000000000"))
+    def test_validate_evidence_commit(self):
+        ok, classification = c.validate_evidence_commit("HEAD")
+        self.assertTrue(ok)
+        self.assertEqual("OK", classification)
+
+        ok, classification = c.validate_evidence_commit("0000000000000000000000000000000000000000")
+        self.assertFalse(ok)
+        self.assertEqual("HISTORY_UNAVAILABLE", classification)
+
+        # A valid 40-hex object that is unlikely to exist should also be unavailable.
+        ok, classification = c.validate_evidence_commit("1111111111111111111111111111111111111111")
+        self.assertFalse(ok)
+        self.assertIn(classification, {"HISTORY_UNAVAILABLE", "INVALID_COMMIT", "NOT_ANCESTOR"})
 
 
 if __name__ == "__main__":

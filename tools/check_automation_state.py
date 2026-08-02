@@ -45,9 +45,13 @@ SMART_REQUIRED_KEYS = {
     "LastToolCreated",
     "LastFailureClass",
     "CurrentObjective",
+    "CurrentObjectiveState",
+    "CurrentObjectiveStartEvidence",
+    "NextObjectiveFirstAction",
     "ResumeTask",
 }
 VALID_CI_STATES = {"NOT_CONFIGURED", "PENDING", "PASS", "FAIL", "UNAVAILABLE"}
+VALID_OBJECTIVE_STATES = {"ACTIVE", "PAUSED", "BLOCKED", "COMPLETE"}
 
 
 def read_text(path: Path) -> str:
@@ -136,6 +140,29 @@ def check_smart_state(path: Path, raw_text: str, repo_root: Path) -> list[str]:
             errors.append("SMART_OPERATION_STATE CheckpointCount must be non-negative")
     except ValueError:
         errors.append(f"SMART_OPERATION_STATE CheckpointCount is not an integer: {checkpoint_count}")
+
+    # Objective handoff invariants (see SMART_CONTINUOUS_OPERATION v3 and A14 CI preflight).
+    objective_state = state.get("CurrentObjectiveState", "")
+    if objective_state and objective_state not in VALID_OBJECTIVE_STATES:
+        errors.append(f"SMART_OPERATION_STATE invalid CurrentObjectiveState: {objective_state}")
+
+    start_evidence = state.get("CurrentObjectiveStartEvidence", "")
+    if objective_state == "ACTIVE" and (not start_evidence or start_evidence.lower() == "pending"):
+        errors.append("SMART_OPERATION_STATE CurrentObjectiveState=ACTIVE but CurrentObjectiveStartEvidence is missing")
+
+    next_action = state.get("NextObjectiveFirstAction", "")
+    if not next_action:
+        errors.append("SMART_OPERATION_STATE NextObjectiveFirstAction is missing")
+    elif any(token in next_action for token in (" or ", " / ", ";", ",")):
+        errors.append("SMART_OPERATION_STATE NextObjectiveFirstAction must be a single action, no 'or' / '/' / ';' / ','")
+
+    resume = state.get("ResumeTask", "")
+    if any(token in resume for token in (" or ", " / ")):
+        errors.append("SMART_OPERATION_STATE ResumeTask must not contain ' or ' or ' / '")
+
+    # LastCIState is a remote fact; do not claim PASS without a real CI run.
+    if ci == "PASS":
+        errors.append("SMART_OPERATION_STATE LastCIState=PASS must be set only after remote Fast CI passes")
 
     return errors
 
@@ -248,6 +275,87 @@ def check_task_state(path: Path, raw_text: str) -> list[str]:
     errors.extend(build_parent_child(sections))
     errors.extend(check_issue_queue(raw_text))
     errors.extend(check_checkpoint_section(raw_text))
+    return sections, errors
+
+
+def parse_issue_table(text: str) -> list[dict[str, str]]:
+    """Parse the issue queue table and return a list of row dicts."""
+    table_match = re.search(r"\|\s*ID\s*\|.*\n((?:\|[^\n]+\|\n?)+)", text)
+    if not table_match:
+        return []
+
+    rows = [line for line in table_match.group(1).strip().splitlines() if line.startswith("|")]
+    issues: list[dict[str, str]] = []
+    for row in rows:
+        cells = [c.strip() for c in row.split("|")][1:-1]
+        if len(cells) < 6:
+            continue
+        issues.append({
+            "id": cells[0],
+            "priority": cells[1],
+            "area": cells[2],
+            "state": cells[3],
+            "evidence": cells[4],
+            "acceptance": cells[5],
+        })
+    return issues
+
+
+def check_current_objective(smart_text: str, task_text: str) -> list[str]:
+    """Cross-validate SMART CurrentObjective against TASK_STATE.md."""
+    errors: list[str] = []
+    try:
+        block = parse_smart_state(smart_text)
+    except ValueError:
+        return errors
+    state, _ = smart_state_dict(block)
+
+    current = state.get("CurrentObjective", "")
+    obj_state = state.get("CurrentObjectiveState", "")
+
+    # Find the matching P# section in TASK_STATE.md.
+    sections = parse_task_sections(task_text)
+    section_id = None
+    objective_prefix = re.match(r"(P\d+(?:\.\d+)?)", current)
+    objective_id = objective_prefix.group(1) if objective_prefix else ""
+    for sid in sections:
+        if sid == objective_id:
+            section_id = sid
+            break
+
+    if section_id:
+        task_state = sections[section_id]["state"]
+        if obj_state == "COMPLETE" and task_state != "COMPLETE":
+            errors.append(
+                f"SMART_OPERATION_STATE CurrentObjectiveState=COMPLETE but {section_id} state in TASK_STATE is {task_state}"
+            )
+        if obj_state != "COMPLETE" and task_state == "COMPLETE":
+            errors.append(
+                f"SMART_OPERATION_STATE CurrentObjective is {section_id} ({task_state}) but CurrentObjectiveState is not COMPLETE"
+            )
+    elif current:
+        # Unknown objective that does not map to a task section.
+        errors.append(f"SMART_OPERATION_STATE CurrentObjective '{current}' does not match any P# section")
+
+    # Block choosing P2/P3 while an unblocked P1 is not COMPLETE/BLOCKED_EXTERNAL/CORE_COMPLETE.
+    allowed_incomplete_p1 = {"COMPLETE", "BLOCKED_EXTERNAL", "NOT_APPLICABLE", "CORE_COMPLETE"}
+    issues = parse_issue_table(task_text)
+    unblocked_p1 = [
+        i for i in issues
+        if i["priority"] == "P1" and i["state"] not in allowed_incomplete_p1
+    ]
+    if unblocked_p1:
+        parents = set()
+        for i in unblocked_p1:
+            m = re.search(r"P\d+(?:\.\d+)?", i["acceptance"])
+            if m:
+                parents.add(m.group(0))
+        # The current objective should explicitly reference at least one parent of an unblocked P1.
+        if not any(parent in current for parent in parents):
+            errors.append(
+                f"SMART_OPERATION_STATE CurrentObjective '{current}' does not address unblocked P1 issues { {i['id'] for i in unblocked_p1} } whose parents are {parents}"
+            )
+
     return errors
 
 
@@ -270,10 +378,16 @@ def main() -> int:
     else:
         all_errors.append("Missing SMART_OPERATION_STATE.md")
 
+    task_text = ""
     if task_path.exists():
-        all_errors.extend(check_task_state(task_path, read_text(task_path)))
+        task_text = read_text(task_path)
+        _, task_errors = check_task_state(task_path, task_text)
+        all_errors.extend(task_errors)
     else:
         all_errors.append("Missing TASK_STATE.md")
+
+    if smart_path.exists() and task_path.exists():
+        all_errors.extend(check_current_objective(read_text(smart_path), task_text))
 
     texts = {
         "GOAL.md": read_text(goal_path) if goal_path.exists() else "",

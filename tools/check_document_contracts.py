@@ -48,18 +48,47 @@ def parse_metadata(text: str) -> dict[str, str] | None:
     return None
 
 
-def git_commit_exists(sha: str) -> bool:
-    try:
-        subprocess.run(
-            ["git", "cat-file", "-t", sha],
+def validate_evidence_commit(sha: str) -> tuple[bool, str]:
+    """Validate an EvidenceCommit points to a real commit object and is an ancestor of HEAD.
+
+    Returns (ok, classification).  Classifications:
+      - HISTORY_UNAVAILABLE: the object is not present in the local Git history.
+      - INVALID_COMMIT: the sha exists but is not a valid commit object.
+      - NOT_ANCESTOR: the sha is a commit but is not an ancestor of HEAD (shallow clone or outdated ref).
+      - OK: the commit is present and is an ancestor of HEAD.
+    """
+    # 1) Is it a commit object?  `cat-file -e sha^{commit}` will fail if the sha
+    #    is missing or if it does not dereference to a commit.
+    exists = subprocess.run(
+        ["git", "cat-file", "-e", f"{sha}^{{commit}}"],
+        cwd=REPO_ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if exists.returncode != 0:
+        # Distinguish "object does not exist" from "not a commit" by checking
+        # whether the raw sha exists at all.
+        any_object = subprocess.run(
+            ["git", "cat-file", "-e", sha],
             cwd=REPO_ROOT,
-            check=True,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-        return True
-    except subprocess.CalledProcessError:
-        return False
+        if any_object.returncode != 0:
+            return False, "HISTORY_UNAVAILABLE"
+        return False, "INVALID_COMMIT"
+
+    # 2) Is it an ancestor of HEAD?
+    ancestor = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", sha, "HEAD"],
+        cwd=REPO_ROOT,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if ancestor.returncode != 0:
+        return False, "NOT_ANCESTOR"
+
+    return True, "OK"
 
 
 def list_documents(root: Path) -> list[Path]:
@@ -123,8 +152,12 @@ def check_document_contracts(only_staged: bool = False) -> list[str]:
             errors.append(f"{path.relative_to(REPO_ROOT)}: wrong Branch '{branch}'")
 
         evidence_commit = meta.get("EvidenceCommit")
-        if evidence_commit and evidence_commit != "pending" and not git_commit_exists(evidence_commit):
-            errors.append(f"{path.relative_to(REPO_ROOT)}: EvidenceCommit '{evidence_commit}' not found in repo")
+        if evidence_commit and evidence_commit != "pending":
+            ok, classification = validate_evidence_commit(evidence_commit)
+            if not ok:
+                errors.append(
+                    f"{path.relative_to(REPO_ROOT)}: EvidenceCommit '{evidence_commit}' {classification}"
+                )
 
         evidence_state = meta.get("EvidenceState")
         if evidence_state and evidence_state not in ALLOWED_EVIDENCE_STATES:

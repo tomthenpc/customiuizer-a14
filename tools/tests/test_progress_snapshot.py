@@ -15,7 +15,7 @@ class ProgressSnapshotTest(unittest.TestCase):
         self.assertTrue(len(tasks) > 0)
 
     def test_generates_files(self):
-        progress_snapshot.main()
+        progress_snapshot.main([])
         self.assertTrue(progress_snapshot.OUT_JSON.is_file())
         self.assertTrue(progress_snapshot.OUT_MD.is_file())
 
