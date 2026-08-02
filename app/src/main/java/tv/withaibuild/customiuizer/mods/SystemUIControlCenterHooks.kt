@@ -977,6 +977,14 @@ object SystemUIControlCenterHooks {
 
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onInterceptTouchEvent", MotionEvent::class.java, statusBarHook)
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onTouchEvent", MotionEvent::class.java, statusBarHook)
+        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "onAttachedToWindow", object : MethodHook() {
+            override fun before(param: BeforeHookCallback) {
+                val thisObject = param.getThisObject() as? View ?: return
+                ModuleHelper.guarded {
+                    statusBarMachine.prepare(System.identityHashCode(thisObject), thisObject)
+                }
+            }
+        })
         ModuleHelper.hookAllMethods("com.android.systemui.shared.plugins.PluginInstance\$PluginFactory", lpparam.classLoader, "createPlugin", object : MethodHook() {
             private var isHooked = false
             override fun before(param: BeforeHookCallback) {
@@ -1014,6 +1022,14 @@ object SystemUIControlCenterHooks {
                     }
                 }
                 ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", loader, "handleMotionEvent", MotionEvent::class.java, Boolean::class.javaPrimitiveType!!, controlCenterHook)
+                ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", loader, "onAttachedToWindow", object : MethodHook() {
+                    override fun before(param: BeforeHookCallback) {
+                        val thisObject = param.getThisObject() as? View ?: return
+                        ModuleHelper.guarded {
+                            controlCenterMachine.prepare(System.identityHashCode(thisObject), thisObject)
+                        }
+                    }
+                })
             }
         })
     }

@@ -25,6 +25,16 @@ class GestureMachine(
     private val configs = mutableMapOf<Int, GestureConfig>()
 
     /**
+     * Prepare dependencies for the given owner at a safe lifecycle point.
+     *
+     * Returns `true` if dependencies are now ready.  This is the only place where
+     * cold reflection / dependency resolution should happen.
+     */
+    fun prepare(ownerId: Int, context: Any): Boolean {
+        return ensureDependencies(ownerId, context) != null
+    }
+
+    /**
      * Process one [event] and execute the allowed side-effects through [effectExecutor].
      */
     fun dispatch(event: GestureEvent, context: Any) {
@@ -36,7 +46,11 @@ class GestureMachine(
 
         val config = configs[ownerId] ?: return
 
-        val deps = ensureDependencies(ownerId, context) ?: return
+        if (dependencies[ownerId] == null) {
+            passThrough(event)
+            return
+        }
+        val deps = dependencies[ownerId]!!
 
         val current = snapshots[ownerId] ?: GestureSnapshot()
         val (next, commands) = GestureStateMachine.process(
@@ -49,6 +63,10 @@ class GestureMachine(
 
         val allowed = gate.filter(event.entry, event, commands)
         effectExecutor.execute(allowed, deps, config, context)
+    }
+
+    private fun passThrough(event: GestureEvent): List<GestureCommand> {
+        return gate.filter(event.entry, event, listOf(GestureCommand.PassThrough))
     }
 
     private fun ensureDependencies(ownerId: Int, context: Any): GestureDependencies? {

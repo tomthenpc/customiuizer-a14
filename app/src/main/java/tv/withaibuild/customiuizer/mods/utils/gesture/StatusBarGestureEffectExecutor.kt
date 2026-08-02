@@ -32,7 +32,11 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
         for (command in commands) {
             when (command) {
                 is GestureCommand.ApplyTemporaryBrightness -> {
-                    XposedHelpers.callMethod(
+                    dependencies.setTemporaryBrightnessMethod?.invoke(
+                        dependencies.displayManager,
+                        dependencies.displayId,
+                        command.ratio,
+                    ) ?: XposedHelpers.callMethod(
                         dependencies.displayManager,
                         "setTemporaryBrightness",
                         dependencies.displayId,
@@ -40,7 +44,11 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
                     )
                 }
                 is GestureCommand.CommitBrightness -> {
-                    XposedHelpers.callMethod(
+                    dependencies.setBrightnessMethod?.invoke(
+                        dependencies.displayManager,
+                        dependencies.displayId,
+                        command.ratio,
+                    ) ?: XposedHelpers.callMethod(
                         dependencies.displayManager,
                         "setBrightness",
                         dependencies.displayId,

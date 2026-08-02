@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioManager
 import android.view.View
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import java.lang.reflect.Method
 
 /**
  * Resolves the runtime dependencies for the Control Center gesture owner.
@@ -39,6 +40,16 @@ class ControlCenterGestureDependenciesResolver : GestureDependenciesResolver {
                 res.getIdentifier("status_bar_height_default", "dimen", "android"),
             )
             val metrics = res.displayMetrics
+            val setTemporaryBrightness = displayManager.javaClass.getMethod(
+                "setTemporaryBrightness",
+                Int::class.java,
+                Float::class.java,
+            )
+            val setBrightness = displayManager.javaClass.getMethod(
+                "setBrightness",
+                Int::class.java,
+                Float::class.java,
+            )
 
             GestureDependenciesResult.Ready(
                 GestureDependencies(
@@ -52,6 +63,8 @@ class ControlCenterGestureDependenciesResolver : GestureDependenciesResolver {
                     statusBarHeight = statusBarHeight,
                     screenWidth = metrics.widthPixels,
                     density = metrics.density,
+                    setTemporaryBrightnessMethod = setTemporaryBrightness,
+                    setBrightnessMethod = setBrightness,
                 ),
             )
         } catch (err: Throwable) {

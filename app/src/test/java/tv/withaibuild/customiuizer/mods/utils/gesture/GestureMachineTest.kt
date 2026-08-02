@@ -75,6 +75,7 @@ class GestureMachineTest {
     fun statusBarTouch_brightnessCycle() {
         val (m, exec) = machine()
 
+        m.prepare(1, dummyContext)
         m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
         m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L), dummyContext)
         m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, downTime = 0L), dummyContext)
@@ -88,6 +89,7 @@ class GestureMachineTest {
     fun interceptObservesButDoesNotExecute() {
         val (m, exec) = machine()
 
+        m.prepare(1, dummyContext)
         m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
         m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
         m.dispatch(event(GestureAction.UP, x = 300f, y = 10f, eventTime = 100L, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
@@ -100,6 +102,7 @@ class GestureMachineTest {
     fun sameEventInterceptThenTouch_allowsOnce() {
         val (m, exec) = machine()
 
+        m.prepare(1, dummyContext)
         m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1, entry = GestureEntry.STATUS_BAR_INTERCEPT), dummyContext)
         m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1, entry = GestureEntry.STATUS_BAR_TOUCH), dummyContext)
 
@@ -126,6 +129,7 @@ class GestureMachineTest {
             },
             effectExecutor = exec,
         )
+        assertTrue(!m.prepare(1, dummyContext))
         m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L), dummyContext)
         assertTrue(exec.brightnessApplied.isEmpty())
     }
@@ -134,6 +138,8 @@ class GestureMachineTest {
     fun ownerChange_isIndependent() {
         val (m, exec) = machine()
 
+        m.prepare(1, dummyContext)
+        m.prepare(2, dummyContext)
         m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 1), dummyContext)
         m.dispatch(event(GestureAction.DOWN, x = 100f, y = 10f, eventTime = 0L, ownerId = 2), dummyContext)
         m.dispatch(event(GestureAction.MOVE, x = 300f, y = 10f, eventTime = 50L, downTime = 0L, ownerId = 2), dummyContext)
