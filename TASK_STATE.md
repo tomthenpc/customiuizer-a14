@@ -389,7 +389,7 @@ unknown production Feature = 0
 
 # P3 — MainModule、ProcessRouter 与 Installer
 
-State: `COMPLETE`
+State: `IN_PROGRESS`
 
 检查：
 
@@ -411,13 +411,23 @@ State: `COMPLETE`
 | `GenericAppInstaller` 路由 | `REVERTED` | 尝试将 `isLauncherPkg` / `isStatusBarColor` / `isNoOverscroll` / `controlMedia` 移入 `GenericAppInstaller` 内部，但违反 `RemainingFeaturesWiringTest.installersNoLongerContainDirectPreferenceChecks` 不变量（installer 不得直接读取 `mPrefs`）。回退到 `MainModule` 计算并传参给 `GenericAppInstaller.installPostAttach(lpparam, mPrefs, ...)`。 |
 | `ProcessRouter` 事实源 | `COMPLETE` | `MainModule.onPackageReady` 使用 `ProcessRouter.resolve(pkg, processName)` 得到 `ProcessScope`。 |
 | `isFirstPackage` | `COMPLETE` | `MainModule.onPackageReady` 在开头检查 `!lpparam.isFirstPackage()` 并返回。 |
-| `SystemUI` 分支初始化 | `COMPLETE` | `MainModule` 保留 base hooks（`SystemUIInitializer.init`、fast-reboot receiver、status-bar setup、10s restart check、preference watch），这些是必须由 Module 在 live Context 就绪前/后执行的 bootstrap；非必要业务 hooks 已委托给 `SystemUiInstaller.install(lpparam, mPrefs)`。`SystemUiInstallerTest` 和 `SystemUiInstaller` 注释确认此边界。 |
+| `SystemUI` 分支初始化 | `IN_PROGRESS` | v4 audit 确认 `MainModule` 仍包含 initializer hook、context、fast-reboot receiver、status-bar setup、preference watch、10s restart guard；需提取 `SystemUiBootstrapCoordinator`。 |
+| `GenericAppEligibilityResolver` | `TODO` | 按 v4 方向：MainModule → GenericAppEligibilityResolver → immutable GenericAppSelection → GenericAppInstaller；resolver 读取 `mPrefs`，installer 只执行。 |
 | `helper/remote/isolated process` | `COMPLETE` | `ProcessScope.isInstallable` 拒绝 `SYSTEM_UI_PLUGIN`、`SETTINGS_REMOTE`、`SECURITY_CENTER_REMOTE`、`SECURITY_CENTER_BOOTAWARE`、`NETWORK_STACK`、`UNSUPORTED`。 |
 | `duplicate package handling` | `COMPLETE` | `MainModule.onPackageReady` 每个 `ProcessScope` 只调用一个 dedicated installer；`ProcessRouter.resolve` 保证 package→scope 唯一。 |
 | `attach phase` | `COMPLETE` | `GenericAppInstaller.installPostAttach` 仅在 `Application.attach` 回调内创建 `FeatureInstallRegistry` 并安装 `LAUNCHER` / `ANY` features。 |
 | `generic ANY target` | `COMPLETE` | `CommonPackageFeatures` 和 `GenericAppFeatures` 明确返回 `FeatureTarget.ANY` 并仅在 `PACKAGE_READY` / `APPLICATION_ATTACHED` 安装。 |
 | `reflection lifecycle` | `COMPLETE` | `MainModule` 在 `SYSTEM_UI` 和 `LAUNCHER` 分支调用 `ReflectionCache.onSafeLifecycle(lpparam.getClassLoader())`。 |
 | `process-local state` | `COMPLETE` | `MainModule.mPrefs` 是进程单例；各 installer 为无状态 static 工具类。 |
+
+## P3.2 — SystemUI bootstrap 与 fatal 边界
+
+State: `IN_PROGRESS`
+
+- 提取 `SystemUiBootstrapCoordinator`，显式状态：`UNINITIALIZED` → `HOOK_INSTALLED` → `CONTEXT_READY` → `BASE_READY` → `PREFERENCE_READY` → `COMPLETE` / `FAILED_TRANSIENT`。
+- 创建 `FatalErrors.rethrowIfFatal` / `FatalErrors.unwrapAndRethrowIfFatal` 共享 helper。
+- 用 helper 替换 `MainModule` 中单独 rethrow `OutOfMemoryError` 的 `catch(Throwable)` 块。
+- 增加 focused tests。
 
 命令：
 
@@ -491,7 +501,7 @@ API102 leakage into API101 path = 0
 
 # P5 — Gesture/Control Center
 
-State: `COMPLETE`
+State: `IN_PROGRESS`
 
 ## P5.1 生产状态机
 
@@ -525,11 +535,19 @@ State: `COMPLETE`
 - 退出码：`0`
 - 包含：`GestureMachineTest`、`GestureMachineStressTest`、`GestureMachineBehavioralStressTest`、`GestureMachineIntegrationTest`、`GestureStateMachineTest`、`GestureSideEffectGateTest`。
 
+## P5.5 Pointer contract / Gate / Arbiter
+
+State: `IN_PROGRESS`
+
+- v4 audit 要求明确 `MotionEvent.pointerCount` 语义（raw count vs post-action active count）并在 production adapter 唯一归一化。
+- `GestureSideEffectGate` 中 `commands.filter(::isBusinessEffect)` 改为无中间列表扫描。
+- `GestureArbiter` 增加硬上限、stale cleanup、满载拒绝、missing CANCEL 测试。
+
 ---
 
 # P6 — SystemUI/Launcher lifecycle
 
-State: `COMPLETE`
+State: `IN_PROGRESS`
 
 ## P6.1 Status bar custom View
 
@@ -580,11 +598,18 @@ State: `COMPLETE`
 - `MainModule` 的 `isFirstPackage` 守卫防止 process recreation 重复初始化；
 - `MainModule` 在 `LAUNCHER` 分支调用 `ReflectionCache.onSafeLifecycle`。
 
+## P6.5 Lifecycle owner inventory
+
+State: `IN_PROGRESS`
+
+- v4 audit 要求完整证明 `GestureMachine` snapshot/dependencies/configs 的 attach/detach 清理。
+- 生成 production lifecycle owner inventory 和测试，确保每个 owner 在 detach 时释放。
+
 ---
 
 # P7 — Runtime safety、并发与缓存
 
-State: `COMPLETE`
+State: `IN_PROGRESS`
 
 ## P7.1 Fatal propagation
 
@@ -620,6 +645,13 @@ State: `COMPLETE`
 - `ReceiverRegistry.ownedReceivers` 使用 `CopyOnWriteArrayList`，按 owner 弱引用清理；
 - `DeviceInfoMonitor` 的 `monitorLock` 保护 Handler/Receiver 切换；
 - `SystemUIStatusBarHooks.statusbarTextIcons` 使用 `WeakReference` 并在访问时清理。
+
+## P7.5 Observe / hot-path eligibility
+
+State: `IN_PROGRESS`
+
+- v4 audit 发现 status bar intercept 调用 `observe()` 但调用方忽略返回值，可能执行无效状态机/配置计算。
+- 证明是否需要 consume decision，或改为廉价 eligibility/no-op。
 
 命令：
 
@@ -927,6 +959,15 @@ P0 完成后重建，不得删除未解决条目。
 | API-001 | P1 | API 101/102 | COMPLETE | API 102-only 类型/调用已分类并文档化，API 101 路径保持完整 | P4 完成 |
 | GESTURE-001 | P1 | Gesture | COMPLETE | 唯一生产状态机、事件模型、side-effect gate 和 stress tests 已通过 | P5 完成 |
 | LIFECYCLE-001 | P1 | SystemUI | COMPLETE | 已以当前 HEAD 重审 status bar custom View、icon group、周期监控和 Bitmap/Drawable/View 生命周期 | P6 完成 |
+| ALG-001 | P1 | MainModule | TODO | SystemUI bootstrap 仍在 MainModule（initializer hook / context / fast-reboot receiver / status-bar setup / preference watch / 10s restart guard） | P3.2 完成 |
+| ALG-002 | P1 | Fatal | TODO | 部分 MainModule 只 rethrow OOM，catch(Throwable) 可能吞掉 ThreadDeath / VirtualMachineError / 包装 fatal | P3.2 完成 |
+| ALG-003 | P1 | Gesture | TODO | pointerCount contract 未在 production adapter 唯一归一化 | P5.5 完成 |
+| ALG-004 | P1 | Gesture | TODO | `commands.filter(::isBusinessEffect)` 在热路径创建中间列表 | P5.5 完成 |
+| ALG-005 | P1 | Gesture | TODO | `GestureArbiter` token map 无硬上限，UP/CANCEL/detach 时 token 可残留 | P5.5 完成 |
+| ALG-006 | P1 | Lifecycle | TODO | `GestureMachine` 的 snapshot/dependencies/configs 依赖每个 detach 调用 clear；需完整 owner inventory | P6.5 完成 |
+| ALG-007 | P1 | HotPath | TODO | status bar intercept `observe()` 返回值未被使用，可能执行无效热路径计算 | P7.5 完成 |
+| DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |
+| CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |
 | DEVICE-001 | P1 | Device | BLOCKED_EXTERNAL | 无本轮真实证据 | P15 完成 |
 
 ---
