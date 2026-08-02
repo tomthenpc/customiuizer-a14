@@ -1137,6 +1137,8 @@ P0 完成后重建，不得删除未解决条目。
 | ALG-005 | P1 | Gesture | COMPLETE | `PhysicalGestureArbiter` 已加 `MAX_HELD_TOKENS` 硬上限、`STALE_TOKEN_AGE_MS` 清理、`reapStaleTokens` 兜底；`GestureMachine` 在 UP/CANCEL/Reset/detach 时释放 token；测试覆盖 | P5.5 完成 |
 | ALG-006 | P1 | Lifecycle | BLOCKED_EXTERNAL | `ControlCenterGestureRuntimeHolder.unbind()` 已实现并测试；per-View `onDetachedFromWindow` 调用 `controlCenterMachine.clear(ownerId)`；新 ClassLoader 触发 `bind` 时清理旧 runtime；plugin/ClassLoader 销毁入口未发现，不猜测 Hook | P6.5 完成 |
 | ALG-007 | P1 | HotPath | COMPLETE | `SystemUIControlCenterHooks` 的 `onInterceptTouchEvent` 不再调用 `statusBarMachine.observe()`，避免未使用返回值的热路径计算 | P7.5 完成 |
+| REPAIR-001 | P1 | Fatal | COMPLETE | `SystemUIControlCenterHooks.extractPluginLoader` 所有 `catch (Throwable)` 先调用 `FatalErrors.rethrowIfFatal`，fatal 错误继续抛出后再进入反射 fallback；新增 `SystemUIControlCenterHooksExtractPluginLoaderTest` | 紧急修复 V2 完成 |
+| REPAIR-002 | P1 | Lifecycle | COMPLETE | 合并 `PluginFactory.createPlugin` 所有权到 `ControlCenterPluginRuntime`；唯一运行时管理 `activeLoader`、`ControlCenterGestureRuntimeHolder`、`PhysicalGestureArbiter` 并提供对称 `clear()`；新增 `ControlCenterPluginRuntimeTest` | 紧急修复 V2 完成 |
 | DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |
 | CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |
 | DEVICE-001 | P1 | Device | BLOCKED_EXTERNAL | 无本轮真实证据 | P15 完成 |

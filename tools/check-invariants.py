@@ -1166,36 +1166,75 @@ def check_gesture_dispatch_no_config_resolver(path: Path, text: str) -> list[Fin
 
 def check_gesture_shared_arbiter(path: Path, text: str) -> list[Finding]:
     """Status Bar and Control Center GestureMachine instances must share one PhysicalGestureArbiter."""
-    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt":
+    if rel_posix(path) == "tv/withaibuild/customiuizer/mods/utils/ControlCenterPluginRuntime.kt":
+        if "PhysicalGestureArbiter()" not in text:
+            return [
+                Finding(
+                    "gesture-shared-arbiter",
+                    path,
+                    1,
+                    "ControlCenterPluginRuntime must create the shared PhysicalGestureArbiter",
+                )
+            ]
+        if "ControlCenterGestureRuntimeHolder(" not in text or "arbiter = arbiter" not in text:
+            return [
+                Finding(
+                    "gesture-shared-arbiter",
+                    path,
+                    1,
+                    "ControlCenterGestureRuntimeHolder must use the shared arbiter",
+                )
+            ]
         return []
-    if "PhysicalGestureArbiter()" not in text:
-        return [
-            Finding(
-                "gesture-shared-arbiter",
-                path,
-                1,
-                "StatusBarGesturesHook must create a shared PhysicalGestureArbiter",
-            )
-        ]
-    if "statusBarMachine" not in text or "arbiter = arbiter" not in text or "controlCenterMachine" not in text:
-        return [
-            Finding(
-                "gesture-shared-arbiter",
-                path,
-                1,
-                "statusBarMachine and controlCenterMachine must both use the shared arbiter",
-            )
-        ]
+    if rel_posix(path) == "tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt":
+        if "PhysicalGestureArbiter()" in text:
+            return [
+                Finding(
+                    "gesture-shared-arbiter",
+                    path,
+                    1,
+                    "StatusBarGesturesHook must not create a separate PhysicalGestureArbiter; use ControlCenterPluginRuntime.arbiter()",
+                )
+            ]
+        if "statusBarMachine" not in text or ("arbiter = arbiter" not in text and "runtime.arbiter()" not in text and "ControlCenterPluginRuntime.arbiter()" not in text):
+            return [
+                Finding(
+                    "gesture-shared-arbiter",
+                    path,
+                    1,
+                    "statusBarMachine must use the shared arbiter from ControlCenterPluginRuntime",
+                )
+            ]
+        return []
     return []
 
 
 def check_gesture_detach_cleanup(path: Path, text: str) -> list[Finding]:
     """View detach must clear the corresponding GestureMachine owner."""
-    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt":
-        return []
-    status_ok = '"onDetachedFromWindow"' in text and "statusBarMachine.clear" in text
-    cc_ok = '"onDetachedFromWindow"' in text and "controlCenterMachine.clear" in text
     findings = []
+    if rel_posix(path) == "tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt":
+        status_ok = '"onDetachedFromWindow"' in text and "statusBarMachine.clear" in text
+        if not status_ok:
+            findings.append(
+                Finding(
+                    "gesture-detach-cleanup",
+                    path,
+                    1,
+                    "PhoneStatusBarView.onDetachedFromWindow must call statusBarMachine.clear(ownerId)",
+                )
+            )
+    if rel_posix(path) == "tv/withaibuild/customiuizer/mods/utils/ControlCenterPluginRuntime.kt":
+        cc_ok = '"onDetachedFromWindow"' in text and "controlCenterMachine.clear" in text
+        if not cc_ok:
+            findings.append(
+                Finding(
+                    "gesture-detach-cleanup",
+                    path,
+                    1,
+                    "ControlCenterWindowViewImpl.onDetachedFromWindow must call controlCenterMachine.clear(ownerId)",
+                )
+            )
+    return findings
     if not status_ok:
         findings.append(
             Finding(

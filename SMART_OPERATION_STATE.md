@@ -19,11 +19,11 @@ LastCICommit: e919c1da860d020856ecdc8106375989b9812587
 LastCleanupCommit: 3c61ee8f4ee93de3a2c601baf40812361a1714a4
 LastToolCreated: tools/brutal_test_runner.py
 LastFailureClass: none
-CurrentObjective: P12
+CurrentObjective: P12 Emergency Repair (A14_CODE_ERROR_REPAIR_PROMPT_V2)
 CurrentObjectiveState: ACTIVE
 CurrentObjectiveStartEvidence: Fast CI 30744356086 job 91487300049 passed on e919c1da; P13 source hazard baseline established (1079 reviewed, 0 new); P8/P10 machine tasks VERIFIED
-NextObjectiveFirstAction: begin P12 documentation sweep and release-candidate record
-ResumeTask: continue P12 documentation, dead-code audit and P14 MACHINE_COMPLETE preparation
+NextObjectiveFirstAction: continue remaining emergency repair items: TASK_STATE VERIFIED classification, source_hazard_scan.py, catch parser, installer count/JVM ABI test, P8.3/P6.5 docs
+ResumeTask: P12 emergency repair item 3: replace VERIFIED with VERIFIED_STATIC/BUILD/CI/DEVICE
 DeepSweepDue: false
 ```
 

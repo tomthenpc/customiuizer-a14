@@ -37,14 +37,11 @@ import java.util.ArrayList
 import java.util.Comparator
 import java.lang.System
 import tv.withaibuild.customiuizer.utils.HookUtils
-import tv.withaibuild.customiuizer.mods.utils.gesture.GestureConfigPublisher
-import tv.withaibuild.customiuizer.mods.utils.gesture.GestureConfigResolver
+import tv.withaibuild.customiuizer.mods.utils.ControlCenterPluginRuntime
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEntry
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEvent
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureMachine
-import tv.withaibuild.customiuizer.mods.utils.gesture.PhysicalGestureArbiter
-import tv.withaibuild.customiuizer.mods.utils.gesture.ControlCenterGestureDependenciesResolver
-import tv.withaibuild.customiuizer.mods.utils.gesture.ControlCenterGestureRuntimeHolder
 import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureDependenciesResolver
 import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureEffectExecutor
 
@@ -61,89 +58,63 @@ object SystemUIControlCenterHooks {
         SystemUIMonitorAndTileHooks.AddCustomTileHook(lpparam)
     }
 
-    private var pluginLoader: ClassLoader? = null
+
 
     /**
      * Extract the miui.systemui.plugin ClassLoader from a PluginFactory instance.
      * Tolerates field-name changes by falling back to type-based reflection.
+     *
+     * The [getObjectField] and [callInstanceMethod] parameters are test seams so fatal-error
+     * boundaries can be exercised without depending on real SystemUI internals.
      */
-    private fun extractPluginLoader(factory: Any?): ClassLoader? {
+    @JvmStatic
+    internal fun extractPluginLoader(
+        factory: Any?,
+        getObjectField: (Any, String) -> Any? = { obj, name -> XposedHelpers.getObjectField(obj, name) },
+        callInstanceMethod: (Any, String) -> Any? = { obj, name -> XposedHelpers.callMethod(obj, name) }
+    ): ClassLoader? {
         val safeFactory = factory ?: return null
         val clazz = safeFactory.javaClass
         val appInfo = try {
-            XposedHelpers.getObjectField(safeFactory, "mAppInfo") as? ApplicationInfo
+            getObjectField(safeFactory, "mAppInfo") as? ApplicationInfo
         } catch (e: Throwable) {
-            val field = clazz.declaredFields.firstOrNull { it.type == ApplicationInfo::class.java } ?: return null
-            field.isAccessible = true
-            field.get(safeFactory) as? ApplicationInfo
+            FatalErrors.rethrowIfFatal(e)
+            try {
+                val field = clazz.declaredFields.firstOrNull { it.type == ApplicationInfo::class.java } ?: return null
+                field.isAccessible = true
+                field.get(safeFactory) as? ApplicationInfo
+            } catch (nested: Throwable) {
+                FatalErrors.rethrowIfFatal(nested)
+                null
+            }
         } ?: return null
         if (appInfo.packageName != "miui.systemui.plugin") return null
 
         val loaderFactory = try {
-            XposedHelpers.getObjectField(safeFactory, "mClassLoaderFactory")
+            getObjectField(safeFactory, "mClassLoaderFactory")
         } catch (e: Throwable) {
-            val field = clazz.declaredFields.firstOrNull { f ->
-                f.name.contains("ClassLoader", ignoreCase = true) && try {
-                    f.type.getMethod("get").parameterTypes.isEmpty()
-                } catch (e: NoSuchMethodException) {
-                    false
-                }
-            } ?: return null
-            field.isAccessible = true
-            field.get(safeFactory)
+            FatalErrors.rethrowIfFatal(e)
+            try {
+                val field = clazz.declaredFields.firstOrNull { f ->
+                    f.name.contains("ClassLoader", ignoreCase = true) && try {
+                        f.type.getMethod("get").parameterTypes.isEmpty()
+                    } catch (e: NoSuchMethodException) {
+                        false
+                    }
+                } ?: return null
+                field.isAccessible = true
+                field.get(safeFactory)
+            } catch (nested: Throwable) {
+                FatalErrors.rethrowIfFatal(nested)
+                null
+            }
         } ?: return null
-        return XposedHelpers.callMethod(loaderFactory, "get") as? ClassLoader
-    }
-
-    /**
-     * Install the Control Center gesture hooks for a freshly detected plugin [classLoader].
-     *
-     * This is separated from the runtime holder so the same installation logic can be
-     * unit-tested without actually calling Xposed APIs.
-     */
-    private fun installControlCenterGestureHooks(classLoader: ClassLoader, controlCenterMachine: GestureMachine) {
-        val controlCenterHook = object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                val thisObject = param.getThisObject() as? View ?: return
-                if (param.getArgs().size == 2 && (param.getArg(1) as Boolean)) return
-                val statusBarStateController = XposedHelpers.getObjectField(thisObject, "statusBarStateController")
-                val state = XposedHelpers.callMethod(statusBarStateController, "getState") as Int
-                if (state == 1 || state == 2) return
-                val event = param.getArg(0) as? MotionEvent ?: return
-                val gestureEvent = GestureEvent(
-                    entry = GestureEntry.CONTROL_CENTER_TOUCH,
-                    actionMasked = event.actionMasked,
-                    downTime = event.downTime,
-                    eventTime = event.eventTime,
-                    x = event.x,
-                    y = event.y,
-                    pointerCount = event.pointerCount,
-                    ownerId = System.identityHashCode(thisObject),
-                    deviceId = event.deviceId,
-                    source = event.source,
-                )
-                ModuleHelper.guarded {
-                    controlCenterMachine.dispatch(gestureEvent, thisObject)
-                }
-            }
+        return try {
+            callInstanceMethod(loaderFactory, "get") as? ClassLoader
+        } catch (e: Throwable) {
+            FatalErrors.rethrowIfFatal(e)
+            null
         }
-        ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "handleMotionEvent", MotionEvent::class.java, Boolean::class.javaPrimitiveType!!, controlCenterHook)
-        ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "onAttachedToWindow", object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                val thisObject = param.getThisObject() as? View ?: return
-                ModuleHelper.guarded {
-                    controlCenterMachine.prepare(System.identityHashCode(thisObject), thisObject)
-                }
-            }
-        })
-        ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "onDetachedFromWindow", object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                val thisObject = param.getThisObject() as? View ?: return
-                ModuleHelper.guarded {
-                    controlCenterMachine.clear(System.identityHashCode(thisObject))
-                }
-            }
-        })
     }
 
     @JvmStatic
@@ -232,8 +203,7 @@ object SystemUIControlCenterHooks {
     }
 
     @JvmStatic
-    fun initControlCenter() {
-        val loader = pluginLoader ?: return
+    fun initControlCenter(loader: ClassLoader) {
         if (MainModule.mPrefs.getBoolean("system_nosilentvibrate")) {
             ModuleHelper.hookAllMethods("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", loader, "vibrateH", HookerClassHelper.DO_NOTHING)
         }
@@ -277,7 +247,7 @@ object SystemUIControlCenterHooks {
             CCTileColorHook()
         }
         if (MainModule.mPrefs.getBoolean("system_cc_card_enabled_color")) {
-            CCCardColorHook()
+            CCCardColorHook(loader)
         }
         if (MainModule.mPrefs.getBoolean("system_cc_slider_color_enable")) {
             CCSliderColorHook()
@@ -398,19 +368,9 @@ object SystemUIControlCenterHooks {
             || MainModule.mPrefs.getBoolean("system_cc_slider_color_enable")
     }
 
-    private var activeControlCenterLoader: ClassLoader? = null
-
     @JvmStatic
     fun ControlCenterPluginHook(lpparam: PackageReadyParam) {
-        ModuleHelper.hookAllMethods("com.android.systemui.shared.plugins.PluginInstance\$PluginFactory", lpparam.classLoader, "createPlugin", object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                val loader = extractPluginLoader(param.getThisObject()) ?: return
-                if (activeControlCenterLoader === loader) return
-                activeControlCenterLoader = loader
-                pluginLoader = loader
-                initControlCenter()
-            }
-        })
+        ControlCenterPluginRuntime.hookIfNeeded(lpparam)
     }
 
     private var iconScaleRatio = 1f
@@ -707,7 +667,7 @@ object SystemUIControlCenterHooks {
     }
 
     @JvmStatic
-    fun CCCardColorHook() {
+    fun CCCardColorHook(loader: ClassLoader) {
         val customColor = MainModule.mPrefs.getInt("system_cc_card_enabled_color_custom", 0xff3482ff.toInt())
         MainModule.resHooks.setThemeValueReplacement("miui.systemui.plugin", "color", "qs_card_cellular_color", customColor)
         MainModule.resHooks.setThemeValueReplacement("miui.systemui.plugin", "color", "qs_card_enabled_color", customColor)
@@ -720,7 +680,6 @@ object SystemUIControlCenterHooks {
 
         val iconColor = MainModule.mPrefs.getInt("system_cc_card_enabled_iconcolor_custom", 0xffffffff.toInt())
         if (iconColor != 0xffffffff.toInt()) {
-            val loader = pluginLoader ?: return
             ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.qs.tileview.QSCardItemIconView", loader, "updateResources", object : MethodHook() {
                 override fun after(param: AfterHookCallback) {
                     XposedHelpers.setObjectField(param.getThisObject(), "iconColor", iconColor)
@@ -827,23 +786,22 @@ object SystemUIControlCenterHooks {
 
     @JvmStatic
     fun StatusBarGesturesHook(lpparam: PackageReadyParam) {
-        val arbiter = PhysicalGestureArbiter()
-        val configPublisher = GestureConfigPublisher(resolve = { GestureConfigResolver.resolve(MainModule.mPrefs) })
-        configPublisher.publish()
+        val runtime = ControlCenterPluginRuntime
+        runtime.configPublisher.publish()
 
         val statusBarObserver = object : ModuleHelper.PreferenceObserver {
             override fun onChange(key: String?) = ModuleHelper.guarded {
-                configPublisher.publish()
+                runtime.configPublisher.publish()
             }
         }
         ModuleHelper.observePreferenceChange(statusBarObserver)
 
         val statusBarMachine = GestureMachine(
             classLoaderIdentity = lpparam.packageName.orEmpty(),
-            configResolver = { configPublisher.get() },
+            configResolver = { runtime.configPublisher.get() },
             depsResolver = StatusBarGestureDependenciesResolver(lpparam.classLoader),
             effectExecutor = StatusBarGestureEffectExecutor(),
-            arbiter = arbiter,
+            arbiter = runtime.arbiter(),
         )
         val statusBarHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
@@ -887,21 +845,8 @@ object SystemUIControlCenterHooks {
                 }
             }
         })
-        val controlCenterRuntimeHolder = ControlCenterGestureRuntimeHolder(
-            configPublisher = configPublisher,
-            effectExecutor = StatusBarGestureEffectExecutor(),
-            arbiter = arbiter,
-            dependenciesResolver = ControlCenterGestureDependenciesResolver(),
-            installHooks = ::installControlCenterGestureHooks,
-        )
 
-        ModuleHelper.hookAllMethods("com.android.systemui.shared.plugins.PluginInstance\$PluginFactory", lpparam.classLoader, "createPlugin", object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                val loader = extractPluginLoader(param.getThisObject()) ?: return
-                controlCenterRuntimeHolder.bind(loader)
-                pluginLoader = loader
-            }
-        })
+        runtime.hookIfNeeded(lpparam)
     }
 
     @JvmStatic
