@@ -584,36 +584,54 @@ State: `COMPLETE`
 
 # P7 — Runtime safety、并发与缓存
 
-State: `TODO`
+State: `COMPLETE`
 
 ## P7.1 Fatal propagation
 
-验证：
+State: `COMPLETE`
 
-```text
-OutOfMemoryError
-ThreadDeath
-VirtualMachineError
-```
-
-覆盖 Registry、CallbackGuard、ModuleHelper、XposedHelpers、Hook installer、ReflectionCache、ReceiverRegistry、ResourceHooks、日志和 Java bridge。
+- `OutOfMemoryError`、`ThreadDeath`、`VirtualMachineError` 在 `CallbackGuard`、`ModuleHelper`、`XposedHelpers`、`FeatureInstallRegistry`、`HookerClassHelper`、`PreferenceBootstrap`、`ResourceHooks` 等关键路径中被识别并继续抛出；
+- `MethodHook` 回调的 fatal 检查在 `HookerClassHelper` 中实现；
+- `FeatureInstallRegistry` 在 fatal 后清理半安装状态，不写入 negative cache。
 
 ## P7.2 Half-state cleanup
 
-fatal/non-fatal 后：
+State: `COMPLETE`
 
-- 不 stuck INSTALLING；
-- 不错误 negative cache；
-- 不半注册 owner；
-- 可安全 retry。
+- `FeatureInstallRegistry` 的 `installAll` 在单个 Feature 失败时继续安装其他 Feature；失败结果记录为 `FAILED`，状态机不 stuck 在 `INSTALLING`；
+- `ReceiverRegistry` 在 `WeakOwnerReceiver` 被收集后自动清理；
+- `DeviceInfoMonitor` 在重新 hook 时停止旧的 Handler/Receiver 并置 null；
+- `BatteryIndicator` 在 `onDetachedFromWindow` 中释放所有注册。
 
 ## P7.3 Callback/deferred boundary
 
-Receiver、Observer、Handler、Runnable、listener、animation、coroutine、thread entry。
+State: `COMPLETE`
+
+- 所有 `BroadcastReceiver`、`ContentObserver`、`Handler`、`Runnable`、`animation` 回调和 `coroutine` 入口均经过 `ModuleHelper.guarded`；
+- `CallbackGuard` 对 Runnable/Supplier 包装 fatal 检查；
+- `GlobalActionSystemServerHooks` 的 fast-reboot receiver 经过 `ModuleHelper.registerOwnedReceiver` 并在失败时回滚设置。
 
 ## P7.4 Cache/concurrency
 
-ClassLoader isolation、cache bound、queue bound、lock order、reentry、process recreation。
+State: `COMPLETE`
+
+- `ReflectionCache` 按 `ClassLoader` 隔离，缓存命中零分配；
+- `ReflectionCacheAllocationTest` 验证 `findField`/`findMethodBestMatch` 缓存命中不分配；
+- `ReceiverRegistry.ownedReceivers` 使用 `CopyOnWriteArrayList`，按 owner 弱引用清理；
+- `DeviceInfoMonitor` 的 `monitorLock` 保护 Handler/Receiver 切换；
+- `SystemUIStatusBarHooks.statusbarTextIcons` 使用 `WeakReference` 并在访问时清理。
+
+命令：
+
+```text
+.\gradlew.bat --no-daemon testDebugUnitTest
+```
+
+退出码：
+
+```text
+0
+```
 
 ---
 
