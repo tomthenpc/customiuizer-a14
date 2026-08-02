@@ -26,6 +26,8 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
             AudioManager.FLAG_VIBRATE
     }
 
+    private var lastSentBrightnessRatio = -1f
+
     override fun execute(
         commands: List<GestureCommand>,
         dependencies: GestureDependencies,
@@ -35,7 +37,7 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
         val ctx = when (context) {
             is View -> context.context
             is Context -> context
-            else -> return
+            else -> null
         }
 
         val audioManager = dependencies.audioManager as? AudioManager
@@ -43,11 +45,14 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
         for (command in commands) {
             when (command) {
                 is GestureCommand.ApplyTemporaryBrightness -> {
-                    dependencies.setTemporaryBrightnessMethod!!.invoke(
-                        dependencies.displayManager,
-                        dependencies.displayId,
-                        command.ratio,
-                    )
+                    if (kotlin.math.abs(command.ratio - lastSentBrightnessRatio) >= 0.0001f) {
+                        dependencies.setTemporaryBrightnessMethod!!.invoke(
+                            dependencies.displayManager,
+                            dependencies.displayId,
+                            command.ratio,
+                        )
+                        lastSentBrightnessRatio = command.ratio
+                    }
                 }
                 is GestureCommand.CommitBrightness -> {
                     dependencies.setBrightnessMethod!!.invoke(
@@ -55,6 +60,7 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
                         dependencies.displayId,
                         command.ratio,
                     )
+                    lastSentBrightnessRatio = -1f
                 }
                 is GestureCommand.AdjustVolume -> {
                     if (audioManager != null) {
@@ -64,6 +70,7 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
                     }
                 }
                 is GestureCommand.TriggerDoubleTap -> {
+                    if (ctx == null) continue
                     val key = when (command.position) {
                         DoubleTapPosition.LEFT -> "system_statusbarcontrols_dt_left"
                         DoubleTapPosition.CENTER -> "system_statusbarcontrols_dt"
@@ -72,12 +79,14 @@ class StatusBarGestureEffectExecutor : GestureEffectExecutor {
                     GlobalActions.handleAction(ctx, key)
                 }
                 is GestureCommand.TriggerLongPress -> {
+                    if (ctx == null) continue
                     if (config.longPressVibrate) {
                         HookUtils.performStrongVibration(ctx, config.ignoreVibrateOff)
                     }
                     GlobalActions.handleAction(ctx, "system_statusbarcontrols_longpress")
                 }
-                else -> { /* Reset / PassThrough / BeginTracking have no side effect here */ }
+                GestureCommand.Reset -> { lastSentBrightnessRatio = -1f }
+                else -> { /* PassThrough / BeginTracking have no side effect here */ }
             }
         }
     }
