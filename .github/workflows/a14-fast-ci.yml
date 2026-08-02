@@ -127,6 +127,8 @@ jobs:
           python tools/check_automation_state.py
           python tools/check_document_contracts.py
           python tools/check_goal_constitution.py
+          python tools/ci_contract_scan.py --expected-branch devin/a14-rom-intelligence-audit --default-branch main
+          python tools/catalog_contract_probe.py --catalog app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature --feature-id app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/FeatureIds.kt --matrix docs/rom-intelligence/A14_PROCESS_MATRIX.csv
           python tools/progress_snapshot.py --check
 
       - name: Full machine verifier

@@ -1,0 +1,136 @@
+{
+  "name": "A14",
+  "expected_branch": "devin/a14-rom-intelligence-audit",
+  "smart_state": "SMART_OPERATION_STATE.md",
+  "task_state": "TASK_STATE.md",
+  "progress_json": "docs/progress/A14_PROGRESS_CURRENT.json",
+  "catalog_file": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt",
+  "feature_id_file": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/FeatureIds.kt",
+  "process_matrix": "docs/rom-intelligence/A14_PROCESS_MATRIX.csv",
+  "installer_roots": [
+    "app/src/main/java/tv/withaibuild/customiuizer/installers"
+  ],
+  "fast_workflows": [
+    ".github/workflows/a14-fast-ci.yml"
+  ],
+  "full_workflows": [
+    ".github/workflows/a14-full-ci.yml"
+  ],
+  "gates": {
+    "automation": "python tools/check_automation_state.py",
+    "progress": "python tools/progress_snapshot.py --check",
+    "ci": "python tools/ci_contract_scan.py --expected-branch devin/a14-rom-intelligence-audit --default-branch main",
+    "catalog": "python tools/catalog_contract_probe.py --catalog app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature --feature-id app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/FeatureIds.kt --matrix docs/rom-intelligence/A14_PROCESS_MATRIX.csv",
+    "tests": "python -m unittest discover -s tools/tests -p \"test_*.py\"",
+    "hazard": "python tools/source_hazard_scan.py --strict-all --path app/src/main/java/brutal_mutation"
+  },
+  "hermetic_commands": [
+    "python -m unittest discover -s tools/tests -p \"test_*.py\"",
+    "python tools/check_automation_state.py",
+    "python tools/progress_snapshot.py --check",
+    "python tools/ci_contract_scan.py --expected-branch devin/a14-rom-intelligence-audit --default-branch main",
+    "python tools/catalog_contract_probe.py --catalog app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature --feature-id app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/FeatureIds.kt --matrix docs/rom-intelligence/A14_PROCESS_MATRIX.csv"
+  ],
+  "determinism_command": "python tools/progress_snapshot.py --write",
+  "determinism_outputs": [
+    "docs/progress/A14_PROGRESS_CURRENT.json",
+    "docs/progress/A14_PROGRESS_CURRENT.md"
+  ],
+  "mutations": [
+    {
+      "name": "duplicate SMART key",
+      "mutator": "duplicate_smart_key",
+      "gate": "automation"
+    },
+    {
+      "name": "fake CI PASS",
+      "mutator": "fake_ci_pass",
+      "gate": "automation"
+    },
+    {
+      "name": "symbolic verified tree",
+      "mutator": "symbolic_verified_tree",
+      "gate": "automation"
+    },
+    {
+      "name": "ambiguous resume path",
+      "mutator": "ambiguous_resume",
+      "gate": "automation"
+    },
+    {
+      "name": "TASK state drift",
+      "mutator": "task_state_drift",
+      "gate": "progress"
+    },
+    {
+      "name": "generated progress tamper",
+      "mutator": "progress_json_tamper",
+      "gate": "progress"
+    },
+    {
+      "name": "remove fetch-depth",
+      "mutator": "remove_fetch_depth",
+      "gate": "ci"
+    },
+    {
+      "name": "wrong CI branch",
+      "mutator": "wrong_ci_branch",
+      "gate": "ci"
+    },
+    {
+      "name": "signing leak",
+      "mutator": "signing_leak",
+      "gate": "ci"
+    },
+    {
+      "name": "hardcoded API 37 package",
+      "mutator": "hardcoded_api37",
+      "gate": "ci"
+    },
+    {
+      "name": "Windows-only path",
+      "mutator": "windows_path",
+      "gate": "ci"
+    },
+    {
+      "name": "duplicate Feature ID",
+      "mutator": "duplicate_feature_id",
+      "gate": "catalog"
+    },
+    {
+      "name": "preference default flip",
+      "mutator": "preference_default_flip",
+      "gate": "tests"
+    },
+    {
+      "name": "process scope flip",
+      "mutator": "process_scope_flip",
+      "gate": "catalog"
+    },
+    {
+      "name": "install phase flip",
+      "mutator": "install_phase_flip",
+      "gate": "catalog"
+    },
+    {
+      "name": "remove Installer dispatch",
+      "mutator": "remove_installer_dispatch",
+      "gate": "tests"
+    },
+    {
+      "name": "swallow fatal",
+      "mutator": "fatal_swallow",
+      "gate": "hazard"
+    },
+    {
+      "name": "static Context leak",
+      "mutator": "static_context_leak",
+      "gate": "hazard"
+    },
+    {
+      "name": "eager HandlerThread",
+      "mutator": "eager_handler_thread",
+      "gate": "hazard"
+    }
+  ]
+}

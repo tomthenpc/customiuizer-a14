@@ -3119,6 +3119,58 @@
       "enableCondition": "prefs.getStringAsInt(\"system_allrotations2\", 1) > 1",
       "allowedProcess": "android",
       "deniedProcess": ""
+    },
+    {
+      "featureIdInt": 241,
+      "featureIdName": "launcher_post_attach",
+      "name": "Launcher Post Attach",
+      "preferenceKey": "null",
+      "target": "LAUNCHER",
+      "phase": "APPLICATION_ATTACHED",
+      "installer": "GenericAppFeatures",
+      "installHook": "LauncherInstaller.handleLoadLauncher(lpparam, mPrefs)",
+      "enableCondition": "packageName == \"com.miui.home\"",
+      "allowedProcess": "com.miui.home",
+      "deniedProcess": "third-party launchers (unless selected app sets)"
+    },
+    {
+      "featureIdInt": 242,
+      "featureIdName": "generic_app_status_bar_background",
+      "name": "Generic App Status Bar Background",
+      "preferenceKey": "system_statusbarcolor",
+      "target": "ANY",
+      "phase": "APPLICATION_ATTACHED",
+      "installer": "GenericAppFeatures",
+      "installHook": "(default base install)",
+      "enableCondition": "prefs.getBoolean(\"system_statusbarcolor\") && prefs.getStringSet(\"system_statusbarcolor_apps\").contains(packageName)",
+      "allowedProcess": "com.miui.home + selected packages",
+      "deniedProcess": ""
+    },
+    {
+      "featureIdInt": 243,
+      "featureIdName": "generic_app_no_overscroll",
+      "name": "Generic App No Overscroll",
+      "preferenceKey": "system_nooverscroll",
+      "target": "ANY",
+      "phase": "APPLICATION_ATTACHED",
+      "installer": "GenericAppFeatures",
+      "installHook": "SystemWindowHooks.NoOverscrollAppHook(lpparam)",
+      "enableCondition": "prefs.getBoolean(\"system_nooverscroll\") && prefs.getStringSet(\"system_nooverscroll_apps\").contains(packageName)",
+      "allowedProcess": "com.miui.home + selected packages",
+      "deniedProcess": ""
+    },
+    {
+      "featureIdInt": 244,
+      "featureIdName": "generic_app_volume_media_player",
+      "name": "Generic App Volume Media Player",
+      "preferenceKey": "controls_volumemedia_up",
+      "target": "ANY",
+      "phase": "APPLICATION_ATTACHED",
+      "installer": "GenericAppFeatures",
+      "installHook": "Controls.VolumeMediaPlayerHook(lpparam)",
+      "enableCondition": "(prefs.getStringAsInt(\"controls_volumemedia_up\", 0) > 0 || prefs.getStringAsInt(\"controls_volumemedia_down\", 0) > 0) && prefs.getStringSet(\"controls_mediaplayer_apps\").contains(packageName)",
+      "allowedProcess": "com.miui.home + selected packages",
+      "deniedProcess": ""
     }
   ],
   "scope": [

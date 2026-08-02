@@ -8,6 +8,22 @@ from tools import progress_snapshot
 
 class ProgressSnapshotV7Test(unittest.TestCase):
 
+    def _temp_outputs(self):
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        root = Path(td.name)
+        old_json = progress_snapshot.OUT_JSON
+        old_md = progress_snapshot.OUT_MD
+
+        def restore():
+            progress_snapshot.OUT_JSON = old_json
+            progress_snapshot.OUT_MD = old_md
+
+        self.addCleanup(restore)
+        progress_snapshot.OUT_JSON = root / "A14_PROGRESS_CURRENT.json"
+        progress_snapshot.OUT_MD = root / "A14_PROGRESS_CURRENT.md"
+        return root
+
     def test_no_args_prints_help_and_does_not_write(self):
         code = progress_snapshot.main([])
         self.assertEqual(2, code)
@@ -24,6 +40,7 @@ class ProgressSnapshotV7Test(unittest.TestCase):
 
     def test_check_is_read_only(self):
         # First write a known snapshot, then run --check against it.
+        self._temp_outputs()
         progress_snapshot.main(["--write"])
         before_json = progress_snapshot.OUT_JSON.stat().st_mtime
         before_md = progress_snapshot.OUT_MD.stat().st_mtime
@@ -33,6 +50,7 @@ class ProgressSnapshotV7Test(unittest.TestCase):
         self.assertEqual(before_md, progress_snapshot.OUT_MD.stat().st_mtime)
 
     def test_check_detects_drift(self):
+        self._temp_outputs()
         progress_snapshot.main(["--write"])
         # Corrupt the JSON with a fake state to force semantic drift.
         existing = json.loads(progress_snapshot.OUT_JSON.read_text(encoding="utf-8"))

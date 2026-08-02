@@ -59,8 +59,8 @@ def parse_feature_ids() -> dict[str, dict[str, Any]]:
 def parse_lazy_specs(text: str) -> list[dict[str, str]]:
     """Return list of dicts with fields from each LazyFeatureSpec(...) block."""
     specs: list[dict[str, str]] = []
-    # Match LazyFeatureSpec( ... ), where the block ends with a line that is just ),
-    pattern = re.compile(r"LazyFeatureSpec\((.*?)^[ \t]*\),", re.DOTALL | re.MULTILINE)
+    # Match LazyFeatureSpec( ... ) blocks, ending with a line that is just ) or ),
+    pattern = re.compile(r"LazyFeatureSpec\((.*?)^[ \t]*\)(?:,|\s*\))", re.DOTALL | re.MULTILINE)
     for m in pattern.finditer(text):
         body = m.group(1)
         spec: dict[str, str] = {}
@@ -279,6 +279,7 @@ def main() -> int:
                 "allowedProcess",
                 "deniedProcess",
             ],
+            lineterminator="\n",
         )
         writer.writeheader()
         writer.writerows(rows)

@@ -137,10 +137,21 @@ jobs:
       - name: Full machine verifier
         run: python tools/verify.py full
 
-      - name: Safe debug and develop builds
+      - name: First clean develop build
         run: |
-          ./gradlew --no-daemon :app:assembleDebug
-          ./gradlew --no-daemon :app:assembleDevelop
+          ./gradlew --no-daemon clean :app:assembleDevelop
+          cp app/build/outputs/apk/develop/*.apk first-develop.apk
+
+      - name: Second clean develop build
+        run: |
+          ./gradlew --no-daemon clean :app:assembleDevelop
+          cp app/build/outputs/apk/develop/*.apk second-develop.apk
+
+      - name: APK semantic diff
+        run: python tools/apk_semantic_diff.py --require-reproducible first-develop.apk second-develop.apk
+
+      - name: Brutal test suite
+        run: python tools/brutal_test_runner.py --config tools/brutal_test_config.json all
 
       - name: R8 lint on develop
         run: ./gradlew --no-daemon :app:lintVitalDevelop

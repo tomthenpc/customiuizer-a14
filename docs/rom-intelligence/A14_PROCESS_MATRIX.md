@@ -289,3 +289,7 @@ This matrix is generated from source (`tools/extract_process_matrix.py`). It rec
 | 238 | Android Clean Share Menu | `system_cleanshare` | SYSTEM_PACKAGE | PACKAGE_READY | AndroidPackageFeatures | `SystemShareMenuHooks.CleanShareMenuHook(lpparam)` | android |  |
 | 239 | Android Clean Open With Menu | `system_cleanopenwith` | SYSTEM_PACKAGE | PACKAGE_READY | AndroidPackageFeatures | `SystemShareMenuHooks.CleanOpenWithMenuHook(lpparam)` | android |  |
 | 240 | Android All Rotations | `system_allrotations2` | SYSTEM_PACKAGE | PACKAGE_READY | AndroidPackageFeatures | `(default base install)` | android |  |
+| 241 | Launcher Post Attach | `null` | LAUNCHER | APPLICATION_ATTACHED | GenericAppFeatures | `LauncherInstaller.handleLoadLauncher(lpparam, mPrefs)` | com.miui.home | third-party launchers (unless selected app sets) |
+| 242 | Generic App Status Bar Background | `system_statusbarcolor` | ANY | APPLICATION_ATTACHED | GenericAppFeatures | `(default base install)` | com.miui.home + selected packages |  |
+| 243 | Generic App No Overscroll | `system_nooverscroll` | ANY | APPLICATION_ATTACHED | GenericAppFeatures | `SystemWindowHooks.NoOverscrollAppHook(lpparam)` | com.miui.home + selected packages |  |
+| 244 | Generic App Volume Media Player | `controls_volumemedia_up` | ANY | APPLICATION_ATTACHED | GenericAppFeatures | `Controls.VolumeMediaPlayerHook(lpparam)` | com.miui.home + selected packages |  |
