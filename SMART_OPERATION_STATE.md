@@ -12,10 +12,10 @@ LastDeepSweepCommit: 3c61ee8f4ee93de3a2c601baf40812361a1714a4
 LastFullVerificationCommit: 29fee47b24150113498a108c7e5399a47674cba2
 LastVerifiedTree: 93534140994e6c793fe8fbc7ec34325f71d264d7
 LastVerifiedMode: Final
-LastCIState: PASS
-LastCIRun: 30742289083
-LastCIJob: 91481718475
-LastCICommit: 3948abed94d488ecced93da3b8568a7da7b019c3
+LastCIState: PENDING
+LastCIRun: pending
+LastCIJob: pending
+LastCICommit: d2f1c49040a8df2966270848aaf89ce21ecd161a
 LastCleanupCommit: 3c61ee8f4ee93de3a2c601baf40812361a1714a4
 LastToolCreated: tools/brutal_test_runner.py
 LastFailureClass: none
