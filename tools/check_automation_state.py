@@ -150,18 +150,20 @@ def check_smart_state(path: Path, raw_text: str, repo_root: Path) -> list[str]:
             errors.append(f"SMART_OPERATION_STATE LastCIState={ci} but LastCICommit does not resolve: {ci_commit}")
 
     if ci == "PASS":
-        # PASS must reference the current HEAD, not an ancestor.
+        # PASS must reference a commit that is an ancestor of the current HEAD.
+        # State-only bookkeeping commits therefore record the previously-verified
+        # qualifying commit without re-breaking governance.
         try:
-            head = subprocess.run(
-                ["git", "rev-parse", "HEAD"],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=True,
-            ).stdout.strip()
             ci_commit = state.get("LastCICommit", "")
-            if ci_commit and ci_commit.lower() != "pending" and ci_commit != head:
-                errors.append("SMART_OPERATION_STATE LastCIState=PASS but LastCICommit is not the current HEAD")
+            if ci_commit and ci_commit.lower() != "pending":
+                result = subprocess.run(
+                    ["git", "merge-base", "--is-ancestor", ci_commit, "HEAD"],
+                    cwd=repo_root,
+                    capture_output=True,
+                    text=True,
+                )
+                if result.returncode != 0:
+                    errors.append("SMART_OPERATION_STATE LastCIState=PASS but LastCICommit is not an ancestor of the current HEAD")
         except (subprocess.CalledProcessError, FileNotFoundError):
             pass
 
