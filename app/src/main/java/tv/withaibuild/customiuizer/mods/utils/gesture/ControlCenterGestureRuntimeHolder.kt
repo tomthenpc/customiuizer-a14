@@ -51,6 +51,17 @@ internal class ControlCenterGestureRuntimeHolder(
         return runtime
     }
 
+    /**
+     * Explicitly detach the current runtime, e.g. when the host plugin/View is destroyed.
+     *
+     * This is the symmetric cleanup for [bind] and prevents stale gesture state from
+     * outliving the owner.
+     */
+    fun unbind() {
+        activeRuntime?.machine?.clear()
+        activeRuntime = null
+    }
+
     /** Expose the current runtime for diagnostics and tests. */
     fun activeRuntime(): ControlCenterGestureRuntime? = activeRuntime
 }

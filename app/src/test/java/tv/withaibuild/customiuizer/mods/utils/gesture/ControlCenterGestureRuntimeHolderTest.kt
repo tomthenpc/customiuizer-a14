@@ -175,6 +175,37 @@ class ControlCenterGestureRuntimeHolderTest {
         assertNotEquals(runtimeA.machine.classLoaderIdentity(), runtimeB.machine.classLoaderIdentity())
     }
 
+    @Test
+    fun unbind_clearsMachineAndDropsRuntime() {
+        val loader = FakeClassLoader()
+        val arbiter = PhysicalGestureArbiter()
+        val (h, _) = holder(BrightnessDisplayStub(), arbiter)
+
+        val runtime = h.bind(loader)
+        runtime.machine.prepare(1, Any())
+        runtime.machine.dispatch(
+            GestureEvent(
+                entry = GestureEntry.CONTROL_CENTER_TOUCH,
+                actionMasked = GestureAction.DOWN,
+                downTime = 0L,
+                eventTime = 0L,
+                x = 100f,
+                y = 10f,
+                pointerCount = 1,
+                ownerId = 1,
+                deviceId = 1,
+                source = 0x1002,
+            ),
+            Any(),
+        )
+        assertEquals(1, arbiter.heldTokenCount())
+
+        h.unbind()
+
+        assertEquals(0, arbiter.heldTokenCount())
+        assertEquals(null, h.activeRuntime())
+    }
+
     private class FakeClassLoader : ClassLoader() {
         override fun toString(): String = "FakeClassLoader@${hashCode()}"
     }

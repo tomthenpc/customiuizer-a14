@@ -967,7 +967,7 @@ P0 完成后重建，不得删除未解决条目。
 | ALG-003 | P1 | Gesture | COMPLETE | `GestureEvent` 新增 `activePointerCount`，默认归一化 `ACTION_UP`/`ACTION_POINTER_UP`；`GestureStateMachine` 使用 active 计数；测试已更新 | P5.5 完成 |
 | ALG-004 | P1 | Gesture | COMPLETE | `GestureSideEffectGate.filter` 改用 `commands.any(::isBusinessEffect)`，避免热路径分配中间列表 | P5.5 完成 |
 | ALG-005 | P1 | Gesture | COMPLETE | `PhysicalGestureArbiter` 已加 `MAX_HELD_TOKENS` 硬上限、`STALE_TOKEN_AGE_MS` 清理、`reapStaleTokens` 兜底；`GestureMachine` 在 UP/CANCEL/Reset/detach 时释放 token；测试覆盖 | P5.5 完成 |
-| ALG-006 | P1 | Lifecycle | TODO | `GestureMachine` 的 snapshot/dependencies/configs 依赖每个 detach 调用 clear；需完整 owner inventory | P6.5 完成 |
+| ALG-006 | P1 | Lifecycle | IN_PROGRESS | 已给 `ControlCenterGestureRuntimeHolder` 增加 `unbind()` 以显式 `machine.clear()`；`StatusBar` 的 `onDetachedFromWindow` 已调用 `clear`；仍需把 `unbind` 接到控制中心 plugin/View 销毁生命周期 | P6.5 完成 |
 | ALG-007 | P1 | HotPath | TODO | status bar intercept `observe()` 返回值未被使用，可能执行无效热路径计算 | P7.5 完成 |
 | DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |
 | CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |

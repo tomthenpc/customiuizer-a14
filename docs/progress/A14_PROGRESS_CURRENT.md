@@ -1,7 +1,7 @@
 # A14 Progress Current
 
 ```text
-GeneratedAt: 2026-08-02T13:14:47.702057+08:00
+GeneratedAt: 2026-08-02T13:20:52.517745+08:00
 ```
 
 ## SMART State
@@ -9,9 +9,9 @@ GeneratedAt: 2026-08-02T13:14:47.702057+08:00
 | Key | Value |
 |---|---|
 | Mode | PROFESSIONAL_AUTONOMOUS_STEWARDSHIP |
-| CheckpointCount | 17 |
-| CheckpointsSinceStandardSweep | 3 |
-| CheckpointsSinceDeepSweep | 3 |
+| CheckpointCount | 19 |
+| CheckpointsSinceStandardSweep | 4 |
+| CheckpointsSinceDeepSweep | 4 |
 | LastQualifyingCheckpoint | HEAD |
 | LastLightSweepCommit | HEAD |
 | LastStandardSweepCommit | HEAD |
@@ -23,8 +23,8 @@ GeneratedAt: 2026-08-02T13:14:47.702057+08:00
 | LastCleanupCommit | HEAD |
 | LastToolCreated | tools/progress_snapshot.py |
 | LastFailureClass | none |
-| CurrentObjective | P5.5 complete; transition to P6.5 owner inventory |
-| ResumeTask | P6.5 owner inventory / stale cleanup |
+| CurrentObjective | P6.5 owner inventory / stale cleanup |
+| ResumeTask | wire ControlCenterGestureRuntimeHolder.unbind to plugin/View destruction; then P7.5 |
 
 ## Progress
 
