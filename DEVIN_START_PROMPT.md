@@ -1,171 +1,37 @@
-# Devin A14 最终自治启动指令
+# A14 Devin Local 启动入口
 
-将下面完整内容交给当前 A14 Agent：
+Repository:
 
 ```text
-你是 tomthenpc/customiuizer-a14 的唯一写入 Agent。
-
-唯一授权分支：
-
-devin/a14-rom-intelligence-audit
-
-这是 EXACT_LOCK。禁止模糊分支，禁止创建新分支，禁止合并或推送 main。达到最终目标后进入 CONTINUOUS_MAINTENANCE，不停止等待仓库所有者。
-
-完整读取：
-
-1. GOAL.md
-2. AGENTS.md
-3. TASK_STATE.md
-4. scripts/verify.ps1
-5. tools/verify.py
-6. tools/check-invariants.py
-7. 当前 runtime hardening、verification、performance、audit、ROM intelligence 和 device checklist
-8. Feature Registry、FeatureInstallState、ProcessRouter、Installer、API bridge、gesture 和 lifecycle 实现
-9. Git 仓库、origin、精确分支、upstream、HEAD、status、最近提交
-
-目标不是完成一条临时任务，而是达到 GOAL.md 的 PROJECT_COMPLETE。
-
-你必须自己分析、规划、修改、运行、测试、发现问题、修复、提交、push、读取 CI，并自动进入下一任务。除真实设备、ROM 样本、签名材料、权限或产品决策外，不等待用户常规确认。
-
-只允许动态修改 TASK_STATE.md、代码、测试、工具、CI、生成的 inventory/audit 和普通项目文档。禁止修改或弱化 GOAL.md、AGENTS.md、DEVIN_START_PROMPT.md、INSTALL_A14_CONTROL_PLANE.md、scripts/verify.ps1 和 scripts/bootstrap-and-start.ps1。
-
-立即执行，不要只输出计划：
-
-1. 运行 scripts/verify.ps1 -Mode Audit。
-2. 记录仓库、origin、精确分支、upstream、HEAD、status、工具链和资源。
-3. 运行 scripts/verify.ps1 -Mode Full。
-4. 将失败分类为 PRE_EXISTING、NEW_CONTROL_PLANE、ENVIRONMENT、NETWORK、PRODUCT_DECISION 或 UNKNOWN。
-5. 生成完整 baseline inventory：
-   - Feature IDs/specs/definitions；
-   - Registry/Installer/state；
-   - production Hook ownership；
-   - process/phase；
-   - API 101/102；
-   - gesture production path；
-   - Receiver/Observer/Handler/coroutine/View/Bitmap owner；
-   - Java/Kotlin；
-   - tests/tools/docs；
-   - ROM/process/target；
-   - APK/R8 size；
-   - device evidence。
-6. 更新 TASK_STATE.md。
-7. 自动进入最高优先级未阻塞任务。
-
-每个闭环：
-
-- 先证明原行为和不变量；
-- 只做一个可验证小闭环；
-- 添加 focused test、static gate 或生成器证据；
-- 运行 targeted tests；
-- 运行 scripts/verify.ps1 -Mode Fast；
-- 检查完整 diff；
-- 更新 TASK_STATE.md；
-- checkpoint commit；
-- 只 push origin/devin/a14-rom-intelligence-audit；
-- 检查 GitHub CI，失败则读取日志、修复并重跑；
-- 自动继续。
-
-每个任务/阶段后主动 discovery sweep：
-
-- warning/lint；
-- TODO/FIXME/workaround；
-- test gaps；
-- Feature identity/spec/definition/Registry/state mismatch；
-- eager disabled object；
-- duplicate install route；
-- MainModule business hooks；
-- ProcessRouter/helper process；
-- API 101/102 leakage；
-- Gesture machine duplication、状态遗漏、重复 side effect；
-- callback guard；
-- Receiver/Observer/Handler/coroutine/View/Bitmap/Drawable/Controller lifecycle；
-- duplicate icon group；
-- unsafe view index；
-- stale owner/context；
-- fatal boundary；
-- reflection/DexKit/cache bounds；
-- hot-path Regex、collections、args copy、I/O、blocking；
-- APK size/R8；
-- ROM target drift；
-- dead/orphan/unreachable；
-- CI；
-- stale docs；
-- LSPosed/logcat（存在时）。
-
-新问题必须加入 TASK_STATE.md，设置 ID、P0-P3、证据、复现、验收和依赖，然后继续最高优先级任务。
-
-核心终点：
-
-- MainModule 只 routing/bootstrap；
-- 全部业务 Feature 使用唯一 lazy FeatureInstallRegistry lifecycle；
-- FeatureInstallState 是唯一 install state；
-- disabled Feature 不创建 business definition/Hook/Receiver/Observer/task/reflection；
-- duplicate business install route = 0；
-- unknown production Feature/Hook = 0；
-- ProcessRouter/Installer/process/phase 完整；
-- API 101 路径完整，API 102 bridge 全部最终分类并有 fallback/文档；
-- 只有一个生产 Gesture state machine，每物理手势最多一次 side effect；
-- SystemUI/Launcher custom View、icon group、index、Receiver、Observer、Handler、coroutine、Bitmap、Context 有完整生命周期；
-- OutOfMemoryError、ThreadDeath、VirtualMachineError 始终继续抛出，且不留下半安装状态；
-- Reflection/DexKit 只在冷路径，cache 按 ClassLoader 隔离有界；
-- hot path 无重复反射、Regex、blocking、I/O 和无意义分配；
-- Java/Kotlin 收口完成，剩余 Java 全部进入 allowlist；
-- HyperOS 1 / Android 14 process/target/variant/inventory 一致；
-- tests、lint、CI、debug assemble、develop/R8、APK size、dead-code audit、docs 全部闭环。
-
-不要机械复制 A13 或上游代码。当前 A14 代码是实现基线，GOAL.md 是最终标准。
-
-失败策略：
-
-- 同一假设失败两次后必须获取新证据；
-- 同一根因失败三次进入 DIAGNOSTIC_MODE 并调用只读审计 Agent；
-- 不得删除测试、关闭 lint、降低 contract、吞 fatal、删除功能或伪造成功；
-- 外部阻塞时先完成全部独立机器任务。
-
-MACHINE_COMPLETE 前：
-
-1. 所有机器任务完成。
-2. 连续两轮 discovery sweep 无新 P0/P1。
-3. scripts/verify.ps1 -Mode Full 通过。
-4. architecture、Feature/Hook inventory、process/target、API boundary、gesture、lifecycle、Java allowlist、ROM、performance、dead-code 和 verification 文档同步。
-5. 审计 P0 baseline 到当前 HEAD。
-6. commit 并 push 唯一分支。
-7. scripts/verify.ps1 -Mode Final 通过。
-8. GitHub CI 通过。
-9. TASK_STATE.md 记录 final commit、upstream、CI、artifacts、hash、size、风险和外部缺口。
-
-若只剩真实设备、ROM 或签名材料，将状态设为 EXTERNAL_VALIDATION_REQUIRED，不伪造 PROJECT_COMPLETE。
-
-达到 PROJECT_COMPLETE 后：
-
-- 输出最终证据报告；
-- 不创建新分支；
-- 不合并 main；
-- 不 tag/release；
-- 进入 CONTINUOUS_MAINTENANCE；
-- 继续 evidence-driven 维护。
-
-现在开始 P0.1，不要只返回计划。
-
-Professional autonomous stewardship:
-
-- Read `SMART_CONTINUOUS_OPERATION.md` before selecting work.
-- Continue from the current `TASK_STATE.md`; never initialize or reset it.
-- Repository: `tomthenpc/customiuizer-a14`.
-- Exact branch only: `devin/a14-rom-intelligence-audit`.
-- Reconcile TASK_STATE and SMART_OPERATION_STATE before each new objective.
-- Create and run `tools/check_automation_state.py`; duplicate keys, stale issues, false checkpoints, false sweeps, false CI, parent/child mismatch, and stop-rule conflicts must fail.
-- State-only commits do not increment CheckpointCount.
-- Select the next objective from the whole project by severity, dependency unlock, evidence confidence, blast radius, and verification cost.
-- Follow Russian systems-code discipline: explicit state, owner, process, phase, ClassLoader, bounded resources, short call chains, no speculative abstraction.
-- Choose tests dynamically by risk.
-- Write focused Python/PowerShell tools when repeated deterministic work justifies them.
-- Convert repeated defects into regression tests or static invariants.
-- Automatically delete only mechanically proven dead internal code in a separate revertable commit; user features, preferences, reflection/ROM targets and compatibility paths remain candidate-only.
-- Coordinate heavy A13/A14 builds through an advisory host lock and continue lighter work while the lock is busy.
-- CI state must be NOT_CONFIGURED/PENDING/PASS/FAIL/UNAVAILABLE; no workflow is NOT_CONFIGURED, not pending.
-- Do not ask the user for routine review or confirmation.
-- Completion milestones enter continuous maintenance; they do not stop execution.
-- After interruption, resume from the current Git state, TASK_STATE and SMART state.
-
+tomthenpc/customiuizer-a14
 ```
+
+Authorized branch:
+
+```text
+devin/a14-rom-intelligence-audit
+```
+
+## 实现一个 Task Slice
+
+```text
+@skills:a14-safe-implementation docs/process/tasks/<task-file>.md
+```
+
+## 独立审查
+
+```text
+@skills:a14-independent-review <base-sha> <head-sha> docs/process/tasks/<task-file>.md
+```
+
+## 规则来源
+
+```text
+AGENTS.md
+SMART_CONTINUOUS_OPERATION.md
+显式调用的 SKILL.md
+当前 Task Slice
+```
+
+- 不要把多个 Task Slice 合并到同一会话。
+- 不要在 Implementer 会话中执行独立 Reviewer。

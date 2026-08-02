@@ -17,7 +17,21 @@
 - 创建 checkpoint commit；
 - 推送唯一授权分支；
 - 读取并修复 GitHub CI；
-- 自动进入下一任务。
+- 结束当前会话并生成 handoff。
+
+本仓库的项目连续推进发生在多个独立会话之间，不在一个上下文中无限执行。
+
+当仓库所有者显式调用 `a14-safe-implementation` Skill 时，该 Skill 是当前会话的最新明确执行范围。当前 Implementer 会话只允许完成一个批准的 A14 Task Slice：
+
+- 一个原子目标；
+- 一个 qualifying engineering checkpoint；
+- 检查该工程 checkpoint 的 CI；
+- 写 A14 handoff；
+- 结束当前会话。
+
+当前会话不得自行选择第二个目标。R2、R3、R4 变更必须在新的独立上下文中调用 `a14-independent-review` Skill 进行审查；Reviewer 会话不得修改生产代码。
+
+"持续自治"是跨多个新会话的项目连续性，不是一个上下文无限执行。
 
 终点是 `GOAL.md` 定义的 `PROJECT_COMPLETE`。
 
@@ -46,11 +60,12 @@
 ## 3. 指令优先级
 
 1. 仓库所有者最新明确指令；
-2. `GOAL.md`；
-3. 本文件；
-4. `TASK_STATE.md`；
-5. 其他项目文档；
-6. 代码注释。
+2. 显式调用的 repository Skill 和当前 Task Slice；
+3. `GOAL.md`；
+4. 本文件；
+5. `TASK_STATE.md`；
+6. 其他项目文档；
+7. 代码注释。
 
 冲突时不选择更宽松规则。记录冲突并继续不受影响的任务。
 
@@ -138,6 +153,8 @@ TASK_STATE.md
 
 不得通过传入其他分支参数、临时修改验证器、提交后重写或 shell alias 绕过保护。
 
+本次 A14 Devin Local 控制面迁移由仓库所有者明确授权。完成后恢复保护，后续不得自行重写控制层。
+
 ---
 
 ## 6. 自治闭环
@@ -169,7 +186,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode F
 12. 创建小而完整的 checkpoint commit。
 13. 只 push 授权分支。
 14. 读取 GitHub CI，失败则修复并重跑。
-15. 自动继续下一闭环。
+15. 结束当前 Implementer 会话；新会话由仓库所有者通过新的 Skill 调用启动。
 
 不要只返回计划。
 
@@ -549,9 +566,12 @@ AuthorizedBranch: devin/a14-rom-intelligence-audit
 BranchMode: EXACT_LOCK
 OperationMode: PROFESSIONAL_AUTONOMOUS_STEWARDSHIP
 StateMode: MACHINE_RECONCILED
-HumanReviewRequired: false
-RoutineConfirmationRequired: false
-AutoResume: true
+SessionMode: ATOMIC_TASK_SLICE
+IndependentReviewRequired: R2_R3_R4
+AutoResumeWithinSlice: true
+AutoStartNextSlice: false
+ProjectContinuity: MULTI_SESSION
+ContextHandoffThreshold: 70_PERCENT
 ```
 
 本节替换旧“停止规则”和旧 `## Smart continuous operation`，不得同时保留冲突版本。

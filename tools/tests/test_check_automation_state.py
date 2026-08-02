@@ -1,3 +1,4 @@
+import tempfile
 import textwrap
 import unittest
 from pathlib import Path
@@ -172,6 +173,64 @@ class FixtureRegressionTests(unittest.TestCase):
         block = checker.parse_smart_state(text)
         _, errors = checker.smart_state_dict(block)
         self.assertIn("SMART_OPERATION_STATE duplicate key: LastStandardSweepCommit", errors)
+
+
+class ControlPlaneMigrationTests(unittest.TestCase):
+    def _write_minimal_repo(self, root: Path, auto_start: bool = False, triggers: bool = True) -> None:
+        (root / ".agents" / "skills" / "a14-safe-implementation").mkdir(parents=True, exist_ok=True)
+        (root / ".agents" / "skills" / "a14-independent-review").mkdir(parents=True, exist_ok=True)
+        (root / "docs" / "process").mkdir(parents=True, exist_ok=True)
+
+        impl_trigger = 'triggers: ["user"]' if triggers else ''
+        review_trigger = 'triggers: ["user"]' if triggers else ''
+        (root / ".agents" / "skills" / "a14-safe-implementation" / "SKILL.md").write_text(
+            f"---\nname: a14-safe-implementation\nargument-hint: <task-slice-path>\n{impl_trigger}\n---\n",
+            encoding="utf-8",
+        )
+        (root / ".agents" / "skills" / "a14-independent-review" / "SKILL.md").write_text(
+            f"---\nname: a14-independent-review\nargument-hint: <base> <head> <task-slice-path>\n{review_trigger}\n---\n",
+            encoding="utf-8",
+        )
+        (root / "docs" / "process" / "A14_RISK_GATE_MATRIX.md").write_text("# A14 Risk", encoding="utf-8")
+
+        (root / "AGENTS.md").write_text(
+            "a14-safe-implementation\na14-independent-review\n当前会话不得自行选择第二个目标\nR2",
+            encoding="utf-8",
+        )
+        auto = "true" if auto_start else "false"
+        (root / "SMART_CONTINUOUS_OPERATION.md").write_text(
+            f"SessionMode: ATOMIC_TASK_SLICE\nAutoStartNextSlice: {auto}\n",
+            encoding="utf-8",
+        )
+        (root / "DEVIN_START_PROMPT.md").write_text(
+            "@skills:a14-safe-implementation\n@skills:a14-independent-review\n",
+            encoding="utf-8",
+        )
+        (root / "GOAL.md").write_text(
+            "在后续会话开始时选择任务",
+            encoding="utf-8",
+        )
+
+    def test_control_plane_migration_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_minimal_repo(root)
+            errors = checker.check_control_plane_migration(root)
+            self.assertEqual(errors, [], f"unexpected errors: {errors}")
+
+    def test_missing_triggers_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_minimal_repo(root, triggers=False)
+            errors = checker.check_control_plane_migration(root)
+            self.assertTrue(any("triggers" in e for e in errors))
+
+    def test_auto_start_next_slice_true_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            self._write_minimal_repo(root, auto_start=True)
+            errors = checker.check_control_plane_migration(root)
+            self.assertTrue(any("AutoStartNextSlice: false" in e for e in errors))
 
 
 if __name__ == "__main__":

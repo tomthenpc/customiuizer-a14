@@ -339,6 +339,126 @@ def check_stop_conflicts(texts: dict[str, str]) -> list[str]:
     return errors
 
 
+def _parse_skill_frontmatter(text: str) -> dict[str, str]:
+    """Parse a minimal YAML frontmatter block from a SKILL.md file."""
+    data: dict[str, str] = {}
+    if not text.startswith("---"):
+        return data
+    end = text.find("---", 3)
+    if end == -1:
+        return data
+    for line in text[3:end].splitlines():
+        if ":" in line:
+            key, value = line.split(":", 1)
+            data[key.strip()] = value.strip()
+    return data
+
+
+def check_control_plane_migration(repo_root: Path = REPO_ROOT) -> list[str]:
+    """Validate the A14 Devin Local control-plane migration invariants."""
+    errors: list[str] = []
+
+    # 1. Required Skill files exist with correct names and explicit user-only triggers.
+    skill_impl = repo_root / ".agents" / "skills" / "a14-safe-implementation" / "SKILL.md"
+    skill_review = repo_root / ".agents" / "skills" / "a14-independent-review" / "SKILL.md"
+    if not skill_impl.is_file():
+        errors.append("Missing .agents/skills/a14-safe-implementation/SKILL.md")
+    if not skill_review.is_file():
+        errors.append("Missing .agents/skills/a14-independent-review/SKILL.md")
+
+    expected = {
+        ".agents/skills/a14-safe-implementation/SKILL.md": "a14-safe-implementation",
+        ".agents/skills/a14-independent-review/SKILL.md": "a14-independent-review",
+    }
+    for rel, name in expected.items():
+        path = repo_root / rel
+        if not path.is_file():
+            continue
+        text = read_text(path)
+        fm = _parse_skill_frontmatter(text)
+        if fm.get("name") != name:
+            errors.append(f"{rel} frontmatter name is not {name}")
+        if "user" not in (fm.get("triggers", "").lower()):
+            errors.append(f"{rel} triggers must be user-only")
+
+    # 2. A14 repository-specific files must not contain A13 repository/branch/Skill names.
+    a14_files = [
+        repo_root / ".agents" / "skills" / "a14-safe-implementation" / "SKILL.md",
+        repo_root / ".agents" / "skills" / "a14-independent-review" / "SKILL.md",
+    ]
+    a14_docs = repo_root / "docs" / "process"
+    if a14_docs.is_dir():
+        a14_files.extend(p for p in a14_docs.rglob("*") if p.is_file() and p.suffix == ".md")
+    forbidden_a13 = [
+        "tomthenpc/customiuizer-a13",
+        "devin/a13-rom-intelligence-audit",
+        "a13-safe-implementation",
+        "a13-independent-review",
+    ]
+    for path in a14_files:
+        if not path.is_file():
+            continue
+        text = read_text(path)
+        for token in forbidden_a13:
+            if token in text:
+                errors.append(f"{path.relative_to(repo_root).as_posix()} contains A13 reference: {token}")
+
+    # 3. Control documents must declare the atomic session model.
+    control_texts = {
+        "AGENTS.md": (repo_root / "AGENTS.md"),
+        "SMART_CONTINUOUS_OPERATION.md": (repo_root / "SMART_CONTINUOUS_OPERATION.md"),
+        "DEVIN_START_PROMPT.md": (repo_root / "DEVIN_START_PROMPT.md"),
+    }
+    control: dict[str, str] = {}
+    for name, path in control_texts.items():
+        if not path.is_file():
+            errors.append(f"Missing {name}")
+            continue
+        control[name] = read_text(path)
+
+    agents = control.get("AGENTS.md", "")
+    if "a14-safe-implementation" not in agents:
+        errors.append("AGENTS.md does not reference a14-safe-implementation")
+    if "a14-independent-review" not in agents:
+        errors.append("AGENTS.md does not reference a14-independent-review")
+    if "当前会话不得自行选择第二个目标" not in agents and "不得自行选择第二个目标" not in agents:
+        errors.append("AGENTS.md does not declare one-slice-per-session")
+    if "R2" not in agents or "a14-independent-review" not in agents:
+        errors.append("AGENTS.md does not declare R2/R3/R4 independent review")
+
+    smart = control.get("SMART_CONTINUOUS_OPERATION.md", "")
+    if "ATOMIC_TASK_SLICE" not in smart:
+        errors.append("SMART_CONTINUOUS_OPERATION.md does not declare SessionMode: ATOMIC_TASK_SLICE")
+    if "AutoStartNextSlice: false" not in smart:
+        errors.append("SMART_CONTINUOUS_OPERATION.md does not declare AutoStartNextSlice: false")
+
+    devin = control.get("DEVIN_START_PROMPT.md", "")
+    if "@skills:a14-safe-implementation" not in devin:
+        errors.append("DEVIN_START_PROMPT.md missing @skills:a14-safe-implementation")
+    if "@skills:a14-independent-review" not in devin:
+        errors.append("DEVIN_START_PROMPT.md missing @skills:a14-independent-review")
+    if "P0.1" in devin or "自动进入下一任务" in devin or "立即执行，不要只输出计划" in devin:
+        errors.append("DEVIN_START_PROMPT.md still contains the old autonomous start prompt")
+
+    # 4. No same-context automatic continuation after handoff.
+    auto_continue = {
+        "AGENTS.md": ["自动进入下一任务", "自动继续下一闭环"],
+        "SMART_CONTINUOUS_OPERATION.md": ["自动进入下一任务", "自动继续下一闭环"],
+        "GOAL.md": ["随后自动进入"],
+        "DEVIN_START_PROMPT.md": ["自动进入下一任务"],
+    }
+    for doc_name, phrases in auto_continue.items():
+        path = repo_root / doc_name
+        if not path.is_file():
+            continue
+        text = read_text(path)
+        for phrase in phrases:
+            if phrase in text:
+                errors.append(f"{doc_name} still requires same-context auto-continuation: {phrase}")
+
+    return errors
+
+
 def check_task_state(path: Path, raw_text: str) -> list[str]:
     errors: list[str] = []
     sections = parse_task_sections(raw_text)
@@ -483,6 +603,7 @@ def main() -> int:
         "SMART_CONTINUOUS_OPERATION.md": read_text(smart_op_path) if smart_op_path.exists() else "",
     }
     all_errors.extend(check_stop_conflicts(texts))
+    all_errors.extend(check_control_plane_migration(repo_root))
 
     if all_errors:
         print("CONTROL-STATE INVARIANT VIOLATIONS:")

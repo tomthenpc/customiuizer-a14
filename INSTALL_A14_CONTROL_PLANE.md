@@ -91,3 +91,21 @@ INSTALL_A14_CONTROL_PLANE.md
 scripts/verify.ps1
 scripts/bootstrap-and-start.ps1
 ```
+
+## 6. Devin Local Skills
+
+Skill 文件路径：
+
+```text
+.agents/skills/a14-safe-implementation/SKILL.md
+.agents/skills/a14-independent-review/SKILL.md
+```
+
+调用方式：
+
+```text
+@skills:a14-safe-implementation docs/process/tasks/<task-file>.md
+@skills:a14-independent-review <base-sha> <head-sha> docs/process/tasks/<task-file>.md
+```
+
+两个 Skill 的 frontmatter 都包含 `triggers: ["user"]`，因此只能由仓库所有者显式调用，不会被模型自动激活。Skill 文件是受版本控制的正式仓库规则，不得被 cleanup 删除。

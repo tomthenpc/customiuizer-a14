@@ -13,9 +13,12 @@ TestSelectionMode: RISK_ADAPTIVE
 ToolCreationMode: AUTO_WHEN_REPEATABLE
 CleanupMode: PROOF_GATED_AUTONOMOUS
 StateMode: MACHINE_RECONCILED
-HumanReviewRequired: false
-RoutineConfirmationRequired: false
-AutoResume: true
+SessionMode: ATOMIC_TASK_SLICE
+IndependentReviewRequired: R2_R3_R4
+AutoResumeWithinSlice: true
+AutoStartNextSlice: false
+ProjectContinuity: MULTI_SESSION
+ContextHandoffThreshold: 70_PERCENT
 ExternalEvidencePolicy: NON_BLOCKING
 ```
 
@@ -25,6 +28,7 @@ ExternalEvidencePolicy: NON_BLOCKING
 
 ```text
 用户最新明确指令
+→ 显式调用的 repository Skill 和当前 Task Slice
 → GOAL.md 的技术/产品目标
 → 本文件的执行连续性、状态真实性和自治方法
 → AGENTS.md 其他规则
@@ -69,6 +73,8 @@ Agent 是当前分支的专业项目维护者，不只是任务执行器。
 - 达到 MACHINE_COMPLETE、DEVICE_VALIDATED 或 PROJECT_COMPLETE；
 - 缺少手机、ROM、日志或签名；
 - 用户没有检查最新 commit。
+
+显式 Skill 边界不属于“项目停止”：完成一个批准的 Task Slice、qualifying checkpoint、exact CI 检查和 handoff 后，结束当前 Implementer 会话是正常边界，不是项目停止。新目标必须在新的 Implementer 会话中开始；同一上下文不得同时担任唯一 Implementer 和唯一 Reviewer。
 
 但“不停止”不等于制造改动。
 
@@ -200,23 +206,17 @@ Acceptance
 
 ```text
 reconcile state
-→ refresh global project map
-→ select objective
-→ prove original behavior
-→ define invariant
-→ inspect full call chain and Git history
-→ design smallest safe patch
-→ implement explicit code
-→ create/extend tests
-→ create tool when automation is justified
-→ run risk-adaptive verification
-→ inspect diff and generated outputs
-→ run cleanup evidence scan
-→ update TASK_STATE and SMART state
-→ qualifying commit
+→ read one Task Slice
+→ implement one atomic objective
+→ focused/mutation/risk-tier verification
+→ one qualifying engineering checkpoint
 → push exact branch
-→ inspect/fix CI
-→ next objective
+→ inspect exact checkpoint CI
+→ write handoff
+→ end current Implementer session
+→ start a fresh Reviewer session
+→ approve or return repair findings
+→ start next Task Slice in another fresh session
 ```
 
 不得只返回计划。
