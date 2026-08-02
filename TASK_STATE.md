@@ -435,6 +435,8 @@ State: `COMPLETE`
 
 ## P4.1 API 101 完整路径
 
+State: `COMPLETE`
+
 - 核心功能只依赖 API 101 能力；
 - API 102 类型不进入冷启动必经类加载；
 - staticScope=false。
@@ -450,6 +452,8 @@ State: `COMPLETE`
 - `check-invariants.py` 无 violations。
 
 ## P4.2 API 102 bridge
+
+State: `COMPLETE`
 
 每项分类：
 
@@ -481,7 +485,7 @@ API102 leakage into API101 path = 0
 
 # P5 — Gesture/Control Center
 
-State: `IN_PROGRESS`
+State: `COMPLETE`
 
 ## P5.1 生产状态机
 
@@ -869,7 +873,8 @@ DOCUMENTATION_CURRENT
 - 不新建分支；
 - 不合并 main；
 - 不 tag/release；
-- 等待仓库所有者。
+- 进入 `CONTINUOUS_MAINTENANCE`；
+- 继续 evidence-driven 维护。
 
 ---
 
@@ -879,19 +884,32 @@ P0 完成后重建，不得删除未解决条目。
 
 | ID | Priority | Area | State | Evidence | Acceptance |
 |---|---|---|---|---|---|
-| BASELINE-001 | P0 | Git | TODO | 尚未由本地 Agent 锁定 | P0.1 |
-| VERIFY-001 | P0 | Build | TODO | Final 控制层未运行 | P0.3 |
-| ARCH-001 | P1 | Registry | TODO | 需盘点全部生产 Feature/Registry | P2 完成 |
-| API-001 | P1 | API 101/102 | TODO | optional bridge 需最终分类 | P4 完成 |
-| GESTURE-001 | P1 | Gesture | TODO | 多状态机/生产路径需盘点 | P5 完成 |
-| LIFECYCLE-001 | P1 | SystemUI | TODO | custom View/icon group 风险需以 HEAD 重审 | P6 完成 |
+| BASELINE-001 | P0 | Git | COMPLETE | 本地 Agent 已锁定分支、HEAD、origin 和 upstream | P0.1 |
+| VERIFY-001 | P0 | Build | COMPLETE | 控制层 Fast/Full/Audit 验证器已运行并通过（含 targeted tests 和 Python 工具） | P0.3 |
+| ARCH-001 | P1 | Registry | COMPLETE | 已盘点 Feature/Registry/Installer/state 并产出工具和文档 | P2 完成 |
+| API-001 | P1 | API 101/102 | COMPLETE | API 102-only 类型/调用已分类并文档化，API 101 路径保持完整 | P4 完成 |
+| GESTURE-001 | P1 | Gesture | COMPLETE | 唯一生产状态机、事件模型、side-effect gate 和 stress tests 已通过 | P5 完成 |
+| LIFECYCLE-001 | P1 | SystemUI | TODO | custom View/icon group 风险需以当前 HEAD 重审 | P6 完成 |
 | DEVICE-001 | P1 | Device | BLOCKED_EXTERNAL | 无本轮真实证据 | P15 完成 |
 
 ---
 
 ## 5. Checkpoint
 
-尚无。
+最近真实 qualifying checkpoints（按时间顺序；state-only 和 overlay install 不计）：
+
+```text
+2b88afbd docs: P0.4 baseline inventory (process matrix, feature semantics, APK size)
+d089148e fix(tests): align method-hook fatal boundary test with three fatal rethrow contract
+d4781e02 feat(tools): add Hook ownership auditor and complete P1.2
+16867eff docs: mark P2 Feature Registry complete
+6534a948 docs: complete P4 API 101/102 boundary classification
+95b45a8e Fix GestureMachine arbiter, fatal boundaries, and runtime holder invariants
+aa839c8b docs: mark P5 Gesture/Control Center complete
+00f159b9 perf: update debug and develop APK size baselines after standard sweep build
+```
+
+当前 ResumeTask：P3 — MainModule、ProcessRouter 与 Installer；随后 P6 生命周期。
 
 ---
 

@@ -1,0 +1,287 @@
+#!/usr/bin/env python3
+"""Read-only control-state reconciliation for A14 professional autonomous stewardship.
+
+Exits non-zero on:
+- duplicate keys in SMART_OPERATION_STATE.md
+- unknown/invalid keys or values in SMART_OPERATION_STATE.md
+- non-existent commits referenced by SMART_OPERATION_STATE.md / TASK_STATE.md
+- false CI state
+- parent/child state mismatch in TASK_STATE.md
+- stale issue-queue entries
+- empty checkpoint section
+- stop-rule conflicts between GOAL.md / AGENTS.md / SMART_CONTINUOUS_OPERATION.md
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import subprocess
+import sys
+from pathlib import Path
+from typing import Any
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SMART_REQUIRED_KEYS = {
+    "Mode",
+    "CheckpointCount",
+    "CheckpointsSinceStandardSweep",
+    "CheckpointsSinceDeepSweep",
+    "LastQualifyingCheckpoint",
+    "LastLightSweepCommit",
+    "LastStandardSweepCommit",
+    "LastDeepSweepCommit",
+    "LastFullVerificationCommit",
+    "LastCIState",
+    "LastCleanupCommit",
+    "LastToolCreated",
+    "LastFailureClass",
+    "CurrentObjective",
+    "ResumeTask",
+}
+VALID_CI_STATES = {"NOT_CONFIGURED", "PENDING", "PASS", "FAIL", "UNAVAILABLE"}
+
+
+def read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def parse_smart_state(text: str) -> str:
+    """Extract the first ```text block from SMART_OPERATION_STATE.md."""
+    match = re.search(r"```text\s*\n(.*?)\n\s*```", text, re.DOTALL)
+    if not match:
+        raise ValueError("SMART_OPERATION_STATE.md missing ```text block")
+    return match.group(1)
+
+
+def smart_state_dict(block: str) -> tuple[dict[str, str], list[str]]:
+    """Parse key: value lines, reporting duplicate keys and unknown keys."""
+    seen: dict[str, str] = {}
+    errors: list[str] = []
+    for raw in block.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if key in seen:
+            errors.append(f"SMART_OPERATION_STATE duplicate key: {key}")
+        else:
+            seen[key] = value
+        if key not in SMART_REQUIRED_KEYS:
+            errors.append(f"SMART_OPERATION_STATE unknown key: {key}")
+    return seen, errors
+
+
+def git_object_exists(sha: str, repo_root: Path = REPO_ROOT) -> bool:
+    """Check whether a Git object exists in the current repository."""
+    if not sha or sha.lower() == "pending":
+        return False
+    try:
+        subprocess.run(
+            ["git", "rev-parse", "--verify", f"{sha}^{{commit}}"],
+            cwd=repo_root,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def check_smart_state(path: Path, raw_text: str, repo_root: Path) -> list[str]:
+    errors: list[str] = []
+    try:
+        block = parse_smart_state(raw_text)
+    except ValueError as e:
+        return [str(e)]
+    state, parse_errors = smart_state_dict(block)
+    errors.extend(parse_errors)
+
+    missing = SMART_REQUIRED_KEYS - set(state.keys())
+    for key in sorted(missing):
+        errors.append(f"SMART_OPERATION_STATE missing key: {key}")
+
+    ci = state.get("LastCIState", "")
+    if ci and ci not in VALID_CI_STATES:
+        errors.append(f"SMART_OPERATION_STATE invalid LastCIState: {ci}")
+    if ci == "PENDING":
+        errors.append("SMART_OPERATION_STATE LastCIState is PENDING; set NOT_CONFIGURED if no workflow exists")
+
+    for key in ("LastStandardSweepCommit", "LastDeepSweepCommit", "LastFullVerificationCommit"):
+        value = state.get(key, "")
+        if value and value.lower() != "pending" and not git_object_exists(value, repo_root):
+            errors.append(f"SMART_OPERATION_STATE {key} references non-existent commit: {value}")
+
+    last_qualifying = state.get("LastQualifyingCheckpoint", "")
+    if last_qualifying and last_qualifying.lower() != "pending" and not git_object_exists(last_qualifying, repo_root):
+        errors.append(f"SMART_OPERATION_STATE LastQualifyingCheckpoint references non-existent commit: {last_qualifying}")
+
+    checkpoint_count = state.get("CheckpointCount", "")
+    try:
+        count = int(checkpoint_count) if checkpoint_count else 0
+        if count < 0:
+            errors.append("SMART_OPERATION_STATE CheckpointCount must be non-negative")
+    except ValueError:
+        errors.append(f"SMART_OPERATION_STATE CheckpointCount is not an integer: {checkpoint_count}")
+
+    return errors
+
+
+SECTION_RE = re.compile(r"^#{1,2} (P\d+(?:\.\d+)?)(?:\s|—|$)", re.MULTILINE)
+
+
+def parse_task_sections(text: str) -> dict[str, dict[str, Any]]:
+    """Parse TASK_STATE.md sections like P3, P3.1, P5, etc."""
+    sections: dict[str, dict[str, Any]] = {}
+    for match in SECTION_RE.finditer(text):
+        sid = match.group(1)
+        end = match.end()
+        # State should appear within the next few lines of the section header.
+        window = text[end : end + 200]
+        state_match = re.search(r"State: `([^`]+)`", window)
+        sections[sid] = {
+            "state": state_match.group(1) if state_match else "UNKNOWN",
+            "children": [],
+        }
+    return sections
+
+
+def build_parent_child(sections: dict[str, dict[str, Any]]) -> list[str]:
+    """Link P#.# children to P# parents and validate state consistency."""
+    errors: list[str] = []
+    for sid in sections:
+        if "." in sid:
+            parent_id = sid.split(".")[0]
+            if parent_id in sections:
+                sections[parent_id]["children"].append(sid)
+
+    for sid, info in sections.items():
+        if "." in sid:
+            continue
+        children = info.get("children", [])
+        parent_state = info["state"]
+        child_states = [sections[c]["state"] for c in children]
+
+        if parent_state == "COMPLETE":
+            for c, st in zip(children, child_states):
+                if st not in ("COMPLETE", "BLOCKED_EXTERNAL", "NOT_APPLICABLE"):
+                    errors.append(f"TASK_STATE {sid} is COMPLETE but child {c} is {st}")
+        if parent_state == "TODO" and children:
+            if any(st == "COMPLETE" for st in child_states):
+                errors.append(f"TASK_STATE {sid} is TODO but has COMPLETE children")
+
+    return errors
+
+
+def parent_is_complete(text: str, parent_id: str) -> bool:
+    """Check whether a parent phase like P6 is marked COMPLETE."""
+    pattern = re.compile(rf"^# {re.escape(parent_id)} — .+?\n+State: `([^`]+)`", re.MULTILINE | re.DOTALL)
+    match = pattern.search(text)
+    if match:
+        return match.group(1) == "COMPLETE"
+    return False
+
+
+def check_issue_queue(text: str) -> list[str]:
+    """Parse the issue queue table and flag stale TODO/COMPLETE mismatches."""
+    errors: list[str] = []
+    table_match = re.search(r"\|\s*ID\s*\|.*?\n((?:\|[^\n]+\|\n?)+)", text)
+    if not table_match:
+        return errors
+
+    rows = [line for line in table_match.group(1).strip().splitlines() if line.startswith("|")]
+    for row in rows:
+        cells = [c.strip() for c in row.split("|")][1:-1]
+        if len(cells) < 6:
+            continue
+        issue_id, priority, area, state, evidence, acceptance = cells[:6]
+        if state == "COMPLETE" and ("尚未" in evidence or "未运行" in evidence or evidence.strip() == ""):
+            errors.append(f"TASK_STATE issue {issue_id} is COMPLETE but evidence is stale: {evidence}")
+        if state == "TODO" and "完成" in acceptance:
+            # Allow if the referenced parent is not yet COMPLETE.
+            parent_match = re.search(r"P\d+(?:\.\d+)?", acceptance)
+            if parent_match and not parent_is_complete(text, parent_match.group(0)):
+                continue
+            errors.append(f"TASK_STATE issue {issue_id} is TODO but acceptance implies complete: {acceptance}")
+
+    return errors
+
+
+def check_checkpoint_section(text: str) -> list[str]:
+    errors: list[str] = []
+    match = re.search(r"## 5\. Checkpoint\s*(.*?)\n##", text, re.DOTALL)
+    if not match:
+        return ["TASK_STATE missing Checkpoint section"]
+    section = match.group(1).strip()
+    if "尚无" in section and "```text" not in section:
+        errors.append("TASK_STATE Checkpoint section is empty ('尚无'); record qualifying commits")
+    return errors
+
+
+def check_stop_conflicts(texts: dict[str, str]) -> list[str]:
+    """Ensure GOAL.md, AGENTS.md and SMART_CONTINUOUS_OPERATION.md do not ask to stop/wait."""
+    errors: list[str] = []
+    for name, text in texts.items():
+        if re.search(r"停止[^，；。]*等待仓库所有者", text):
+            errors.append(f"{name} still contains '停止...等待仓库所有者' post-completion action")
+    return errors
+
+
+def check_task_state(path: Path, raw_text: str) -> list[str]:
+    errors: list[str] = []
+    sections = parse_task_sections(raw_text)
+    errors.extend(build_parent_child(sections))
+    errors.extend(check_issue_queue(raw_text))
+    errors.extend(check_checkpoint_section(raw_text))
+    return errors
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="A14 control-state reconciliation")
+    parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
+    args = parser.parse_args()
+    repo_root = args.repo_root
+
+    smart_path = repo_root / "SMART_OPERATION_STATE.md"
+    task_path = repo_root / "TASK_STATE.md"
+    goal_path = repo_root / "GOAL.md"
+    agents_path = repo_root / "AGENTS.md"
+    smart_op_path = repo_root / "SMART_CONTINUOUS_OPERATION.md"
+
+    all_errors: list[str] = []
+
+    if smart_path.exists():
+        all_errors.extend(check_smart_state(smart_path, read_text(smart_path), repo_root))
+    else:
+        all_errors.append("Missing SMART_OPERATION_STATE.md")
+
+    if task_path.exists():
+        all_errors.extend(check_task_state(task_path, read_text(task_path)))
+    else:
+        all_errors.append("Missing TASK_STATE.md")
+
+    texts = {
+        "GOAL.md": read_text(goal_path) if goal_path.exists() else "",
+        "AGENTS.md": read_text(agents_path) if agents_path.exists() else "",
+        "SMART_CONTINUOUS_OPERATION.md": read_text(smart_op_path) if smart_op_path.exists() else "",
+    }
+    all_errors.extend(check_stop_conflicts(texts))
+
+    if all_errors:
+        print("CONTROL-STATE INVARIANT VIOLATIONS:")
+        for err in all_errors:
+            print(f"  - {err}")
+        return 1
+
+    print("Control-state invariants pass.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -520,47 +520,38 @@ Next
 ```
 
 无实机证据保持 `NOT_EXERCISED`。
-
 ---
 
-## 22. 停止规则
+## 22. Professional autonomous stewardship
 
-成功停止：
-
-- `PROJECT_COMPLETE`；
-- 或机器工作全部完成，仅剩明确外部设备/ROM/签名证据，状态为 `EXTERNAL_VALIDATION_REQUIRED`。
-
-失败停止：
-
-- 有完整证据的硬阻塞，且其他独立机器任务已完成。
-
-不得因为阶段结束、编译通过、任务较多或等待普通确认而停止。
-
-停止后不创建新分支、不合并 main、不 tag/release。
----
-
-## Smart continuous operation
-
-智能执行由 [`SMART_CONTINUOUS_OPERATION.md`](SMART_CONTINUOUS_OPERATION.md) 定义。
+执行自治统一由 [`SMART_CONTINUOUS_OPERATION.md`](SMART_CONTINUOUS_OPERATION.md) 定义。
 
 ```text
 Repository: tomthenpc/customiuizer-a14
 AuthorizedBranch: devin/a14-rom-intelligence-audit
 BranchMode: EXACT_LOCK
-OperationMode: SMART_CONTINUOUS_OPERATION
-PlanningMode: EVIDENCE_DRIVEN_DYNAMIC
-TestSelectionMode: RISK_ADAPTIVE
-ToolCreationMode: AUTO_WHEN_REPEATABLE
-CleanupMode: EVIDENCE_GATED
+OperationMode: PROFESSIONAL_AUTONOMOUS_STEWARDSHIP
+StateMode: MACHINE_RECONCILED
 HumanReviewRequired: false
 RoutineConfirmationRequired: false
 AutoResume: true
 ```
 
-每次新会话或恢复会话，读取本文件后继续读取 `SMART_CONTINUOUS_OPERATION.md`。
+本节替换旧“停止规则”和旧 `## Smart continuous operation`，不得同时保留冲突版本。
 
-本节只改变执行方式，不替换 `GOAL.md`，不重置 `TASK_STATE.md`，不降低测试、安全、分支、密钥、签名、设备或发布边界。
+规则：
 
-Agent 应按风险自动选择测试；重复人工检查应工具化；重复缺陷应固化为测试或静态门禁；周期审计使用 checkpoint 计数；无关文件只能按证据分级清理。
+- `PROJECT_COMPLETE` 是证据里程碑，不是主动停止条件；
+- 里程碑后留在当前精确分支进入 `CONTINUOUS_MAINTENANCE`；
+- 不要求用户检查代码、commit、CI、分支或批准继续；
+- 每轮先执行 control-state reconciliation；
+- 只有 qualifying work 才增加 checkpoint；
+- state-only commit 不计数；
+- 按风险自动选择测试；
+- 重复人工检查工具化；
+- 重复 bug 固化为测试/门禁；
+- dead code 仅按 proof-gated policy 删除；
+- 无合理变更时继续验证和审计，不制造 churn；
+- 中断后从 Git、TASK_STATE 和 SMART state 恢复。
 
-任务、阶段、验证、CI 和完成里程碑都不会触发主动停止。
+本节不放宽分支、main、force-push、rebase、secret、签名、ADB、设备证据和 Release 限制。

@@ -1,20 +1,21 @@
 # Smart operation state
 
 ```text
-Mode: SMART_CONTINUOUS_OPERATION
-CheckpointCount: 4
-CheckpointsSinceStandardSweep: 1
-CheckpointsSinceDeepSweep: 2
-LastLightSweepCommit: 0e443308
-LastFailureClass: RemainingFeaturesWiringTest.installersNoLongerContainDirectPreferenceChecks
-LastStandardSweepCommit: pending
+Mode: PROFESSIONAL_AUTONOMOUS_STEWARDSHIP
+CheckpointCount: 8
+CheckpointsSinceStandardSweep: 0
+CheckpointsSinceDeepSweep: 8
+LastQualifyingCheckpoint: 00f159b9
+LastLightSweepCommit: 00f159b9
+LastStandardSweepCommit: 00f159b9
 LastDeepSweepCommit: pending
-LastFullVerificationCommit: pending
-LastCIState: pending
+LastFullVerificationCommit: 00f159b9
+LastCIState: NOT_CONFIGURED
 LastCleanupCommit: pending
-LastToolCreated: none
-LastFailureClass: none
-ResumeTask: derive from TASK_STATE.md
+LastToolCreated: tools/audit_hook_ownership.py
+LastFailureClass: RemainingFeaturesWiringTest.installersNoLongerContainDirectPreferenceChecks
+CurrentObjective: P3 MainModule/ProcessRouter/Installer
+ResumeTask: P3 MainModule/ProcessRouter/Installer; then P6 SystemUI/Launcher lifecycle
 ```
 
 本文件只记录执行节奏，不保存、替代或重置产品任务。

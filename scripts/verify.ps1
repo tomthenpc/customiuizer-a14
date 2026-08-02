@@ -242,6 +242,8 @@ Invoke-Native "Python version" $Python.FilePath ($Python.Prefix + @("--version")
 Invoke-Native "Java version" "java" @("-version")
 Invoke-Native "Git version" "git" @("--version")
 
+Invoke-Native "Control-state invariants" $Python.FilePath ($Python.Prefix + @("tools/check_automation_state.py"))
+
 if ($Mode -eq "Audit") {
     Write-Host ""
     Write-Host "A14 AUDIT PASSED"

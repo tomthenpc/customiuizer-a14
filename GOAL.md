@@ -64,7 +64,7 @@ devin/*
 - 不得合并或推送 `main`；
 - 不得创建 tag、GitHub Release 或自动合并 PR。
 
-达到 `PROJECT_COMPLETE` 后，Agent 同样不得自行创建下一分支。它必须输出证据报告并停止，等待仓库所有者决定后续路线。
+达到 `PROJECT_COMPLETE` 后，Agent 同样不得自行创建下一分支。它必须输出证据报告、保持当前精确分支、不 merge/tag/release，并进入 `CONTINUOUS_MAINTENANCE`，继续 evidence-driven 维护。
 
 ---
 
@@ -626,7 +626,8 @@ DOCUMENTATION_CURRENT
 - 不创建新分支；
 - 不合并 main；
 - 不 tag/release；
-- 停止并等待仓库所有者。
+- 进入 `CONTINUOUS_MAINTENANCE`；
+- 继续 evidence-driven 维护。
 
 如果机器工作全部完成，但缺少手机、ROM、签名或其他外部证据，状态改为：
 
