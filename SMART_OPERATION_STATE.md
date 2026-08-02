@@ -2,11 +2,11 @@
 
 ```text
 Mode: SMART_CONTINUOUS_OPERATION
-CheckpointCount: 3
-CheckpointsSinceStandardSweep: 0
-CheckpointsSinceDeepSweep: 1
-LastLightSweepCommit: aa839c8b
-LastStandardSweepCommit: aa839c8b
+CheckpointCount: 4
+CheckpointsSinceStandardSweep: 1
+CheckpointsSinceDeepSweep: 2
+LastLightSweepCommit: 0e443308
+LastFailureClass: RemainingFeaturesWiringTest.installersNoLongerContainDirectPreferenceChecks
 LastStandardSweepCommit: pending
 LastDeepSweepCommit: pending
 LastFullVerificationCommit: pending
