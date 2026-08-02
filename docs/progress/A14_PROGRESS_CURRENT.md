@@ -1,7 +1,7 @@
 # A14 Progress Current
 
 ```text
-GeneratedAt: 2026-08-02T13:13:59.454965+08:00
+GeneratedAt: 2026-08-02T13:14:47.702057+08:00
 ```
 
 ## SMART State
@@ -28,10 +28,10 @@ GeneratedAt: 2026-08-02T13:13:59.454965+08:00
 
 ## Progress
 
-- ProjectProgress: 60.0%
-- MachineProgress: 68.8%
-- Tasks: 24 COMPLETE / 7 IN_PROGRESS / 8 not started of 40
-- Issues: 10 complete / 16 total
+- ProjectProgress: 65.0%
+- MachineProgress: 71.2%
+- Tasks: 26 COMPLETE / 5 IN_PROGRESS / 8 not started of 40
+- Issues: 11 complete / 16 total
 
 ## Tasks
 
@@ -50,12 +50,12 @@ GeneratedAt: 2026-08-02T13:13:59.454965+08:00
 | P4 — API 101/102 边界 | COMPLETE |
 | P4.1 API 101 完整路径 | COMPLETE |
 | P4.2 API 102 bridge | COMPLETE |
-| P5 — Gesture/Control Center | IN_PROGRESS |
+| P5 — Gesture/Control Center | COMPLETE |
 | P5.1 生产状态机 | COMPLETE |
 | P5.2 事件模型 | COMPLETE |
 | P5.3 Side effect | COMPLETE |
 | P5.4 Stress | COMPLETE |
-| P5.5 Pointer contract / Gate / Arbiter | IN_PROGRESS |
+| P5.5 Pointer contract / Gate / Arbiter | COMPLETE |
 | P6 — SystemUI/Launcher lifecycle | IN_PROGRESS |
 | P6.1 Status bar custom View | COMPLETE |
 | P6.2 周期与监控 | COMPLETE |

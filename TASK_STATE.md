@@ -502,7 +502,7 @@ API102 leakage into API101 path = 0
 
 # P5 — Gesture/Control Center
 
-State: `IN_PROGRESS`
+State: `COMPLETE`
 
 ## P5.1 生产状态机
 
@@ -538,11 +538,13 @@ State: `COMPLETE`
 
 ## P5.5 Pointer contract / Gate / Arbiter
 
-State: `IN_PROGRESS`
+State: `COMPLETE`
 
-- v4 audit 要求明确 `MotionEvent.pointerCount` 语义（raw count vs post-action active count）并在 production adapter 唯一归一化。
-- `GestureSideEffectGate` 中 `commands.filter(::isBusinessEffect)` 改为无中间列表扫描。
-- `GestureArbiter` 增加硬上限、stale cleanup、满载拒绝、missing CANCEL 测试。
+- `MotionEvent.pointerCount` 语义已明确：`GestureEvent.pointerCount` 为 raw，`GestureEvent.activePointerCount` 为 post-action 归一化值（`ACTION_UP` -> 0，`ACTION_POINTER_UP` -> `pointerCount - 1`）。
+- `GestureStateMachine` 和 `GestureSideEffectGate` 指纹已切换为 `activePointerCount`。
+- `GestureSideEffectGate.filter` 已改用 `commands.any(::isBusinessEffect)`，避免热路径中间列表。
+- `PhysicalGestureArbiter` 已增加 `MAX_HELD_TOKENS` 硬上限、`STALE_TOKEN_AGE_MS` stale cleanup、满载拒绝与 `PhysicalGestureArbiterTest`。
+- `GestureMachine` 在 UP/CANCEL/Reset/detach 时释放 token。
 
 ---
 
@@ -958,13 +960,13 @@ P0 完成后重建，不得删除未解决条目。
 | VERIFY-001 | P0 | Build | COMPLETE | 控制层 Fast/Full/Audit 验证器已运行并通过（含 targeted tests 和 Python 工具） | P0.3 |
 | ARCH-001 | P1 | Registry | COMPLETE | 已盘点 Feature/Registry/Installer/state 并产出工具和文档 | P2 完成 |
 | API-001 | P1 | API 101/102 | COMPLETE | API 102-only 类型/调用已分类并文档化，API 101 路径保持完整 | P4 完成 |
-| GESTURE-001 | P1 | Gesture | CORE_COMPLETE | 核心状态机和事件模型落地，P5.5 pointer/Gate/Arbiter 边界仍在进行 | P5.5 完成后重审 |
+| GESTURE-001 | P1 | Gesture | COMPLETE | 唯一生产状态机、事件模型、side-effect gate、arbiter bound/cleanup、pointerCount contract 均已落地并通过测试 | P5.5 完成 |
 | LIFECYCLE-001 | P1 | SystemUI | CORE_COMPLETE | 核心生命周期 owner 盘点完成，P6.5 owner inventory / stale cleanup 仍在进行 | P6.5 完成后重审 |
 | ALG-001 | P1 | MainModule | COMPLETE | `SystemUiBootstrapCoordinator` 已提取，`MainModule` 只负责路由调用 | P3.2 完成 |
 | ALG-002 | P1 | Fatal | COMPLETE | `FatalErrors` helper 已创建，`MainModule` 所有 catch(Throwable) 已调用 `rethrowIfFatal` | P3.2 完成 |
 | ALG-003 | P1 | Gesture | COMPLETE | `GestureEvent` 新增 `activePointerCount`，默认归一化 `ACTION_UP`/`ACTION_POINTER_UP`；`GestureStateMachine` 使用 active 计数；测试已更新 | P5.5 完成 |
 | ALG-004 | P1 | Gesture | COMPLETE | `GestureSideEffectGate.filter` 改用 `commands.any(::isBusinessEffect)`，避免热路径分配中间列表 | P5.5 完成 |
-| ALG-005 | P1 | Gesture | IN_PROGRESS | `PhysicalGestureArbiter` 已加 `MAX_HELD_TOKENS` 硬上限与 `STALE_TOKEN_AGE_MS` 清理，UP/CANCEL 释放仍存在，但 `GestureMachine` 已调用；需验证与 CANCEL 缺失测试 | P5.5 完成 |
+| ALG-005 | P1 | Gesture | COMPLETE | `PhysicalGestureArbiter` 已加 `MAX_HELD_TOKENS` 硬上限、`STALE_TOKEN_AGE_MS` 清理、`reapStaleTokens` 兜底；`GestureMachine` 在 UP/CANCEL/Reset/detach 时释放 token；测试覆盖 | P5.5 完成 |
 | ALG-006 | P1 | Lifecycle | TODO | `GestureMachine` 的 snapshot/dependencies/configs 依赖每个 detach 调用 clear；需完整 owner inventory | P6.5 完成 |
 | ALG-007 | P1 | HotPath | TODO | status bar intercept `observe()` 返回值未被使用，可能执行无效热路径计算 | P7.5 完成 |
 | DOC-001 | P2 | Docs | TODO | 需唯一 CURRENT architecture、gesture event contract、lifecycle owner inventory、APK delta | P12 完成 |

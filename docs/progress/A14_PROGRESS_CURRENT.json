@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-02T13:13:59.454965+08:00",
+  "generatedAt": "2026-08-02T13:14:47.702057+08:00",
   "smartState": {
     "Mode": "PROFESSIONAL_AUTONOMOUS_STEWARDSHIP",
     "CheckpointCount": "17",
@@ -23,21 +23,20 @@
   "progress": {
     "taskCounts": {
       "total": 40,
-      "complete": 24,
-      "inProgress": 7,
+      "complete": 26,
+      "inProgress": 5,
       "notStarted": 8
     },
     "issueCounts": {
-      "COMPLETE": 8,
-      "CORE_COMPLETE": 2,
-      "IN_PROGRESS": 1,
+      "COMPLETE": 10,
+      "CORE_COMPLETE": 1,
       "TODO": 4,
       "BLOCKED_EXTERNAL": 1
     },
     "issueTotal": 16,
-    "issueComplete": 10,
-    "projectProgressPercent": 60.0,
-    "machineProgressPercent": 68.8
+    "issueComplete": 11,
+    "projectProgressPercent": 65.0,
+    "machineProgressPercent": 71.2
   },
   "tasks": [
     {
@@ -94,7 +93,7 @@
     },
     {
       "title": "P5 \u2014 Gesture/Control Center",
-      "state": "IN_PROGRESS"
+      "state": "COMPLETE"
     },
     {
       "title": "P5.1 \u751f\u4ea7\u72b6\u6001\u673a",
@@ -114,7 +113,7 @@
     },
     {
       "title": "P5.5 Pointer contract / Gate / Arbiter",
-      "state": "IN_PROGRESS"
+      "state": "COMPLETE"
     },
     {
       "title": "P6 \u2014 SystemUI/Launcher lifecycle",
