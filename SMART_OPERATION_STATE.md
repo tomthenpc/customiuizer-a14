@@ -2,10 +2,11 @@
 
 ```text
 Mode: SMART_CONTINUOUS_OPERATION
-CheckpointCount: 2
-CheckpointsSinceStandardSweep: 1
+CheckpointCount: 3
+CheckpointsSinceStandardSweep: 0
 CheckpointsSinceDeepSweep: 1
-LastLightSweepCommit: 27b19135
+LastLightSweepCommit: aa839c8b
+LastStandardSweepCommit: aa839c8b
 LastStandardSweepCommit: pending
 LastDeepSweepCommit: pending
 LastFullVerificationCommit: pending
