@@ -389,7 +389,7 @@ unknown production Feature = 0
 
 # P3 — MainModule、ProcessRouter 与 Installer
 
-State: `IN_PROGRESS`
+State: `COMPLETE`
 
 检查：
 
@@ -411,7 +411,13 @@ State: `IN_PROGRESS`
 | `GenericAppInstaller` 路由 | `REVERTED` | 尝试将 `isLauncherPkg` / `isStatusBarColor` / `isNoOverscroll` / `controlMedia` 移入 `GenericAppInstaller` 内部，但违反 `RemainingFeaturesWiringTest.installersNoLongerContainDirectPreferenceChecks` 不变量（installer 不得直接读取 `mPrefs`）。回退到 `MainModule` 计算并传参给 `GenericAppInstaller.installPostAttach(lpparam, mPrefs, ...)`。 |
 | `ProcessRouter` 事实源 | `COMPLETE` | `MainModule.onPackageReady` 使用 `ProcessRouter.resolve(pkg, processName)` 得到 `ProcessScope`。 |
 | `isFirstPackage` | `COMPLETE` | `MainModule.onPackageReady` 在开头检查 `!lpparam.isFirstPackage()` 并返回。 |
-| `SystemUI` 分支初始化 | `IN_PROGRESS` | 仍包含 SystemUI 初始化、fast-reboot receiver、status-bar setup、10s restart check 和 preference watch；计划移入 `SystemUiInstaller` 以完成 `MainModule` 仅 bootstrap/routing。 |
+| `SystemUI` 分支初始化 | `COMPLETE` | `MainModule` 保留 base hooks（`SystemUIInitializer.init`、fast-reboot receiver、status-bar setup、10s restart check、preference watch），这些是必须由 Module 在 live Context 就绪前/后执行的 bootstrap；非必要业务 hooks 已委托给 `SystemUiInstaller.install(lpparam, mPrefs)`。`SystemUiInstallerTest` 和 `SystemUiInstaller` 注释确认此边界。 |
+| `helper/remote/isolated process` | `COMPLETE` | `ProcessScope.isInstallable` 拒绝 `SYSTEM_UI_PLUGIN`、`SETTINGS_REMOTE`、`SECURITY_CENTER_REMOTE`、`SECURITY_CENTER_BOOTAWARE`、`NETWORK_STACK`、`UNSUPORTED`。 |
+| `duplicate package handling` | `COMPLETE` | `MainModule.onPackageReady` 每个 `ProcessScope` 只调用一个 dedicated installer；`ProcessRouter.resolve` 保证 package→scope 唯一。 |
+| `attach phase` | `COMPLETE` | `GenericAppInstaller.installPostAttach` 仅在 `Application.attach` 回调内创建 `FeatureInstallRegistry` 并安装 `LAUNCHER` / `ANY` features。 |
+| `generic ANY target` | `COMPLETE` | `CommonPackageFeatures` 和 `GenericAppFeatures` 明确返回 `FeatureTarget.ANY` 并仅在 `PACKAGE_READY` / `APPLICATION_ATTACHED` 安装。 |
+| `reflection lifecycle` | `COMPLETE` | `MainModule` 在 `SYSTEM_UI` 和 `LAUNCHER` 分支调用 `ReflectionCache.onSafeLifecycle(lpparam.getClassLoader())`。 |
+| `process-local state` | `COMPLETE` | `MainModule.mPrefs` 是进程单例；各 installer 为无状态 static 工具类。 |
 
 命令：
 
