@@ -1,21 +1,21 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-02T18:33:18.224372+08:00
-SourceCommit: dc1981e81b2d3d8f7df82639a43e98b1028475f7
-SourceTree: ef9348ea864f564bb72100bf50d97ea8d284bd90
+GeneratedAt: 2026-08-02T18:44:38.912407+08:00
+SourceCommit: c46ffb1a6d8c90711bc15e20ac01bdd9e340c062
+SourceTree: 4d89dba201c6a8d23dbaa41ba26f1dca9aaa7d00
 VerifiedTree: 93534140994e6c793fe8fbc7ec34325f71d264d7
 VerifiedMode: Final
 CIState: PASS
-CIRun: 30743552889
-CIJob: 91485129897
-CICommit: dc1981e81b2d3d8f7df82639a43e98b1028475f7
+CIRun: 30743994719
+CIJob: 91486319640
+CICommit: c46ffb1a6d8c90711bc15e20ac01bdd9e340c062
 ```
 
 ## Progress
 
-- ProjectProgress: 62.3%
-- MachineProgress: 65.6%
+- ProjectProgress: 62.8%
+- MachineProgress: 66.1%
 - Stage: INTEGRATION_AND_EVIDENCE
 - OpenP0: 0
 - OpenP1: 7
@@ -25,7 +25,7 @@ CICommit: dc1981e81b2d3d8f7df82639a43e98b1028475f7
 
 | Domain | Weight | Earned | Percent |
 |---|---:|---:|---:|
-| Baseline and control | 8 | 7.0 | 87.5% |
+| Baseline and control | 8 | 7.5 | 93.8% |
 | Runtime architecture / routing / ownership | 22 | 22.0 | 100.0% |
 | Runtime safety / lifecycle / concurrency | 18 | 17.64 | 98.0% |
 | Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
@@ -79,7 +79,7 @@ CICommit: dc1981e81b2d3d8f7df82639a43e98b1028475f7
 | P11.2 | Build / CI / signing / artifacts | 4.0 | VERIFIED_CI | 0.95 | 3.8 |
 | P11.3 | Build / CI / signing / artifacts | 4.0 | VERIFIED | 0.0 | 0.0 |
 | P12 | Documentation / provenance | 5.0 | TODO | 0.0 | 0.0 |
-| P13 | Baseline and control | 1.0 | TODO | 0.0 | 0.0 |
+| P13 | Baseline and control | 1.0 | IN_PROGRESS | 0.5 | 0.5 |
 | DEVICE-001 | Device validation | 5 | BLOCKED_EXTERNAL | 0.0 | 0.0 |
 
 ## Notes

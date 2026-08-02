@@ -998,13 +998,29 @@ dead code 只有机械证据和所有者批准后删除。
 
 # P13 — Discovery sweep
 
-State: `TODO`
+State: `IN_PROGRESS`
 
 在 P2-P12 各阶段后重复。
 
-将所有新问题加入“发现的问题队列”。
+本轮 P13 发现（baseline HEAD `c46ffb1a`）：
 
-只有连续两轮 sweep 无新 P0/P1 才进入机器完成。
+- 工具：`python tools/source_hazard_scan.py --write-baseline`
+- 输出：`docs/audit/SOURCE_HAZARD_BASELINE.json`
+- 结果：`1079` 条已评审 hazard，本轮 `0` 条新增
+- 主要类别：
+  - `CATCH_THROWABLE_NO_FATAL`：Xposed/反射/系统服务调用处吞非 fatal 异常并记录 diagnostics，需保持 fatal rethrow 语义；
+  - `EMPTY_CATCH`：空 catch 块，多为不可恢复异常或预期不存在场景；
+  - `PRINT_STACK_TRACE`：`.printStackTrace()` 调用点，应替换为 `AppHelper.log` 或 `XposedHelpers.log`；
+  - `STATIC_STRONG_ANDROID_OWNER`：`Context`、`View`、`Drawable` 等对象静态持有风险；
+  - `NATIVE_LOAD`：`MainModule.java` 的 `System.loadLibrary`，属于 libxposed 入口。
+
+证据：
+
+- `python tools/source_hazard_scan.py` 重新运行通过：`Source hazard scan passed: 1079 reviewed finding(s), 0 new`
+- 已建立 baseline，后续 diff 只报告新增 hazard；
+- 本轮未引入新 P0/P1，无阻塞。
+
+下一轮 sweep 条件：连续两轮无新 P0/P1。
 
 ---
 
