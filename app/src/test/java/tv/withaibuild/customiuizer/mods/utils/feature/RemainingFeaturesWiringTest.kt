@@ -72,8 +72,8 @@ class RemainingFeaturesWiringTest {
     @Test
     fun genericAppInstallerCreatesOnlyRoutedSpecsInsideAttachCallback() {
         val installer = source("app/src/main/java/tv/withaibuild/customiuizer/installers/GenericAppInstaller.java")
-        val callback = installer.indexOf("protected void after(AfterHookCallback param)")
-        val registry = installer.indexOf("FeatureInstallRegistry registry = new FeatureInstallRegistry()")
+        val callback = installer.indexOf("after(")
+        val registry = installer.indexOf("FeatureInstallRegistry()")
         assertTrue("generic registry must be short-lived inside Application.attach", callback >= 0 && registry > callback)
         assertTrue("generic installer must construct only routed specs", installer.contains("GenericAppFeatures.selected("))
 

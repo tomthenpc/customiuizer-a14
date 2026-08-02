@@ -773,31 +773,39 @@ State: `IN_PROGRESS`
 
 行为等价小批次，每批 focused tests。
 
-当前批次：13 installer Java → Kotlin（低风险，不影响 `MainModule` 调用点）。
+13 个 installer Java → Kotlin 已完成：
 
-计划：
+- `AndroidPackageInstaller`
+- `GenericAppInstaller`
+- `GuardProviderInstaller`
+- `InputMethodInstaller`
+- `LauncherInstaller`
+- `MediaInstaller`
+- `PackageInstallerRouter`
+- `PhoneInstaller`
+- `PowerKeeperInstaller`
+- `SecurityCenterInstaller`
+- `SettingsInstaller`
+- `SystemUiInstaller`
 
-1. 保留 `MainModule.java` 和 `MemberUtilsX.java` 不变；
-2. 将 `installers/*.java` 逐个转换为 Kotlin `object` 并加 `@JvmStatic`；
-3. 最后迁移 `mods/utils/XposedHelpers.java`（最大、中等风险）；
-4. 每批运行 `gradlew.bat :app:compileDebugKotlin compileDebugJavaWithJavac` 与相关 `testDebugUnitTest`。
+全部转换为 Kotlin `object`，保留 `@JvmStatic` 供 `MainModule.java` 调用；`GenericAppInstaller` 中的 `MethodHook` 覆盖转为 `override fun after(param: AfterHookCallback)`；`LauncherInstaller.handleLoadLauncher` 同样保留 `@JvmStatic`。
+
+剩余：
+
+- `mods/utils/XposedHelpers.java`（最大、中等风险）；
+- 保留 `MainModule.java` 和 `MemberUtilsX.java` 不变。
 
 ## P9.3 Allowlist
 
-State: `TODO`
+State: `VERIFIED`
 
-生成：
+已生成 `docs/JAVA_BOUNDARY_ALLOWLIST.md`，记录：
 
-```text
-docs/JAVA_BOUNDARY_ALLOWLIST.md
-```
-
-最终无：
-
-```text
-KEEP_JAVA_TEMPORARY_BLOCKER
-UNCLASSIFIED
-```
+- `KEEP_JAVA_FRAMEWORK_ENTRY`：`MainModule.java`
+- `KEEP_JAVA_VENDOR_OR_GENERATED`：`MemberUtilsX.java`
+- `MIGRATE_TO_KOTLIN`：`XposedHelpers.java`
+- `MIGRATED`：12 个 installer `.kt`
+- 无 `KEEP_JAVA_TEMPORARY_BLOCKER` 或 `UNCLASSIFIED`
 
 ---
 

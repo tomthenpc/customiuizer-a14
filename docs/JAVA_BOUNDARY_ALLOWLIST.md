@@ -31,22 +31,26 @@ No `KEEP_JAVA_TEMPORARY_BLOCKER` or `UNCLASSIFIED` files are allowed at PROJECT_
 
 | File | JVM/ABI Notes | Migration Risk |
 |------|---------------|----------------|
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/AndroidPackageInstaller.java` | `public static void install(PackageReadyParam, PrefMap)` called from Kotlin `MainModule`. | Low: convert to `object` with `@JvmStatic`. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/GenericAppInstaller.java` | `public static void installPostAttach(...)` called from Kotlin `MainModule`. | Low: small, one hook. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/GuardProviderInstaller.java` | `public static void install(...)` called from Kotlin `MainModule`. | Low. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/InputMethodInstaller.java` | `public static void install(...)` called from Kotlin `MainModule`. | Low. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/LauncherInstaller.java` | `public static void install(...)` called from Kotlin `MainModule`. | Low. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/MediaInstaller.java` | `public static void install(...)` called from Kotlin `MainModule`. | Low. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/PackageInstallerRouter.java` | `public static void install(...)` called from Kotlin `MainModule`. | Low. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/PhoneInstaller.java` | `public static void install(...)` called from Kotlin `MainModule`. | Low. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/PowerKeeperInstaller.java` | `public static void install(...)` called from Kotlin `MainModule`. | Low. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/SecurityCenterInstaller.java` | `public static void install(...)` called from Kotlin `MainModule`. | Low. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/SettingsInstaller.java` | `public static void install(...)` called from Kotlin `MainModule`. | Low. |
-| `app/src/main/java/tv/withaibuild/customiuizer/installers/SystemUiInstaller.java` | `public static void install(...)` called from Kotlin `SystemUiBootstrapCoordinator`. | Low. |
 | `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/XposedHelpers.java` | Many `public static` helper methods called from Kotlin and used in hooks. Methods are referenced directly, not by reflection, but the class name is well-known in the project. | Medium: large file with overloads; should be migrated in one focused batch with tests. |
+
+### MIGRATED (now `.kt`)
+
+The following installer files were converted to Kotlin `object` with `@JvmStatic` to preserve Java call sites in `MainModule.java`. They are now located at the same path with `.kt` extension:
+
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/AndroidPackageInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/GenericAppInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/GuardProviderInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/InputMethodInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/LauncherInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/MediaInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/PackageInstallerRouter.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/PhoneInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/PowerKeeperInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/SecurityCenterInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/SettingsInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/SystemUiInstaller.kt`
 
 ## Migration Plan (P9.2)
 
-1. Convert the 13 installer files first: each is a thin registration loop and can become a Kotlin `object` with `@JvmStatic` to preserve `MainModule` call sites.
-2. Convert `XposedHelpers.java` in one focused batch. Preserve all public static method JVM signatures (`@JvmStatic`, `@JvmOverloads` where needed) because hook call sites and tests rely on them.
-3. After migration, this allowlist should only contain `MainModule.java` and `MemberUtilsX.java`.
+1. Convert `XposedHelpers.java` in one focused batch. Preserve all public static method JVM signatures (`@JvmStatic`, `@JvmOverloads` where needed) because hook call sites and tests rely on them.
+2. After migration, this allowlist should only contain `MainModule.java` and `MemberUtilsX.java`.

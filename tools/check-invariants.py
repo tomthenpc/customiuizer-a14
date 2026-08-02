@@ -1461,7 +1461,7 @@ def changed_kotlin_files() -> list[Path]:
 MANIFEST = REPO_ROOT / "app" / "src" / "main" / "AndroidManifest.xml"
 MAIN_MODULE = REPO_ROOT / "app" / "src" / "main" / "java" / "tv" / "withaibuild" / "customiuizer" / "MainModule.java"
 XPOSED_HELPERS = SOURCE_ROOT / "tv" / "withaibuild" / "customiuizer" / "mods" / "utils" / "XposedHelpers.java"
-GENERIC_APP_INSTALLER = SOURCE_ROOT / "tv" / "withaibuild" / "customiuizer" / "installers" / "GenericAppInstaller.java"
+GENERIC_APP_INSTALLER = SOURCE_ROOT / "tv" / "withaibuild" / "customiuizer" / "installers" / "GenericAppInstaller.kt"
 JAVA_FATAL_BOUNDARIES = (
     MAIN_MODULE,
     XPOSED_HELPERS,
@@ -1583,8 +1583,8 @@ def check_generic_app_attach_transaction(path: Path | None = None) -> list[Findi
     if path is None:
         path = GENERIC_APP_INSTALLER
     text = strip_comments(path.read_text(encoding="utf-8"))
-    callback = text.find("protected void after(AfterHookCallback param)")
-    registry = text.find("FeatureInstallRegistry registry = new FeatureInstallRegistry()")
+    callback = text.find("after(")
+    registry = text.find("FeatureInstallRegistry()")
     findings = []
     if callback < 0 or registry < callback:
         findings.append(
