@@ -9,11 +9,11 @@ LastQualifyingCheckpoint: 782b3e50
 LastLightSweepCommit: 782b3e50
 LastStandardSweepCommit: 3c61ee8f
 LastDeepSweepCommit: 3c61ee8f
-LastFullVerificationCommit: 782b3e50
-LastVerifiedTree: 02182e0639d096bd6f1515a99c6b1cff7cec2882
-LastVerifiedTreeSource: Fast-verify
-LastVerifiedTreeCommand: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
-LastVerifiedMode: Fast
+LastFullVerificationCommit: 0acf97514617abecd148f0a7fe84f56e96825131
+LastVerifiedTree: b6e74dcd847f48800b8becf373d97ba76a8c5425
+LastVerifiedTreeSource: Final-verify
+LastVerifiedTreeCommand: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Final
+LastVerifiedMode: Final
 LastCIState: PASS
 LastCIRun: 30747399434
 LastCIJob: 91495213418
