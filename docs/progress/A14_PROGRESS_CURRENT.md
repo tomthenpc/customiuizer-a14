@@ -1,25 +1,25 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-02T18:12:15.408135+08:00
-SourceCommit: 1d1c8676ea32a019694bd0789c9c49fb57349105
-SourceTree: a9f63d5282fd90bc685b1c139c8445f7c43e2888
+GeneratedAt: 2026-08-02T18:33:18.224372+08:00
+SourceCommit: dc1981e81b2d3d8f7df82639a43e98b1028475f7
+SourceTree: ef9348ea864f564bb72100bf50d97ea8d284bd90
 VerifiedTree: 93534140994e6c793fe8fbc7ec34325f71d264d7
 VerifiedMode: Final
 CIState: PASS
-CIRun: 30743003456
-CIJob: 91483652510
-CICommit: 1d1c8676ea32a019694bd0789c9c49fb57349105
+CIRun: 30743552889
+CIJob: 91485129897
+CICommit: dc1981e81b2d3d8f7df82639a43e98b1028475f7
 ```
 
 ## Progress
 
-- ProjectProgress: 60.0%
-- MachineProgress: 63.1%
+- ProjectProgress: 62.3%
+- MachineProgress: 65.6%
 - Stage: INTEGRATION_AND_EVIDENCE
 - OpenP0: 0
 - OpenP1: 7
-- ExternalBlocks: 1
+- ExternalBlocks: 2
 
 ## Domain Scores
 
@@ -29,7 +29,7 @@ CICommit: 1d1c8676ea32a019694bd0789c9c49fb57349105
 | Runtime architecture / routing / ownership | 22 | 22.0 | 100.0% |
 | Runtime safety / lifecycle / concurrency | 18 | 17.64 | 98.0% |
 | Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
-| ROM intelligence / compatibility | 10 | 2.33 | 23.3% |
+| ROM intelligence / compatibility | 10 | 4.66 | 46.6% |
 | Java / Kotlin boundary | 8 | 3.2 | 40.0% |
 | Build / CI / signing / artifacts | 12 | 7.8 | 65.0% |
 | Documentation / provenance | 5 | 0.0 | 0.0% |
@@ -72,12 +72,12 @@ CICommit: 1d1c8676ea32a019694bd0789c9c49fb57349105
 | P9.1 | Java / Kotlin boundary | 1.6 | VERIFIED | 0.0 | 0.0 |
 | P9.2 | Java / Kotlin boundary | 1.6 | VERIFIED | 0.0 | 0.0 |
 | P9.3 | Java / Kotlin boundary | 1.6 | VERIFIED | 0.0 | 0.0 |
-| P10.1 | ROM intelligence / compatibility | 3.33 | TODO | 0.0 | 0.0 |
-| P10.2 | ROM intelligence / compatibility | 3.33 | TODO | 0.0 | 0.0 |
+| P10.1 | ROM intelligence / compatibility | 3.33 | BLOCKED_EXTERNAL | 0.0 | 0.0 |
+| P10.2 | ROM intelligence / compatibility | 3.33 | VERIFIED_STATIC | 0.7 | 2.33 |
 | P10.3 | ROM intelligence / compatibility | 3.33 | VERIFIED_STATIC | 0.7 | 2.33 |
 | P11.1 | Build / CI / signing / artifacts | 4.0 | COMPLETE | 1.0 | 4.0 |
 | P11.2 | Build / CI / signing / artifacts | 4.0 | VERIFIED_CI | 0.95 | 3.8 |
-| P11.3 | Build / CI / signing / artifacts | 4.0 | TODO | 0.0 | 0.0 |
+| P11.3 | Build / CI / signing / artifacts | 4.0 | VERIFIED | 0.0 | 0.0 |
 | P12 | Documentation / provenance | 5.0 | TODO | 0.0 | 0.0 |
 | P13 | Baseline and control | 1.0 | TODO | 0.0 | 0.0 |
 | DEVICE-001 | Device validation | 5 | BLOCKED_EXTERNAL | 0.0 | 0.0 |

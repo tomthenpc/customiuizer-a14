@@ -829,7 +829,7 @@ State: `IN_PROGRESS`
 
 ## P10.1 HyperOS 1 / Android 14 samples
 
-State: `TODO`
+State: `BLOCKED_EXTERNAL`
 
 - package/version/build；
 - class/member/variant；
@@ -838,14 +838,28 @@ State: `TODO`
 - sample acquisition；
 - evidence state。
 
+证据：
+
+- 当前环境无 `local-rom-samples/` 目录，也无实机 ROM dump；
+- `tools/rom_inventory.py` 是离线扫描工具，必须有本地样本；
+- 保持 `EXTERNAL_VALIDATION_REQUIRED`，待提供 ROM 样本后重跑 `rom_inventory.py`。
+
 ## P10.2 Contract/variant
 
-State: `TODO`
+State: `VERIFIED_STATIC`
 
 - required 不降级；
 - complete variant；
 - fallback 有 diagnostics；
 - candidate 不宣传 verified。
+
+证据：
+
+- `rom-contracts/hyperos1-a14-core.json` 中所有 hook entry 均带 `required` 布尔标记；`required=true` 的条目有完整 smali descriptor，`required=false` 的条目保留为 optional / candidate；
+- `FeatureInstallResult` 定义了 `FAILED_TRANSIENT` 和 `FAILED_PERMANENT`，install 路径通过 bounded diagnostics 记录失败原因，不降级 required contract；
+- `catalog_contract_probe.py` 通过 `244 specs / 245 FeatureIds / 244 matrix rows` 一致性检查，确保候选条目不混入 required-only 路径；
+- `tools/check_document_contracts.py` 通过，文档不宣传未经 ROM 验证的 candidate 为 verified；
+- 实机 ROM 变体验证仍依赖 P10.1 外部样本。
 
 ## P10.3 Generated consistency
 
@@ -930,17 +944,30 @@ Agent 自动修复红色 CI。
 
 ## P11.3 Artifact
 
-State: `TODO`
+State: `VERIFIED`
 
 记录：
 
-- variant；
-- version；
-- commit；
-- SHA-256；
-- size；
-- signing；
-- verification。
+- debug APK：
+  - variant: `debug`
+  - version: `r14.16.1`
+  - commit: `dc1981e81b2d3d8f7df82639a43e98b1028475f7`
+  - SHA-256: `F51C6941165AD588E007D42A5CBF8B70DCA405F0AD69FE4A82CEB01C4722DE73`
+  - size: `14593951` bytes
+  - signing: unsigned debug keystore（`validateSigningDebug`）
+  - 路径: `app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk`
+- develop/R8 APK：
+  - variant: `develop`
+  - version: `r14.16.1`
+  - commit: `dc1981e81b2d3d8f7df82639a43e98b1028475f7`
+  - SHA-256: `C6883E4C8BDBBFA72C91FED6510EAA9E5C00F552C6F400B04D61DB65C0E670E4`
+  - size: `3398166` bytes
+  - signing: unsigned develop build（R8 shrink + obfuscation）
+  - 路径: `app/build/outputs/apk/develop/CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk`
+- 验证命令：
+  - `.\gradlew.bat --no-daemon :app:assembleDebug`
+  - `.\gradlew.bat --no-daemon :app:assembleDevelop`
+- 退出码：0 / 0
 
 ---
 

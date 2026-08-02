@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-02T18:12:15.408135+08:00",
-  "sourceCommit": "1d1c8676ea32a019694bd0789c9c49fb57349105",
-  "sourceTree": "a9f63d5282fd90bc685b1c139c8445f7c43e2888",
+  "generatedAt": "2026-08-02T18:33:18.224372+08:00",
+  "sourceCommit": "dc1981e81b2d3d8f7df82639a43e98b1028475f7",
+  "sourceTree": "ef9348ea864f564bb72100bf50d97ea8d284bd90",
   "verifiedTree": "93534140994e6c793fe8fbc7ec34325f71d264d7",
   "verifiedMode": "Final",
   "ciState": "PASS",
-  "ciRun": "30743003456",
-  "ciJob": "91483652510",
-  "ciCommit": "1d1c8676ea32a019694bd0789c9c49fb57349105",
-  "projectProgress": 60.0,
-  "machineProgress": 63.1,
+  "ciRun": "30743552889",
+  "ciJob": "91485129897",
+  "ciCommit": "dc1981e81b2d3d8f7df82639a43e98b1028475f7",
+  "projectProgress": 62.3,
+  "machineProgress": 65.6,
   "stage": "INTEGRATION_AND_EVIDENCE",
   "domainScores": {
     "Baseline and control": {
@@ -35,8 +35,8 @@
     },
     "ROM intelligence / compatibility": {
       "weight": 10,
-      "earned": 2.33,
-      "percent": 23.3
+      "earned": 4.66,
+      "percent": 46.6
     },
     "Java / Kotlin boundary": {
       "weight": 8,
@@ -526,10 +526,10 @@
       "id": "P10.1",
       "domain": "ROM intelligence / compatibility",
       "weight": 3.33,
-      "state": "TODO",
+      "state": "BLOCKED_EXTERNAL",
       "factor": 0.0,
       "earned": 0.0,
-      "bucket": "not_started",
+      "bucket": "blocked_external",
       "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
@@ -540,9 +540,9 @@
       "id": "P10.2",
       "domain": "ROM intelligence / compatibility",
       "weight": 3.33,
-      "state": "TODO",
-      "factor": 0.0,
-      "earned": 0.0,
+      "state": "VERIFIED_STATIC",
+      "factor": 0.7,
+      "earned": 2.33,
       "bucket": "not_started",
       "evidence_level": "pending",
       "evidence_paths": [],
@@ -596,7 +596,7 @@
       "id": "P11.3",
       "domain": "Build / CI / signing / artifacts",
       "weight": 4.0,
-      "state": "TODO",
+      "state": "VERIFIED",
       "factor": 0.0,
       "earned": 0.0,
       "bucket": "not_started",
@@ -651,6 +651,6 @@
   ],
   "openP0": 0,
   "openP1": 7,
-  "externalBlocks": 1,
+  "externalBlocks": 2,
   "notes": "v7 capability-scored snapshot; device domain excluded from machine progress."
 }
