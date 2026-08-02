@@ -1,22 +1,22 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-02T14:57:44.943308+08:00
-SourceCommit: a0e59242c4d4cc720a1c76d476ae57aa89c7b0fd
-SourceTree: bece0c0925c6e6f9a1e8a36990185246206d00b1
-VerifiedTree: bdd7691bc9a246544d0f3ec8c1e699915a1579f5
+GeneratedAt: 2026-08-02T15:07:39.994017+08:00
+SourceCommit: 378d0eef586288ba775ab6b441eb07ebc1d67c00
+SourceTree: b210ffe06ad96f449aba0d3e0d4cce69bff128e7
+VerifiedTree: b210ffe06ad96f449aba0d3e0d4cce69bff128e7
 VerifiedMode: Final
-CIState: PENDING
-CIRun: pending
-CIJob: pending
-CICommit: a0e59242c4d4cc720a1c76d476ae57aa89c7b0fd
+CIState: PASS
+CIRun: https://github.com/tomthenpc/customiuizer-a14/actions/runs/30736883604
+CIJob: https://github.com/tomthenpc/customiuizer-a14/actions/runs/30736883604/job/91467179591
+CICommit: 378d0eef586288ba775ab6b441eb07ebc1d67c00
 ```
 
 ## Progress
 
-- ProjectProgress: 55.8%
-- MachineProgress: 58.8%
-- Stage: ARCHITECTURE_AND_ROUTING
+- ProjectProgress: 57.6%
+- MachineProgress: 60.7%
+- Stage: INTEGRATION_AND_EVIDENCE
 - OpenP0: 0
 - OpenP1: 7
 - ExternalBlocks: 1
@@ -31,7 +31,7 @@ CICommit: a0e59242c4d4cc720a1c76d476ae57aa89c7b0fd
 | Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
 | ROM intelligence / compatibility | 10 | 0.0 | 0.0% |
 | Java / Kotlin boundary | 8 | 3.2 | 40.0% |
-| Build / CI / signing / artifacts | 12 | 6.0 | 50.0% |
+| Build / CI / signing / artifacts | 12 | 7.8 | 65.0% |
 | Documentation / provenance | 5 | 0.0 | 0.0% |
 | Device validation | 5 | 0.0 | 0.0% |
 
@@ -76,7 +76,7 @@ CICommit: a0e59242c4d4cc720a1c76d476ae57aa89c7b0fd
 | P10.2 | ROM intelligence / compatibility | 3.33 | TODO | 0.0 | 0.0 |
 | P10.3 | ROM intelligence / compatibility | 3.33 | TODO | 0.0 | 0.0 |
 | P11.1 | Build / CI / signing / artifacts | 4.0 | COMPLETE | 1.0 | 4.0 |
-| P11.2 | Build / CI / signing / artifacts | 4.0 | IN_PROGRESS | 0.5 | 2.0 |
+| P11.2 | Build / CI / signing / artifacts | 4.0 | VERIFIED_CI | 0.95 | 3.8 |
 | P11.3 | Build / CI / signing / artifacts | 4.0 | TODO | 0.0 | 0.0 |
 | P12 | Documentation / provenance | 5.0 | TODO | 0.0 | 0.0 |
 | P13 | Baseline and control | 1.0 | TODO | 0.0 | 0.0 |

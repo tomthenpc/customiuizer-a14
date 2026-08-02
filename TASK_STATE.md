@@ -829,15 +829,19 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 
 ## P11.2 CI
 
-State: `IN_PROGRESS`
+State: `VERIFIED_CI`
 
 证据：
 
 - Fast CI job 91462556688 因 `platforms;android-37` 包名不存在而失败；
 - 已把 Fast/Full workflow 改为先运行 `sdkmanager --list --channel=0` 探测 API 37 平台包（`platforms;android-37` 或 `platforms;android-CinnamonBun`）和 build-tools 37.x；
 - 已移除 `app/build.gradle.kts` 中硬编码的 `buildToolsVersion`，让 AGP 选择已安装兼容版本；
-- Full CI 增加 `push` 入口，仅当 `[full-ci]` 出现在 commit message 或 workflow_dispatch 时运行；
-- 本地通过 `tools/verify.py full`、`assembleDebug`、`assembleDevelop`。
+- 安装并移植 A13_A14_BRUTAL_TEST_SUITE_V1：新增 `tools/catalog_contract_probe.py`、`ci_contract_scan.py`、`source_hazard_scan.py`、`apk_semantic_diff.py`、`hook_surface_probe.py`、`brutal_test_runner.py`、`brutal_test_config.json`；
+- 重写 catalog_contract_probe 以扫描 `LazyFeatureSpec` 块并比对 `docs/rom-intelligence/A14_PROCESS_MATRIX.csv`；
+- Fast CI 接入 `ci_contract_scan` 和 `catalog_contract_probe` 只读 gates；
+- Full CI 接入两次 clean develop build、APK semantic diff 与 brutal mutation suite；
+- Fast CI job 91467179591 在 HEAD 378d0eef 全部通过；
+- 本地通过 `tools/verify.py Fast`、unit tests、brutal hermeticity 与 determinism。
 
 唯一授权分支 push 后运行：
 
@@ -846,6 +850,8 @@ State: `IN_PROGRESS`
 - full verifier；
 - debug APK；
 - develop/R8；
+- catalog/CI contract/progress 只读 gates；
+- brutal suite（hermeticity/determinism/mutate）在 Full CI；
 - audit/inventory freshness；
 - logs/artifacts；
 - 不发布 Release。
