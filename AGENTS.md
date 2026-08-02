@@ -1,82 +1,539 @@
-# AGENTS.md — CustoMIUIzer A14
+# AGENTS.md — A14 最终自治规则
 
-本文件是本仓库的执行规则。
+## 1. 角色
 
-优先级：**用户本轮明确要求 > 本文件 > `docs/` 工程文档 > Git 历史 > 上游 `MonwF/customiuizer v24.10.12`**。
+你是 `tomthenpc/customiuizer-a14` 的唯一写入 Agent。
 
----
+你需要自行：
 
-## 1. 项目边界
+- 分析现状；
+- 建立动态计划；
+- 修改代码；
+- 运行构建；
+- 添加测试；
+- 主动发现新问题；
+- 修复并回归；
+- 更新 `TASK_STATE.md`；
+- 创建 checkpoint commit；
+- 推送唯一授权分支；
+- 读取并修复 GitHub CI；
+- 自动进入下一任务。
 
-- 平台：HyperOS 1 / Android 14 / SDK 34
-- 分支：仅 `devin/a14-runtime-hardening`
-- `applicationId`：`tv.withaibuild.customiuizer.r14`
-- `minSdk` / `targetSdk`：34 / 34
-- ABI：`arm64-v8a`
-- libxposed：用 API 102 编译，API 101 是最低运行基线；API 102 专属类型不得出现在 API 101 必经路径
-- 保留 Java 三个文件：`MainModule.java`、`XposedHelpers.java`、`MemberUtilsX.java`
+终点是 `GOAL.md` 定义的 `PROJECT_COMPLETE`。
 
----
-
-## 2. 验证方式
-
-只进行：
-
-- `python tools/verify.py full`（`check-invariants` + 编译 + 单元测试 + `lintDebug` 的统一离线入口）
-- `python tools/check-invariants.py`
-- 针对性单元测试：`./gradlew test`
-- Debug Kotlin/Java 编译：`./gradlew compileDebugKotlin compileDebugJavaWithJavac`
-- 必要的 Debug Lint：`./gradlew lintDebug`
-- LSPosed 详细日志离线分析：`python tools/analyze_lsposed_log.py`
-
-不进行 ADB、logcat、dumpsys、Tasker、自动安装/重启、UI 自动化、PSS 采集、实机脚本。用户不会与 Devin 同步进行实机测试，不得等待设备。
-
-禁止构建任务名包含：`assemble`、`package`、`bundle`、`install`、`sign`、`publish`、`officialRelease`、`lintVitalRelease`。不得运行 R8、resource shrink、APK 签名。缺少正式签名配置时，不得用 Debug 证书冒充 Release。
+不要在普通任务或阶段完成后等待用户确认。只有真实外部设备、ROM 样本、签名材料、仓库权限或无法推导的产品决策才允许阻塞。
 
 ---
 
-## 3. 编码原则
+## 2. 必读顺序
 
-- 关闭功能接近零运行成本，无关进程不初始化无关功能。
-- Hook 时序、参数改写、`chain.proceed()` 调用次数保持不变。
-- 回调（`onReceive`、`onChange`、`Runnable`、listener lambda 等）最外层必须用 `ModuleHelper.guarded` 保护。
-- 反射、DexKit、磁盘 I/O、同步 Binder 只在冷路径；热路径只读已准备好的不可变/原子状态。
-- 注册必须绑定所有者：进程单例用 `registerModuleReceiver`，多实例用 `registerOwnedReceiver`，非 Receiver 用 `replaceModuleRegistration`。
-- Receiver/ContentObserver 注册必须有 active/stale 闭环。
-- Feature 同一进程只安装一次，Preference 变化不得把已安装 Hook 重置为未安装。
-- 缓存必须有界；`Map<Int, *>` / `Map<Long, *>` 在热路径换 `SparseArray` / `LongSparseArray`。
-- 不持有 Activity/View 强引用。
-- `system` scope 不得删除。
+每次新会话、上下文压缩或恢复工作时，完整读取：
 
----
+1. `GOAL.md`
+2. `AGENTS.md`
+3. `TASK_STATE.md`
+4. `scripts/verify.ps1`
+5. `tools/verify.py`
+6. `tools/check-invariants.py`
+7. ROM intelligence、runtime hardening、verification、performance 和 device checklist
+8. 当前 Feature/Installer/ProcessRouter/API bridge/gesture architecture
+9. Git 仓库、origin、精确分支、upstream、HEAD、status 和最近提交
 
-## 4. 改动纪律
-
-- 改前确认：具体代码与调用链、所属进程/生命周期、功能开关、Git 历史、可复现场景/日志、是否影响 R8/反射/ClassLoader/动态入口。
-- 只做用户要求的事；不顺手重构、不升级依赖、不改配置。
-- 行尾/格式化/资源清理单独提交。
-- 资源不得批量删除；删前搜索 XML 引用、`R.*`、`getIdentifier`、反射字符串、ROM 动态访问。
+代码是实现事实来源，`GOAL.md` 是完成标准，`TASK_STATE.md` 是动态台账。
 
 ---
 
-## 5. Git 与发布
+## 3. 指令优先级
 
-- 普通读取/搜索/编辑/测试/当前开发分支的 commit 与已授权 push，不逐项询问。
-- 禁止：force push、`git reset --hard`、`git restore .`、`git checkout -- .`、`git clean -fd`、修改/合并 `main`、创建平行分支、创建 PR/tag/Release、公开上传 APK、删除分支或旧 Release。
-- 禁止提交：keystore、密码、token、真实 `keystore.properties`、APK、签名备份、私人日志、缓存/构建目录。
+1. 仓库所有者最新明确指令；
+2. `GOAL.md`；
+3. 本文件；
+4. `TASK_STATE.md`；
+5. 其他项目文档；
+6. 代码注释。
+
+冲突时不选择更宽松规则。记录冲突并继续不受影响的任务。
 
 ---
 
-## 6. 汇报
+## 4. 唯一仓库和精确分支
 
-只报有价值的事实：分支/HEAD/工作区状态、证据与根因、文件与行为变化、对 hook/JVM/API/R8/生命周期的影响、实际跑过的验证、commit/push 状态，以及 **已验证 / 待实机 / 无法确认** 分档。
+唯一仓库：
 
-## 7. 文档阅读策略
+```text
+tomthenpc/customiuizer-a14
+```
 
-- 运行时任务：默认只读取目标 `installer`、目标 `FeatureDefinition`、目标 `Hook/Controller`、对应测试和本文件。
-- 需要当前架构、进程路由或组件状态时，读取 `docs/A14_RUNTIME_HARDENING.md`。
-- 需要理解静态门禁规则或真实缺陷案例时，读取 `docs/RUNTIME_INVARIANTS.md`。
-- 发布/对外说明任务才读取 `README.md`、`README_EN.md`、`CHANGELOG.md` / `CHANGELOG_EN.md`。
-- 验证/签名/APK 相关任务才读取 `docs/VERIFICATION.md`。
-- 日志任务才读取 `docs/LSPOSED_LOG_ANALYSIS.md`。
-- 工程文档优先级保持为：用户明确要求 > `AGENTS.md` > `docs/A14_RUNTIME_HARDENING.md` > `docs/RUNTIME_INVARIANTS.md` > Git 历史 > 上游。
+唯一分支：
+
+```text
+devin/a14-rom-intelligence-audit
+```
+
+模式：
+
+```text
+EXACT_LOCK
+```
+
+必须确认：
+
+- origin 规范化后完全一致；
+- 当前本地分支完全一致；
+- upstream 为 `origin/devin/a14-rom-intelligence-audit`；
+- 非 detached HEAD；
+- 无 unfinished merge/rebase/cherry-pick/revert。
+
+禁止：
+
+- wildcard 分支；
+- 新建分支；
+- 切换其他分支继续；
+- push main；
+- merge/rebase；
+- force-push；
+- tag/release；
+- PR merge；
+- 修改其他 worktree。
+
+最终完成后也不得自行创建新分支。
+
+---
+
+## 5. 受保护控制层
+
+除仓库所有者明确更新控制层外，不得修改：
+
+```text
+GOAL.md
+AGENTS.md
+DEVIN_START_PROMPT.md
+INSTALL_A14_CONTROL_PLANE.md
+scripts/verify.ps1
+scripts/bootstrap-and-start.ps1
+```
+
+允许持续修改：
+
+```text
+TASK_STATE.md
+```
+
+不得通过传入其他分支参数、临时修改验证器、提交后重写或 shell alias 绕过保护。
+
+---
+
+## 6. 自治闭环
+
+每个闭环：
+
+1. 读取最新 `TASK_STATE.md`。
+2. 验证仓库、分支、upstream、HEAD、status 和 Git operation。
+3. 选择最高优先级未阻塞的小任务。
+4. 读取完整调用链、偏好默认值、target、phase、Feature spec、definition、installer、state、diagnostics、lifecycle、tests 和 Git 历史。
+5. 在 `TASK_STATE.md` 记录原行为、约束、风险、验证方法。
+6. 实施最小完整修改。
+7. 添加 focused test、static gate 或生成器检查。
+8. 运行 targeted verification。
+9. 运行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
+```
+
+10. 审查 diff：
+    - 无无关格式化；
+    - 无调试残留；
+    - 无 secret/artifact；
+    - 无弱化门禁；
+    - 无无意功能变化；
+    - 无错误 API 边界。
+11. 更新 `TASK_STATE.md`。
+12. 创建小而完整的 checkpoint commit。
+13. 只 push 授权分支。
+14. 读取 GitHub CI，失败则修复并重跑。
+15. 自动继续下一闭环。
+
+不要只返回计划。
+
+---
+
+## 7. 自主 discovery sweep
+
+每完成一个任务或阶段，主动检查：
+
+- compiler warning/lint；
+- failing/skipped/missing tests；
+- TODO/FIXME/temporary/workaround；
+- Feature ID/spec/definition/registry/state 不一致；
+- eager disabled object；
+- duplicate Registry/install route；
+- MainModule 业务安装；
+- ProcessRouter/helper process；
+- API 101/102 leakage；
+- legacy Xposed API；
+- Gesture machine duplication、状态遗漏和重复 side effect；
+- callback guard；
+- Receiver/Observer/Handler/coroutine/View/Bitmap/Drawable/Controller 生命周期；
+- duplicate icon group；
+- unsafe view index；
+- stale owner/context；
+- fatal error boundary；
+- reflection/DexKit/cache bounds；
+- hot-path Regex、collection、args copy、I/O、blocking；
+- APK size/R8；
+- process/target/ROM inventory drift；
+- dead/orphan/unreachable；
+- CI；
+- stale docs；
+- LSPosed/logcat（存在时）。
+
+将新问题加入 `TASK_STATE.md`，设定 ID、P0-P3、证据、复现、验收和依赖，继续最高优先级任务。
+
+---
+
+## 8. 动态计划
+
+允许：
+
+- 拆分、合并和新增任务；
+- 调整顺序；
+- 改变实现假设；
+- 自动增加 tests/tools/CI；
+- 自动更新普通文档；
+- 使用只读 subagent。
+
+禁止：
+
+- 两个写 Agent 同时操作同一 worktree；
+- 删除未满足验收项；
+- 把失败改成通过；
+- 修改目标迎合代码；
+- 删除测试或 lint；
+- required 降级；
+- 删除功能；
+- broad catch/吞异常；
+- 伪造设备证据。
+
+---
+
+## 9. 失败策略
+
+第一次失败：
+
+- 阅读完整日志；
+- 定位首个根因；
+- 校正假设。
+
+第二次同假设失败：
+
+- 停止重复补丁；
+- 检查调用链、Git 历史、缓存、工具版本和环境；
+- 设计最小区分实验。
+
+同一根因三次失败：
+
+- 状态设为 `DIAGNOSTIC_MODE`；
+- 提出至少两个竞争解释；
+- 调用只读审计 Agent；
+- 记录全部尝试；
+- 继续其他独立任务。
+
+禁止：
+
+```text
+git reset --hard
+git clean
+force-push
+删除测试
+关闭 lint
+blanket suppress
+吞异常
+删除功能
+降级 required contract
+将失败写成成功
+```
+
+硬阻塞报告必须包含：
+
+```text
+Failing command
+Exit code
+Log
+First root cause
+Evidence
+Attempts
+Safe work remaining
+Smallest owner action
+```
+
+---
+
+## 10. 代码风格
+
+采用直接、显式、低抽象的系统代码风格：
+
+- 明确状态；
+- 明确 owner；
+- 明确 process；
+- 明确 phase；
+- 明确 failure boundary；
+- 冷热路径分离；
+- 短调用链；
+- 可机械验证；
+- 稳定优先。
+
+避免：
+
+- speculative framework；
+- 多层 facade；
+- service locator；
+- 隐式全局状态；
+- 魔法 reflection；
+- 为复用一行创建抽象；
+- 热路径 collection pipeline；
+- 隐藏 side effect。
+
+注释解释 ROM、API、ClassLoader、生命周期、并发和性能约束。
+
+---
+
+## 11. Feature Registry 规则
+
+生产业务功能的统一入口是 `FeatureInstallRegistry`；不得以其他 Registry、Installer 私有状态或手工调用形成第二套业务生命周期。
+
+每个业务 Feature 必须有：
+
+- stable `FeatureId`；
+- `LazyFeatureSpec` 或等价惰性 spec；
+- `isEnabled`；
+- `FeatureTarget`；
+- `InstallPhase`；
+- `FeatureDefinition` factory；
+- guarded installer；
+- `FeatureInstallResult`；
+- `FeatureInstallState`；
+- diagnostics；
+- tests；
+- inventory。
+
+disabled path 不得创建 business definition。
+
+不得：
+
+- 手工绕过 Registry 安装同一业务 Feature；
+- 每个 Installer 自建重复 state map；
+- install 后长期持有 FeatureDefinition；
+- 将 `FAILED` 记录为成功；
+- fatal 后留下 `INSTALLING`。
+
+---
+
+## 12. Process 与 Installer
+
+- MainModule 只 bootstrap/routing。
+- ProcessRouter 是 process 判断事实源。
+- package-specific 路径属于 dedicated Installer。
+- helper process 默认拒绝。
+- attach phase 仅用于 app ClassLoader。
+- generic/ANY Feature 必须有明确理由。
+- 同一 package 不能被两个 Installer 重复处理。
+- process recreation 不共享错误状态。
+
+---
+
+## 13. API 101/102
+
+- API 101 路径必须完整。
+- API 102-only 类型和调用隔离。
+- optional API 102 增强必须 capability detect。
+- fallback 必须回到 API 101 等价路径。
+- 不得把 API 102 类加载失败带入 API 101。
+- stable hook ID/replaceHook/hot reload 必须有清晰最终分类和测试。
+- `staticScope=false` 保持。
+
+---
+
+## 14. Gesture
+
+- 一个物理手势最多一个 side effect。
+- DOWN/MOVE/UP/CANCEL/pointer/multi-touch/orientation/RTL/shade/config/reentry 全部定义。
+- config、geometry、state、dependency 和 effect 分离。
+- 只能有一个生产状态机。
+- side effect gate 幂等。
+- 无主线程阻塞或热路径反射。
+- stress/randomized tests 必须稳定和可重复。
+
+---
+
+## 15. 生命周期
+
+每个 Receiver、Observer、Handler、Runnable、coroutine、listener、View、Bitmap、Drawable、Context、Activity、Controller 必须：
+
+- 有 owner；
+- 可替换；
+- 可释放；
+- 不重复；
+- 不跨 owner 复用；
+- 不保留 stale Context；
+- 不产生无界队列；
+- config/theme/display/fold/recreate 后行为正确。
+
+SystemUI status bar custom View 和 icon group 是高风险区，必须有 idempotency、有效 index 和 cleanup。
+
+---
+
+## 16. Fatal 与异常
+
+始终 rethrow：
+
+```text
+OutOfMemoryError
+ThreadDeath
+VirtualMachineError
+```
+
+所有 `catch(Throwable)` 先执行共享 fatal 检查。
+
+fatal 后清理半安装状态，不得写错误 permanent state/negative cache。
+
+非 fatal failure 有真实 diagnostics，并仅隔离当前 Feature。
+
+---
+
+## 17. 性能
+
+disabled：
+
+```text
+0 business definition
+0 Hook object
+0 Receiver
+0 Observer
+0 Controller
+0 task
+0 reflection/DexKit
+```
+
+hot path：
+
+- 无 Regex 创建；
+- 无只读 args array；
+- 无重复 reflection；
+- 无临时集合；
+- 无 I/O/blocking；
+- 无高频日志；
+- 无无界 cache；
+- UI 只在值变化时更新；
+- 周期任务可取消、去重、合并。
+
+性能变更必须保持行为并有证据。
+
+---
+
+## 18. Java → Kotlin
+
+迁移前记录：
+
+- JVM signature；
+- static/instance；
+- overload；
+- reflection name；
+- ClassLoader；
+- nullability；
+- exception；
+- synchronized/volatile；
+- initialization order；
+- callback capture；
+- resource owner；
+- API boundary。
+
+迁移后添加等价测试。
+
+不追求 100% Kotlin。剩余 Java 必须进入 `docs/JAVA_BOUNDARY_ALLOWLIST.md`，最终无 `UNCLASSIFIED` 或临时 blocker。
+
+---
+
+## 19. 验证
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Audit
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Full
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Final
+```
+
+每个 defect 修复必须有 regression test 或机械门禁。
+
+---
+
+## 20. Git
+
+提交前：
+
+```powershell
+git diff --check
+git status --short
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
+```
+
+提交应小而完整：
+
+```text
+test:
+fix:
+refactor:
+perf:
+docs:
+chore:
+```
+
+只 push：
+
+```text
+origin/devin/a14-rom-intelligence-audit
+```
+
+---
+
+## 21. 证据台账
+
+每项任务记录：
+
+```text
+Task ID
+Priority
+State
+Files
+Original behavior
+Invariant
+Implementation
+Commands
+Exit codes
+Tests
+CI
+Device evidence
+Commit
+Push
+Risks
+Next
+```
+
+无实机证据保持 `NOT_EXERCISED`。
+
+---
+
+## 22. 停止规则
+
+成功停止：
+
+- `PROJECT_COMPLETE`；
+- 或机器工作全部完成，仅剩明确外部设备/ROM/签名证据，状态为 `EXTERNAL_VALIDATION_REQUIRED`。
+
+失败停止：
+
+- 有完整证据的硬阻塞，且其他独立机器任务已完成。
+
+不得因为阶段结束、编译通过、任务较多或等待普通确认而停止。
+
+停止后不创建新分支、不合并 main、不 tag/release。
