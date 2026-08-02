@@ -1036,8 +1036,227 @@ def check_gesture_hot_path_no_reflection(path: Path, text: str) -> list[Finding]
     return findings
 
 
+# --- gesture machine invariants -----------------------------------------------------
+
+GESTURE_HOT_PATH_FILES = {
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureMachine.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureStateMachine.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureSideEffectGate.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/PhysicalGestureArbiter.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureEvent.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureEventFingerprint.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureGeometry.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureCommand.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureSnapshot.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureSession.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/GestureConfigPublisher.kt",
+    "tv/withaibuild/customiuizer/mods/utils/gesture/StatusBarGestureEffectExecutor.kt",
+}
+
+
+def check_gesture_machine_dispatch_rejects_intercept(path: Path, text: str) -> list[Finding]:
+    """STATUS_BAR_INTERCEPT must never flow through the authoritative dispatch() path."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/gesture/GestureMachine.kt":
+        return []
+    if 'require(event.entry != GestureEntry.STATUS_BAR_INTERCEPT)' not in text:
+        return [
+            Finding(
+                "gesture-dispatch-rejects-intercept",
+                path,
+                1,
+                "GestureMachine.dispatch() must reject STATUS_BAR_INTERCEPT; use observe()",
+            )
+        ]
+    return []
+
+
+def check_gesture_down_no_prefs(path: Path, text: str) -> list[Finding]:
+    """The hot path must not read raw preferences inside ACTION_DOWN / observe."""
+    if rel_posix(path) not in GESTURE_HOT_PATH_FILES:
+        return []
+    if "MainModule.mPrefs" in text or "mPrefs." in text:
+        return [
+            Finding(
+                "gesture-down-no-prefs",
+                path,
+                1,
+                "gesture hot path reads MainModule.mPrefs; use a published GestureConfig",
+            )
+        ]
+    return []
+
+
+def check_gesture_hot_path_no_cold_method_lookup(path: Path, text: str) -> list[Finding]:
+    """Method handles are resolved in prepare(); the hot path must not look them up."""
+    if rel_posix(path) not in GESTURE_HOT_PATH_FILES:
+        return []
+    if rel_posix(path) in {
+        "tv/withaibuild/customiuizer/mods/utils/gesture/StatusBarGestureDependenciesResolver.kt",
+        "tv/withaibuild/customiuizer/mods/utils/gesture/ControlCenterGestureDependenciesResolver.kt",
+    }:
+        return []
+    findings = []
+    for match in re.finditer(r"\.getDeclared?Method\(", text):
+        findings.append(
+            Finding(
+                "gesture-hot-path-no-method-lookup",
+                path,
+                line_of(text, match.start()),
+                "gesture hot path looks up a Method; resolve Method handles during prepare()",
+            )
+        )
+    return findings
+
+
+def check_gesture_dispatch_no_deps_prepare(path: Path, text: str) -> list[Finding]:
+    """dispatch() and observe() must not cold-resolve dependencies on the hot path."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/gesture/GestureMachine.kt":
+        return []
+    findings = []
+    for method_match in re.finditer(r"\b(fun|internal fun)\s+(dispatch|observe)\s*\(", text):
+        body, start = block_at(text, method_match.end() - 1)
+        if "depsResolver" in body and ".prepare" in body:
+            findings.append(
+                Finding(
+                    "gesture-dispatch-no-deps-prepare",
+                    path,
+                    line_of(text, method_match.start()),
+                    f"{method_match.group(2)}() calls depsResolver.prepare(); preparation belongs in prepare()",
+                )
+            )
+    return findings
+
+
+def check_gesture_move_no_system_service(path: Path, text: str) -> list[Finding]:
+    """ACTION_MOVE must not hit Context.getSystemService or any new service lookup."""
+    if rel_posix(path) not in GESTURE_HOT_PATH_FILES:
+        return []
+    if "getSystemService" in text:
+        return [
+            Finding(
+                "gesture-move-no-system-service",
+                path,
+                1,
+                "gesture hot path calls getSystemService; resolve services during prepare()",
+            )
+        ]
+    return []
+
+
+def check_gesture_dispatch_no_config_resolver(path: Path, text: str) -> list[Finding]:
+    """dispatch()/observe() must not call the full GestureConfigResolver.resolve() parser."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/gesture/GestureMachine.kt":
+        return []
+    if "GestureConfigResolver.resolve" in text:
+        return [
+            Finding(
+                "gesture-dispatch-no-config-resolver",
+                path,
+                1,
+                "GestureMachine calls GestureConfigResolver.resolve(); publish the config outside touch callbacks",
+            )
+        ]
+    return []
+
+
+def check_gesture_shared_arbiter(path: Path, text: str) -> list[Finding]:
+    """Status Bar and Control Center GestureMachine instances must share one PhysicalGestureArbiter."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt":
+        return []
+    if "PhysicalGestureArbiter()" not in text:
+        return [
+            Finding(
+                "gesture-shared-arbiter",
+                path,
+                1,
+                "StatusBarGesturesHook must create a shared PhysicalGestureArbiter",
+            )
+        ]
+    if "statusBarMachine" not in text or "arbiter = arbiter" not in text or "controlCenterMachine" not in text:
+        return [
+            Finding(
+                "gesture-shared-arbiter",
+                path,
+                1,
+                "statusBarMachine and controlCenterMachine must both use the shared arbiter",
+            )
+        ]
+    return []
+
+
+def check_gesture_detach_cleanup(path: Path, text: str) -> list[Finding]:
+    """View detach must clear the corresponding GestureMachine owner."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt":
+        return []
+    status_ok = '"onDetachedFromWindow"' in text and "statusBarMachine.clear" in text
+    cc_ok = '"onDetachedFromWindow"' in text and "controlCenterMachine.clear" in text
+    findings = []
+    if not status_ok:
+        findings.append(
+            Finding(
+                "gesture-detach-cleanup",
+                path,
+                1,
+                "PhoneStatusBarView.onDetachedFromWindow must call statusBarMachine.clear(ownerId)",
+            )
+        )
+    if not cc_ok:
+        findings.append(
+            Finding(
+                "gesture-detach-cleanup",
+                path,
+                1,
+                "ControlCenterWindowViewImpl.onDetachedFromWindow must call controlCenterMachine.clear(ownerId)",
+            )
+        )
+    return findings
+
+
+def check_gesture_no_obsolete_hook_state(path: Path, text: str) -> list[Finding]:
+    """The old all-in-one status bar gesture hook state must not be reintroduced."""
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt":
+        return []
+    findings = []
+    for field in (
+        "isSlidingStart",
+        "isSliding",
+        "tapStartX",
+        "tapStartY",
+        "tapStartPointers",
+        "tapStartBrightness",
+        "topMinimumBacklight",
+        "topMaximumBacklight",
+        "currentTouchX",
+        "currentTouchTime",
+        "currentDownTime",
+        "currentDownX",
+        "nextBrightNess",
+    ):
+        if field in text:
+            index = text.find(field)
+            findings.append(
+                Finding(
+                    "gesture-no-obsolete-hook-state",
+                    path,
+                    line_of(text, index),
+                    f"obsolete status bar gesture hook state '{field}' found",
+                )
+            )
+    return findings
+
+
 RULES = (
     check_gesture_hot_path_no_reflection,
+    check_gesture_machine_dispatch_rejects_intercept,
+    check_gesture_down_no_prefs,
+    check_gesture_hot_path_no_cold_method_lookup,
+    check_gesture_dispatch_no_deps_prepare,
+    check_gesture_move_no_system_service,
+    check_gesture_dispatch_no_config_resolver,
+    check_gesture_shared_arbiter,
+    check_gesture_detach_cleanup,
+    check_gesture_no_obsolete_hook_state,
+    check_guard_framework_callbacks,
     check_guard_framework_callbacks,
     check_guard_deferred_callbacks,
     check_coroutine_scopes_handle_failure,

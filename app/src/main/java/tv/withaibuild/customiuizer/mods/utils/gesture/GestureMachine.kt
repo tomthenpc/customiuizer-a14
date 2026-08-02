@@ -153,6 +153,12 @@ class GestureMachine(
         }
     }
 
+    /** Expose the current snapshot for deterministic stress tests and diagnostics. */
+    internal fun snapshot(ownerId: Int): GestureSnapshot = snapshots[ownerId] ?: GestureSnapshot()
+
+    /** Expose the last resolved config for a given owner (null until the first DOWN). */
+    internal fun resolvedConfig(ownerId: Int): GestureConfig? = configs[ownerId]
+
     /** Drop all per-owner state, arbiter tokens and the side-effect gate. */
     fun clear(ownerId: Int) {
         snapshots.remove(ownerId)
