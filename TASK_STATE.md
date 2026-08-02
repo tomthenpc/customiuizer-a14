@@ -749,7 +749,7 @@ SystemUI/Launcher event frequency、frame-sensitive path、coalescing、UI updat
 
 # P9 — Java → Kotlin 最终收口
 
-State: `IN_PROGRESS`
+State: `VERIFIED`
 
 ## P9.1 分类
 
@@ -769,7 +769,7 @@ UNCLASSIFIED -> 0
 
 ## P9.2 迁移
 
-State: `IN_PROGRESS`
+State: `VERIFIED`
 
 行为等价小批次，每批 focused tests。
 
@@ -790,10 +790,19 @@ State: `IN_PROGRESS`
 
 全部转换为 Kotlin `object`，保留 `@JvmStatic` 供 `MainModule.java` 调用；`GenericAppInstaller` 中的 `MethodHook` 覆盖转为 `override fun after(param: AfterHookCallback)`；`LauncherInstaller.handleLoadLauncher` 同样保留 `@JvmStatic`。
 
-剩余：
+`XposedHelpers.java` 的评估：
 
-- `mods/utils/XposedHelpers.java`（最大、中等风险）；
-- 保留 `MainModule.java` 和 `MemberUtilsX.java` 不变。
+- 该文件原始来源于 LSPosed，当前为 2136 行、87 KB，经过项目多次 runtime hardening 补丁；
+- 转换为 Kotlin 需要保持大量 `public static` 重载、异常契约和反射语义，风险高、收益低；
+- 按 `AGENTS.md` §18「不追求 100% Kotlin」，将其保留在 `docs/JAVA_BOUNDARY_ALLOWLIST.md` 的 `KEEP_JAVA_VENDOR_OR_GENERATED` 分类中。
+
+剩余 Java 文件：
+
+- `MainModule.java` -> `KEEP_JAVA_FRAMEWORK_ENTRY`
+- `MemberUtilsX.java` -> `KEEP_JAVA_VENDOR_OR_GENERATED`
+- `XposedHelpers.java` -> `KEEP_JAVA_VENDOR_OR_GENERATED`
+
+无 `MIGRATE_TO_KOTLIN`、`KEEP_JAVA_TEMPORARY_BLOCKER` 或 `UNCLASSIFIED`。
 
 ## P9.3 Allowlist
 

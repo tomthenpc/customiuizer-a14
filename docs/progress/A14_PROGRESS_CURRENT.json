@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-02T16:19:21.383967+08:00",
-  "sourceCommit": "35f7dee808ccf7676851d66ad62f25ed97a91fc7",
-  "sourceTree": "1c3009e0950711c88f508c4119c079e7091544a1",
+  "generatedAt": "2026-08-02T16:38:13.255614+08:00",
+  "sourceCommit": "abe6d6c58274f0b9cad773fd6670c5b6ab02c8a5",
+  "sourceTree": "c691b326dc9307c50835259abc1e92c4f9379f45",
   "verifiedTree": "b210ffe06ad96f449aba0d3e0d4cce69bff128e7",
   "verifiedMode": "Final",
   "ciState": "PENDING",
   "ciRun": "pending",
   "ciJob": "A14 Fast CI",
-  "ciCommit": "f522ef50",
-  "projectProgress": 58.4,
-  "machineProgress": 61.5,
+  "ciCommit": "35f7dee8",
+  "projectProgress": 57.6,
+  "machineProgress": 60.7,
   "stage": "INTEGRATION_AND_EVIDENCE",
   "domainScores": {
     "Baseline and control": {
@@ -40,8 +40,8 @@
     },
     "Java / Kotlin boundary": {
       "weight": 8,
-      "earned": 4.0,
-      "percent": 50.0
+      "earned": 3.2,
+      "percent": 40.0
     },
     "Build / CI / signing / artifacts": {
       "weight": 12,
@@ -498,10 +498,10 @@
       "id": "P9.2",
       "domain": "Java / Kotlin boundary",
       "weight": 1.6,
-      "state": "IN_PROGRESS",
-      "factor": 0.5,
-      "earned": 0.8,
-      "bucket": "in_progress",
+      "state": "VERIFIED",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "not_started",
       "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
