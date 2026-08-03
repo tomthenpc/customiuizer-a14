@@ -391,6 +391,8 @@
     <string name="system_charginginfo_title">Display charging data</string>
     <string name="system_charginginfo_summ">Show additional charging information at the bottom of lock screen</string>
     <string name="system_charginginfo_view_title">How to display</string>
+    <string name="system_charginginfo_fontsize_title">Lock screen charging text size</string>
+    <string name="system_charginginfo_fontsize_summary">Adjusts the bottom charging indication. Default keeps the system text size. Restart System UI to apply.</string>
     <string name="system_charginginfo_current_title">Charging current</string>
     <string name="system_charginginfo_voltage_title">Battery voltage</string>
     <string name="system_charginginfo_wattage_title">Power consumption</string>

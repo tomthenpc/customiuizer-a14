@@ -19,6 +19,7 @@ import android.text.TextUtils
 import android.text.format.DateFormat
 import android.text.format.DateUtils
 import android.util.ArrayMap
+import android.util.TypedValue
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -1119,6 +1120,16 @@ object SystemLockScreenHooks {
         })
     }
 
+    /**
+     * Resolves the raw SeekBar value to an SP font size.
+     *
+     * - 16 (the default) means "system default"; returns null so we do not call setTextSize.
+     * - 17..40 maps to 8.5sp..20sp by dividing by 2.
+     * - Anything else is out of range and is ignored.
+     */
+    internal fun resolveChargingInfoFontSizeSp(raw: Int): Float? =
+        if (raw in 17..40) raw / 2f else null
+
     @JvmStatic
     fun ChargingInfoHook(lpparam: PackageReadyParam) {
         if (isChargingInfoHooked) return
@@ -1205,10 +1216,15 @@ object SystemLockScreenHooks {
                 }
                 try {
                     val thisObject = chain.thisObject
+                    val indicator = thisObject as TextView
+
+                    val fontSizeRaw = MainModule.mPrefs.getInt("system_charginginfo_fontsize", 16)
+                    resolveChargingInfoFontSizeSp(fontSizeRaw)?.let { resolvedSizeSp ->
+                        indicator.setTextSize(TypedValue.COMPLEX_UNIT_SP, resolvedSizeSp)
+                    }
 
                     val opt = MainModule.mPrefs.getStringAsInt("system_charginginfo_view", 1)
                     if (opt != 1) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    val indicator = thisObject as TextView
                     indicator.isSingleLine = false
 
                 } catch (t: Throwable) {

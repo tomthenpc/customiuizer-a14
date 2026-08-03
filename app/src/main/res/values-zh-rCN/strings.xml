@@ -373,6 +373,8 @@
     <string name="system_charginginfo_title">显示充电数据</string>
     <string name="system_charginginfo_summ">在锁屏底部显示额外的充电信息</string>
     <string name="system_charginginfo_view_title">显示方式</string>
+    <string name="system_charginginfo_fontsize_title">锁屏充电信息字号</string>
+    <string name="system_charginginfo_fontsize_summary">调整锁屏底部充电提示字号；默认保持系统字号，重启系统界面后生效</string>
     <string name="system_charginginfo_current_title">充电电流</string>
     <string name="system_charginginfo_voltage_title">电池电压</string>
     <string name="system_charginginfo_wattage_title">功率</string>

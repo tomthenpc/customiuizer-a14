@@ -324,6 +324,8 @@
     <string name="system_charginginfo_title">顯示充電數據</string>
     <string name="system_charginginfo_summ">在鎖屏底部顯示額外的充電訊息</string>
     <string name="system_charginginfo_view_title">顯示方式</string>
+    <string name="system_charginginfo_fontsize_title">鎖屏充電資訊字號</string>
+    <string name="system_charginginfo_fontsize_summary">調整鎖屏底部充電提示字號；預設保留系統字號，重新啟動系統介面後生效</string>
     <string name="system_charginginfo_current_title">充電電流</string>
     <string name="system_charginginfo_voltage_title">電池電壓</string>
     <string name="system_charginginfo_wattage_title">耗電量</string>
