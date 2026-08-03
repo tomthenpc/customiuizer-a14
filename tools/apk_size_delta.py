@@ -280,7 +280,8 @@ def generate(
         json.dump(result, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
-    out_md.write_text(_render_markdown(result), encoding="utf-8")
+    with out_md.open("w", encoding="utf-8", newline="\n") as f:
+        f.write(_render_markdown(result))
     return 0
 
 
@@ -412,8 +413,8 @@ def _render_markdown(data: dict) -> str:
         "",
         "```text",
         "./gradlew --no-daemon clean :app:assembleDebug :app:assembleDevelop",
-        "python tools/apk_size_report.py app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk --out docs/performance/A14_APK_SIZE_CURRENT.json",
-        "python tools/apk_size_report.py app/build/outputs/apk/develop/CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk --out docs/performance/A14_APK_SIZE_CURRENT_DEVELOP.json",
+        f"python tools/apk_size_report.py app/build/outputs/apk/debug/CustoMIUIzer-A14-{data['buildConfig']['versionName']}-debug.apk --out docs/performance/A14_APK_SIZE_CURRENT.json",
+        f"python tools/apk_size_report.py app/build/outputs/apk/develop/CustoMIUIzer-A14-{data['buildConfig']['versionName']}-develop-unsigned.apk --out docs/performance/A14_APK_SIZE_CURRENT_DEVELOP.json",
         f"python tools/apk_size_delta.py --baseline-commit {data['baselineCommit']} --current-commit {data['currentSourceCommit']}",
         "```",
         "",

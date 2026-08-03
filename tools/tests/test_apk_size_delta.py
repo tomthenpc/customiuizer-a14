@@ -7,6 +7,8 @@ import copy
 import json
 import re
 import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -61,16 +63,67 @@ def load_json(path: Path) -> dict:
         return json.load(f)
 
 
+def _normalized(path: str) -> str:
+    return path.replace("\\", "/")
+
+
+def _expected_apk_path(variant: str, version_name: str) -> str:
+    suffix = "debug" if variant == "debug" else "develop-unsigned"
+    return f"app/build/outputs/apk/{variant}/CustoMIUIzer-A14-{version_name}-{suffix}.apk"
+
+
+def _regenerate(out_json: Path, out_md: Path) -> None:
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/apk_size_delta.py",
+            "--baseline-commit",
+            EXPECTED_BASELINE_COMMIT,
+            "--current-commit",
+            EXPECTED_CURRENT_COMMIT,
+            "--out-json",
+            str(out_json),
+            "--out-md",
+            str(out_md),
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    if result.returncode != 0:
+        raise AssertionError(f"apk_size_delta.py failed:\n{result.stdout}\n{result.stderr}")
+
+
 class ApkSizeDeltaTest(unittest.TestCase):
     def setUp(self) -> None:
         self.data = load_json(DELTA_JSON)
         self.gradle_text = GRADLE_FILE.read_text(encoding="utf-8")
         self.md_text = MD_FILE.read_text(encoding="utf-8")
 
-    # ---- internal validation used for both positive and mutation tests ----
+    # ---- internal validation used for positive and mutation tests ----
+
+    def _assert_apk_paths_exact(self, data: dict) -> None:
+        version_name = data["buildConfig"]["versionName"]
+        for variant in ("debug", "develop"):
+            current = data["variants"][variant]["current"]
+            self.assertEqual(
+                _expected_apk_path(variant, version_name),
+                _normalized(current["apkPath"]),
+                f"{variant} apkPath does not match the expected Gradle-derived artifact path",
+            )
+
+    def _check_input_consistency(self, data: dict, inputs: dict[str, dict]) -> None:
+        for variant, file_name in (("debug", "A14_APK_SIZE_CURRENT.json"), ("develop", "A14_APK_SIZE_CURRENT_DEVELOP.json")):
+            raw = inputs[file_name]
+            current = data["variants"][variant]["current"]
+            self.assertEqual(raw["sha256"], current["sha256"], f"{variant} sha256 mismatch with {file_name}")
+            self.assertEqual(raw["apkFileBytes"], current["apkFileBytes"], f"{variant} apkFileBytes mismatch with {file_name}")
+            self.assertEqual(raw["apkPath"], current["apkPath"], f"{variant} apkPath mismatch with {file_name}")
 
     def _validate_report(self, data: dict) -> None:
-        # 1. four input JSONs exist (this test validates the report, not the inputs directly)
+        # 1. four input JSONs exist
         for name in (
             "A14_APK_SIZE_BASELINE.json",
             "A14_APK_SIZE_CURRENT.json",
@@ -84,6 +137,9 @@ class ApkSizeDeltaTest(unittest.TestCase):
             current = data["variants"][variant]["current"]
             self.assertNotRegex(current["apkPath"], r"^[A-Za-z]:\\|/home/|/Users/|~\\")
             self.assertFalse(Path(current["apkPath"]).is_absolute())
+
+        # 2a. exact APK path from Gradle versionName
+        self._assert_apk_paths_exact(data)
 
         # 3. SHA-256 64 hex
         for variant in ("debug", "develop"):
@@ -243,6 +299,33 @@ class ApkSizeDeltaTest(unittest.TestCase):
         self.assertNotIn("State: `COMPLETE`", text)
         self.assertIn("VERIFIED_BUILD", text)
 
+    def test_04_apk_paths_exact_by_version(self) -> None:
+        self._assert_apk_paths_exact(self.data)
+
+    def test_05_inputs_match_report(self) -> None:
+        inputs = {
+            "A14_APK_SIZE_CURRENT.json": load_json(PERF_DIR / "A14_APK_SIZE_CURRENT.json"),
+            "A14_APK_SIZE_CURRENT_DEVELOP.json": load_json(PERF_DIR / "A14_APK_SIZE_CURRENT_DEVELOP.json"),
+        }
+        self._check_input_consistency(self.data, inputs)
+
+    def test_06_deterministic_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            out_json = tmp / "A14_APK_SIZE_DELTA.json"
+            out_md = tmp / "A14_APK_SIZE_DELTA.md"
+            _regenerate(out_json, out_md)
+            self.assertEqual(
+                out_json.read_bytes(),
+                DELTA_JSON.read_bytes(),
+                "A14_APK_SIZE_DELTA.json is not the deterministic output of apk_size_delta.py",
+            )
+            self.assertEqual(
+                out_md.read_bytes(),
+                MD_FILE.read_bytes(),
+                "A14_APK_SIZE_DELTA.md is not the deterministic output of apk_size_delta.py",
+            )
+
     # ---- mutation tests ----
 
     def _mutated(self, mutator) -> dict:
@@ -250,49 +333,61 @@ class ApkSizeDeltaTest(unittest.TestCase):
         mutator(d)
         return d
 
-    def test_04_mutation_swap_debug_with_develop_baseline(self) -> None:
+    def test_07_mutation_swap_debug_with_develop_baseline(self) -> None:
         def mutate(d):
             d["variants"]["debug"]["baseline"] = d["variants"]["develop"]["baseline"]
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
-    def test_05_mutation_inject_wrong_delta(self) -> None:
+    def test_08_mutation_inject_wrong_delta(self) -> None:
         def mutate(d):
             d["variants"]["debug"]["metrics"]["apkFileBytes"]["delta"] += 1000
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
-    def test_06_mutation_inject_absolute_path(self) -> None:
+    def test_09_mutation_inject_absolute_path(self) -> None:
         def mutate(d):
             d["variants"]["debug"]["current"]["apkPath"] = "/home/someone/app-debug.apk"
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
-    def test_07_mutation_delete_sha256(self) -> None:
+    def test_10_mutation_debug_wrong_filename(self) -> None:
+        def mutate(d):
+            d["variants"]["debug"]["current"]["apkPath"] = "app/build/outputs/apk/debug/app-debug.apk"
+        with self.assertRaises(AssertionError):
+            self._validate_report(self._mutated(mutate))
+
+    def test_11_mutation_foo_bar_fake_apk(self) -> None:
+        def mutate(d):
+            d["variants"]["debug"]["current"]["apkPath"] = "foo/bar/fake.apk"
+        with self.assertRaises(AssertionError):
+            self._validate_report(self._mutated(mutate))
+
+    def test_12_mutation_delete_sha256(self) -> None:
         def mutate(d):
             d["variants"]["debug"]["current"]["sha256"] = ""
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
-    def test_08_mutation_describe_develop_as_official_release(self) -> None:
+    def test_13_mutation_describe_develop_as_official_release(self) -> None:
         def mutate(d):
             d["variants"]["develop"]["description"] = "This is an official release APK"
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
-    def test_09_mutation_bad_current_source_commit(self) -> None:
+    def test_14_mutation_bad_current_source_commit(self) -> None:
         def mutate(d):
             d["currentSourceCommit"] = "0000000000000000000000000000000000000000"
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
-    def test_10_mutation_version_code_mismatch(self) -> None:
+    def test_15_mutation_version_code_mismatch(self) -> None:
         def mutate(d):
             d["buildConfig"]["versionCode"] = 999
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
-    def test_11_mutation_overlap_added_changed(self) -> None:
+    def test_16_mutation_overlap_added_changed(self) -> None:
         def mutate(d):
             changed = d["variants"]["debug"]["entryDiffs"]["changed"]
             if changed:
@@ -302,11 +397,43 @@ class ApkSizeDeltaTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
-    def test_12_mutation_tilde_user_path(self) -> None:
+    def test_17_mutation_tilde_user_path(self) -> None:
         def mutate(d):
             d["variants"]["debug"]["current"]["apkPath"] = r"~\Downloads\app-debug.apk"
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
+
+    def test_18_mutation_input_sha_mismatch(self) -> None:
+        inputs = {
+            "A14_APK_SIZE_CURRENT.json": load_json(PERF_DIR / "A14_APK_SIZE_CURRENT.json"),
+            "A14_APK_SIZE_CURRENT_DEVELOP.json": load_json(PERF_DIR / "A14_APK_SIZE_CURRENT_DEVELOP.json"),
+        }
+        inputs["A14_APK_SIZE_CURRENT.json"]["sha256"] = "0" * 64
+        with self.assertRaises(AssertionError):
+            self._check_input_consistency(self.data, inputs)
+
+    def test_19_mutation_stale_json_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            out_json = tmp / "A14_APK_SIZE_DELTA.json"
+            out_md = tmp / "A14_APK_SIZE_DELTA.md"
+            _regenerate(out_json, out_md)
+            stale = load_json(out_json)
+            stale["buildConfig"]["versionCode"] = 999
+            stale_bytes = (json.dumps(stale, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+            with self.assertRaises(AssertionError):
+                self.assertEqual(stale_bytes, out_json.read_bytes())
+
+    def test_20_mutation_stale_md_output(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            out_json = tmp / "A14_APK_SIZE_DELTA.json"
+            out_md = tmp / "A14_APK_SIZE_DELTA.md"
+            _regenerate(out_json, out_md)
+            fresh_md = out_md.read_bytes()
+            stale_md = fresh_md.replace(b"r14.16.1", b"rXX.XX.XX")
+            with self.assertRaises(AssertionError):
+                self.assertEqual(stale_md, fresh_md)
 
 
 if __name__ == "__main__":
