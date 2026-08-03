@@ -1,9 +1,21 @@
 #!/usr/bin/env python3
-"""Mutation, hermeticity and determinism tests for repository gates.
+"""Mutation, hermeticity and determinism tests with truthful result semantics.
 
-The tool never mutates the real worktree during mutation testing. Every
-mutation is applied to a detached temporary git worktree and is expected to be
-"killed" by a configured gate. A surviving mutation is a concrete test gap.
+The runner never mutates the real worktree.  Every mutation is applied to a
+detached temporary git worktree.  Results are classified as:
+
+    MUTATION_NOT_APPLIED
+    MUTATION_APPLIED
+    INDEPENDENT_GATE_KILLED
+    SELF_DETECTION_ONLY
+    SURVIVED
+    CANNOT_VERIFY
+    GATE_ERROR
+    CLEANUP_ERROR
+
+A mutation is only an "independent semantic kill" when an independent kill gate
+returns INDEPENDENT_GATE_KILLED.  Self-detection and cannot-verify results are
+reported separately and never mixed into the kill rate.
 """
 from __future__ import annotations
 
@@ -11,6 +23,7 @@ import argparse
 import base64
 import contextlib
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -20,40 +33,35 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
+
+# Allow running as `python tools/brutal_test_runner.py` by putting the repo root
+# on sys.path so `tools` is importable.
+_HERE = Path(__file__).resolve().parent
+if _HERE.name == "tools" and _HERE.parent not in map(Path, sys.path):
+    sys.path.insert(0, str(_HERE.parent))
+
+from tools import brutal_gate_protocol as protocol
+from tools.brutal_gate_protocol import (
+    CANNOT_VERIFY,
+    CLEANUP_ERROR,
+    GATE_ERROR,
+    INDEPENDENT_GATE_KILLED,
+    MUTATION_APPLIED,
+    MUTATION_NOT_APPLIED,
+    SELF_DETECTION_ONLY,
+    SURVIVED,
+)
 
 
-def normalize_command(command: str) -> str:
-    """Use gradlew.bat on Windows when the configured command starts with gradlew."""
-    if os.name == "nt" and command.startswith("gradlew "):
-        return "gradlew.bat" + command[len("gradlew"):]
-    return command
+def run(argv: Sequence[str], cwd: Path, timeout: int, env: dict[str, str] | None = None) -> tuple[int, str]:
+    """Execute a command without a shell and return (exit_code, output)."""
+    return protocol.run_command(argv, cwd, timeout, env)
 
 
-def run(
-    command: str,
-    cwd: Path,
-    timeout: int,
-    env: dict[str, str] | None = None,
-) -> subprocess.CompletedProcess:
-    merged = os.environ.copy()
-    if env:
-        merged.update(env)
+def run_quiet(argv: Sequence[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
     return subprocess.run(
-        normalize_command(command),
-        cwd=cwd,
-        shell=True,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=timeout,
-        env=merged,
-    )
-
-
-def run_quiet(command: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        command,
+        list(argv),
         cwd=cwd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
@@ -160,6 +168,10 @@ def detached_worktree(root: Path):
         shutil.rmtree(temp_parent, ignore_errors=True)
 
 
+# ---------------------------------------------------------------------------
+# Built-in mutators for control-state, CI, catalog and hazard tests
+# ---------------------------------------------------------------------------
+
 def replace_first(path: Path, pattern: str, replacement: str, flags: int = 0) -> None:
     text = path.read_text(encoding="utf-8")
     changed, count = re.subn(pattern, replacement, text, count=1, flags=flags)
@@ -189,6 +201,19 @@ def append_after_line(path: Path, prefix: str, lines: list[str]) -> None:
     if not done:
         raise RuntimeError(f"line prefix not found: {prefix}")
     path.write_text("\n".join(out) + "\n", encoding="utf-8")
+
+
+def mutation_source_file(root: Path, body: str) -> None:
+    path = root / "app/src/main/java/brutal_mutation/InjectedHazard.kt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(f"package brutal_mutation\n\n{body}\n", encoding="utf-8")
+
+
+def workflow_path(root: Path, cfg: dict, full: bool = False) -> Path:
+    paths = cfg["full_workflows"] if full else cfg["fast_workflows"]
+    if not paths:
+        raise RuntimeError("workflow path not configured")
+    return root / paths[0]
 
 
 def mutate_duplicate_smart(root: Path, cfg: dict) -> None:
@@ -233,13 +258,6 @@ def mutate_progress_tamper(root: Path, cfg: dict) -> None:
     data = json.loads(path.read_text(encoding="utf-8"))
     data["__BRUTAL_MUTATION__"] = {"projectProgress": 999.0}
     path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-
-
-def workflow_path(root: Path, cfg: dict, full: bool = False) -> Path:
-    paths = cfg["full_workflows"] if full else cfg["fast_workflows"]
-    if not paths:
-        raise RuntimeError("workflow path not configured")
-    return root / paths[0]
 
 
 def mutate_remove_fetch_depth(root: Path, cfg: dict) -> None:
@@ -338,29 +356,16 @@ def mutate_install_phase(root: Path, cfg: dict) -> None:
 
 
 def mutate_remove_dispatch(root: Path, cfg: dict) -> None:
-    roots = [root / p for p in cfg.get("installer_roots", ["app/src/main/java"])]
-    for base in roots:
-        for path in [*base.rglob("*.kt"), *base.rglob("*.java")]:
-            text = path.read_text(encoding="utf-8")
-            changed, count = re.subn(
-                r"(?m)^.*\.installAll\([^\n]*\n",
-                "",
-                text,
-                count=1,
-            )
-            if count:
-                path.write_text(changed, encoding="utf-8")
-                return
-    raise RuntimeError("FeatureInstallRegistry.installAll call not found")
-
-
-def mutation_source_file(root: Path, body: str) -> None:
-    path = root / "app/src/main/java/brutal_mutation/InjectedHazard.kt"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "package brutal_mutation\n\n" + body + "\n",
-        encoding="utf-8",
-    )
+    roots = [root / p for p in cfg.get("installer_roots", [])]
+    target = None
+    for path in roots:
+        if path.exists() and any(path.iterdir()):
+            target = next(path.rglob("*.kt"), None) or next(path.rglob("*.java"), None)
+            if target:
+                break
+    if target is None:
+        raise RuntimeError("no installer source file found")
+    replace_first(target, r"FeatureInstallRegistry\.installAll\b", "FeatureInstallRegistry.installAllSkipped")
 
 
 def mutate_fatal_swallow(root: Path, cfg: dict) -> None:
@@ -384,9 +389,12 @@ def mutate_eager_thread(root: Path, cfg: dict) -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# Mutator registry
+# ---------------------------------------------------------------------------
+
 def maybe_extra_mutators() -> dict[str, Callable[[Path, dict], None]]:
     try:
-        import importlib.util
         spec = importlib.util.spec_from_file_location(
             "brutal_a14_mutators",
             Path(__file__).resolve().parent / "brutal_a14_mutators.py",
@@ -424,43 +432,78 @@ MUTATORS: dict[str, Callable[[Path, dict], None]] = {
 MUTATORS.update(maybe_extra_mutators())
 
 
+# ---------------------------------------------------------------------------
+# Configuration validation
+# ---------------------------------------------------------------------------
+
 class ConfigError(Exception):
     pass
+
+
+def _validate_command_list(value: list[str], context: str) -> None:
+    if not isinstance(value, list) or not value:
+        raise ConfigError(f"{context} must be a non-empty list")
+    for token in value:
+        if not isinstance(token, str) or not token:
+            raise ConfigError(f"{context} must contain only non-empty strings")
 
 
 def validate_config(cfg: dict) -> None:
     if not isinstance(cfg, dict):
         raise ConfigError("config must be a JSON object")
 
-    if cfg.get("schema_version") != 1:
-        raise ConfigError("config schema_version must be 1")
+    if cfg.get("schema_version") != 2:
+        raise ConfigError("config schema_version must be 2")
 
-    for key in ("mutations", "hermetic_commands", "determinism_command", "determinism_outputs", "gates", "expected_branch"):
+    for key in ("mutations", "hermetic_commands", "determinism_command", "determinism_outputs", "expected_branch"):
         if key not in cfg:
             raise ConfigError(f"config missing required key: {key}")
+
+    for cmd in cfg["hermetic_commands"]:
+        _validate_command_list(cmd, "hermetic_commands entry")
+
+    _validate_command_list(cfg["determinism_command"], "determinism_command")
+
+    determinism_outputs = cfg["determinism_outputs"]
+    if not isinstance(determinism_outputs, list) or not determinism_outputs:
+        raise ConfigError("determinism_outputs must be a non-empty list")
+    if len(determinism_outputs) != len(set(determinism_outputs)):
+        raise ConfigError("determinism_outputs must be unique")
+
+    apply_checks = cfg.get("apply_checks", {})
+    if not isinstance(apply_checks, dict):
+        raise ConfigError("apply_checks must be a dict")
+    for name, cmd in apply_checks.items():
+        _validate_command_list(cmd, f"apply_check {name!r}")
+
+    kill_gates = cfg.get("kill_gates", {})
+    if not isinstance(kill_gates, dict):
+        raise ConfigError("kill_gates must be a dict")
+    for name, cmd in kill_gates.items():
+        _validate_command_list(cmd, f"kill_gate {name!r}")
 
     mutations = cfg["mutations"]
     if not isinstance(mutations, list) or not mutations:
         raise ConfigError("mutations must be a non-empty list")
 
-    minimum = cfg.get("minimum_mutations")
-    if minimum is None:
-        raise ConfigError("minimum_mutations is required")
-    if not isinstance(minimum, int) or minimum < 1:
-        raise ConfigError("minimum_mutations must be a positive integer")
-    if minimum > len(mutations):
-        raise ConfigError(f"minimum_mutations ({minimum}) exceeds configured mutation count ({len(mutations)})")
+    minimum = cfg.get("minimum_independent_kills")
+    if minimum is not None:
+        if not isinstance(minimum, int) or minimum < 0:
+            raise ConfigError("minimum_independent_kills must be a non-negative integer")
+        if minimum > len(mutations):
+            raise ConfigError(f"minimum_independent_kills ({minimum}) exceeds configured mutation count ({len(mutations)})")
 
-    required = cfg.get("required_mutations", [])
+    required = cfg.get("required_independent_mutations", [])
     if not isinstance(required, list):
-        raise ConfigError("required_mutations must be a list")
-    names = [m["name"] for m in mutations]
-    missing = [r for r in required if r not in names]
-    if missing:
-        raise ConfigError(f"required mutation(s) missing from config: {missing}")
+        raise ConfigError("required_independent_mutations must be a list")
+
+    coverage_target = cfg.get("coverage_target")
+    if coverage_target is not None and (not isinstance(coverage_target, int) or coverage_target < 0):
+        raise ConfigError("coverage_target must be a non-negative integer")
 
     seen: set[str] = set()
     duplicates = []
+    names = []
     for m in mutations:
         name = m.get("name")
         if not name or not isinstance(name, str):
@@ -468,35 +511,36 @@ def validate_config(cfg: dict) -> None:
         if name in seen:
             duplicates.append(name)
         seen.add(name)
+        names.append(name)
+
         mutator = m.get("mutator")
         if not mutator or not isinstance(mutator, str):
             raise ConfigError(f"mutation {name!r} missing mutator")
         if mutator not in MUTATORS:
             raise ConfigError(f"mutation {name!r} references unknown mutator {mutator!r}")
-        gate = m.get("gate")
-        if not gate or not isinstance(gate, str):
-            raise ConfigError(f"mutation {name!r} missing gate")
-        if gate not in cfg["gates"]:
-            raise ConfigError(f"mutation {name!r} references unknown gate {gate!r}")
+
+        apply_check = m.get("apply_check")
+        if apply_check is not None and (not isinstance(apply_check, str) or apply_check not in apply_checks):
+            raise ConfigError(f"mutation {name!r} references unknown apply_check {apply_check!r}")
+
+        kill_gate = m.get("kill_gate")
+        if kill_gate is not None and (not isinstance(kill_gate, str) or kill_gate not in kill_gates):
+            raise ConfigError(f"mutation {name!r} references unknown kill_gate {kill_gate!r}")
+
+        coverage_status = m.get("coverage_status")
+        if coverage_status not in ("INDEPENDENT", "BLOCKED_NO_INDEPENDENT_GATE"):
+            raise ConfigError(f"mutation {name!r} has invalid coverage_status {coverage_status!r}")
+
+        required_independent = m.get("required_independent")
+        if not isinstance(required_independent, bool):
+            raise ConfigError(f"mutation {name!r} missing required_independent boolean")
+
     if duplicates:
         raise ConfigError(f"duplicate mutation names: {duplicates}")
 
-    gates = cfg["gates"]
-    if not isinstance(gates, dict) or not gates:
-        raise ConfigError("gates must be a non-empty dict")
-    for gate_name, command in gates.items():
-        if not command or not isinstance(command, str):
-            raise ConfigError(f"gate {gate_name!r} has an empty command")
-
-    hermetic = cfg["hermetic_commands"]
-    if not isinstance(hermetic, list) or not hermetic:
-        raise ConfigError("hermetic_commands must be a non-empty list")
-
-    determinism_outputs = cfg["determinism_outputs"]
-    if not isinstance(determinism_outputs, list) or not determinism_outputs:
-        raise ConfigError("determinism_outputs must be a non-empty list")
-    if len(determinism_outputs) != len(set(determinism_outputs)):
-        raise ConfigError("determinism_outputs must be unique")
+    missing_required = [r for r in required if r not in names]
+    if missing_required:
+        raise ConfigError(f"required_independent mutation(s) missing from config: {missing_required}")
 
 
 def _is_allowed_untracked(rel: str, allowed_untracked: set[str]) -> bool:
@@ -511,12 +555,7 @@ def collect_status_failures(
     allowed_untracked: set[str],
     baseline_untracked: set[str] | None = None,
 ) -> tuple[bool, list[str]]:
-    """Check git status for tracked changes and new untracked files.
-
-    If *baseline_untracked* is provided, only untracked files not in the baseline
-    are reported; this lets the suite detect files created by the commands under
-    test without failing on pre-existing untracked work.
-    """
+    """Check git status for tracked changes and new untracked files."""
     failures: list[str] = []
     for status, rel in git_status_porcelain(root):
         if status == "??":
@@ -541,6 +580,10 @@ def allowed_untracked_patterns() -> set[str]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Hermeticity and determinism
+# ---------------------------------------------------------------------------
+
 def hermeticity(root: Path, cfg: dict, timeout: int) -> int:
     allowed = allowed_untracked_patterns()
     baseline_status = git_status_porcelain(root)
@@ -557,10 +600,9 @@ def hermeticity(root: Path, cfg: dict, timeout: int) -> int:
 
     before = tracked_hashes(root)
     for command in cfg["hermetic_commands"]:
-        result = run(command, root, timeout)
-        if result.returncode:
-            print(f"Hermeticity FAILED: command failed: {command}")
-            print(result.stdout[-3000:])
+        code, _ = run(command, root, timeout)
+        if code:
+            print(f"Hermeticity FAILED: command failed: {' '.join(command)!r}")
             return 1
 
     after = tracked_hashes(root)
@@ -657,10 +699,9 @@ def determinism(root: Path, cfg: dict, timeout: int) -> int:
             {"PYTHONHASHSEED": "777", "TZ": "Asia/Tokyo", "LC_ALL": "C"},
         ):
             before = tracked_hashes(work)
-            result = run(command, work, timeout, env)
-            if result.returncode:
-                print(f"Determinism FAILED: command failed: {command}")
-                print(result.stdout[-3000:])
+            code, _ = run(command, work, timeout, env)
+            if code:
+                print(f"Determinism FAILED: command failed: {' '.join(command)!r}")
                 return 1
 
             for rel in outputs:
@@ -669,8 +710,6 @@ def determinism(root: Path, cfg: dict, timeout: int) -> int:
                     print(f"Determinism FAILED: output missing: {rel}")
                     return 1
 
-            # The command must not create files outside the declared outputs or modify
-            # tracked files other than the declared outputs.
             after_files = {p for p in work.rglob("*") if p.is_file() and not _is_build_artifact(p, work) and p.name != ".git"}
             after_rel = {p.relative_to(work).as_posix() for p in after_files}
             new_files = after_rel - set(before.keys())
@@ -711,80 +750,219 @@ def _is_build_artifact(path: Path, root: Path) -> bool:
     return False
 
 
-def mutation_test(root: Path, cfg: dict, timeout: int, selected: set[str] | None, ignore_minimum: bool = False) -> int:
-    command_by_mutation: dict[str, tuple[str, int]] = {}
-    results: list[tuple[str, str, str]] = []
+# ---------------------------------------------------------------------------
+# Mutation testing with truthful semantics
+# ---------------------------------------------------------------------------
 
+def _select_mutations(cfg: dict, selected: set[str] | None) -> list[dict]:
+    cases = []
     for case in cfg["mutations"]:
+        if selected and case["name"] not in selected:
+            continue
+        cases.append(case)
+    return cases
+
+
+def _run_apply_check(
+    work: Path,
+    cfg: dict,
+    case: dict,
+    mutator_id: str,
+) -> str:
+    apply_name = case.get("apply_check")
+    if not apply_name:
+        # No dedicated apply check: we will fall back to tracked file hashes.
+        return MUTATION_APPLIED
+
+    apply_template = cfg["apply_checks"][apply_name]
+    argv = protocol.render_command(apply_template, mutator=mutator_id)
+    try:
+        code, _ = run(argv, work, cfg.get("apply_check_timeout", 120))
+    except subprocess.TimeoutExpired:
+        return GATE_ERROR
+    except Exception as exc:
+        print(f"  apply check raised {exc!r}", file=sys.stderr)
+        return GATE_ERROR
+
+    if code == 0:
+        return MUTATION_APPLIED
+    if code == 4:
+        return MUTATION_NOT_APPLIED
+    if code == 2:
+        return CANNOT_VERIFY
+    return GATE_ERROR
+
+
+def _run_kill_gate(
+    work: Path,
+    cfg: dict,
+    case: dict,
+    mutator_id: str,
+) -> str:
+    kill_name = case.get("kill_gate")
+    if not kill_name:
+        # No independent gate: a successful apply check only proves
+        # self-detection, not a real product kill.
+        return SELF_DETECTION_ONLY
+
+    kill_template = cfg["kill_gates"][kill_name]
+    argv = protocol.render_command(kill_template, name=case["name"], mutator=mutator_id)
+    try:
+        code, _ = run(argv, work, cfg.get("kill_gate_timeout", 300))
+    except subprocess.TimeoutExpired:
+        return GATE_ERROR
+    except Exception as exc:
+        print(f"  kill gate raised {exc!r}", file=sys.stderr)
+        return GATE_ERROR
+    return protocol.classify_kill(code)
+
+
+def _mutator_modified_files(work: Path, allowed: set[str]) -> bool:
+    """Return True if the worktree has any new or modified files after mutation."""
+    for status, rel in git_status_porcelain(work):
+        if not status:
+            continue
+        if status == "??" and _is_allowed_untracked(rel, allowed):
+            continue
+        return True
+    return False
+
+
+def mutation_test(
+    root: Path,
+    cfg: dict,
+    timeout: int,
+    selected: set[str] | None,
+    ignore_minimum: bool = False,
+) -> int:
+    cases = _select_mutations(cfg, selected)
+    if not cases:
+        print("Mutation test FAILED: no mutations selected")
+        return 1
+
+    results: list[tuple[dict, str, str]] = []
+
+    for case in cases:
         name = case["name"]
-        if selected and name not in selected:
-            continue
-        mutator_name = case["mutator"]
-        mutator = MUTATORS.get(mutator_name)
+        mutator_id = case["mutator"]
+        mutator = MUTATORS.get(mutator_id)
         if mutator is None:
-            results.append((name, "ERROR", f"unknown mutator {mutator_name!r}"))
+            results.append((case, GATE_ERROR, f"unknown mutator {mutator_id!r}"))
             continue
-        gate = (
-            cfg["gates"][case["gate"]]
-            .replace("{name}", name)
-            .replace("{mutator}", mutator_name)
-        )
-        case_timeout = case.get("timeout", timeout)
-        command_by_mutation[name] = (gate, case_timeout)
 
-    if selected and not command_by_mutation:
-        print("Mutation test FAILED: --case did not match any configured mutation")
-        return 1
-
-    if not command_by_mutation:
-        print("Mutation test FAILED: no mutations to run")
-        return 1
-
-    for name, (gate, case_timeout) in command_by_mutation.items():
-        status = "NOT_RUN"
+        status = GATE_ERROR
         detail = ""
         try:
             with detached_worktree(root) as work:
-                index = next(i for i, m in enumerate(cfg["mutations"]) if m["name"] == name)
-                mutator = MUTATORS[cfg["mutations"][index]["mutator"]]
+                allowed = allowed_untracked_patterns()
                 mutator(work, cfg)
-                result = run(gate, work, case_timeout)
-                if result.returncode != 0:
-                    status = "KILLED"
-                else:
-                    status = "SURVIVED"
-                detail = result.stdout[-2500:]
+                status = _run_apply_check(work, cfg, case, mutator_id)
+
+                # When there is no dedicated apply check, the mutator must have
+                # changed at least one tracked or untracked file, otherwise it
+                # was not applied.  This catches mutators that inject untracked
+                # hazards or CI-only files.
+                if case.get("apply_check") is None and not _mutator_modified_files(work, allowed):
+                    status = MUTATION_NOT_APPLIED
+                    detail = "mutator did not modify any tracked or untracked file"
+
+                # If the apply check confirms the mutation but there is no
+                # independent kill gate, this is self-detection only.
+                if status == MUTATION_APPLIED:
+                    status = _run_kill_gate(work, cfg, case, mutator_id)
+
         except subprocess.TimeoutExpired as exc:
-            status = "TIMEOUT"
-            detail = f"timed out after {exc.timeout}s"
+            status = GATE_ERROR
+            detail = f"mutator timed out after {exc.timeout}s"
         except Exception as exc:
-            status = "ERROR"
+            status = GATE_ERROR
             detail = repr(exc)
-        results.append((name, status, detail))
+
+        results.append((case, status, detail))
+
+    # Summary table
+    print(f"\n{'Status':22} {'Required':9} {'Name'}")
+    print("-" * 80)
+    for case, status, detail in results:
+        required = "yes" if case.get("required_independent") else "no"
+        print(f"{status:22} {required:9} {case['name']}")
+        if detail:
+            for line in detail.splitlines():
+                print(f"    {line}")
+
+    counts: dict[str, int] = {}
+    for _, status, _ in results:
+        counts[status] = counts.get(status, 0) + 1
+
+    configured = len(cases)
+    applied = counts.get(MUTATION_APPLIED, 0) + counts.get(INDEPENDENT_GATE_KILLED, 0) + counts.get(SELF_DETECTION_ONLY, 0) + counts.get(SURVIVED, 0)
+    independent_kills = counts.get(INDEPENDENT_GATE_KILLED, 0)
+    self_detection = counts.get(SELF_DETECTION_ONLY, 0)
+    survived = counts.get(SURVIVED, 0)
+    cannot_verify = counts.get(CANNOT_VERIFY, 0)
+    gate_errors = counts.get(GATE_ERROR, 0)
+    not_applied = counts.get(MUTATION_NOT_APPLIED, 0)
+    cleanup_errors = counts.get(CLEANUP_ERROR, 0)
+
+    required_cases = [c for c in cases if c.get("required_independent")]
+    required_names = {c["name"] for c in required_cases}
+    required_killed = [c["name"] for c, s, _ in results if c["name"] in required_names and s == INDEPENDENT_GATE_KILLED]
+    required_survived = [c["name"] for c, s, _ in results if c["name"] in required_names and s == SURVIVED]
+
+    print("\nBrutal mutation summary")
+    print(f"  Configured mutations:            {configured}")
+    print(f"  Applied mutations:               {applied}")
+    print(f"  Independent semantic kills:      {independent_kills}")
+    print(f"  Self-detection only:             {self_detection}")
+    print(f"  Survived:                        {survived}")
+    print(f"  Cannot verify:                   {cannot_verify}")
+    print(f"  Gate errors:                     {gate_errors}")
+    print(f"  Not applied:                     {not_applied}")
+    print(f"  Cleanup errors:                  {cleanup_errors}")
+    print(f"  Independent semantic kill rate:  {independent_kills}/{len(required_cases) if required_cases else configured}")
 
     failed = False
-    for name, status, detail in results:
-        print(f"{status:9} {name}")
-        if status != "KILLED":
+
+    if not ignore_minimum and cfg.get("minimum_independent_kills") is not None:
+        minimum = cfg["minimum_independent_kills"]
+        if independent_kills < minimum:
+            print(f"\nFAILED: independent kill count {independent_kills} below minimum {minimum}")
             failed = True
-            if detail:
-                print("  " + detail.replace("\n", "\n  "))
 
-    killed = sum(1 for _, s, _ in results if s == "KILLED")
-    total = len(results)
-    print(f"Mutation score: {killed}/{total} killed")
-    if total == 0:
-        print("Mutation test FAILED: 0 mutations run")
-        return 1
-    if not ignore_minimum and killed < cfg.get("minimum_mutations", total):
-        print(f"Mutation test FAILED: killed count {killed} below minimum {cfg.get('minimum_mutations')}")
-        return 1
-    if failed:
-        print("SURVIVED_MUTATION means the current test suite did not detect an injected defect.")
-        return 1
-    print("All mutations killed.")
-    return 0
+    if required_survived:
+        print(f"\nFAILED: required independent mutation(s) survived: {required_survived}")
+        failed = True
 
+    if not_applied:
+        print(f"\nFAILED: {not_applied} mutation(s) did not apply")
+        failed = True
+
+    if cannot_verify:
+        print(f"\nFAILED: {cannot_verify} mutation(s) could not be verified")
+        failed = True
+
+    if gate_errors:
+        print(f"\nFAILED: {gate_errors} gate/mutator error(s)")
+        failed = True
+
+    if cleanup_errors:
+        print(f"\nFAILED: {cleanup_errors} cleanup error(s)")
+        failed = True
+
+    if not failed:
+        if required_cases and independent_kills == len(required_cases):
+            print("\nAll required independent mutations killed.")
+        else:
+            print("\nRun completed without required independent failures.")
+        return 0
+
+    print("\nSURVIVED_MUTATION means the independent gate did not detect an injected defect.")
+    return 1
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser()
@@ -795,7 +973,7 @@ def main(argv=None) -> int:
     sub.add_parser("determinism")
     m = sub.add_parser("mutate")
     m.add_argument("--case", action="append")
-    m.add_argument("--ignore-minimum", action="store_true", help="do not enforce minimum_mations when running a subset")
+    m.add_argument("--ignore-minimum", action="store_true", help="do not enforce minimum_independent_kills when running a subset")
     sub.add_parser("all")
     args = p.parse_args(argv)
 
@@ -806,7 +984,7 @@ def main(argv=None) -> int:
         validate_config(cfg)
     except ConfigError as exc:
         print(f"Config error: {exc}", file=sys.stderr)
-        return 1
+        return 2
 
     if args.command == "hermeticity":
         return hermeticity(root, cfg, args.timeout)

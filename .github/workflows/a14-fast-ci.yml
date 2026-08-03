@@ -134,6 +134,11 @@ jobs:
           python tools/catalog_contract_probe.py --catalog app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature --feature-id app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/FeatureIds.kt --matrix docs/rom-intelligence/A14_PROCESS_MATRIX.csv
           python tools/progress_snapshot.py --check
 
+      - name: Brutal suite fast subset
+        run: |
+          python tools/brutal_test_runner.py --config tools/brutal_test_config.json hermeticity
+          python tools/brutal_test_runner.py --config tools/brutal_test_config.json determinism
+
       - name: Full machine verifier
         run: python tools/verify.py full
 

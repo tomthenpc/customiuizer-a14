@@ -976,6 +976,52 @@ State: `VERIFIED_BUILD`
 
 State: `IN_PROGRESS`
 
+### P11.4R1 Brutal runner truthful result semantics
+
+TaskId: `A14-P11.4R1`
+RiskTier: `R3`
+State: `IN_PROGRESS`
+
+文件：
+
+- `tools/brutal_gate_protocol.py`：apply / kill 退出码协议与无 shell 执行。
+- `tools/brutal_test_runner.py`：显式状态、不再把 self-detection 计为 kill、无 shell 注入。
+- `tools/brutal_a14_contract_scan.py`：只做 apply check，修复 `_inject_hazard` AST 提取。
+- `tools/brutal_test_config.json`：schema 2，11 个独立 gate mutation + 55 个 apply-check only mutation。
+- `tools/tests/test_brutal_gate_protocol.py`、`tools/tests/test_brutal_a14_contract_scan.py`：回归测试。
+- `.github/workflows/a14-fast-ci.yml`：fast subset 步骤。
+
+不变量：
+
+- `MUTATION_APPLIED`、`INDEPENDENT_GATE_KILLED`、`SELF_DETECTION_ONLY`、`SURVIVED`、`CANNOT_VERIFY`、`GATE_ERROR`、`CLEANUP_ERROR` 必须区分；
+- `SELF_DETECTION_ONLY` 与 `CANNOT_VERIFY` 不得计入 semantic kill；
+- `a14_contract` 只能用于 `apply_check`，不能作为 `kill_gate`；
+- 总体 `coverage_target` 保持 74，不因为当前只有 11 个独立 gate 而永久降低目标；
+- Fast CI 必须跑 `hermeticity` + `determinism` brutal subset。
+
+实现：
+
+- 新增 `tools/brutal_gate_protocol.py`；
+- `brutal_test_runner.py` 改为 argv 数组、白名单、显式状态与 truth-summary；
+- `brutal_a14_contract_scan.py` 退出码协议与 `_inject_hazard` 修复；
+- `brutal_test_config.json` 升级 schema 2；
+- 新增回归测试；
+- `a14-fast-ci.yml` 增加 brutal fast subset。
+
+验证命令：
+
+```text
+python -m unittest discover -s tools/tests -p "test_*.py"
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json hermeticity
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json determinism
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json mutate
+python tools/progress_snapshot.py --check
+```
+
+退出码：待通过。
+
+---
+
 原行为：
 
 - `tools/brutal_test_config.json` 无 schema 与 `required_mutations`，可因空/少 mutation 误报通过；

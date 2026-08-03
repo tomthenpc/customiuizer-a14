@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-"""Source contract scan for the A14 brutal mutation suite.
+"""Apply-check scanner for the A14 source mutation suite.
 
-For each mutation this tool extracts the patterns the mutator targets and
-verifies that the count of those patterns in the current worktree matches the
-count in the original committed source. Any change that adds, removes or
-reorders a targeted pattern is flagged as a killed mutation.
+This tool verifies whether a mutator actually changed the source tree.  It
+extracts the patterns the mutator targets and checks whether those patterns
+appear with a different count in the current worktree than they did in the
+original committed source.  It is intentionally not a kill gate: a positive
+result only means the mutation was applied, not that an independent product
+test caught the defect.
 
 Usage:
     python tools/brutal_a14_contract_scan.py --mutation <mutator_name>
     python tools/brutal_a14_contract_scan.py --self-test
+
+Exit protocol:
+    0  MUTATION_APPLIED
+    2  CANNOT_VERIFY
+    3  SCANNER_ERROR
+    4  MUTATION_NOT_APPLIED
 """
 from __future__ import annotations
 
@@ -103,11 +111,17 @@ def extract_patterns(source: str) -> list[tuple[str, str, int]]:
                     if rel and pattern:
                         patterns.append((rel, pattern, flags))
             if isinstance(func, ast.Name) and func.id == "_inject_hazard":
-                if len(node.args) == 1:
+                # _inject_hazard(root, body) or _inject_hazard(body) are both
+                # supported.  The body is the source text that will be written
+                # to the fixed hazard file path.
+                if len(node.args) >= 2:
+                    body = resolve_pattern(node.args[1])
+                elif len(node.args) == 1:
                     body = resolve_pattern(node.args[0])
-                    if body:
-                        # The injected file always lives at this path.
-                        patterns.append(("app/src/main/java/brutal_mutation/InjectedHazard.kt", re.escape(body), 0))
+                else:
+                    body = None
+                if body:
+                    patterns.append(("app/src/main/java/brutal_mutation/InjectedHazard.kt", re.escape(body), 0))
     return patterns
 
 
@@ -125,20 +139,25 @@ def scan_mutation(root: Path, mutators: dict, name: str) -> int:
     func = mutators.get(name)
     if func is None:
         print(f"Unknown mutation: {name}", file=sys.stderr)
-        return 1
+        return 3
 
     try:
         source = inspect.getsource(func)
     except (OSError, TypeError) as exc:
         print(f"Cannot read source for {name}: {exc}", file=sys.stderr)
-        return 1
+        return 3
 
     patterns = extract_patterns(source)
     if not patterns:
+        # Swallow-style mutators that only introduce an empty catch cannot be
+        # mechanically verified by pattern counts.  Report this clearly as
+        # "cannot verify" rather than "killed" or "not applied".
+        if name.startswith("catch_") or name.startswith("swallow_linkage") or name.startswith("swallow_verify"):
+            return 2
         print(f"No patterns extracted for {name}; cannot verify", file=sys.stderr)
-        return 1
+        return 2
 
-    failed = False
+    applied = False
     for rel, pattern, flags in patterns:
         work_path = root / rel
         work_text = work_path.read_text(encoding="utf-8") if work_path.exists() else ""
@@ -148,16 +167,13 @@ def scan_mutation(root: Path, mutators: dict, name: str) -> int:
         work_count = count_matches(work_text, pattern, flags)
 
         if baseline_count == -1 or work_count == -1:
-            return 1
+            return 3
 
         if baseline_count != work_count:
-            print(f"CONTRACT VIOLATION: {name} in {rel}")
-            print(f"  pattern: {pattern!r}")
-            print(f"  baseline count: {baseline_count}")
-            print(f"  current count: {work_count}")
-            failed = True
+            print(f"APPLIED: {name} in {rel} (baseline={baseline_count}, current={work_count})")
+            applied = True
 
-    return 1 if failed else 0
+    return 0 if applied else 4
 
 
 def self_test(root: Path, mutators: dict) -> int:
@@ -208,13 +224,13 @@ def main() -> int:
         mutators = load_mutators(root)
     except Exception as exc:
         print(f"Failed to load mutators: {exc}", file=sys.stderr)
-        return 1
+        return 3
 
     if args.self_test:
         return self_test(root, mutators)
     if not args.mutation:
         print("--mutation or --self-test is required", file=sys.stderr)
-        return 1
+        return 3
     return scan_mutation(root, mutators, args.mutation)
 
 
