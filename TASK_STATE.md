@@ -1027,7 +1027,23 @@ python tools/check-invariants.py
 
 ## P12.3 Gesture event contract
 
-State: `TODO`
+State: `VERIFIED_STATIC`
+
+EvidenceCommit: d189ad12fc50522ada4772fcb6e5afb510469e01
+
+文件：
+
+- `docs/A14_GESTURE_EVENT_CONTRACT.md`：描述当前 gesture 事件契约，包含 10 个必需章节、source evidence 和已知限制。
+- `tools/tests/test_gesture_event_contract.py`：机械验证文档元数据、路径、symbol、生命周期、副作用约束和 mutation。
+
+证据：
+
+```text
+python -m unittest tools.tests.test_gesture_event_contract
+python -m unittest discover -s tools/tests -p "test_*.py"
+python tools/check_document_contracts.py
+python tools/check-invariants.py
+```
 
 ## P12.4 APK delta
 

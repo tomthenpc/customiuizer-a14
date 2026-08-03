@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-03T10:40:36.680920+08:00",
-  "sourceCommit": "9aef46d25872d77b93203b203b1cade3f1f2f12f",
-  "sourceTree": "edea130fab57273523e3775728fc0d7236c4fcf8",
+  "generatedAt": "2026-08-03T12:00:33.522252+08:00",
+  "sourceCommit": "ca2556647c4a776a63694259269cdcf5150158e0",
+  "sourceTree": "9079a9e7d88d4fc82933ad2fc900e8cc87708401",
   "verifiedTree": "b6e74dcd847f48800b8becf373d97ba76a8c5425",
   "verifiedMode": "Final",
   "ciState": "PASS",
   "ciRun": "30749749010",
   "ciJob": "91501580779",
   "ciCommit": "e28b66a2",
-  "projectProgress": 3.1,
-  "machineProgress": 3.3,
+  "projectProgress": 4.0,
+  "machineProgress": 4.2,
   "stage": "BASELINE_AND_CONTROL",
   "domainScores": {
     "Baseline and control": {
@@ -50,8 +50,8 @@
     },
     "Documentation / provenance": {
       "weight": 5,
-      "earned": 1.76,
-      "percent": 35.2
+      "earned": 2.64,
+      "percent": 52.8
     },
     "Device validation": {
       "weight": 5,
@@ -704,16 +704,24 @@
       "id": "P12.3",
       "domain": "Documentation / provenance",
       "weight": 1.25,
-      "state": "TODO",
-      "factor": 0.0,
-      "earned": 0.0,
-      "bucket": "not_started",
-      "evidence_level": "pending",
-      "evidence_paths": [],
-      "evidence_commands": [],
-      "evidence_commit": "pending",
+      "state": "VERIFIED_STATIC",
+      "factor": 0.7,
+      "earned": 0.88,
+      "bucket": "verified",
+      "evidence_level": "verified",
+      "evidence_paths": [
+        "docs/A14_GESTURE_EVENT_CONTRACT.md",
+        "tools/tests/test_gesture_event_contract.py"
+      ],
+      "evidence_commands": [
+        "python -m unittest tools.tests.test_gesture_event_contract",
+        "python -m unittest discover -s tools/tests -p \"test_*.py\"",
+        "python tools/check_document_contracts.py",
+        "python tools/check-invariants.py"
+      ],
+      "evidence_commit": "d189ad12fc50522ada4772fcb6e5afb510469e01",
       "device_evidence": "",
-      "diagnostic": ""
+      "diagnostic": "provenance verified"
     },
     {
       "id": "P12.4",
