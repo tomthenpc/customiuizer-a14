@@ -1365,6 +1365,7 @@ P0 完成后重建，不得删除未解决条目。
 | REPAIR-005 | P1 | Test | COMPLETE | 新增参数化 `InstallerJvmAbiTest`：验证 12 个 installer 类的 `@JvmStatic install/installPostAttach(PackageReadyParam, PrefMap, ...)` 方法签名和 public static 修饰符 | 紧急修复 V2 完成 |
 | DOC-001 | P2 | Docs | IN_PROGRESS | P12.1 lifecycle owner inventory 已验证并提交；剩余 CURRENT architecture、gesture event contract、APK delta | 继续 P12.2+ |
 | A14-UX1 | P2 | UX | VERIFIED_BUILD | 锁屏充电信息字号调节实现、engineering commit d4803d9b、GitHub A14 Fast CI run 30802727418 PASS；实机重叠验证 PENDING | 实机验证 + R2 review |
+| A14-UX2A | P2 | UX | VERIFIED_STATIC | Status Bar / WindowInsets 一致性诊断工具、审计文档和 fixture 测试通过；DeviceEvidence PENDING；UX2B BLOCKED_BY_DIAGNOSTIC_EVIDENCE | 设备证据 + DEX 签名验证 |
 | CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |
 | DEVICE-001 | P1 | Device | BLOCKED_EXTERNAL | 无本轮真实证据 | P15 完成 |
 
