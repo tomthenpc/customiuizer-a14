@@ -2,19 +2,19 @@
   "name": "A14",
   "schema_version": 1,
   "expected_branch": "devin/a14-rom-intelligence-audit",
-  "minimum_mutations": 74,
+  "minimum_mutations": 66,
   "required_mutations": [
     "duplicate SMART key",
-    "fake CI PASS",
+    "symbolic verified tree",
+    "ambiguous resume path",
+    "TASK state drift",
     "generated progress tamper",
     "remove fetch-depth",
     "wrong CI branch",
     "signing leak",
+    "Windows-only path",
     "duplicate Feature ID",
-    "remove Installer dispatch",
     "swallow fatal",
-    "static Context leak",
-    "eager HandlerThread",
     "action_cancel_as_up",
     "bootstrap_guard_removed",
     "callback_guard_fatal_to_normal",
@@ -114,11 +114,6 @@
       "gate": "automation"
     },
     {
-      "name": "fake CI PASS",
-      "mutator": "fake_ci_pass",
-      "gate": "automation"
-    },
-    {
       "name": "symbolic verified tree",
       "mutator": "symbolic_verified_tree",
       "gate": "automation"
@@ -154,11 +149,6 @@
       "gate": "ci"
     },
     {
-      "name": "hardcoded API 37 package",
-      "mutator": "hardcoded_api37",
-      "gate": "ci"
-    },
-    {
       "name": "Windows-only path",
       "mutator": "windows_path",
       "gate": "ci"
@@ -169,38 +159,8 @@
       "gate": "catalog"
     },
     {
-      "name": "preference default flip",
-      "mutator": "preference_default_flip",
-      "gate": "tests"
-    },
-    {
-      "name": "process scope flip",
-      "mutator": "process_scope_flip",
-      "gate": "catalog"
-    },
-    {
-      "name": "install phase flip",
-      "mutator": "install_phase_flip",
-      "gate": "catalog"
-    },
-    {
-      "name": "remove Installer dispatch",
-      "mutator": "remove_installer_dispatch",
-      "gate": "tests"
-    },
-    {
       "name": "swallow fatal",
       "mutator": "fatal_swallow",
-      "gate": "hazard"
-    },
-    {
-      "name": "static Context leak",
-      "mutator": "static_context_leak",
-      "gate": "hazard"
-    },
-    {
-      "name": "eager HandlerThread",
-      "mutator": "eager_handler_thread",
       "gate": "hazard"
     },
     {

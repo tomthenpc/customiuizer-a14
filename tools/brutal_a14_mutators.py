@@ -504,7 +504,7 @@ def statusbar_maths_sign_rounding_drift(root: Path, cfg: dict) -> None:
     _replace_first(
         root,
         _kt_file("tv/withaibuild/customiuizer/mods/utils/StatusbarViewMaths.kt"),
-        r"requested > childCount -> childCount",
+        r"requested > childCount -> childCount(?=\n)",
         r"requested > childCount -> childCount - 1",
     )
 
