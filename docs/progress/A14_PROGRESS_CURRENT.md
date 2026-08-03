@@ -1,9 +1,9 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-03T15:54:31.740285+08:00
-SourceCommit: 6c2a5e5d9ede6d7a4122dbb28583fd263daf416d
-SourceTree: 9eaf6c111d16bb70259c11a9aa483e4fe425d566
+GeneratedAt: 2026-08-03T16:19:23.487729+08:00
+SourceCommit: 4875897410e3a4175a9b289b30dd3369ecc60796
+SourceTree: 905fc35ec6fb1214dd94a203e52680fa6d5533cc
 VerifiedTree: b6e74dcd847f48800b8becf373d97ba76a8c5425
 VerifiedMode: Final
 CIState: PASS
@@ -14,11 +14,11 @@ CICommit: e28b66a2
 
 ## Progress
 
-- ProjectProgress: 5.5%
-- MachineProgress: 5.8%
+- ProjectProgress: 7.0%
+- MachineProgress: 7.4%
 - Stage: BASELINE_AND_CONTROL
 - OpenP0: 4
-- OpenP1: 13
+- OpenP1: 14
 - ExternalBlocks: 2
 
 ## Domain Scores
@@ -31,7 +31,7 @@ CICommit: e28b66a2
 | Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
 | ROM intelligence / compatibility | 10 | 0.0 | 0.0% |
 | Java / Kotlin boundary | 8 | 0.0 | 0.0% |
-| Build / CI / signing / artifacts | 12 | 0.0 | 0.0% |
+| Build / CI / signing / artifacts | 12 | 1.5 | 12.5% |
 | Documentation / provenance | 5 | 3.7 | 74.0% |
 | Device validation | 5 | 0.0 | 0.0% |
 
@@ -75,9 +75,10 @@ CICommit: e28b66a2
 | P10.1 | ROM intelligence / compatibility | 3.33 | BLOCKED_EXTERNAL | 0.0 | 0.0 |
 | P10.2 | ROM intelligence / compatibility | 3.33 | VERIFIED_STATIC | 0.0 | 0.0 |
 | P10.3 | ROM intelligence / compatibility | 3.33 | VERIFIED_STATIC | 0.0 | 0.0 |
-| P11.1 | Build / CI / signing / artifacts | 4.0 | COMPLETE | 0.0 | 0.0 |
-| P11.2 | Build / CI / signing / artifacts | 4.0 | VERIFIED_CI | 0.0 | 0.0 |
-| P11.3 | Build / CI / signing / artifacts | 4.0 | VERIFIED_BUILD | 0.0 | 0.0 |
+| P11.1 | Build / CI / signing / artifacts | 3.0 | COMPLETE | 0.0 | 0.0 |
+| P11.2 | Build / CI / signing / artifacts | 3.0 | VERIFIED_CI | 0.0 | 0.0 |
+| P11.3 | Build / CI / signing / artifacts | 3.0 | VERIFIED_BUILD | 0.0 | 0.0 |
+| P11.4 | Build / CI / signing / artifacts | 3.0 | IN_PROGRESS | 0.5 | 1.5 |
 | P12.1 | Documentation / provenance | 1.25 | VERIFIED_STATIC | 0.7 | 0.88 |
 | P12.2 | Documentation / provenance | 1.25 | VERIFIED_STATIC | 0.7 | 0.88 |
 | P12.3 | Documentation / provenance | 1.25 | VERIFIED_STATIC | 0.7 | 0.88 |

@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-03T15:54:31.740285+08:00",
-  "sourceCommit": "6c2a5e5d9ede6d7a4122dbb28583fd263daf416d",
-  "sourceTree": "9eaf6c111d16bb70259c11a9aa483e4fe425d566",
+  "generatedAt": "2026-08-03T16:19:23.487729+08:00",
+  "sourceCommit": "4875897410e3a4175a9b289b30dd3369ecc60796",
+  "sourceTree": "905fc35ec6fb1214dd94a203e52680fa6d5533cc",
   "verifiedTree": "b6e74dcd847f48800b8becf373d97ba76a8c5425",
   "verifiedMode": "Final",
   "ciState": "PASS",
   "ciRun": "30749749010",
   "ciJob": "91501580779",
   "ciCommit": "e28b66a2",
-  "projectProgress": 5.5,
-  "machineProgress": 5.8,
+  "projectProgress": 7.0,
+  "machineProgress": 7.4,
   "stage": "BASELINE_AND_CONTROL",
   "domainScores": {
     "Baseline and control": {
@@ -45,8 +45,8 @@
     },
     "Build / CI / signing / artifacts": {
       "weight": 12,
-      "earned": 0.0,
-      "percent": 0.0
+      "earned": 1.5,
+      "percent": 12.5
     },
     "Documentation / provenance": {
       "weight": 5,
@@ -609,7 +609,7 @@
     {
       "id": "P11.1",
       "domain": "Build / CI / signing / artifacts",
-      "weight": 4.0,
+      "weight": 3.0,
       "state": "COMPLETE",
       "factor": 0.0,
       "earned": 0.0,
@@ -624,7 +624,7 @@
     {
       "id": "P11.2",
       "domain": "Build / CI / signing / artifacts",
-      "weight": 4.0,
+      "weight": 3.0,
       "state": "VERIFIED_CI",
       "factor": 0.0,
       "earned": 0.0,
@@ -639,7 +639,7 @@
     {
       "id": "P11.3",
       "domain": "Build / CI / signing / artifacts",
-      "weight": 4.0,
+      "weight": 3.0,
       "state": "VERIFIED_BUILD",
       "factor": 0.0,
       "earned": 0.0,
@@ -650,6 +650,25 @@
       "evidence_commit": "pending",
       "device_evidence": "",
       "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
+    },
+    {
+      "id": "P11.4",
+      "domain": "Build / CI / signing / artifacts",
+      "weight": 3.0,
+      "state": "IN_PROGRESS",
+      "factor": 0.5,
+      "earned": 1.5,
+      "bucket": "in_progress",
+      "evidence_level": "partial",
+      "evidence_paths": [],
+      "evidence_commands": [
+        "python tools/brutal_test_runner.py --config tools/brutal_test_config.json hermeticity",
+        "python tools/brutal_test_runner.py --config tools/brutal_test_config.json determinism",
+        "python tools/brutal_test_runner.py --config tools/brutal_test_config.json mutate"
+      ],
+      "evidence_commit": "pending",
+      "device_evidence": "",
+      "diagnostic": ""
     },
     {
       "id": "P12.1",
@@ -809,7 +828,7 @@
     }
   ],
   "openP0": 4,
-  "openP1": 13,
+  "openP1": 14,
   "externalBlocks": 2,
   "notes": "v7 capability-scored snapshot; device domain excluded from machine progress; provenance-gated scoring."
 }
