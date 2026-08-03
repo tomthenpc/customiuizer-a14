@@ -1101,11 +1101,13 @@ dead code 只有机械证据和所有者批准后删除。
 
 # P13 — Discovery sweep
 
-State: `IN_PROGRESS`
+State: `VERIFIED_STATIC`
+
+EvidenceCommit: f0cb517338216b871598e32bd1386fb54fdc17f3
 
 在 P2-P12 各阶段后重复。
 
-本轮 P13 发现（baseline HEAD `c46ffb1a`）：
+本轮 P13 第一次发现（baseline HEAD `c46ffb1a`）：
 
 - 工具：`python tools/source_hazard_scan.py --write-baseline`
 - 输出：`docs/audit/SOURCE_HAZARD_BASELINE.json`
@@ -1117,13 +1119,23 @@ State: `IN_PROGRESS`
   - `STATIC_STRONG_ANDROID_OWNER`：`Context`、`View`、`Drawable` 等对象静态持有风险；
   - `NATIVE_LOAD`：`MainModule.java` 的 `System.loadLibrary`，属于 libxposed 入口。
 
+本轮 P13.2 第二次发现（baseline HEAD `f0cb5173`）：
+
+- 工具：`python tools/source_hazard_scan.py`
+- 输出：`Source hazard scan passed: 1052 reviewed finding(s), 0 new`
+- 结果：`0` 条新增，无 P0/P1，无阻塞
+
+文件：
+
+- `docs/audit/SOURCE_HAZARD_BASELINE.json`（已建立 baseline）
+- `tools/source_hazard_scan.py`
+- `docs/process/tasks/A14-P13.2-SECOND-DISCOVERY-SWEEP.md`
+
 证据：
 
-- `python tools/source_hazard_scan.py` 重新运行通过：`Source hazard scan passed: 415 reviewed finding(s), 0 new`
-- 已建立 baseline，后续 diff 只报告新增 hazard；
-- 本轮未引入新 P0/P1，无阻塞。
-
-下一轮 sweep 条件：连续两轮无新 P0/P1。
+```text
+python tools/source_hazard_scan.py
+```
 
 ---
 
