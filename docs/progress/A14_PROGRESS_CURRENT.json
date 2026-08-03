@@ -1,22 +1,22 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-03T14:16:25.337842+08:00",
-  "sourceCommit": "e6402bea037f22ab942e4252d69d13bbadc9e8ba",
-  "sourceTree": "daa4495c52feb8f76df141a3beee4e97397f0642",
+  "generatedAt": "2026-08-03T14:41:13.625594+08:00",
+  "sourceCommit": "c4ab7e30d26f1357913a5705b9843c73cd9108d3",
+  "sourceTree": "d0a713b5828c3abf7f9d7fb6f519d467d8f4846c",
   "verifiedTree": "b6e74dcd847f48800b8becf373d97ba76a8c5425",
   "verifiedMode": "Final",
   "ciState": "PASS",
   "ciRun": "30749749010",
   "ciJob": "91501580779",
   "ciCommit": "e28b66a2",
-  "projectProgress": 5.2,
-  "machineProgress": 5.5,
+  "projectProgress": 5.5,
+  "machineProgress": 5.8,
   "stage": "BASELINE_AND_CONTROL",
   "domainScores": {
     "Baseline and control": {
       "weight": 8,
-      "earned": 0.7,
-      "percent": 8.8
+      "earned": 1.0,
+      "percent": 12.5
     },
     "Runtime architecture / routing / ownership": {
       "weight": 22,
@@ -761,20 +761,34 @@
       "id": "P13",
       "domain": "Baseline and control",
       "weight": 1.0,
-      "state": "VERIFIED_STATIC",
-      "factor": 0.7,
-      "earned": 0.7,
-      "bucket": "verified",
+      "state": "COMPLETE",
+      "factor": 1.0,
+      "earned": 1.0,
+      "bucket": "complete",
       "evidence_level": "verified",
       "evidence_paths": [
         "docs/audit/SOURCE_HAZARD_BASELINE.json",
-        "tools/source_hazard_scan.py",
-        "docs/process/tasks/A14-P13.2-SECOND-DISCOVERY-SWEEP.md"
+        "docs/audit/A14_DISCOVERY_SWEEP_2.md",
+        "docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md",
+        "docs/process/tasks/A14-P13.2-SECOND-DISCOVERY-SWEEP.md",
+        "TASK_STATE.md"
       ],
       "evidence_commands": [
-        "python tools/source_hazard_scan.py"
+        "python tools/source_hazard_scan.py",
+        "python tools/audit_hook_ownership.py",
+        "python tools/audit-feature-semantics.py --validate",
+        "python tools/extract_process_matrix.py",
+        "python -m unittest discover -s tools/tests -p \"test_*.py\"",
+        "python tools/check_document_contracts.py",
+        "python tools/check-invariants.py",
+        "python tools/check_automation_state.py",
+        "python tools/progress_snapshot.py --check",
+        "python tools/verify.py full",
+        "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\verify.ps1 -Mode Full",
+        "git diff --check",
+        "git ls-files *.apk *.aab"
       ],
-      "evidence_commit": "f0cb517338216b871598e32bd1386fb54fdc17f3",
+      "evidence_commit": "cd152365a1b258a7b36e978d1050db71f427fa83",
       "device_evidence": "",
       "diagnostic": "provenance verified"
     },
@@ -795,7 +809,7 @@
     }
   ],
   "openP0": 4,
-  "openP1": 14,
+  "openP1": 13,
   "externalBlocks": 2,
   "notes": "v7 capability-scored snapshot; device domain excluded from machine progress; provenance-gated scoring."
 }

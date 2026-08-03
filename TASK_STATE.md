@@ -1101,9 +1101,9 @@ dead code 只有机械证据和所有者批准后删除。
 
 # P13 — Discovery sweep
 
-State: `VERIFIED_STATIC`
+State: `COMPLETE`
 
-EvidenceCommit: f0cb517338216b871598e32bd1386fb54fdc17f3
+EvidenceCommit: c4ab7e30d26f1357913a5705b9843c73cd9108d3
 
 在 P2-P12 各阶段后重复。
 
@@ -1121,20 +1121,34 @@ EvidenceCommit: f0cb517338216b871598e32bd1386fb54fdc17f3
 
 本轮 P13.2 第二次发现（baseline HEAD `f0cb5173`）：
 
-- 工具：`python tools/source_hazard_scan.py`
-- 输出：`Source hazard scan passed: 1052 reviewed finding(s), 0 new`
-- 结果：`0` 条新增，无 P0/P1，无阻塞
+- 工具：完整 discovery sweep 审计套件
+- 输出：`docs/audit/A14_DISCOVERY_SWEEP_2.md`
+- 结果：`0` 条新增，连续两轮无 P0/P1，无阻塞，结论 `NO_NEW_P0_P1`
 
 文件：
 
 - `docs/audit/SOURCE_HAZARD_BASELINE.json`（已建立 baseline）
-- `tools/source_hazard_scan.py`
+- `docs/audit/A14_DISCOVERY_SWEEP_2.md`
+- `docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md`
 - `docs/process/tasks/A14-P13.2-SECOND-DISCOVERY-SWEEP.md`
+- `TASK_STATE.md`
 
 证据：
 
 ```text
 python tools/source_hazard_scan.py
+python tools/audit_hook_ownership.py
+python tools/audit-feature-semantics.py --validate
+python tools/extract_process_matrix.py
+python -m unittest discover -s tools/tests -p "test_*.py"
+python tools/check_document_contracts.py
+python tools/check-invariants.py
+python tools/check_automation_state.py
+python tools/progress_snapshot.py --check
+python tools/verify.py full
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Full
+git diff --check
+git ls-files *.apk *.aab
 ```
 
 ---

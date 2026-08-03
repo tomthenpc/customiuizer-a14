@@ -1,9 +1,9 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-03T14:16:25.337842+08:00
-SourceCommit: e6402bea037f22ab942e4252d69d13bbadc9e8ba
-SourceTree: daa4495c52feb8f76df141a3beee4e97397f0642
+GeneratedAt: 2026-08-03T14:41:13.625594+08:00
+SourceCommit: c4ab7e30d26f1357913a5705b9843c73cd9108d3
+SourceTree: d0a713b5828c3abf7f9d7fb6f519d467d8f4846c
 VerifiedTree: b6e74dcd847f48800b8becf373d97ba76a8c5425
 VerifiedMode: Final
 CIState: PASS
@@ -14,18 +14,18 @@ CICommit: e28b66a2
 
 ## Progress
 
-- ProjectProgress: 5.2%
-- MachineProgress: 5.5%
+- ProjectProgress: 5.5%
+- MachineProgress: 5.8%
 - Stage: BASELINE_AND_CONTROL
 - OpenP0: 4
-- OpenP1: 14
+- OpenP1: 13
 - ExternalBlocks: 2
 
 ## Domain Scores
 
 | Domain | Weight | Earned | Percent |
 |---|---:|---:|---:|
-| Baseline and control | 8 | 0.7 | 8.8% |
+| Baseline and control | 8 | 1.0 | 12.5% |
 | Runtime architecture / routing / ownership | 22 | 0.0 | 0.0% |
 | Runtime safety / lifecycle / concurrency | 18 | 0.84 | 4.7% |
 | Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
@@ -82,7 +82,7 @@ CICommit: e28b66a2
 | P12.2 | Documentation / provenance | 1.25 | VERIFIED_STATIC | 0.7 | 0.88 |
 | P12.3 | Documentation / provenance | 1.25 | VERIFIED_STATIC | 0.7 | 0.88 |
 | P12.4 | Documentation / provenance | 1.25 | VERIFIED_BUILD | 0.85 | 1.06 |
-| P13 | Baseline and control | 1.0 | VERIFIED_STATIC | 0.7 | 0.7 |
+| P13 | Baseline and control | 1.0 | COMPLETE | 1.0 | 1.0 |
 | DEVICE-001 | Device validation | 5 | BLOCKED_EXTERNAL | 0.0 | 0.0 |
 
 ## Notes
