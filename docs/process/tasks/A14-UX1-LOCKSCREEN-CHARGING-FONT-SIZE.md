@@ -9,10 +9,10 @@
 | State | VERIFIED_BUILD |
 | Risk Tier | R2 |
 | Baseline commit | b1ba94726b450b5c556eb3d7e32a6510d840eb4f (expected); owner-authorized current HEAD with existing P11.4 work |
-| Final commit | 0f1258b0b0c546226dd46070f284c15da79706ef |
+| Engineering commit | d4803d9b1e235f4ca52cfe354aed04aa0d796b89 |
 | ReviewerDecision | PENDING |
 | DeviceEvidence | PENDING |
-| CI | GitHub A14 Fast CI run 30803591420 job 91653745640 PASS |
+| CI | GitHub A14 Fast CI run 30802727418 job 91650906498 PASS (7m33s) |
 
 ---
 
@@ -96,7 +96,7 @@
 | `python tools/progress_snapshot.py --check` | PASS (Progress snapshot is fresh) |
 | `python tools/verify.py fast` | PASS |
 | `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast` | PASS |
-| GitHub A14 Fast CI (run 30803591420, job 91653745640) | PASS (7m30s) |
+| GitHub A14 Fast CI (run 30802727418, job 91650906498) | PASS (7m33s) |
 
 APK output: `app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk`
 
