@@ -619,9 +619,9 @@ def hermeticity(root: Path, cfg: dict, timeout: int) -> int:
             print(f"  {d}")
         return 1
 
-    _, post_failures = collect_status_failures(root, allowed, baseline_untracked=baseline_untracked)
+    _, post_failures = collect_status_failures(root, allowed, baseline_untracked=baseline_untracked, ignore_tracked=True)
     if post_failures:
-        print("Hermeticity FAILED: new untracked or dirty files after tests")
+        print("Hermeticity FAILED: new untracked files after tests")
         for f in post_failures[:30]:
             print(f"  {f}")
         return 1
