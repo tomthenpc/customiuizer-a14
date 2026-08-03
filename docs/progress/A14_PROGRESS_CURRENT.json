@@ -1,8 +1,8 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-03T14:41:13.625594+08:00",
-  "sourceCommit": "c4ab7e30d26f1357913a5705b9843c73cd9108d3",
-  "sourceTree": "d0a713b5828c3abf7f9d7fb6f519d467d8f4846c",
+  "generatedAt": "2026-08-03T14:44:08.763930+08:00",
+  "sourceCommit": "857e78059488990267688891aa837772a10fce21",
+  "sourceTree": "572582ba2463a0fec9843692468c2ad1ea79fadf",
   "verifiedTree": "b6e74dcd847f48800b8becf373d97ba76a8c5425",
   "verifiedMode": "Final",
   "ciState": "PASS",
@@ -788,7 +788,7 @@
         "git diff --check",
         "git ls-files *.apk *.aab"
       ],
-      "evidence_commit": "cd152365a1b258a7b36e978d1050db71f427fa83",
+      "evidence_commit": "c4ab7e30d26f1357913a5705b9843c73cd9108d3",
       "device_evidence": "",
       "diagnostic": "provenance verified"
     },
