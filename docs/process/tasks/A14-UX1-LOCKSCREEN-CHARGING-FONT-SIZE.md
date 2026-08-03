@@ -8,9 +8,11 @@
 | Priority | P2 |
 | State | VERIFIED_BUILD |
 | Risk Tier | R2 |
-| Baseline commit | b1ba94726b450b5c556eb3d7e32a6510d840eb4f (expected) / db75c277724bf16979835d69f55510e602bc19e6 (actual HEAD, owner-authorized) |
+| Baseline commit | b1ba94726b450b5c556eb3d7e32a6510d840eb4f (expected); owner-authorized current HEAD with existing P11.4 work |
+| Final commit | d4803d9b1e235f4ca52cfe354aed04aa0d796b89 |
 | ReviewerDecision | PENDING |
 | DeviceEvidence | PENDING |
+| CI | GitHub A14 Fast CI run 30802727418 job 91650906498 PASS |
 
 ---
 
@@ -84,16 +86,19 @@
 
 | 命令 | 状态 |
 |---|---|
-| `python -m unittest tools.tests.test_charging_info_font_size_contract` | PASS |
-| `python -m unittest discover -s tools/tests -p "test_*.py"` | 待运行 |
-| `gradlew.bat --no-daemon :app:testDebugUnitTest` | 待运行 |
-| `gradlew.bat --no-daemon :app:assembleDebug` | 待运行 |
-| `python tools/check_document_contracts.py` | 待运行 |
-| `python tools/check-invariants.py` | 待运行 |
-| `python tools/check_automation_state.py` | 待运行 |
-| `python tools/progress_snapshot.py --check` | 待运行 |
-| `python tools/verify.py fast` | 待运行 |
-| `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast` | 待运行 |
+| `python -m unittest tools.tests.test_charging_info_font_size_contract` | PASS (10/10) |
+| `python -m unittest discover -s tools/tests -p "test_*.py"` | PASS (252/252) |
+| `gradlew.bat --no-daemon :app:testDebugUnitTest` | PASS (ChargingInfoFontSizeTest 3/3) |
+| `gradlew.bat --no-daemon :app:assembleDebug` | BUILD SUCCESSFUL |
+| `python tools/check_document_contracts.py` | PASS |
+| `python tools/check-invariants.py` | PASS (199 files, no violations) |
+| `python tools/check_automation_state.py` | PASS |
+| `python tools/progress_snapshot.py --check` | PASS (Progress snapshot is fresh) |
+| `python tools/verify.py fast` | PASS |
+| `powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast` | PASS |
+| GitHub A14 Fast CI (run 30802727418, job 91650906498) | PASS (7m33s) |
+
+APK output: `app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk`
 
 ---
 
