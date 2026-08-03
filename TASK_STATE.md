@@ -980,7 +980,7 @@ State: `IN_PROGRESS`
 
 TaskId: `A14-P11.4R1`
 RiskTier: `R3`
-State: `IN_PROGRESS`
+State: `VERIFIED_CI`
 
 文件：
 
@@ -1018,7 +1018,11 @@ python tools/brutal_test_runner.py --config tools/brutal_test_config.json mutate
 python tools/progress_snapshot.py --check
 ```
 
-退出码：待通过。
+退出码：0 / 0 / 0 / 0
+
+CI：`https://github.com/tomthenpc/customiuizer-a14/actions/runs/30802727418`（A14 Fast CI, all green）
+提交：`f5843d6a`（P11.4R1 主体）, `ad2f0296`（后续 hermeticity hash-diff 修复）
+关键结果：Brutal suite fast subset、Full machine verifier、Safe debug and develop builds 全部通过。
 
 ---
 
