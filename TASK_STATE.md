@@ -575,6 +575,48 @@ State: `COMPLETE`
 0
 ```
 
+## P6.1A Status bar dispatcher/controller 注册泄漏与重复 hook
+
+State: `VERIFIED_BUILD`
+
+Task: A14-P6.1A
+Priority: P1
+Files:
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrations.kt`（新增）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt`
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrationsTest.kt`（新增）
+- `tools/check-invariants.py`（新增 `status-bar-registration-cleanup` 规则）
+
+Original behavior（本轮全仓审计发现，交叉核实过代码）：
+
+- `DualRowsStatusbarHook` 与 netspeed 第二行、`moveLeft` 路径通过 `addDarkReceiver` / `addIconGroup` 把模块 View / DarkIconManager 注册进 SystemUI 单例，但全仓不存在任何 `removeDarkReceiver` / `removeIconGroup`。系统侧强引用使 P6.1 的 `WeakReference` 注册表失效：状态栏因主题/密度/折叠重建后，旧代 View 永远可达，持续接收 dark 回调，且 2s tick 继续更新 detached View。
+- `setNetworkSpeedIcon` hook 在 `onFinishInflate` 内部安装且无进程级 once 守卫（`dualRowsLayoutAdded` 是 per-instance 标记），每次状态栏重建叠加一个重复 hook，各自持有旧代 `secondRight`。
+- `moveLeft` 的 `onAttachedToWindow` 在容器被 SystemUI 移除后重建新 `DarkIconManager` 并再次 `addIconGroup`，从不移除旧 group。
+
+Invariant：模块在系统单例中的注册必须有释放路径；同一 hook 每进程只安装一次。
+
+Implementation：
+
+- 新增 `OwnedRegistrations`：按 owner（状态栏 View 代际）登记 cleanup，`cleanupWhere` 逐项隔离普通失败、fatal 直接传播（`FatalErrors.rethrowIfFatal`）。
+- `SystemUIStatusBarHooks` 增加 `statusBarRegistrations` + `statusBarGeneration`；`onFinishInflate` / `onAttachedToWindow` 作为代际边界清理非当前代注册（`removeDarkReceiver` / `removeIconGroup`，均 `callMethodSilently` 容忍 ROM 差异）。
+- `setNetworkSpeedIcon` hook 改为进程级 once（`netSpeedSecondRowHookInstalled`），当前 `secondRight` 经 `WeakReference` 传递，View 按 tag `customiuizer_netspeed_row2` 按代查找/重建。
+- `moveLeft` 路径缓存 `leftIconManager`（additional instance field），同实例 re-attach 重建前先 `removeIconGroup` 旧 manager。
+- `check-invariants.py` 新增 `status-bar-registration-cleanup` 规则：addDarkReceiver/removeDarkReceiver 配平、addIconGroup 必须有 removeIconGroup、代际清理与 once 守卫必须存在。
+
+Commands / Exit codes：
+
+```text
+python tools/check-invariants.py                                  -> 0 (200 files, no violations)
+.\gradlew.bat :app:testDebugUnitTest --tests ...OwnedRegistrationsTest -> 0
+powershell ... scripts\verify.ps1 -Mode Fast                      -> 0
+python -m unittest discover -s tools/tests -p "test_*.py"          -> 0 (Ran 277, OK)
+.\gradlew.bat :app:testReleaseUnitTest assembleDebug assembleRelease -> 见提交记录
+```
+
+Device evidence: `NOT_EXERCISED`（真机需验证：主题/深色切换与折叠/DPI 变化后状态栏自定义图标只存在一代、dark 着色仍正确、netspeed 第二行只出现一次）。
+
+Risks：`removeDarkReceiver` / `removeIconGroup` 在个别 HyperOS 变体缺失时由 `callMethodSilently` 降级为原泄漏行为（不劣化于修复前）；双状态栏实例（多显示）场景下代际模型假设单实例，已在注释中说明。
+
 ## P6.2 周期与监控
 
 State: `COMPLETE`

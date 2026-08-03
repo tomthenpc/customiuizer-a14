@@ -1431,6 +1431,59 @@ def check_gesture_side_effect_gate_owner_cleanup(path: Path, text: str) -> list[
     return findings
 
 
+def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding]:
+    """Status bar dispatcher/controller registrations must have a release path.
+
+    DarkIconDispatcher.addDarkReceiver and StatusBarIconController.addIconGroup make SystemUI
+    singletons hold strong references to module Views. Without a matching removeDarkReceiver /
+    removeIconGroup at the next status bar generation, every theme/density/fold re-inflation
+    leaks the previous View tree and keeps feeding callbacks into detached views. A weak-ref
+    registry alone cannot fix this because the system side keeps the views strongly reachable.
+    """
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt":
+        return []
+    findings = []
+    add_receiver = len(re.findall(r'"addDarkReceiver"', text))
+    remove_receiver = len(re.findall(r'"removeDarkReceiver"', text))
+    if add_receiver > remove_receiver:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                1,
+                f"{add_receiver} addDarkReceiver call(s) but only {remove_receiver} removeDarkReceiver release path(s)",
+            )
+        )
+    if '"addIconGroup"' in text and '"removeIconGroup"' not in text:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                1,
+                "addIconGroup without any removeIconGroup release path",
+            )
+        )
+    if "cleanupStaleStatusBarRegistrations" not in text:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                1,
+                "missing cleanupStaleStatusBarRegistrations generation-boundary cleanup",
+            )
+        )
+    if '"setNetworkSpeedIcon"' in text and "netSpeedSecondRowHookInstalled" not in text:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                1,
+                "setNetworkSpeedIcon hook must be guarded by a process-level once flag; installing it per onFinishInflate stacks duplicate hooks on every status bar re-inflation",
+            )
+        )
+    return findings
+
+
 RULES = (
     check_gesture_hot_path_no_reflection,
     check_gesture_machine_dispatch_rejects_intercept,
@@ -1449,6 +1502,7 @@ RULES = (
     check_gesture_control_center_no_ishooked,
     check_gesture_stress_no_bypass,
     check_gesture_side_effect_gate_owner_cleanup,
+    check_status_bar_registration_cleanup,
     check_guard_framework_callbacks,
     check_guard_framework_callbacks,
     check_guard_deferred_callbacks,
