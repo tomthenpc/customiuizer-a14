@@ -579,43 +579,78 @@ State: `COMPLETE`
 
 State: `VERIFIED_BUILD`
 
-Task: A14-P6.1A
+Task: A14-P6.1A-R1（re-attempt：修复上一轮 rejected 的 review 项）
 Priority: P1
 Files:
-- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrations.kt`（新增）
-- `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt`
-- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrationsTest.kt`（新增）
-- `tools/check-invariants.py`（新增 `status-bar-registration-cleanup` 规则）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrations.kt`（重写：弱 owner、exact-once handle、重入安全）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/StatusBarDisplayRegistry.kt`（新增）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/HookInstallStateMachine.kt`（新增）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/RegistrationReleases.kt`（新增）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/FatalErrors.kt`（扩展 unwrap 边界）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt`（hook 失败边界）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt`（per-display 生命周期）
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrationsTest.kt`（扩展）
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/StatusBarDisplayRegistryTest.kt`（新增）
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/HookInstallStateMachineTest.kt`（新增）
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/RegistrationReleasesTest.kt`（新增）
+- `tools/check-invariants.py`（status-bar-registration-cleanup 结构规则重写）
+- `tools/tests/test_status_bar_registration_invariants.py`（新增反例测试）
+- `docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md`（行号/数量更新）
 
-Original behavior（本轮全仓审计发现，交叉核实过代码）：
+Original behavior（R1 修复前本轮复核仍存在的问题）：
 
-- `DualRowsStatusbarHook` 与 netspeed 第二行、`moveLeft` 路径通过 `addDarkReceiver` / `addIconGroup` 把模块 View / DarkIconManager 注册进 SystemUI 单例，但全仓不存在任何 `removeDarkReceiver` / `removeIconGroup`。系统侧强引用使 P6.1 的 `WeakReference` 注册表失效：状态栏因主题/密度/折叠重建后，旧代 View 永远可达，持续接收 dark 回调，且 2s tick 继续更新 detached View。
-- `setNetworkSpeedIcon` hook 在 `onFinishInflate` 内部安装且无进程级 once 守卫（`dualRowsLayoutAdded` 是 per-instance 标记），每次状态栏重建叠加一个重复 hook，各自持有旧代 `secondRight`。
-- `moveLeft` 的 `onAttachedToWindow` 在容器被 SystemUI 移除后重建新 `DarkIconManager` 并再次 `addIconGroup`，从不移除旧 group。
+- `OwnedRegistrations` 只返回 opaque token，无 exact-once handle；重入 cleanup 可能重复执行；owner 是强引用，无法被回收；`cleanupWhere` 是单阶段直接遍历，回调里再次 `register/cleanup` 会修改 live list。
+- `SystemUIStatusBarHooks` 使用单一全局 `statusBarRegistrations` + `statusBarGeneration`：多显示/折叠/多实例下旧实例互相清理、新实例错误清理另一显示的当前实例；`netSpeedSecondRowRef` 全局，只保存最近一个 second-row；`setNetworkSpeedIcon` hook 用 `hookAllMethods`（非 silent）且 `netSpeedSecondRowHookInstalled = true` 在调用之前设置，失败后不会恢复 retryable，安装异常被吞。
+- `moveLeft` re-attach 路径仍手动 `ModuleHelper.callMethodSilently(iconController, "removeIconGroup", staleManager)`，无 handle，重复调用会多次尝试移除。
+- `ModuleHelper.hookAllMethodsSilently` 只 rethrow `OutOfMemoryError`，`ThreadDeath` / `VirtualMachineError` 以及 `XposedHelpers.InvocationTargetError` 包裹的 fatal 可能被标记为失败并吞掉。
+- `tools/check-invariants.py` 的 `status-bar-registration-cleanup` 规则只统计字符串，无法识别 M6/M7a 等反例。
 
-Invariant：模块在系统单例中的注册必须有释放路径；同一 hook 每进程只安装一次。
+Invariant（R1 强化）：
+
+- 状态栏注册以 display + View 代际为 owner，不得使用全局单 generation；null display 必须按 View identity 隔离。
+- `addDarkReceiver` / `addIconGroup` 必须配对 `removeDarkReceiver` / `removeIconGroup`，且 cleanup 与 add 参数严格一致。
+- `setNetworkSpeedIcon` hook 安装使用显式状态机：`UNINSTALLED -> INSTALLING -> INSTALLED|UNINSTALLED`；只有 `hookAllMethodsSilently` 返回成功才进入 `INSTALLED`；class/method 缺失或普通异常后恢复 `UNINSTALLED` 可重试；fatal error 按 `FatalErrors` 传播。
+- 所有 `catch(Throwable)` 在 reflection/Xposed 边界上先 `unwrapAndRethrowIfFatal`。
+- 回调若不在主线程，不直接访问 View；提取不可变数据并 `post` 到目标 row；posted runnable 重新校验 row 仍属于当前 display generation。
 
 Implementation：
 
-- 新增 `OwnedRegistrations`：按 owner（状态栏 View 代际）登记 cleanup，`cleanupWhere` 逐项隔离普通失败、fatal 直接传播（`FatalErrors.rethrowIfFatal`）。
-- `SystemUIStatusBarHooks` 增加 `statusBarRegistrations` + `statusBarGeneration`；`onFinishInflate` / `onAttachedToWindow` 作为代际边界清理非当前代注册（`removeDarkReceiver` / `removeIconGroup`，均 `callMethodSilently` 容忍 ROM 差异）。
-- `setNetworkSpeedIcon` hook 改为进程级 once（`netSpeedSecondRowHookInstalled`），当前 `secondRight` 经 `WeakReference` 传递，View 按 tag `customiuizer_netspeed_row2` 按代查找/重建。
-- `moveLeft` 路径缓存 `leftIconManager`（additional instance field），同实例 re-attach 重建前先 `removeIconGroup` 旧 manager。
-- `check-invariants.py` 新增 `status-bar-registration-cleanup` 规则：addDarkReceiver/removeDarkReceiver 配平、addIconGroup 必须有 removeIconGroup、代际清理与 once 守卫必须存在。
+- `OwnedRegistrations`：使用 `WeakReference<V>` owner；返回 `RegistrationHandle`，`cleanupNow` 严格一次；`cleanupWhere` 先 snapshot 再运行，重入安全；cleanup 失败逐项隔离，fatal 通过 `FatalErrors.unwrapAndRethrowIfFatal` 传播。
+- `StatusBarDisplayRegistry`：按 `displayId` 维护 `StatusBarDisplayState`（generation + secondRow + `OwnedRegistrations`）；null display 使用 `IdentityHashMap` 临时 bucket；`bind()` 迁移 pending、替换旧 generation 时全量清理旧注册；`prune()` 移除 dead display/pending states。
+- `HookInstallStateMachine`：提供 `UNINSTALLED/INSTALLING/INSTALLED` 三态，`install { }` 保证同一进程只安装一次；异常路径先置 `UNINSTALLED` 再 fatal rethrow；非 fatal 失败返回 `false`。
+- `RegistrationReleases`：`releaseRegistrationSilently` 统一处理 target-null、method-missing 和 invocation failure，记录 `HookDiagnostics`（仅字符串/状态/异常类型），并 `unwrapAndRethrowIfFatal`。
+- `SystemUIStatusBarHooks`：`DualRowsStatusbarHook` 与 `moveLeft` 的 `onAttachedToWindow` 均 `bind` 到 per-display state；network speed second row 存于 `state.secondRow`；network speed hook 通过 `installNetSpeedSecondRowHook` 安装；回调 `netSpeedSecondRowHookCallback` 遍历所有 display state，主线程外 `row.post`，校验 `isAttachedToWindow` / owner / row 一致后创建/更新 view；dark receiver / icon group 使用 `releaseRegistrationSilently` 通过 handle 清理；left icon manager 保存 `leftIconRegistrationHandle` additional instance field。
+- `ModuleHelper`：`hookAllMethodsSilently`/`hookAllMethods`/`hookMethod`/`findAndHookConstructor`/`hookAllConstructors` 全部改为先 `FatalErrors.unwrapAndRethrowIfFatal(t)`，再记录/返回/日志。
+- `FatalErrors`：`unwrapAndRethrowIfFatal` 增加对 `XposedHelpers.InvocationTargetError` 的解包。
+- `tools/check-invariants.py`：`check_status_bar_registration_cleanup` 结构规则重写：检测旧全局 state、检测 add/remove 参数一致性、检测 `leftIconRegistrationHandle`、检测 `HookInstallStateMachine` / `StatusBarDisplayRegistry`、禁止手动 `ModuleHelper.callMethodSilently` remove。
 
 Commands / Exit codes：
 
 ```text
-python tools/check-invariants.py                                  -> 0 (200 files, no violations)
-.\gradlew.bat :app:testDebugUnitTest --tests ...OwnedRegistrationsTest -> 0
-powershell ... scripts\verify.ps1 -Mode Fast                      -> 0
-python -m unittest discover -s tools/tests -p "test_*.py"          -> 0 (Ran 277, OK)
-.\gradlew.bat :app:testReleaseUnitTest assembleDebug assembleRelease -> 见提交记录
+python tools/check-invariants.py                                  -> 0 (203 files, no violations)
+.\gradlew.bat :app:testDebugUnitTest                                -> 0
+python -m unittest discover -s tools/tests -p "test_*.py"           -> 0 (Ran 286, OK)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast -> 0
+.\gradlew.bat :app:lintDebug                                        -> 0
 ```
 
-Device evidence: `NOT_EXERCISED`（真机需验证：主题/深色切换与折叠/DPI 变化后状态栏自定义图标只存在一代、dark 着色仍正确、netspeed 第二行只出现一次）。
+Tests（新增/扩展）：
 
-Risks：`removeDarkReceiver` / `removeIconGroup` 在个别 HyperOS 变体缺失时由 `callMethodSilently` 降级为原泄漏行为（不劣化于修复前）；双状态栏实例（多显示）场景下代际模型假设单实例，已在注释中说明。
+- `OwnedRegistrationsTest`：handle exact-once、cleanup after generation、reentrant cleanup、weak owner collection、fatal propagation、failure isolation。
+- `StatusBarDisplayRegistryTest`：bind、pending isolation、same-display replacement cleanup、cross-display isolation、same owner reattach、pending migration、prune dead states、multi-display second rows。
+- `HookInstallStateMachineTest`：first failure retryable、second success、success only once、reentrant install ignored、fatal error propagates and resets、`LinkageError`/`NoSuchMethodError` non-fatal retryable。
+- `RegistrationReleasesTest`：successful release、target null silently skipped、missing method recorded、release failure recorded、fatal propagates。
+- `tools/tests/test_status_bar_registration_invariants.py`：clean source passes + 8 counterexamples for M6/M7a/global state/delete cleanup/wrong args/etc.
+
+CI：`Fast` 通过；`lintDebug` / `Full` 尚未执行，需要在提交后由 GitHub Actions 确认。
+
+Device evidence: `NOT_EXERCISED`（真机需验证：多显示/折叠/DPI/主题切换后，各 display 状态栏自定义图标只存在当前代、dark 着色正确、netspeed 第二行按 display 更新、left icons 无重复 group）。
+
+Risks：
+
+- `View.context.display` 在部分 ROM 上可能为 null，已提供 null display 临时 bucket + `onAttachedToWindow` 迁移。
+- `releaseRegistrationSilently` 对 `XposedHelpers.InvocationTargetError` 解包后 fatal 仍传播，非 fatal 被记录但不会影响当前功能。
+- 多显示场景依赖 `View.display.displayId` / `Context.display.displayId`，与 SystemUI 实际 display 映射一致；若 ROM 在 `onFinishInflate` 时仍未绑定 display，会保留 pending 直到 attach。
 
 ## P6.2 周期与监控
 

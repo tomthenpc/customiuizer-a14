@@ -96,7 +96,8 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
-                XposedHelpers.log("Failed to hook " + method.name + " method")
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log("Failed to hook " + method.name + " method: " + toReport.javaClass.simpleName)
                 HookDiagnostics.record(
                     PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.METHOD,
@@ -104,7 +105,7 @@ class ModuleHelper private constructor() {
                     method.name,
                     method.descriptor(),
                     HookDiagnostics.Status.INSTALL_FAILED,
-                    t.javaClass.simpleName,
+                    toReport.javaClass.simpleName,
                 )
                 null
             }
@@ -169,9 +170,10 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
-                XposedHelpers.log("Failed to hook constructor in " + className)
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log("Failed to hook constructor in " + className + ": " + toReport.javaClass.simpleName)
                 val status = when {
-                    HookDiagnostics.isMemberMissingException(t) -> HookDiagnostics.Status.TARGET_MEMBER_MISSING
+                    HookDiagnostics.isMemberMissingException(toReport) -> HookDiagnostics.Status.TARGET_MEMBER_MISSING
                     else -> HookDiagnostics.Status.INSTALL_FAILED
                 }
                 HookDiagnostics.record(
@@ -181,7 +183,7 @@ class ModuleHelper private constructor() {
                     "<init>",
                     HookInstallerFacade.argList(*parameterTypesAndCallback),
                     status,
-                    t.javaClass.simpleName,
+                    toReport.javaClass.simpleName,
                 )
                 null
             }
@@ -227,7 +229,8 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
-                XposedHelpers.log(t)
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log(toReport)
                 HookDiagnostics.record(
                     PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_CONSTRUCTORS,
@@ -235,7 +238,7 @@ class ModuleHelper private constructor() {
                     "<all>",
                     "",
                     HookDiagnostics.Status.INSTALL_FAILED,
-                    t.javaClass.simpleName,
+                    toReport.javaClass.simpleName,
                 )
             }
         }
@@ -279,7 +282,8 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
-                XposedHelpers.log(t)
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log(toReport)
                 HookDiagnostics.record(
                     PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_CONSTRUCTORS,
@@ -287,7 +291,7 @@ class ModuleHelper private constructor() {
                     "<all>",
                     "",
                     HookDiagnostics.Status.INSTALL_FAILED,
-                    t.javaClass.simpleName,
+                    toReport.javaClass.simpleName,
                 )
             }
         }
@@ -332,7 +336,8 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
-                XposedHelpers.log(t)
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log(toReport)
                 HookDiagnostics.record(
                     PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
@@ -340,7 +345,7 @@ class ModuleHelper private constructor() {
                     methodName,
                     "",
                     HookDiagnostics.Status.INSTALL_FAILED,
-                    t.javaClass.simpleName,
+                    toReport.javaClass.simpleName,
                 )
             }
         }
@@ -384,7 +389,8 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
-                XposedHelpers.log(t)
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log(toReport)
                 HookDiagnostics.record(
                     PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
@@ -392,7 +398,7 @@ class ModuleHelper private constructor() {
                     methodName,
                     "",
                     HookDiagnostics.Status.INSTALL_FAILED,
-                    t.javaClass.simpleName,
+                    toReport.javaClass.simpleName,
                 )
             }
         }
@@ -439,14 +445,20 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                val status = if (HookDiagnostics.isMemberMissingException(toReport)) {
+                    HookDiagnostics.Status.TARGET_MEMBER_MISSING
+                } else {
+                    HookDiagnostics.Status.INSTALL_FAILED
+                }
                 HookDiagnostics.record(
                     PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
                     "",
-                    HookDiagnostics.Status.SILENTLY_SKIPPED,
-                    t.javaClass.simpleName,
+                    status,
+                    toReport.javaClass.simpleName,
                 )
                 false
             }
@@ -482,14 +494,20 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                val status = if (HookDiagnostics.isMemberMissingException(toReport)) {
+                    HookDiagnostics.Status.TARGET_MEMBER_MISSING
+                } else {
+                    HookDiagnostics.Status.INSTALL_FAILED
+                }
                 HookDiagnostics.record(
                     PreferenceObserverRegistry.processName(),
                     HookDiagnostics.Kind.ALL_METHODS,
                     className,
                     methodName,
                     "",
-                    HookDiagnostics.Status.SILENTLY_SKIPPED,
-                    t.javaClass.simpleName,
+                    status,
+                    toReport.javaClass.simpleName,
                 )
                 false
             }

@@ -43,6 +43,7 @@ object FatalErrors {
             current = when (current) {
                 is InvocationTargetException -> current.cause
                 is ExecutionException -> current.cause
+                is XposedHelpers.InvocationTargetError -> current.cause
                 else -> null
             }
             depth++

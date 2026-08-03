@@ -10,6 +10,7 @@ import android.net.NetworkCapabilities
 import android.net.TrafficStats
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.os.Message
 import android.provider.Settings
 import android.telephony.SubscriptionInfo
@@ -32,10 +33,15 @@ import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
+import tv.withaibuild.customiuizer.mods.utils.HookInstallStateMachine
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.OwnedRegistrations
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
+import tv.withaibuild.customiuizer.mods.utils.StatusBarDisplayRegistry
+import tv.withaibuild.customiuizer.mods.utils.StatusBarDisplayState
+import tv.withaibuild.customiuizer.mods.utils.releaseRegistrationSilently
 import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
@@ -244,23 +250,116 @@ object SystemUIStatusBarHooks {
      * previous generation are removed (removeDarkReceiver / removeIconGroup) whenever a newer
      * generation appears. All access is on the SystemUI main thread.
      */
-    private val statusBarRegistrations = OwnedRegistrations<View>()
-
-    /** The most recent MiuiPhoneStatusBarView instance; older instances are a dead generation. */
-    private var statusBarGeneration: WeakReference<View>? = null
+    /**
+     * Per-display status bar state. SystemUI may host multiple status bars (fold cover,
+     * external display, etc.); each display has its own generation, second row and
+     * registration list so a new generation on display 0 cannot clean a live status bar
+     * on display 1.
+     */
+    private val statusBarDisplayRegistry = StatusBarDisplayRegistry<View, LinearLayout>()
 
     /** Tag on the module-inflated second-row network speed view, used to find it again per generation. */
     private const val NETSPEED_ROW2_TAG = "customiuizer_netspeed_row2"
 
-    /** Process-level once guard: the setNetworkSpeedIcon hook must not stack per inflation. */
-    private var netSpeedSecondRowHookInstalled = false
+    /** Process-level once-guarded hook installer for the network speed second row. */
+    private val netSpeedSecondRowHookInstaller = HookInstallStateMachine()
 
-    /** Second-row container of the current status bar generation for the network speed view. */
-    private var netSpeedSecondRowRef: WeakReference<LinearLayout>? = null
+    /** ClassLoader captured when the network speed hook is installed; used by the callback. */
+    private var netSpeedSecondRowClassLoader: ClassLoader? = null
 
-    private fun cleanupStaleStatusBarRegistrations() {
-        val current = statusBarGeneration?.get()
-        statusBarRegistrations.cleanupWhere { owner -> owner !== current }
+    /**
+     * Resolve the display id for a status bar view. [View.getDisplay] is preferred; before
+     * attach it may be null, in which case we fall back to the view's context. A null result
+     * means the view is not yet associated with a display and should use the temporary
+     * identity-scoped pending bucket.
+     */
+    private fun resolveDisplayId(view: View): Int? {
+        val display = view.display
+        if (display != null) return display.displayId
+        return view.context.display?.displayId
+    }
+
+    private fun isMainThread(): Boolean = Looper.myLooper() == Looper.getMainLooper()
+
+    private fun installNetSpeedSecondRowHook(lpparam: PackageReadyParam) {
+        netSpeedSecondRowClassLoader = lpparam.classLoader
+        netSpeedSecondRowHookInstaller.install {
+            ModuleHelper.hookAllMethodsSilently(
+                "com.android.systemui.statusbar.phone.StatusBarIconControllerImpl",
+                lpparam.classLoader,
+                "setNetworkSpeedIcon",
+                netSpeedSecondRowHookCallback,
+            )
+        }
+    }
+
+    /**
+     * Shared hook callback for the network speed second row. It posts view work to the main
+     * thread if necessary and re-verifies the row still belongs to the current generation for
+     * its display before touching any View.
+     */
+    private val netSpeedSecondRowHookCallback = object : MethodHook() {
+        override fun after(param: AfterHookCallback) {
+            val networkSpeedState = param.getArgs()[0]
+            val number = XposedHelpers.getObjectField(networkSpeedState, "networkSpeedNumber")
+            val unit = XposedHelpers.getObjectField(networkSpeedState, "networkSpeedUnit")
+            val visible = XposedHelpers.getObjectField(networkSpeedState, "visible")
+
+            for (state in statusBarDisplayRegistry.allStates()) {
+                val row = state.secondRow?.get() ?: continue
+                val owner = state.generation?.get() ?: continue
+                if (isMainThread()) {
+                    applyNetworkSpeedToRow(row, owner, number, unit, visible, state)
+                } else {
+                    row.post { applyNetworkSpeedToRow(row, owner, number, unit, visible, state) }
+                }
+            }
+        }
+    }
+
+    private fun applyNetworkSpeedToRow(
+        row: LinearLayout,
+        owner: View,
+        number: Any?,
+        unit: Any?,
+        visible: Any?,
+        state: StatusBarDisplayState<View, LinearLayout>,
+    ) {
+        if (!row.isAttachedToWindow) return
+        if (state.generation?.get() !== owner) return
+        if (state.secondRow?.get() !== row) return
+
+        var networkSpeedView: View? = row.findViewWithTag(NETSPEED_ROW2_TAG)
+        if (networkSpeedView == null) {
+            val ctx = row.context
+            val layoutResId = ctx.resources.getIdentifier("network_speed", "layout", "com.android.systemui")
+            if (layoutResId == 0) return
+            val created = LayoutInflater.from(ctx).inflate(layoutResId, null) ?: return
+            created.tag = NETSPEED_ROW2_TAG
+            row.addView(created, 0, LinearLayout.LayoutParams(-2, -2))
+
+            val classLoader = netSpeedSecondRowClassLoader ?: return
+            val DarkIconDispatcher = ModuleHelper.getDepInstance(classLoader, "com.android.systemui.plugins.DarkIconDispatcher")
+            if (DarkIconDispatcher == null) return
+
+            val added = try {
+                XposedHelpers.callMethod(DarkIconDispatcher, "addDarkReceiver", created)
+                true
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                false
+            }
+            if (added) {
+                state.registrations.register(owner) { _ ->
+                    releaseRegistrationSilently(DarkIconDispatcher, "removeDarkReceiver", created, "network-speed-row2")
+                }
+            }
+            networkSpeedView = created
+        }
+
+        XposedHelpers.callMethod(networkSpeedView, "setBlocked", false)
+        XposedHelpers.callMethod(networkSpeedView, "setNetworkSpeed", number, unit)
+        XposedHelpers.callMethod(networkSpeedView, "setVisibilityByController", visible)
     }
 
     @JvmStatic
@@ -292,10 +391,15 @@ object SystemUIStatusBarHooks {
             override fun after(param: AfterHookCallback) {
                 val sbView = param.getThisObject() as FrameLayout
                 if (XposedHelpers.getAdditionalInstanceField(sbView, "dualRowsLayoutAdded") != null) return
-                // A new inflation marks the previous status bar view as a dead generation:
-                // release its dispatcher/controller registrations before creating new ones.
-                statusBarGeneration = WeakReference(sbView)
-                cleanupStaleStatusBarRegistrations()
+                // A new inflation is a generation boundary for this display. Resolve the display
+                // now if possible; otherwise the view stays in the identity-scoped pending bucket
+                // until onAttachedToWindow provides a real displayId.
+                val displayId = resolveDisplayId(sbView)
+                val state = if (displayId != null) {
+                    statusBarDisplayRegistry.bind(sbView, displayId)
+                } else {
+                    statusBarDisplayRegistry.getOrCreatePending(sbView)
+                }
                 var firstRowLeftPadding = 0
                 var firstRowRightPadding = 0
                 if (MainModule.mPrefs.getBoolean("system_statusbar_dualrows_firstrow_horizmargin")) {
@@ -388,13 +492,24 @@ object SystemUIStatusBarHooks {
                 }
                 if (!customIconTypes.isEmpty()) {
                     val DarkIconDispatcher = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.plugins.DarkIconDispatcher")
-                    for (iconType in customIconTypes) {
-                        val iconView = createStatusbarTextIcon(mContext, LinearLayout.LayoutParams(-2, -2), iconType, false)
-                        secondRight.addView(iconView, 0)
-                        registerStatusbarTextIcon(iconView)
-                        XposedHelpers.callMethod(DarkIconDispatcher, "addDarkReceiver", iconView)
-                        statusBarRegistrations.register(sbView) {
-                            ModuleHelper.callMethodSilently(DarkIconDispatcher, "removeDarkReceiver", iconView)
+                    if (DarkIconDispatcher != null) {
+                        for (iconType in customIconTypes) {
+                            val iconView = createStatusbarTextIcon(mContext, LinearLayout.LayoutParams(-2, -2), iconType, false)
+                            secondRight.addView(iconView, 0)
+                            registerStatusbarTextIcon(iconView)
+
+                            val added = try {
+                                XposedHelpers.callMethod(DarkIconDispatcher, "addDarkReceiver", iconView)
+                                true
+                            } catch (t: Throwable) {
+                                FatalErrors.unwrapAndRethrowIfFatal(t)
+                                false
+                            }
+                            if (added) {
+                                state.registrations.register(sbView) { _ ->
+                                    releaseRegistrationSilently(DarkIconDispatcher, "removeDarkReceiver", iconView, "dark-receiver-$iconType")
+                                }
+                            }
                         }
                     }
                 }
@@ -406,44 +521,10 @@ object SystemUIStatusBarHooks {
                 XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "dualRowsLayoutAdded", true)
 
                 if (MainModule.mPrefs.getBoolean("system_statusbar_netspeed_atsecondrow")) {
-                    // The hook is installed once per process: installing it from every
-                    // onFinishInflate would stack one duplicate hook per status bar
-                    // re-inflation, each holding the previous (detached) view generation.
-                    netSpeedSecondRowRef = WeakReference(secondRight)
-                    if (!netSpeedSecondRowHookInstalled) {
-                        netSpeedSecondRowHookInstalled = true
-                        ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.StatusBarIconControllerImpl", lpparam.classLoader, "setNetworkSpeedIcon", object : MethodHook() {
-                            override fun after(param: AfterHookCallback) {
-                                val row = netSpeedSecondRowRef?.get() ?: return
-                                val networkSpeedState = param.getArgs()[0]
-                                var networkSpeedView: View? = row.findViewWithTag(NETSPEED_ROW2_TAG)
-                                if (networkSpeedView == null) {
-                                    val ctx = row.context
-                                    val layoutResId = ctx.resources.getIdentifier("network_speed", "layout", "com.android.systemui")
-                                    val created = LayoutInflater.from(ctx).inflate(layoutResId, null)
-                                    created.tag = NETSPEED_ROW2_TAG
-                                    row.addView(created, 0, LinearLayout.LayoutParams(-2, -2))
-                                    val DarkIconDispatcher = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.plugins.DarkIconDispatcher")
-                                    XposedHelpers.callMethod(DarkIconDispatcher, "addDarkReceiver", created)
-                                    val owner = statusBarGeneration?.get()
-                                    if (owner != null) {
-                                        statusBarRegistrations.register(owner) {
-                                            ModuleHelper.callMethodSilently(DarkIconDispatcher, "removeDarkReceiver", created)
-                                        }
-                                    }
-                                    networkSpeedView = created
-                                }
-                                XposedHelpers.callMethod(networkSpeedView, "setBlocked", false)
-                                XposedHelpers.callMethod(networkSpeedView, "setNetworkSpeed",
-                                    XposedHelpers.getObjectField(networkSpeedState, "networkSpeedNumber"),
-                                    XposedHelpers.getObjectField(networkSpeedState, "networkSpeedUnit")
-                                )
-                                XposedHelpers.callMethod(networkSpeedView, "setVisibilityByController",
-                                    XposedHelpers.getObjectField(networkSpeedState, "visible")
-                                )
-                            }
-                        })
-                    }
+                    // The second row for this display is where the network speed view lives.
+                    // The hook itself is installed at most once per process via a state machine.
+                    state.secondRow = WeakReference(secondRight)
+                    installNetSpeedSecondRowHook(lpparam)
                 }
             }
         })
@@ -977,52 +1058,109 @@ object SystemUIStatusBarHooks {
             ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onAttachedToWindow", object : MethodHook() {
                 override fun after(param: AfterHookCallback) {
                     val mStatusBar = param.getThisObject() as FrameLayout
-                    // Attach of the (possibly new) status bar view is a generation boundary:
-                    // registrations owned by any other view instance are stale by definition.
-                    statusBarGeneration = WeakReference(mStatusBar)
-                    cleanupStaleStatusBarRegistrations()
-                    val iconController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.phone.StatusBarIconController")
+                    // Attach of the (possibly new) status bar view is a generation boundary for
+                    // its display. Bind the view to a per-display state and drop any stale
+                    // registrations that belonged to an older generation on the same display.
+                    val displayId = resolveDisplayId(mStatusBar)
+                    val state = if (displayId != null) {
+                        statusBarDisplayRegistry.bind(mStatusBar, displayId)
+                    } else {
+                        statusBarDisplayRegistry.getOrCreatePending(mStatusBar)
+                    }
+                    state.registrations.cleanupWhere { it !== mStatusBar }
+                    statusBarDisplayRegistry.prune()
+
+                    val iconController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.phone.StatusBarIconController") ?: return
                     val existingContainer = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconContainer") as? LinearLayout
-                    if (existingContainer != null && existingContainer.parent != null) return
-                    if (existingContainer != null) {
-                        // SystemUI removed our container from this same view instance: drop the
-                        // icon group backed by it before adding a replacement, otherwise the
-                        // controller accumulates one manager per re-attach.
+                    val oldHandle = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle") as? OwnedRegistrations.RegistrationHandle
+
+                    if (existingContainer != null && existingContainer.parent != null) {
+                        // The container is still attached. Make sure a registration handle exists
+                        // so the next re-attach can remove the group exactly once.
+                        if (oldHandle == null) {
+                            val staleManager = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconManager")
+                            if (staleManager != null) {
+                                val handle = state.registrations.register(mStatusBar) { _ ->
+                                    releaseRegistrationSilently(iconController, "removeIconGroup", staleManager, "left-icon-group")
+                                }
+                                XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)
+                            }
+                        }
+                        return
+                    }
+
+                    // The container was removed or this is a new generation. Remove the old group
+                    // exactly once, either through the saved handle or a direct cleanup.
+                    if (oldHandle != null) {
+                        oldHandle.cleanupNow()
+                    } else {
                         val staleManager = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconManager")
                         if (staleManager != null) {
-                            ModuleHelper.callMethodSilently(iconController, "removeIconGroup", staleManager)
+                            releaseRegistrationSilently(iconController, "removeIconGroup", staleManager, "left-icon-group")
                         }
                     }
+                    XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconContainer", null)
+                    XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconManager", null)
+                    XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", null)
+
                     val IconsContainer = XposedHelpers.findClass("com.android.systemui.statusbar.views.MiuiStatusIconContainer", lpparam.classLoader)
-                    val iconContainer = XposedHelpers.newInstance(IconsContainer, mStatusBar.context) as LinearLayout
+                    val iconContainer = try {
+                        XposedHelpers.newInstance(IconsContainer, mStatusBar.context) as LinearLayout
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        return
+                    }
                     iconContainer.layoutDirection = View.LAYOUT_DIRECTION_RTL
                     iconContainer.setTag("leftIconsContainer")
-                    val leftContainer: LinearLayout
+
+                    val leftNotifyContainer = if (dualRows) null else XposedHelpers.getObjectField(mStatusBar, "mDripStatusBarNotificationIconArea") as View
+                    val leftContainer: LinearLayout = if (dualRows) {
+                        mStatusBar.findViewWithTag<View>("mStatusBarLeftContainer") as LinearLayout
+                    } else {
+                        leftNotifyContainer!!.parent as LinearLayout
+                    }
                     if (dualRows) {
-                        leftContainer = mStatusBar.findViewWithTag<View>("mStatusBarLeftContainer") as LinearLayout
                         leftContainer.addView(iconContainer)
                     } else {
-                        val leftNotifyContainer = XposedHelpers.getObjectField(mStatusBar, "mDripStatusBarNotificationIconArea") as View
-                        leftContainer = leftNotifyContainer.parent as LinearLayout
                         leftContainer.addView(iconContainer, leftContainer.indexOfChild(leftNotifyContainer))
                     }
-                    val miuiIconManagerFactory = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.phone.MiuiIconManagerFactory")
+
+                    val miuiIconManagerFactory = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.phone.MiuiIconManagerFactory") ?: return
 
                     val DarkIconManager = XposedHelpers.findClass("com.android.systemui.statusbar.phone.StatusBarIconController\$DarkIconManager", lpparam.classLoader)
-                    val mDarkIconManager = XposedHelpers.newInstance(DarkIconManager,
-                        iconContainer,
-                        XposedHelpers.getObjectField(miuiIconManagerFactory, "mStatusBarPipelineFlags"),
-                        XposedHelpers.getObjectField(miuiIconManagerFactory, "mMobileContextProvider"),
-                        XposedHelpers.getObjectField(miuiIconManagerFactory, "mDarkIconDispatcher")
-                    )
+                    val mDarkIconManager = try {
+                        XposedHelpers.newInstance(DarkIconManager,
+                            iconContainer,
+                            XposedHelpers.getObjectField(miuiIconManagerFactory, "mStatusBarPipelineFlags"),
+                            XposedHelpers.getObjectField(miuiIconManagerFactory, "mMobileContextProvider"),
+                            XposedHelpers.getObjectField(miuiIconManagerFactory, "mDarkIconDispatcher")
+                        )
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        return
+                    }
 
-                    XposedHelpers.callMethod(iconController, "addIconGroup", mDarkIconManager)
-                    XposedHelpers.callMethod(iconContainer, "setIgnoredSlots", leftBlockList)
+                    val added = try {
+                        XposedHelpers.callMethod(iconController, "addIconGroup", mDarkIconManager)
+                        true
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        false
+                    }
+                    if (!added) return
+
+                    try {
+                        XposedHelpers.callMethod(iconContainer, "setIgnoredSlots", leftBlockList)
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                    }
+
                     XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconContainer", iconContainer)
                     XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconManager", mDarkIconManager)
-                    statusBarRegistrations.register(mStatusBar) {
-                        ModuleHelper.callMethodSilently(iconController, "removeIconGroup", mDarkIconManager)
+                    val handle = state.registrations.register(mStatusBar) { _ ->
+                        releaseRegistrationSilently(iconController, "removeIconGroup", mDarkIconManager, "left-icon-group")
                     }
+                    XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)
                 }
             })
 

@@ -1,5 +1,8 @@
 package tv.withaibuild.customiuizer.mods.utils
 
+import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicBoolean
+
 /**
  * Tracks registrations this module creates inside a hooked system process (for example
  * DarkIconDispatcher dark receivers or StatusBarIconController icon groups), keyed by the
@@ -12,36 +15,99 @@ package tv.withaibuild.customiuizer.mods.utils
  * generation boundary (a new inflation or attach) with a predicate that identifies stale
  * owners.
  *
- * Multiple registrations may share one owner. Not thread-safe: every caller runs on the
- * owning process main thread, matching the SystemUI view lifecycle callbacks that drive it.
+ * This registry does not hold strong references to historical owners. A registration handle is
+ * exact-once: [cleanupNow] runs the cleanup at most once and returns true only on the first
+ * call. Cleanup is two-phase (snapshot then run) so reentrant calls and cleanup callbacks that
+ * themselves register or clean cannot corrupt the live list or duplicate a cleanup. All access
+ * is expected to be on the SystemUI main thread.
  */
 class OwnedRegistrations<V : Any> {
 
-    private class Entry<V>(val owner: V, val cleanup: (V) -> Unit)
+    private class Entry<V>(
+        owner: V,
+        var cleanup: ((V) -> Unit)?,
+    ) {
+        val ownerRef = WeakReference(owner)
+        val consumed = AtomicBoolean(false)
+    }
 
     private val entries = ArrayList<Entry<V>>(4)
 
     val size: Int get() = entries.size
 
-    fun register(owner: V, cleanup: (V) -> Unit) {
-        entries.add(Entry(owner, cleanup))
+    /**
+     * Opaque handle returned by [register]. [cleanupNow] removes the registration and runs the
+     * cleanup at most once. The first call returns true; subsequent calls return false.
+     */
+    interface RegistrationHandle {
+        fun cleanupNow(): Boolean
+    }
+
+    private inner class Handle(private val entry: Entry<V>) : RegistrationHandle {
+        override fun cleanupNow(): Boolean {
+            if (!entry.consumed.compareAndSet(false, true)) return false
+            // The entry may already have been removed by an outer cleanupWhere; this is idempotent.
+            entries.remove(entry)
+            val owner = entry.ownerRef.get()
+            val callback = entry.cleanup
+            entry.cleanup = null
+            if (owner != null && callback != null) {
+                try {
+                    callback(owner)
+                } catch (t: Throwable) {
+                    val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                    XposedHelpers.log(toReport)
+                }
+            }
+            return true
+        }
     }
 
     /**
-     * Runs and drops every entry whose owner matches [isStale]. Cleanup failures are isolated
-     * per entry (a missing ROM method on one registration must not keep the others alive),
-     * but fatal JVM errors always propagate.
+     * Register a [cleanup] to run when [owner] is identified as stale.
+     *
+     * The returned handle can be used for an explicit early cleanup. The same cleanup is also
+     * executed by [cleanupWhere] when the owner is identified as stale.
+     */
+    fun register(owner: V, cleanup: (V) -> Unit): RegistrationHandle {
+        val entry = Entry(owner, cleanup)
+        entries.add(entry)
+        return Handle(entry)
+    }
+
+    /**
+     * Remove every entry whose owner is stale according to [isStale], then run each cleanup.
+     *
+     * Reentrant calls from inside a cleanup callback only see the live list as it exists after
+     * the snapshot, so a cleanup cannot be duplicated. A single failing cleanup does not block
+     * the others, but fatal JVM errors always propagate.
      */
     fun cleanupWhere(isStale: (V) -> Boolean) {
-        for (i in entries.indices.reversed()) {
-            val entry = entries[i]
-            if (!isStale(entry.owner)) continue
-            entries.removeAt(i)
-            try {
-                entry.cleanup(entry.owner)
-            } catch (t: Throwable) {
-                FatalErrors.rethrowIfFatal(t)
-                XposedHelpers.log(t)
+        val toRemove = ArrayList<Entry<V>>(entries.size)
+        for (entry in entries) {
+            val owner = entry.ownerRef.get()
+            if (owner == null || isStale(owner)) {
+                toRemove.add(entry)
+            }
+        }
+        if (toRemove.isEmpty()) return
+
+        // Remove from the live list before running any cleanup so reentrant register/cleanup
+        // calls operate on the correct set.
+        entries.removeAll(toRemove)
+
+        for (entry in toRemove) {
+            if (!entry.consumed.compareAndSet(false, true)) continue
+            val owner = entry.ownerRef.get()
+            val callback = entry.cleanup
+            entry.cleanup = null
+            if (owner != null && callback != null) {
+                try {
+                    callback(owner)
+                } catch (t: Throwable) {
+                    val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                    XposedHelpers.log(toReport)
+                }
             }
         }
     }

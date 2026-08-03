@@ -1439,48 +1439,121 @@ def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding
     removeIconGroup at the next status bar generation, every theme/density/fold re-inflation
     leaks the previous View tree and keeps feeding callbacks into detached views. A weak-ref
     registry alone cannot fix this because the system side keeps the views strongly reachable.
+
+    This rule is structural, not just string counting. It checks that:
+      - addDarkReceiver is paired with a per-display registration whose cleanup calls
+        removeDarkReceiver with the exact same dispatcher and view arguments;
+      - addIconGroup is paired with a registration whose cleanup calls removeIconGroup with
+        the same controller and manager, and that the resulting handle is saved;
+      - the old global generation / second-row references are gone and replaced by
+        StatusBarDisplayRegistry and HookInstallStateMachine;
+      - the left icon manager uses an exact-once registration handle, not a manual remove.
     """
     if rel_posix(path) != "tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt":
         return []
     findings = []
-    add_receiver = len(re.findall(r'"addDarkReceiver"', text))
-    remove_receiver = len(re.findall(r'"removeDarkReceiver"', text))
-    if add_receiver > remove_receiver:
-        findings.append(
-            Finding(
-                "status-bar-registration-cleanup",
-                path,
-                1,
-                f"{add_receiver} addDarkReceiver call(s) but only {remove_receiver} removeDarkReceiver release path(s)",
+
+    # --- old global state that must not return ---
+    for pattern, detail in (
+        (r"private\s+var\s+statusBarGeneration", "global statusBarGeneration is not per-display"),
+        (r"private\s+val\s+statusBarRegistrations\s*=\s*OwnedRegistrations", "global OwnedRegistrations is not per-display"),
+        (r"private\s+var\s+netSpeedSecondRowRef", "global netSpeedSecondRowRef is not per-display"),
+        (r"private\s+var\s+netSpeedSecondRowHookInstalled", "global once flag must be replaced by HookInstallStateMachine"),
+        (r"fun\s+cleanupStaleStatusBarRegistrations", "old generation cleanup function must be replaced by per-display state"),
+        (r"cleanupWhere\s*\{\s*owner\s*->\s*owner\s*!==\s*current", "global cleanupWhere { owner !== current } must be per-display"),
+    ):
+        if re.search(pattern, text):
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    1,
+                    detail,
+                )
             )
-        )
-    if '"addIconGroup"' in text and '"removeIconGroup"' not in text:
-        findings.append(
-            Finding(
-                "status-bar-registration-cleanup",
-                path,
-                1,
-                "addIconGroup without any removeIconGroup release path",
+
+    # --- required per-display / state-machine pieces ---
+    for token, detail in (
+        ("StatusBarDisplayRegistry", "per-display state registry"),
+        ("StatusBarDisplayState", "per-display state data class"),
+        ("netSpeedSecondRowHookInstaller", "network speed hook once-guard installer"),
+        ("HookInstallStateMachine", "network speed hook install state machine"),
+        ("leftIconRegistrationHandle", "left icon manager exact-once handle field"),
+        ("releaseRegistrationSilently", "registration release diagnostics helper"),
+        ("state.secondRow", "per-display second row reference"),
+    ):
+        if token not in text:
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    1,
+                    f"missing {detail}: {token}",
+                )
             )
-        )
-    if "cleanupStaleStatusBarRegistrations" not in text:
-        findings.append(
-            Finding(
-                "status-bar-registration-cleanup",
-                path,
-                1,
-                "missing cleanupStaleStatusBarRegistrations generation-boundary cleanup",
+
+    # --- no direct manual remove outside the release helper ---
+    for method in ("removeIconGroup", "removeDarkReceiver"):
+        for match in re.finditer(rf'ModuleHelper\.callMethodSilently\s*\([^)]*"{method}"', text):
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    line_of(text, match.start()),
+                    f"manual ModuleHelper.callMethodSilently for {method}; use releaseRegistrationSilently through an exact-once handle",
+                )
             )
-        )
-    if '"setNetworkSpeedIcon"' in text and "netSpeedSecondRowHookInstalled" not in text:
-        findings.append(
-            Finding(
-                "status-bar-registration-cleanup",
-                path,
-                1,
-                "setNetworkSpeedIcon hook must be guarded by a process-level once flag; installing it per onFinishInflate stacks duplicate hooks on every status bar re-inflation",
+
+    # --- addDarkReceiver / removeDarkReceiver pairing per call ---
+    add_receiver = re.compile(
+        r'XposedHelpers\.callMethod\s*\(\s*([^\),\s]+)\s*,\s*"addDarkReceiver"\s*,\s*([^\),\s]+)\s*\)'
+    )
+    for match in add_receiver.finditer(text):
+        dispatcher = match.group(1)
+        arg = match.group(2)
+        tail = text[match.end():]
+        cleanup = rf'releaseRegistrationSilently\s*\(\s*{re.escape(dispatcher)}\s*,\s*"removeDarkReceiver"\s*,\s*{re.escape(arg)}'
+        if not re.search(cleanup, tail):
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    line_of(text, match.start()),
+                    f"addDarkReceiver({dispatcher}, {arg}) has no matching releaseRegistrationSilently removeDarkReceiver",
+                )
             )
-        )
+
+    # --- addIconGroup / removeIconGroup pairing per call ---
+    add_icon_group = re.compile(
+        r'XposedHelpers\.callMethod\s*\(\s*([^\),\s]+)\s*,\s*"addIconGroup"\s*,\s*([^\),\s]+)\s*\)'
+    )
+    for match in add_icon_group.finditer(text):
+        controller = match.group(1)
+        manager = match.group(2)
+        tail = text[match.end():]
+        cleanup = rf'releaseRegistrationSilently\s*\(\s*{re.escape(controller)}\s*,\s*"removeIconGroup"\s*,\s*{re.escape(manager)}'
+        if not re.search(cleanup, tail):
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    line_of(text, match.start()),
+                    f"addIconGroup({controller}, {manager}) has no matching releaseRegistrationSilently removeIconGroup",
+                )
+            )
+
+    # --- setNetworkSpeedIcon hook must be installed via the guarded installer ---
+    if '"setNetworkSpeedIcon"' in text:
+        if "installNetSpeedSecondRowHook" not in text:
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    1,
+                    "setNetworkSpeedIcon hook must be installed via installNetSpeedSecondRowHook",
+                )
+            )
+
     return findings
 
 
