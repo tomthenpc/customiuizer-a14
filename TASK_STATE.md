@@ -972,6 +972,48 @@ State: `VERIFIED_BUILD`
   - `.\gradlew.bat --no-daemon :app:assembleDevelop`
 - 退出码：0 / 0
 
+## P11.4 Brutal suite fail-closed hardening
+
+State: `IN_PROGRESS`
+
+原行为：
+
+- `tools/brutal_test_config.json` 无 schema 与 `required_mutations`，可因空/少 mutation 误报通过；
+- `tools/brutal_test_runner.py` 未按 baseline 检测未跟踪文件，determinism 只检查 declared outputs；
+- `a14-full-ci.yml` schedule 条件遗漏 `github.event_name == 'schedule'`，导致定时触发被静默跳过；
+- `a14-fast-ci.yml` 缺少 `pull_request` 触发；
+- `scripts/verify.ps1` Final 模式未调用 brutal suite；
+- 当前 mutation 未覆盖 JVM ABI、reflection、R8、installer/process/ClassLoader、gesture 状态机与 fatal/OOM 边界。
+
+不变量：
+
+- brutal suite 必须是 fail-closed：配置缺失、mutation 全空/存活、gate 未命中、worktree 残留、hermeticity 或 determinism 失败都返回非 0；
+- Full CI schedule 触发必须生效；Fast CI 必须在 push 与 pull_request 上运行；
+- Final 验证必须接入 hermeticity + determinism + mutation；
+- 所有 required mutation 必须被现有或新增 gate 杀死。
+
+实现：
+
+- 在 `tools/brutal_test_runner.py` 增加 schema 校验、`required_mutations` 校验、`minimum_mutations`、未跟踪文件 baseline 对比、worktree 残留检查、输出文件与跟踪文件完整性校验；
+- 修正 `a14-full-ci.yml` 的 `if` 条件，增加 schedule 分支；
+- 在 `a14-fast-ci.yml` 增加 `pull_request` 触发与 brutal fast-subset 步骤；
+- 在 `scripts/verify.ps1` Final 模式接入 `brutal_test_runner.py hermeticity/determinism/mutate`；
+- 扩展 `tools/brutal_test_config.json` 与 `tools/brutal_a14_mutators.py`，新增 JVM ABI、reflection、R8、installer/process/ClassLoader、gesture 与 fatal/OOM mutation；
+- 新增 `tools/reflection_contract_scan.py` 与 `tools/r8_contract_scan.py` 作为 reflection/R8 静态 gate；
+- 更新单元/契约测试以覆盖新增 mutation。
+
+验证命令：
+
+```text
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json hermeticity
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json determinism
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json mutate
+```
+
+退出码：待全部通过。
+
+CI：待 Fast/Full CI 验证。
+
 ---
 
 # P12 — 文档、dead code 与 release candidate

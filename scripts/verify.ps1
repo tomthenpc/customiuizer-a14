@@ -264,6 +264,10 @@ if ($Mode -eq "Full" -or $Mode -eq "Final") {
 
     Invoke-Native "Assemble debug APK" $Gradlew @("--no-daemon", ":app:assembleDebug")
     Invoke-Native "Assemble unsigned develop APK with R8" $Gradlew @("--no-daemon", ":app:assembleDevelop")
+
+    Invoke-Native "Brutal suite hermeticity" $Python.FilePath ($Python.Prefix + @("tools/brutal_test_runner.py", "--config", "tools/brutal_test_config.json", "hermeticity"))
+    Invoke-Native "Brutal suite determinism" $Python.FilePath ($Python.Prefix + @("tools/brutal_test_runner.py", "--config", "tools/brutal_test_config.json", "determinism"))
+    Invoke-Native "Brutal suite mutation tests" $Python.FilePath ($Python.Prefix + @("tools/brutal_test_runner.py", "--config", "tools/brutal_test_config.json", "mutate"))
 }
 
 Write-Section "Final state"

@@ -83,6 +83,53 @@ jobs:
             self.assertIn("CI_WINDOWS_PATH_REPLACE", joined)
             self.assertIn("CI_HARDCODED_DRIVE", joined)
 
+    def test_catches_schedule_without_explicit_if(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "bad.yml"
+            path.write_text(
+                """name: bad
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  push:
+    branches:
+      - devin/audit
+jobs:
+  x:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+""",
+                encoding="utf-8",
+            )
+            errors = ci_contract_scan.scan_workflow(path, "devin/audit", "main")
+            text = "\n".join(errors)
+            self.assertIn("CI_SCHEDULE_CONDITION", text)
+
+    def test_allows_schedule_with_explicit_if(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "good.yml"
+            path.write_text(
+                """name: good
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+jobs:
+  full:
+    runs-on: ubuntu-24.04
+    if: >-
+      github.event_name == 'schedule' ||
+      github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+""",
+                encoding="utf-8",
+            )
+            errors = ci_contract_scan.scan_workflow(path, "devin/audit", "main")
+            text = "\n".join(errors)
+            self.assertNotIn("CI_SCHEDULE_CONDITION", text)
+
 
 class APKDiffTest(unittest.TestCase):
     def _apk(self, path: Path, entries: dict[str, bytes]):

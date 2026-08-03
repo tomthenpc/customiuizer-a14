@@ -31,8 +31,8 @@ ALLOWED_FILES = {
     TOOLS_TESTS_DIR / "test_check_ci_portability.py",
 }
 
-# The cross-platform entry point that intentionally selects gradlew/gradlew.bat.
-GRADLEW_SWITCH_FILE = TOOLS_DIR / "verify.py"
+# Files that intentionally select gradlew/gradlew.bat based on the host OS.
+GRADLEW_SWITCH_FILES = {TOOLS_DIR / "verify.py", TOOLS_DIR / "brutal_test_runner.py"}
 
 # Patterns that appear in markdown escaping and other legitimate contexts;
 # the portability checker only flags the path-separator variant of replace().
@@ -88,7 +88,7 @@ def check_python_file(path: Path) -> list[str]:
         ("hardcoded drive letter", HARD_DRIVE_PATTERN),
     ]
 
-    if path != GRADLEW_SWITCH_FILE:
+    if path not in GRADLEW_SWITCH_FILES:
         rules.append(("Powershell invocation", POWERSHELL_PATTERN))
         rules.append(("gradlew.bat only", GRADLEW_BAT_PATTERN))
         rules.append(("os.name branching", OS_NAME_PATTERN))

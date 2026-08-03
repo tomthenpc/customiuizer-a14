@@ -19,9 +19,13 @@ jobs:
   full:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
-    if: >
+    if: >-
+      github.event_name == 'schedule' ||
       github.event_name == 'workflow_dispatch' ||
-      contains(github.event.head_commit.message, '[full-ci]')
+      (
+        github.event_name == 'push' &&
+        contains(github.event.head_commit.message || '', '[full-ci]')
+      )
 
     steps:
       - name: Checkout

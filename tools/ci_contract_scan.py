@@ -89,6 +89,31 @@ def scan_workflow(path: Path, expected_branch: str, default_branch: str) -> list
                 "schedule/workflow_dispatch workflow only on a non-default branch is not an executable current-branch gate",
             )
 
+    if has_schedule:
+        # Capture either a folded block or a single-line `if:` expression.
+        if_match = re.search(
+            r"(?m)^(?P<indent>\s*)if\s*:\s*(?P<fold>[>\-]+)?\s*\n(?P<body>(?:^(?P=indent)\s+.*\n?)+)",
+            text,
+        )
+        if if_match is None:
+            single_line = re.search(r"(?m)^\s*if\s*:\s*(.+)$", text)
+            if single_line is None:
+                add("CI_SCHEDULE_CONDITION", "schedule trigger must have an explicit job-level `if` condition")
+            else:
+                if_body = single_line.group(1)
+                if "github.event_name" not in if_body or "'schedule'" not in if_body:
+                    add(
+                        "CI_SCHEDULE_CONDITION",
+                        "schedule trigger must be explicitly handled in the job `if` (github.event_name == 'schedule')",
+                    )
+        else:
+            if_body = if_match.group("body")
+            if "github.event_name" not in if_body or "'schedule'" not in if_body:
+                add(
+                    "CI_SCHEDULE_CONDITION",
+                    "schedule trigger must be explicitly handled in the job `if` (github.event_name == 'schedule')",
+                )
+
     if not re.search(r"timeout-minutes\s*:\s*\d+", text):
         add("CI_TIMEOUT", "job must have timeout-minutes")
     if not re.search(r"concurrency\s*:", text):

@@ -1,6 +1,76 @@
 {
   "name": "A14",
+  "schema_version": 1,
   "expected_branch": "devin/a14-rom-intelligence-audit",
+  "minimum_mutations": 74,
+  "required_mutations": [
+    "duplicate SMART key",
+    "fake CI PASS",
+    "generated progress tamper",
+    "remove fetch-depth",
+    "wrong CI branch",
+    "signing leak",
+    "duplicate Feature ID",
+    "remove Installer dispatch",
+    "swallow fatal",
+    "static Context leak",
+    "eager HandlerThread",
+    "action_cancel_as_up",
+    "bootstrap_guard_removed",
+    "callback_guard_fatal_to_normal",
+    "catch_throwable_no_fatal",
+    "change_nullable_return",
+    "change_param_nullability",
+    "classloader_cache_global",
+    "companion_method_rename",
+    "concurrent_reentry",
+    "config_publisher_stale",
+    "consume_same_event_twice",
+    "default_arg_drift",
+    "dependency_resolver_fallback_removed",
+    "duplicate_install_all",
+    "fatal_boundary_removed",
+    "horizontal_vertical_axis_swap",
+    "installer_boundary_swallow",
+    "installer_java_abi_drift",
+    "installer_order_swap",
+    "internal_name_mangle",
+    "left_right_action_swap",
+    "mainmodule_top_boundary_swallow",
+    "object_to_class",
+    "overload_removed",
+    "plugin_runtime_lifecycle_leak",
+    "preference_bootstrap_eager",
+    "process_router_fallthrough",
+    "r8_strips_installer",
+    "receiver_registration_duplicate",
+    "reflection_class_rename",
+    "reflection_field_rename",
+    "reflection_method_rename",
+    "reflection_wrapped_fatal_unwrap",
+    "remove_consumer_rule",
+    "remove_event_dedup",
+    "remove_jvm_field",
+    "remove_jvm_static",
+    "remove_keep_rule",
+    "remove_side_effect_gate",
+    "sam_lambda_drift",
+    "shade_tracker_boundary_drift",
+    "state_reset_removed",
+    "statusbar_maths_sign_rounding_drift",
+    "swallow_linkage_error",
+    "swallow_out_of_memory",
+    "swallow_stack_overflow",
+    "swallow_thread_death",
+    "swallow_verify_error",
+    "swallow_virtual_machine_error",
+    "systemui_plugin_classloader_replaced",
+    "systemui_runtime_swallow",
+    "wrong_install_phase",
+    "wrong_process_target",
+    "wrong_threshold_comparison",
+    "xposedhelpers_abi_drift"
+  ],
   "smart_state": "SMART_OPERATION_STATE.md",
   "task_state": "TASK_STATE.md",
   "progress_json": "docs/progress/A14_PROGRESS_CURRENT.json",
@@ -22,7 +92,8 @@
     "ci": "python tools/ci_contract_scan.py --expected-branch devin/a14-rom-intelligence-audit --default-branch main",
     "catalog": "python tools/catalog_contract_probe.py --catalog app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature --feature-id app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/FeatureIds.kt --matrix docs/rom-intelligence/A14_PROCESS_MATRIX.csv",
     "tests": "python -m unittest discover -s tools/tests -p \"test_*.py\"",
-    "hazard": "python tools/source_hazard_scan.py --strict-all --path app/src/main/java/brutal_mutation"
+    "hazard": "python tools/source_hazard_scan.py --strict-all --path app/src/main/java/brutal_mutation",
+    "a14_contract": "python tools/brutal_a14_contract_scan.py --mutation {mutator}"
   },
   "hermetic_commands": [
     "python -m unittest discover -s tools/tests -p \"test_*.py\"",
@@ -131,6 +202,281 @@
       "name": "eager HandlerThread",
       "mutator": "eager_handler_thread",
       "gate": "hazard"
+    },
+    {
+      "name": "action_cancel_as_up",
+      "mutator": "action_cancel_as_up",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "bootstrap_guard_removed",
+      "mutator": "bootstrap_guard_removed",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "callback_guard_fatal_to_normal",
+      "mutator": "callback_guard_fatal_to_normal",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "catch_throwable_no_fatal",
+      "mutator": "catch_throwable_no_fatal",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "change_nullable_return",
+      "mutator": "change_nullable_return",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "change_param_nullability",
+      "mutator": "change_param_nullability",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "classloader_cache_global",
+      "mutator": "classloader_cache_global",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "companion_method_rename",
+      "mutator": "companion_method_rename",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "concurrent_reentry",
+      "mutator": "concurrent_reentry",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "config_publisher_stale",
+      "mutator": "config_publisher_stale",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "consume_same_event_twice",
+      "mutator": "consume_same_event_twice",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "default_arg_drift",
+      "mutator": "default_arg_drift",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "dependency_resolver_fallback_removed",
+      "mutator": "dependency_resolver_fallback_removed",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "duplicate_install_all",
+      "mutator": "duplicate_install_all",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "fatal_boundary_removed",
+      "mutator": "fatal_boundary_removed",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "horizontal_vertical_axis_swap",
+      "mutator": "horizontal_vertical_axis_swap",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "installer_boundary_swallow",
+      "mutator": "installer_boundary_swallow",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "installer_java_abi_drift",
+      "mutator": "installer_java_abi_drift",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "installer_order_swap",
+      "mutator": "installer_order_swap",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "internal_name_mangle",
+      "mutator": "internal_name_mangle",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "left_right_action_swap",
+      "mutator": "left_right_action_swap",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "mainmodule_top_boundary_swallow",
+      "mutator": "mainmodule_top_boundary_swallow",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "object_to_class",
+      "mutator": "object_to_class",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "overload_removed",
+      "mutator": "overload_removed",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "plugin_runtime_lifecycle_leak",
+      "mutator": "plugin_runtime_lifecycle_leak",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "preference_bootstrap_eager",
+      "mutator": "preference_bootstrap_eager",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "process_router_fallthrough",
+      "mutator": "process_router_fallthrough",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "r8_strips_installer",
+      "mutator": "r8_strips_installer",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "receiver_registration_duplicate",
+      "mutator": "receiver_registration_duplicate",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "reflection_class_rename",
+      "mutator": "reflection_class_rename",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "reflection_field_rename",
+      "mutator": "reflection_field_rename",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "reflection_method_rename",
+      "mutator": "reflection_method_rename",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "reflection_wrapped_fatal_unwrap",
+      "mutator": "reflection_wrapped_fatal_unwrap",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "remove_consumer_rule",
+      "mutator": "remove_consumer_rule",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "remove_event_dedup",
+      "mutator": "remove_event_dedup",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "remove_jvm_field",
+      "mutator": "remove_jvm_field",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "remove_jvm_static",
+      "mutator": "remove_jvm_static",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "remove_keep_rule",
+      "mutator": "remove_keep_rule",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "remove_side_effect_gate",
+      "mutator": "remove_side_effect_gate",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "sam_lambda_drift",
+      "mutator": "sam_lambda_drift",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "shade_tracker_boundary_drift",
+      "mutator": "shade_tracker_boundary_drift",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "state_reset_removed",
+      "mutator": "state_reset_removed",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "statusbar_maths_sign_rounding_drift",
+      "mutator": "statusbar_maths_sign_rounding_drift",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "swallow_linkage_error",
+      "mutator": "swallow_linkage_error",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "swallow_out_of_memory",
+      "mutator": "swallow_out_of_memory",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "swallow_stack_overflow",
+      "mutator": "swallow_stack_overflow",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "swallow_thread_death",
+      "mutator": "swallow_thread_death",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "swallow_verify_error",
+      "mutator": "swallow_verify_error",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "swallow_virtual_machine_error",
+      "mutator": "swallow_virtual_machine_error",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "systemui_plugin_classloader_replaced",
+      "mutator": "systemui_plugin_classloader_replaced",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "systemui_runtime_swallow",
+      "mutator": "systemui_runtime_swallow",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "wrong_install_phase",
+      "mutator": "wrong_install_phase",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "wrong_process_target",
+      "mutator": "wrong_process_target",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "wrong_threshold_comparison",
+      "mutator": "wrong_threshold_comparison",
+      "gate": "a14_contract"
+    },
+    {
+      "name": "xposedhelpers_abi_drift",
+      "mutator": "xposedhelpers_abi_drift",
+      "gate": "a14_contract"
     }
   ]
 }

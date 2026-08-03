@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - devin/a14-rom-intelligence-audit
+  pull_request:
+    branches:
+      - devin/a14-rom-intelligence-audit
   workflow_dispatch:
 
 permissions:

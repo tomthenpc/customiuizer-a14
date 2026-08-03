@@ -18,16 +18,29 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Callable
 
 
-def run(command: str, cwd: Path, timeout: int, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+def normalize_command(command: str) -> str:
+    """Use gradlew.bat on Windows when the configured command starts with gradlew."""
+    if os.name == "nt" and command.startswith("gradlew "):
+        return "gradlew.bat" + command[len("gradlew"):]
+    return command
+
+
+def run(
+    command: str,
+    cwd: Path,
+    timeout: int,
+    env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess:
     merged = os.environ.copy()
     if env:
         merged.update(env)
     return subprocess.run(
-        command,
+        normalize_command(command),
         cwd=cwd,
         shell=True,
         text=True,
@@ -35,6 +48,17 @@ def run(command: str, cwd: Path, timeout: int, env: dict[str, str] | None = None
         stderr=subprocess.STDOUT,
         timeout=timeout,
         env=merged,
+    )
+
+
+def run_quiet(command: list[str], cwd: Path, check: bool = True) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        command,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        check=check,
     )
 
 
@@ -68,11 +92,45 @@ def tracked_hashes(root: Path) -> dict[str, str]:
     return hashes
 
 
+def git_status_porcelain(root: Path) -> list[tuple[str, str]]:
+    """Return parsed `git status --porcelain=v1 --untracked-files=all` entries."""
+    result = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        text=True,
+        check=True,
+    )
+    entries: list[tuple[str, str]] = []
+    for line in result.stdout.splitlines():
+        if not line:
+            continue
+        status = line[:2]
+        path = line[3:]
+        entries.append((status, path))
+    return entries
+
+
+def active_worktrees(root: Path) -> list[Path]:
+    result = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=root,
+        stdout=subprocess.PIPE,
+        text=True,
+        check=True,
+    )
+    worktrees: list[Path] = []
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            worktrees.append(Path(line[len("worktree "):]).resolve())
+    return worktrees
+
+
 @contextlib.contextmanager
 def detached_worktree(root: Path):
     temp_parent = Path(tempfile.mkdtemp(prefix="brutal-worktree-"))
     target = temp_parent / "repo"
-    subprocess.run(
+    worktree_proc = subprocess.run(
         ["git", "worktree", "add", "--detach", "--force", str(target), "HEAD"],
         cwd=root,
         check=True,
@@ -80,16 +138,25 @@ def detached_worktree(root: Path):
         stderr=subprocess.STDOUT,
         text=True,
     )
+    if worktree_proc.returncode != 0:
+        raise RuntimeError(worktree_proc.stdout)
     try:
         yield target
     finally:
-        subprocess.run(
-            ["git", "worktree", "remove", "--force", str(target)],
-            cwd=root,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
+        start = time.monotonic()
+        while True:
+            remove_proc = subprocess.run(
+                ["git", "worktree", "remove", "--force", str(target)],
+                cwd=root,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+            )
+            if remove_proc.returncode == 0:
+                break
+            if time.monotonic() - start > 10:
+                break
+            time.sleep(0.1)
         shutil.rmtree(temp_parent, ignore_errors=True)
 
 
@@ -99,6 +166,15 @@ def replace_first(path: Path, pattern: str, replacement: str, flags: int = 0) ->
     if count != 1:
         raise RuntimeError(f"mutation pattern not found in {path}: {pattern}")
     path.write_text(changed, encoding="utf-8")
+
+
+def replace_all(path: Path, pattern: str, replacement: str, flags: int = 0) -> int:
+    text = path.read_text(encoding="utf-8")
+    changed, count = re.subn(pattern, replacement, text, flags=flags)
+    if count == 0:
+        raise RuntimeError(f"mutation pattern not found in {path}: {pattern}")
+    path.write_text(changed, encoding="utf-8")
+    return count
 
 
 def append_after_line(path: Path, prefix: str, lines: list[str]) -> None:
@@ -201,6 +277,7 @@ def mutate_hardcoded_api37(root: Path, cfg: dict) -> None:
 
 def mutate_windows_path(root: Path, cfg: dict) -> None:
     path = root / "tools" / "__brutal_windows_path_mutation.py"
+    path.parent.mkdir(parents=True, exist_ok=True)
     payload = base64.b64decode(
         "ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnggPSBQYXRoKCJDOlxcdGVtcFxc"
         "cmVwbyIpCnkgPSAiYS9iIi5yZXBsYWNlKCIvIiwgIlxcIikK"
@@ -307,6 +384,22 @@ def mutate_eager_thread(root: Path, cfg: dict) -> None:
     )
 
 
+def maybe_extra_mutators() -> dict[str, Callable[[Path, dict], None]]:
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "brutal_a14_mutators",
+            Path(__file__).resolve().parent / "brutal_a14_mutators.py",
+        )
+        if spec is None or spec.loader is None:
+            return {}
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return getattr(module, "MUTATORS", {})
+    except Exception:
+        return {}
+
+
 MUTATORS: dict[str, Callable[[Path, dict], None]] = {
     "duplicate_smart_key": mutate_duplicate_smart,
     "fake_ci_pass": mutate_fake_ci_pass,
@@ -328,92 +421,368 @@ MUTATORS: dict[str, Callable[[Path, dict], None]] = {
     "static_context_leak": mutate_static_context,
     "eager_handler_thread": mutate_eager_thread,
 }
+MUTATORS.update(maybe_extra_mutators())
+
+
+class ConfigError(Exception):
+    pass
+
+
+def validate_config(cfg: dict) -> None:
+    if not isinstance(cfg, dict):
+        raise ConfigError("config must be a JSON object")
+
+    if cfg.get("schema_version") != 1:
+        raise ConfigError("config schema_version must be 1")
+
+    for key in ("mutations", "hermetic_commands", "determinism_command", "determinism_outputs", "gates", "expected_branch"):
+        if key not in cfg:
+            raise ConfigError(f"config missing required key: {key}")
+
+    mutations = cfg["mutations"]
+    if not isinstance(mutations, list) or not mutations:
+        raise ConfigError("mutations must be a non-empty list")
+
+    minimum = cfg.get("minimum_mutations")
+    if minimum is None:
+        raise ConfigError("minimum_mutations is required")
+    if not isinstance(minimum, int) or minimum < 1:
+        raise ConfigError("minimum_mutations must be a positive integer")
+    if minimum > len(mutations):
+        raise ConfigError(f"minimum_mutations ({minimum}) exceeds configured mutation count ({len(mutations)})")
+
+    required = cfg.get("required_mutations", [])
+    if not isinstance(required, list):
+        raise ConfigError("required_mutations must be a list")
+    names = [m["name"] for m in mutations]
+    missing = [r for r in required if r not in names]
+    if missing:
+        raise ConfigError(f"required mutation(s) missing from config: {missing}")
+
+    seen: set[str] = set()
+    duplicates = []
+    for m in mutations:
+        name = m.get("name")
+        if not name or not isinstance(name, str):
+            raise ConfigError("every mutation must have a non-empty name")
+        if name in seen:
+            duplicates.append(name)
+        seen.add(name)
+        mutator = m.get("mutator")
+        if not mutator or not isinstance(mutator, str):
+            raise ConfigError(f"mutation {name!r} missing mutator")
+        if mutator not in MUTATORS:
+            raise ConfigError(f"mutation {name!r} references unknown mutator {mutator!r}")
+        gate = m.get("gate")
+        if not gate or not isinstance(gate, str):
+            raise ConfigError(f"mutation {name!r} missing gate")
+        if gate not in cfg["gates"]:
+            raise ConfigError(f"mutation {name!r} references unknown gate {gate!r}")
+    if duplicates:
+        raise ConfigError(f"duplicate mutation names: {duplicates}")
+
+    gates = cfg["gates"]
+    if not isinstance(gates, dict) or not gates:
+        raise ConfigError("gates must be a non-empty dict")
+    for gate_name, command in gates.items():
+        if not command or not isinstance(command, str):
+            raise ConfigError(f"gate {gate_name!r} has an empty command")
+
+    hermetic = cfg["hermetic_commands"]
+    if not isinstance(hermetic, list) or not hermetic:
+        raise ConfigError("hermetic_commands must be a non-empty list")
+
+    determinism_outputs = cfg["determinism_outputs"]
+    if not isinstance(determinism_outputs, list) or not determinism_outputs:
+        raise ConfigError("determinism_outputs must be a non-empty list")
+    if len(determinism_outputs) != len(set(determinism_outputs)):
+        raise ConfigError("determinism_outputs must be unique")
+
+
+def _is_allowed_untracked(rel: str, allowed_untracked: set[str]) -> bool:
+    for prefix in allowed_untracked:
+        if rel.startswith(prefix) or rel.startswith("." + prefix.rstrip("/")):
+            return True
+    return False
+
+
+def collect_status_failures(
+    root: Path,
+    allowed_untracked: set[str],
+    baseline_untracked: set[str] | None = None,
+) -> tuple[bool, list[str]]:
+    """Check git status for tracked changes and new untracked files.
+
+    If *baseline_untracked* is provided, only untracked files not in the baseline
+    are reported; this lets the suite detect files created by the commands under
+    test without failing on pre-existing untracked work.
+    """
+    failures: list[str] = []
+    for status, rel in git_status_porcelain(root):
+        if status == "??":
+            if _is_allowed_untracked(rel, allowed_untracked):
+                continue
+            if baseline_untracked is not None and rel in baseline_untracked:
+                continue
+            failures.append(f"untracked: {rel}")
+        elif status.startswith("D"):
+            failures.append(f"deleted: {rel}")
+        elif status:
+            failures.append(f"modified ({status.strip()}): {rel}")
+    return not failures, failures
+
+
+def allowed_untracked_patterns() -> set[str]:
+    return {
+        ".gradle/",
+        "build/",
+        "app/build/",
+        "__pycache__/",
+    }
 
 
 def hermeticity(root: Path, cfg: dict, timeout: int) -> int:
+    allowed = allowed_untracked_patterns()
+    baseline_status = git_status_porcelain(root)
+    baseline_untracked = {rel for status, rel in baseline_status if status == "??" and not _is_allowed_untracked(rel, allowed)}
+
+    _, pre_failures = collect_status_failures(root, allowed, baseline_untracked=baseline_untracked)
+    if pre_failures:
+        print("Hermeticity FAILED: existing untracked files in protected paths")
+        for f in pre_failures[:30]:
+            print(f"  {f}")
+        if len(pre_failures) > 30:
+            print(f"  ... and {len(pre_failures) - 30} more")
+        return 1
+
     before = tracked_hashes(root)
-    failures = []
     for command in cfg["hermetic_commands"]:
         result = run(command, root, timeout)
         if result.returncode:
-            failures.append(f"command failed: {command}\n{result.stdout[-3000:]}")
+            print(f"Hermeticity FAILED: command failed: {command}")
+            print(result.stdout[-3000:])
+            return 1
+
     after = tracked_hashes(root)
     dirty = sorted(k for k in set(before) | set(after) if before.get(k) != after.get(k))
     if dirty:
-        failures.append(f"tracked files changed by read-only tests: {dirty}")
-    if failures:
-        print("Hermeticity FAILED")
-        for f in failures:
+        print("Hermeticity FAILED: tracked files changed by read-only tests")
+        for d in dirty[:30]:
+            print(f"  {d}")
+        return 1
+
+    _, post_failures = collect_status_failures(root, allowed, baseline_untracked=baseline_untracked)
+    if post_failures:
+        print("Hermeticity FAILED: new untracked or dirty files after tests")
+        for f in post_failures[:30]:
             print(f"  {f}")
         return 1
-    print(f"Hermeticity passed: {len(cfg['hermetic_commands'])} command(s), no tracked changes")
+
+    worktrees = active_worktrees(root)
+    stale = [w for w in worktrees if "brutal-worktree-" in w.as_posix()]
+    if stale:
+        print("Hermeticity FAILED: stale brutal worktrees remain")
+        for w in stale[:10]:
+            print(f"  {w}")
+        return 1
+
+    print(f"Hermeticity passed: {len(cfg['hermetic_commands'])} command(s), working tree clean")
     return 0
+
+
+VOLATILE_KEYS = {
+    "generatedAt",
+    "sourceCommit",
+    "sourceTree",
+    "verifiedTree",
+    "verifiedMode",
+    "ciState",
+    "ciRun",
+    "ciJob",
+    "ciCommit",
+    "auditTime",
+    "timestamp",
+    "builtAt",
+    "builtBy",
+}
+
+
+def _normalize_json(text: str) -> str:
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        return text
+    if isinstance(data, dict):
+        for key in list(data.keys()):
+            if key in VOLATILE_KEYS:
+                del data[key]
+        return json.dumps(data, indent=2, sort_keys=True)
+    return text
+
+
+def _pascal_key(key: str) -> str:
+    if not key:
+        return key
+    return key[0].upper() + key[1:]
+
+
+def _normalize_text(text: str) -> str:
+    for key in VOLATILE_KEYS:
+        for form in {key, _pascal_key(key)}:
+            text = re.sub(
+                rf"(?m)^\s*(?:{re.escape(form)})\s*[:=]\s*.*$\n?",
+                "",
+                text,
+            )
+    text = re.sub(r"\n\n+", "\n", text)
+    return text
+
+
+def normalize_determinism_output(path: Path, text: str) -> str:
+    """Remove known volatile fields while keeping the structural payload."""
+    if path.suffix == ".json":
+        return _normalize_json(text)
+    return _normalize_text(text)
 
 
 def determinism(root: Path, cfg: dict, timeout: int) -> int:
     command = cfg["determinism_command"]
     outputs = [Path(p) for p in cfg["determinism_outputs"]]
-    snapshots = []
+    snapshots: list[dict[str, str]] = []
+    expected_output_paths = {p.as_posix() for p in outputs}
+
     with detached_worktree(root) as work:
         for env in (
             {"PYTHONHASHSEED": "1", "TZ": "UTC", "LC_ALL": "C"},
             {"PYTHONHASHSEED": "777", "TZ": "Asia/Tokyo", "LC_ALL": "C"},
         ):
+            before = tracked_hashes(work)
             result = run(command, work, timeout, env)
             if result.returncode:
-                print(result.stdout)
+                print(f"Determinism FAILED: command failed: {command}")
+                print(result.stdout[-3000:])
                 return 1
-            current = {}
+
             for rel in outputs:
                 path = work / rel
                 if not path.exists():
-                    print(f"Determinism output missing: {rel}")
+                    print(f"Determinism FAILED: output missing: {rel}")
                     return 1
+
+            # The command must not create files outside the declared outputs or modify
+            # tracked files other than the declared outputs.
+            after_files = {p for p in work.rglob("*") if p.is_file() and not _is_build_artifact(p, work) and p.name != ".git"}
+            after_rel = {p.relative_to(work).as_posix() for p in after_files}
+            new_files = after_rel - set(before.keys())
+            unexpected_new = new_files - expected_output_paths
+            if unexpected_new:
+                print(f"Determinism FAILED: unexpected new files: {sorted(unexpected_new)[:20]}")
+                return 1
+
+            after = tracked_hashes(work)
+            changed = [rel for rel in set(before) if before[rel] != after.get(rel, "<missing>")]
+            unexpected_changed = [rel for rel in changed if rel not in expected_output_paths]
+            if unexpected_changed:
+                print(f"Determinism FAILED: modified tracked files outside outputs: {unexpected_changed[:20]}")
+                return 1
+
+            current: dict[str, str] = {}
+            for rel in outputs:
+                path = work / rel
                 text = path.read_text(encoding="utf-8")
-                text = re.sub(r'(?m)^.*(?:GeneratedAt|generatedAt|AuditTime|audit_time).*$\n?', "", text)
+                text = normalize_determinism_output(path, text)
                 current[rel.as_posix()] = hashlib.sha256(text.encode()).hexdigest()
             snapshots.append(current)
+
     if snapshots[0] != snapshots[1]:
-        print("Determinism FAILED")
+        print("Determinism FAILED: output differs between runs")
         print(json.dumps({"run1": snapshots[0], "run2": snapshots[1]}, indent=2))
         return 1
+
     print(f"Determinism passed for {len(outputs)} output(s)")
     return 0
 
 
-def mutation_test(root: Path, cfg: dict, timeout: int, selected: set[str] | None) -> int:
-    results = []
+def _is_build_artifact(path: Path, root: Path) -> bool:
+    rel = path.relative_to(root).as_posix()
+    for prefix in (".git/", ".gradle/", "build/", "app/build/", "__pycache__/"):
+        if rel.startswith(prefix):
+            return True
+    return False
+
+
+def mutation_test(root: Path, cfg: dict, timeout: int, selected: set[str] | None, ignore_minimum: bool = False) -> int:
+    command_by_mutation: dict[str, tuple[str, int]] = {}
+    results: list[tuple[str, str, str]] = []
+
     for case in cfg["mutations"]:
         name = case["name"]
         if selected and name not in selected:
             continue
-        mutator = MUTATORS.get(case["mutator"])
+        mutator_name = case["mutator"]
+        mutator = MUTATORS.get(mutator_name)
         if mutator is None:
-            results.append((name, "ERROR", "unknown mutator"))
+            results.append((name, "ERROR", f"unknown mutator {mutator_name!r}"))
             continue
-        gate = cfg["gates"][case["gate"]]
+        gate = (
+            cfg["gates"][case["gate"]]
+            .replace("{name}", name)
+            .replace("{mutator}", mutator_name)
+        )
+        case_timeout = case.get("timeout", timeout)
+        command_by_mutation[name] = (gate, case_timeout)
+
+    if selected and not command_by_mutation:
+        print("Mutation test FAILED: --case did not match any configured mutation")
+        return 1
+
+    if not command_by_mutation:
+        print("Mutation test FAILED: no mutations to run")
+        return 1
+
+    for name, (gate, case_timeout) in command_by_mutation.items():
+        status = "NOT_RUN"
+        detail = ""
         try:
             with detached_worktree(root) as work:
+                index = next(i for i, m in enumerate(cfg["mutations"]) if m["name"] == name)
+                mutator = MUTATORS[cfg["mutations"][index]["mutator"]]
                 mutator(work, cfg)
-                result = run(gate, work, timeout)
-                status = "KILLED" if result.returncode != 0 else "SURVIVED"
-                tail = result.stdout[-2500:]
-                results.append((name, status, tail))
+                result = run(gate, work, case_timeout)
+                if result.returncode != 0:
+                    status = "KILLED"
+                else:
+                    status = "SURVIVED"
+                detail = result.stdout[-2500:]
+        except subprocess.TimeoutExpired as exc:
+            status = "TIMEOUT"
+            detail = f"timed out after {exc.timeout}s"
         except Exception as exc:
-            results.append((name, "ERROR", repr(exc)))
+            status = "ERROR"
+            detail = repr(exc)
+        results.append((name, status, detail))
 
     failed = False
-    for name, status, tail in results:
+    for name, status, detail in results:
         print(f"{status:9} {name}")
         if status != "KILLED":
             failed = True
-            if tail:
-                print("  " + tail.replace("\n", "\n  "))
+            if detail:
+                print("  " + detail.replace("\n", "\n  "))
+
     killed = sum(1 for _, s, _ in results if s == "KILLED")
-    print(f"Mutation score: {killed}/{len(results)} killed")
+    total = len(results)
+    print(f"Mutation score: {killed}/{total} killed")
+    if total == 0:
+        print("Mutation test FAILED: 0 mutations run")
+        return 1
+    if not ignore_minimum and killed < cfg.get("minimum_mutations", total):
+        print(f"Mutation test FAILED: killed count {killed} below minimum {cfg.get('minimum_mutations')}")
+        return 1
     if failed:
         print("SURVIVED_MUTATION means the current test suite did not detect an injected defect.")
         return 1
+    print("All mutations killed.")
     return 0
 
 
@@ -426,18 +795,26 @@ def main(argv=None) -> int:
     sub.add_parser("determinism")
     m = sub.add_parser("mutate")
     m.add_argument("--case", action="append")
+    m.add_argument("--ignore-minimum", action="store_true", help="do not enforce minimum_mations when running a subset")
     sub.add_parser("all")
     args = p.parse_args(argv)
 
     root = repo_root()
     cfg = json.loads((root / args.config).read_text(encoding="utf-8"))
 
+    try:
+        validate_config(cfg)
+    except ConfigError as exc:
+        print(f"Config error: {exc}", file=sys.stderr)
+        return 1
+
     if args.command == "hermeticity":
         return hermeticity(root, cfg, args.timeout)
     if args.command == "determinism":
         return determinism(root, cfg, args.timeout)
     if args.command == "mutate":
-        return mutation_test(root, cfg, args.timeout, set(args.case or []) or None)
+        selected = set(args.case or [])
+        return mutation_test(root, cfg, args.timeout, selected or None, ignore_minimum=args.ignore_minimum)
 
     code = hermeticity(root, cfg, args.timeout)
     if code:
