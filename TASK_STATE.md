@@ -1007,7 +1007,23 @@ python tools/verify.py full                                          # pass
 
 ## P12.2 CURRENT architecture
 
-State: `TODO`
+State: `VERIFIED_STATIC`
+
+EvidenceCommit: d189ad12fc50522ada4772fcb6e5afb510469e01
+
+文件：
+
+- `docs/A14_CURRENT_ARCHITECTURE.md`：描述当前源码架构，使用 EvidenceCommit 校验。
+- `tools/tests/test_current_architecture.py`：机械验证文档元数据、路径、symbol 和限制。
+
+证据：
+
+```text
+python -m unittest tools.tests.test_current_architecture
+python -m unittest discover -s tools/tests -p "test_*.py"
+python tools/check_document_contracts.py
+python tools/check-invariants.py
+```
 
 ## P12.3 Gesture event contract
 
