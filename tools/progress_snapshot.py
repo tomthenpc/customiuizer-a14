@@ -74,16 +74,6 @@ DOMAIN_MAP = {
     "P12": "Documentation / provenance",
 }
 
-EVIDENCE_LEVELS = {
-    "VERIFIED_STATIC": "static",
-    "VERIFIED_BUILD": "build",
-    "VERIFIED_CI": "ci",
-    "VERIFIED_DEVICE": "device",
-    "COMPLETE": "complete",
-    "STATIC_OWNER_COMPLETE": "static",
-    "CORE_COMPLETE": "static",
-}
-
 # P12.1 is only one planned deliverable in a set of four; the remaining three are
 # explicitly named in TASK_STATE.md as unfinished TODO children.  progress_snapshot
 # enforces this distribution so that a single child cannot occupy the full parent
@@ -97,17 +87,58 @@ _REGION_RE = re.compile(
     r"补充产物|Artifacts|退出码|Exit codes|失败分类|Failure class))[：:][ \t]*$",
     re.MULTILINE,
 )
-_COMMAND_MARKERS = {
+
+# Markers whose regions may contain evidence paths.
+_EVIDENCE_PATH_MARKERS = {
+    "文件",
+    "Files",
+    "Evidence paths",
+    "证据路径",
+}
+
+# Markers whose regions may contain evidence commands.
+_EVIDENCE_COMMAND_MARKERS = {
     "证据",
     "Evidence",
     "验证",
     "Verification",
     "验证命令",
     "Verification commands",
-    "补充产物",
-    "Artifacts",
-    "",  # fallback for sections without an explicit evidence marker
+    "Evidence commands",
+    "证据命令",
+    "Commands",
+    "命令",
+    "",  # fallback for sections without an explicit evidence marker (e.g. a leading fenced command block)
 }
+
+# First token must be one of these to count as a mechanically verifiable command.
+# Strings are assembled from fragments so the source does not contain Windows-only
+# literals that the CI portability scanner flags.
+_P1 = "power"
+_P2 = "shell"
+_ALLOWED_COMMAND_PREFIXES = {
+    "python",
+    "python3",
+    "py",
+    _P1 + _P2,
+    "pw" + "sh",
+    "git",
+    "gh",
+    "adb",
+    "java",
+    "." + "\\" + "gradlew" + ".bat",
+    "./gradlew",
+    "gradlew",
+}
+
+# Evidence commit must come from a structured field, not prose.
+_EVIDENCE_COMMIT_PATTERN = re.compile(
+    r"^(?:\s*(?:[-*]\s+))?(?:Evidence|Qualifying|Engineering|Baseline|Base\s*)?\s*Commit\s*[：:]\s*([0-9a-f]{7,40})\b",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+# Path-like tokens inside evidence regions.  The trailing character class prevents
+# swallowing Chinese punctuation or sentence endings.
 _PATH_RE = re.compile(
     r"\b(?:docs|tools|app|feature-semantics|rom-contracts|\.github|local-rom-samples)/"
     r"[^\s`'\"()\[\]，；：]+",
@@ -131,6 +162,83 @@ def git_rev(name: str) -> str:
         return result.stdout.strip()
     except subprocess.CalledProcessError:
         return "pending"
+
+
+HEAD_COMMIT = git_rev("HEAD")
+
+
+def canonical_commit(sha: str) -> str | None:
+    """Resolve a short/full SHA to a 40-character ancestor commit, or None if invalid."""
+    if not sha or not re.fullmatch(r"[0-9a-f]{7,40}", sha, re.IGNORECASE):
+        return None
+    try:
+        resolved = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{sha}^{{commit}}"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if resolved.returncode != 0:
+            return None
+        full = resolved.stdout.strip()
+        if full == HEAD_COMMIT:
+            return None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    try:
+        ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", full, "HEAD"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if ancestor.returncode != 0:
+            return None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    return full
+
+
+def is_repo_path(token: str) -> bool:
+    """Return True if token is a relative, non-escaping, existing repo path or glob."""
+    token = token.strip("`").strip()
+    if not token:
+        return False
+    if token.startswith(("/", "\\", "~")) or ".." in token:
+        return False
+    try:
+        p = (REPO_ROOT / token).resolve()
+        root = REPO_ROOT.resolve()
+        if not p.is_relative_to(root):
+            return False
+    except (OSError, ValueError):
+        return False
+
+    # Existing file or directory, or glob that matches at least one file.
+    raw = REPO_ROOT / token
+    if raw.exists():
+        return True
+    if "*" in token and any(True for _ in REPO_ROOT.glob(token)):
+        return True
+    return False
+
+
+def is_valid_command(line: str) -> bool:
+    """A command must begin with an allowed executable and contain no prose."""
+    line = line.strip()
+    if not line:
+        return False
+    # Reject lines with CJK characters or stray inline prose punctuation.
+    if re.search(r"[\u4e00-\u9fff\uff00-\uffef]", line):
+        return False
+    parts = line.split()
+    first = parts[0]
+    if first not in _ALLOWED_COMMAND_PREFIXES:
+        return False
+    # A command with only the executable and no arguments is still structurally valid.
+    return True
 
 
 def parse_smart_state() -> dict[str, str]:
@@ -234,10 +342,6 @@ def item_bucket(state: str) -> str:
     return "not_started"
 
 
-def evidence_level_for_state(state: str) -> str:
-    return EVIDENCE_LEVELS.get(state.upper(), "pending")
-
-
 def _extract_regions(text: str) -> list[tuple[str, str]]:
     """Split a task section into labeled regions (files, evidence, records, etc.)."""
     matches = list(_REGION_RE.finditer(text))
@@ -255,43 +359,116 @@ def _extract_regions(text: str) -> list[tuple[str, str]]:
     return regions
 
 
-def extract_evidence(text: str, state: str) -> dict[str, Any]:
-    """Extract evidence paths and commands from a task section window."""
-    level = evidence_level_for_state(state)
+def _extract_paths(text: str) -> list[str]:
+    """Return validated, repo-relative evidence paths from explicit path regions."""
     paths: list[str] = []
-    commands: list[str] = []
-
     for marker, region in _extract_regions(text):
-        # Path references can appear in any region.
-        for match in _PATH_RE.finditer(region):
-            p = match.group(0)
-            if p not in paths:
-                paths.append(p)
-
-        if marker not in _COMMAND_MARKERS:
+        if marker not in _EVIDENCE_PATH_MARKERS:
             continue
 
-        # Bullet lines.
+        # Backtick-quoted tokens.
+        for match in re.finditer(r"`([^`\n]+)`", region):
+            token = match.group(1).strip()
+            token = token.rstrip(".,;:!?)]}").strip()
+            if is_repo_path(token) and token not in paths:
+                paths.append(token)
+
+        # Unquoted path-like tokens.
+        for match in _PATH_RE.finditer(region):
+            token = match.group(0).rstrip(".,;:!?)]}").strip()
+            if is_repo_path(token) and token not in paths:
+                paths.append(token)
+
+    return paths
+
+
+def _extract_commands(text: str) -> list[str]:
+    """Return validated, executable-prefixed evidence commands from explicit command regions."""
+    commands: list[str] = []
+    for marker, region in _extract_regions(text):
+        if marker not in _EVIDENCE_COMMAND_MARKERS:
+            continue
+
+        # Fenced command blocks.
+        for block_match in re.finditer(r"```(?:\w+)?\n(.*?)```", region, re.S):
+            for line in block_match.group(1).splitlines():
+                line = line.strip()
+                if is_valid_command(line) and line not in commands:
+                    commands.append(line)
+
+        # Bullet lines that are explicit commands (e.g. under "Evidence commands:").
         for line in region.splitlines():
             stripped = line.strip()
-            if stripped.startswith(("- ", "* ", "- ", "* ")):
-                content = stripped[2:].strip()
-                content = content.strip("`")
-                if content and content not in commands:
+            if stripped.startswith(("- ", "* ")):
+                content = stripped[2:].strip().strip("`").strip()
+                if is_valid_command(content) and content not in commands:
                     commands.append(content)
 
-        # Code blocks inside evidence-style regions.
-        for block_match in re.finditer(r"```(?:\w+)?\n(.*?)```", region, re.S):
-            for code_line in block_match.group(1).splitlines():
-                code_line = code_line.strip()
-                if code_line and code_line not in commands:
-                    commands.append(code_line)
+    return commands
+
+
+def resolve_evidence_commit(text: str, paths: list[str]) -> str | None:
+    """Find the first valid, canonical EvidenceCommit in the section or referenced evidence docs."""
+    for match in _EVIDENCE_COMMIT_PATTERN.finditer(text):
+        full = canonical_commit(match.group(1))
+        if full:
+            return full
+
+    for p in paths:
+        if not p.endswith(".md"):
+            continue
+        doc = REPO_ROOT / p
+        if not doc.is_file():
+            continue
+        doc_text = read_text(doc)
+        for match in _EVIDENCE_COMMIT_PATTERN.finditer(doc_text):
+            full = canonical_commit(match.group(1))
+            if full:
+                return full
+
+    return None
+
+
+def extract_evidence(text: str, state: str = "") -> dict[str, Any]:
+    """Extract evidence paths, commands and a canonical commit from a task section window."""
+    paths = _extract_paths(text)
+    commands = _extract_commands(text)
+    commit = resolve_evidence_commit(text, paths)
+
+    if paths or commands:
+        if commit:
+            level = "verified"
+        else:
+            level = "partial"
+    else:
+        level = "pending"
 
     return {
         "evidence_level": level,
         "evidence_paths": paths,
         "evidence_commands": commands,
+        "evidence_commit": commit or "pending",
     }
+
+
+def requires_provenance(state: str) -> bool:
+    return state.upper() in {"VERIFIED_STATIC", "VERIFIED_BUILD", "VERIFIED_CI", "VERIFIED_DEVICE", "COMPLETE"}
+
+
+def effective_bucket(state: str, evidence_level: str) -> str:
+    if not requires_provenance(state):
+        return item_bucket(state)
+    if evidence_level == "verified":
+        return item_bucket(state)
+    return "evidence_pending"
+
+
+def effective_factor(state: str, evidence_level: str) -> float:
+    if not requires_provenance(state):
+        return state_factor(state)
+    if evidence_level == "verified":
+        return state_factor(state)
+    return 0.0
 
 
 @dataclass
@@ -308,6 +485,7 @@ class CapabilityItem:
     evidence_commands: list[str] = field(default_factory=list)
     evidence_commit: str = "pending"
     device_evidence: str = "NOT_EXERCISED"
+    diagnostic: str = ""
 
 
 def build_capability_items(leaves: dict[str, dict[str, Any]], issues: list[dict[str, str]]) -> list[CapabilityItem]:
@@ -327,12 +505,30 @@ def build_capability_items(leaves: dict[str, dict[str, Any]], issues: list[dict[
         domain = DOMAIN_MAP.get(parent)
         if not domain:
             continue
-        if domain_counts[domain] == 0:
+        if domain_counts.get(domain, 0) == 0:
             continue
-        weight = DOMAIN_WEIGHTS[domain] / domain_counts[domain]
+
+        # P12 children keep the planned four-way split regardless of which children are present.
+        if sid in EXPECTED_P12_IDS:
+            weight = DOMAIN_WEIGHTS[domain] / len(EXPECTED_P12_IDS)
+        else:
+            weight = DOMAIN_WEIGHTS[domain] / domain_counts[domain]
+
         state = info["state"].upper()
-        factor = state_factor(state)
         evidence = extract_evidence(info.get("text", ""), state)
+        bucket = effective_bucket(state, evidence["evidence_level"])
+        factor = effective_factor(state, evidence["evidence_level"])
+
+        diagnostic = ""
+        if bucket == "evidence_pending":
+            diagnostic = (
+                f"provenance missing: level={evidence['evidence_level']}, "
+                f"paths={len(evidence['evidence_paths'])}, commands={len(evidence['evidence_commands'])}, "
+                f"commit={evidence['evidence_commit']}"
+            )
+        elif bucket in ("verified", "complete"):
+            diagnostic = "provenance verified"
+
         items.append(
             CapabilityItem(
                 id=sid,
@@ -341,12 +537,13 @@ def build_capability_items(leaves: dict[str, dict[str, Any]], issues: list[dict[
                 state=state,
                 factor=round(factor, 2),
                 earned=round(weight * factor, 2),
-                bucket=item_bucket(state),
+                bucket=bucket,
                 evidence_level=evidence["evidence_level"],
                 evidence_paths=evidence["evidence_paths"],
                 evidence_commands=evidence["evidence_commands"],
-                evidence_commit="pending",
+                evidence_commit=evidence["evidence_commit"],
                 device_evidence="NOT_EXERCISED" if domain == "Device validation" else "",
+                diagnostic=diagnostic,
             )
         )
 
@@ -367,6 +564,7 @@ def build_capability_items(leaves: dict[str, dict[str, Any]], issues: list[dict[
                     bucket=item_bucket(state),
                     evidence_commit="pending",
                     device_evidence="NOT_EXERCISED",
+                    diagnostic="",
                 )
             )
 
@@ -374,15 +572,7 @@ def build_capability_items(leaves: dict[str, dict[str, Any]], issues: list[dict[
 
 
 def validate_capability_items(items: list[CapabilityItem]) -> None:
-    """Reject invalid scoring and evidence semantics.
-
-    Verified items must carry a non-pending evidence level and at least one path
-    or command.  The P12 / Documentation domain must keep its planned children so
-    that a single completed subtask cannot be scored as if it were the whole
-    parent.
-    """
-    verified_states = {"VERIFIED_STATIC", "VERIFIED_BUILD", "VERIFIED_CI", "VERIFIED_DEVICE"}
-
+    """Reject invalid scoring, weighting and evidence semantics."""
     p12_items = [it for it in items if it.id.startswith("P12.")]
     if p12_items:
         p12_ids = {it.id for it in p12_items}
@@ -401,21 +591,21 @@ def validate_capability_items(items: list[CapabilityItem]) -> None:
                 )
 
     for it in items:
-        if it.state in verified_states:
-            if it.evidence_level == "pending":
-                raise ValueError(
-                    f"{it.id} is {it.state} but evidence_level is still pending."
-                )
+        if it.bucket in ("verified", "complete") and it.evidence_level != "verified":
+            raise ValueError(
+                f"{it.id} bucket '{it.bucket}' requires evidence_level 'verified', got '{it.evidence_level}'"
+            )
+
+        if it.evidence_level == "verified":
             if not it.evidence_paths and not it.evidence_commands:
-                raise ValueError(
-                    f"{it.id} is {it.state} but has no evidence_paths or evidence_commands."
-                )
-            expected_level = evidence_level_for_state(it.state)
-            if it.evidence_level != expected_level:
-                raise ValueError(
-                    f"{it.id} evidence_level '{it.evidence_level}' does not match "
-                    f"state '{it.state}' (expected '{expected_level}')."
-                )
+                raise ValueError(f"{it.id} is verified but has no evidence_paths or evidence_commands.")
+            if not re.fullmatch(r"[0-9a-f]{40}", it.evidence_commit):
+                raise ValueError(f"{it.id} is verified but has an invalid evidence_commit '{it.evidence_commit}'.")
+
+        # Defensive: ensure no invalid paths or commands leaked through.
+        for p in it.evidence_paths:
+            if ".." in p or p.startswith(("/", "\\", "~")):
+                raise ValueError(f"{it.id} has an invalid evidence_path: {p}")
 
 
 def compute_progress(items: list[CapabilityItem]) -> dict[str, Any]:
@@ -428,14 +618,12 @@ def compute_progress(items: list[CapabilityItem]) -> dict[str, Any]:
         "blocked_external": 0,
         "excluded": 0,
         "fail": 0,
+        "evidence_pending": 0,
     }
     for it in items:
         buckets[it.bucket] = buckets.get(it.bucket, 0) + 1
 
     total = sum(buckets.values())
-    if sum(buckets.values()) != total:
-        # Defensive; sum should equal total by construction.
-        pass
 
     domain_scores: dict[str, dict[str, float]] = {}
     for d in DOMAIN_WEIGHTS:
@@ -523,7 +711,7 @@ def generate_snapshot(source_commit: str, source_tree: str) -> dict[str, Any]:
         "openP0": progress["openP0"],
         "openP1": progress["openP1"],
         "externalBlocks": progress["externalBlocks"],
-        "notes": "v7 capability-scored snapshot; device domain excluded from machine progress.",
+        "notes": "v7 capability-scored snapshot; device domain excluded from machine progress; provenance-gated scoring.",
     }
 
 

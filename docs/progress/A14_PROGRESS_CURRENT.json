@@ -1,52 +1,52 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-03T07:05:33.835832+08:00",
-  "sourceCommit": "0db83325b8ff939cd8475015b2ce32d22da8261f",
-  "sourceTree": "5a1277bac4c89b37d051144200b5e926a6152b80",
+  "generatedAt": "2026-08-03T09:47:04.650361+08:00",
+  "sourceCommit": "d189ad12fc50522ada4772fcb6e5afb510469e01",
+  "sourceTree": "3a58b30f8c5a379b16b459aefb0f3866d97694c4",
   "verifiedTree": "b6e74dcd847f48800b8becf373d97ba76a8c5425",
   "verifiedMode": "Final",
   "ciState": "PASS",
   "ciRun": "30749749010",
   "ciJob": "91501580779",
   "ciCommit": "e28b66a2",
-  "projectProgress": 81.0,
-  "machineProgress": 85.3,
-  "stage": "FINALIZATION_AND_DEVICE",
+  "projectProgress": 2.2,
+  "machineProgress": 2.3,
+  "stage": "BASELINE_AND_CONTROL",
   "domainScores": {
     "Baseline and control": {
       "weight": 8,
-      "earned": 7.5,
-      "percent": 93.8
+      "earned": 0.5,
+      "percent": 6.2
     },
     "Runtime architecture / routing / ownership": {
       "weight": 22,
-      "earned": 22.0,
-      "percent": 100.0
+      "earned": 0.0,
+      "percent": 0.0
     },
     "Runtime safety / lifecycle / concurrency": {
       "weight": 18,
-      "earned": 17.64,
-      "percent": 98.0
+      "earned": 0.84,
+      "percent": 4.7
     },
     "Performance / memory / APK / R8": {
       "weight": 12,
-      "earned": 10.2,
-      "percent": 85.0
+      "earned": 0.0,
+      "percent": 0.0
     },
     "ROM intelligence / compatibility": {
       "weight": 10,
-      "earned": 4.66,
-      "percent": 46.6
+      "earned": 0.0,
+      "percent": 0.0
     },
     "Java / Kotlin boundary": {
       "weight": 8,
-      "earned": 6.96,
-      "percent": 87.0
+      "earned": 0.0,
+      "percent": 0.0
     },
     "Build / CI / signing / artifacts": {
       "weight": 12,
-      "earned": 11.2,
-      "percent": 93.3
+      "earned": 0.0,
+      "percent": 0.0
     },
     "Documentation / provenance": {
       "weight": 5,
@@ -65,381 +65,306 @@
       "domain": "Baseline and control",
       "weight": 1.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P0.2",
       "domain": "Baseline and control",
       "weight": 1.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P0.3",
       "domain": "Baseline and control",
       "weight": 1.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P0.4",
       "domain": "Baseline and control",
       "weight": 1.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P1.1",
       "domain": "Baseline and control",
       "weight": 1.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
-      "evidence_paths": [
-        "tools/audit-feature-semantics.py",
-        "feature-semantics/a14.json",
-        "tools/extract_process_matrix.py"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "partial",
+      "evidence_paths": [],
       "evidence_commands": [
-        "stable ID \u552f\u4e00\uff1a`FeatureIds.kt` 245 \u4e2a entry\uff0cid \u8303\u56f4 0..244\uff0c\u65e0\u91cd\u590d id \u6216 name\u3002",
-        "name/canonical identity \u552f\u4e00\uff1a\u6240\u6709 `override val name` \u65e0\u91cd\u590d\u3002",
-        "no duplicate registration\uff1a`FeatureInstallRegistry.register` \u4f7f\u7528 `putIfAbsent` \u5e76\u5728\u51b2\u7a81\u65f6\u629b\u5f02\u5e38\uff1b`tools/audit-feature-semantics.py --validate` \u901a\u8fc7\u3002",
-        "no orphan spec\uff1a`extract_process_matrix.py` \u626b\u63cf `mods/utils/feature/*.kt` \u4e2d\u6240\u6709 `LazyFeatureSpec(...)`\uff0c\u751f\u6210 240 \u884c feature matrix\uff0c\u4e0e `FeatureIds.kt` \u4e00\u81f4\u3002",
-        "no unknown install route\uff1a12 \u4e2a `installers/*.java` \u5168\u90e8\u901a\u8fc7 `FeatureInstallRegistry` \u6ce8\u518c\u548c\u5b89\u88c5\uff1b\u65e0\u5176\u4ed6\u624b\u5de5\u7ed5\u8fc7 Registry \u7684\u5b89\u88c5\u8def\u5f84\u3002",
-        "semantics inventory \u4e0e\u4ee3\u7801\u4e00\u81f4\uff1a`feature-semantics/a14.json` \u4e0e\u6e90\u7801\u9a8c\u8bc1\u901a\u8fc7\u3002",
         "python tools/audit-feature-semantics.py --validate",
         "python tools/extract_process_matrix.py",
         "python tmp_check_feature_ids.py"
       ],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=partial, paths=0, commands=3, commit=pending"
     },
     {
       "id": "P1.2",
       "domain": "Baseline and control",
       "weight": 1.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
-      "evidence_paths": [
-        "tools/audit_hook_ownership.py",
-        "app/src/main/java",
-        "docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "partial",
+      "evidence_paths": [],
       "evidence_commands": [
-        "\u65b0\u5de5\u5177 `tools/audit_hook_ownership.py` \u626b\u63cf `app/src/main/java` \u4e0b\u6240\u6709 `.kt` / `.java` \u6587\u4ef6\uff0c\u8bc6\u522b 756 \u4e2a hook \u8c03\u7528\u70b9\u3002",
-        "\u6309\u6587\u4ef6\u8def\u5f84\u548c\u8bed\u4e49\u81ea\u52a8\u5206\u7c7b\uff1a\u4e1a\u52a1 Feature \u5b9a\u4e49\uff08`mods/*.kt`\uff09\u3001Installer/MainModule \u57fa\u7840\u8bbe\u65bd\u3001`mods/utils/XposedHelpers.java` / `HookerClassHelper.kt` \u6865\u63a5\u3001`ResourceHooks.kt` \u8d44\u6e90\u66ff\u6362\u3002",
-        "\u8f93\u51fa `docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md`\u3002",
         "python tools/audit_hook_ownership.py"
       ],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=partial, paths=0, commands=1, commit=pending"
     },
     {
       "id": "P1.3",
       "domain": "Baseline and control",
       "weight": 1.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
-      "evidence_paths": [
-        "docs/rom-intelligence/A14_PROCESS_MATRIX.{json,csv,md}",
-        "tools/extract_process_matrix.py"
-      ],
-      "evidence_commands": [
-        "docs/rom-intelligence/A14_PROCESS_MATRIX.{json,csv,md}` \u8986\u76d6 240 features\u3001scope list 14 entries\u3001package->installer routing 21 rows\u3002",
-        "tools/extract_process_matrix.py` \u4ece `MainModule.java`\u3001`FeatureSpec` \u5b9a\u4e49\u548c `scope.list` \u673a\u68b0\u63d0\u53d6\uff0c\u9a8c\u8bc1\u901a\u8fc7\u3002"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P2",
       "domain": "Runtime architecture / routing / ownership",
       "weight": 11.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 11.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "mods/utils/feature/*.kt` \u4e2d 244 \u4e2a `LazyFeatureSpec(...)` \u5b9a\u4e49\uff0c\u5168\u90e8\u4f7f\u7528 `FeatureInstallRegistry`\u3002",
-        "FeatureInstallRegistry` \u5b9e\u73b0 `isEnabled` \u95e8\u63a7\uff0c`create()` \u4ec5\u5728 enabled \u65f6\u8c03\u7528\u3002",
-        "FeatureInstallState` \u662f\u5355\u4f8b object\uff0c`HashMap<Int, FeatureState>`\uff0c\u8de8 `FeatureInstallRegistry` \u5b9e\u4f8b\u5171\u4eab\u3002",
-        "FeatureInstallRegistryTest.kt` \u8986\u76d6\uff1a",
-        "installAll_onlyMatchesTargetAndPhase",
-        "installAll_disabledFeatureSkipped",
-        "installAll_idempotent",
-        "separateRegistriesDoNotResetInstalledProcessState",
-        "installAll_failureRecordedOnce",
-        "installAll_exceptionBecomesTransient",
-        "register_differentDefinitionSameIdThrows",
-        "lazySpec_disabledFeatureDoesNotCreateDefinition",
-        "lazySpec_enabledFeatureCreatesAndInstalls",
-        "installOne_rethrowsOutOfMemoryErrorAndRollsBackState",
-        "installOne_rethrowsOomFromCreatedDefinition",
-        "duplicate business install route = 0",
-        "eager disabled definition = 0",
-        "unknown production Feature = 0"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P3.2",
       "domain": "Runtime architecture / routing / ownership",
       "weight": 11.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 11.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P4.1",
       "domain": "Java / Kotlin boundary",
       "weight": 1.6,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.6,
-      "bucket": "complete",
-      "evidence_level": "complete",
-      "evidence_paths": [
-        "tools/check-invariants.py"
-      ],
-      "evidence_commands": [
-        "MainModule.java` \u5728 `onModuleLoaded` \u8c03\u7528 `XposedApiCapabilities.initialize(getApiVersion())`\uff0c\u4e0d\u5f15\u7528 API 102-only \u7c7b\u578b\u3002",
-        "tools/check-invariants.py` \u7684 `check_api102_isolation` \u6bcf\u5929\u68c0\u67e5\uff1a",
-        "setId` \u53ea\u80fd\u7531 `Api102HookBridge` \u8c03\u7528\uff1b",
-        "replaceHook` \u4e0d\u5f97\u4f7f\u7528\uff1b",
-        "HotReloadingParam` / `HotReloadedParam` \u4e0d\u5f97\u4f7f\u7528\uff1b",
-        "getApiVersion` \u53ea\u80fd\u5728\u51b7\u542f\u52a8\u8def\u5f84\u8bfb\u53d6\u3002",
-        "check-invariants.py` \u65e0 violations\u3002"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P4.2",
       "domain": "Java / Kotlin boundary",
       "weight": 1.6,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.6,
-      "bucket": "complete",
-      "evidence_level": "complete",
-      "evidence_paths": [
-        "docs/LIBXPOSED_API_101_102_COMPATIBILITY.md"
-      ],
-      "evidence_commands": [
-        "Api102HookBridge` \u662f\u552f\u4e00\u5f15\u7528 `HookBuilder.setId` \u7684\u6587\u4ef6\uff0c\u4e14\u901a\u8fc7 `XposedApiCapabilities.supportsStableHookId()` \u95e8\u63a7\u3002",
-        "\u672a\u5728\u751f\u4ea7\u5b89\u88c5\u8def\u5f84\u8c03\u7528 `setStableHookId`\u3002",
-        "replaceHook` / `getId` / hot reload \u65e0\u751f\u4ea7\u4f7f\u7528\u3002",
-        "docs/LIBXPOSED_API_101_102_COMPATIBILITY.md",
-        "READY_NOT_WIRED without decision = 0",
-        "API102 leakage into API101 path = 0"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P5.1",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "\u552f\u4e00\u751f\u4ea7\u72b6\u6001\u673a\uff1a`mods/utils/gesture/GestureStateMachine.kt`\uff08object\uff0c\u7eaf\u51fd\u6570\uff09\u3002",
-        "\u552f\u4e00\u751f\u4ea7 orchestrator\uff1a`mods/utils/gesture/GestureMachine.kt`\uff08class\uff0cper-ClassLoader\uff09\u3002",
-        "\u65e0\u7ade\u4e89\u72b6\u6001\u673a\uff1a\u65e0\u5176\u4ed6 `GestureStateMachine` \u6216 `GestureMachine` \u7c7b\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P5.2",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "DOWN`/`MOVE`/`UP`/`CANCEL`/`pointer`/`multi-touch`/`velocity`/`distance`/`orientation`/`RTL`/`shade`/`config`/`reentry`\uff1a\u7531 `GestureEvent`\u3001`GestureGeometry`\u3001`GestureConfig`\u3001`GestureState`\u3001`GestureSnapshot` \u548c `GestureStateMachine` \u652f\u6301\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P5.3",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "\u7269\u7406\u624b\u52bf side effect \u6700\u591a\u4e00\u6b21\uff1a`GestureSideEffectGate.filter` \u5bf9 `(ownerId, event fingerprint)` \u53bb\u91cd\u3002",
-        "gate \u5e42\u7b49\uff1a\u91cd\u590d\u540c\u4e8b\u4ef6\u8fd4\u56de\u7a7a\u547d\u4ee4\u5217\u8868\u3002",
-        "\u4e3b\u7ebf\u7a0b\u65e0\u53cd\u5c04\uff1a`GestureMachine` \u7684 `readBrightness` \u4f7f\u7528\u9884\u89e3\u6790 `Method`\uff1b\u70ed\u8def\u5f84\u53ea\u8bfb `Map` \u67e5\u627e\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P5.4",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "\u5df2\u8fd0\u884c\uff1a`gradlew testDebugUnitTest --tests 'tv.withaibuild.customiuizer.mods.utils.gesture.*'",
-        "\u9000\u51fa\u7801\uff1a`0",
-        "\u5305\u542b\uff1a`GestureMachineTest`\u3001`GestureMachineStressTest`\u3001`GestureMachineBehavioralStressTest`\u3001`GestureMachineIntegrationTest`\u3001`GestureStateMachineTest`\u3001`GestureSideEffectGateTest`\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P5.5",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "MotionEvent.pointerCount` \u8bed\u4e49\u5df2\u660e\u786e\uff1a`GestureEvent.pointerCount` \u4e3a raw\uff0c`GestureEvent.activePointerCount` \u4e3a post-action \u5f52\u4e00\u5316\u503c\uff08`ACTION_UP` -> 0\uff0c`ACTION_POINTER_UP` -> `pointerCount - 1`\uff09\u3002",
-        "GestureStateMachine` \u548c `GestureSideEffectGate` \u6307\u7eb9\u5df2\u5207\u6362\u4e3a `activePointerCount`\u3002",
-        "GestureSideEffectGate.filter` \u5df2\u6539\u7528 `commands.any(::isBusinessEffect)`\uff0c\u907f\u514d\u70ed\u8def\u5f84\u4e2d\u95f4\u5217\u8868\u3002",
-        "PhysicalGestureArbiter` \u5df2\u589e\u52a0 `MAX_HELD_TOKENS` \u786c\u4e0a\u9650\u3001`STALE_TOKEN_AGE_MS` stale cleanup\u3001\u6ee1\u8f7d\u62d2\u7edd\u4e0e `PhysicalGestureArbiterTest`\u3002",
-        "GestureMachine` \u5728 UP/CANCEL/Reset/detach \u65f6\u91ca\u653e token\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P6.1",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P6.2",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "DeviceInfoMonitor` \u5728 `ACTION_SCREEN_ON` \u6062\u590d\u540e\u53f0 tick\uff0c`ACTION_SCREEN_OFF` \u79fb\u9664\u6d88\u606f\uff1b",
-        "PowerManager.isInteractive` \u4e8c\u6b21\u95e8\u63a7\uff1b",
-        "\u5931\u8d25\u8ba1\u6570\u6307\u6570\u9000\u907f\uff1b\u914d\u7f6e\u53d8\u5316\u89e6\u53d1 `stopMonitoring` \u5e76\u91cd\u65b0 hook\uff1b",
-        "Handler` \u5728\u4e3b/\u540e\u53f0 looper \u4e0a\u521b\u5efa\uff0c\u65e7 `Handler` \u5728\u91cd\u65b0 hook \u524d\u79fb\u9664\u6d88\u606f\u5e76\u7f6e null\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P6.3",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "BatteryIndicator` \u7684 `ShapeDrawable`\u3001`Paint`\u3001`Shader` \u7b49\u6309 View \u5b9e\u4f8b\u521b\u5efa\uff1b`onDetachedFromWindow` \u91ca\u653e\u5f15\u7528\uff1b",
-        "SystemUIStatusBarHooks` \u7684\u72b6\u6001\u680f\u6587\u672c\u56fe\u6807\u4f7f\u7528 `WeakReference` \u5e76\u7531 `DeviceInfoMonitor` \u5728\u5c4f\u5e55\u5173\u95ed\u65f6\u6682\u505c\uff1b",
-        "\u65e0 strong \u9759\u6001 View/Context \u5f15\u7528\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P6.4",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "ProcessRouter.resolve` \u5c06 `com.miui.home` \u6620\u5c04\u5230 `ProcessScope.LAUNCHER`\uff1b",
-        "LauncherInstaller.install` \u548c `LauncherInstaller.handleLoadLauncher` \u5206\u522b\u5b89\u88c5 `PACKAGE_READY` \u548c `APPLICATION_ATTACHED` \u9636\u6bb5\uff1b",
-        "MainModule` \u7684 `isFirstPackage` \u5b88\u536b\u9632\u6b62 process recreation \u91cd\u590d\u521d\u59cb\u5316\uff1b",
-        "MainModule` \u5728 `LAUNCHER` \u5206\u652f\u8c03\u7528 `ReflectionCache.onSafeLifecycle`\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P6.5",
@@ -449,286 +374,192 @@
       "factor": 0.7,
       "earned": 0.84,
       "bucket": "in_progress",
-      "evidence_level": "static",
-      "evidence_paths": [
-        "docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md"
-      ],
-      "evidence_commands": [
-        "PhoneStatusBarView` \u7684 `onAttachedToWindow` / `onDetachedFromWindow` \u8c03\u7528 `statusBarMachine.clear(ownerId)`\u3002",
-        "ControlCenterWindowViewImpl` \u7684 `onAttachedToWindow` / `onDetachedFromWindow` \u5728 `ControlCenterPluginRuntime.installControlCenterGestureHooks` \u5185\u8c03\u7528 `controlCenterMachine.prepare(ownerId)` \u548c `controlCenterMachine.clear(ownerId)`\u3002",
-        "ControlCenterGestureRuntimeHolder.bind` \u5728\u68c0\u6d4b\u5230\u65b0 ClassLoader \u65f6\u8c03\u7528 `existing?.machine?.clear()`\uff0c\u786e\u4fdd\u65e7 runtime \u7684\u673a\u5668\u72b6\u6001\u91ca\u653e\u3002",
-        "ControlCenterPluginRuntime` \u662f `PluginFactory.createPlugin` \u7684\u552f\u4e00\u6240\u6709\u8005\uff0c\u63d0\u4f9b\u5bf9\u79f0 `clear()`\uff0c\u91ca\u653e `activeLoader`\u3001`ControlCenterGestureRuntimeHolder` \u548c `PhysicalGestureArbiter` \u7684\u5168\u90e8\u72b6\u6001\u3002",
-        "ControlCenterPluginRuntime.bind` \u5728 fatal \u5b89\u88c5\u5931\u8d25\u65f6\u5148 `clear()` \u518d rethrow\uff0c\u4e0d\u53d1\u5e03\u534a\u5b89\u88c5\u72b6\u6001\u3002",
-        "\u5df2\u751f\u6210 `docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md` \u8bb0\u5f55 owner \u6e05\u5355\u3001\u91ca\u653e\u8fb9\u754c\u4e0e\u5df2\u77e5\u7f3a\u53e3\u3002",
-        "DEVICE_LIFECYCLE_ENTRY_BLOCKED`: \u5f53\u524d\u4ed3\u5e93\u3001framework stub \u548c ROM intelligence \u6587\u6863\u4e2d\u5747\u672a\u53d1\u73b0 `PluginInstance$PluginFactory` \u7684 `destroyPlugin` / `onPluginUnloaded` / `unload` \u7b49\u53ef\u9760\u81ea\u52a8\u9500\u6bc1\u5165\u53e3\uff0c\u4e0d\u731c\u6d4b Hook\uff1b`ControlCenterPluginRuntime.clear()` \u5df2\u5728\u67b6\u6784\u4e0a\u5bf9\u79f0\uff0c\u53ef\u5728\u53d1\u73b0\u53ef\u9760\u5165\u53e3\u65f6\u76f4\u63a5\u8c03\u7528\u3002"
-      ],
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": ""
     },
     {
       "id": "P7.1",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "OutOfMemoryError`\u3001`ThreadDeath`\u3001`VirtualMachineError` \u5728 `CallbackGuard`\u3001`ModuleHelper`\u3001`XposedHelpers`\u3001`FeatureInstallRegistry`\u3001`HookerClassHelper`\u3001`PreferenceBootstrap`\u3001`ResourceHooks` \u7b49\u5173\u952e\u8def\u5f84\u4e2d\u88ab\u8bc6\u522b\u5e76\u7ee7\u7eed\u629b\u51fa\uff1b",
-        "MethodHook` \u56de\u8c03\u7684 fatal \u68c0\u67e5\u5728 `HookerClassHelper` \u4e2d\u5b9e\u73b0\uff1b",
-        "FeatureInstallRegistry` \u5728 fatal \u540e\u6e05\u7406\u534a\u5b89\u88c5\u72b6\u6001\uff0c\u4e0d\u5199\u5165 negative cache\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P7.2",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "FeatureInstallRegistry` \u7684 `installAll` \u5728\u5355\u4e2a Feature \u5931\u8d25\u65f6\u7ee7\u7eed\u5b89\u88c5\u5176\u4ed6 Feature\uff1b\u5931\u8d25\u7ed3\u679c\u8bb0\u5f55\u4e3a `FAILED`\uff0c\u72b6\u6001\u673a\u4e0d stuck \u5728 `INSTALLING`\uff1b",
-        "ReceiverRegistry` \u5728 `WeakOwnerReceiver` \u88ab\u6536\u96c6\u540e\u81ea\u52a8\u6e05\u7406\uff1b",
-        "DeviceInfoMonitor` \u5728\u91cd\u65b0 hook \u65f6\u505c\u6b62\u65e7\u7684 Handler/Receiver \u5e76\u7f6e null\uff1b",
-        "BatteryIndicator` \u5728 `onDetachedFromWindow` \u4e2d\u91ca\u653e\u6240\u6709\u6ce8\u518c\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P7.3",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "\u6240\u6709 `BroadcastReceiver`\u3001`ContentObserver`\u3001`Handler`\u3001`Runnable`\u3001`animation` \u56de\u8c03\u548c `coroutine` \u5165\u53e3\u5747\u7ecf\u8fc7 `ModuleHelper.guarded`\uff1b",
-        "CallbackGuard` \u5bf9 Runnable/Supplier \u5305\u88c5 fatal \u68c0\u67e5\uff1b",
-        "GlobalActionSystemServerHooks` \u7684 fast-reboot receiver \u7ecf\u8fc7 `ModuleHelper.registerOwnedReceiver` \u5e76\u5728\u5931\u8d25\u65f6\u56de\u6eda\u8bbe\u7f6e\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P7.4",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "ReflectionCache` \u6309 `ClassLoader` \u9694\u79bb\uff0c\u7f13\u5b58\u547d\u4e2d\u96f6\u5206\u914d\uff1b",
-        "ReflectionCacheAllocationTest` \u9a8c\u8bc1 `findField`/`findMethodBestMatch` \u7f13\u5b58\u547d\u4e2d\u4e0d\u5206\u914d\uff1b",
-        "ReceiverRegistry.ownedReceivers` \u4f7f\u7528 `CopyOnWriteArrayList`\uff0c\u6309 owner \u5f31\u5f15\u7528\u6e05\u7406\uff1b",
-        "DeviceInfoMonitor` \u7684 `monitorLock` \u4fdd\u62a4 Handler/Receiver \u5207\u6362\uff1b",
-        "SystemUIStatusBarHooks.statusbarTextIcons` \u4f7f\u7528 `WeakReference` \u5e76\u5728\u8bbf\u95ee\u65f6\u6e05\u7406\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P7.5",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P8.1",
       "domain": "Performance / memory / APK / R8",
       "weight": 3.0,
       "state": "VERIFIED_BUILD",
-      "factor": 0.85,
-      "earned": 2.55,
-      "bucket": "verified",
-      "evidence_level": "build",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "\u5168\u90e8\u751f\u4ea7 Feature \u901a\u8fc7 `LazyFeatureSpec` \u6ce8\u518c\uff1b`FeatureInstallRegistry.installOne` \u4ec5\u5728 `spec.isEnabled(prefs) == true` \u65f6\u8c03\u7528 `spec.create()`\u3002",
-        "LazyFeatureSpec` \u7684 `factory` lambda \u53ea\u5728 `isEnabled` \u8fd4\u56de true \u65f6\u6267\u884c\uff0c\u786e\u8ba4\u4e0d\u89e6\u53d1 `FeatureDefinition` \u6784\u9020\u3002",
-        "FeatureInstallRegistryTest.lazySpec_disabledFeatureDoesNotCreateDefinition` \u901a\u8fc7\uff08`tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistryTest`\uff09\u3002",
-        "\u552f\u4e00\u975e `LazyFeatureSpec` \u6ce8\u518c\u7684\u662f `PackagePermissionsFeature`\uff0c\u4f46\u5b83 `isEnabled = true` \u4e14 `preferenceKey = null`\uff0c\u5c5e\u4e8e\u5f3a\u5236\u57fa\u7ebf hook\uff0c\u4e0d\u662f disabled path\u3002",
-        "\u672a\u53d1\u73b0 Installer \u5728 `installAll` \u524d\u7ed5\u8fc7 Registry \u76f4\u63a5\u521b\u5efa hook/receiver/observer/controller/task\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P8.2",
       "domain": "Performance / memory / APK / R8",
       "weight": 3.0,
       "state": "VERIFIED_BUILD",
-      "factor": 0.85,
-      "earned": 2.55,
-      "bucket": "verified",
-      "evidence_level": "build",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "\u8fd0\u884c `HotPathArgumentMaterializationTest` \u901a\u8fc7\uff1a\u786e\u8ba4 launcher\u3001gesture\u3001screenshot\u3001system_server pass-through \u8def\u5f84\u4e0d\u7269\u5316 `XposedHelpers.getArgsArray(chain)`\uff1b",
-        "\u8fd0\u884c `NavBarButtonsHotPathContractTest` \u901a\u8fc7\uff1b",
-        "\u8fd0\u884c `ReflectionCacheAllocationTest` \u901a\u8fc7\uff1a\u53cd\u5c04/DexKit \u67e5\u8be2\u7ed3\u679c\u6309\u7c7b\u7f13\u5b58\uff0c\u4e0d\u91cd\u590d\u5206\u914d\uff1b",
-        "\u8fd0\u884c `ResourceHooksTest` \u901a\u8fc7\uff1a\u8d44\u6e90 hook \u8def\u5f84\u6b63\u786e\uff1b",
-        "\u9759\u6001\u68c0\u67e5 `proguard-rules.pro` \u4e0e `FeatureInstallRegistry` \u4ee3\u7801\uff1adisabled path \u4e0d\u521b\u5efa\u4e1a\u52a1\u5b9a\u4e49\u3001hook \u5bf9\u8c61\u3001receiver\u3001observer\u3001controller\u3001task\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P8.3",
       "domain": "Performance / memory / APK / R8",
       "weight": 3.0,
       "state": "VERIFIED_BUILD",
-      "factor": 0.85,
-      "earned": 2.55,
-      "bucket": "verified",
-      "evidence_level": "build",
-      "evidence_paths": [
-        "app/build/outputs/apk/develop/CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk",
-        "app/build/outputs/mapping/develop/",
-        "tools/apk_semantic_diff.py"
-      ],
-      "evidence_commands": [
-        "debug baseline/final\uff1a\u5df2\u901a\u8fc7 `.\\\\gradlew.bat --no-daemon :app:assembleDebug` \u6784\u5efa\uff0c\u8f93\u51fa\u5df2\u8bb0\u5f55\uff1b",
-        "develop unsigned R8 baseline/final\uff1a\u5df2\u5efa\u7acb baseline\u3002",
-        "\u6587\u4ef6\uff1a`app/build/outputs/apk/develop/CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk",
-        "\u5927\u5c0f\uff1a`3398166` bytes\uff083.24 MB\uff09",
-        "\u6784\u5efa\u547d\u4ee4\uff1a`.\\gradlew.bat --no-daemon :app:assembleDevelop",
-        "mapping/usage/config\uff1a`app/build/outputs/mapping/develop/",
-        "R8 \u542f\u7528\uff0cshrinkResources \u542f\u7528\uff0cisDebuggable = false\uff1b",
-        "size delta\uff1a\u4e24\u6b21 `--no-build-cache --no-configuration-cache clean :app:assembleDevelop` \u4ea7\u7269\u5bf9\u6bd4\u901a\u8fc7\uff1b`python tools/apk_semantic_diff.py --require-reproducible first-develop.apk second-develop.apk` \u8f93\u51fa `normalizedEqual=True`\uff0c0 added/removed/changed\uff1b",
-        "method/resource report\uff1a\u4ece develop R8 mapping \u63d0\u53d6 baseline\uff1a",
-        "mapping.txt`: 127492 lines",
-        "usage.txt` (removed): 26856 lines",
-        "seeds.txt` (kept): 5087 lines",
-        "resources.txt`: 2827 lines",
-        "configuration.txt`: 525 lines\uff1b",
-        "shrinker audit\uff1a`proguard-rules.pro` \u5f53\u524d\u89c4\u5219\u5df2\u5ba1\u9605\uff0c\u672a\u53d1\u73b0 `-dontshrink/-dontobfuscate/-dontoptimize` \u6216 `androidx/**/kotlinx/**` \u7c7b\u5197\u4f59 keep\uff1b",
-        "unexplained growth = 0\uff1a\u5df2\u901a\u8fc7 `python tools/apk_semantic_diff.py --require-reproducible` \u9a8c\u8bc1\uff0c\u4e24\u6b21 clean develop \u6784\u5efa `normalizedEqual=True`\uff0c0 added/removed/changed\u3002"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P8.4",
       "domain": "Performance / memory / APK / R8",
       "weight": 3.0,
       "state": "VERIFIED_BUILD",
-      "factor": 0.85,
-      "earned": 2.55,
-      "bucket": "verified",
-      "evidence_level": "build",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
-      "evidence_commands": [
-        "\u8fd0\u884c `GestureMachineBehavioralStressTest` \u4e0e `GestureMachineStressTest` \u901a\u8fc7\uff1a\u624b\u52bf\u72b6\u6001\u673a\u5728 stress \u5e8f\u5217\u4e0b\u884c\u4e3a\u7a33\u5b9a\u3001\u65e0\u5185\u5b58\u6cc4\u6f0f\u6216\u91cd\u590d side effect\uff1b",
-        "\u624b\u52bf\u67b6\u6784\u5df2\u5c06 config\u3001geometry\u3001state\u3001dependency\u3001effect \u5206\u79bb\uff0c`GestureSideEffectGateTest` \u4e0e `StatusBarGestureEffectExecutorTest` \u9a8c\u8bc1 side effect \u5e42\u7b49\u4e0e UI \u66f4\u65b0\u95e8\u63a7\u3002"
-      ],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P9.1",
       "domain": "Java / Kotlin boundary",
       "weight": 1.6,
       "state": "VERIFIED_STATIC",
-      "factor": 0.7,
-      "earned": 1.12,
-      "bucket": "verified",
-      "evidence_level": "static",
-      "evidence_paths": [
-        "docs/JAVA_BOUNDARY_ALLOWLIST.md"
-      ],
-      "evidence_commands": [
-        "MIGRATE_TO_KOTLIN     -> 13 installer + XposedHelpers",
-        "KEEP_JAVA_FRAMEWORK_ENTRY -> MainModule.java (XposedModule entry)",
-        "KEEP_JAVA_VENDOR_OR_GENERATED -> org/apache/commons/lang3/reflect/MemberUtilsX.java",
-        "KEEP_JAVA_TEMPORARY_BLOCKER -> 0",
-        "UNCLASSIFIED -> 0"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P9.2",
       "domain": "Java / Kotlin boundary",
       "weight": 1.6,
       "state": "VERIFIED_CI",
-      "factor": 0.95,
-      "earned": 1.52,
-      "bucket": "verified",
-      "evidence_level": "ci",
-      "evidence_paths": [
-        "docs/JAVA_BOUNDARY_ALLOWLIST.md"
-      ],
-      "evidence_commands": [
-        "AndroidPackageInstaller",
-        "GenericAppInstaller",
-        "GuardProviderInstaller",
-        "InputMethodInstaller",
-        "LauncherInstaller",
-        "MediaInstaller",
-        "PackageInstallerRouter",
-        "PhoneInstaller",
-        "PowerKeeperInstaller",
-        "SecurityCenterInstaller",
-        "SettingsInstaller",
-        "SystemUiInstaller",
-        "LSPosed-derived GPL reflection/hooking core\uff1b",
-        "2136 \u884c\u300187 KB\uff1b",
-        "\u5927\u91cf `public static` \u91cd\u8f7d\uff1b",
-        "checked `Throwable`\u3001vararg\u3001array\u3001generic \u548c nullability ABI\uff1b",
-        "allocation-sensitive reflection caches\uff1b",
-        "weak identity-key lifecycle\uff1b",
-        "\u6574\u4f53 Kotlin \u8fc1\u79fb\u65e0\u5df2\u8bc1\u660e\u6027\u80fd\u6216\u7ef4\u62a4\u6536\u76ca\uff1b",
-        "\u6309 `AGENTS.md` \u00a718\u300c\u4e0d\u8ffd\u6c42 100% Kotlin\u300d\uff0c\u4fdd\u7559\u5728 `docs/JAVA_BOUNDARY_ALLOWLIST.md` \u7684 `KEEP_JAVA_REFLECTION_ABI` \u5206\u7c7b\u4e2d\u3002",
-        "MainModule.java` -> `KEEP_JAVA_FRAMEWORK_ENTRY",
-        "XposedHelpers.java` -> `KEEP_JAVA_REFLECTION_ABI",
-        "MemberUtilsX.java` -> `KEEP_JAVA_VENDOR_OR_GENERATED"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P9.3",
       "domain": "Java / Kotlin boundary",
       "weight": 1.6,
       "state": "VERIFIED_STATIC",
-      "factor": 0.7,
-      "earned": 1.12,
-      "bucket": "verified",
-      "evidence_level": "static",
-      "evidence_paths": [
-        "docs/JAVA_BOUNDARY_ALLOWLIST.md"
-      ],
-      "evidence_commands": [
-        "KEEP_JAVA_FRAMEWORK_ENTRY`\uff1a`MainModule.java",
-        "KEEP_JAVA_VENDOR_OR_GENERATED`\uff1a`MemberUtilsX.java",
-        "MIGRATE_TO_KOTLIN`\uff1a`XposedHelpers.java",
-        "MIGRATED`\uff1a12 \u4e2a installer `.kt",
-        "\u65e0 `KEEP_JAVA_TEMPORARY_BLOCKER` \u6216 `UNCLASSIFIED"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P10.1",
@@ -739,135 +570,86 @@
       "earned": 0.0,
       "bucket": "blocked_external",
       "evidence_level": "pending",
-      "evidence_paths": [
-        "tools/rom_inventory.py"
-      ],
-      "evidence_commands": [
-        "\u5f53\u524d\u73af\u5883\u65e0 `local-rom-samples/` \u76ee\u5f55\uff0c\u4e5f\u65e0\u5b9e\u673a ROM dump\uff1b",
-        "tools/rom_inventory.py` \u662f\u79bb\u7ebf\u626b\u63cf\u5de5\u5177\uff0c\u5fc5\u987b\u6709\u672c\u5730\u6837\u672c\uff1b",
-        "\u4fdd\u6301 `EXTERNAL_VALIDATION_REQUIRED`\uff0c\u5f85\u63d0\u4f9b ROM \u6837\u672c\u540e\u91cd\u8dd1 `rom_inventory.py`\u3002"
-      ],
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": ""
     },
     {
       "id": "P10.2",
       "domain": "ROM intelligence / compatibility",
       "weight": 3.33,
       "state": "VERIFIED_STATIC",
-      "factor": 0.7,
-      "earned": 2.33,
-      "bucket": "verified",
-      "evidence_level": "static",
-      "evidence_paths": [
-        "rom-contracts/hyperos1-a14-core.json",
-        "tools/check_document_contracts.py"
-      ],
-      "evidence_commands": [
-        "rom-contracts/hyperos1-a14-core.json` \u4e2d\u6240\u6709 hook entry \u5747\u5e26 `required` \u5e03\u5c14\u6807\u8bb0\uff1b`required=true` \u7684\u6761\u76ee\u6709\u5b8c\u6574 smali descriptor\uff0c`required=false` \u7684\u6761\u76ee\u4fdd\u7559\u4e3a optional / candidate\uff1b",
-        "FeatureInstallResult` \u5b9a\u4e49\u4e86 `FAILED_TRANSIENT` \u548c `FAILED_PERMANENT`\uff0cinstall \u8def\u5f84\u901a\u8fc7 bounded diagnostics \u8bb0\u5f55\u5931\u8d25\u539f\u56e0\uff0c\u4e0d\u964d\u7ea7 required contract\uff1b",
-        "catalog_contract_probe.py` \u901a\u8fc7 `244 specs / 245 FeatureIds / 244 matrix rows` \u4e00\u81f4\u6027\u68c0\u67e5\uff0c\u786e\u4fdd\u5019\u9009\u6761\u76ee\u4e0d\u6df7\u5165 required-only \u8def\u5f84\uff1b",
-        "tools/check_document_contracts.py` \u901a\u8fc7\uff0c\u6587\u6863\u4e0d\u5ba3\u4f20\u672a\u7ecf ROM \u9a8c\u8bc1\u7684 candidate \u4e3a verified\uff1b",
-        "\u5b9e\u673a ROM \u53d8\u4f53\u9a8c\u8bc1\u4ecd\u4f9d\u8d56 P10.1 \u5916\u90e8\u6837\u672c\u3002"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P10.3",
       "domain": "ROM intelligence / compatibility",
       "weight": 3.33,
       "state": "VERIFIED_STATIC",
-      "factor": 0.7,
-      "earned": 2.33,
-      "bucket": "verified",
-      "evidence_level": "static",
-      "evidence_paths": [
-        "tools/catalog_contract_probe.py",
-        "tools/ci_contract_scan.py",
-        "tools/check_document_contracts.py",
-        "tools/progress_snapshot.py"
-      ],
-      "evidence_commands": [
-        "python tools/catalog_contract_probe.py --catalog ... --feature-id ... --matrix ...` \u901a\u8fc7\uff08`Catalog contract probe passed: 244 specs, 245 FeatureIds, 244 matrix rows`\uff09",
-        "python tools/ci_contract_scan.py --expected-branch devin/a14-rom-intelligence-audit --default-branch main` \u901a\u8fc7\uff08`CI contract scan passed: 2 workflow(s)`\uff09",
-        "python tools/check_document_contracts.py` \u901a\u8fc7\uff08`Document contract checks pass.`\uff09",
-        "python tools/progress_snapshot.py --check` \u901a\u8fc7\uff08`Progress snapshot is fresh.`\uff09",
-        "Fast CI 30743003456 / job 91483652510 \u5168\u90e8\u901a\u8fc7"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P11.1",
       "domain": "Build / CI / signing / artifacts",
       "weight": 4.0,
       "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 4.0,
-      "bucket": "complete",
-      "evidence_level": "complete",
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P11.2",
       "domain": "Build / CI / signing / artifacts",
       "weight": 4.0,
       "state": "VERIFIED_CI",
-      "factor": 0.95,
-      "earned": 3.8,
-      "bucket": "verified",
-      "evidence_level": "ci",
-      "evidence_paths": [
-        "app/build.gradle.kts",
-        "tools/catalog_contract_probe.py",
-        "docs/rom-intelligence/A14_PROCESS_MATRIX.csv",
-        "tools/verify.py"
-      ],
-      "evidence_commands": [
-        "Fast CI run 30747399434 / job 91495213418 \u5728 commit 782b3e50 \u5168\u90e8\u901a\u8fc7\uff1b",
-        "Fast CI job 91462556688 \u56e0 `platforms;android-37` \u5305\u540d\u4e0d\u5b58\u5728\u800c\u5931\u8d25\uff1b",
-        "\u5df2\u628a Fast/Full workflow \u6539\u4e3a\u5148\u8fd0\u884c `sdkmanager --list --channel=0` \u63a2\u6d4b API 37 \u5e73\u53f0\u5305\uff08`platforms;android-37` \u6216 `platforms;android-CinnamonBun`\uff09\u548c build-tools 37.x\uff1b",
-        "\u5df2\u79fb\u9664 `app/build.gradle.kts` \u4e2d\u786c\u7f16\u7801\u7684 `buildToolsVersion`\uff0c\u8ba9 AGP \u9009\u62e9\u5df2\u5b89\u88c5\u517c\u5bb9\u7248\u672c\uff1b",
-        "\u5b89\u88c5\u5e76\u79fb\u690d A13_A14_BRUTAL_TEST_SUITE_V1\uff1a\u65b0\u589e `tools/catalog_contract_probe.py`\u3001`ci_contract_scan.py`\u3001`source_hazard_scan.py`\u3001`apk_semantic_diff.py`\u3001`hook_surface_probe.py`\u3001`brutal_test_runner.py`\u3001`brutal_test_config.json`\uff1b",
-        "\u91cd\u5199 catalog_contract_probe \u4ee5\u626b\u63cf `LazyFeatureSpec` \u5757\u5e76\u6bd4\u5bf9 `docs/rom-intelligence/A14_PROCESS_MATRIX.csv`\uff1b",
-        "Fast CI \u63a5\u5165 `ci_contract_scan` \u548c `catalog_contract_probe` \u53ea\u8bfb gates\uff1b",
-        "Full CI \u63a5\u5165\u4e24\u6b21 clean develop build\u3001APK semantic diff \u4e0e brutal mutation suite\uff1b",
-        "Fast CI job 91467179591 \u5728 HEAD 378d0eef \u5168\u90e8\u901a\u8fc7\uff1b",
-        "\u672c\u5730\u901a\u8fc7 `tools/verify.py Fast`\u3001unit tests\u3001brutal hermeticity \u4e0e determinism\u3002",
-        "JDK 17\uff1b",
-        "Python\uff1b",
-        "full verifier\uff1b",
-        "debug APK\uff1b",
-        "develop/R8\uff1b",
-        "catalog/CI contract/progress \u53ea\u8bfb gates\uff1b",
-        "brutal suite\uff08hermeticity/determinism/mutate\uff09\u5728 Full CI\uff1b",
-        "audit/inventory freshness\uff1b",
-        "logs/artifacts\uff1b",
-        "\u4e0d\u53d1\u5e03 Release\u3002"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P11.3",
       "domain": "Build / CI / signing / artifacts",
       "weight": 4.0,
       "state": "VERIFIED_BUILD",
-      "factor": 0.85,
-      "earned": 3.4,
-      "bucket": "verified",
-      "evidence_level": "build",
-      "evidence_paths": [
-        "app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk",
-        "app/build/outputs/apk/develop/CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk"
-      ],
+      "factor": 0.0,
+      "earned": 0.0,
+      "bucket": "evidence_pending",
+      "evidence_level": "pending",
+      "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": "provenance missing: level=pending, paths=0, commands=0, commit=pending"
     },
     {
       "id": "P12.1",
@@ -877,16 +659,10 @@
       "factor": 0.7,
       "earned": 0.88,
       "bucket": "verified",
-      "evidence_level": "static",
+      "evidence_level": "verified",
       "evidence_paths": [
         "docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md",
-        "tools/tests/test_gesture_lifecycle_inventory.py",
-        "tools/tests",
-        "tools/check-invariants.py",
-        "tools/check_document_contracts.py",
-        "tools/progress_snapshot.py",
-        "tools/verify.py",
-        "docs/progress/A14_PROGRESS_CURRENT.json"
+        "tools/tests/test_gesture_lifecycle_inventory.py"
       ],
       "evidence_commands": [
         "python -m unittest discover -s tools/tests -p \"test_*.py\"          # 144 passed",
@@ -895,11 +671,11 @@
         "python tools/progress_snapshot.py --check                            # fresh",
         "python tools/verify.py fast --tests ControlCenterGestureRuntimeHolderTest ControlCenterPluginRuntimeTest GestureMachineTest GestureStateMachineTest PhysicalGestureArbiterTest  # pass",
         "python tools/verify.py fast                                          # pass",
-        "python tools/verify.py full                                          # pass",
-        "docs/progress/A14_PROGRESS_CURRENT.json` \u4e0e `.md` \u5df2\u6309 P12.1 \u8fdb\u5c55\u91cd\u65b0\u751f\u6210\uff0c`--check` \u4e0e `check_automation_state.py` \u901a\u8fc7\u3002"
+        "python tools/verify.py full                                          # pass"
       ],
-      "evidence_commit": "pending",
-      "device_evidence": ""
+      "evidence_commit": "cd152365a1b258a7b36e978d1050db71f427fa83",
+      "device_evidence": "",
+      "diagnostic": "provenance verified"
     },
     {
       "id": "P12.2",
@@ -913,7 +689,8 @@
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": ""
     },
     {
       "id": "P12.3",
@@ -927,7 +704,8 @@
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": ""
     },
     {
       "id": "P12.4",
@@ -941,7 +719,8 @@
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": ""
     },
     {
       "id": "P13",
@@ -952,16 +731,11 @@
       "earned": 0.5,
       "bucket": "in_progress",
       "evidence_level": "pending",
-      "evidence_paths": [
-        "tools/source_hazard_scan.py"
-      ],
-      "evidence_commands": [
-        "python tools/source_hazard_scan.py` \u91cd\u65b0\u8fd0\u884c\u901a\u8fc7\uff1a`Source hazard scan passed: 415 reviewed finding(s), 0 new",
-        "\u5df2\u5efa\u7acb baseline\uff0c\u540e\u7eed diff \u53ea\u62a5\u544a\u65b0\u589e hazard\uff1b",
-        "\u672c\u8f6e\u672a\u5f15\u5165\u65b0 P0/P1\uff0c\u65e0\u963b\u585e\u3002"
-      ],
+      "evidence_paths": [],
+      "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": ""
+      "device_evidence": "",
+      "diagnostic": ""
     },
     {
       "id": "DEVICE-001",
@@ -975,11 +749,12 @@
       "evidence_paths": [],
       "evidence_commands": [],
       "evidence_commit": "pending",
-      "device_evidence": "NOT_EXERCISED"
+      "device_evidence": "NOT_EXERCISED",
+      "diagnostic": ""
     }
   ],
-  "openP0": 0,
-  "openP1": 10,
+  "openP0": 4,
+  "openP1": 14,
   "externalBlocks": 2,
-  "notes": "v7 capability-scored snapshot; device domain excluded from machine progress."
+  "notes": "v7 capability-scored snapshot; device domain excluded from machine progress; provenance-gated scoring."
 }

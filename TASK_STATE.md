@@ -982,6 +982,8 @@ State: `IN_PROGRESS`
 
 State: `VERIFIED_STATIC`
 
+EvidenceCommit: cd152365a1b258a7b36e978d1050db71f427fa83
+
 文件：
 
 - `docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md`：更新 `EvidenceCommit`、`EvidenceState`、来源行号，并添加 `tools/tests/test_gesture_lifecycle_inventory.py` 为独立证据。
