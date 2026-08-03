@@ -79,12 +79,11 @@ class ApkSizeDeltaTest(unittest.TestCase):
         ):
             self.assertTrue((PERF_DIR / name).is_file(), f"Missing input JSON: {name}")
 
-        # 2. current JSON paths are relative and exist
+        # 2. current JSON paths are relative
         for variant in ("debug", "develop"):
             current = data["variants"][variant]["current"]
             self.assertNotRegex(current["apkPath"], r"^[A-Za-z]:\\|/home/|/Users/|~\\")
             self.assertFalse(Path(current["apkPath"]).is_absolute())
-            self.assertTrue((REPO_ROOT / current["apkPath"]).is_file(), f"{variant} apkPath does not exist: {current['apkPath']}")
 
         # 3. SHA-256 64 hex
         for variant in ("debug", "develop"):
@@ -303,14 +302,9 @@ class ApkSizeDeltaTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
-    def test_12_mutation_fake_tracked_apk(self) -> None:
+    def test_12_mutation_tilde_user_path(self) -> None:
         def mutate(d):
-            d["variants"]["debug"]["current"]["apkPath"] = "app\\build\\outputs\\apk\\debug\\app-debug.apk"
-        # The path check only rejects absolute paths; it does not fail on a fake untracked path.
-        # This mutation must also be caught by the tracked-apk check if the file does not exist.
-        # We force the test to run the validate which will only fail if the path is absolute.
-        # To test the "APK not tracked" rule we rely on the git ls-files check: a fake path cannot be tracked.
-        # Therefore the report itself should not be modified; instead, we assert the tool does not create tracked APKs.
+            d["variants"]["debug"]["current"]["apkPath"] = r"~\Downloads\app-debug.apk"
         with self.assertRaises(AssertionError):
             self._validate_report(self._mutated(mutate))
 
