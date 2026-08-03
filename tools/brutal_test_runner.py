@@ -554,6 +554,7 @@ def collect_status_failures(
     root: Path,
     allowed_untracked: set[str],
     baseline_untracked: set[str] | None = None,
+    ignore_tracked: bool = False,
 ) -> tuple[bool, list[str]]:
     """Check git status for tracked changes and new untracked files."""
     failures: list[str] = []
@@ -564,6 +565,8 @@ def collect_status_failures(
             if baseline_untracked is not None and rel in baseline_untracked:
                 continue
             failures.append(f"untracked: {rel}")
+        elif ignore_tracked:
+            continue
         elif status.startswith("D"):
             failures.append(f"deleted: {rel}")
         elif status:
@@ -589,7 +592,7 @@ def hermeticity(root: Path, cfg: dict, timeout: int) -> int:
     baseline_status = git_status_porcelain(root)
     baseline_untracked = {rel for status, rel in baseline_status if status == "??" and not _is_allowed_untracked(rel, allowed)}
 
-    _, pre_failures = collect_status_failures(root, allowed, baseline_untracked=baseline_untracked)
+    _, pre_failures = collect_status_failures(root, allowed, baseline_untracked=baseline_untracked, ignore_tracked=True)
     if pre_failures:
         print("Hermeticity FAILED: existing untracked files in protected paths")
         for f in pre_failures[:30]:
@@ -597,6 +600,9 @@ def hermeticity(root: Path, cfg: dict, timeout: int) -> int:
         if len(pre_failures) > 30:
             print(f"  ... and {len(pre_failures) - 30} more")
         return 1
+
+    if any(status for status, _ in baseline_status if status and status != "??"):
+        print("Hermeticity WARNING: pre-existing tracked modifications detected; these will not be blamed on the hermetic commands.")
 
     before = tracked_hashes(root)
     for command in cfg["hermetic_commands"]:
