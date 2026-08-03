@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-03T12:00:33.522252+08:00",
-  "sourceCommit": "ca2556647c4a776a63694259269cdcf5150158e0",
-  "sourceTree": "9079a9e7d88d4fc82933ad2fc900e8cc87708401",
+  "generatedAt": "2026-08-03T12:55:38.006071+08:00",
+  "sourceCommit": "7246a10b782250d93ed1092c1290114ab6b08783",
+  "sourceTree": "301b3877c4f0dba57ba07ece929d1930a29510a1",
   "verifiedTree": "b6e74dcd847f48800b8becf373d97ba76a8c5425",
   "verifiedMode": "Final",
   "ciState": "PASS",
   "ciRun": "30749749010",
   "ciJob": "91501580779",
   "ciCommit": "e28b66a2",
-  "projectProgress": 4.0,
-  "machineProgress": 4.2,
+  "projectProgress": 5.0,
+  "machineProgress": 5.3,
   "stage": "BASELINE_AND_CONTROL",
   "domainScores": {
     "Baseline and control": {
@@ -50,8 +50,8 @@
     },
     "Documentation / provenance": {
       "weight": 5,
-      "earned": 2.64,
-      "percent": 52.8
+      "earned": 3.7,
+      "percent": 74.0
     },
     "Device validation": {
       "weight": 5,
@@ -727,16 +727,35 @@
       "id": "P12.4",
       "domain": "Documentation / provenance",
       "weight": 1.25,
-      "state": "TODO",
-      "factor": 0.0,
-      "earned": 0.0,
-      "bucket": "not_started",
-      "evidence_level": "pending",
-      "evidence_paths": [],
-      "evidence_commands": [],
-      "evidence_commit": "pending",
+      "state": "VERIFIED_BUILD",
+      "factor": 0.85,
+      "earned": 1.06,
+      "bucket": "verified",
+      "evidence_level": "verified",
+      "evidence_paths": [
+        "docs/performance/A14_APK_SIZE_BASELINE.json",
+        "docs/performance/A14_APK_SIZE_BASELINE_DEVELOP.json",
+        "docs/performance/A14_APK_SIZE_CURRENT.json",
+        "docs/performance/A14_APK_SIZE_CURRENT_DEVELOP.json",
+        "docs/performance/A14_APK_SIZE_DELTA.json",
+        "docs/performance/A14_APK_SIZE_DELTA.md",
+        "tools/apk_size_report.py",
+        "tools/apk_size_delta.py",
+        "tools/tests/test_apk_size_delta.py"
+      ],
+      "evidence_commands": [
+        ".\\gradlew.bat --no-daemon clean :app:assembleDebug :app:assembleDevelop",
+        "python tools/apk_size_report.py app\\build\\outputs\\apk\\debug\\CustoMIUIzer-A14-r14.16.1-debug.apk --out docs/performance/A14_APK_SIZE_CURRENT.json",
+        "python tools/apk_size_report.py app\\build\\outputs\\apk\\develop\\CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk --out docs/performance/A14_APK_SIZE_CURRENT_DEVELOP.json",
+        "python tools/apk_size_delta.py --baseline-commit 55fc2a21d0e96f9ef643f53fcc9b74374bd959db --current-commit 1856c4e229213dfae47ff575aee446ce6a7b5f22",
+        "python -m unittest tools.tests.test_apk_size_delta",
+        "python -m unittest discover -s tools/tests -p \"test_*.py\"",
+        "python tools/check_document_contracts.py",
+        "python tools/check-invariants.py"
+      ],
+      "evidence_commit": "1856c4e229213dfae47ff575aee446ce6a7b5f22",
       "device_evidence": "",
-      "diagnostic": ""
+      "diagnostic": "provenance verified"
     },
     {
       "id": "P13",

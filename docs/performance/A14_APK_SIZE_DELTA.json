@@ -1,0 +1,603 @@
+{
+  "reportVersion": 1,
+  "baselineCommit": "55fc2a21d0e96f9ef643f53fcc9b74374bd959db",
+  "currentSourceCommit": "1856c4e229213dfae47ff575aee446ce6a7b5f22",
+  "buildConfig": {
+    "versionCode": 192,
+    "versionName": "r14.16.1",
+    "applicationId": "tv.withaibuild.customiuizer.r14",
+    "minSdk": 34,
+    "targetSdk": 34,
+    "abi": "arm64-v8a"
+  },
+  "conclusion": "MIXED_CHANGE",
+  "variants": {
+    "debug": {
+      "description": "Uncompressed, non-R8 development diagnostic build",
+      "baseline": {
+        "sourceCommit": "55fc2a21d0e96f9ef643f53fcc9b74374bd959db",
+        "variant": "debug",
+        "sha256": "0f0bc2b03af1c341da411a59591289d322138836c0a19c2a0f797571cb87cb66",
+        "apkFileBytes": 14605299,
+        "apkPath": "app\\build\\outputs\\apk\\debug\\CustoMIUIzer-A14-r14.16.1-debug.apk"
+      },
+      "current": {
+        "sourceCommit": "1856c4e229213dfae47ff575aee446ce6a7b5f22",
+        "variant": "debug",
+        "versionName": "r14.16.1",
+        "versionCode": 192,
+        "sha256": "02217ad434e9d8ae2850102589835a31e5ed729fb708ee41a23fdc712485881f",
+        "apkFileBytes": 14484755,
+        "apkPath": "app\\build\\outputs\\apk\\debug\\CustoMIUIzer-A14-r14.16.1-debug.apk"
+      },
+      "metrics": {
+        "apkFileBytes": {
+          "baseline": 14605299,
+          "current": 14484755,
+          "delta": -120544,
+          "deltaPercent": -0.825344,
+          "trend": "decrease"
+        },
+        "zipEntriesUncompressedBytes": {
+          "baseline": 14676808,
+          "current": 14702544,
+          "delta": 25736,
+          "deltaPercent": 0.175351,
+          "trend": "increase"
+        },
+        "zipEntriesCompressedBytes": {
+          "baseline": 14337690,
+          "current": 14363426,
+          "delta": 25736,
+          "deltaPercent": 0.179499,
+          "trend": "increase"
+        },
+        "fileCount": {
+          "baseline": 637,
+          "current": 637,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "dexUncompressedBytes": {
+          "baseline": 12726644,
+          "current": 12752380,
+          "delta": 25736,
+          "deltaPercent": 0.202221,
+          "trend": "increase"
+        },
+        "dexCompressedBytes": {
+          "baseline": 12726644,
+          "current": 12752380,
+          "delta": 25736,
+          "deltaPercent": 0.202221,
+          "trend": "increase"
+        },
+        "resourcesArscUncompressedBytes": {
+          "baseline": 836568,
+          "current": 836568,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "resourcesArscCompressedBytes": {
+          "baseline": 836568,
+          "current": 836568,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "libUncompressedBytes": {
+          "baseline": 381024,
+          "current": 381024,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "libCompressedBytes": {
+          "baseline": 381024,
+          "current": 381024,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "resUncompressedBytes": {
+          "baseline": 678747,
+          "current": 678747,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "resCompressedBytes": {
+          "baseline": 352095,
+          "current": 352095,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "assetsUncompressedBytes": {
+          "baseline": 36765,
+          "current": 36765,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "assetsCompressedBytes": {
+          "baseline": 36712,
+          "current": 36712,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "metaUncompressedBytes": {
+          "baseline": 512,
+          "current": 512,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "metaCompressedBytes": {
+          "baseline": 361,
+          "current": 361,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "manifestUncompressedBytes": {
+          "baseline": 14820,
+          "current": 14820,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "manifestCompressedBytes": {
+          "baseline": 3512,
+          "current": 3512,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        }
+      },
+      "entryDiffs": {
+        "added": [],
+        "removed": [],
+        "changed": [
+          {
+            "name": "classes8.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 251572,
+            "currentUncompressed": 764088,
+            "uncompressedDelta": 512516,
+            "baselineCompressed": 251572,
+            "currentCompressed": 764088,
+            "compressedDelta": 512516
+          },
+          {
+            "name": "classes5.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 30100,
+            "currentUncompressed": 349692,
+            "uncompressedDelta": 319592,
+            "baselineCompressed": 30100,
+            "currentCompressed": 349692,
+            "compressedDelta": 319592
+          },
+          {
+            "name": "classes9.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 124292,
+            "currentUncompressed": 251576,
+            "uncompressedDelta": 127284,
+            "baselineCompressed": 124292,
+            "currentCompressed": 251576,
+            "compressedDelta": 127284
+          },
+          {
+            "name": "classes10.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 42472,
+            "currentUncompressed": 125536,
+            "uncompressedDelta": 83064,
+            "baselineCompressed": 42472,
+            "currentCompressed": 125536,
+            "compressedDelta": 83064
+          },
+          {
+            "name": "classes11.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 31008,
+            "currentUncompressed": 42472,
+            "uncompressedDelta": 11464,
+            "baselineCompressed": 31008,
+            "currentCompressed": 42472,
+            "compressedDelta": 11464
+          },
+          {
+            "name": "classes3.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 818304,
+            "currentUncompressed": 811268,
+            "uncompressedDelta": -7036,
+            "baselineCompressed": 818304,
+            "currentCompressed": 811268,
+            "compressedDelta": -7036
+          },
+          {
+            "name": "classes12.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 88168,
+            "currentUncompressed": 31008,
+            "uncompressedDelta": -57160,
+            "baselineCompressed": 88168,
+            "currentCompressed": 31008,
+            "compressedDelta": -57160
+          },
+          {
+            "name": "classes6.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 162152,
+            "currentUncompressed": 30100,
+            "uncompressedDelta": -132052,
+            "baselineCompressed": 162152,
+            "currentCompressed": 30100,
+            "compressedDelta": -132052
+          },
+          {
+            "name": "classes4.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 320576,
+            "currentUncompressed": 90576,
+            "uncompressedDelta": -230000,
+            "baselineCompressed": 320576,
+            "currentCompressed": 90576,
+            "compressedDelta": -230000
+          },
+          {
+            "name": "classes7.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 764088,
+            "currentUncompressed": 162152,
+            "uncompressedDelta": -601936,
+            "baselineCompressed": 764088,
+            "currentCompressed": 162152,
+            "compressedDelta": -601936
+          }
+        ],
+        "topIncreases": [
+          {
+            "name": "classes8.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 251572,
+            "currentUncompressed": 764088,
+            "uncompressedDelta": 512516,
+            "baselineCompressed": 251572,
+            "currentCompressed": 764088,
+            "compressedDelta": 512516
+          },
+          {
+            "name": "classes5.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 30100,
+            "currentUncompressed": 349692,
+            "uncompressedDelta": 319592,
+            "baselineCompressed": 30100,
+            "currentCompressed": 349692,
+            "compressedDelta": 319592
+          },
+          {
+            "name": "classes9.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 124292,
+            "currentUncompressed": 251576,
+            "uncompressedDelta": 127284,
+            "baselineCompressed": 124292,
+            "currentCompressed": 251576,
+            "compressedDelta": 127284
+          },
+          {
+            "name": "classes10.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 42472,
+            "currentUncompressed": 125536,
+            "uncompressedDelta": 83064,
+            "baselineCompressed": 42472,
+            "currentCompressed": 125536,
+            "compressedDelta": 83064
+          },
+          {
+            "name": "classes11.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 31008,
+            "currentUncompressed": 42472,
+            "uncompressedDelta": 11464,
+            "baselineCompressed": 31008,
+            "currentCompressed": 42472,
+            "compressedDelta": 11464
+          }
+        ],
+        "topDecreases": [
+          {
+            "name": "classes7.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 764088,
+            "currentUncompressed": 162152,
+            "uncompressedDelta": -601936,
+            "baselineCompressed": 764088,
+            "currentCompressed": 162152,
+            "compressedDelta": -601936
+          },
+          {
+            "name": "classes4.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 320576,
+            "currentUncompressed": 90576,
+            "uncompressedDelta": -230000,
+            "baselineCompressed": 320576,
+            "currentCompressed": 90576,
+            "compressedDelta": -230000
+          },
+          {
+            "name": "classes6.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 162152,
+            "currentUncompressed": 30100,
+            "uncompressedDelta": -132052,
+            "baselineCompressed": 162152,
+            "currentCompressed": 30100,
+            "compressedDelta": -132052
+          },
+          {
+            "name": "classes12.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 88168,
+            "currentUncompressed": 31008,
+            "uncompressedDelta": -57160,
+            "baselineCompressed": 88168,
+            "currentCompressed": 31008,
+            "compressedDelta": -57160
+          },
+          {
+            "name": "classes3.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 818304,
+            "currentUncompressed": 811268,
+            "uncompressedDelta": -7036,
+            "baselineCompressed": 818304,
+            "currentCompressed": 811268,
+            "compressedDelta": -7036
+          }
+        ]
+      }
+    },
+    "develop": {
+      "description": "R8 + resource-shrinking unsigned build closer to, but not equivalent to, a signed release",
+      "baseline": {
+        "sourceCommit": "55fc2a21d0e96f9ef643f53fcc9b74374bd959db",
+        "variant": "develop",
+        "sha256": "8f25e11a86efc4e5a6150f3ff246ea17ea9214667090abeb9ee864867b90d155",
+        "apkFileBytes": 3381782,
+        "apkPath": "app\\build\\outputs\\apk\\develop\\CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk"
+      },
+      "current": {
+        "sourceCommit": "1856c4e229213dfae47ff575aee446ce6a7b5f22",
+        "variant": "develop",
+        "versionName": "r14.16.1",
+        "versionCode": 192,
+        "sha256": "573fea9ad94098c4d0b265fafd542fbefa815ce8f02f46332e853cef1f44a7e2",
+        "apkFileBytes": 3398166,
+        "apkPath": "app\\build\\outputs\\apk\\develop\\CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk"
+      },
+      "metrics": {
+        "apkFileBytes": {
+          "baseline": 3381782,
+          "current": 3398166,
+          "delta": 16384,
+          "deltaPercent": 0.484478,
+          "trend": "increase"
+        },
+        "zipEntriesUncompressedBytes": {
+          "baseline": 3647648,
+          "current": 3652081,
+          "delta": 4433,
+          "deltaPercent": 0.12153,
+          "trend": "increase"
+        },
+        "zipEntriesCompressedBytes": {
+          "baseline": 3326196,
+          "current": 3330629,
+          "delta": 4433,
+          "deltaPercent": 0.133275,
+          "trend": "increase"
+        },
+        "fileCount": {
+          "baseline": 537,
+          "current": 537,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "dexUncompressedBytes": {
+          "baseline": 1815220,
+          "current": 1819612,
+          "delta": 4392,
+          "deltaPercent": 0.241954,
+          "trend": "increase"
+        },
+        "dexCompressedBytes": {
+          "baseline": 1815220,
+          "current": 1819612,
+          "delta": 4392,
+          "deltaPercent": 0.241954,
+          "trend": "increase"
+        },
+        "resourcesArscUncompressedBytes": {
+          "baseline": 782132,
+          "current": 782132,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "resourcesArscCompressedBytes": {
+          "baseline": 782132,
+          "current": 782132,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "libUncompressedBytes": {
+          "baseline": 381024,
+          "current": 381024,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "libCompressedBytes": {
+          "baseline": 381024,
+          "current": 381024,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "resUncompressedBytes": {
+          "baseline": 613605,
+          "current": 613605,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "resCompressedBytes": {
+          "baseline": 304560,
+          "current": 304560,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "assetsUncompressedBytes": {
+          "baseline": 38686,
+          "current": 38727,
+          "delta": 41,
+          "deltaPercent": 0.105981,
+          "trend": "increase"
+        },
+        "assetsCompressedBytes": {
+          "baseline": 38632,
+          "current": 38673,
+          "delta": 41,
+          "deltaPercent": 0.10613,
+          "trend": "increase"
+        },
+        "metaUncompressedBytes": {
+          "baseline": 497,
+          "current": 497,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "metaCompressedBytes": {
+          "baseline": 360,
+          "current": 360,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "manifestUncompressedBytes": {
+          "baseline": 14756,
+          "current": 14756,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        },
+        "manifestCompressedBytes": {
+          "baseline": 3494,
+          "current": 3494,
+          "delta": 0,
+          "deltaPercent": 0.0,
+          "trend": "unchanged"
+        }
+      },
+      "entryDiffs": {
+        "added": [
+          {
+            "name": "META-INF/services/zg",
+            "bucket": "meta",
+            "uncompressedSize": 3,
+            "compressedSize": 5
+          }
+        ],
+        "removed": [
+          {
+            "name": "META-INF/services/tg",
+            "bucket": "meta",
+            "uncompressedSize": 3,
+            "compressedSize": 5
+          }
+        ],
+        "changed": [
+          {
+            "name": "classes.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 1815220,
+            "currentUncompressed": 1819612,
+            "uncompressedDelta": 4392,
+            "baselineCompressed": 1815220,
+            "currentCompressed": 1819612,
+            "compressedDelta": 4392
+          },
+          {
+            "name": "assets/dexopt/baseline.prof",
+            "bucket": "assets",
+            "baselineUncompressed": 1659,
+            "currentUncompressed": 1698,
+            "uncompressedDelta": 39,
+            "baselineCompressed": 1659,
+            "currentCompressed": 1698,
+            "compressedDelta": 39
+          },
+          {
+            "name": "assets/dexopt/baseline.profm",
+            "bucket": "assets",
+            "baselineUncompressed": 262,
+            "currentUncompressed": 264,
+            "uncompressedDelta": 2,
+            "baselineCompressed": 262,
+            "currentCompressed": 264,
+            "compressedDelta": 2
+          }
+        ],
+        "topIncreases": [
+          {
+            "name": "classes.dex",
+            "bucket": "dex",
+            "baselineUncompressed": 1815220,
+            "currentUncompressed": 1819612,
+            "uncompressedDelta": 4392,
+            "baselineCompressed": 1815220,
+            "currentCompressed": 1819612,
+            "compressedDelta": 4392
+          },
+          {
+            "name": "assets/dexopt/baseline.prof",
+            "bucket": "assets",
+            "baselineUncompressed": 1659,
+            "currentUncompressed": 1698,
+            "uncompressedDelta": 39,
+            "baselineCompressed": 1659,
+            "currentCompressed": 1698,
+            "compressedDelta": 39
+          },
+          {
+            "name": "assets/dexopt/baseline.profm",
+            "bucket": "assets",
+            "baselineUncompressed": 262,
+            "currentUncompressed": 264,
+            "uncompressedDelta": 2,
+            "baselineCompressed": 262,
+            "currentCompressed": 264,
+            "compressedDelta": 2
+          }
+        ],
+        "topDecreases": []
+      }
+    }
+  }
+}

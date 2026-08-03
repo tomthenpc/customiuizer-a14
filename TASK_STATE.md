@@ -1047,7 +1047,34 @@ python tools/check-invariants.py
 
 ## P12.4 APK delta
 
-State: `TODO`
+State: `VERIFIED_BUILD`
+
+EvidenceCommit: 1856c4e229213dfae47ff575aee446ce6a7b5f22
+
+文件：
+
+- `docs/performance/A14_APK_SIZE_BASELINE.json`（P0 Debug baseline）
+- `docs/performance/A14_APK_SIZE_BASELINE_DEVELOP.json`（P0 Develop baseline）
+- `docs/performance/A14_APK_SIZE_CURRENT.json`（当前 Debug）
+- `docs/performance/A14_APK_SIZE_CURRENT_DEVELOP.json`（当前 Develop）
+- `docs/performance/A14_APK_SIZE_DELTA.json`（机器可校验的 delta 报告）
+- `docs/performance/A14_APK_SIZE_DELTA.md`（人工可读报告）
+- `tools/apk_size_report.py`（已有 APK 分析工具）
+- `tools/apk_size_delta.py`（新增 delta 生成器）
+- `tools/tests/test_apk_size_delta.py`（机械验证与 mutation）
+
+证据：
+
+```text
+.\gradlew.bat --no-daemon clean :app:assembleDebug :app:assembleDevelop
+python tools/apk_size_report.py app\build\outputs\apk\debug\CustoMIUIzer-A14-r14.16.1-debug.apk --out docs/performance/A14_APK_SIZE_CURRENT.json
+python tools/apk_size_report.py app\build\outputs\apk\develop\CustoMIUIzer-A14-r14.16.1-develop-unsigned.apk --out docs/performance/A14_APK_SIZE_CURRENT_DEVELOP.json
+python tools/apk_size_delta.py --baseline-commit 55fc2a21d0e96f9ef643f53fcc9b74374bd959db --current-commit 1856c4e229213dfae47ff575aee446ce6a7b5f22
+python -m unittest tools.tests.test_apk_size_delta
+python -m unittest discover -s tools/tests -p "test_*.py"
+python tools/check_document_contracts.py
+python tools/check-invariants.py
+```
 
 ---
 

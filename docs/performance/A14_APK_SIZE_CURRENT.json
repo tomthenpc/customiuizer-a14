@@ -1,0 +1,3846 @@
+{
+  "apkPath": "app\\build\\outputs\\apk\\debug\\CustoMIUIzer-A14-r14.16.1-debug.apk",
+  "sha256": "02217ad434e9d8ae2850102589835a31e5ed729fb708ee41a23fdc712485881f",
+  "apkFileBytes": 14484755,
+  "zipEntriesUncompressedBytes": 14702544,
+  "zipEntriesCompressedBytes": 14363426,
+  "fileCount": 637,
+  "dexUncompressedBytes": 12752380,
+  "dexCompressedBytes": 12752380,
+  "resourcesArscUncompressedBytes": 836568,
+  "resourcesArscCompressedBytes": 836568,
+  "libUncompressedBytes": 381024,
+  "libCompressedBytes": 381024,
+  "resUncompressedBytes": 678747,
+  "resCompressedBytes": 352095,
+  "assetsUncompressedBytes": 36765,
+  "assetsCompressedBytes": 36712,
+  "metaUncompressedBytes": 512,
+  "metaCompressedBytes": 361,
+  "manifestUncompressedBytes": 14820,
+  "manifestCompressedBytes": 3512,
+  "files": [
+    {
+      "name": "classes.dex",
+      "uncompressedSize": 9823456,
+      "compressedSize": 9823456,
+      "bucket": "dex"
+    },
+    {
+      "name": "resources.arsc",
+      "uncompressedSize": 836568,
+      "compressedSize": 836568,
+      "bucket": "arsc"
+    },
+    {
+      "name": "classes3.dex",
+      "uncompressedSize": 811268,
+      "compressedSize": 811268,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes8.dex",
+      "uncompressedSize": 764088,
+      "compressedSize": 764088,
+      "bucket": "dex"
+    },
+    {
+      "name": "lib/arm64-v8a/libdexkit.so",
+      "uncompressedSize": 381024,
+      "compressedSize": 381024,
+      "bucket": "lib"
+    },
+    {
+      "name": "classes5.dex",
+      "uncompressedSize": 349692,
+      "compressedSize": 349692,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes2.dex",
+      "uncompressedSize": 270456,
+      "compressedSize": 270456,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes9.dex",
+      "uncompressedSize": 251576,
+      "compressedSize": 251576,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes7.dex",
+      "uncompressedSize": 162152,
+      "compressedSize": 162152,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes10.dex",
+      "uncompressedSize": 125536,
+      "compressedSize": 125536,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes4.dex",
+      "uncompressedSize": 90576,
+      "compressedSize": 90576,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes11.dex",
+      "uncompressedSize": 42472,
+      "compressedSize": 42472,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes12.dex",
+      "uncompressedSize": 31008,
+      "compressedSize": 31008,
+      "bucket": "dex"
+    },
+    {
+      "name": "classes6.dex",
+      "uncompressedSize": 30100,
+      "compressedSize": 30100,
+      "bucket": "dex"
+    },
+    {
+      "name": "assets/test1.mp3",
+      "uncompressedSize": 22569,
+      "compressedSize": 22569,
+      "bucket": "assets"
+    },
+    {
+      "name": "assets/test0.png",
+      "uncompressedSize": 12499,
+      "compressedSize": 12499,
+      "bucket": "assets"
+    },
+    {
+      "name": "res/mipmap-xxhdpi-v4/ic_launcher.png",
+      "uncompressedSize": 11799,
+      "compressedSize": 11799,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system.xml",
+      "uncompressedSize": 40400,
+      "compressedSize": 7855,
+      "bucket": "res"
+    },
+    {
+      "name": "res/mipmap-xxxhdpi-v4/ic_launcher_foreground.png",
+      "uncompressedSize": 7277,
+      "compressedSize": 7277,
+      "bucket": "res"
+    },
+    {
+      "name": "res/mipmap-xxhdpi-v4/ic_launcher_foreground.png",
+      "uncompressedSize": 4708,
+      "compressedSize": 4708,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_credentials.png",
+      "uncompressedSize": 4343,
+      "compressedSize": 4343,
+      "bucket": "res"
+    },
+    {
+      "name": "res/mipmap-xhdpi-v4/ic_launcher_foreground.png",
+      "uncompressedSize": 3843,
+      "compressedSize": 3843,
+      "bucket": "res"
+    },
+    {
+      "name": "AndroidManifest.xml",
+      "uncompressedSize": 14820,
+      "compressedSize": 3512,
+      "bucket": "manifest"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "uncompressedSize": 2834,
+      "compressedSize": 2834,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "uncompressedSize": 2816,
+      "compressedSize": 2816,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_qs_autorotate_lock_portrait.png",
+      "uncompressedSize": 2789,
+      "compressedSize": 2789,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_qs_autorotate_lock_landscape.png",
+      "uncompressedSize": 2715,
+      "compressedSize": 2715,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_launcher.xml",
+      "uncompressedSize": 11888,
+      "compressedSize": 2709,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "uncompressedSize": 2505,
+      "compressedSize": 2505,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/color_button.9.png",
+      "uncompressedSize": 2480,
+      "compressedSize": 2480,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "uncompressedSize": 2463,
+      "compressedSize": 2463,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_popup_background_mtrl_mult.9.png",
+      "uncompressedSize": 2305,
+      "compressedSize": 2305,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_controls.xml",
+      "uncompressedSize": 8960,
+      "compressedSize": 2165,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_qs_autorotate_disabled.png",
+      "uncompressedSize": 2117,
+      "compressedSize": 2117,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_miuizer_img_dark.xml",
+      "uncompressedSize": 4392,
+      "compressedSize": 1841,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_miuizer_img_light.xml",
+      "uncompressedSize": 4392,
+      "compressedSize": 1841,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_various.xml",
+      "uncompressedSize": 6728,
+      "compressedSize": 1801,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_menu_hardkey_panel_mtrl_mult.9.png",
+      "uncompressedSize": 1779,
+      "compressedSize": 1779,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/progressbar_indeterminate_circle.png",
+      "uncompressedSize": 1777,
+      "compressedSize": 1777,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "uncompressedSize": 1731,
+      "compressedSize": 1731,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_clock.xml",
+      "uncompressedSize": 6888,
+      "compressedSize": 1709,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_mobilesignal.xml",
+      "uncompressedSize": 8044,
+      "compressedSize": 1705,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_appinfo12.png",
+      "uncompressedSize": 1666,
+      "compressedSize": 1666,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_mask.png",
+      "uncompressedSize": 1615,
+      "compressedSize": 1615,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_forceclose12.png",
+      "uncompressedSize": 1557,
+      "compressedSize": 1557,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_popup_background_mtrl_mult.9.png",
+      "uncompressedSize": 1544,
+      "compressedSize": 1544,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_hideicons.xml",
+      "uncompressedSize": 7164,
+      "compressedSize": 1540,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "uncompressedSize": 1526,
+      "compressedSize": 1526,
+      "bucket": "res"
+    },
+    {
+      "name": "assets/test2.mp4",
+      "uncompressedSize": 1493,
+      "compressedSize": 1493,
+      "bucket": "assets"
+    },
+    {
+      "name": "res/drawable/ic_miuizer_settings.xml",
+      "uncompressedSize": 3432,
+      "compressedSize": 1431,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/am_card_item_disabled.png",
+      "uncompressedSize": 1394,
+      "compressedSize": 1394,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_detailednetspeed.xml",
+      "uncompressedSize": 4872,
+      "compressedSize": 1374,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-night-xxxhdpi-v8/progressbar_indeterminate_circle.png",
+      "uncompressedSize": 1372,
+      "compressedSize": 1372,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/card_icon_default.png",
+      "uncompressedSize": 1294,
+      "compressedSize": 1294,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_batterytempandcurrent.xml",
+      "uncompressedSize": 4972,
+      "compressedSize": 1288,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-night-xhdpi-v8/card_icon_default.png",
+      "uncompressedSize": 1270,
+      "compressedSize": 1270,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "uncompressedSize": 1243,
+      "compressedSize": 1243,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "uncompressedSize": 1208,
+      "compressedSize": 1208,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_answer.png",
+      "uncompressedSize": 1171,
+      "compressedSize": 1171,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_answer_low.png",
+      "uncompressedSize": 1171,
+      "compressedSize": 1171,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_showdevicetemperature.xml",
+      "uncompressedSize": 4168,
+      "compressedSize": 1171,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_batteryindicator.xml",
+      "uncompressedSize": 4400,
+      "compressedSize": 1170,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/icon_action_default.png",
+      "uncompressedSize": 1142,
+      "compressedSize": 1142,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/ic_openinfw.xml",
+      "uncompressedSize": 2348,
+      "compressedSize": 1140,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/icon_action_disallow.png",
+      "uncompressedSize": 1132,
+      "compressedSize": 1132,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_search_view.xml",
+      "uncompressedSize": 3472,
+      "compressedSize": 1105,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_popup_background_mtrl_mult.9.png",
+      "uncompressedSize": 1098,
+      "compressedSize": 1098,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "uncompressedSize": 1096,
+      "compressedSize": 1096,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_widget_seekbar_material.xml",
+      "uncompressedSize": 3096,
+      "compressedSize": 1096,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/icon_action_allow.png",
+      "uncompressedSize": 1081,
+      "compressedSize": 1081,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-night-xxhdpi-v8/icon_action_default.png",
+      "uncompressedSize": 1065,
+      "compressedSize": 1065,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_xspace.png",
+      "uncompressedSize": 1057,
+      "compressedSize": 1057,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_visualizer.xml",
+      "uncompressedSize": 3592,
+      "compressedSize": 1046,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/fragment_selectcolor.xml",
+      "uncompressedSize": 3832,
+      "compressedSize": 1038,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/ic_qs_5g_off.xml",
+      "uncompressedSize": 2216,
+      "compressedSize": 1035,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/ic_qs_5g_on.xml",
+      "uncompressedSize": 2216,
+      "compressedSize": 1035,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/ic_qs_fps_off.xml",
+      "uncompressedSize": 2280,
+      "compressedSize": 1028,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/ic_qs_fps_on.xml",
+      "uncompressedSize": 2280,
+      "compressedSize": 1028,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_widget_seekbar.xml",
+      "uncompressedSize": 2896,
+      "compressedSize": 1028,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_theme.png",
+      "uncompressedSize": 1021,
+      "compressedSize": 1021,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_theme.png",
+      "uncompressedSize": 1005,
+      "compressedSize": 1005,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_theme.png",
+      "uncompressedSize": 1005,
+      "compressedSize": 1005,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_righticons.xml",
+      "uncompressedSize": 3640,
+      "compressedSize": 989,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_theme.png",
+      "uncompressedSize": 987,
+      "compressedSize": 987,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "uncompressedSize": 984,
+      "compressedSize": 984,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_menu_hardkey_panel_mtrl_mult.9.png",
+      "uncompressedSize": 966,
+      "compressedSize": 966,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_theme.png",
+      "uncompressedSize": 966,
+      "compressedSize": 966,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_dark_theme.png",
+      "uncompressedSize": 951,
+      "compressedSize": 951,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_statusbarcontrols.xml",
+      "uncompressedSize": 3232,
+      "compressedSize": 949,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "uncompressedSize": 946,
+      "compressedSize": 946,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_statusbar_batterystyle.xml",
+      "uncompressedSize": 3360,
+      "compressedSize": 940,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_dark_theme.png",
+      "uncompressedSize": 939,
+      "compressedSize": 939,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_dark_theme.png",
+      "uncompressedSize": 934,
+      "compressedSize": 934,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_dark_theme.png",
+      "uncompressedSize": 934,
+      "compressedSize": 934,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_dropdown.xml",
+      "uncompressedSize": 2544,
+      "compressedSize": 932,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_dark_theme.png",
+      "uncompressedSize": 922,
+      "compressedSize": 922,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_theme.png",
+      "uncompressedSize": 919,
+      "compressedSize": 919,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_controlcenter_themestyle.xml",
+      "uncompressedSize": 3296,
+      "compressedSize": 919,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_theme.png",
+      "uncompressedSize": 911,
+      "compressedSize": 911,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_oversize_large_icon_bg.png",
+      "uncompressedSize": 909,
+      "compressedSize": 909,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_theme.png",
+      "uncompressedSize": 908,
+      "compressedSize": 908,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_theme.png",
+      "uncompressedSize": 908,
+      "compressedSize": 908,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/prefs_multiaction.xml",
+      "uncompressedSize": 3696,
+      "compressedSize": 905,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_controlcenter_clock.xml",
+      "uncompressedSize": 2464,
+      "compressedSize": 895,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout-land/fragment_selectcolor.xml",
+      "uncompressedSize": 2708,
+      "compressedSize": 892,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference.xml",
+      "uncompressedSize": 2352,
+      "compressedSize": 892,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_dark_theme.png",
+      "uncompressedSize": 885,
+      "compressedSize": 885,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_dark_theme.png",
+      "uncompressedSize": 885,
+      "compressedSize": 885,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_answer.png",
+      "uncompressedSize": 884,
+      "compressedSize": 884,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_answer_low.png",
+      "uncompressedSize": 884,
+      "compressedSize": 884,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_dark_theme.png",
+      "uncompressedSize": 873,
+      "compressedSize": 873,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_theme.png",
+      "uncompressedSize": 868,
+      "compressedSize": 868,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_dark_theme.png",
+      "uncompressedSize": 866,
+      "compressedSize": 866,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_dark_theme.png",
+      "uncompressedSize": 852,
+      "compressedSize": 852,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "uncompressedSize": 851,
+      "compressedSize": 851,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_flashlight_img_light.xml",
+      "uncompressedSize": 1732,
+      "compressedSize": 848,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/keyguard_bottom_flashlight_img_dark.xml",
+      "uncompressedSize": 1732,
+      "compressedSize": 847,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/applist_item11.xml",
+      "uncompressedSize": 2720,
+      "compressedSize": 842,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/btn_checkbox_checked_mtrl.xml",
+      "uncompressedSize": 2688,
+      "compressedSize": 841,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_various_calluibright.xml",
+      "uncompressedSize": 2292,
+      "compressedSize": 839,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_alert_dialog_material.xml",
+      "uncompressedSize": 2648,
+      "compressedSize": 835,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/btn_checkbox_unchecked_mtrl.xml",
+      "uncompressedSize": 2660,
+      "compressedSize": 831,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_switch_to_on_mtrl_00012.9.png",
+      "uncompressedSize": 825,
+      "compressedSize": 825,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/fragment_about_head.xml",
+      "uncompressedSize": 2536,
+      "compressedSize": 825,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_decline.png",
+      "uncompressedSize": 823,
+      "compressedSize": 823,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_decline_low.png",
+      "uncompressedSize": 823,
+      "compressedSize": 823,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_material.xml",
+      "uncompressedSize": 2052,
+      "compressedSize": 820,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "uncompressedSize": 813,
+      "compressedSize": 813,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_seekbar12.xml",
+      "uncompressedSize": 2448,
+      "compressedSize": 806,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_popup_menu_item_layout.xml",
+      "uncompressedSize": 2072,
+      "compressedSize": 803,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout-v21/notification_template_custom_big.xml",
+      "uncompressedSize": 2456,
+      "compressedSize": 790,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_main.xml",
+      "uncompressedSize": 2232,
+      "compressedSize": 786,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "uncompressedSize": 785,
+      "compressedSize": 785,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "uncompressedSize": 785,
+      "compressedSize": 785,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/pref_item.xml",
+      "uncompressedSize": 2160,
+      "compressedSize": 780,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_popup_background_mtrl_mult.9.png",
+      "uncompressedSize": 776,
+      "compressedSize": 776,
+      "bucket": "res"
+    },
+    {
+      "name": "DebugProbesKt.bin",
+      "uncompressedSize": 1728,
+      "compressedSize": 774,
+      "bucket": "other"
+    },
+    {
+      "name": "res/xml/prefs_system_screenshot.xml",
+      "uncompressedSize": 2056,
+      "compressedSize": 768,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/prefs_wifi_networks.xml",
+      "uncompressedSize": 2228,
+      "compressedSize": 764,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/prefs_bt_networks.xml",
+      "uncompressedSize": 2228,
+      "compressedSize": 762,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_vibration_amp.xml",
+      "uncompressedSize": 2344,
+      "compressedSize": 759,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_switch_to_on_mtrl_00001.9.png",
+      "uncompressedSize": 754,
+      "compressedSize": 754,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_information_material.xml",
+      "uncompressedSize": 2056,
+      "compressedSize": 754,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_text_select_handle_middle_mtrl.png",
+      "uncompressedSize": 753,
+      "compressedSize": 753,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_checked_box_outer_merged_animation.xml",
+      "uncompressedSize": 2780,
+      "compressedSize": 742,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_menu_hardkey_panel_mtrl_mult.9.png",
+      "uncompressedSize": 738,
+      "compressedSize": 738,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_decline.xml",
+      "uncompressedSize": 1528,
+      "compressedSize": 734,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_category_material.xml",
+      "uncompressedSize": 1768,
+      "compressedSize": 733,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_albumartonlock.xml",
+      "uncompressedSize": 1848,
+      "compressedSize": 733,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_unchecked_check_path_merged_animation.xml",
+      "uncompressedSize": 2520,
+      "compressedSize": 731,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_dark_theme.png",
+      "uncompressedSize": 729,
+      "compressedSize": 729,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/expand_button.xml",
+      "uncompressedSize": 1720,
+      "compressedSize": 725,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_decline_low.xml",
+      "uncompressedSize": 1492,
+      "compressedSize": 712,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_secureqs.xml",
+      "uncompressedSize": 2492,
+      "compressedSize": 712,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_cascading_menu_item_layout.xml",
+      "uncompressedSize": 1868,
+      "compressedSize": 709,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/btn_radio_off_mtrl.xml",
+      "uncompressedSize": 1728,
+      "compressedSize": 703,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_noscreenlock.xml",
+      "uncompressedSize": 2028,
+      "compressedSize": 703,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_theme.png",
+      "uncompressedSize": 685,
+      "compressedSize": 685,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/btn_radio_on_mtrl.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 678,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_search_dropdown_item_icons_2line.xml",
+      "uncompressedSize": 1916,
+      "compressedSize": 668,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_cat.xml",
+      "uncompressedSize": 2340,
+      "compressedSize": 664,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_charginginfo.xml",
+      "uncompressedSize": 1916,
+      "compressedSize": 664,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_answer.xml",
+      "uncompressedSize": 1356,
+      "compressedSize": 663,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_unchecked_box_inner_merged_animation.xml",
+      "uncompressedSize": 2360,
+      "compressedSize": 660,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_information.xml",
+      "uncompressedSize": 1732,
+      "compressedSize": 657,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "uncompressedSize": 651,
+      "compressedSize": 651,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout-v26/abc_screen_toolbar.xml",
+      "uncompressedSize": 1560,
+      "compressedSize": 649,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_autobrightness.xml",
+      "uncompressedSize": 1844,
+      "compressedSize": 648,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_answer_low.xml",
+      "uncompressedSize": 1320,
+      "compressedSize": 644,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_alert_dialog_title_material.xml",
+      "uncompressedSize": 1560,
+      "compressedSize": 644,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_checked_box_inner_merged_animation.xml",
+      "uncompressedSize": 2124,
+      "compressedSize": 641,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "uncompressedSize": 631,
+      "compressedSize": 631,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_decline.png",
+      "uncompressedSize": 628,
+      "compressedSize": 628,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_decline_low.png",
+      "uncompressedSize": 628,
+      "compressedSize": 628,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_dark_theme.png",
+      "uncompressedSize": 624,
+      "compressedSize": 624,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_answer.png",
+      "uncompressedSize": 623,
+      "compressedSize": 623,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_answer_low.png",
+      "uncompressedSize": 623,
+      "compressedSize": 623,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_theme.png",
+      "uncompressedSize": 620,
+      "compressedSize": 620,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "uncompressedSize": 618,
+      "compressedSize": 618,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_alert_dialog_button_bar_material.xml",
+      "uncompressedSize": 1584,
+      "compressedSize": 610,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_alarmonlock.xml",
+      "uncompressedSize": 1448,
+      "compressedSize": 605,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_system_lockscreenshortcuts.xml",
+      "uncompressedSize": 1768,
+      "compressedSize": 603,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_activity_chooser_view.xml",
+      "uncompressedSize": 1684,
+      "compressedSize": 597,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_list_menu_item_layout.xml",
+      "uncompressedSize": 1396,
+      "compressedSize": 597,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/tasker_unlock.xml",
+      "uncompressedSize": 1668,
+      "compressedSize": 596,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "uncompressedSize": 595,
+      "compressedSize": 595,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "uncompressedSize": 593,
+      "compressedSize": 593,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_text_select_handle_middle_mtrl.png",
+      "uncompressedSize": 585,
+      "compressedSize": 585,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_activity_chooser_view_list_item.xml",
+      "uncompressedSize": 1304,
+      "compressedSize": 568,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/search_stub.xml",
+      "uncompressedSize": 1296,
+      "compressedSize": 567,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "uncompressedSize": 563,
+      "compressedSize": 563,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/prefs_app_selector.xml",
+      "uncompressedSize": 1276,
+      "compressedSize": 562,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_cut_mtrl_alpha.xml",
+      "uncompressedSize": 1096,
+      "compressedSize": 554,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-v21/abc_btn_colored_material.xml",
+      "uncompressedSize": 1716,
+      "compressedSize": 551,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/activity_main.xml",
+      "uncompressedSize": 1260,
+      "compressedSize": 551,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout-watch-v20/abc_alert_dialog_title_material.xml",
+      "uncompressedSize": 1352,
+      "compressedSize": 549,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_menu_hardkey_panel_mtrl_mult.9.png",
+      "uncompressedSize": 541,
+      "compressedSize": 541,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout-v21/notification_action_tombstone.xml",
+      "uncompressedSize": 1228,
+      "compressedSize": 539,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_select_dialog_material.xml",
+      "uncompressedSize": 1020,
+      "compressedSize": 536,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_various_hiddenfeatures.xml",
+      "uncompressedSize": 1428,
+      "compressedSize": 532,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldrtl-xxhdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 525,
+      "compressedSize": 525,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_dialog_title_material.xml",
+      "uncompressedSize": 1116,
+      "compressedSize": 525,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_dialog_edittext.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 525,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 524,
+      "compressedSize": 524,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_share_mtrl_alpha.xml",
+      "uncompressedSize": 980,
+      "compressedSize": 514,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "uncompressedSize": 513,
+      "compressedSize": 513,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "uncompressedSize": 513,
+      "compressedSize": 513,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_about.xml",
+      "uncompressedSize": 1120,
+      "compressedSize": 513,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/shortcuts.xml",
+      "uncompressedSize": 1056,
+      "compressedSize": 505,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_tooltip.xml",
+      "uncompressedSize": 1056,
+      "compressedSize": 498,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/image_frame.xml",
+      "uncompressedSize": 1088,
+      "compressedSize": 497,
+      "bucket": "res"
+    },
+    {
+      "name": "res/menu/menu_mods.xml",
+      "uncompressedSize": 1664,
+      "compressedSize": 496,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_arrow_drop_right_black_24dp.xml",
+      "uncompressedSize": 1000,
+      "compressedSize": 492,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_launcher_cat.xml",
+      "uncompressedSize": 1376,
+      "compressedSize": 490,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout-v21/notification_action.xml",
+      "uncompressedSize": 1052,
+      "compressedSize": 487,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "uncompressedSize": 484,
+      "compressedSize": 484,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "uncompressedSize": 476,
+      "compressedSize": 476,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_answer.png",
+      "uncompressedSize": 472,
+      "compressedSize": 472,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_answer_low.png",
+      "uncompressedSize": 472,
+      "compressedSize": 472,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_selectall_mtrl_alpha.xml",
+      "uncompressedSize": 920,
+      "compressedSize": 471,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-v21/notification_action_background.xml",
+      "uncompressedSize": 1180,
+      "compressedSize": 470,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout-watch-v20/abc_alert_dialog_button_bar_material.xml",
+      "uncompressedSize": 1208,
+      "compressedSize": 470,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_answer_video.png",
+      "uncompressedSize": 465,
+      "compressedSize": 465,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_call_answer_video_low.png",
+      "uncompressedSize": 465,
+      "compressedSize": 465,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/fragment_about_tail.xml",
+      "uncompressedSize": 1184,
+      "compressedSize": 465,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "uncompressedSize": 464,
+      "compressedSize": 464,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-v21/abc_edit_text_material.xml",
+      "uncompressedSize": 1172,
+      "compressedSize": 462,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_voice_search_api_material.xml",
+      "uncompressedSize": 828,
+      "compressedSize": 456,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/statusbar_text_icon.xml",
+      "uncompressedSize": 976,
+      "compressedSize": 454,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_decline.png",
+      "uncompressedSize": 452,
+      "compressedSize": 452,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_decline_low.png",
+      "uncompressedSize": 452,
+      "compressedSize": 452,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_search_api_material.xml",
+      "uncompressedSize": 812,
+      "compressedSize": 452,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 448,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_dark.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_dark_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_dark.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_dark_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_dark.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_dark_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 448,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_tint_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 447,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_tint_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 447,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_tint_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 447,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/ic_qs_second_off.xml",
+      "uncompressedSize": 832,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/ic_qs_second_on.xml",
+      "uncompressedSize": 832,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_1_tint.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_2_tint.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_3_tint.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 446,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_dark.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_dark.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_dark_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_dark.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_dark_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 445,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_dark_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 444,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/select_dialog_multichoice_material.xml",
+      "uncompressedSize": 864,
+      "compressedSize": 444,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/select_dialog_singlechoice_material.xml",
+      "uncompressedSize": 864,
+      "compressedSize": 444,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_tint.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_0_tint_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_tint.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_4_tint_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_tint.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_2_5_tint_thick.xml",
+      "uncompressedSize": 1312,
+      "compressedSize": 443,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_dark.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 441,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_dark.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 441,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_dark.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 441,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 440,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 440,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 440,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_tint.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 439,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_tint.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 439,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_tint.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 439,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_dark.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_dark.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 438,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldrtl-xxxhdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 437,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_dark.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_tint.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_dark_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_dark_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_dark_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/prefs_main12.xml",
+      "uncompressedSize": 812,
+      "compressedSize": 437,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_1_tint_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_2_tint_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_3_tint_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_tint.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_tint.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 436,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_paste_mtrl_am_alpha.xml",
+      "uncompressedSize": 796,
+      "compressedSize": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_dark_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 435,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_0_tint_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_dark_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_4_tint_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_dark_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/statusbar_signal_1_5_tint_thick.xml",
+      "uncompressedSize": 1220,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_popup_menu_header_item_layout.xml",
+      "uncompressedSize": 848,
+      "compressedSize": 434,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_radio_to_off_mtrl_ring_outer_animation.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 433,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "uncompressedSize": 432,
+      "compressedSize": 432,
+      "bucket": "res"
+    },
+    {
+      "name": "res/xml/prefs_controls_cat.xml",
+      "uncompressedSize": 1124,
+      "compressedSize": 432,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_radio_to_off_mtrl_dot_group_animation.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 430,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 430,
+      "compressedSize": 430,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_radio_to_on_mtrl_ring_outer_animation.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 428,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_sysbar_dot_bottomleft.png",
+      "uncompressedSize": 425,
+      "compressedSize": 425,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_sysbar_dot_topright.png",
+      "uncompressedSize": 425,
+      "compressedSize": 425,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_action_mode_close_item_material.xml",
+      "uncompressedSize": 840,
+      "compressedSize": 424,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_seekbar_track_material.xml",
+      "uncompressedSize": 1408,
+      "compressedSize": 423,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "uncompressedSize": 422,
+      "compressedSize": 422,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/prefs_sortable_list.xml",
+      "uncompressedSize": 804,
+      "compressedSize": 422,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_radio_to_on_mtrl_dot_group_animation.xml",
+      "uncompressedSize": 1656,
+      "compressedSize": 421,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_answer_video.xml",
+      "uncompressedSize": 772,
+      "compressedSize": 421,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "uncompressedSize": 420,
+      "compressedSize": 420,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout-v21/notification_template_icon_group.xml",
+      "uncompressedSize": 988,
+      "compressedSize": 418,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldrtl-xhdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 417,
+      "compressedSize": 417,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/ime_secondary_split_test_activity.xml",
+      "uncompressedSize": 876,
+      "compressedSize": 417,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "uncompressedSize": 415,
+      "compressedSize": 415,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_sysbar_dot_bottomleft_dark.png",
+      "uncompressedSize": 411,
+      "compressedSize": 411,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/ic_sysbar_dot_topright_dark.png",
+      "uncompressedSize": 411,
+      "compressedSize": 411,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_spinner_textfield_background_material.xml",
+      "uncompressedSize": 1160,
+      "compressedSize": 409,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_copy_mtrl_am_alpha.xml",
+      "uncompressedSize": 756,
+      "compressedSize": 405,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "uncompressedSize": 404,
+      "compressedSize": 404,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "uncompressedSize": 403,
+      "compressedSize": 403,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-anydpi-v21/ic_call_answer_video_low.xml",
+      "uncompressedSize": 736,
+      "compressedSize": 401,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_checked_icon_null_animation.xml",
+      "uncompressedSize": 1196,
+      "compressedSize": 397,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_checkbox_to_unchecked_icon_null_animation.xml",
+      "uncompressedSize": 1196,
+      "compressedSize": 397,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_text_select_handle_middle_mtrl.png",
+      "uncompressedSize": 396,
+      "compressedSize": 396,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_switch_track_mtrl_alpha.9.png",
+      "uncompressedSize": 395,
+      "compressedSize": 395,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_btn_default_mtrl_shape.xml",
+      "uncompressedSize": 932,
+      "compressedSize": 394,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_action_menu_item_layout.xml",
+      "uncompressedSize": 768,
+      "compressedSize": 394,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_screen_simple.xml",
+      "uncompressedSize": 832,
+      "compressedSize": 393,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "uncompressedSize": 391,
+      "compressedSize": 391,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_menu_overflow_material.xml",
+      "uncompressedSize": 792,
+      "compressedSize": 389,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_action_bar_title_item.xml",
+      "uncompressedSize": 872,
+      "compressedSize": 388,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_answer_video.png",
+      "uncompressedSize": 384,
+      "compressedSize": 384,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/ic_call_answer_video_low.png",
+      "uncompressedSize": 384,
+      "compressedSize": 384,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_ab_back_material.xml",
+      "uncompressedSize": 692,
+      "compressedSize": 381,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_list_menu_item_icon.xml",
+      "uncompressedSize": 780,
+      "compressedSize": 381,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_radio_to_on_mtrl_ring_outer_path_animation.xml",
+      "uncompressedSize": 1028,
+      "compressedSize": 380,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_shrink_fade_out_from_bottom.xml",
+      "uncompressedSize": 852,
+      "compressedSize": 377,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_grow_fade_in_from_bottom.xml",
+      "uncompressedSize": 852,
+      "compressedSize": 376,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_decline.png",
+      "uncompressedSize": 375,
+      "compressedSize": 375,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_decline_low.png",
+      "uncompressedSize": 375,
+      "compressedSize": 375,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_screen_simple_overlay_action_mode.xml",
+      "uncompressedSize": 792,
+      "compressedSize": 375,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/btn_radio_to_off_mtrl_ring_outer_path_animation.xml",
+      "uncompressedSize": 1028,
+      "compressedSize": 373,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_default.xml",
+      "uncompressedSize": 1120,
+      "compressedSize": 369,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_list_fragment.xml",
+      "uncompressedSize": 812,
+      "compressedSize": 369,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/rounded_corners.xml",
+      "uncompressedSize": 848,
+      "compressedSize": 363,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_star_black_48dp.xml",
+      "uncompressedSize": 640,
+      "compressedSize": 361,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/activity_open_exit.xml",
+      "uncompressedSize": 756,
+      "compressedSize": 360,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_clear_material.xml",
+      "uncompressedSize": 684,
+      "compressedSize": 360,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_radio_to_on_mtrl_015.png",
+      "uncompressedSize": 356,
+      "compressedSize": 356,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_seekbar_thumb_material.xml",
+      "uncompressedSize": 1100,
+      "compressedSize": 354,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/select_dialog_item_material.xml",
+      "uncompressedSize": 640,
+      "compressedSize": 352,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/ic_actionbar_done.xml",
+      "uncompressedSize": 640,
+      "compressedSize": 351,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-v21/ic_arrow_down_24dp.xml",
+      "uncompressedSize": 644,
+      "compressedSize": 350,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_dropdown_material.xml",
+      "uncompressedSize": 712,
+      "compressedSize": 350,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 345,
+      "compressedSize": 345,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldrtl-hdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 345,
+      "compressedSize": 345,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_btn_check_material_anim.xml",
+      "uncompressedSize": 816,
+      "compressedSize": 343,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_btn_radio_material_anim.xml",
+      "uncompressedSize": 816,
+      "compressedSize": 343,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/prefs_fragment_base.xml",
+      "uncompressedSize": 856,
+      "compressedSize": 342,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ic_go_search_api_material.xml",
+      "uncompressedSize": 640,
+      "compressedSize": 340,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_list_selector_holo_dark.xml",
+      "uncompressedSize": 1064,
+      "compressedSize": 338,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_list_selector_holo_light.xml",
+      "uncompressedSize": 1064,
+      "compressedSize": 338,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_category.xml",
+      "uncompressedSize": 676,
+      "compressedSize": 338,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "uncompressedSize": 335,
+      "compressedSize": 335,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_vector_test.xml",
+      "uncompressedSize": 612,
+      "compressedSize": 333,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_star_half_black_48dp.xml",
+      "uncompressedSize": 600,
+      "compressedSize": 331,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/preference_primary_text.xml",
+      "uncompressedSize": 960,
+      "compressedSize": 328,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/preference_secondary_text.xml",
+      "uncompressedSize": 960,
+      "compressedSize": 328,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 327,
+      "compressedSize": 327,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/popmenu_background.xml",
+      "uncompressedSize": 992,
+      "compressedSize": 325,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/popup_background.xml",
+      "uncompressedSize": 992,
+      "compressedSize": 325,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_radio_to_on_mtrl_000.png",
+      "uncompressedSize": 324,
+      "compressedSize": 324,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-v21/abc_dialog_material_background.xml",
+      "uncompressedSize": 716,
+      "compressedSize": 323,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_control_off_mtrl_alpha.png",
+      "uncompressedSize": 322,
+      "compressedSize": 322,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_check_to_on_mtrl_015.png",
+      "uncompressedSize": 321,
+      "compressedSize": 321,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_item_background_holo_dark.xml",
+      "uncompressedSize": 1012,
+      "compressedSize": 319,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_item_background_holo_light.xml",
+      "uncompressedSize": 1012,
+      "compressedSize": 319,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldrtl-mdpi-v17/abc_spinner_mtrl_am_alpha.9.png",
+      "uncompressedSize": 318,
+      "compressedSize": 318,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "uncompressedSize": 318,
+      "compressedSize": 318,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/activity_open_enter.xml",
+      "uncompressedSize": 676,
+      "compressedSize": 317,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_answer.png",
+      "uncompressedSize": 317,
+      "compressedSize": 317,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_answer_low.png",
+      "uncompressedSize": 317,
+      "compressedSize": 317,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/list_item_bg.xml",
+      "uncompressedSize": 852,
+      "compressedSize": 314,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_text_select_handle_middle_mtrl.png",
+      "uncompressedSize": 310,
+      "compressedSize": 310,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/custom_dialog.xml",
+      "uncompressedSize": 612,
+      "compressedSize": 309,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/activity_close_enter.xml",
+      "uncompressedSize": 636,
+      "compressedSize": 308,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "uncompressedSize": 307,
+      "compressedSize": 307,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/btn_checkbox_checked_to_unchecked_mtrl_animation.xml",
+      "uncompressedSize": 688,
+      "compressedSize": 306,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/btn_checkbox_unchecked_to_checked_mtrl_animation.xml",
+      "uncompressedSize": 688,
+      "compressedSize": 301,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/btn_radio_off_to_on_mtrl_animation.xml",
+      "uncompressedSize": 680,
+      "compressedSize": 301,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/btn_radio_on_to_off_mtrl_animation.xml",
+      "uncompressedSize": 680,
+      "compressedSize": 301,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_recyclerview.xml",
+      "uncompressedSize": 544,
+      "compressedSize": 299,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_screen_content_include.xml",
+      "uncompressedSize": 548,
+      "compressedSize": 297,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_action_menu_layout.xml",
+      "uncompressedSize": 576,
+      "compressedSize": 295,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_textfield_search_material.xml",
+      "uncompressedSize": 756,
+      "compressedSize": 291,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_answer_video.png",
+      "uncompressedSize": 290,
+      "compressedSize": 290,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/ic_call_answer_video_low.png",
+      "uncompressedSize": 290,
+      "compressedSize": 290,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_list_menu_item_radio.xml",
+      "uncompressedSize": 532,
+      "compressedSize": 287,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_ab_share_pack_mtrl_alpha.9.png",
+      "uncompressedSize": 286,
+      "compressedSize": 286,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_list_menu_item_checkbox.xml",
+      "uncompressedSize": 528,
+      "compressedSize": 284,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_edittext.xml",
+      "uncompressedSize": 668,
+      "compressedSize": 283,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_spinner.xml",
+      "uncompressedSize": 668,
+      "compressedSize": 283,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/list_item_bg_pressed.xml",
+      "uncompressedSize": 604,
+      "compressedSize": 283,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/list_item_bg_selected.xml",
+      "uncompressedSize": 604,
+      "compressedSize": 283,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_switch_track.xml",
+      "uncompressedSize": 664,
+      "compressedSize": 282,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/list_item_bg_normal.xml",
+      "uncompressedSize": 604,
+      "compressedSize": 282,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "uncompressedSize": 281,
+      "compressedSize": 281,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_ab_share_pack_mtrl_alpha.9.png",
+      "uncompressedSize": 280,
+      "compressedSize": 280,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_widget_switch_compat.xml",
+      "uncompressedSize": 504,
+      "compressedSize": 280,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "uncompressedSize": 278,
+      "compressedSize": 278,
+      "bucket": "res"
+    },
+    {
+      "name": "res/animator/fragment_close_enter.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 277,
+      "bucket": "res"
+    },
+    {
+      "name": "res/animator/fragment_open_exit.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 276,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "uncompressedSize": 275,
+      "compressedSize": 275,
+      "bucket": "res"
+    },
+    {
+      "name": "res/animator/fragment_open_enter.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 274,
+      "bucket": "res"
+    },
+    {
+      "name": "res/animator/fragment_close_exit.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 273,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_btn_checkable.xml",
+      "uncompressedSize": 624,
+      "compressedSize": 273,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_ab_share_pack_mtrl_alpha.9.png",
+      "uncompressedSize": 272,
+      "compressedSize": 272,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "uncompressedSize": 272,
+      "compressedSize": 272,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/activity_close_exit.xml",
+      "uncompressedSize": 508,
+      "compressedSize": 271,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_answer.png",
+      "uncompressedSize": 270,
+      "compressedSize": 270,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_answer_low.png",
+      "uncompressedSize": 270,
+      "compressedSize": 270,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/support_simple_spinner_dropdown_item.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 270,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_action_mode_bar.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 268,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_ab_share_pack_mtrl_alpha.9.png",
+      "uncompressedSize": 267,
+      "compressedSize": 267,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_control_off_mtrl_alpha.png",
+      "uncompressedSize": 267,
+      "compressedSize": 267,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "uncompressedSize": 267,
+      "compressedSize": 267,
+      "bucket": "res"
+    },
+    {
+      "name": "res/animator/fragment_fade_enter.xml",
+      "uncompressedSize": 452,
+      "compressedSize": 265,
+      "bucket": "res"
+    },
+    {
+      "name": "res/animator/fragment_fade_exit.xml",
+      "uncompressedSize": 452,
+      "compressedSize": 265,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_decline.png",
+      "uncompressedSize": 264,
+      "compressedSize": 264,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_decline_low.png",
+      "uncompressedSize": 264,
+      "compressedSize": 264,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/notification_template_part_time.xml",
+      "uncompressedSize": 440,
+      "compressedSize": 263,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "uncompressedSize": 262,
+      "compressedSize": 262,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_widget_checkbox.xml",
+      "uncompressedSize": 472,
+      "compressedSize": 261,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_selector_disabled_holo_dark.9.png",
+      "uncompressedSize": 260,
+      "compressedSize": 260,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/notification_template_part_chronometer.xml",
+      "uncompressedSize": 440,
+      "compressedSize": 260,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/preference_widget_switch.xml",
+      "uncompressedSize": 472,
+      "compressedSize": 260,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_popup_exit.xml",
+      "uncompressedSize": 508,
+      "compressedSize": 259,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_popup_enter.xml",
+      "uncompressedSize": 508,
+      "compressedSize": 258,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_hint_foreground_material_dark.xml",
+      "uncompressedSize": 564,
+      "compressedSize": 258,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_hint_foreground_material_light.xml",
+      "uncompressedSize": 564,
+      "compressedSize": 258,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_selector_disabled_holo_light.9.png",
+      "uncompressedSize": 258,
+      "compressedSize": 258,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_color_highlight_material.xml",
+      "uncompressedSize": 544,
+      "compressedSize": 257,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_answer_video.png",
+      "uncompressedSize": 254,
+      "compressedSize": 254,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/ic_call_answer_video_low.png",
+      "uncompressedSize": 254,
+      "compressedSize": 254,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/notification_bg.xml",
+      "uncompressedSize": 532,
+      "compressedSize": 253,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/notification_bg_low.xml",
+      "uncompressedSize": 532,
+      "compressedSize": 253,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notification_bg_low_pressed.9.png",
+      "uncompressedSize": 252,
+      "compressedSize": 252,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_btn_borderless_material.xml",
+      "uncompressedSize": 588,
+      "compressedSize": 252,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_action_bar_up_container.xml",
+      "uncompressedSize": 440,
+      "compressedSize": 251,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_search_url_text.xml",
+      "uncompressedSize": 588,
+      "compressedSize": 250,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notification_bg_normal_pressed.9.png",
+      "uncompressedSize": 247,
+      "compressedSize": 247,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-v21/abc_list_divider_material.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 246,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-v21/preference_list_divider_material.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 246,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_focused_holo.9.png",
+      "uncompressedSize": 245,
+      "compressedSize": 245,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_focused_holo.9.png",
+      "uncompressedSize": 244,
+      "compressedSize": 244,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_focused_holo.9.png",
+      "uncompressedSize": 244,
+      "compressedSize": 244,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_seekbar_tick_mark_material.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 244,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_btn_colored_borderless_text_material.xml",
+      "uncompressedSize": 500,
+      "compressedSize": 242,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_btn_colored_text_material.xml",
+      "uncompressedSize": 500,
+      "compressedSize": 242,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color-v23/abc_tint_seek_thumb.xml",
+      "uncompressedSize": 500,
+      "compressedSize": 241,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_text_cursor_material.xml",
+      "uncompressedSize": 516,
+      "compressedSize": 241,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_cab_background_top_mtrl_alpha.9.png",
+      "uncompressedSize": 237,
+      "compressedSize": 237,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_selector_disabled_holo_dark.9.png",
+      "uncompressedSize": 236,
+      "compressedSize": 236,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_selector_disabled_holo_light.9.png",
+      "uncompressedSize": 235,
+      "compressedSize": 235,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_tab_indicator_material.xml",
+      "uncompressedSize": 468,
+      "compressedSize": 232,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_background_cache_hint_selector_material_dark.xml",
+      "uncompressedSize": 468,
+      "compressedSize": 231,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_background_cache_hint_selector_material_light.xml",
+      "uncompressedSize": 468,
+      "compressedSize": 231,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_btn_check_material.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 230,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_btn_radio_material.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 230,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_switch_thumb_material.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 230,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/abc_expanded_menu_layout.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 230,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_slide_in_top.xml",
+      "uncompressedSize": 396,
+      "compressedSize": 229,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_selector_disabled_holo_light.9.png",
+      "uncompressedSize": 229,
+      "compressedSize": 229,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_cab_background_top_mtrl_alpha.9.png",
+      "uncompressedSize": 229,
+      "compressedSize": 229,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_slide_in_bottom.xml",
+      "uncompressedSize": 396,
+      "compressedSize": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_slide_out_top.xml",
+      "uncompressedSize": 396,
+      "compressedSize": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_disable_only_material_dark.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_disable_only_material_light.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_material_light.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_selector_disabled_holo_dark.9.png",
+      "uncompressedSize": 228,
+      "compressedSize": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_ic_commit_search_api_mtrl_alpha.png",
+      "uncompressedSize": 228,
+      "compressedSize": 228,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_slide_out_bottom.xml",
+      "uncompressedSize": 396,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_primary_text_material_dark.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_secondary_text_material_dark.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/abc_secondary_text_material_light.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/switch_thumb_material_light.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "uncompressedSize": 227,
+      "compressedSize": 227,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/switch_thumb_material_dark.xml",
+      "uncompressedSize": 464,
+      "compressedSize": 226,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_cab_background_top_mtrl_alpha.9.png",
+      "uncompressedSize": 226,
+      "compressedSize": 226,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_bg_low_pressed.9.png",
+      "uncompressedSize": 225,
+      "compressedSize": 225,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_bg_normal_pressed.9.png",
+      "uncompressedSize": 225,
+      "compressedSize": 225,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/tooltip_frame_dark.xml",
+      "uncompressedSize": 484,
+      "compressedSize": 225,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/tooltip_frame_light.xml",
+      "uncompressedSize": 484,
+      "compressedSize": 225,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/color_selector.xml",
+      "uncompressedSize": 484,
+      "compressedSize": 224,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_ic_commit_search_api_mtrl_alpha.png",
+      "uncompressedSize": 224,
+      "compressedSize": 224,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notification_bg_low_pressed.9.png",
+      "uncompressedSize": 223,
+      "compressedSize": 223,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notification_bg_normal_pressed.9.png",
+      "uncompressedSize": 223,
+      "compressedSize": 223,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/prefs_common.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 223,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/prefs_common_padded.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 223,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_focused_holo.9.png",
+      "uncompressedSize": 222,
+      "compressedSize": 222,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/input_background.xml",
+      "uncompressedSize": 484,
+      "compressedSize": 222,
+      "bucket": "res"
+    },
+    {
+      "name": "res/mipmap-anydpi-v26/ic_launcher.xml",
+      "uncompressedSize": 448,
+      "compressedSize": 222,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notification_bg_low_normal.9.png",
+      "uncompressedSize": 221,
+      "compressedSize": 221,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notification_bg_normal.9.png",
+      "uncompressedSize": 221,
+      "compressedSize": 221,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_longpressed_holo.9.png",
+      "uncompressedSize": 221,
+      "compressedSize": 221,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim-v21/fragment_fast_out_extra_slow_in.xml",
+      "uncompressedSize": 364,
+      "compressedSize": 218,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_fade_out.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 218,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_tooltip_enter.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 218,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_tooltip_exit.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 217,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_selector_disabled_holo_dark.9.png",
+      "uncompressedSize": 217,
+      "compressedSize": 217,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_selector_disabled_holo_light.9.png",
+      "uncompressedSize": 217,
+      "compressedSize": 217,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/test_level_drawable.xml",
+      "uncompressedSize": 448,
+      "compressedSize": 217,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/abc_fade_in.xml",
+      "uncompressedSize": 388,
+      "compressedSize": 216,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_cab_background_top_mtrl_alpha.9.png",
+      "uncompressedSize": 216,
+      "compressedSize": 216,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notification_bg_low_normal.9.png",
+      "uncompressedSize": 215,
+      "compressedSize": 215,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notification_bg_normal.9.png",
+      "uncompressedSize": 215,
+      "compressedSize": 215,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_btn_check_to_on_mtrl_000.png",
+      "uncompressedSize": 214,
+      "compressedSize": 214,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_longpressed_holo.9.png",
+      "uncompressedSize": 214,
+      "compressedSize": 214,
+      "bucket": "res"
+    },
+    {
+      "name": "res/interpolator/fast_out_slow_in.xml",
+      "uncompressedSize": 400,
+      "compressedSize": 214,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_longpressed_holo.9.png",
+      "uncompressedSize": 212,
+      "compressedSize": 212,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_bg_low_normal.9.png",
+      "uncompressedSize": 212,
+      "compressedSize": 212,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notification_bg_normal.9.png",
+      "uncompressedSize": 212,
+      "compressedSize": 212,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_pressed_holo_dark.9.png",
+      "uncompressedSize": 212,
+      "compressedSize": 212,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_pressed_holo_light.9.png",
+      "uncompressedSize": 212,
+      "compressedSize": 212,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_longpressed_holo.9.png",
+      "uncompressedSize": 211,
+      "compressedSize": 211,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_primary_mtrl_alpha.9.png",
+      "uncompressedSize": 210,
+      "compressedSize": 210,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_pressed_holo_dark.9.png",
+      "uncompressedSize": 209,
+      "compressedSize": 209,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_pressed_holo_light.9.png",
+      "uncompressedSize": 209,
+      "compressedSize": 209,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_pressed_holo_dark.9.png",
+      "uncompressedSize": 208,
+      "compressedSize": 208,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_pressed_holo_light.9.png",
+      "uncompressedSize": 208,
+      "compressedSize": 208,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_primary_mtrl_alpha.9.png",
+      "uncompressedSize": 208,
+      "compressedSize": 208,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_pressed_holo_dark.9.png",
+      "uncompressedSize": 207,
+      "compressedSize": 207,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_pressed_holo_light.9.png",
+      "uncompressedSize": 207,
+      "compressedSize": 207,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_scrubber_track_mtrl_alpha.9.png",
+      "uncompressedSize": 207,
+      "compressedSize": 207,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_answer_video.png",
+      "uncompressedSize": 206,
+      "compressedSize": 206,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/ic_call_answer_video_low.png",
+      "uncompressedSize": 206,
+      "compressedSize": 206,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_primary_mtrl_alpha.9.png",
+      "uncompressedSize": 205,
+      "compressedSize": 205,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/preference_primary_text_disable.xml",
+      "uncompressedSize": 376,
+      "compressedSize": 204,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "uncompressedSize": 204,
+      "compressedSize": 204,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/color_popmenu_background.xml",
+      "uncompressedSize": 376,
+      "compressedSize": 203,
+      "bucket": "res"
+    },
+    {
+      "name": "res/color/color_popup_background.xml",
+      "uncompressedSize": 376,
+      "compressedSize": 203,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_primary_mtrl_alpha.9.png",
+      "uncompressedSize": 203,
+      "compressedSize": 203,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_text_select_handle_left_mtrl.png",
+      "uncompressedSize": 203,
+      "compressedSize": 203,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxxhdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "uncompressedSize": 202,
+      "compressedSize": 202,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_control_off_mtrl_alpha.png",
+      "uncompressedSize": 201,
+      "compressedSize": 201,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_decline.png",
+      "uncompressedSize": 201,
+      "compressedSize": 201,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_decline_low.png",
+      "uncompressedSize": 201,
+      "compressedSize": 201,
+      "bucket": "res"
+    },
+    {
+      "name": "res/layout/ime_base_split_test_activity.xml",
+      "uncompressedSize": 364,
+      "compressedSize": 201,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_textfield_default_mtrl_alpha.9.png",
+      "uncompressedSize": 200,
+      "compressedSize": 200,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_answer_video.png",
+      "uncompressedSize": 199,
+      "compressedSize": 199,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-ldpi-v4/ic_call_answer_video_low.png",
+      "uncompressedSize": 199,
+      "compressedSize": 199,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_textfield_activated_mtrl_alpha.9.png",
+      "uncompressedSize": 199,
+      "compressedSize": 199,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_list_selector_background_transition_holo_dark.xml",
+      "uncompressedSize": 424,
+      "compressedSize": 199,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_list_selector_background_transition_holo_light.xml",
+      "uncompressedSize": 424,
+      "compressedSize": 199,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/progressbar_indeterminate.xml",
+      "uncompressedSize": 352,
+      "compressedSize": 199,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_scrubber_track_mtrl_alpha.9.png",
+      "uncompressedSize": 198,
+      "compressedSize": 198,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_control_to_pressed_mtrl_005.png",
+      "uncompressedSize": 197,
+      "compressedSize": 197,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "uncompressedSize": 196,
+      "compressedSize": 196,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_scrubber_track_mtrl_alpha.9.png",
+      "uncompressedSize": 196,
+      "compressedSize": 196,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_track_mtrl_alpha.9.png",
+      "uncompressedSize": 194,
+      "compressedSize": 194,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "uncompressedSize": 194,
+      "compressedSize": 194,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_textfield_default_mtrl_alpha.9.png",
+      "uncompressedSize": 192,
+      "compressedSize": 192,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "uncompressedSize": 190,
+      "compressedSize": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/interpolator/btn_checkbox_checked_mtrl_animation_interpolator_1.xml",
+      "uncompressedSize": 328,
+      "compressedSize": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/interpolator/btn_checkbox_unchecked_mtrl_animation_interpolator_1.xml",
+      "uncompressedSize": 328,
+      "compressedSize": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/interpolator/btn_radio_to_off_mtrl_animation_interpolator_0.xml",
+      "uncompressedSize": 320,
+      "compressedSize": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/interpolator/btn_radio_to_on_mtrl_animation_interpolator_0.xml",
+      "uncompressedSize": 320,
+      "compressedSize": 190,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_textfield_activated_mtrl_alpha.9.png",
+      "uncompressedSize": 189,
+      "compressedSize": 189,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_textfield_default_mtrl_alpha.9.png",
+      "uncompressedSize": 187,
+      "compressedSize": 187,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_textfield_search_activated_mtrl_alpha.9.png",
+      "uncompressedSize": 187,
+      "compressedSize": 187,
+      "bucket": "res"
+    },
+    {
+      "name": "res/interpolator/btn_checkbox_checked_mtrl_animation_interpolator_0.xml",
+      "uncompressedSize": 316,
+      "compressedSize": 187,
+      "bucket": "res"
+    },
+    {
+      "name": "res/interpolator/btn_checkbox_unchecked_mtrl_animation_interpolator_0.xml",
+      "uncompressedSize": 316,
+      "compressedSize": 187,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_textfield_activated_mtrl_alpha.9.png",
+      "uncompressedSize": 186,
+      "compressedSize": 186,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_tab_indicator_mtrl_alpha.9.png",
+      "uncompressedSize": 186,
+      "compressedSize": 186,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_text_select_handle_right_mtrl.png",
+      "uncompressedSize": 186,
+      "compressedSize": 186,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_textfield_search_default_mtrl_alpha.9.png",
+      "uncompressedSize": 186,
+      "compressedSize": 186,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-watch-v20/abc_dialog_material_background.xml",
+      "uncompressedSize": 372,
+      "compressedSize": 185,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_cab_background_internal_bg.xml",
+      "uncompressedSize": 372,
+      "compressedSize": 185,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/notification_icon_background.xml",
+      "uncompressedSize": 372,
+      "compressedSize": 185,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_textfield_search_activated_mtrl_alpha.9.png",
+      "uncompressedSize": 184,
+      "compressedSize": 184,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_textfield_search_default_mtrl_alpha.9.png",
+      "uncompressedSize": 182,
+      "compressedSize": 182,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_textfield_activated_mtrl_alpha.9.png",
+      "uncompressedSize": 181,
+      "compressedSize": 181,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_textfield_search_activated_mtrl_alpha.9.png",
+      "uncompressedSize": 178,
+      "compressedSize": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_textfield_search_default_mtrl_alpha.9.png",
+      "uncompressedSize": 178,
+      "compressedSize": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_textfield_default_mtrl_alpha.9.png",
+      "uncompressedSize": 178,
+      "compressedSize": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_textfield_search_activated_mtrl_alpha.9.png",
+      "uncompressedSize": 178,
+      "compressedSize": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_textfield_search_default_mtrl_alpha.9.png",
+      "uncompressedSize": 178,
+      "compressedSize": 178,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-v23/abc_control_background_material.xml",
+      "uncompressedSize": 304,
+      "compressedSize": 174,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_cab_background_top_material.xml",
+      "uncompressedSize": 336,
+      "compressedSize": 174,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_ic_commit_search_api_mtrl_alpha.png",
+      "uncompressedSize": 173,
+      "compressedSize": 173,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/notification_tile_bg.xml",
+      "uncompressedSize": 304,
+      "compressedSize": 173,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_ic_commit_search_api_mtrl_alpha.png",
+      "uncompressedSize": 171,
+      "compressedSize": 171,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/abc_list_divider_mtrl_alpha.9.png",
+      "uncompressedSize": 171,
+      "compressedSize": 171,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/abc_list_divider_mtrl_alpha.9.png",
+      "uncompressedSize": 167,
+      "compressedSize": 167,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_list_divider_mtrl_alpha.9.png",
+      "uncompressedSize": 167,
+      "compressedSize": 167,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/abc_list_divider_mtrl_alpha.9.png",
+      "uncompressedSize": 167,
+      "compressedSize": 167,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_control_off_mtrl_alpha.png",
+      "uncompressedSize": 159,
+      "compressedSize": 159,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-v21/abc_action_bar_item_background_material.xml",
+      "uncompressedSize": 264,
+      "compressedSize": 152,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-night-xxhdpi-v8/drag_handle.png",
+      "uncompressedSize": 148,
+      "compressedSize": 148,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/abc_scrubber_control_to_pressed_mtrl_000.png",
+      "uncompressedSize": 145,
+      "compressedSize": 145,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xxhdpi-v4/drag_handle.png",
+      "uncompressedSize": 142,
+      "compressedSize": 142,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-xhdpi-v4/notify_panel_notification_icon_bg.png",
+      "uncompressedSize": 138,
+      "compressedSize": 138,
+      "bucket": "res"
+    },
+    {
+      "name": "assets/test4.zip",
+      "uncompressedSize": 179,
+      "compressedSize": 124,
+      "bucket": "assets"
+    },
+    {
+      "name": "res/raw/keep.xml",
+      "uncompressedSize": 146,
+      "compressedSize": 124,
+      "bucket": "res"
+    },
+    {
+      "name": "META-INF/xposed/scope.list",
+      "uncompressedSize": 243,
+      "compressedSize": 113,
+      "bucket": "meta"
+    },
+    {
+      "name": "res/drawable-hdpi-v4/notify_panel_notification_icon_bg.png",
+      "uncompressedSize": 107,
+      "compressedSize": 107,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable-mdpi-v4/notify_panel_notification_icon_bg.png",
+      "uncompressedSize": 98,
+      "compressedSize": 98,
+      "bucket": "res"
+    },
+    {
+      "name": "res/anim/decelerate_interpolator.xml",
+      "uncompressedSize": 136,
+      "compressedSize": 79,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ratingbar_indicator_material.xml",
+      "uncompressedSize": 124,
+      "compressedSize": 68,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ratingbar_material.xml",
+      "uncompressedSize": 124,
+      "compressedSize": 68,
+      "bucket": "res"
+    },
+    {
+      "name": "res/drawable/abc_ratingbar_small_material.xml",
+      "uncompressedSize": 124,
+      "compressedSize": 68,
+      "bucket": "res"
+    },
+    {
+      "name": "META-INF/com/android/build/gradle/app-metadata.properties",
+      "uncompressedSize": 56,
+      "compressedSize": 51,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/services/kotlinx.coroutines.CoroutineExceptionHandler",
+      "uncompressedSize": 54,
+      "compressedSize": 50,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/services/kotlinx.coroutines.internal.MainDispatcherFactory",
+      "uncompressedSize": 52,
+      "compressedSize": 49,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/xposed/module.prop",
+      "uncompressedSize": 57,
+      "compressedSize": 48,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/xposed/java_init.list",
+      "uncompressedSize": 38,
+      "compressedSize": 38,
+      "bucket": "meta"
+    },
+    {
+      "name": "assets/test3.txt",
+      "uncompressedSize": 25,
+      "compressedSize": 27,
+      "bucket": "assets"
+    },
+    {
+      "name": "META-INF/kotlinx_coroutines_android.version",
+      "uncompressedSize": 6,
+      "compressedSize": 6,
+      "bucket": "meta"
+    },
+    {
+      "name": "META-INF/kotlinx_coroutines_core.version",
+      "uncompressedSize": 6,
+      "compressedSize": 6,
+      "bucket": "meta"
+    }
+  ]
+}
