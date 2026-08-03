@@ -121,6 +121,9 @@ jobs:
       - name: CI portability
         run: python tools/check_ci_portability.py
 
+      - name: Brutal config validation
+        run: python tools/brutal_test_runner.py --config tools/brutal_test_config.json validate
+
       - name: Python tool tests
         run: python -m unittest discover -s tools/tests -p "test_*.py"
 

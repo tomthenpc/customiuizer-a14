@@ -46,11 +46,21 @@ CLEANUP_ERROR = "CLEANUP_ERROR"
 
 
 # Validators for values that may be interpolated into a command template.
-_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+_ID_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]*$")
 
 
 def validate_id(value: str, context: str = "identifier") -> str:
     """Return the value if it is a safe command identifier, otherwise raise."""
+    if not value:
+        raise ValueError(f"empty {context}")
+    if value == "." or value == "..":
+        raise ValueError(f"invalid {context} (path nav): {value!r}")
+    if "/" in value or "\\" in value:
+        raise ValueError(f"invalid {context} (path separator): {value!r}")
+    if value.startswith("."):
+        raise ValueError(f"invalid {context} (hidden/dot-prefixed): {value!r}")
+    if any(ord(c) < 32 for c in value):
+        raise ValueError(f"invalid {context} (control character): {value!r}")
     if not _ID_RE.fullmatch(value):
         raise ValueError(f"invalid {context}: {value!r}")
     return value

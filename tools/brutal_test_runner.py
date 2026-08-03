@@ -42,6 +42,7 @@ if _HERE.name == "tools" and _HERE.parent not in map(Path, sys.path):
     sys.path.insert(0, str(_HERE.parent))
 
 from tools import brutal_gate_protocol as protocol
+from tools import brutal_test_policy as policy
 from tools.brutal_gate_protocol import (
     CANNOT_VERIFY,
     CLEANUP_ERROR,
@@ -150,8 +151,17 @@ def detached_worktree(root: Path):
         raise RuntimeError(worktree_proc.stdout)
     try:
         yield target
+    except BaseException as original_exc:
+        # Preserve the original exception when we later raise CleanupError.
+        original = original_exc
+    else:
+        original = None
     finally:
+        cleanup_failures: list[str] = []
+
+        # 1. Remove the git worktree.
         start = time.monotonic()
+        removed = False
         while True:
             remove_proc = subprocess.run(
                 ["git", "worktree", "remove", "--force", str(target)],
@@ -161,11 +171,34 @@ def detached_worktree(root: Path):
                 text=True,
             )
             if remove_proc.returncode == 0:
+                removed = True
                 break
             if time.monotonic() - start > 10:
+                cleanup_failures.append(
+                    f"git worktree remove failed: {remove_proc.stdout}"
+                )
                 break
             time.sleep(0.1)
-        shutil.rmtree(temp_parent, ignore_errors=True)
+
+        # 2. Remove the temp parent directory, failing closed.
+        try:
+            shutil.rmtree(temp_parent, ignore_errors=False)
+        except Exception as exc:
+            cleanup_failures.append(f"shutil.rmtree failed: {exc!r}")
+
+        # 3. Verify no stray worktree entry remains.
+        for active in active_worktrees(root):
+            if active == target:
+                cleanup_failures.append("worktree still listed after removal")
+                break
+
+        # 4. If anything went wrong, raise CleanupError.  Preserve the original
+        # exception as __cause__ so callers can still see the gate result.
+        if cleanup_failures:
+            exc = CleanupError("; ".join(cleanup_failures))
+            if original is not None:
+                raise exc from original
+            raise exc
 
 
 # ---------------------------------------------------------------------------
@@ -440,6 +473,11 @@ class ConfigError(Exception):
     pass
 
 
+class CleanupError(Exception):
+    """Raised when a detached worktree could not be removed after use."""
+    pass
+
+
 def _validate_command_list(value: list[str], context: str) -> None:
     if not isinstance(value, list) or not value:
         raise ConfigError(f"{context} must be a non-empty list")
@@ -449,98 +487,208 @@ def _validate_command_list(value: list[str], context: str) -> None:
 
 
 def validate_config(cfg: dict) -> None:
+    # Validate the brutal test config against the fixed policy.
+    # All policy failures are collected and reported together so the command is
+    # fail-closed: it cannot be bypassed by only fixing the first error.
     if not isinstance(cfg, dict):
         raise ConfigError("config must be a JSON object")
 
-    if cfg.get("schema_version") != 2:
-        raise ConfigError("config schema_version must be 2")
+    errors: list[str] = []
+
+    # 1. Schema and top-level invariants.
+    if cfg.get("schema_version") != policy.EXPECTED_SCHEMA_VERSION:
+        errors.append(f"schema_version must be {policy.EXPECTED_SCHEMA_VERSION}")
 
     for key in ("mutations", "hermetic_commands", "determinism_command", "determinism_outputs", "expected_branch"):
         if key not in cfg:
-            raise ConfigError(f"config missing required key: {key}")
+            errors.append(f"config missing required key: {key}")
 
-    for cmd in cfg["hermetic_commands"]:
-        _validate_command_list(cmd, "hermetic_commands entry")
+    for key in ("coverage_target", "minimum_independent_kills", "required_independent_mutations", "coverage_ledger"):
+        if key not in cfg:
+            errors.append(f"config missing policy key: {key}")
 
-    _validate_command_list(cfg["determinism_command"], "determinism_command")
+    # 2. Policy targets.
+    if cfg.get("coverage_target") != policy.REQUIRED_COVERAGE_TARGET:
+        errors.append(f"coverage_target must be {policy.REQUIRED_COVERAGE_TARGET}")
 
-    determinism_outputs = cfg["determinism_outputs"]
+    if cfg.get("minimum_independent_kills") != policy.REQUIRED_INDEPENDENT_KILLS:
+        errors.append(f"minimum_independent_kills must be {policy.REQUIRED_INDEPENDENT_KILLS}")
+
+    required = cfg.get("required_independent_mutations", [])
+    if not isinstance(required, list) or set(required) != policy.REQUIRED_INDEPENDENT_MUTATIONS:
+        missing = sorted(policy.REQUIRED_INDEPENDENT_MUTATIONS - set(required))
+        extra = sorted(set(required) - policy.REQUIRED_INDEPENDENT_MUTATIONS)
+        if missing:
+            errors.append(f"required_independent_mutations missing: {missing}")
+        if extra:
+            errors.append(f"required_independent_mutations contains unknown: {extra}")
+
+    # 3. Command lists.
+    for cmd in cfg.get("hermetic_commands", []):
+        try:
+            _validate_command_list(cmd, "hermetic_commands entry")
+        except ConfigError as exc:
+            errors.append(str(exc))
+
+    try:
+        _validate_command_list(cfg.get("determinism_command", []), "determinism_command")
+    except ConfigError as exc:
+        errors.append(str(exc))
+
+    determinism_outputs = cfg.get("determinism_outputs", [])
     if not isinstance(determinism_outputs, list) or not determinism_outputs:
-        raise ConfigError("determinism_outputs must be a non-empty list")
-    if len(determinism_outputs) != len(set(determinism_outputs)):
-        raise ConfigError("determinism_outputs must be unique")
+        errors.append("determinism_outputs must be a non-empty list")
+    elif len(determinism_outputs) != len(set(determinism_outputs)):
+        errors.append("determinism_outputs must be unique")
 
     apply_checks = cfg.get("apply_checks", {})
     if not isinstance(apply_checks, dict):
-        raise ConfigError("apply_checks must be a dict")
-    for name, cmd in apply_checks.items():
-        _validate_command_list(cmd, f"apply_check {name!r}")
+        errors.append("apply_checks must be a dict")
+    else:
+        for name, cmd in apply_checks.items():
+            try:
+                _validate_command_list(cmd, f"apply_check {name!r}")
+            except ConfigError as exc:
+                errors.append(str(exc))
 
     kill_gates = cfg.get("kill_gates", {})
     if not isinstance(kill_gates, dict):
-        raise ConfigError("kill_gates must be a dict")
-    for name, cmd in kill_gates.items():
-        _validate_command_list(cmd, f"kill_gate {name!r}")
+        errors.append("kill_gates must be a dict")
+    else:
+        for forbidden in policy.FORBIDDEN_KILL_GATES:
+            if forbidden in kill_gates:
+                errors.append(f"forbidden kill gate registered: {forbidden}")
+        for name, cmd in kill_gates.items():
+            try:
+                _validate_command_list(cmd, f"kill_gate {name!r}")
+            except ConfigError as exc:
+                errors.append(str(exc))
 
-    mutations = cfg["mutations"]
+    # 4. Mutations.
+    mutations = cfg.get("mutations", [])
     if not isinstance(mutations, list) or not mutations:
-        raise ConfigError("mutations must be a non-empty list")
+        errors.append("mutations must be a non-empty list")
 
-    minimum = cfg.get("minimum_independent_kills")
-    if minimum is not None:
-        if not isinstance(minimum, int) or minimum < 0:
-            raise ConfigError("minimum_independent_kills must be a non-negative integer")
-        if minimum > len(mutations):
-            raise ConfigError(f"minimum_independent_kills ({minimum}) exceeds configured mutation count ({len(mutations)})")
-
-    required = cfg.get("required_independent_mutations", [])
-    if not isinstance(required, list):
-        raise ConfigError("required_independent_mutations must be a list")
-
-    coverage_target = cfg.get("coverage_target")
-    if coverage_target is not None and (not isinstance(coverage_target, int) or coverage_target < 0):
-        raise ConfigError("coverage_target must be a non-negative integer")
-
-    seen: set[str] = set()
-    duplicates = []
-    names = []
+    mutation_names: set[str] = set()
+    seen_ids: set[str] = set()
     for m in mutations:
+        if not isinstance(m, dict):
+            errors.append("every mutation must be an object")
+            continue
+
         name = m.get("name")
         if not name or not isinstance(name, str):
-            raise ConfigError("every mutation must have a non-empty name")
-        if name in seen:
-            duplicates.append(name)
-        seen.add(name)
-        names.append(name)
+            errors.append("every mutation must have a non-empty name")
+            continue
+        if name in seen_ids:
+            errors.append(f"duplicate mutation id: {name!r}")
+        seen_ids.add(name)
+        mutation_names.add(name)
 
         mutator = m.get("mutator")
         if not mutator or not isinstance(mutator, str):
-            raise ConfigError(f"mutation {name!r} missing mutator")
-        if mutator not in MUTATORS:
-            raise ConfigError(f"mutation {name!r} references unknown mutator {mutator!r}")
+            errors.append(f"mutation {name!r} missing mutator")
+        elif mutator not in MUTATORS:
+            errors.append(f"mutation {name!r} references unknown mutator {mutator!r}")
 
         apply_check = m.get("apply_check")
-        if apply_check is not None and (not isinstance(apply_check, str) or apply_check not in apply_checks):
-            raise ConfigError(f"mutation {name!r} references unknown apply_check {apply_check!r}")
+        if apply_check is not None:
+            if not isinstance(apply_check, str) or apply_check not in apply_checks:
+                errors.append(f"mutation {name!r} references unknown apply_check {apply_check!r}")
 
         kill_gate = m.get("kill_gate")
-        if kill_gate is not None and (not isinstance(kill_gate, str) or kill_gate not in kill_gates):
-            raise ConfigError(f"mutation {name!r} references unknown kill_gate {kill_gate!r}")
+        if kill_gate is not None:
+            if not isinstance(kill_gate, str):
+                errors.append(f"mutation {name!r} has non-string kill_gate")
+            elif kill_gate in policy.FORBIDDEN_KILL_GATES:
+                errors.append(f"mutation {name!r} uses forbidden kill_gate {kill_gate!r}")
+            elif kill_gate not in kill_gates:
+                errors.append(f"mutation {name!r} references unknown kill_gate {kill_gate!r}")
 
         coverage_status = m.get("coverage_status")
-        if coverage_status not in ("INDEPENDENT", "BLOCKED_NO_INDEPENDENT_GATE"):
-            raise ConfigError(f"mutation {name!r} has invalid coverage_status {coverage_status!r}")
+        if coverage_status not in policy.VALID_COVERAGE_STATUSES:
+            errors.append(f"mutation {name!r} has invalid coverage_status {coverage_status!r}")
 
         required_independent = m.get("required_independent")
         if not isinstance(required_independent, bool):
-            raise ConfigError(f"mutation {name!r} missing required_independent boolean")
+            errors.append(f"mutation {name!r} missing required_independent boolean")
+            continue
 
-    if duplicates:
-        raise ConfigError(f"duplicate mutation names: {duplicates}")
+        if required_independent:
+            if name not in policy.REQUIRED_INDEPENDENT_MUTATIONS:
+                errors.append(f"mutation {name!r} is required_independent but not in policy set")
+            if coverage_status != "ACTIVE_INDEPENDENT":
+                errors.append(f"mutation {name!r} is required_independent but coverage_status is {coverage_status!r}")
+            if not kill_gate:
+                errors.append(f"mutation {name!r} is required_independent but has no kill_gate")
+        else:
+            if name in policy.REQUIRED_INDEPENDENT_MUTATIONS:
+                errors.append(f"mutation {name!r} is in policy set but required_independent is false")
 
-    missing_required = [r for r in required if r not in names]
-    if missing_required:
-        raise ConfigError(f"required_independent mutation(s) missing from config: {missing_required}")
+    for name in policy.REQUIRED_INDEPENDENT_MUTATIONS:
+        if name not in mutation_names:
+            errors.append(f"required independent mutation missing from mutations: {name!r}")
+
+    # 5. Coverage ledger.
+    ledger = cfg.get("coverage_ledger", [])
+    if not isinstance(ledger, list):
+        errors.append("coverage_ledger must be a list")
+    else:
+        if len(ledger) != policy.REQUIRED_COVERAGE_TARGET:
+            errors.append(f"coverage_ledger has {len(ledger)} entries, expected {policy.REQUIRED_COVERAGE_TARGET}")
+
+        ledger_by_id: dict[str, dict] = {}
+        ledger_seen: set[str] = set()
+        counts: dict[str, int] = {}
+        for entry in ledger:
+            if not isinstance(entry, dict):
+                errors.append("coverage_ledger entries must be objects")
+                continue
+            lid = entry.get("id")
+            if not lid or not isinstance(lid, str):
+                errors.append("coverage_ledger entry missing non-empty id")
+                continue
+            if lid in ledger_seen:
+                errors.append(f"duplicate ledger id: {lid!r}")
+            ledger_seen.add(lid)
+            ledger_by_id[lid] = entry
+
+            status = entry.get("status")
+            if status not in policy.VALID_COVERAGE_STATUSES:
+                errors.append(f"coverage_ledger entry {lid!r} has invalid status {status!r}")
+            else:
+                counts[status] = counts.get(status, 0) + 1
+
+            if lid not in mutation_names and lid not in policy.KNOWN_LEGACY_LEDGER_IDS:
+                if not entry.get("reason") or not entry.get("requiredFollowUp"):
+                    errors.append(f"coverage_ledger entry {lid!r} is not a mutation and has no explanation")
+
+        active_count = counts.get("ACTIVE_INDEPENDENT", 0)
+        if active_count != policy.REQUIRED_INDEPENDENT_KILLS:
+            errors.append(f"coverage_ledger has {active_count} ACTIVE_INDEPENDENT, expected {policy.REQUIRED_INDEPENDENT_KILLS}")
+
+        if sum(counts.get(s, 0) for s in policy.VALID_COVERAGE_STATUSES) != policy.REQUIRED_COVERAGE_TARGET:
+            errors.append("coverage_ledger status counts do not sum to target")
+
+        for name in policy.REQUIRED_INDEPENDENT_MUTATIONS:
+            entry = ledger_by_id.get(name)
+            if entry is None:
+                errors.append(f"coverage_ledger missing required independent entry: {name!r}")
+            elif entry.get("status") != "ACTIVE_INDEPENDENT":
+                errors.append(f"coverage_ledger entry {name!r} must be ACTIVE_INDEPENDENT")
+
+        for name in mutation_names:
+            if name not in ledger_by_id:
+                errors.append(f"mutation {name!r} is not in coverage_ledger")
+
+        for lid in policy.KNOWN_LEGACY_LEDGER_IDS:
+            entry = ledger_by_id.get(lid)
+            if entry is None:
+                errors.append(f"coverage_ledger missing legacy entry: {lid!r}")
+
+    if errors:
+        raise ConfigError("\n".join(errors))
+
 
 
 def _is_allowed_untracked(rel: str, allowed_untracked: set[str]) -> bool:
@@ -880,6 +1028,13 @@ def mutation_test(
         except subprocess.TimeoutExpired as exc:
             status = GATE_ERROR
             detail = f"mutator timed out after {exc.timeout}s"
+        except CleanupError as exc:
+            cause = exc.__cause__ or exc.__context__
+            if cause:
+                detail = f"{detail}; original={cause!r}; cleanup failed: {exc}"
+            else:
+                detail = f"{detail}; cleanup failed: {exc}"
+            status = CLEANUP_ERROR
         except Exception as exc:
             status = GATE_ERROR
             detail = repr(exc)
@@ -975,6 +1130,7 @@ def main(argv=None) -> int:
     p.add_argument("--config", required=True)
     p.add_argument("--timeout", type=int, default=900)
     sub = p.add_subparsers(dest="command", required=True)
+    sub.add_parser("validate")
     sub.add_parser("hermeticity")
     sub.add_parser("determinism")
     m = sub.add_parser("mutate")
@@ -985,6 +1141,20 @@ def main(argv=None) -> int:
 
     root = repo_root()
     cfg = json.loads((root / args.config).read_text(encoding="utf-8"))
+
+    if args.command == "validate":
+        try:
+            validate_config(cfg)
+        except ConfigError as exc:
+            print("Config validation FAILED:", file=sys.stderr)
+            print(str(exc), file=sys.stderr)
+            return 2
+        print("Config validation passed")
+        print(f"  coverage target: {cfg['coverage_target']}")
+        print(f"  required independent kills: {cfg['minimum_independent_kills']}")
+        print(f"  executable mutations: {len(cfg['mutations'])}")
+        print(f"  coverage ledger: {len(cfg.get('coverage_ledger', []))}")
+        return 0
 
     try:
         validate_config(cfg)

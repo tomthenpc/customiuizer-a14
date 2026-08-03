@@ -980,7 +980,9 @@ State: `IN_PROGRESS`
 
 TaskId: `A14-P11.4R1`
 RiskTier: `R3`
-State: `VERIFIED_CI`
+State: `IN_PROGRESS`
+
+原独立审查结论：`REJECT`（message 137）。R1A 正在修复配置自降、缺失 ledger、`a14_contract` 误用为 kill gate、self-test / validate / cleanup / hermeticity 的 fail-closed 问题。
 
 文件：
 
@@ -1023,6 +1025,62 @@ python tools/progress_snapshot.py --check
 CI：`https://github.com/tomthenpc/customiuizer-a14/actions/runs/30802727418`（A14 Fast CI, all green）
 提交：`f5843d6a`（P11.4R1 主体）, `ad2f0296`（后续 hermeticity hash-diff 修复）
 关键结果：Brutal suite fast subset、Full machine verifier、Safe debug and develop builds 全部通过。
+
+---
+
+### P11.4R1A Brutal fail-closed closeout
+
+TaskId: `A14-P11.4R1A`
+RiskTier: `R3`
+State: `VERIFIED_BUILD`
+ReviewerDecision: `PENDING`
+
+文件：
+
+- `tools/brutal_test_policy.py`：不可由 JSON 配置修改的 coverage/kill gate 策略。
+- `tools/brutal_test_runner.py`：独立 `validate` 命令、fail-closed `validate_config`、cleanup `CleanupError`。
+- `tools/brutal_test_config.json`：schema 2 + 完整 74 项 `coverage_ledger`（11 `ACTIVE_INDEPENDENT` + 55 `BLOCKED_NO_INDEPENDENT_GATE` + 8 `MUTATOR_STALE`）。
+- `tools/brutal_a14_contract_scan.py`：`_inject_hazard` 自测与 synthetic apply 测试。
+- `tools/brutal_gate_protocol.py`：`validate_id` 语义强化。
+- `tools/audit_hook_ownership.py`：`--check` 模式，不覆盖 tracked 文件。
+- `tools/tests/test_brutal_gate_protocol.py`：回归。
+- `.github/workflows/a14-fast-ci.yml`：新增 `validate` 步骤。
+- `docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md`：与源码同步刷新。
+
+不变量：
+
+- 策略与配置硬编码：`REQUIRED_COVERAGE_TARGET = 74`、`REQUIRED_INDEPENDENT_KILLS = 11`、`REQUIRED_INDEPENDENT_MUTATIONS` 固定、`FORBIDDEN_KILL_GATES` 包含 `a14_contract`；
+- `validate` 命令必须 exit 0 才能继续；任何 fail-closed 违规均 exit 2；
+- `a14_contract` 只能作为 `apply_check`，不得注册为 `kill_gate`；
+- 完整 ledger 记录全部 74 coverage 目标，并解释缺失的 8 个 legacy mutation；
+- `self-test`、`validate`、`cleanup`、`hermeticity`、`determinism`、`mutate` 全部 truthful；
+- cleanup 失败不吞异常，作为 `CLEANUP_ERROR` 计数并导致退出码非零。
+
+实现：
+
+- 新增 `tools/brutal_test_policy.py`；
+- `brutal_test_runner.py` 增加 `validate` 子命令与 policy 校验；
+- `brutal_test_config.json` 增加 `coverage_ledger`；
+- `brutal_a14_contract_scan.py` 修复 `_inject_hazard` baseline 为 0 的处理并增加 synthetic 验证；
+- `brutal_gate_protocol.py` `validate_id` 拒绝 `.`、`..`、路径分隔符、控制字符与隐藏前缀；
+- `audit_hook_ownership.py` 增加 `--check`，输出到临时目录对比；
+- `a14-fast-ci.yml` 增加 `brutal_test_runner.py ... validate`。
+
+验证命令：
+
+```text
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json validate
+python -m unittest discover -s tools/tests -p "test_*.py"
+python tools/brutal_a14_contract_scan.py --self-test
+python tools/audit_hook_ownership.py --check
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json hermeticity
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json determinism
+python tools/progress_snapshot.py --check
+```
+
+退出码：0 / 0 / 0 / 0 / 0 / 0 / 0
+
+CI：待本次提交后运行。
 
 ---
 
@@ -1365,7 +1423,7 @@ P0 完成后重建，不得删除未解决条目。
 | REPAIR-005 | P1 | Test | COMPLETE | 新增参数化 `InstallerJvmAbiTest`：验证 12 个 installer 类的 `@JvmStatic install/installPostAttach(PackageReadyParam, PrefMap, ...)` 方法签名和 public static 修饰符 | 紧急修复 V2 完成 |
 | DOC-001 | P2 | Docs | IN_PROGRESS | P12.1 lifecycle owner inventory 已验证并提交；剩余 CURRENT architecture、gesture event contract、APK delta | 继续 P12.2+ |
 | A14-UX1 | P2 | UX | VERIFIED_BUILD | 锁屏充电信息字号调节实现、engineering commit d4803d9b、GitHub A14 Fast CI run 30802727418 PASS；实机重叠验证 PENDING | 实机验证 + R2 review |
-| A14-UX2A | P2 | UX | VERIFIED_STATIC | Status Bar / WindowInsets 一致性诊断工具、审计文档和 fixture 测试通过；DeviceEvidence PENDING；UX2B BLOCKED_BY_DIAGNOSTIC_EVIDENCE | 设备证据 + DEX 签名验证 |
+| A14-UX2A | P2 | UX | VERIFIED_STATIC | engineering commit f7614738、GitHub A14 Fast CI run 30823639530 / job 91719557427 PASS；Status Bar / WindowInsets 一致性诊断工具、审计文档和 fixture 测试通过；DeviceEvidence PENDING；UX2B BLOCKED_BY_DIAGNOSTIC_EVIDENCE | 设备证据 + DEX 签名验证 |
 | CI-001 | P2 | CI | TODO | 需建立 exact-branch Fast workflow 和 scheduled/manual Full workflow | P11 完成 |
 | DEVICE-001 | P1 | Device | BLOCKED_EXTERNAL | 无本轮真实证据 | P15 完成 |
 

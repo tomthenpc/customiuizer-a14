@@ -9,10 +9,16 @@ Outputs docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md with categories:
 - LEGACY_EXCEPTION (legacy de.robv... paths)
 - DEAD_CANDIDATE (retirement audit candidates)
 - UNKNOWN (needs classification)
+
+The --check mode regenerates the inventory into a temporary directory, compares
+it to the committed file using LF/UTF-8 normalization, and exits non-zero if the
+tracked file would drift.  It never overwrites the tracked file.
 """
 
 from __future__ import annotations
 
+import argparse
+import tempfile
 import re
 from pathlib import Path
 from collections import defaultdict
@@ -73,7 +79,7 @@ def nearest_function(lines: list[str], line_idx: int) -> str | None:
     return None
 
 
-def main() -> int:
+def _generate_markdown() -> str:
     groups: dict[str, list[tuple[str, int, str, str, str]]] = defaultdict(list)
     total = 0
     for path in sorted(SOURCE_ROOT.rglob("*.kt")) + sorted(SOURCE_ROOT.rglob("*.java")):
@@ -103,11 +109,79 @@ def main() -> int:
             md.append(f"| `{rel}` | {line} | `{func}` | `{snippet}` |\n")
         md.append("\n")
 
+    return "".join(md)
+
+
+def _normalize_text(text: str) -> str:
+    """Normalize to LF-only, UTF-8 text."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _normalize_for_compare(text: str) -> str:
+    """Strip trailing whitespace and normalize line endings."""
+    normalized = _normalize_text(text).rstrip("\n")
+    return "\n".join(line.rstrip() for line in normalized.splitlines())
+
+
+def _write_inventory(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8", newline="\n")
+
+
+def generate() -> int:
+    text = _normalize_text(_generate_markdown())
     out = REPO_ROOT / "docs" / "audit" / "A14_HOOK_OWNERSHIP_INVENTORY.md"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text("".join(md), encoding="utf-8", newline="\n")
-    print(f"Wrote {out} with {total} hook sites")
+    _write_inventory(out, text)
+    print(f"Wrote {out}")
     return 0
+
+
+def check() -> int:
+    """Regenerate in a temp directory and compare to the committed file."""
+    expected_path = REPO_ROOT / "docs" / "audit" / "A14_HOOK_OWNERSHIP_INVENTORY.md"
+    generated = _normalize_for_compare(_generate_markdown())
+
+    with tempfile.TemporaryDirectory() as td:
+        candidate = Path(td) / "A14_HOOK_OWNERSHIP_INVENTORY.md"
+        _write_inventory(candidate, generated)
+        candidate_text = _normalize_for_compare(candidate.read_text(encoding="utf-8"))
+
+    if not expected_path.exists():
+        print(f"Committed inventory missing: {expected_path}")
+        print("Drift summary: file does not exist")
+        return 1
+
+    committed_text = _normalize_for_compare(expected_path.read_text(encoding="utf-8"))
+
+    if candidate_text == committed_text:
+        print("Hook ownership inventory is up to date")
+        return 0
+
+    # Show a compact drift summary.
+    candidate_lines = candidate_text.splitlines()
+    committed_lines = committed_text.splitlines()
+    drift: list[str] = []
+    for i, (a, b) in enumerate(zip(candidate_lines, committed_lines), start=1):
+        if a != b:
+            drift.append(f"line {i}: expected {a!r}, got {b!r}")
+            if len(drift) >= 10:
+                break
+    if len(candidate_lines) != len(committed_lines):
+        drift.append(f"line count differs: candidate={len(candidate_lines)} committed={len(committed_lines)}")
+
+    print(f"Drift detected in {expected_path}")
+    for line in drift[:10]:
+        print(f"  {line}")
+    return 1
+
+
+def main() -> int:
+    p = argparse.ArgumentParser()
+    p.add_argument("--check", action="store_true", help="verify the committed inventory is up to date without writing it")
+    args = p.parse_args()
+    if args.check:
+        return check()
+    return generate()
 
 
 if __name__ == "__main__":

@@ -176,8 +176,57 @@ def scan_mutation(root: Path, mutators: dict, name: str) -> int:
     return 0 if applied else 4
 
 
+def _synthetic_inject_hazard_test(root: Path, mutators: dict, name: str) -> bool:
+    """Run an _inject_hazard mutator in a synthetic repo and verify apply-check."""
+    import os
+    import shutil
+    import tempfile
+
+    tmp = Path(tempfile.mkdtemp(prefix="brutal-contract-selftest-"))
+    try:
+        (tmp / "app/src/main/java").mkdir(parents=True)
+        (tmp / "app/src/main/java/Foo.java").write_text(
+            "public class Foo {\n    public void foo() {}\n}\n", encoding="utf-8"
+        )
+        subprocess.run(["git", "init"], cwd=tmp, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "devin@local"], cwd=tmp, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.name", "Devin"], cwd=tmp, check=True, capture_output=True)
+        subprocess.run(["git", "add", "."], cwd=tmp, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "baseline"], cwd=tmp, check=True, capture_output=True)
+
+        not_applied = scan_mutation(tmp, mutators, name)
+        if not_applied != 4:
+            print(f"Self-test: {name} expected MUTATION_NOT_APPLIED before apply, got {not_applied}")
+            return False
+
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(root)
+        run_result = subprocess.run(
+            [sys.executable, "-c",
+             f"import tools.brutal_a14_mutators as m; m.MUTATORS['{name}'](__import__('pathlib').Path({str(tmp)!r}), {{}})"],
+            cwd=tmp,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        if run_result.returncode != 0:
+            print(f"Self-test: failed to apply {name}: {run_result.stderr}", file=sys.stderr)
+            return False
+
+        applied = scan_mutation(tmp, mutators, name)
+        if applied != 0:
+            print(f"Self-test: {name} expected MUTATION_APPLIED after apply, got {applied}")
+            return False
+        return True
+    except Exception as exc:
+        print(f"Self-test: synthetic hazard test for {name} raised {exc!r}")
+        return False
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def self_test(root: Path, mutators: dict) -> int:
-    """Verify that every mutator pattern matches the current baseline at least once."""
+    """Verify mutator patterns and synthetic injected-hazard behavior."""
     failed = False
     for name in sorted(mutators):
         func = mutators[name]
@@ -187,20 +236,39 @@ def self_test(root: Path, mutators: dict) -> int:
             continue
         patterns = extract_patterns(source)
         if not patterns:
-            if name.startswith("catch_") or name.startswith("swallow_linkage") or name.startswith("swallow_verify"):
-                continue
             print(f"No patterns for {name}")
             failed = True
             continue
+        has_injected_hazard = False
         for rel, pattern, flags in patterns:
             baseline_text = git_show(root, rel)
             count = count_matches(baseline_text, pattern, flags)
+            if count == -1:
+                failed = True
+                continue
+
+            # _inject_hazard writes to a generated file that does not exist in
+            # the committed baseline, so a baseline count of 0 is expected.  For
+            # normal replace/remove mutators, the target pattern must already
+            # exist in the baseline.
+            if rel == "app/src/main/java/brutal_mutation/InjectedHazard.kt":
+                has_injected_hazard = True
+                try:
+                    re.compile(pattern)
+                except re.error as exc:
+                    print(f"Invalid regex in {name}: {pattern!r}: {exc}")
+                    failed = True
+                continue
+
             if count == 0:
                 print(f"Pattern does not match baseline: {name} in {rel}")
                 print(f"  pattern: {pattern!r}")
                 failed = True
-            elif count == -1:
+
+        if has_injected_hazard:
+            if not _synthetic_inject_hazard_test(root, mutators, name):
                 failed = True
+
     return 1 if failed else 0
 
 
@@ -216,7 +284,7 @@ def load_mutators(root: Path) -> dict:
 def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--mutation", help="mutator name to verify")
-    p.add_argument("--self-test", action="store_true", help="verify mutator patterns match the baseline")
+    p.add_argument("--self-test", action="store_true", help="verify mutator patterns match the baseline and injected hazards are detectable")
     args = p.parse_args()
 
     root = repo_root()
@@ -229,7 +297,7 @@ def main() -> int:
     if args.self_test:
         return self_test(root, mutators)
     if not args.mutation:
-        print("--mutation or --self-test is required", file=sys.stderr)
+        print("No mutation specified", file=sys.stderr)
         return 3
     return scan_mutation(root, mutators, args.mutation)
 
