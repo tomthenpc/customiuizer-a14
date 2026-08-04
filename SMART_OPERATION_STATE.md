@@ -15,9 +15,9 @@ LastVerifiedTreeSource: Fast-verify
 LastVerifiedTreeCommand: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
 LastVerifiedMode: Fast
 LastCIState: PASS
-LastCIRun: 30872418812
-LastCIJob: 91876955632
-LastCICommit: 164638e4
+LastCIRun: 30959226850
+LastCIJob: 92159218435
+LastCICommit: 8397bdbb
 LastCleanupCommit: 3c61ee8f
 LastToolCreated: tools/brutal_test_runner.py
 LastFailureClass: none

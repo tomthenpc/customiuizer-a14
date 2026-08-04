@@ -808,7 +808,7 @@ Tests（新增/扩展）：
 - `ModuleHelperFatalBoundaryTest`：新增 `scanForCpuThermalId` first match / no match、direct `ThreadDeath`/`OutOfMemoryError` 传播、wrapped `VirtualMachineError` 解包传播、ordinary errors ignored、`getCPUThermalId` memoizes no-match result。
 - `tools/tests/test_status_bar_registration_invariants.py`：新增 `WeakHashMap` 反例、`detach`/`expunge`/`allStatesSnapshot` 缺失反例、posted runnable 捕获 stale state/iterator 反例。
 
-CI：`Fast` 模式本地通过；等待 GitHub Actions A14 Fast CI 在推送后运行。
+CI：`Fast` 模式本地通过；GitHub Actions A14 Fast CI run 30959226850 / job 92159218435 在 8397bdbb 上通过（9m3s）。`Full` 模式需 `[full-ci]` 触发，本次未触发。
 
 Commit: 674ea6a7
 
