@@ -1,9 +1,9 @@
 # A14 Progress Current (v7)
 
 ```text
-GeneratedAt: 2026-08-04T10:08:22.755126+08:00
-SourceCommit: 4b30770acb27259e6258fe5cb1f397e1e4444b03
-SourceTree: 639a1033e86f1e3e125cc1184bc7ded386a016a1
+GeneratedAt: 2026-08-04T10:12:58.724416+08:00
+SourceCommit: 77eb1ef3bd0f92bfc6a309482399d5ac210b9a83
+SourceTree: af9900bd372a6695fa954d8e8d4a36fe0dd8d07a
 VerifiedTree: b6e74dcd847f48800b8becf373d97ba76a8c5425
 VerifiedMode: Final
 CIState: PASS
@@ -14,8 +14,8 @@ CICommit: e28b66a2
 
 ## Progress
 
-- ProjectProgress: 7.0%
-- MachineProgress: 7.4%
+- ProjectProgress: 8.2%
+- MachineProgress: 8.7%
 - Stage: BASELINE_AND_CONTROL
 - OpenP0: 4
 - OpenP1: 14
@@ -27,7 +27,7 @@ CICommit: e28b66a2
 |---|---:|---:|---:|
 | Baseline and control | 8 | 1.0 | 12.5% |
 | Runtime architecture / routing / ownership | 22 | 0.0 | 0.0% |
-| Runtime safety / lifecycle / concurrency | 18 | 0.84 | 4.7% |
+| Runtime safety / lifecycle / concurrency | 18 | 2.04 | 11.3% |
 | Performance / memory / APK / R8 | 12 | 0.0 | 0.0% |
 | ROM intelligence / compatibility | 10 | 0.0 | 0.0% |
 | Java / Kotlin boundary | 8 | 0.0 | 0.0% |
@@ -55,7 +55,7 @@ CICommit: e28b66a2
 | P5.3 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 0.0 | 0.0 |
 | P5.4 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 0.0 | 0.0 |
 | P5.5 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 0.0 | 0.0 |
-| P6.1 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 0.0 | 0.0 |
+| P6.1 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 1.0 | 1.2 |
 | P6.2 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 0.0 | 0.0 |
 | P6.3 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 0.0 | 0.0 |
 | P6.4 | Runtime safety / lifecycle / concurrency | 1.2 | COMPLETE | 0.0 | 0.0 |

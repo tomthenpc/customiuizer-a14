@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-04T10:08:22.755126+08:00",
-  "sourceCommit": "4b30770acb27259e6258fe5cb1f397e1e4444b03",
-  "sourceTree": "639a1033e86f1e3e125cc1184bc7ded386a016a1",
+  "generatedAt": "2026-08-04T10:12:58.724416+08:00",
+  "sourceCommit": "77eb1ef3bd0f92bfc6a309482399d5ac210b9a83",
+  "sourceTree": "af9900bd372a6695fa954d8e8d4a36fe0dd8d07a",
   "verifiedTree": "b6e74dcd847f48800b8becf373d97ba76a8c5425",
   "verifiedMode": "Final",
   "ciState": "PASS",
   "ciRun": "30749749010",
   "ciJob": "91501580779",
   "ciCommit": "e28b66a2",
-  "projectProgress": 7.0,
-  "machineProgress": 7.4,
+  "projectProgress": 8.2,
+  "machineProgress": 8.7,
   "stage": "BASELINE_AND_CONTROL",
   "domainScores": {
     "Baseline and control": {
@@ -25,8 +25,8 @@
     },
     "Runtime safety / lifecycle / concurrency": {
       "weight": 18,
-      "earned": 0.84,
-      "percent": 4.7
+      "earned": 2.04,
+      "percent": 11.3
     },
     "Performance / memory / APK / R8": {
       "weight": 12,
@@ -311,10 +311,10 @@
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
       "state": "COMPLETE",
-      "factor": 0.0,
-      "earned": 0.0,
-      "bucket": "evidence_pending",
-      "evidence_level": "partial",
+      "factor": 1.0,
+      "earned": 1.2,
+      "bucket": "complete",
+      "evidence_level": "verified",
       "evidence_paths": [
         "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrations.kt",
         "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/StatusBarDisplayRegistry.kt",
@@ -330,12 +330,16 @@
         "tools/check-invariants.py",
         "tools/tests/test_status_bar_registration_invariants.py",
         "docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md",
-        "tools/tests"
+        "tools/tests",
+        "app/src/test/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelperFatalBoundaryTest.kt",
+        "tools/tests/test_a14_6g_invariants.py",
+        "docs/progress/A14_PROGRESS_CURRENT.json",
+        "tools/progress_snapshot.py"
       ],
       "evidence_commands": [],
-      "evidence_commit": "pending",
+      "evidence_commit": "c2904adbd01bb38fc4ea327f670d898e6644736b",
       "device_evidence": "",
-      "diagnostic": "provenance missing: level=partial, paths=15, commands=0, commit=pending"
+      "diagnostic": "provenance verified"
     },
     {
       "id": "P6.2",
