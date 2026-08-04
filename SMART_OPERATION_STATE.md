@@ -21,11 +21,11 @@ LastCICommit: 78ce1129
 LastCleanupCommit: 3c61ee8f
 LastToolCreated: tools/brutal_test_runner.py
 LastFailureClass: none
-CurrentObjective: P6.1A-R2 Status bar lifecycle hardening
-CurrentObjectiveState: COMPLETE
+CurrentObjective: P6 SystemUI and Launcher lifecycle
+CurrentObjectiveState: ACTIVE
 CurrentObjectiveStartEvidence: Fast verify passed locally on c2904adb; Fast CI 30871155939 job 91873274384 passed on 78ce1129
-NextObjectiveFirstAction: a14-independent-review of P6.1A-R2 then device evidence or next Implementer slice
-ResumeTask: await independent review and collect device evidence for status bar weak owner cleanup
+NextObjectiveFirstAction: invoke a14-independent-review skill for P6.1A-R2
+ResumeTask: review P6.1A-R2 then collect device evidence for status bar weak owner cleanup
 DeepSweepDue: false
 ```
 
