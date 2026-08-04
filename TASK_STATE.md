@@ -723,13 +723,13 @@ Tests（新增/扩展）：
 - `tools/tests/test_status_bar_registration_invariants.py`：27 个测试覆盖 R2 反例。
 - `tools/tests/test_a14_6g_invariants.py`：ModuleHelper fatal boundary 测试更新。
 
-CI：`Fast` 模式本地通过；GitHub Actions A14 Fast CI run 30871155939 / job 91873274384 在 78ce1129 上通过（9m4s）。`Full` 模式需 `[full-ci]` 触发，等待下轮显式触发或定期调度。
+CI：`Fast` 模式本地通过；GitHub Actions A14 Fast CI run 30871850423 / job 91875290860 在 67cfe83e 上通过（8m57s）。`Full` 模式需 `[full-ci]` 触发，等待下轮显式触发或定期调度。
 
 Commit: c2904adbd01bb38fc4ea327f670d898e6644736b
 
 Progress snapshot commit: 78ce1129
 
-Push: `origin/devin/a14-rom-intelligence-audit` 4b30770a..78ce1129
+Push: `origin/devin/a14-rom-intelligence-audit` 4b30770a..67cfe83e
 
 Device evidence: `NOT_EXERCISED`（真机需验证：弱 owner GC 后 dark receiver / icon group 被移除、多 display 切换无泄漏、折叠/DPI/主题切换后状态栏自定义图标只保留当前代、netspeed 第二行按 display 更新、left icons 无重复 group）。
 
