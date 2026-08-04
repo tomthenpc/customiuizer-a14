@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-05T07:22:31.336621+08:00",
-  "sourceCommit": "8397bdbb7956cb7e4b2b6db74602c85177bf97a6",
-  "sourceTree": "407e380378bd9775cad1a7b8dc9f0dd962990fb0",
+  "generatedAt": "2026-08-05T07:45:20.940024+08:00",
+  "sourceCommit": "54982925898ab38614df38c19d5e23083ca97733",
+  "sourceTree": "991b783c334c185fd714fdd5bea02d8dde6f1e7e",
   "verifiedTree": "64cfcf36988f0c78cc005783861854cac6ef1453",
   "verifiedMode": "Fast",
-  "ciState": "PASS",
-  "ciRun": "30959226850",
-  "ciJob": "92159218435",
-  "ciCommit": "8397bdbb",
-  "projectProgress": 8.1,
-  "machineProgress": 8.5,
+  "ciState": "PENDING",
+  "ciRun": "pending",
+  "ciJob": "pending",
+  "ciCommit": "pending",
+  "projectProgress": 7.6,
+  "machineProgress": 8.0,
   "stage": "BASELINE_AND_CONTROL",
   "domainScores": {
     "Baseline and control": {
@@ -25,8 +25,8 @@
     },
     "Runtime safety / lifecycle / concurrency": {
       "weight": 18,
-      "earned": 1.86,
-      "percent": 10.3
+      "earned": 1.44,
+      "percent": 8.0
     },
     "Performance / memory / APK / R8": {
       "weight": 12,
@@ -150,7 +150,7 @@
       "evidence_level": "partial",
       "evidence_paths": [],
       "evidence_commands": [
-        "python tools/audit_hook_ownership.py"
+        "python tools/audit_hook_ownership.py --write"
       ],
       "evidence_commit": "pending",
       "device_evidence": "",
@@ -310,10 +310,10 @@
       "id": "P6.1",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
-      "state": "VERIFIED_BUILD",
-      "factor": 0.85,
-      "earned": 1.02,
-      "bucket": "verified",
+      "state": "IN_PROGRESS",
+      "factor": 0.5,
+      "earned": 0.6,
+      "bucket": "in_progress",
       "evidence_level": "verified",
       "evidence_paths": [
         "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrations.kt",
@@ -346,7 +346,7 @@
       "evidence_commands": [],
       "evidence_commit": "c2904adbd01bb38fc4ea327f670d898e6644736b",
       "device_evidence": "",
-      "diagnostic": "provenance verified"
+      "diagnostic": ""
     },
     {
       "id": "P6.2",
@@ -831,7 +831,7 @@
       ],
       "evidence_commands": [
         "python tools/source_hazard_scan.py",
-        "python tools/audit_hook_ownership.py",
+        "python tools/audit_hook_ownership.py --check",
         "python tools/audit-feature-semantics.py --validate",
         "python tools/extract_process_matrix.py",
         "python -m unittest discover -s tools/tests -p \"test_*.py\"",

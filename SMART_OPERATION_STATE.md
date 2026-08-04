@@ -14,18 +14,18 @@ LastVerifiedTree: 64cfcf36988f0c78cc005783861854cac6ef1453
 LastVerifiedTreeSource: Fast-verify
 LastVerifiedTreeCommand: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
 LastVerifiedMode: Fast
-LastCIState: PASS
-LastCIRun: 30959226850
-LastCIJob: 92159218435
-LastCICommit: 8397bdbb
+LastCIState: PENDING
+LastCIRun: pending
+LastCIJob: pending
+LastCICommit: pending
 LastCleanupCommit: 3c61ee8f
 LastToolCreated: tools/brutal_test_runner.py
 LastFailureClass: none
-CurrentObjective: P6.1A-R3 device evidence collection
+CurrentObjective: P6.1A-R3A CI hermetic closeout
 CurrentObjectiveState: ACTIVE
-CurrentObjectiveStartEvidence: Fast verify passed locally on 674ea6a7; gradle :app:testDebugUnitTest lintDebug assembleDebug assembleDevelop all exit 0
-NextObjectiveFirstAction: collect device evidence for weak owner cleanup and network speed main dispatch
-ResumeTask: run P6.1A-R3 on a HyperOS 14 device and verify detached status bar dark receivers are released and network speed updates are current
+CurrentObjectiveStartEvidence: Fast verify passed locally; exact-tip Fast CI pending
+NextObjectiveFirstAction: run exact-tip Fast CI and move to independent review for P6.1A-R3
+ResumeTask: verify checkout SHA equals new final HEAD and hermeticity shows no pre-existing tracked modifications
 DeepSweepDue: false
 ```
 

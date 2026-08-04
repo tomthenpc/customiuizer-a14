@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -22,17 +23,29 @@ def _load_module():
 class AuditHookOwnershipTest(unittest.TestCase):
     def test_script_runs_successfully(self):
         result = subprocess.run(
-            [sys.executable, str(SCRIPT)],
+            [sys.executable, str(SCRIPT), "--check"],
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,
         )
         self.assertEqual(0, result.returncode, result.stderr)
-        self.assertTrue(OUTPUT.exists())
-        text = OUTPUT.read_text(encoding="utf-8")
-        self.assertIn("Total hook call sites scanned:", text)
-        # The inventory should not contain an UNKNOWN category table row.
-        self.assertNotIn("| UNKNOWN", text)
+        self.assertIn("up to date", result.stdout)
+
+    def test_write_outputs_to_temporary_path(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = Path(td) / "A14_HOOK_OWNERSHIP_INVENTORY.md"
+            result = subprocess.run(
+                [sys.executable, str(SCRIPT), "--write", "--output", str(out)],
+                cwd=REPO_ROOT,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(0, result.returncode, result.stderr)
+            self.assertTrue(out.exists())
+            text = out.read_text(encoding="utf-8")
+            self.assertIn("Total hook call sites scanned:", text)
+            # The inventory should not contain an UNKNOWN category table row.
+            self.assertNotIn("| UNKNOWN", text)
 
     def test_classify_known_categories(self):
         mod = _load_module()

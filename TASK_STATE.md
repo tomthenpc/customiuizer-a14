@@ -304,7 +304,7 @@ UNKNOWN = 0
 命令：
 
 ```text
-python tools/audit_hook_ownership.py
+python tools/audit_hook_ownership.py --write
 ```
 
 退出码：
@@ -554,7 +554,7 @@ State: `IN_PROGRESS`
 
 ## P6.1 Status bar custom View
 
-State: `VERIFIED_BUILD`
+State: `IN_PROGRESS`
 
 - `SystemUIStatusBarHooks` 使用 `WeakReference<View>` 持有 `statusbarTextIcons`；注册/更新时清理已回收引用；
 - `DualRowsStatusbarHook` 用 `XposedHelpers.getAdditionalInstanceField` 的 `dualRowsLayoutAdded` 标记防止重复 attach；
@@ -577,7 +577,7 @@ State: `VERIFIED_BUILD`
 
 ## P6.1A Status bar dispatcher/controller 注册泄漏与重复 hook
 
-State: `VERIFIED_BUILD`
+State: `IN_PROGRESS`
 
 Task: A14-P6.1A-R1（re-attempt：修复上一轮 rejected 的 review 项）
 Priority: P1
@@ -742,6 +742,9 @@ Risks：
 ## P6.1A-R3 Status bar 身份生命周期与主线程调度
 
 State: `VERIFIED_BUILD`
+ReviewerDecision: `PENDING`
+FinalReviewedHEAD: `PENDING_EXTERNAL`
+ExactFinalTipCI: `PENDING_EXTERNAL`
 
 Task: `A14-P6.1A-R3`
 Priority: `P1`
@@ -1537,7 +1540,7 @@ EvidenceCommit: c4ab7e30d26f1357913a5705b9843c73cd9108d3
 
 ```text
 python tools/source_hazard_scan.py
-python tools/audit_hook_ownership.py
+python tools/audit_hook_ownership.py --check
 python tools/audit-feature-semantics.py --validate
 python tools/extract_process_matrix.py
 python -m unittest discover -s tools/tests -p "test_*.py"

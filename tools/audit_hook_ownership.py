@@ -10,9 +10,11 @@ Outputs docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md with categories:
 - DEAD_CANDIDATE (retirement audit candidates)
 - UNKNOWN (needs classification)
 
-The --check mode regenerates the inventory into a temporary directory, compares
-it to the committed file using LF/UTF-8 normalization, and exits non-zero if the
-tracked file would drift.  It never overwrites the tracked file.
+The default --check mode regenerates the inventory into a temporary directory,
+compares it to the committed file using LF/UTF-8 normalization, and exits
+non-zero if the tracked file would drift. It never overwrites the tracked file.
+To regenerate the tracked inventory, pass --write. To write to a custom path,
+pass --output <path> with --write.
 """
 
 from __future__ import annotations
@@ -128,9 +130,10 @@ def _write_inventory(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
-def generate() -> int:
+def generate(out: Path | None = None) -> int:
     text = _normalize_text(_generate_markdown())
-    out = REPO_ROOT / "docs" / "audit" / "A14_HOOK_OWNERSHIP_INVENTORY.md"
+    if out is None:
+        out = REPO_ROOT / "docs" / "audit" / "A14_HOOK_OWNERSHIP_INVENTORY.md"
     _write_inventory(out, text)
     print(f"Wrote {out}")
     return 0
@@ -177,11 +180,27 @@ def check() -> int:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--check", action="store_true", help="verify the committed inventory is up to date without writing it")
+    p.add_argument(
+        "--check",
+        action="store_true",
+        default=True,
+        help="verify the committed inventory is up to date without writing it (default)",
+    )
+    p.add_argument(
+        "--write",
+        action="store_true",
+        help="explicitly write the inventory; required to overwrite the tracked file",
+    )
+    p.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="custom output path (only used with --write)",
+    )
     args = p.parse_args()
-    if args.check:
-        return check()
-    return generate()
+    if args.write:
+        return generate(args.output)
+    return check()
 
 
 if __name__ == "__main__":

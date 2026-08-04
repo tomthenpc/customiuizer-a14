@@ -735,7 +735,19 @@ def allowed_untracked_patterns() -> set[str]:
 # Hermeticity and determinism
 # ---------------------------------------------------------------------------
 
-def hermeticity(root: Path, cfg: dict, timeout: int) -> int:
+def hermeticity(
+    root: Path,
+    cfg: dict,
+    timeout: int,
+    *,
+    baseline_dirty_ok: bool = False,
+) -> int:
+    """Run configured hermetic commands and verify the tracked tree is unchanged.
+
+    By default, any pre-existing tracked modification or staged change causes a
+    fail-closed error. Unit tests may pass ``baseline_dirty_ok=True`` to exercise
+    the warning path, but normal CLI and CI must never enable it.
+    """
     allowed = allowed_untracked_patterns()
     baseline_status = git_status_porcelain(root)
     baseline_untracked = {rel for status, rel in baseline_status if status == "??" and not _is_allowed_untracked(rel, allowed)}
@@ -749,8 +761,18 @@ def hermeticity(root: Path, cfg: dict, timeout: int) -> int:
             print(f"  ... and {len(pre_failures) - 30} more")
         return 1
 
-    if any(status for status, _ in baseline_status if status and status != "??"):
-        print("Hermeticity WARNING: pre-existing tracked modifications detected; these will not be blamed on the hermetic commands.")
+    tracked_dirty = [(status, rel) for status, rel in baseline_status if status and status != "??"]
+    if tracked_dirty:
+        dirty_paths = [f"  {rel} ({status.strip()})" for status, rel in tracked_dirty]
+        if baseline_dirty_ok:
+            print("Hermeticity WARNING: pre-existing tracked modifications detected; these will not be blamed on the hermetic commands.")
+            for line in dirty_paths:
+                print(line)
+        else:
+            print("Hermeticity FAILED: pre-existing tracked modifications detected before hermetic commands")
+            for line in dirty_paths:
+                print(line)
+            return 1
 
     before = tracked_hashes(root)
     for command in cfg["hermetic_commands"]:

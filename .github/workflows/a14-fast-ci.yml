@@ -137,6 +137,18 @@ jobs:
           python tools/catalog_contract_probe.py --catalog app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature --feature-id app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/FeatureIds.kt --matrix docs/rom-intelligence/A14_PROCESS_MATRIX.csv
           python tools/progress_snapshot.py --check
 
+      - name: Require clean tracked tree before hermeticity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "::error::Tracked working tree changed before hermeticity"
+            git diff --name-status
+            git diff
+            exit 1
+          fi
+
       - name: Brutal suite fast subset
         run: |
           python tools/brutal_test_runner.py --config tools/brutal_test_config.json hermeticity
