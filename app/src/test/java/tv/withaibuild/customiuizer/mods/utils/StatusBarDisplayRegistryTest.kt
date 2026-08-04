@@ -269,4 +269,122 @@ class StatusBarDisplayRegistryTest {
         assertSame(pending, bound)
         assertSame(bound, registry.get(0))
     }
+
+    @Test
+    fun equalButDistinctPendingOwnersDoNotShareState() {
+        val registry = StatusBarDisplayRegistry<EqualOwner, Any>()
+        val a = EqualOwner()
+        val b = EqualOwner()
+        val stateA = registry.getOrCreatePending(a)
+        val stateB = registry.getOrCreatePending(b)
+        assertNotSame(stateA, stateB)
+    }
+
+    @Test
+    fun pendingBecomesBoundCountIsZero() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        val owner = Any()
+        registry.getOrCreatePending(owner)
+        assertEquals(1, registry.pendingCount)
+
+        registry.bind(owner, 0)
+        assertEquals(0, registry.pendingCount)
+        assertEquals(1, registry.allStatesSnapshot().size)
+    }
+
+    @Test
+    fun modifyingStateFieldsDoesNotBreakRemoval() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        val owner = Any()
+        val state = registry.getOrCreatePending(owner)
+        state.generation = WeakReference(Any())
+        state.secondRow = WeakReference(Any())
+
+        val bound = registry.bind(owner, 0)
+        assertSame(state, bound)
+        registry.detach(owner)
+        assertEquals(0, registry.allStatesSnapshot().size)
+    }
+
+    @Test
+    fun detachBoundOwnerReleasesState() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        val owner = Any()
+        val cleanups = mutableListOf<String>()
+        val state = registry.bind(owner, 0)
+        state.registrations.register(owner) { cleanups.add("cleanup") }
+
+        registry.detach(owner)
+        assertEquals(listOf("cleanup"), cleanups)
+        assertEquals(0, registry.allStatesSnapshot().size)
+    }
+
+    @Test
+    fun delayedDetachDoesNotAffectNewGeneration() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        val oldOwner = Any()
+        val newOwner = Any()
+        val oldCleanups = mutableListOf<String>()
+        val newCleanups = mutableListOf<String>()
+
+        val oldState = registry.bind(oldOwner, 0)
+        oldState.registrations.register(oldOwner) { oldCleanups.add("old") }
+
+        val newState = registry.bind(newOwner, 0)
+        newState.registrations.register(newOwner) { newCleanups.add("new") }
+
+        // A delayed detach for the old owner must not release the new generation.
+        registry.detach(oldOwner)
+        assertEquals(listOf("old"), oldCleanups)
+        assertTrue(newCleanups.isEmpty())
+        assertSame(newState, registry.get(0))
+    }
+
+    @Test
+    fun detachIsIdempotent() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        val owner = Any()
+        val cleanups = mutableListOf<String>()
+        val state = registry.bind(owner, 0)
+        state.registrations.register(owner) { cleanups.add("cleanup") }
+
+        registry.detach(owner)
+        registry.detach(owner)
+        assertEquals(listOf("cleanup"), cleanups)
+    }
+
+    @Test
+    fun pendingCountNotifiesScheduler() {
+        var scheduled = 0
+        var cancelled = 0
+        val registry = StatusBarDisplayRegistry<Any, Any>(
+            onPendingChanged = { hasPending ->
+                if (hasPending) scheduled++ else cancelled++
+            }
+        )
+        val owner = Any()
+        registry.getOrCreatePending(owner)
+        assertEquals(1, scheduled)
+        assertEquals(0, cancelled)
+
+        registry.bind(owner, 0)
+        assertEquals(1, cancelled)
+    }
+
+    @Test
+    fun stateObjectIdentityIsStableAfterFieldMutation() {
+        val registry = StatusBarDisplayRegistry<Any, String>()
+        val owner = Any()
+        val state = registry.bind(owner, 0)
+        val stateRef = state
+        state.secondRow = WeakReference("row-0")
+        state.generation = WeakReference(owner)
+        assertSame(stateRef, state)
+        assertSame(state, registry.get(0))
+    }
+
+    private class EqualOwner {
+        override fun equals(other: Any?): Boolean = other is EqualOwner
+        override fun hashCode(): Int = 1
+    }
 }

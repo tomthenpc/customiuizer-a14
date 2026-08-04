@@ -1554,23 +1554,23 @@ def check_status_bar_display_registry_prune(path: Path, text: str) -> list[Findi
         return []
     findings = []
 
-    if "WeakHashMap" not in text:
+    if "WeakIdentityMap" not in text:
         findings.append(
             Finding(
                 "status-bar-display-registry-prune",
                 path,
                 1,
-                "pending state must be keyed by a WeakHashMap so owners can be collected",
+                "pending state must be keyed by a WeakIdentityMap so owners are collected by identity and equal-but-distinct owners do not share state",
             )
         )
 
-    if "IdentityHashMap" in text:
+    if re.search(r"\bWeakHashMap\b", text):
         findings.append(
             Finding(
                 "status-bar-display-registry-prune",
                 path,
                 1,
-                "pending state must not use a strong IdentityHashMap key",
+                "pending state must not use WeakHashMap: equals/hashCode would make equal owners share state",
             )
         )
 
@@ -1655,6 +1655,36 @@ def check_status_bar_display_registry_prune(path: Path, text: str) -> list[Findi
                 )
             )
 
+    if re.search(r"fun\s+detach\s*\(", text) is None:
+        findings.append(
+            Finding(
+                "status-bar-display-registry-prune",
+                path,
+                1,
+                "StatusBarDisplayRegistry must expose detach()",
+            )
+        )
+
+    if "fun expunge" not in text and "expunge()" not in text:
+        findings.append(
+            Finding(
+                "status-bar-display-registry-prune",
+                path,
+                1,
+                "WeakIdentityMap must expose expunge() for reference-queue cleanup",
+            )
+        )
+
+    if "allStatesSnapshot" not in text:
+        findings.append(
+            Finding(
+                "status-bar-display-registry-prune",
+                path,
+                1,
+                "registry must expose allStatesSnapshot() so consumers read a consistent main-thread snapshot",
+            )
+        )
+
     return findings
 
 
@@ -1705,9 +1735,14 @@ def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding
     # --- required per-display / state-machine pieces ---
     for token, detail in (
         ("StatusBarDisplayRegistry", "per-display state registry"),
-        ("StatusBarDisplayState", "per-display state data class"),
+        ("StatusBarDisplayState", "per-display state class"),
+        ("StatusBarNetworkSpeedDispatcher", "testable network speed main-thread dispatcher"),
         ("netSpeedSecondRowHookInstaller", "network speed hook once-guard installer"),
-        ("HookInstallStateMachine", "network speed hook install state machine"),
+        ("statusBarViewDetachHookInstaller", "status bar view detach hook once-guard"),
+        ("installStatusBarViewLifecycleHook", "status bar view lifecycle hook installer"),
+        ("onDetachedFromWindow", "status bar view detach callback"),
+        ("statusBarDisplayRegistry.detach", "per-display detach cleanup"),
+        ("HookInstallStateMachine", "process-level once-guard state machine"),
         ("leftIconRegistrationHandle", "left icon manager exact-once handle field"),
         ("releaseRegistrationSilently", "registration release diagnostics helper"),
         ("state.secondRow", "per-display second row reference"),
@@ -1813,32 +1848,56 @@ def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding
                     )
                 )
 
-    # --- the posted runnable must re-read the row and owner from the per-display state ---
-    posted = re.search(r"row\.post\s*\{", text)
-    if posted is not None:
-        posted_body = _body_before(text, posted.start())
-        for check, detail in (
-            ("state.generation?.get()", "posted runnable must re-read the display generation"),
-            ("state.secondRow?.get()", "posted runnable must re-read the per-display second row"),
-        ):
-            if check not in posted_body:
-                findings.append(
-                    Finding(
-                        "status-bar-registration-cleanup",
-                        path,
-                        1,
-                        detail,
-                    )
-                )
-    else:
+    # --- the posted runnable must dispatch from the main looper with immutable payload only ---
+    if "netSpeedMainHandler" not in text:
         findings.append(
             Finding(
                 "status-bar-registration-cleanup",
                 path,
                 1,
-                "network speed update must post back to the row when not on the main thread",
+                "network speed updates must post to a dedicated main-looper handler",
             )
         )
+
+    post_blocks = list(re.finditer(r"netSpeedMainHandler\.post\s*\{", text))
+    if not post_blocks:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                1,
+                "network speed update must post a runnable to the main looper",
+            )
+        )
+    else:
+        # The network-speed posted runnable must invoke the dispatcher with an immutable payload
+        # and a sequence. Detach/prune runnables may also use the same handler, so each block is
+        # checked for stale View/owner/state capture, but only the one that dispatches network
+        # speed requires StatusBarNetworkSpeedDispatcher.dispatch.
+        dispatch_seen = False
+        for posted in post_blocks:
+            posted_body = _body_before(text, posted.start())
+            if "StatusBarNetworkSpeedDispatcher.dispatch" in posted_body:
+                dispatch_seen = True
+            for banned in ("val row", "val owner", "val state", "row.post", "allStatesSnapshot", "for ("):
+                if banned in posted_body:
+                    findings.append(
+                        Finding(
+                            "status-bar-registration-cleanup",
+                            path,
+                            1,
+                            f"network speed posted runnable must not capture stale {banned}",
+                        )
+                    )
+        if not dispatch_seen:
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    1,
+                    "network speed main runnable must call StatusBarNetworkSpeedDispatcher.dispatch",
+                )
+            )
 
     # --- registration cleanup closures must not capture the owner view ---
     for match in re.finditer(r'state\.registrations\.register\s*\(\s*([^\s\n,)]+)\s*\)\s*(\{)', text):

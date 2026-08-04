@@ -37,8 +37,44 @@ class StatusBarRegistrationInvariantsTest(unittest.TestCase):
     @property
     def _passing_base(self) -> str:
         return """
-private val statusBarDisplayRegistry = StatusBarDisplayRegistry<View, LinearLayout>()
+private lateinit var statusBarDisplayRegistry: StatusBarDisplayRegistry<View, LinearLayout>
 private val netSpeedSecondRowHookInstaller = HookInstallStateMachine()
+private val statusBarViewDetachHookInstaller = HookInstallStateMachine()
+private val netSpeedMainHandler = Handler(Looper.getMainLooper())
+private val netSpeedSequence = java.util.concurrent.atomic.AtomicLong(0)
+private val netSpeedLastAppliedSequence = java.util.concurrent.atomic.AtomicLong(0)
+
+init {
+    statusBarDisplayRegistry = StatusBarDisplayRegistry(
+        onPendingChanged = { hasPending ->
+            if (hasPending) {
+                netSpeedMainHandler.postDelayed(statusBarPendingPruneRunnable, 250L)
+            } else {
+                netSpeedMainHandler.removeCallbacks(statusBarPendingPruneRunnable)
+            }
+        }
+    )
+}
+
+private fun installStatusBarViewLifecycleHook(lpparam: PackageReadyParam) {
+    statusBarViewDetachHookInstaller.install {
+        ModuleHelper.findAndHookMethod(
+            "com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView",
+            lpparam.classLoader,
+            "onDetachedFromWindow",
+            object : MethodHook() {
+                override fun after(param: AfterHookCallback) {
+                    val sbView = param.getThisObject() as View
+                    netSpeedMainHandler.post {
+                        statusBarDisplayRegistry.detach(sbView)
+                        statusBarDisplayRegistry.prune()
+                    }
+                }
+            },
+        )
+        true
+    }
+}
 
 private fun installNetSpeedSecondRowHook(lpparam: PackageReadyParam) {
     netSpeedSecondRowClassLoader = lpparam.classLoader
@@ -59,23 +95,27 @@ private val netSpeedSecondRowHookCallback = object : MethodHook() {
         val unit = XposedHelpers.getObjectField(networkSpeedState, "networkSpeedUnit")
         val visible = XposedHelpers.getObjectField(networkSpeedState, "visible")
 
-        for (state in statusBarDisplayRegistry.allStates()) {
-            val row = state.secondRow?.get() ?: continue
-            val owner = state.generation?.get() ?: continue
-            if (isMainThread()) {
-                applyNetworkSpeedToRow(row, owner, number, unit, visible, state)
-            } else {
-                row.post {
-                    val currentRow = state.secondRow?.get() ?: return@post
-                    val currentOwner = state.generation?.get() ?: return@post
-                    applyNetworkSpeedToRow(currentRow, currentOwner, number, unit, visible, state)
-                }
-            }
+        val payload = StatusBarNetworkSpeedDispatcher.NetworkSpeedPayload(number, unit, visible)
+        val seq = netSpeedSequence.incrementAndGet()
+        netSpeedMainHandler.post {
+            StatusBarNetworkSpeedDispatcher.dispatch(
+                payload,
+                seq,
+                netSpeedLastAppliedSequence,
+                statusBarDisplayRegistry,
+                ::applyNetworkSpeedToRow,
+            )
         }
     }
 }
 
-private fun applyNetworkSpeedToRow(row: LinearLayout, owner: View, number: Any?, unit: Any?, visible: Any?, state: StatusBarDisplayState<View, LinearLayout>) {
+private fun applyNetworkSpeedToRow(
+    state: StatusBarDisplayState<View, LinearLayout>,
+    payload: StatusBarNetworkSpeedDispatcher.NetworkSpeedPayload,
+) {
+    val row = state.secondRow?.get() ?: return
+    val owner = state.generation?.get() ?: return
+
     if (!row.isAttachedToWindow) return
     if (state.generation?.get() !== owner) return
     if (state.secondRow?.get() !== row) return
@@ -109,8 +149,8 @@ private fun applyNetworkSpeedToRow(row: LinearLayout, owner: View, number: Any?,
     }
 
     XposedHelpers.callMethod(networkSpeedView, "setBlocked", false)
-    XposedHelpers.callMethod(networkSpeedView, "setNetworkSpeed", number, unit)
-    XposedHelpers.callMethod(networkSpeedView, "setVisibilityByController", visible)
+    XposedHelpers.callMethod(networkSpeedView, "setNetworkSpeed", payload.number, payload.unit)
+    XposedHelpers.callMethod(networkSpeedView, "setVisibilityByController", payload.visible)
 }
 
 private fun onFinishInflate(sbView: FrameLayout) {
@@ -140,10 +180,12 @@ private fun leftIcons(mStatusBar: FrameLayout) {
 
     def test_safe_rewrite_with_different_variable_names_passes(self):
         """The rule is structural: equivalent code with different identifiers still passes."""
-        text = self._passing_base.replace("owner", "currentBar").replace("row", "secondRowView")
-        # Replacing 'row' in isAttachedToWindow would break the symbol, so only rename local vars.
-        text = self._passing_base.replace("created", "networkSpeedChild").replace("mDarkIconManager", "leftIconManagerInstance")
-        # Variable names used in the structural checks must still match, so keep the call site terms.
+        # Rename only local identifiers that are not part of the structural contract.
+        text = self._passing_base
+        text = text.replace("created", "childView")
+        text = text.replace("networkSpeedView", "speedView")
+        text = text.replace("rightLayout", "rightPanel")
+        text = text.replace("ctx", "viewContext")
         self.assertEqual([], self._findings(text))
 
     def test_global_statusBarGeneration_fails(self):
@@ -266,25 +308,50 @@ state.registrations.register(sbView) {
             f"details: {details}",
         )
 
-    def test_missing_posted_generation_check_fails(self):
+    def test_posted_runnable_captures_stale_state_fails(self):
         text = self._passing_base.replace(
-            'row.post {\n                    val currentRow = state.secondRow?.get() ?: return@post\n                    val currentOwner = state.generation?.get() ?: return@post\n                    applyNetworkSpeedToRow(currentRow, currentOwner, number, unit, visible, state)\n                }',
-            'row.post {\n                    applyNetworkSpeedToRow(row, owner, number, unit, visible, state)\n                }',
+            '''        netSpeedMainHandler.post {
+            StatusBarNetworkSpeedDispatcher.dispatch(
+                payload,
+                seq,
+                netSpeedLastAppliedSequence,
+                statusBarDisplayRegistry,
+                ::applyNetworkSpeedToRow,
+            )
+        }''',
+            '''        netSpeedMainHandler.post {
+            val state = statusBarDisplayRegistry.allStatesSnapshot().firstOrNull() ?: return@post
+            val row = state.secondRow?.get() ?: return@post
+            val owner = state.generation?.get() ?: return@post
+            applyNetworkSpeedToRow(row, owner, payload, state)
+        }''',
         )
         details = self._details(self._findings(text))
         self.assertTrue(
-            any("display generation" in d and "posted" in d for d in details),
+            any("stale" in d and "posted" in d for d in details),
             f"details: {details}",
         )
 
-    def test_missing_posted_second_row_check_fails(self):
+    def test_posted_runnable_iterates_registry_fails(self):
         text = self._passing_base.replace(
-            'row.post {\n                    val currentRow = state.secondRow?.get() ?: return@post\n                    val currentOwner = state.generation?.get() ?: return@post\n                    applyNetworkSpeedToRow(currentRow, currentOwner, number, unit, visible, state)\n                }',
-            'row.post {\n                    applyNetworkSpeedToRow(row, owner, number, unit, visible, state)\n                }',
+            '''        netSpeedMainHandler.post {
+            StatusBarNetworkSpeedDispatcher.dispatch(
+                payload,
+                seq,
+                netSpeedLastAppliedSequence,
+                statusBarDisplayRegistry,
+                ::applyNetworkSpeedToRow,
+            )
+        }''',
+            '''        netSpeedMainHandler.post {
+            for (state in statusBarDisplayRegistry.allStatesSnapshot()) {
+                applyNetworkSpeedToRow(state, payload)
+            }
+        }''',
         )
         details = self._details(self._findings(text))
         self.assertTrue(
-            any("second row" in d and "posted" in d for d in details),
+            any("stale" in d and "posted" in d for d in details),
             f"details: {details}",
         )
 
@@ -479,9 +546,13 @@ class StatusBarDisplayRegistryPruneInvariantsTest(unittest.TestCase):
 
     def test_valid_registry_passes(self):
         text = """
-class StatusBarDisplayRegistry<O : Any, R : Any> {
+class StatusBarDisplayRegistry<O : Any, R : Any>(
+    private val onPendingChanged: (Boolean) -> Unit = {},
+) {
     private val byDisplay = mutableMapOf<Int, StatusBarDisplayState<O, R>>()
-    private val pendingByOwner = WeakHashMap<O, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+
+    fun getOrCreatePending(owner: O): StatusBarDisplayState<O, R> { ... }
 
     fun bind(owner: O, displayId: Int): StatusBarDisplayState<O, R> {
         val pending = pendingByOwner.remove(owner)
@@ -492,6 +563,14 @@ class StatusBarDisplayRegistry<O : Any, R : Any> {
         byDisplay[displayId] = state
         return state
     }
+
+    fun detach(owner: O) {
+        val state = pendingByOwner.remove(owner) ?: byDisplay.values.find { it.generation?.get() === owner }
+        state?.registrations?.cleanupAll()
+    }
+
+    fun allStatesSnapshot(): List<StatusBarDisplayState<O, R>> =
+        byDisplay.values.toList() + pendingByOwner.valuesSnapshot()
 
     fun prune() {
         val deadDisplays = mutableListOf<Int>()
@@ -506,32 +585,67 @@ class StatusBarDisplayRegistry<O : Any, R : Any> {
         }
         for (displayId in deadDisplays) { byDisplay.remove(displayId) }
 
-        val pendingSnapshot = pendingByOwner.entries.toList()
-        val deadOwners = mutableListOf<O>()
-        for ((owner, state) in pendingSnapshot) {
-            val generationAlive = state.generation?.get() != null
-            if (owner == null || !generationAlive) {
-                state.registrations.cleanupAll()
-                if (state.generation?.get() == null && state.registrations.size == 0) {
-                    deadOwners.add(owner)
-                }
-            }
+        val deadPending = pendingByOwner.expunge()
+        for (state in deadPending) {
+            state.registrations.cleanupAll()
         }
-        for (owner in deadOwners) { pendingByOwner.remove(owner) }
     }
 }
 """
         self.assertEqual([], self._findings(text))
 
-    def test_strong_pending_map_fails(self):
+    def test_weak_hash_map_pending_fails(self):
         text = """
 class StatusBarDisplayRegistry<O : Any, R : Any> {
-    private val pendingByOwner = IdentityHashMap<O, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakHashMap<O, StatusBarDisplayState<O, R>>()
 }
 """
         details = self._details(self._findings(text))
         self.assertTrue(
-            any("strong IdentityHashMap" in d for d in details),
+            any("WeakHashMap" in d and "equals" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_missing_detach_fails(self):
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun prune() {
+        pendingByOwner.expunge()
+    }
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("detach" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_missing_expunge_fails(self):
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun prune() {}
+    fun detach(owner: O) {}
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("expunge" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_missing_all_states_snapshot_fails(self):
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun prune() { pendingByOwner.expunge() }
+    fun detach(owner: O) {}
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("allStatesSnapshot" in d for d in details),
             f"details: {details}",
         )
 

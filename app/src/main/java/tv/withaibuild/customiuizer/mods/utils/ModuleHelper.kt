@@ -861,26 +861,45 @@ class ModuleHelper private constructor() {
          * The zone list never changes at runtime, so the sysfs scan is memoized even when nothing
          * matches; otherwise the SystemUI monitor tick would reopen 19 sysfs files every 2 s.
          * Called from the NetworkSpeedController background handler thread only.
+         *
+         * The [thermalIdScanned] and [thermalId] fields are only written after a complete,
+         * non-fatal scan. Fatal JVM errors are rethrown before any memoized state is committed
+         * so the next call does not return a stale `-1`.
          */
         @JvmStatic
         fun getCPUThermalId(): Int {
             if (thermalIdScanned) return thermalId
+            val found = scanForCpuThermalId { readThermalType(it) }
+            thermalId = found
             thermalIdScanned = true
+            return found
+        }
+
+        /**
+         * Scans thermal zones for a CPU sensor. [readType] is injected so unit tests can simulate
+         * I/O results and fatal errors without touching the filesystem.
+         */
+        internal fun scanForCpuThermalId(readType: (Int) -> String?): Int {
+            var found = -1
             for (i in 2 until 40 step 2) {
                 val sensorType = try {
-                    RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$i/type", "r").use { it.readLine() }
+                    readType(i)
                 } catch (oom: OutOfMemoryError) {
                     throw oom
-                } catch (ign: Throwable) {
+                } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
                     null
                 }
                 if (sensorType != null && (sensorType.startsWith("cpu-") || sensorType.startsWith("cpu_big"))) {
-                    thermalId = i
+                    found = i
                     break
                 }
             }
-            return thermalId
+            return found
         }
+
+        private fun readThermalType(index: Int): String? =
+            RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$index/type", "r").use { it.readLine() }
 
         @JvmStatic
         fun replacePkgAndFrameworkValue(pkg: String, type: String, name: String, resValue: Any?) {

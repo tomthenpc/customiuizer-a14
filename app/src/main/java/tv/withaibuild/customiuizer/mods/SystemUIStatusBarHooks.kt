@@ -41,6 +41,7 @@ import tv.withaibuild.customiuizer.mods.utils.OwnedRegistrations
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
 import tv.withaibuild.customiuizer.mods.utils.StatusBarDisplayRegistry
 import tv.withaibuild.customiuizer.mods.utils.StatusBarDisplayState
+import tv.withaibuild.customiuizer.mods.utils.StatusBarNetworkSpeedDispatcher
 import tv.withaibuild.customiuizer.mods.utils.releaseRegistrationSilently
 import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
@@ -51,6 +52,7 @@ import java.lang.ref.WeakReference
 import java.net.NetworkInterface
 import java.util.ArrayList
 import java.util.HashSet
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Status bar content hooks.
@@ -255,8 +257,38 @@ object SystemUIStatusBarHooks {
      * external display, etc.); each display has its own generation, second row and
      * registration list so a new generation on display 0 cannot clean a live status bar
      * on display 1.
+     *
+     * The registry is given a scheduler that posts a single pending-prune runnable to the
+     * SystemUI main looper. This bounds the cleanup of never-bound pending owners and avoids
+     * a permanent background thread.
      */
-    private val statusBarDisplayRegistry = StatusBarDisplayRegistry<View, LinearLayout>()
+    private lateinit var statusBarDisplayRegistry: StatusBarDisplayRegistry<View, LinearLayout>
+
+    private val statusBarMainHandler = Handler(Looper.getMainLooper())
+    private var statusBarPendingPruneScheduled = false
+    private val statusBarPendingPruneRunnable = Runnable {
+        statusBarPendingPruneScheduled = false
+        statusBarDisplayRegistry.prune()
+    }
+
+    init {
+        statusBarDisplayRegistry = StatusBarDisplayRegistry(
+            onPendingChanged = { hasPending ->
+                if (hasPending) {
+                    if (!statusBarPendingPruneScheduled) {
+                        statusBarPendingPruneScheduled = true
+                        statusBarMainHandler.postDelayed(statusBarPendingPruneRunnable, STATUS_BAR_PENDING_PRUNE_DELAY_MS)
+                    }
+                } else {
+                    statusBarMainHandler.removeCallbacks(statusBarPendingPruneRunnable)
+                    statusBarPendingPruneScheduled = false
+                }
+            }
+        )
+    }
+
+    /** Process-level once-guard for the status bar view onDetachedFromWindow hook. */
+    private val statusBarViewDetachHookInstaller = HookInstallStateMachine()
 
     /** Tag on the module-inflated second-row network speed view, used to find it again per generation. */
     private const val NETSPEED_ROW2_TAG = "customiuizer_netspeed_row2"
@@ -279,7 +311,11 @@ object SystemUIStatusBarHooks {
         return view.context.display?.displayId
     }
 
-    private fun isMainThread(): Boolean = Looper.myLooper() == Looper.getMainLooper()
+    private const val STATUS_BAR_PENDING_PRUNE_DELAY_MS = 250L
+
+    private val netSpeedMainHandler = Handler(Looper.getMainLooper())
+    private val netSpeedSequence = AtomicLong(0)
+    private val netSpeedLastAppliedSequence = AtomicLong(0)
 
     private fun installNetSpeedSecondRowHook(lpparam: PackageReadyParam) {
         netSpeedSecondRowClassLoader = lpparam.classLoader
@@ -294,9 +330,40 @@ object SystemUIStatusBarHooks {
     }
 
     /**
-     * Shared hook callback for the network speed second row. It posts view work to the main
-     * thread if necessary and re-verifies the row still belongs to the current generation for
-     * its display before touching any View.
+     * Install a process-level once-guarded hook on [MiuiPhoneStatusBarView.onDetachedFromWindow].
+     *
+     * When a status bar view is detached, release the exact owner from the per-display registry
+     * and run a prune. This is the primary lifecycle boundary for displays that never re-attach
+     * (for example on display removal or process recreation).
+     */
+    private fun installStatusBarViewLifecycleHook(lpparam: PackageReadyParam) {
+        statusBarViewDetachHookInstaller.install {
+            ModuleHelper.findAndHookMethod(
+                "com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView",
+                lpparam.classLoader,
+                "onDetachedFromWindow",
+                object : MethodHook() {
+                    override fun after(param: AfterHookCallback) {
+                        val sbView = param.getThisObject() as View
+                        statusBarMainHandler.post {
+                            statusBarDisplayRegistry.detach(sbView)
+                            statusBarDisplayRegistry.prune()
+                        }
+                    }
+                },
+            )
+            true
+        }
+    }
+
+    /**
+     * Shared hook callback for the network speed second row.
+     *
+     * The hook may run on the NetworkSpeedController background handler. It therefore does not
+     * read the registry or touch any View directly. It only copies the payload, assigns a
+     * monotonic sequence, and posts a single runnable to the main looper. The posted runnable
+     * captures only the immutable payload and the sequence; it does not capture any View, owner
+     * or registry state.
      */
     private val netSpeedSecondRowHookCallback = object : MethodHook() {
         override fun after(param: AfterHookCallback) {
@@ -305,30 +372,27 @@ object SystemUIStatusBarHooks {
             val unit = XposedHelpers.getObjectField(networkSpeedState, "networkSpeedUnit")
             val visible = XposedHelpers.getObjectField(networkSpeedState, "visible")
 
-            for (state in statusBarDisplayRegistry.allStates()) {
-                val row = state.secondRow?.get() ?: continue
-                val owner = state.generation?.get() ?: continue
-                if (isMainThread()) {
-                    applyNetworkSpeedToRow(row, owner, number, unit, visible, state)
-                } else {
-                    row.post {
-                        val currentRow = state.secondRow?.get() ?: return@post
-                        val currentOwner = state.generation?.get() ?: return@post
-                        applyNetworkSpeedToRow(currentRow, currentOwner, number, unit, visible, state)
-                    }
-                }
+            val payload = StatusBarNetworkSpeedDispatcher.NetworkSpeedPayload(number, unit, visible)
+            val seq = netSpeedSequence.incrementAndGet()
+            netSpeedMainHandler.post {
+                StatusBarNetworkSpeedDispatcher.dispatch(
+                    payload,
+                    seq,
+                    netSpeedLastAppliedSequence,
+                    statusBarDisplayRegistry,
+                    ::applyNetworkSpeedToRow,
+                )
             }
         }
     }
 
     private fun applyNetworkSpeedToRow(
-        row: LinearLayout,
-        owner: View,
-        number: Any?,
-        unit: Any?,
-        visible: Any?,
         state: StatusBarDisplayState<View, LinearLayout>,
+        payload: StatusBarNetworkSpeedDispatcher.NetworkSpeedPayload,
     ) {
+        val row = state.secondRow?.get() ?: return
+        val owner = state.generation?.get() ?: return
+
         if (!row.isAttachedToWindow) return
         if (state.generation?.get() !== owner) return
         if (state.secondRow?.get() !== row) return
@@ -362,8 +426,8 @@ object SystemUIStatusBarHooks {
         }
 
         XposedHelpers.callMethod(networkSpeedView, "setBlocked", false)
-        XposedHelpers.callMethod(networkSpeedView, "setNetworkSpeed", number, unit)
-        XposedHelpers.callMethod(networkSpeedView, "setVisibilityByController", visible)
+        XposedHelpers.callMethod(networkSpeedView, "setNetworkSpeed", payload.number, payload.unit)
+        XposedHelpers.callMethod(networkSpeedView, "setVisibilityByController", payload.visible)
     }
 
     @JvmStatic
@@ -532,6 +596,8 @@ object SystemUIStatusBarHooks {
                 }
             }
         })
+
+        installStatusBarViewLifecycleHook(lpparam)
 
         ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "updateCutoutLocation", object : MethodHook(-1000) {
             override fun after(param: AfterHookCallback) {
@@ -1197,6 +1263,8 @@ object SystemUIStatusBarHooks {
                     XposedHelpers.callMethod(statusBarIconController, "refreshIconGroup", mTintedIconManager)
                 }
             })
+
+            installStatusBarViewLifecycleHook(lpparam)
         }
     }
 
