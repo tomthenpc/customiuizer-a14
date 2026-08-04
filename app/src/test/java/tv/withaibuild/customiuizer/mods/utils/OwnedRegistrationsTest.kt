@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.lang.ref.WeakReference
 
 class OwnedRegistrationsTest {
 
@@ -75,8 +76,10 @@ class OwnedRegistrationsTest {
         val gen1 = Any()
         val gen2 = Any()
         val cleaned = mutableListOf<Any>()
-        registrations.register(gen1) { cleaned.add(it) }
-        registrations.register(gen2) { cleaned.add(it) }
+        val gen1Ref = WeakReference(gen1)
+        val gen2Ref = WeakReference(gen2)
+        registrations.register(gen1) { gen1Ref.get()?.let(cleaned::add) }
+        registrations.register(gen2) { gen2Ref.get()?.let(cleaned::add) }
 
         // Same pattern as the per-display cleanup: everything not owned by the current
         // generation is stale, including entries whose owner was lost.
@@ -175,6 +178,140 @@ class OwnedRegistrationsTest {
     fun emptyCleanupIsSafe() {
         val registrations = OwnedRegistrations<String>()
         registrations.cleanupWhere { true }
+        assertEquals(0, registrations.size)
+    }
+
+    @Test
+    fun cleanupWhereRunsCallbackAfterOwnerCollection() {
+        val registrations = OwnedRegistrations<Any>()
+        var owner: Any? = Any()
+        val cleaned = mutableListOf<String>()
+        val ownerRef = WeakReference(owner)
+        registrations.register(owner!!) { cleaned.add("cleaned") }
+
+        owner = null
+        @Suppress("UNUSED_VARIABLE")
+        val forceGc = ByteArray(1024 * 1024)
+        System.gc()
+        Thread.sleep(50)
+
+        registrations.cleanupWhere { true }
+        assertEquals(listOf("cleaned"), cleaned)
+        assertEquals(0, registrations.size)
+    }
+
+    @Test
+    fun cleanupNowRunsCallbackAfterOwnerCollection() {
+        val registrations = OwnedRegistrations<Any>()
+        var owner: Any? = Any()
+        val cleaned = mutableListOf<String>()
+        val handle = registrations.register(owner!!) { cleaned.add("cleaned") }
+
+        owner = null
+        @Suppress("UNUSED_VARIABLE")
+        val forceGc = ByteArray(1024 * 1024)
+        System.gc()
+        Thread.sleep(50)
+
+        assertTrue(handle.cleanupNow())
+        assertEquals(listOf("cleaned"), cleaned)
+        assertEquals(0, registrations.size)
+    }
+
+    @Test
+    fun cleanupAllRunsCallbackAfterOwnerCollection() {
+        val registrations = OwnedRegistrations<Any>()
+        var owner: Any? = Any()
+        val cleaned = mutableListOf<String>()
+        registrations.register(owner!!) { cleaned.add("cleaned") }
+
+        owner = null
+        @Suppress("UNUSED_VARIABLE")
+        val forceGc = ByteArray(1024 * 1024)
+        System.gc()
+        Thread.sleep(50)
+
+        registrations.cleanupAll()
+        assertEquals(listOf("cleaned"), cleaned)
+        assertEquals(0, registrations.size)
+    }
+
+    @Test
+    fun handleCleanupBeforeCleanupAllDoesNotDuplicate() {
+        val registrations = OwnedRegistrations<String>()
+        val cleaned = mutableListOf<String>()
+        val handle = registrations.register("owner") { cleaned.add("cleanup") }
+
+        assertTrue(handle.cleanupNow())
+        registrations.cleanupAll()
+
+        assertEquals(listOf("cleanup"), cleaned)
+        assertEquals(0, registrations.size)
+    }
+
+    @Test
+    fun cleanupAllBeforeHandleDoesNotDuplicate() {
+        val registrations = OwnedRegistrations<String>()
+        val cleaned = mutableListOf<String>()
+        val handle = registrations.register("owner") { cleaned.add("cleanup") }
+
+        registrations.cleanupAll()
+        assertFalse(handle.cleanupNow())
+
+        assertEquals(listOf("cleanup"), cleaned)
+        assertEquals(0, registrations.size)
+    }
+
+    @Test
+    fun cleanupAllSnapshotDoesNotRunNewRegistrations() {
+        val registrations = OwnedRegistrations<String>()
+        val cleaned = mutableListOf<String>()
+        registrations.register("a") {
+            cleaned.add("a")
+            registrations.register("b") { cleaned.add("b") }
+        }
+
+        registrations.cleanupAll()
+
+        // 'b' is in the live list, not the snapshot, so it is not cleaned by this pass.
+        assertEquals(listOf("a"), cleaned)
+        assertEquals(1, registrations.size)
+    }
+
+    @Test
+    fun cleanupWhereReentryIsIsolated() {
+        val registrations = OwnedRegistrations<String>()
+        val cleaned = mutableListOf<String>()
+        registrations.register("a") {
+            cleaned.add("a")
+            registrations.register("b") { cleaned.add("b") }
+            registrations.cleanupWhere { it == "b" }
+        }
+
+        registrations.cleanupWhere { it == "a" }
+
+        assertTrue("b" in cleaned)
+        assertEquals(0, registrations.size)
+    }
+
+    @Test(expected = OutOfMemoryError::class)
+    fun cleanupAllFatalPropagates() {
+        val registrations = OwnedRegistrations<String>()
+        registrations.register("a") { throw OutOfMemoryError("fatal") }
+        registrations.register("b") { }
+        registrations.cleanupAll()
+    }
+
+    @Test
+    fun cleanupAllIsExactOnce() {
+        val registrations = OwnedRegistrations<String>()
+        val cleaned = mutableListOf<String>()
+        registrations.register("a") { cleaned.add("a") }
+
+        registrations.cleanupAll()
+        registrations.cleanupAll()
+
+        assertEquals(listOf("a"), cleaned)
         assertEquals(0, registrations.size)
     }
 }

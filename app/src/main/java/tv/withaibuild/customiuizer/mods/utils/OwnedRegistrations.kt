@@ -20,12 +20,17 @@ import java.util.concurrent.atomic.AtomicBoolean
  * call. Cleanup is two-phase (snapshot then run) so reentrant calls and cleanup callbacks that
  * themselves register or clean cannot corrupt the live list or duplicate a cleanup. All access
  * is expected to be on the SystemUI main thread.
+ *
+ * The cleanup action takes no arguments and must capture the objects it needs to release
+ * (for example the dispatcher and the registered View). It must not depend on [owner] still
+ * being alive: once the owner is garbage collected the entry is treated as stale and the
+ * cleanup action is still executed.
  */
 class OwnedRegistrations<V : Any> {
 
     private class Entry<V>(
         owner: V,
-        var cleanup: ((V) -> Unit)?,
+        var cleanup: (() -> Unit)?,
     ) {
         val ownerRef = WeakReference(owner)
         val consumed = AtomicBoolean(false)
@@ -46,14 +51,14 @@ class OwnedRegistrations<V : Any> {
     private inner class Handle(private val entry: Entry<V>) : RegistrationHandle {
         override fun cleanupNow(): Boolean {
             if (!entry.consumed.compareAndSet(false, true)) return false
-            // The entry may already have been removed by an outer cleanupWhere; this is idempotent.
+            // The entry may already have been removed by an outer cleanupWhere/cleanupAll;
+            // this is idempotent.
             entries.remove(entry)
-            val owner = entry.ownerRef.get()
             val callback = entry.cleanup
             entry.cleanup = null
-            if (owner != null && callback != null) {
+            if (callback != null) {
                 try {
-                    callback(owner)
+                    callback()
                 } catch (t: Throwable) {
                     val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
                     XposedHelpers.log(toReport)
@@ -69,7 +74,7 @@ class OwnedRegistrations<V : Any> {
      * The returned handle can be used for an explicit early cleanup. The same cleanup is also
      * executed by [cleanupWhere] when the owner is identified as stale.
      */
-    fun register(owner: V, cleanup: (V) -> Unit): RegistrationHandle {
+    fun register(owner: V, cleanup: () -> Unit): RegistrationHandle {
         val entry = Entry(owner, cleanup)
         entries.add(entry)
         return Handle(entry)
@@ -97,17 +102,37 @@ class OwnedRegistrations<V : Any> {
         entries.removeAll(toRemove)
 
         for (entry in toRemove) {
-            if (!entry.consumed.compareAndSet(false, true)) continue
-            val owner = entry.ownerRef.get()
-            val callback = entry.cleanup
-            entry.cleanup = null
-            if (owner != null && callback != null) {
-                try {
-                    callback(owner)
-                } catch (t: Throwable) {
-                    val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
-                    XposedHelpers.log(toReport)
-                }
+            runCleanupOnce(entry)
+        }
+    }
+
+    /**
+     * Remove and run every registered cleanup.
+     *
+     * This is used when a whole display generation is being replaced and every registration
+     * tied to the previous generation must be released.
+     */
+    fun cleanupAll() {
+        if (entries.isEmpty()) return
+
+        val toRemove = entries.toList()
+        entries.clear()
+
+        for (entry in toRemove) {
+            runCleanupOnce(entry)
+        }
+    }
+
+    private fun runCleanupOnce(entry: Entry<V>) {
+        if (!entry.consumed.compareAndSet(false, true)) return
+        val callback = entry.cleanup
+        entry.cleanup = null
+        if (callback != null) {
+            try {
+                callback()
+            } catch (t: Throwable) {
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log(toReport)
             }
         }
     }

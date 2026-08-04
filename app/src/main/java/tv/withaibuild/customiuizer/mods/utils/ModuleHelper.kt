@@ -122,7 +122,8 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (e: Throwable) {
-                XposedHelpers.log(e)
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(e)
+                XposedHelpers.log("callMethodSilently failed: $methodName: ${toReport.javaClass.simpleName}")
                 NOT_EXIST_SYMBOL
             }
         }
@@ -520,7 +521,8 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
-                if (t is ThreadDeath || t is VirtualMachineError) throw t
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log("getStaticObjectFieldSilently failed: ${clazz.canonicalName}.$fieldName: ${toReport.javaClass.simpleName}")
                 NOT_EXIST_SYMBOL
             }
         }
@@ -532,7 +534,8 @@ class ModuleHelper private constructor() {
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
-                if (t is ThreadDeath || t is VirtualMachineError) throw t
+                val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log("getObjectFieldSilently failed: $fieldName: ${toReport.javaClass.simpleName}")
                 NOT_EXIST_SYMBOL
             }
         }
@@ -558,7 +561,8 @@ class ModuleHelper private constructor() {
                 }
             } catch (oom: OutOfMemoryError) {
                 throw oom
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
             }
             if (context != null) mCachedContext = context
             return context
@@ -589,7 +593,8 @@ class ModuleHelper private constructor() {
                 context.startActivity(intent)
             } catch (oom: OutOfMemoryError) {
                 throw oom
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
                 try {
                     val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
@@ -603,7 +608,8 @@ class ModuleHelper private constructor() {
                 } catch (oom: OutOfMemoryError) {
                     throw oom
                 } catch (t2: Throwable) {
-                    XposedHelpers.log(t2)
+                    val toReport = FatalErrors.unwrapAndRethrowIfFatal(t2)
+                    XposedHelpers.log("openAppInfo fallback failed: ${toReport.javaClass.simpleName}")
                 }
             }
         }

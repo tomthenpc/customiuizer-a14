@@ -6,6 +6,7 @@ import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.lang.ref.WeakReference
 
 class StatusBarDisplayRegistryTest {
 
@@ -40,7 +41,8 @@ class StatusBarDisplayRegistryTest {
         val cleanups = mutableListOf<Any>()
 
         val oldState = registry.bind(oldOwner, 0)
-        oldState.registrations.register(oldOwner) { cleanups.add(it) }
+        val oldOwnerRef = WeakReference(oldOwner)
+        oldState.registrations.register(oldOwner) { oldOwnerRef.get()?.let(cleanups::add) }
 
         val newState = registry.bind(newOwner, 0)
 
@@ -127,5 +129,144 @@ class StatusBarDisplayRegistryTest {
 
         assertEquals("row-0", state0.secondRow?.get())
         assertEquals("row-1", state1.secondRow?.get())
+    }
+
+    @Test
+    fun pruneReleasesRegistrationsForDeadDisplay() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        var owner: Any? = Any()
+        val cleanups = mutableListOf<String>()
+        val state = registry.bind(owner!!, 0)
+        state.registrations.register(owner!!) { cleanups.add("cleanup") }
+
+        owner = null
+        @Suppress("UNUSED_VARIABLE")
+        val forceGc = ByteArray(1024 * 1024)
+        System.gc()
+        Thread.sleep(50)
+
+        registry.prune()
+        assertEquals(listOf("cleanup"), cleanups)
+        assertEquals(0, registry.allStates().size)
+    }
+
+    @Test
+    fun pruneReleasesRegistrationsForDeadPendingOwner() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        var owner: Any? = Any()
+        val cleanups = mutableListOf<String>()
+        val state = registry.getOrCreatePending(owner!!)
+        state.registrations.register(owner!!) { cleanups.add("cleanup") }
+
+        owner = null
+        @Suppress("UNUSED_VARIABLE")
+        val forceGc = ByteArray(1024 * 1024)
+        System.gc()
+        Thread.sleep(50)
+
+        registry.prune()
+        assertEquals(listOf("cleanup"), cleanups)
+        assertEquals(0, registry.allStates().size)
+    }
+
+    @Test
+    fun pruneKeepsStateWhenCleanupAddsNewRegistration() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        var owner: Any? = Any()
+        val state = registry.bind(owner!!, 0)
+        state.registrations.register(owner!!) {
+            state.registrations.register(Any()) { }
+        }
+
+        owner = null
+        @Suppress("UNUSED_VARIABLE")
+        val forceGc = ByteArray(1024 * 1024)
+        System.gc()
+        Thread.sleep(50)
+
+        registry.prune()
+        assertEquals(1, state.registrations.size)
+        assertEquals(1, registry.allStates().size)
+    }
+
+    @Test
+    fun activeGenerationIsNotPruned() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        val owner = Any()
+        registry.bind(owner, 0)
+        registry.prune()
+        assertEquals(1, registry.allStates().size)
+    }
+
+    @Test
+    fun activeSecondRowWithoutGenerationIsPruned() {
+        val registry = StatusBarDisplayRegistry<Any, String>()
+        var owner: Any? = Any()
+        val state = registry.bind(owner!!, 0)
+        state.secondRow = WeakReference("row")
+
+        owner = null
+        @Suppress("UNUSED_VARIABLE")
+        val forceGc = ByteArray(1024 * 1024)
+        System.gc()
+        Thread.sleep(50)
+
+        // The row is still reachable as a literal, but the generation is gone.
+        // The state should be cleaned and removed.
+        registry.prune()
+        assertEquals(0, registry.allStates().size)
+    }
+
+    @Test
+    fun displayReuseDoesNotInheritOldRegistrations() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        val oldOwner = Any()
+        val newOwner = Any()
+        val cleanups = mutableListOf<String>()
+        val oldState = registry.bind(oldOwner, 0)
+        oldState.registrations.register(oldOwner) { cleanups.add("old") }
+
+        val newState = registry.bind(newOwner, 0)
+        assertEquals(0, newState.registrations.size)
+        assertEquals(listOf("old"), cleanups)
+    }
+
+    @Test
+    fun pendingOwnersAreWeaklyHeld() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        var owner: Any? = Any()
+        registry.getOrCreatePending(owner!!)
+
+        owner = null
+        @Suppress("UNUSED_VARIABLE")
+        val forceGc = ByteArray(1024 * 1024)
+        System.gc()
+        Thread.sleep(50)
+
+        registry.prune()
+        assertEquals(0, registry.allStates().size)
+    }
+
+    @Test
+    fun pendingABIdentityIsolation() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        val a = Any()
+        val b = Any()
+        val stateA = registry.getOrCreatePending(a)
+        val stateB = registry.getOrCreatePending(b)
+        assertNotSame(stateA, stateB)
+    }
+
+    @Test
+    fun pendingMigratesRegistrationsToDisplayOnBind() {
+        val registry = StatusBarDisplayRegistry<Any, Any>()
+        val owner = Any()
+        val cleanups = mutableListOf<String>()
+        val pending = registry.getOrCreatePending(owner)
+        pending.registrations.register(owner) { cleanups.add("cleanup") }
+
+        val bound = registry.bind(owner, 0)
+        assertSame(pending, bound)
+        assertSame(bound, registry.get(0))
     }
 }

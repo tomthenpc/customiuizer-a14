@@ -569,79 +569,79 @@ Total hook call sites scanned: 760
 | `tv/withaibuild/customiuizer/mods/SystemUIScreenshotHooks.kt` | 132 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.navigationbar.NavigationBar", lpparam.classLoader, "onInit", hideNa` |
 | `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 226 | `getIconTextView` | `XposedHelpers.setObjectField(iconView, "mNetworkSpeedNumberText", mNumber)` |
 | `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 228 | `getIconTextView` | `XposedHelpers.setObjectField(iconView, "mNetworkSpeedUnitText", mUnit)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 390 | `applyNetworkSpeedToRow` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onFi` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 441 | `after` | `XposedHelpers.setObjectField(sbView, "mStatusBarLeftContainer", leftLayout)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 456 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "mSystemIconArea", rightLayout)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 519 | `after` | `XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "leftLayout", leftLayout)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 520 | `after` | `XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "rightLayout", rightLayout)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 521 | `after` | `XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "dualRowsLayoutAdded", true)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 532 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "updateC` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 595 | `initDigitalSignalView` | `ModuleHelper.findAndHookMethod(mCallback.type, "onMobileStatusChanged", Boolean::class.javaPrimitiveType!!, "com.android` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 655 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 656 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", st` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 657 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyDarkness` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 668 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.StatusBarIconControllerImpl", lpparam.classLoader, "se` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 689 | `before` | `XposedHelpers.setObjectField(subIconState, "visible", false)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 693 | `before` | `XposedHelpers.setObjectField(mainIconState, field, XposedHelpers.getObjectField(subIconState, field))` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 791 | `applyDualSignalDrawables` | `ModuleHelper.findAndHookMethod("com.android.systemui.SystemUIApplication", lpparam.classLoader, "onCreate", object : Met` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 818 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.StatusBarIconControllerImpl", lpparam.classLoader, "se` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 838 | `before` | `XposedHelpers.setObjectField(subIconState, "visible", false)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 845 | `before` | `XposedHelpers.setObjectField(mainIconState, field, XposedHelpers.getObjectField(subIconState, field))` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 882 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 883 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", st` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 896 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyDarkness` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 909 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "onDarkChanged", ` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 945 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "setDripEnd", ` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1040 | `before` | `XposedHelpers.setStaticObjectField(MiuiIconManagerUtils, "RIGHT_BLOCK_LIST", rightBlockList)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1058 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onAt` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1086 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1102 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconContainer", null)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1103 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconManager", null)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1104 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", null)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1108 | `after` | `XposedHelpers.newInstance(IconsContainer, mStatusBar.context) as LinearLayout` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1132 | `after` | `XposedHelpers.newInstance(DarkIconManager,` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1158 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconContainer", iconContainer)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1159 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconManager", mDarkIconManager)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1163 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1167 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiCollapsedStatusBarFragment", lpparam.classLoade` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1186 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiKeyguardStatusBarView", lpparam.classLoader, "m` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1202 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onFi` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1227 | `after` | `XposedHelpers.setAdditionalInstanceField(sbView, "clockPositionInitialized", true)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1230 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "updateLa` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1280 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "upda` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1285 | `before` | `XposedHelpers.setObjectField(param.getThisObject(), "mCurrentStatusBarType", 1)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1290 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "mCurrentStatusBarType", originType)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1362 | `humanReadableByteCount` | `ModuleHelper.findAndHookMethod(mBgHandlerField.type, "handleMessage", Message::class.java, object : MethodHook() {` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1402 | `before` | `ModuleHelper.hookAllMethods(NetworkSpeedController, "updateText", object : MethodHook() {` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1587 | `applyNetSpeedTextStyle` | `ModuleHelper.hookAllMethods("android.widget.TextView", lpparam.classLoader, "setTextAppearance", object : MethodHook() {` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1599 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.views.NetworkSpeedView", lpparam.classLoader, "setNetworkSpe` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1611 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.views.NetworkSpeedView", lpparam.classLoader, "onFinishIn` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1646 | `after` | `ModuleHelper.findAndHookMethod(mBgHandlerField.type, "handleMessage", Message::class.java, object : MethodHook() {` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1661 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.connectivity.MobileSignalController", lpparam.classLoader` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1677 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.shade.MiuiNotificationPanelViewController", lpparam.classLoader, "s` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1682 | `after` | `XposedHelpers.setObjectField(mFakeClock, "ncSwitching", true)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1690 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateMobileType` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1695 | `before` | `XposedHelpers.setObjectField(param.getArg(0), "showMobileDataTypeSingle", true)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1714 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1715 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", st` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1751 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "setDripEnd", ` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1765 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.StatusBarContentInsetsProvider", lpparam.classLoade` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1770 | `before` | `ModuleHelper.hookAllConstructors("com.android.systemui.MiuiOperatorCustomizedPolicy\$MiuiOperatorConfig", lpparam.classL` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1790 | `before` | `XposedHelpers.setObjectField(mobileIconState, "visible", false)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1801 | `before` | `XposedHelpers.setObjectField(mobileIconState, "visible", false)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1805 | `before` | `XposedHelpers.setObjectField(mobileIconState, "roaming", false)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1808 | `before` | `XposedHelpers.setObjectField(mobileIconState, "volte", false)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1809 | `before` | `XposedHelpers.setObjectField(mobileIconState, "speechHd", false)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1813 | `before` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1814 | `before` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", st` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1852 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.StatusBarIconControllerImpl", lpparam.classLoader, ` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1857 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.CommandQueue", lpparam.classLoader, "setIcon", String::cl` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1866 | `before` | `XposedHelpers.setObjectField(param.getArg(1), "visible", false)` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1884 | `before` | `ModuleHelper.findAndHookMethod("com.miui.clock.MiuiBaseClock", lpparam.classLoader, "updateViewsTextSize", object : Meth` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1890 | `after` | `ModuleHelper.findAndHookMethod("com.miui.clock.MiuiLeftTopLargeClock", lpparam.classLoader, "onLanguageChanged", String:` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1974 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1975 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", hi` |
-| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1980 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.privacy.MiuiPrivacyControllerImpl", lpparam.classLoader, ` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 394 | `applyNetworkSpeedToRow` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onFi` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 445 | `after` | `XposedHelpers.setObjectField(sbView, "mStatusBarLeftContainer", leftLayout)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 460 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "mSystemIconArea", rightLayout)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 523 | `after` | `XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "leftLayout", leftLayout)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 524 | `after` | `XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "rightLayout", rightLayout)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 525 | `after` | `XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "dualRowsLayoutAdded", true)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 536 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "updateC` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 599 | `initDigitalSignalView` | `ModuleHelper.findAndHookMethod(mCallback.type, "onMobileStatusChanged", Boolean::class.javaPrimitiveType!!, "com.android` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 659 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 660 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", st` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 661 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyDarkness` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 672 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.StatusBarIconControllerImpl", lpparam.classLoader, "se` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 693 | `before` | `XposedHelpers.setObjectField(subIconState, "visible", false)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 697 | `before` | `XposedHelpers.setObjectField(mainIconState, field, XposedHelpers.getObjectField(subIconState, field))` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 795 | `applyDualSignalDrawables` | `ModuleHelper.findAndHookMethod("com.android.systemui.SystemUIApplication", lpparam.classLoader, "onCreate", object : Met` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 822 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.StatusBarIconControllerImpl", lpparam.classLoader, "se` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 842 | `before` | `XposedHelpers.setObjectField(subIconState, "visible", false)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 849 | `before` | `XposedHelpers.setObjectField(mainIconState, field, XposedHelpers.getObjectField(subIconState, field))` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 886 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 887 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", st` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 900 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyDarkness` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 913 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "onDarkChanged", ` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 949 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "setDripEnd", ` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1044 | `before` | `XposedHelpers.setStaticObjectField(MiuiIconManagerUtils, "RIGHT_BLOCK_LIST", rightBlockList)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1062 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onAt` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1090 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1106 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconContainer", null)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1107 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconManager", null)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1108 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", null)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1112 | `after` | `XposedHelpers.newInstance(IconsContainer, mStatusBar.context) as LinearLayout` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1136 | `after` | `XposedHelpers.newInstance(DarkIconManager,` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1162 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconContainer", iconContainer)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1163 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconManager", mDarkIconManager)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1167 | `after` | `XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1171 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiCollapsedStatusBarFragment", lpparam.classLoade` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1190 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiKeyguardStatusBarView", lpparam.classLoader, "m` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1206 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onFi` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1231 | `after` | `XposedHelpers.setAdditionalInstanceField(sbView, "clockPositionInitialized", true)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1234 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.PhoneStatusBarView", lpparam.classLoader, "updateLa` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1284 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "upda` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1289 | `before` | `XposedHelpers.setObjectField(param.getThisObject(), "mCurrentStatusBarType", 1)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1294 | `after` | `XposedHelpers.setObjectField(param.getThisObject(), "mCurrentStatusBarType", originType)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1366 | `humanReadableByteCount` | `ModuleHelper.findAndHookMethod(mBgHandlerField.type, "handleMessage", Message::class.java, object : MethodHook() {` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1406 | `before` | `ModuleHelper.hookAllMethods(NetworkSpeedController, "updateText", object : MethodHook() {` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1591 | `applyNetSpeedTextStyle` | `ModuleHelper.hookAllMethods("android.widget.TextView", lpparam.classLoader, "setTextAppearance", object : MethodHook() {` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1603 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.views.NetworkSpeedView", lpparam.classLoader, "setNetworkSpe` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1615 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.views.NetworkSpeedView", lpparam.classLoader, "onFinishIn` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1650 | `after` | `ModuleHelper.findAndHookMethod(mBgHandlerField.type, "handleMessage", Message::class.java, object : MethodHook() {` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1665 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.connectivity.MobileSignalController", lpparam.classLoader` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1681 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.shade.MiuiNotificationPanelViewController", lpparam.classLoader, "s` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1686 | `after` | `XposedHelpers.setObjectField(mFakeClock, "ncSwitching", true)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1694 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateMobileType` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1699 | `before` | `XposedHelpers.setObjectField(param.getArg(0), "showMobileDataTypeSingle", true)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1718 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1719 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", st` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1755 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "setDripEnd", ` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1769 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.StatusBarContentInsetsProvider", lpparam.classLoade` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1774 | `before` | `ModuleHelper.hookAllConstructors("com.android.systemui.MiuiOperatorCustomizedPolicy\$MiuiOperatorConfig", lpparam.classL` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1794 | `before` | `XposedHelpers.setObjectField(mobileIconState, "visible", false)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1805 | `before` | `XposedHelpers.setObjectField(mobileIconState, "visible", false)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1809 | `before` | `XposedHelpers.setObjectField(mobileIconState, "roaming", false)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1812 | `before` | `XposedHelpers.setObjectField(mobileIconState, "volte", false)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1813 | `before` | `XposedHelpers.setObjectField(mobileIconState, "speechHd", false)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1817 | `before` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1818 | `before` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", st` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1856 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.StatusBarIconControllerImpl", lpparam.classLoader, ` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1861 | `before` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.CommandQueue", lpparam.classLoader, "setIcon", String::cl` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1870 | `before` | `XposedHelpers.setObjectField(param.getArg(1), "visible", false)` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1888 | `before` | `ModuleHelper.findAndHookMethod("com.miui.clock.MiuiBaseClock", lpparam.classLoader, "updateViewsTextSize", object : Meth` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1894 | `after` | `ModuleHelper.findAndHookMethod("com.miui.clock.MiuiLeftTopLargeClock", lpparam.classLoader, "onLanguageChanged", String:` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1978 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1979 | `after` | `ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", hi` |
+| `tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | 1984 | `after` | `ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.privacy.MiuiPrivacyControllerImpl", lpparam.classLoader, ` |
 | `tv/withaibuild/customiuizer/mods/SystemWindowHooks.kt` | 36 | `?` | `ModuleHelper.hookAllMethods(windowClass, lpparam.classLoader, rotMethod, object : MethodHook() {` |
 | `tv/withaibuild/customiuizer/mods/SystemWindowHooks.kt` | 72 | `intercept` | `ModuleHelper.hookAllConstructors("com.android.server.wm.DisplayRotation", lpparam.classLoader, object : MethodHook() {` |
 | `tv/withaibuild/customiuizer/mods/SystemWindowHooks.kt` | 85 | `intercept` | `XposedHelpers.setIntField(thisObject, "mAllowAllRotations", if (MainModule.mPrefs.getStringAsInt("system_allrotations2",` |
@@ -751,20 +751,20 @@ Total hook call sites scanned: 760
 | `tv/withaibuild/customiuizer/mods/utils/HookInstallerFacade.kt` | 184 | `?` | `val unhooker = XposedHelpers.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback)` |
 | `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 115 | `?` | `fun findAndHookMethod(className: String, classLoader: ClassLoader?, methodName: String, vararg parameterTypesAndCallback` |
 | `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 116 | `?` | `HookInstallerFacade.findAndHookMethod(className, classLoader, methodName, *parameterTypesAndCallback)` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 131 | `?` | `fun findAndHookMethod(clazz: Class<*>, methodName: String, vararg parameterTypesAndCallback: Any?): CustomMethodUnhooker` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 132 | `?` | `HookInstallerFacade.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback)` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 160 | `?` | `val unhooker = XposedHelpers.findAndHookConstructor(hookClass, *parameterTypesAndCallback)` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 193 | `?` | `fun hookAllConstructors(className: String, classLoader: ClassLoader?, callback: MethodHook) {` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 208 | `?` | `val unhookers = XposedHelpers.hookAllConstructors(hookClass, callback)` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 247 | `?` | `fun hookAllConstructors(hookClass: Class<*>?, callback: MethodHook) {` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 261 | `?` | `val unhookers = XposedHelpers.hookAllConstructors(hookClass, callback)` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 300 | `?` | `fun hookAllMethods(className: String, classLoader: ClassLoader?, methodName: String, callback: MethodHook) {` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 315 | `?` | `val unhookers = XposedHelpers.hookAllMethods(hookClass, methodName, callback)` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 354 | `?` | `fun hookAllMethods(hookClass: Class<*>?, methodName: String, callback: MethodHook) {` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 368 | `?` | `val unhookers = XposedHelpers.hookAllMethods(hookClass, methodName, callback)` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 434 | `?` | `val ok = XposedHelpers.hookAllMethods(hookClass, methodName, callback).isNotEmpty()` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 483 | `?` | `val ok = XposedHelpers.hookAllMethods(hookClass, methodName, callback).isNotEmpty()` |
-| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 598 | `?` | `val userHandle = XposedHelpers.newInstance(UserHandle::class.java, user) as UserHandle` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 132 | `?` | `fun findAndHookMethod(clazz: Class<*>, methodName: String, vararg parameterTypesAndCallback: Any?): CustomMethodUnhooker` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 133 | `?` | `HookInstallerFacade.findAndHookMethod(clazz, methodName, *parameterTypesAndCallback)` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 161 | `?` | `val unhooker = XposedHelpers.findAndHookConstructor(hookClass, *parameterTypesAndCallback)` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 194 | `?` | `fun hookAllConstructors(className: String, classLoader: ClassLoader?, callback: MethodHook) {` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 209 | `?` | `val unhookers = XposedHelpers.hookAllConstructors(hookClass, callback)` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 248 | `?` | `fun hookAllConstructors(hookClass: Class<*>?, callback: MethodHook) {` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 262 | `?` | `val unhookers = XposedHelpers.hookAllConstructors(hookClass, callback)` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 301 | `?` | `fun hookAllMethods(className: String, classLoader: ClassLoader?, methodName: String, callback: MethodHook) {` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 316 | `?` | `val unhookers = XposedHelpers.hookAllMethods(hookClass, methodName, callback)` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 355 | `?` | `fun hookAllMethods(hookClass: Class<*>?, methodName: String, callback: MethodHook) {` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 369 | `?` | `val unhookers = XposedHelpers.hookAllMethods(hookClass, methodName, callback)` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 435 | `?` | `val ok = XposedHelpers.hookAllMethods(hookClass, methodName, callback).isNotEmpty()` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 484 | `?` | `val ok = XposedHelpers.hookAllMethods(hookClass, methodName, callback).isNotEmpty()` |
+| `tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt` | 603 | `?` | `val userHandle = XposedHelpers.newInstance(UserHandle::class.java, user) as UserHandle` |
 | `tv/withaibuild/customiuizer/mods/utils/PreferenceObserverRegistry.kt` | 55 | `?` | `XposedHelpers.setAdditionalInstanceField(owner, PREF_OBSERVER_FIELD, prefObserver)` |
 | `tv/withaibuild/customiuizer/mods/utils/SystemUiBootstrapCoordinator.kt` | 103 | `before` | `ModuleHelper.findAndHookMethod(` |
 

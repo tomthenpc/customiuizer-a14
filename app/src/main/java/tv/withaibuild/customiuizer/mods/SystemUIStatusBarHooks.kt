@@ -311,7 +311,11 @@ object SystemUIStatusBarHooks {
                 if (isMainThread()) {
                     applyNetworkSpeedToRow(row, owner, number, unit, visible, state)
                 } else {
-                    row.post { applyNetworkSpeedToRow(row, owner, number, unit, visible, state) }
+                    row.post {
+                        val currentRow = state.secondRow?.get() ?: return@post
+                        val currentOwner = state.generation?.get() ?: return@post
+                        applyNetworkSpeedToRow(currentRow, currentOwner, number, unit, visible, state)
+                    }
                 }
             }
         }
@@ -350,7 +354,7 @@ object SystemUIStatusBarHooks {
                 false
             }
             if (added) {
-                state.registrations.register(owner) { _ ->
+                state.registrations.register(owner) {
                     releaseRegistrationSilently(DarkIconDispatcher, "removeDarkReceiver", created, "network-speed-row2")
                 }
             }
@@ -506,7 +510,7 @@ object SystemUIStatusBarHooks {
                                 false
                             }
                             if (added) {
-                                state.registrations.register(sbView) { _ ->
+                                state.registrations.register(sbView) {
                                     releaseRegistrationSilently(DarkIconDispatcher, "removeDarkReceiver", iconView, "dark-receiver-$iconType")
                                 }
                             }
@@ -1080,7 +1084,7 @@ object SystemUIStatusBarHooks {
                         if (oldHandle == null) {
                             val staleManager = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconManager")
                             if (staleManager != null) {
-                                val handle = state.registrations.register(mStatusBar) { _ ->
+                                val handle = state.registrations.register(mStatusBar) {
                                     releaseRegistrationSilently(iconController, "removeIconGroup", staleManager, "left-icon-group")
                                 }
                                 XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)
@@ -1157,7 +1161,7 @@ object SystemUIStatusBarHooks {
 
                     XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconContainer", iconContainer)
                     XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconManager", mDarkIconManager)
-                    val handle = state.registrations.register(mStatusBar) { _ ->
+                    val handle = state.registrations.register(mStatusBar) {
                         releaseRegistrationSilently(iconController, "removeIconGroup", mDarkIconManager, "left-icon-group")
                     }
                     XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)

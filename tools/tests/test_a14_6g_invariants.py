@@ -283,7 +283,7 @@ override fun afterHook(callback: AfterHookCallback) {
         clean = """
 fun silent(): Any? = try { work() }
 catch (oom: OutOfMemoryError) { throw oom }
-catch (_: Throwable) { null }
+catch (t: Throwable) { FatalErrors.unwrapAndRethrowIfFatal(t); null }
 fun propagating() = try { work() }
 catch (t: Throwable) { throw t }
 """
@@ -291,11 +291,11 @@ catch (t: Throwable) { throw t }
 
         unsafe = """
 fun silent(): Any? = try { work() }
-catch (_: Throwable) { null }
+catch (t: Throwable) { null }
 """
         findings = self.mod.check_module_helper_fatal_boundaries(path, unsafe)
         self.assertEqual(1, len(findings))
-        self.assertIn("OOM", findings[0].detail)
+        self.assertIn("fatal", findings[0].detail.lower())
 
     def test_charging_info_skips_disabled_io_and_formatter_allocations(self):
         path = self._source_path(

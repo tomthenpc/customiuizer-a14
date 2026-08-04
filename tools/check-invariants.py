@@ -580,14 +580,31 @@ def check_method_hook_fatal_boundary(path: Path, text: str) -> list[Finding]:
 
 
 def check_module_helper_fatal_boundaries(path: Path, text: str) -> list[Finding]:
-    """Shared runtime helpers may isolate ordinary failures but must propagate OOM."""
+    """Shared runtime helpers may isolate ordinary failures but must propagate fatal errors.
+
+    Every catch(Throwable) must call FatalErrors.unwrapAndRethrowIfFatal(caught) before
+    treating the failure as non-fatal. An explicit catch(OutOfMemoryError) { throw oom }
+    may still precede the generic catch.
+    """
     if rel_posix(path) != MODULE_HELPER:
         return []
     findings = []
     for generic in re.finditer(r"catch\s*\(\s*([_A-Za-z]\w*)\s*:\s*Throwable\s*\)", text):
         body, _ = block_at(text, generic.start())
         variable = generic.group(1)
-        if variable != "_" and re.search(rf"\bthrow\s+{re.escape(variable)}\b", body):
+        if variable == "_":
+            findings.append(
+                Finding(
+                    "module-helper-fatal-boundary",
+                    path,
+                    line_of(text, generic.start()),
+                    "ModuleHelper catch(Throwable) must not use '_' as the caught variable",
+                )
+            )
+            continue
+        if re.search(rf"\bthrow\s+{re.escape(variable)}\b", body):
+            continue
+        if re.search(rf"FatalErrors\.unwrapAndRethrowIfFatal\(\s*{re.escape(variable)}\s*\)", body):
             continue
 
         preceding = None
@@ -610,7 +627,7 @@ def check_module_helper_fatal_boundaries(path: Path, text: str) -> list[Finding]
                     "module-helper-fatal-boundary",
                     path,
                     line_of(text, generic.start()),
-                    "ModuleHelper catch(Throwable) must rethrow it or follow an OOM rethrow catch",
+                    "ModuleHelper catch(Throwable) must rethrow it, call FatalErrors.unwrapAndRethrowIfFatal, or follow an OOM rethrow catch",
                 )
             )
     return findings
@@ -1431,6 +1448,216 @@ def check_gesture_side_effect_gate_owner_cleanup(path: Path, text: str) -> list[
     return findings
 
 
+def _body_before(text: str, search_from: int) -> str:
+    """Return the top-level-ish block starting at the first '{' at or after search_from.
+
+    This is a convenience around block_at for callers that only need the body.
+    """
+    body, _ = block_at(text, search_from)
+    return body
+
+
+def check_owned_registrations_model(path: Path, text: str) -> list[Finding]:
+    """OwnedRegistrations must not require a live owner to run a cleanup action.
+
+    The cleanup action is what actually releases a system-side registration, so it must run
+    even when the owner has been garbage collected. The model is therefore:
+
+        register(owner: V, cleanup: () -> Unit): RegistrationHandle
+
+    and the entry must hold the cleanup reference weakly enough that owner collection does
+    not keep the cleanup alive, but strongly enough that the cleanup still runs after
+    collection. All cleanup paths must be two-phase (snapshot, then run) and exact-once.
+    """
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/OwnedRegistrations.kt":
+        return []
+    findings = []
+
+    # The public register API must take a no-arg cleanup action.
+    if not re.search(r"fun\s+register\s*\(\s*owner\s*:\s*V\s*,\s*cleanup\s*:\s*\(\)\s*->\s*Unit\s*\)", text):
+        findings.append(
+            Finding(
+                "owned-registrations-model",
+                path,
+                1,
+                "register must take a no-argument cleanup: () -> Unit",
+            )
+        )
+
+    # Cleanup of the whole registry must exist.
+    if "fun cleanupAll()" not in text:
+        findings.append(
+            Finding(
+                "owned-registrations-model",
+                path,
+                1,
+                "OwnedRegistrations must expose cleanupAll()",
+            )
+        )
+
+    # cleanupWhere must take a snapshot before running any cleanup.
+    if "entries.removeAll(toRemove)" not in text or "for (entry in toRemove)" not in text:
+        findings.append(
+            Finding(
+                "owned-registrations-model",
+                path,
+                1,
+                "cleanupWhere must snapshot stale entries before running them",
+            )
+        )
+
+    # cleanupAll must snapshot before running.
+    if "val toRemove = entries.toList()" not in text and "val toRemove = entries" not in text:
+        findings.append(
+            Finding(
+                "owned-registrations-model",
+                path,
+                1,
+                "cleanupAll must snapshot the live list before running cleanups",
+            )
+        )
+
+    # The internal callback reference must be consumed (nulled) before the action runs,
+    # so a fatal exception cannot lead to a second execution.
+    if not re.search(r"val\s+callback\s*=\s*entry\.cleanup\n\s*entry\.cleanup\s*=\s*null", text):
+        findings.append(
+            Finding(
+                "owned-registrations-model",
+                path,
+                1,
+                "cleanup callback reference must be consumed before the action is invoked",
+            )
+        )
+
+    # No owner-null gate may prevent the callback from running.
+    if re.search(r"owner\s*!=\s*null\s*&&\s*callback\s*!=\s*null", text):
+        findings.append(
+            Finding(
+                "owned-registrations-model",
+                path,
+                1,
+                "cleanup action must run even when the owner has been garbage collected",
+            )
+        )
+
+    return findings
+
+
+def check_status_bar_display_registry_prune(path: Path, text: str) -> list[Finding]:
+    """Dead per-display and pending states must release their registrations before removal.
+
+    A state can only be dropped after every registration it owns has been released. A
+    reentrant cleanup that registers a new entry must keep the state alive. Pending owners
+    must be held weakly so a never-bound view can still be garbage collected.
+    """
+    if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/StatusBarDisplayRegistry.kt":
+        return []
+    findings = []
+
+    if "WeakHashMap" not in text:
+        findings.append(
+            Finding(
+                "status-bar-display-registry-prune",
+                path,
+                1,
+                "pending state must be keyed by a WeakHashMap so owners can be collected",
+            )
+        )
+
+    if "IdentityHashMap" in text:
+        findings.append(
+            Finding(
+                "status-bar-display-registry-prune",
+                path,
+                1,
+                "pending state must not use a strong IdentityHashMap key",
+            )
+        )
+
+    if "private val pendingByOwner" not in text:
+        findings.append(
+            Finding(
+                "status-bar-display-registry-prune",
+                path,
+                1,
+                "StatusBarDisplayRegistry must declare a pending owner map",
+            )
+        )
+
+    prune_match = re.search(r"fun\s+prune\s*\(", text)
+    if prune_match is None:
+        findings.append(
+            Finding(
+                "status-bar-display-registry-prune",
+                path,
+                1,
+                "StatusBarDisplayRegistry must expose prune()",
+            )
+        )
+    else:
+        body = _body_before(text, prune_match.start())
+        if "cleanupAll()" not in body:
+            findings.append(
+                Finding(
+                    "status-bar-display-registry-prune",
+                    path,
+                    1,
+                    "prune must call registrations.cleanupAll() before removing a state",
+                )
+            )
+        if "byDisplay.remove" not in body:
+            findings.append(
+                Finding(
+                    "status-bar-display-registry-prune",
+                    path,
+                    1,
+                    "prune must remove dead display states",
+                )
+            )
+        if "pendingByOwner" not in body or ".remove" not in body:
+            findings.append(
+                Finding(
+                    "status-bar-display-registry-prune",
+                    path,
+                    1,
+                    "prune must remove dead pending states",
+                )
+            )
+        if "state.generation?.get() == null" not in body:
+            findings.append(
+                Finding(
+                    "status-bar-display-registry-prune",
+                    path,
+                    1,
+                    "prune must re-verify the generation is still gone after cleanup",
+                )
+            )
+        if "state.registrations.size == 0" not in body:
+            findings.append(
+                Finding(
+                    "status-bar-display-registry-prune",
+                    path,
+                    1,
+                    "prune must re-verify the registration list is empty after cleanup",
+                )
+            )
+
+    bind_match = re.search(r"fun\s+bind\s*\(", text)
+    if bind_match is not None:
+        body = _body_before(text, bind_match.start())
+        if "registrations.cleanupAll()" not in body:
+            findings.append(
+                Finding(
+                    "status-bar-display-registry-prune",
+                    path,
+                    1,
+                    "bind must cleanupAll the old generation for this display",
+                )
+            )
+
+    return findings
+
+
 def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding]:
     """Status bar dispatcher/controller registrations must have a release path.
 
@@ -1447,7 +1674,10 @@ def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding
         the same controller and manager, and that the resulting handle is saved;
       - the old global generation / second-row references are gone and replaced by
         StatusBarDisplayRegistry and HookInstallStateMachine;
-      - the left icon manager uses an exact-once registration handle, not a manual remove.
+      - the left icon manager uses an exact-once registration handle, not a manual remove;
+      - the network speed second row is saved per-display and every posted update re-verifies
+        the row, the owner and the display state before touching a View;
+      - registration cleanup closures do not capture the owner view.
     """
     if rel_posix(path) != "tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt":
         return []
@@ -1491,6 +1721,28 @@ def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding
                     f"missing {detail}: {token}",
                 )
             )
+
+    # --- onFinishInflate must save the second row for this display ---
+    if not re.search(r"state\.secondRow\s*=\s*WeakReference\s*\(\s*secondRight\s*\)", text):
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                1,
+                "onFinishInflate must save state.secondRow = WeakReference(secondRight)",
+            )
+        )
+
+    # --- the left icon group handle must be saved on the status bar view ---
+    if not re.search(r'setAdditionalInstanceField\s*\(\s*mStatusBar\s*,\s*"leftIconRegistrationHandle"\s*,\s*handle\s*\)', text):
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                1,
+                "left icon group handle must be saved as leftIconRegistrationHandle",
+            )
+        )
 
     # --- no direct manual remove outside the release helper ---
     for method in ("removeIconGroup", "removeDarkReceiver"):
@@ -1542,6 +1794,66 @@ def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding
                 )
             )
 
+    # --- the apply helper must re-verify row/owner/state before touching views ---
+    apply = re.search(r"fun\s+applyNetworkSpeedToRow\s*\(", text)
+    if apply is not None:
+        apply_body = _body_before(text, apply.start())
+        for check, detail in (
+            ("isAttachedToWindow", "applyNetworkSpeedToRow must re-check row.isAttachedToWindow"),
+            ("state.generation?.get()", "applyNetworkSpeedToRow must re-check the display generation"),
+            ("state.secondRow?.get()", "applyNetworkSpeedToRow must re-check the per-display second row"),
+        ):
+            if check not in apply_body:
+                findings.append(
+                    Finding(
+                        "status-bar-registration-cleanup",
+                        path,
+                        1,
+                        detail,
+                    )
+                )
+
+    # --- the posted runnable must re-read the row and owner from the per-display state ---
+    posted = re.search(r"row\.post\s*\{", text)
+    if posted is not None:
+        posted_body = _body_before(text, posted.start())
+        for check, detail in (
+            ("state.generation?.get()", "posted runnable must re-read the display generation"),
+            ("state.secondRow?.get()", "posted runnable must re-read the per-display second row"),
+        ):
+            if check not in posted_body:
+                findings.append(
+                    Finding(
+                        "status-bar-registration-cleanup",
+                        path,
+                        1,
+                        detail,
+                    )
+                )
+    else:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                1,
+                "network speed update must post back to the row when not on the main thread",
+            )
+        )
+
+    # --- registration cleanup closures must not capture the owner view ---
+    for match in re.finditer(r'state\.registrations\.register\s*\(\s*([^\s\n,)]+)\s*\)\s*(\{)', text):
+        owner_expr = match.group(1)
+        block, _ = block_at(text, match.start(2))
+        if re.search(rf"\b{re.escape(owner_expr)}\b", block):
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    line_of(text, match.start()),
+                    f"registration cleanup closure captures the owner '{owner_expr}'; capture the release target instead",
+                )
+            )
+
     # --- setNetworkSpeedIcon hook must be installed via the guarded installer ---
     if '"setNetworkSpeedIcon"' in text:
         if "installNetSpeedSecondRowHook" not in text:
@@ -1575,6 +1887,8 @@ RULES = (
     check_gesture_control_center_no_ishooked,
     check_gesture_stress_no_bypass,
     check_gesture_side_effect_gate_owner_cleanup,
+    check_owned_registrations_model,
+    check_status_bar_display_registry_prune,
     check_status_bar_registration_cleanup,
     check_guard_framework_callbacks,
     check_guard_framework_callbacks,
