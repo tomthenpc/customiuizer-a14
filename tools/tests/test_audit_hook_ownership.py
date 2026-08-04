@@ -28,7 +28,8 @@ class AuditHookOwnershipTest(unittest.TestCase):
             capture_output=True,
             text=True,
         )
-        self.assertEqual(0, result.returncode, result.stderr)
+        if result.returncode != 0:
+            self.fail(f"audit_hook_ownership --check failed with exit {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}")
         self.assertIn("up to date", result.stdout)
 
     def test_write_outputs_to_temporary_path(self):

@@ -84,7 +84,7 @@ def nearest_function(lines: list[str], line_idx: int) -> str | None:
 def _generate_markdown() -> str:
     groups: dict[str, list[tuple[str, int, str, str, str]]] = defaultdict(list)
     total = 0
-    for path in sorted(SOURCE_ROOT.rglob("*.kt")) + sorted(SOURCE_ROOT.rglob("*.java")):
+    for path in sorted(SOURCE_ROOT.rglob("*.kt"), key=lambda p: p.as_posix().lower()) + sorted(SOURCE_ROOT.rglob("*.java"), key=lambda p: p.as_posix().lower()):
         text = path.read_text(encoding="utf-8")
         lines = text.splitlines()
         for i, line in enumerate(lines, start=1):
