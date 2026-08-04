@@ -5,27 +5,27 @@ Mode: PROFESSIONAL_AUTONOMOUS_STEWARDSHIP
 CheckpointCount: 32
 CheckpointsSinceStandardSweep: 6
 CheckpointsSinceDeepSweep: 4
-LastQualifyingCheckpoint: 782b3e50
+LastQualifyingCheckpoint: 78ce1129
 LastLightSweepCommit: 782b3e50
 LastStandardSweepCommit: 3c61ee8f
 LastDeepSweepCommit: 3c61ee8f
 LastFullVerificationCommit: 0acf97514617abecd148f0a7fe84f56e96825131
-LastVerifiedTree: b6e74dcd847f48800b8becf373d97ba76a8c5425
+LastVerifiedTree: e4305b67c6c63905bd9ebc503dd74fd19fb10172
 LastVerifiedTreeSource: Final-verify
 LastVerifiedTreeCommand: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Final
-LastVerifiedMode: Final
+LastVerifiedMode: Fast
 LastCIState: PASS
-LastCIRun: 30749749010
-LastCIJob: 91501580779
-LastCICommit: e28b66a2
+LastCIRun: 30871155939
+LastCIJob: 91873274384
+LastCICommit: 78ce1129
 LastCleanupCommit: 3c61ee8f
 LastToolCreated: tools/brutal_test_runner.py
 LastFailureClass: none
-CurrentObjective: P12 Documentation and release candidate record
-CurrentObjectiveState: ACTIVE
-CurrentObjectiveStartEvidence: Fast verify passed locally on 782b3e50; develop R8 assemble passed; Fast CI 30747399434 job 91495213418 passed on 782b3e50; P12.1 `A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md` verified locally (Fast/Full) on base cd152365
-NextObjectiveFirstAction: begin P12 documentation sweep and release-candidate record
-ResumeTask: continue P12 documentation dead-code audit and P14 MACHINE_COMPLETE preparation
+CurrentObjective: P6.1A-R2 Status bar lifecycle hardening
+CurrentObjectiveState: COMPLETE
+CurrentObjectiveStartEvidence: Fast verify passed locally on c2904adb; Fast CI 30871155939 job 91873274384 passed on 78ce1129
+NextObjectiveFirstAction: a14-independent-review of P6.1A-R2 then device evidence or next Implementer slice
+ResumeTask: await independent review and collect device evidence for status bar weak owner cleanup
 DeepSweepDue: false
 ```
 
