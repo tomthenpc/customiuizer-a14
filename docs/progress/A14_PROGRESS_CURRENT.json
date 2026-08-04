@@ -1,16 +1,16 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-04T10:49:35.282009+08:00",
-  "sourceCommit": "164638e47b842cb536f8d50b04720b7f39b51323",
-  "sourceTree": "64cfcf36988f0c78cc005783861854cac6ef1453",
+  "generatedAt": "2026-08-05T07:10:06.084462+08:00",
+  "sourceCommit": "674ea6a7271c86f960d22a82d915f1e832e96c9a",
+  "sourceTree": "01bb5ed6376d845297460166b9f3a3c533806552",
   "verifiedTree": "64cfcf36988f0c78cc005783861854cac6ef1453",
   "verifiedMode": "Fast",
   "ciState": "PASS",
   "ciRun": "30872418812",
   "ciJob": "91876955632",
   "ciCommit": "164638e4",
-  "projectProgress": 8.2,
-  "machineProgress": 8.7,
+  "projectProgress": 8.1,
+  "machineProgress": 8.5,
   "stage": "BASELINE_AND_CONTROL",
   "domainScores": {
     "Baseline and control": {
@@ -25,8 +25,8 @@
     },
     "Runtime safety / lifecycle / concurrency": {
       "weight": 18,
-      "earned": 2.04,
-      "percent": 11.3
+      "earned": 1.86,
+      "percent": 10.3
     },
     "Performance / memory / APK / R8": {
       "weight": 12,
@@ -310,10 +310,10 @@
       "id": "P6.1",
       "domain": "Runtime safety / lifecycle / concurrency",
       "weight": 1.2,
-      "state": "COMPLETE",
-      "factor": 1.0,
-      "earned": 1.2,
-      "bucket": "complete",
+      "state": "VERIFIED_BUILD",
+      "factor": 0.85,
+      "earned": 1.02,
+      "bucket": "verified",
       "evidence_level": "verified",
       "evidence_paths": [
         "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrations.kt",
@@ -334,7 +334,14 @@
         "app/src/test/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelperFatalBoundaryTest.kt",
         "tools/tests/test_a14_6g_invariants.py",
         "docs/progress/A14_PROGRESS_CURRENT.json",
-        "tools/progress_snapshot.py"
+        "tools/progress_snapshot.py",
+        "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/WeakIdentityMap.kt",
+        "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/StatusBarNetworkSpeedDispatcher.kt",
+        "app/src/test/java/tv/withaibuild/customiuizer/mods/utils/WeakIdentityMapTest.kt",
+        "app/src/test/java/tv/withaibuild/customiuizer/mods/utils/StatusBarNetworkSpeedDispatcherTest.kt",
+        "tools/check_document_contracts.py",
+        "tools/check_automation_state.py",
+        "tools/verify.py"
       ],
       "evidence_commands": [],
       "evidence_commit": "c2904adbd01bb38fc4ea327f670d898e6644736b",

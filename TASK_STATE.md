@@ -554,7 +554,7 @@ State: `IN_PROGRESS`
 
 ## P6.1 Status bar custom View
 
-State: `COMPLETE`
+State: `VERIFIED_BUILD`
 
 - `SystemUIStatusBarHooks` 使用 `WeakReference<View>` 持有 `statusbarTextIcons`；注册/更新时清理已回收引用；
 - `DualRowsStatusbarHook` 用 `XposedHelpers.getAdditionalInstanceField` 的 `dualRowsLayoutAdded` 标记防止重复 attach；
@@ -738,6 +738,92 @@ Risks：
 - `WeakHashMap` pending bucket 配合 `pendingStates` 强集合增加了少量对象存活时间，但保证 owner 被 GC 后 cleanup 仍可运行；`prune` 调用时机需由 SystemUI hook 触发（如 `onDetachedFromWindow` / `onDestroy`）或由调用方在 bind 前调用。
 - 无参 cleanup lambda 要求所有调用点不捕获 owner；`tools/check-invariants.py` 已增加静态 owner-capture 检测，但仍需 review 未来新增调用点。
 - `ModuleHelper.openAppInfo` fallback 现在先 rethrow fatal 再记录；原行为在 fatal 时也会记录到 Xposed log，现在 fatal 直接抛出，符合 AGENTS.md 要求。
+
+## P6.1A-R3 Status bar 身份生命周期与主线程调度
+
+State: `VERIFIED_BUILD`
+
+Task: `A14-P6.1A-R3`
+Priority: `P1`
+
+Files:
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/WeakIdentityMap.kt`（新增）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/StatusBarDisplayRegistry.kt`（重写 pending/identity 与 detach）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/StatusBarNetworkSpeedDispatcher.kt`（新增：可测试主线程 dispatcher）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt`（`getCPUThermalId` fatal 边界与可测试拆分）
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt`（主线程 network speed dispatch、detach hook、prune scheduler）
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/WeakIdentityMapTest.kt`（新增）
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/StatusBarNetworkSpeedDispatcherTest.kt`（新增）
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/StatusBarDisplayRegistryTest.kt`（扩展）
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelperFatalBoundaryTest.kt`（扩展）
+- `tools/check-invariants.py`（`WeakIdentityMap` 与 network-speed dispatcher 规则）
+- `tools/tests/test_status_bar_registration_invariants.py`（R3 反例覆盖）
+- `docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md`（行号/数量更新）
+
+Original behavior（R3 修复前）：
+
+- `StatusBarDisplayRegistry` 使用 `java.util.WeakHashMap` 作 pending bucket，`WeakHashMap` 按 `equals/hashCode` 比较 key，导致逻辑相同（`EqualOwner`）的不同 owner 实例共享同一份 pending `StatusBarDisplayState`。
+- 使用强 `mutableSetOf<StatusBarDisplayState>` 保存 pending states，没有明确的释放边界；`StatusBarDisplayState` 作为 `mutable data class` 放在 `HashSet` 中，字段变更后 `hashCode` 变化，无法 `remove`。
+- `StatusBarDisplayState` 的 `secondRow`/`generation` 是 `WeakReference`，但 `allStates()` 在后台线程被 network speed 回调读取，与 bind/prune 并发。
+- `SystemUIStatusBarHooks` 网络速度回调在后台线程遍历 `allStates()`，对非主线程的每个 `row` 调用 `row.post { ... }`，posted closure 捕获旧的 `row`/`owner`/`state`/`allStates` iterator。
+- 没有 `onDetachedFromWindow` 释放边界，status bar View 被 detach 后无法主动释放对应 display/pending state。
+- `ModuleHelper.getCPUThermalId` 在 `catch (t: Throwable)` 中直接吞掉 fatal；且一旦开始扫描就写 `thermalIdScanned = true`，若扫描中遇到 fatal 会留下 stale `-1`。
+
+Invariant（R3）：
+
+- pending owner 容器必须使用 identity（`===` / `System.identityHashCode`）比较，不能依赖 `equals/hashCode`；必须按 key 的 `identityHashCode` 处理冲突；引用队列清理；无永久后台线程。
+- `StatusBarDisplayState` 不再是 `data class` 且不再放入 `HashSet`；pending 容器必须弱引用 owner，state 被回收后仍能取出并运行 cleanup。
+- network speed 回调只运行在主线程；posted closure 只能捕获 immutable payload 与 sequence；必须丢弃乱序旧 payload；应用时在主线程重新读取 registry snapshot，并验证当前 row/owner 仍属于 state。
+- 必须安装 `MiuiPhoneStatusBarView.onDetachedFromWindow` 一次 guarded hook，detach 时切换到 SystemUI main thread 释放对应 owner 并 prune。
+- `ModuleHelper.getCPUThermalId` 必须先 `FatalErrors.unwrapAndRethrowIfFatal(t)`；fatal 异常在写入 `thermalId`/`thermalIdScanned` 之前重新抛出。
+
+Implementation：
+
+- `WeakIdentityMap`：使用 `WeakReference` key 与 `System.identityHashCode(referent)`，segmented 链表处理 identity hash 冲突，`ReferenceQueue` 清理，`expunge()` 取出 cleared key 对应 value；lookup 使用临时 `WeakKey` 不 strong hold owner；remove 按 identity 匹配；无后台线程。
+- `StatusBarDisplayRegistry`：`pendingByOwner = WeakIdentityMap()`；`byDisplay` 保持 strong display→state；`getOrCreatePending` 按 owner identity 隔离；`bind` 迁移 pending 并清理旧 generation；`detach` 按 identity 精确移除 owner 并 cleanup；`prune` 调用 `pendingByOwner.expunge()` 取出 dead pending states 并 `cleanupAll`；`allStatesSnapshot()` 返回不可变快照供主线程读取；新增 `onPendingChanged` 回调，外部可调度 prune runnable。
+- `StatusBarNetworkSpeedDispatcher`：纯 Kotlin 对象，无 Android View/Xposed 依赖；`dispatch(payload, seq, lastApplied, registry, applier)` 在调用线程丢弃 stale sequence、读取 `allStatesSnapshot`、调用 applier。
+- `SystemUIStatusBarHooks`：`netSpeedSecondRowHookCallback` 在后台线程仅构造 `NetworkSpeedPayload` 与 sequence，post 到 `netSpeedMainHandler`；main runnable 调用 `StatusBarNetworkSpeedDispatcher.dispatch` 并传入 `::applyNetworkSpeedToRow`；`applyNetworkSpeedToRow` 在主线程重新读取 `row`/`owner`，校验 `isAttachedToWindow`、state secondRow/generation 一致后再更新 View。新增 `statusBarViewDetachHookInstaller` / `installStatusBarViewLifecycleHook`，安装一次 `MiuiPhoneStatusBarView.onDetachedFromWindow`，detach 时 post 到 `statusBarMainHandler` 调用 `statusBarDisplayRegistry.detach(sbView)` 并 `prune`。`StatusBarDisplayRegistry` 通过 `onPendingChanged` 调度 `statusBarPendingPruneRunnable`（250ms delay）到主 looper，无永久后台线程。
+- `ModuleHelper.getCPUThermalId`：拆出 `scanForCpuThermalId(readType)` 与 `readThermalType`；公共 `getCPUThermalId()` 只在完整非 fatal scan 后写 `thermalId` 与 `thermalIdScanned`；`scanForCpuThermalId` 中 `catch (t: Throwable)` 先 `FatalErrors.unwrapAndRethrowIfFatal(t)` 再 `null`。
+- `tools/check-invariants.py`：`status-bar-display-registry-prune` 要求 `WeakIdentityMap`、禁止 `WeakHashMap`、要求 `detach`/`expunge`/`allStatesSnapshot`；`status-bar-registration-cleanup` 要求 `StatusBarNetworkSpeedDispatcher`、所有 `netSpeedMainHandler.post` block 不得捕获 stale row/owner/state/iterator，主 runnable 必须调用 `dispatch`。
+
+Commands / Exit codes：
+
+```text
+python tools/check-invariants.py                                                      -> 0 (205 files, no violations)
+python -m unittest discover -s tools/tests -p "test_*.py"                              -> 0 (307 tests)
+python tools/check_document_contracts.py                                              -> 0
+python tools/check_automation_state.py                                                -> 0
+python tools/progress_snapshot.py --write                                             -> 0
+python tools/verify.py fast                                                           -> 0
+.\gradlew.bat --no-daemon :app:testDebugUnitTest                                      -> 0 (736 tests, 0 failures)
+.\gradlew.bat --no-daemon :app:lintDebug :app:assembleDebug :app:assembleDevelop      -> 0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast   -> 0
+```
+
+Tests（新增/扩展）：
+
+- `WeakIdentityMapTest`：same instance shares state、equal but distinct owners isolated、identity hash collision disambiguated、remove by identity exact、replace refreshes、expunge returns cleared values、values snapshot only reachable values。
+- `StatusBarDisplayRegistryTest`：新增 equal-but-distinct pending owners、pending becomes bound count zero、modifying state fields does not break removal、detach bound owner releases state、delayed detach does not affect new generation、detach idempotent、pending count notifies scheduler、state object identity stable after field mutation。
+- `StatusBarNetworkSpeedDispatcherTest`：applies payload to current snapshot、stale sequence dropped、newer sequence replaces old and old payload ignored、snapshot does not concurrently modify。
+- `ModuleHelperFatalBoundaryTest`：新增 `scanForCpuThermalId` first match / no match、direct `ThreadDeath`/`OutOfMemoryError` 传播、wrapped `VirtualMachineError` 解包传播、ordinary errors ignored、`getCPUThermalId` memoizes no-match result。
+- `tools/tests/test_status_bar_registration_invariants.py`：新增 `WeakHashMap` 反例、`detach`/`expunge`/`allStatesSnapshot` 缺失反例、posted runnable 捕获 stale state/iterator 反例。
+
+CI：`Fast` 模式本地通过；等待 GitHub Actions A14 Fast CI 在推送后运行。
+
+Commit: 674ea6a7
+
+Progress snapshot commit: (state commit, see git log)
+
+Push: origin/devin/a14-rom-intelligence-audit 7c72e81..(state commit)
+
+Device evidence: `NOT_EXERCISED`（真机需验证：双 `EqualOwner` 实例在 pending 阶段获得不同 state；status bar detach 后 dark receiver / icon group 被释放；network speed 旧 payload 被丢弃且只应用最新值；多 display 切换时第二行按 display 更新；`getCPUThermalId` 在 fatal sysfs 错误时重新抛出且不写 memoized state）。
+
+Risks：
+
+- `WeakIdentityMap` 依赖 `System.identityHashCode` 与 `===`，所有 `getOrCreatePending`/`bind`/`detach` 调用点必须保证传入的是同一对象实例；不同但 `equals` 的 owner 不再共享 state，符合 R3 要求但调用方不能依赖旧 `WeakHashMap` 行为。
+- `StatusBarNetworkSpeedDispatcher.dispatch` 要求调用线程已经是 SystemUI main looper；`SystemUIStatusBarHooks` 通过 `netSpeedMainHandler.post` 保证。若 future hook 绕过 dispatcher 直接遍历 `allStatesSnapshot` 将违反 invariant。
+- `installStatusBarViewLifecycleHook` 使用 `HookInstallStateMachine` 保证一次安装，但依赖 `DualRowsStatusbarHook` 或 `StatusBarIconsPositionAdjustHook` 被启用；若两者都禁用，该进程内没有 status bar registry 使用，无需 detach hook。
+- `getCPUThermalId` 的 `scanForCpuThermalId` 注入仅用于测试；生产路径仍直接读取 `/sys/devices/virtual/thermal/thermal_zone*/type`，HyperOS 14 上路径存在；其他 ROM 若无此路径会返回 `-1` 并 memoize，属既有行为。
 
 ## P6.2 周期与监控
 
