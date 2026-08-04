@@ -642,7 +642,13 @@ Tests（新增/扩展）：
 - `RegistrationReleasesTest`：successful release、target null silently skipped、missing method recorded、release failure recorded、fatal propagates。
 - `tools/tests/test_status_bar_registration_invariants.py`：clean source passes + 8 counterexamples for M6/M7a/global state/delete cleanup/wrong args/etc.
 
-CI：`Fast` 通过；`lintDebug` / `Full` 尚未执行，需要在提交后由 GitHub Actions 确认。
+CI：`Fast CI` 通过（GitHub Actions run 30864033691）；`Full CI` 默认仅在 commit message 含 `[full-ci]` 时触发，本次未触发，等待下轮显式触发或定期调度。
+
+Commit: `f97661f2`（`fix(statusbar): harden per-display status bar registration lifecycle (A14-P6.1A-R1)`）
+
+Progress snapshot commit: `5f46030e`（`chore(progress): update A14_PROGRESS_CURRENT snapshot after P6.1A-R1`）
+
+Push: `origin/devin/a14-rom-intelligence-audit` 已推送至 `f97661f2` 和 `5f46030e`
 
 Device evidence: `NOT_EXERCISED`（真机需验证：多显示/折叠/DPI/主题切换后，各 display 状态栏自定义图标只存在当前代、dark 着色正确、netspeed 第二行按 display 更新、left icons 无重复 group）。
 
