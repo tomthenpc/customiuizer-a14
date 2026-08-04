@@ -658,6 +658,87 @@ Risks：
 - `releaseRegistrationSilently` 对 `XposedHelpers.InvocationTargetError` 解包后 fatal 仍传播，非 fatal 被记录但不会影响当前功能。
 - 多显示场景依赖 `View.display.displayId` / `Context.display.displayId`，与 SystemUI 实际 display 映射一致；若 ROM 在 `onFinishInflate` 时仍未绑定 display，会保留 pending 直到 attach。
 
+## P6.1A-R2 Status bar 生命周期再次加固
+
+State: `VERIFIED_BUILD`
+
+Task: `A14-P6.1A-R2`
+Priority: `P1`
+Files:
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrations.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/StatusBarDisplayRegistry.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt`
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/OwnedRegistrationsTest.kt`
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/StatusBarDisplayRegistryTest.kt`
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelperFatalBoundaryTest.kt`（新增）
+- `tools/check-invariants.py`
+- `tools/tests/test_a14_6g_invariants.py`
+- `tools/tests/test_status_bar_registration_invariants.py`
+- `docs/audit/A14_HOOK_OWNERSHIP_INVENTORY.md`
+- `docs/progress/A14_PROGRESS_CURRENT.json` / `.md`
+
+Original behavior（R2 修复前）：
+
+- `OwnedRegistrations` cleanup callback 类型仍带 `owner: V` 参数，owner 被 GC 后 callback 无法获取 owner 参数，`cleanupWhere`/`cleanupNow` 仍存在以 `owner != null` 为条件的 gate，导致 weak owner cleanup 未执行。
+- `StatusBarDisplayRegistry` pending bucket 仅依赖 `WeakHashMap` 的 value 可达性；owner 被 GC 后 `WeakHashMap` 在 `prune` 读取前已 expunge 条目，state 连同 `OwnedRegistrations` 一起被回收，cleanup 未运行。
+- `StatusBarDisplayRegistry.prune` 对 dead display 和 pending state 先清理、再移除，但移除逻辑不够明确；dead display 的 second row 未在清理时释放。
+- `SystemUIStatusBarHooks` 中网络速度回调 cleanup closure 仍捕获 `owner`（`{ owner -> ... }`），导致 `OwnedRegistrations` 的 entry 强持有 owner 无法被回收；posted runnable 只在 `applyNetworkSpeedToRow` 内部校验，未在 post 块内重新读取 row/owner/state。
+- `ModuleHelper` 中 `callMethodSilently`/`getObjectFieldSilently`/`getStaticObjectFieldSilently` 已用 `FatalErrors.unwrapAndRethrowIfFatal`，但 `findContext` 与 `openAppInfo` 仍存在 `catch(_: Throwable)` 吞 fatal。
+- `tools/check-invariants.py` 的 `status-bar-registration-cleanup` 仍可能误识别 `_ ->` cleanup closure 为通过，且未覆盖 `OwnedRegistrations`/`StatusBarDisplayRegistry` 结构、未覆盖 `row.post` 内 re-verify。
+
+Invariant（R2）：
+
+- `OwnedRegistrations.register` 的 cleanup 必须是无参 `() -> Unit`，不再在 cleanup 路径中读取 owner；`cleanupAll`/`cleanupWhere` 先 snapshot 再运行；callback 在运行前被消费（null），避免 fatal 导致重复执行；handle 返回 `RegistrationHandle.cleanupNow()` 为 exact-once。
+- `StatusBarDisplayRegistry` pending state 必须能被 `prune` 找到并主动释放；`bind` 替换同 display 旧 generation 时先 `cleanupAll`；`prune` 清理 dead display/pending 后再移除，且移除前 re-verify generation 与 registration list 为空。
+- 所有 `catch(Throwable)` 在 `ModuleHelper` 中必须先 `FatalErrors.unwrapAndRethrowIfFatal(t)`。
+- `SystemUIStatusBarHooks` cleanup closures 不得捕获 owner view；`row.post` 必须重新读取 `state.secondRow` 与 `state.generation` 并传给 `applyNetworkSpeedToRow`；`applyNetworkSpeedToRow` 必须校验 `isAttachedToWindow` / generation / second row。
+- 静态 invariant 必须能识别上述违规（无参 cleanup、no owner-capture、WeakHashMap + strong pending set、prune cleanup-before-remove、post re-read、ModuleHelper fatal boundary）。
+
+Implementation：
+
+- `OwnedRegistrations`：将 `register` 签名改为 `register(owner: V, cleanup: () -> Unit)`；`Handle.cleanupNow`/`runCleanupOnce` 不读取 owner，先消费 `entry.cleanup` 再调用；新增 `cleanupAll()`；`cleanupWhere` 使用 `toRemove` 快照。
+- `StatusBarDisplayRegistry`：新增 `pendingStates` 强引用集合保存 pending `StatusBarDisplayState`，确保 owner 被 GC 后 state 仍可达以便 `prune` 释放；`getOrCreatePending` 加入 `pendingStates`；`bind` 从 `pendingByOwner` 与 `pendingStates` 移除；`prune` 同时扫描 `byDisplay` 与 `pendingStates`，调用 `cleanupAll` 后 re-verify 再移除。
+- `ModuleHelper`：将 `findContext` 与 `openAppInfo` 的 `catch(_: Throwable)` 改为 `catch(t: Throwable)` 并先调用 `FatalErrors.unwrapAndRethrowIfFatal(t)`，非 fatal 再继续原有 fallback。
+- `SystemUIStatusBarHooks`：所有 `state.registrations.register(...)` 的 cleanup 改为无参 lambda；`netSpeedSecondRowHookCallback` 的 `row.post` 块内重新 `state.secondRow?.get()` / `state.generation?.get()` 并调用 `applyNetworkSpeedToRow`。
+- `tools/check-invariants.py`：新增 `check_owned_registrations_model`、`check_status_bar_display_registry_prune`，扩展 `check_status_bar_registration_cleanup` 覆盖 `state.secondRow = WeakReference(secondRight)`、`leftIconRegistrationHandle`、posted 与 `applyNetworkSpeedToRow` 双重 re-verify、owner-capture cleanup closure；`check_module_helper_fatal_boundaries` 拒绝 `catch(_: Throwable)`，要求命名变量并 fatal unwrap。
+- `tools/tests/test_status_bar_registration_invariants.py`：重写并扩展为 27 个测试（passing clean source、safe rewrites、11 counterexamples、owned model 5 tests、display registry 4 tests）。
+- `tools/tests/test_a14_6g_invariants.py`：更新 `test_module_helper_requires_oom_rethrow_before_generic_catch` 反映新的命名变量与 `FatalErrors` 要求。
+
+Commands / Exit codes：
+
+```text
+python tools/check-invariants.py                                                    -> 0 (203 files, no violations)
+python -m unittest discover -s tools/tests -p "test_*.py"                             -> 0 (Ran 304, OK)
+.\gradlew.bat :app:testDebugUnitTest                                                  -> 0 (710 tests, 0 failures/errors/skips)
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast    -> 0
+python tools/progress_snapshot.py --write                                             -> 0
+```
+
+Tests（新增/扩展）：
+
+- `OwnedRegistrationsTest`：新增 `cleanupWhereRunsCallbackAfterOwnerCollection`、`cleanupNowRunsCallbackAfterOwnerCollection`、`cleanupAllRunsCallbackAfterOwnerCollection`、handle 与 `cleanupAll` 不重复、`cleanupAllSnapshotDoesNotRunNewRegistrations`、`cleanupWhereReentryIsIsolated`、`cleanupAllFatalPropagates`、`cleanupAllIsExactOnce`。
+- `StatusBarDisplayRegistryTest`：新增 `pruneReleasesRegistrationsForDeadDisplay`、`pruneReleasesRegistrationsForDeadPendingOwner`、`pruneKeepsStateWhenCleanupAddsNewRegistration`、`activeGenerationIsNotPruned`、`activeSecondRowWithoutGenerationIsPruned`、`displayReuseDoesNotInheritOldRegistrations`、`pendingOwnersAreWeaklyHeld`、`pendingABIdentityIsolation`、`pendingMigratesRegistrationsToDisplayOnBind`。
+- `ModuleHelperFatalBoundaryTest`（新增）：验证 `callMethodSilently` 传播 `ThreadDeath`/`InternalError`/`OutOfMemoryError`，并验证 missing method/field 返回 `NOT_EXIST_SYMBOL`。
+- `tools/tests/test_status_bar_registration_invariants.py`：27 个测试覆盖 R2 反例。
+- `tools/tests/test_a14_6g_invariants.py`：ModuleHelper fatal boundary 测试更新。
+
+CI：`Fast` 模式本地通过；`Full` 模式需 `[full-ci]` 触发；等待下轮显式触发或定期调度。GitHub Actions Fast CI 将在 commit 后检查。
+
+Commit: c2904adbd01bb38fc4ea327f670d898e6644736b
+
+Progress snapshot commit: c2904adbd01bb38fc4ea327f670d898e6644736b
+
+Push: `origin/devin/a14-rom-intelligence-audit` (to be pushed with state commit)
+
+Device evidence: `NOT_EXERCISED`（真机需验证：弱 owner GC 后 dark receiver / icon group 被移除、多 display 切换无泄漏、折叠/DPI/主题切换后状态栏自定义图标只保留当前代、netspeed 第二行按 display 更新、left icons 无重复 group）。
+
+Risks：
+
+- `WeakHashMap` pending bucket 配合 `pendingStates` 强集合增加了少量对象存活时间，但保证 owner 被 GC 后 cleanup 仍可运行；`prune` 调用时机需由 SystemUI hook 触发（如 `onDetachedFromWindow` / `onDestroy`）或由调用方在 bind 前调用。
+- 无参 cleanup lambda 要求所有调用点不捕获 owner；`tools/check-invariants.py` 已增加静态 owner-capture 检测，但仍需 review 未来新增调用点。
+- `ModuleHelper.openAppInfo` fallback 现在先 rethrow fatal 再记录；原行为在 fatal 时也会记录到 Xposed log，现在 fatal 直接抛出，符合 AGENTS.md 要求。
+
 ## P6.2 周期与监控
 
 State: `COMPLETE`
