@@ -146,6 +146,26 @@ class SystemServerFeaturesWiringTest {
     }
 
     @Test
+    fun statusBarHeightInsetsFeatureEnabled_forAllCustomValues() {
+        val feature = StatusBarHeightInsetsFeature(fakeSystemServerStartingParam())
+
+        assertEquals(StatusBarHeightInsetsFeatureId, feature.id)
+        assertEquals("system_statusbarheight", feature.preferenceKey)
+        assertEquals(FeatureTarget.SYSTEM_SERVER, feature.target)
+
+        val off = PrefMap()
+        assertFalse(feature.isEnabled(off))
+
+        assertTrue(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 12) }))
+        assertTrue(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 27) }))
+        assertTrue(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 28) }))
+        assertTrue(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 35) }))
+        assertTrue(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 38) }))
+        assertTrue(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 40) }))
+        assertFalse(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 11) }))
+    }
+
+    @Test
     fun noAccessDeviceLogsRequestFeatureHandlesNonHookSuffixMethod() {
         val feature = NoAccessDeviceLogsRequestFeature(fakeSystemServerStartingParam())
 

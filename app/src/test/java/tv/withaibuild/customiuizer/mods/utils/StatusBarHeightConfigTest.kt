@@ -49,6 +49,12 @@ class StatusBarHeightConfigTest {
     }
 
     @Test
+    fun isEnabled_27ExplicitlySet_true() {
+        val prefs = PrefMap().apply { put("system_statusbarheight", 27) }
+        assertTrue(StatusBarHeightConfig.isEnabled(prefs))
+    }
+
+    @Test
     fun isEnabled_missingValue_false() {
         assertFalse(StatusBarHeightConfig.isEnabled(PrefMap()))
     }
@@ -64,6 +70,12 @@ class StatusBarHeightConfigTest {
     }
 
     @Test
+    fun dpToPx_fuxiDensity_40dpIs110px() {
+        // 440 dpi / 160 * 40 = 110.0
+        assertEquals(110, StatusBarHeightConfig.dpToPx(40, fakeResources(440)))
+    }
+
+    @Test
     fun configure_defaultSentinel_disabledAndDefaultDp() {
         val prefs = PrefMap().apply { put("system_statusbarheight", 11) }
         StatusBarHeightConfig.configure(prefs, fakeResources(160))
@@ -74,7 +86,57 @@ class StatusBarHeightConfigTest {
     }
 
     @Test
-    fun configure_customValue_enabledAndCorrectPx() {
+    fun configure_12dp_enabledAndCorrectPx() {
+        val prefs = PrefMap().apply { put("system_statusbarheight", 12) }
+        StatusBarHeightConfig.configure(prefs, fakeResources(160))
+
+        assertTrue(StatusBarHeightConfig.enabled)
+        assertEquals(12, StatusBarHeightConfig.configuredDp)
+        assertEquals(12, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun configure_27dp_enabledAndCorrectPx() {
+        val prefs = PrefMap().apply { put("system_statusbarheight", 27) }
+        StatusBarHeightConfig.configure(prefs, fakeResources(160))
+
+        assertTrue(StatusBarHeightConfig.enabled)
+        assertEquals(27, StatusBarHeightConfig.configuredDp)
+        assertEquals(27, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun configure_28dp_enabledAndCorrectPx() {
+        val prefs = PrefMap().apply { put("system_statusbarheight", 28) }
+        StatusBarHeightConfig.configure(prefs, fakeResources(160))
+
+        assertTrue(StatusBarHeightConfig.enabled)
+        assertEquals(28, StatusBarHeightConfig.configuredDp)
+        assertEquals(28, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun configure_35dp_enabledAndCorrectPx() {
+        val prefs = PrefMap().apply { put("system_statusbarheight", 35) }
+        StatusBarHeightConfig.configure(prefs, fakeResources(160))
+
+        assertTrue(StatusBarHeightConfig.enabled)
+        assertEquals(35, StatusBarHeightConfig.configuredDp)
+        assertEquals(35, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun configure_38dp_enabledAndCorrectPx() {
+        val prefs = PrefMap().apply { put("system_statusbarheight", 38) }
+        StatusBarHeightConfig.configure(prefs, fakeResources(160))
+
+        assertTrue(StatusBarHeightConfig.enabled)
+        assertEquals(38, StatusBarHeightConfig.configuredDp)
+        assertEquals(38, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun configure_40dp_enabledAndCorrectPx() {
         val prefs = PrefMap().apply { put("system_statusbarheight", 40) }
         StatusBarHeightConfig.configure(prefs, fakeResources(480))
 

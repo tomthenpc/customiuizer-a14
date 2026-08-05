@@ -6,6 +6,7 @@ import android.view.WindowInsets
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
@@ -20,8 +21,11 @@ import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
  * Implementation rules:
  * - Only `ITYPE_STATUS_BAR` / `WindowInsets.Type.statusBars()` sources are touched.
  * - Left, top and right of the original frame are preserved.
- * - Only the bottom is adjusted to the configured px height.
- * - The original bottom is never reduced, preserving system cutout-safe logic.
+ * - The bottom is set to `originalTop + configuredHeightPx`. This makes the configured
+ *   value a true height, not an absolute bottom, while still respecting a non-zero top.
+ * - The original bottom is no longer used as a floor; the configured height is the
+ *   authoritative status bar height. Display cutout safety is a separate `displayCutout`
+ *   InsetsSource and is not modified here.
  * - Other Insets source types (navigation, caption, IME, cutout, ...) pass through.
  * - Reflection is done once on the cold install path; the hot path reads cached values.
  */
@@ -31,32 +35,45 @@ object SystemStatusBarInsetsHooks {
     private const val SET_FRAME_METHOD = "setFrame"
     private const val GET_TYPE_METHOD = "getType"
     private const val GET_FRAME_METHOD = "getFrame"
+    private const val GET_ID_METHOD = "getId"
 
-    /** Cached status bar type masks; detected on the cold path. */
     private var statusBarPublicType: Int = -1
     private var statusBarInternalType: Int = -1
+    private var setFrameOneArg: Boolean = false
+    private var setFrameFourArg: Boolean = false
     private var hookInstalled: Boolean = false
+
+    /** Bounded set of (source id hash) identities whose first hit has already been logged. */
+    private val loggedFirstHit = mutableSetOf<Int>()
 
     @JvmStatic
     fun StatusBarInsetsHeightHook(lpparam: SystemServerStartingParam) {
         if (hookInstalled) return
 
-        val classLoader = lpparam.classLoader ?: return
+        val classLoader = lpparam.classLoader ?: run {
+            logInstall("no classLoader")
+            return
+        }
+
         val insetsSourceClass = XposedHelpers.findClassIfExists(INSETS_SOURCE_CLASS, classLoader)
         if (insetsSourceClass == null) {
-            logUnsupported("InsetsSource class not found: $INSETS_SOURCE_CLASS")
+            logInstall("InsetsSource class not found")
             return
         }
 
         val setFrameMethods = try {
             insetsSourceClass.getDeclaredMethods().filter { it.name == SET_FRAME_METHOD }
         } catch (t: Throwable) {
-            logUnsupported("InsetsSource.setFrame methods not accessible")
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            logInstall("setFrame methods not accessible: ${t.javaClass.simpleName}")
             return
         }
 
-        if (setFrameMethods.none { it.parameterTypes.contentEquals(arrayOf(Rect::class.java)) || it.parameterTypes.contentEquals(arrayOf(Int::class.java, Int::class.java, Int::class.java, Int::class.java)) }) {
-            logUnsupported("InsetsSource.setFrame(Rect) or setFrame(int,int,int,int) not found")
+        setFrameOneArg = setFrameMethods.any { it.parameterTypes.contentEquals(arrayOf(Rect::class.java)) }
+        setFrameFourArg = setFrameMethods.any { it.parameterTypes.contentEquals(arrayOf(Int::class.java, Int::class.java, Int::class.java, Int::class.java)) }
+
+        if (!setFrameOneArg && !setFrameFourArg) {
+            logInstall("setFrame(Rect) and setFrame(int,int,int,int) both missing")
             return
         }
 
@@ -64,32 +81,45 @@ object SystemStatusBarInsetsHooks {
         statusBarInternalType = resolveStatusBarsInternalType(classLoader)
 
         if (statusBarPublicType == -1 && statusBarInternalType == -1) {
-            logUnsupported("Cannot resolve status bar Insets type")
+            logInstall("status bar Insets type not resolvable")
             return
         }
 
         val resources = try {
             Resources.getSystem()
         } catch (t: Throwable) {
-            logUnsupported("Resources.getSystem() failed: ${t.javaClass.simpleName}")
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            logInstall("Resources.getSystem() failed: ${t.javaClass.simpleName}")
             return
         }
 
         StatusBarHeightConfig.configure(MainModule.mPrefs, resources)
 
-        val callback = SetFrameCallback(
-            statusBarPublicType = statusBarPublicType,
-            statusBarInternalType = statusBarInternalType,
+        logInstall(
+            "enabled=${StatusBarHeightConfig.enabled} " +
+                "rawDp=${StatusBarHeightConfig.configuredDp} " +
+                "configuredPx=${StatusBarHeightConfig.configuredPx} " +
+                "density=${resources.displayMetrics.density} " +
+                "densityDpi=${resources.displayMetrics.densityDpi} " +
+                "publicType=${statusBarPublicType} " +
+                "internalType=${statusBarInternalType} " +
+                "setFrame1=$setFrameOneArg setFrame4=$setFrameFourArg"
         )
 
+        val callback = SetFrameCallback()
         ModuleHelper.hookAllMethods(insetsSourceClass, SET_FRAME_METHOD, callback)
         hookInstalled = true
+    }
+
+    private fun logInstall(message: String) {
+        XposedHelpers.log("[StatusBarInsets] install $message")
     }
 
     private fun resolveStatusBarsPublicType(): Int {
         return try {
             WindowInsets.Type.statusBars()
         } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             -1
         }
     }
@@ -100,40 +130,37 @@ object SystemStatusBarInsetsHooks {
                 ?: return 0 // AOSP ITYPE_STATUS_BAR is 0
             XposedHelpers.getStaticIntField(insetsStateClass, "ITYPE_STATUS_BAR")
         } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             0
         }
     }
 
-    private fun logUnsupported(message: String) {
-        XposedHelpers.log("[StatusBarInsets] unsupported target: $message")
-    }
-
     /**
-     * Pure geometry logic: given the original frame bottom and the configured height,
+     * Pure geometry logic: given the original frame and the configured height in pixels,
      * return the new bottom.
      *
-     * The original bottom is treated as a floor. This preserves the system's existing
-     * cutout-safe logic: if the ROM has already enlarged the source to clear a cutout,
-     * we never shrink below that.
+     * The configured value is a height, so the new bottom is `originalTop + configuredPx`.
+     * This allows the user to shrink the status bar below the original bottom, which is
+     * required on devices (e.g. fuxi) where the original bottom already includes the
+     * display cutout safe top and is therefore too large a floor.
+     *
+     * A non-zero `originalTop` is respected (e.g. secondary displays or rotation).
      */
     @JvmStatic
-    fun computeStatusBarFrameBottom(originalBottom: Int, configuredPx: Int, enabled: Boolean): Int {
+    fun computeStatusBarFrameBottom(originalTop: Int, originalBottom: Int, configuredPx: Int, enabled: Boolean): Int {
         if (!enabled || configuredPx <= 0) return originalBottom
-        return if (originalBottom >= configuredPx) originalBottom else configuredPx
+        return originalTop + configuredPx
     }
 
     /**
-     * Convenience overload that reads [StatusBarHeightConfig.enabled].
+     * Convenience overload that reads [StatusBarHeightConfig.enabled] and [StatusBarHeightConfig.configuredPx].
      */
     @JvmStatic
-    fun computeStatusBarFrameBottom(originalBottom: Int, configuredPx: Int): Int {
-        return computeStatusBarFrameBottom(originalBottom, configuredPx, StatusBarHeightConfig.enabled)
+    fun computeStatusBarFrameBottom(originalTop: Int, originalBottom: Int): Int {
+        return computeStatusBarFrameBottom(originalTop, originalBottom, StatusBarHeightConfig.configuredPx, StatusBarHeightConfig.enabled)
     }
 
-    private class SetFrameCallback(
-        private val statusBarPublicType: Int,
-        private val statusBarInternalType: Int,
-    ) : MethodHook() {
+    private class SetFrameCallback : MethodHook() {
 
         override fun intercept(chain: XposedInterface.Chain): Any? {
             val source = chain.thisObject ?: return chain.proceed()
@@ -141,7 +168,7 @@ object SystemStatusBarInsetsHooks {
             val type = try {
                 XposedHelpers.callMethod(source, GET_TYPE_METHOD) as? Int ?: return chain.proceed()
             } catch (t: Throwable) {
-                if (t is OutOfMemoryError) throw t
+                FatalErrors.unwrapAndRethrowIfFatal(t)
                 return chain.proceed()
             }
 
@@ -151,6 +178,7 @@ object SystemStatusBarInsetsHooks {
 
             val configuredPx = StatusBarHeightConfig.configuredPx
             if (configuredPx <= 0 || !StatusBarHeightConfig.enabled) {
+                maybeLogFirstHit(source, type, configuredPx, false, "disabled")
                 return chain.proceed()
             }
 
@@ -158,26 +186,36 @@ object SystemStatusBarInsetsHooks {
                 val firstArg = chain.getArg(0)
                 when {
                     firstArg is Rect -> {
-                        firstArg.bottom = computeStatusBarFrameBottom(firstArg.bottom, configuredPx)
+                        val newBottom = computeStatusBarFrameBottom(firstArg.top, firstArg.bottom)
+                        val changed = newBottom != firstArg.bottom
+                        firstArg.bottom = newBottom
+                        maybeLogFirstHit(source, type, configuredPx, changed, "setFrame(Rect)")
                         chain.proceed()
                     }
                     firstArg is Int -> {
                         val top = chain.getArg(1) as? Int ?: return chain.proceed()
                         val right = chain.getArg(2) as? Int ?: return chain.proceed()
                         val bottom = chain.getArg(3) as? Int ?: return chain.proceed()
-                        chain.proceed(
-                            arrayOf(
-                                firstArg,
-                                top,
-                                right,
-                                computeStatusBarFrameBottom(bottom, configuredPx),
+                        val newBottom = computeStatusBarFrameBottom(top, bottom)
+                        val changed = newBottom != bottom
+                        maybeLogFirstHit(source, type, configuredPx, changed, "setFrame(int,int,int,int)")
+                        if (changed) {
+                            chain.proceed(
+                                arrayOf(
+                                    firstArg,
+                                    top,
+                                    right,
+                                    newBottom,
+                                )
                             )
-                        )
+                        } else {
+                            chain.proceed()
+                        }
                     }
                     else -> chain.proceed()
                 }
             } catch (t: Throwable) {
-                if (t is OutOfMemoryError) throw t
+                FatalErrors.unwrapAndRethrowIfFatal(t)
                 XposedHelpers.log(t)
                 chain.proceed()
             }
@@ -185,11 +223,7 @@ object SystemStatusBarInsetsHooks {
 
         private fun isStatusBarSource(type: Int, source: Any?): Boolean {
             return when {
-                // Internal InsetsState encoding (ITYPE_STATUS_BAR == 0 on AOSP 14).
                 type == statusBarInternalType -> true
-                // Public WindowInsets.Type encoding (statusBars() == 1 on AOSP 14).
-                // Verify top-anchored to avoid misclassifying navigation when a ROM
-                // uses the internal index for navigation (which is also 1).
                 statusBarPublicType != -1 && type == statusBarPublicType -> isTopAnchored(source)
                 else -> false
             }
@@ -200,9 +234,49 @@ object SystemStatusBarInsetsHooks {
                 val frame = XposedHelpers.callMethod(source, GET_FRAME_METHOD) as? Rect
                 frame != null && frame.top == 0
             } catch (t: Throwable) {
-                if (t is OutOfMemoryError) throw t
+                FatalErrors.unwrapAndRethrowIfFatal(t)
                 false
             }
+        }
+
+        private fun maybeLogFirstHit(source: Any, type: Int, configuredPx: Int, changed: Boolean, overload: String) {
+            val identity = try {
+                val id = XposedHelpers.callMethod(source, GET_ID_METHOD) as? Int ?: 0
+                java.lang.System.identityHashCode(source) xor id
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                java.lang.System.identityHashCode(source)
+            }
+
+            synchronized(loggedFirstHit) {
+                if (!loggedFirstHit.add(identity)) return
+            }
+
+            val frame = try {
+                XposedHelpers.callMethod(source, GET_FRAME_METHOD) as? Rect
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                null
+            }
+
+            val oldBottom = frame?.bottom ?: -1
+            val newBottom = if (StatusBarHeightConfig.enabled && configuredPx > 0 && frame != null) {
+                computeStatusBarFrameBottom(frame.top, frame.bottom)
+            } else {
+                oldBottom
+            }
+
+            XposedHelpers.log(
+                "[StatusBarInsets] source-hit " +
+                    "type=$type " +
+                    "overload=$overload " +
+                    "oldFrame=$frame " +
+                    "newBottom=$newBottom " +
+                    "configuredDp=${StatusBarHeightConfig.configuredDp} " +
+                    "configuredPx=$configuredPx " +
+                    "changed=$changed" +
+                    if (changed) "" else " reason=${if (StatusBarHeightConfig.enabled) "no-change" else "disabled"}"
+            )
         }
     }
 }

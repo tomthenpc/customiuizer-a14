@@ -9,6 +9,13 @@ import tv.withaibuild.customiuizer.utils.PrefMap
  * The values are read once on the cold installation path and then published as plain
  * primitives so the hot InsetsSource path only reads fields, never the preference map,
  * never re-reflects and never re-computes dp->px.
+ *
+ * Enabled semantics:
+ * - `system_statusbarheight == 11` (DEFAULT_SENTINEL) → disabled, behaves like stock.
+ * - any other value → enabled, `configuredDp` equals the raw value (12, 27, 28, ...).
+ *
+ * Note: 27 is the default visual height, but a user that explicitly sets 27 is still
+ * "enabled" and should have their 27dp respected.
  */
 object StatusBarHeightConfig {
 
@@ -42,7 +49,8 @@ object StatusBarHeightConfig {
     }
 
     /**
-     * Pure preference to dp resolution. Sentinel 11 maps to the framework default 27dp.
+     * Pure preference to dp resolution. Sentinel 11 maps to the framework default 27dp
+     * so callers always get a usable height; use [isEnabled] to distinguish stock mode.
      */
     @JvmStatic
     fun resolveHeightDp(prefs: PrefMap): Int {
@@ -52,9 +60,16 @@ object StatusBarHeightConfig {
 
     /**
      * Returns true when the user has set a custom value (anything above the sentinel).
+     *
+     * The raw preference is the single source of truth; this avoids the bug where
+     * 12–27dp was resolved correctly but then treated as disabled by
+     * `configuredDp > DEFAULT_DP`.
      */
     @JvmStatic
-    fun isEnabled(prefs: PrefMap): Boolean = prefs.getInt(PREF_KEY, DEFAULT_SENTINEL) > DEFAULT_SENTINEL
+    fun isEnabled(prefs: PrefMap): Boolean {
+        val raw = prefs.getInt(PREF_KEY, DEFAULT_SENTINEL)
+        return raw > DEFAULT_SENTINEL
+    }
 
     /**
      * Configure this process's cache from preferences and the supplied Resources.
@@ -64,8 +79,9 @@ object StatusBarHeightConfig {
      */
     @JvmStatic
     fun configure(prefs: PrefMap, resources: Resources) {
-        val dp = resolveHeightDp(prefs)
-        enabled = dp > DEFAULT_DP
+        val raw = prefs.getInt(PREF_KEY, DEFAULT_SENTINEL)
+        val dp = if (raw == DEFAULT_SENTINEL) DEFAULT_DP else raw
+        enabled = raw > DEFAULT_SENTINEL
         configuredDp = dp
         configuredPx = dpToPx(dp, resources)
     }
