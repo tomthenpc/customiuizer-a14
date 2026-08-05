@@ -201,10 +201,36 @@ class StatusBarHeightConfigTest {
         )
         val before = StatusBarHeightConfig.generation.get()
 
-        StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
+        val change = StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
 
-        assertEquals(before + 1, StatusBarHeightConfig.generation.get())
+        assertEquals(before, StatusBarHeightConfig.generation.get())
+        assertFalse(change.changed)
+        assertEquals(44, change.previous.configuredDp)
+        assertEquals(44, change.current.configuredDp)
+        assertEquals(129, change.previous.configuredPx)
+        assertEquals(129, change.current.configuredPx)
         assertEquals(129, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun recomputePx_density440to469_44dpBecomes129AndBumpsOnce() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(440),
+        )
+        assertEquals(121, StatusBarHeightConfig.configuredPx)
+        val before = StatusBarHeightConfig.generation.get()
+
+        val metrics = DisplayMetrics().apply { densityDpi = 469; density = 2.93125f }
+        StatusBarHeightConfig.recomputePx(metrics)
+
+        assertEquals(129, StatusBarHeightConfig.configuredPx)
+        assertEquals(before + 1, StatusBarHeightConfig.generation.get())
+
+        // Recompute with the same density must not bump again.
+        StatusBarHeightConfig.recomputePx(metrics)
+        assertEquals(129, StatusBarHeightConfig.configuredPx)
+        assertEquals(before + 1, StatusBarHeightConfig.generation.get())
     }
 
     @Test

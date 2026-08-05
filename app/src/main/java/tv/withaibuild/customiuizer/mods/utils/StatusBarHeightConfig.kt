@@ -24,6 +24,11 @@ import java.util.concurrent.atomic.AtomicLong
  * - The authoritative display may have a different logical density (e.g. per-display
  *   scaling on HyperOS). The hot path uses `configuredPx` which is computed from the
  *   display density that the status bar window is actually rendered with.
+ *
+ * Generation:
+ * - Bumped only when the effective state (preference, enabled, configuredDp,
+ *   configuredPx, or the density that drives them) changes.
+ * - Identical preference and identical density do not increase the generation.
  */
 object StatusBarHeightConfig {
 
@@ -55,12 +60,32 @@ object StatusBarHeightConfig {
     var density = -1.0f
         private set
 
-    /** Monotonically increasing generation, bumped on every reconfigure. */
+    /** Monotonically increasing generation, bumped only on effective changes. */
     val generation = AtomicLong(0L)
 
-    /**
-     * Pure dp to px conversion for the supplied [Resources].
-     */
+    /** Snapshot of the current configuration state. */
+    data class State(
+        val rawPreferenceDp: Int,
+        val enabled: Boolean,
+        val configuredDp: Int,
+        val configuredPx: Int,
+        val densityDpi: Int,
+        val density: Float,
+    )
+
+    /** Result of a reconfiguration attempt. */
+    data class ReconfigureResult(
+        val changed: Boolean,
+        val previous: State,
+        val current: State,
+    )
+
+    /** Current state snapshot. */
+    @JvmStatic
+    fun currentState(): State {
+        return State(rawPreferenceDp, enabled, configuredDp, configuredPx, densityDpi, density)
+    }
+
     /**
      * Pure dp to px conversion for the supplied [Resources].
      *
@@ -68,8 +93,7 @@ object StatusBarHeightConfig {
      */
     @JvmStatic
     fun dpToPx(dp: Int, resources: Resources?): Int {
-        val densityDpiValue = resources?.displayMetrics?.densityDpi ?: 160
-        return Math.round(dp * densityDpiValue / 160f)
+        return dpToPx(dp, resources?.displayMetrics?.densityDpi ?: 160)
     }
 
     /**
@@ -79,8 +103,17 @@ object StatusBarHeightConfig {
      */
     @JvmStatic
     fun dpToPx(dp: Int, metrics: DisplayMetrics?): Int {
-        val densityDpiValue = metrics?.densityDpi ?: 160
-        return Math.round(dp * densityDpiValue / 160f)
+        return dpToPx(dp, metrics?.densityDpi ?: 160)
+    }
+
+    /**
+     * Pure dp to px conversion for the supplied density.
+     *
+     * Uses rounding to match `TypedValue.complexToDimensionPixelSize`.
+     */
+    @JvmStatic
+    fun dpToPx(dp: Int, densityDpi: Int): Int {
+        return Math.round(dp * densityDpi / 160f)
     }
 
     /**
@@ -90,7 +123,7 @@ object StatusBarHeightConfig {
      */
     @JvmStatic
     fun dpToPx(dp: Int): Int {
-        return Math.round(dp * densityDpi / 160f)
+        return dpToPx(dp, densityDpi)
     }
 
     /**
@@ -130,31 +163,41 @@ object StatusBarHeightConfig {
 
         val effectiveMetrics = metrics ?: resources?.displayMetrics
         val effectiveDensityDpi = effectiveMetrics?.densityDpi ?: 160
-        val effectiveDensity = effectiveMetrics?.density ?: (effectiveDensityDpi / 160f)
+        val effectiveDensity = effectiveMetrics?.density
+            .takeIf { it != null && it > 0 } ?: (effectiveDensityDpi / 160f)
 
-        rawPreferenceDp = raw
-        enabled = raw > DEFAULT_SENTINEL
-        configuredDp = dp
-        densityDpi = effectiveDensityDpi
-        density = effectiveDensity
-        configuredPx = dpToPx(dp)
-        generation.incrementAndGet()
+        val newState = State(
+            rawPreferenceDp = raw,
+            enabled = raw > DEFAULT_SENTINEL,
+            configuredDp = dp,
+            configuredPx = dpToPx(dp, effectiveDensityDpi),
+            densityDpi = effectiveDensityDpi,
+            density = effectiveDensity,
+        )
+        synchronized(this) { applyStateUnderLock(newState) }
     }
 
     /**
-     * Reconfigure from preferences using the current cached metrics.
+     * Reconfigure from preferences using the current cached density.
      * Called on the preference-change observer after the hook is already installed.
+     *
+     * Returns a [ReconfigureResult] describing whether the effective state changed.
      */
     @JvmStatic
-    fun reconfigure(prefs: PrefMap) {
+    fun reconfigure(prefs: PrefMap): ReconfigureResult {
         val raw = prefs.getInt(PREF_KEY, DEFAULT_SENTINEL)
         val dp = if (raw == DEFAULT_SENTINEL) DEFAULT_DP else raw
 
-        rawPreferenceDp = raw
-        enabled = raw > DEFAULT_SENTINEL
-        configuredDp = dp
-        configuredPx = dpToPx(dp)
-        generation.incrementAndGet()
+        synchronized(this) {
+            val previous = currentState()
+            val newState = previous.copy(
+                rawPreferenceDp = raw,
+                enabled = raw > DEFAULT_SENTINEL,
+                configuredDp = dp,
+                configuredPx = dpToPx(dp, previous.densityDpi),
+            )
+            return applyStateUnderLock(newState)
+        }
     }
 
     /**
@@ -164,10 +207,21 @@ object StatusBarHeightConfig {
      */
     @JvmStatic
     fun recomputePx(metrics: DisplayMetrics) {
-        densityDpi = metrics.densityDpi
-        density = metrics.density
-        if (enabled) {
-            configuredPx = dpToPx(configuredDp)
+        val effectiveDensity = metrics.density.takeIf { it > 0 } ?: (metrics.densityDpi / 160f)
+
+        synchronized(this) {
+            val previous = currentState()
+            val newPx = if (previous.enabled) {
+                dpToPx(previous.configuredDp, metrics.densityDpi)
+            } else {
+                previous.configuredPx
+            }
+            val newState = previous.copy(
+                configuredPx = newPx,
+                densityDpi = metrics.densityDpi,
+                density = effectiveDensity,
+            )
+            applyStateUnderLock(newState)
         }
     }
 
@@ -188,16 +242,39 @@ object StatusBarHeightConfig {
     }
 
     /**
+     * Apply [newState] if it differs from the current state and bump the generation.
+     * Callers must hold the monitor of this object.
+     */
+    private fun applyStateUnderLock(newState: State): ReconfigureResult {
+        val previous = currentState()
+        if (newState == previous) {
+            return ReconfigureResult(false, previous, newState)
+        }
+
+        rawPreferenceDp = newState.rawPreferenceDp
+        enabled = newState.enabled
+        configuredDp = newState.configuredDp
+        configuredPx = newState.configuredPx
+        densityDpi = newState.densityDpi
+        density = newState.density
+        generation.incrementAndGet()
+
+        return ReconfigureResult(true, previous, newState)
+    }
+
+    /**
      * Reset for tests. Not used in production.
      */
     @JvmStatic
     internal fun resetForTest() {
-        enabled = false
-        rawPreferenceDp = DEFAULT_SENTINEL
-        configuredDp = DEFAULT_DP
-        configuredPx = -1
-        densityDpi = -1
-        density = -1.0f
-        generation.set(0L)
+        synchronized(this) {
+            enabled = false
+            rawPreferenceDp = DEFAULT_SENTINEL
+            configuredDp = DEFAULT_DP
+            configuredPx = -1
+            densityDpi = -1
+            density = -1.0f
+            generation.set(0L)
+        }
     }
 }

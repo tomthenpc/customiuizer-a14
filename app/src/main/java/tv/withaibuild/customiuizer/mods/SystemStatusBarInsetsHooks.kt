@@ -2,9 +2,9 @@ package tv.withaibuild.customiuizer.mods
 
 import android.content.res.Resources
 import android.graphics.Rect
+import android.os.Handler
 import android.util.DisplayMetrics
 import android.view.WindowInsets
-import android.view.WindowManager
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
 import tv.withaibuild.customiuizer.MainModule
@@ -14,26 +14,36 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.lang.ref.WeakReference
+import java.lang.reflect.Field
+import java.lang.reflect.Method
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * system_server Insets boundary for status bar height.
  *
- * Hooks `android.view.InsetsSource.setFrame` so the status bar [InsetsSource] frame
- * reflects the same height as the framework resources and the SystemUI view.
+ * Two responsibilities:
+ * 1. Adjust the `statusBars` [InsetsSource] frame so apps and SystemUI see the configured
+ *    status bar height as an Insets top value.
+ * 2. Drive the status bar [WindowState] to the same height without modifying the display
+ *    frame, parent frame, relative frame or compatibility frame.
  *
- * Implementation rules:
- * - Type encoding is frozen at install time: either modern public
- *   (`WindowInsets.Type.statusBars()`) or legacy internal (`InsetsState.ITYPE_STATUS_BAR`).
- * - Left, top and right of the original frame are preserved.
- * - The bottom is set to `originalTop + configuredHeightPx`. This makes the configured
- *   value a true height, not an absolute bottom, while still respecting a non-zero top.
- * - The original bottom is no longer used as a floor; the configured height is the
- *   authoritative status bar height. Display cutout safety is a separate `displayCutout`
- *   InsetsSource and is not modified here.
- * - Other Insets source types (navigation, caption, IME, cutout, ...) pass through.
- * - `chain.proceed()` is called exactly once per intercepted call; the decision is
- *   computed in a framework-light, non-throwing prelude and then executed outside any
- *   catch that could fall back to a second proceed.
+ * WindowManager responsibilities:
+ * - In `DisplayPolicy.layoutWindowLw` the status bar `WindowState.mAttrs.height` is set to
+ *   the configured pixel height before the original method runs. The original WMS then calls
+ *   `WindowLayout.computeFrames` and `WindowState.setFrames(ClientWindowFrames, ...)` once.
+ * - `WindowState.setFrames` is hooked only as a narrow fallback: if the ROM's layout did not
+ *   honor `mAttrs.height`, the `ClientWindowFrames.frame.bottom` is rewritten to
+ *   `frame.top + configuredPx` before the original `setFrames` is called. No other frame is
+ *   modified and `chain.proceed()` is called exactly once.
+ * - `WindowState.computeFrame` is not hooked.
+ *
+ * Preference changes do not call `performSurfacePlacement` directly. They publish a new
+ * configuration and request a single `WindowSurfacePlacer.requestTraversal()` on the WMS
+ * animation handler, which coalesces duplicate requests.
+ *
+ * Diagnostics are generation-keyed and bounded: `preference-change:<gen>`,
+ * `layout:<displayId>:<gen>`, `frame:<displayId>:<gen>`, `insets:<sourceId>:<gen>`,
+ * `refresh:<gen>`.
  */
 object SystemStatusBarInsetsHooks {
 
@@ -51,14 +61,28 @@ object SystemStatusBarInsetsHooks {
     private const val DISPLAY_POLICY_CLASS = "com.android.server.wm.DisplayPolicy"
     private const val LAYOUT_WINDOW_LW_METHOD = "layoutWindowLw"
     private const val SET_FRAMES_METHOD = "setFrames"
-    private const val COMPUTE_FRAME_METHOD = "computeFrame"
     private const val STATUS_BAR_WINDOW_TAG = "StatusBar"
     private const val STATUS_BAR_HEIGHT_LIVE_TAG = "[StatusBarHeightLive]"
 
     private var typeInfo: InsetsTypeInfo? = null
-    private var insetsSourceHookInstalled: Boolean = false
-    private var windowStateHookInstalled: Boolean = false
     private var hookInstalled: Boolean = false
+
+    /** Weak reference to the most recently laid-out status bar WindowState for refresh. */
+    private var statusBarWindowRef: WeakReference<Any>? = null
+
+    /** Last generation for which a refresh was requested, to coalesce duplicates. */
+    private val lastRefreshGeneration = AtomicLong(-1L)
+
+    /** Resolved `ClientWindowFrames` class and fields; null if the ABI could not be resolved. */
+    private var clientWindowFramesClass: Class<*>? = null
+    private var clientWindowFramesFrameField: Field? = null
+    private var clientWindowFramesDisplayFrameField: Field? = null
+    private var clientWindowFramesParentFrameField: Field? = null
+
+    /** Cached `WindowState.getFrame()`/`getDisplayMetrics()`/`getDisplayId()` methods. */
+    private var windowStateGetFrameMethod: Method? = null
+    private var windowStateGetDisplayMetricsMethod: Method? = null
+    private var windowStateGetDisplayIdMethod: Method? = null
 
     /** Bounded set of critical diagnostic keys whose first hit has already been logged. */
     private val loggedCritical = LinkedHashSet<String>()
@@ -66,10 +90,21 @@ object SystemStatusBarInsetsHooks {
     /** Bounded set of aggregated rejection keys whose first hit has already been logged. */
     private val loggedRejection = LinkedHashSet<String>()
 
+    /** Bounded log keys for [STATUS_BAR_HEIGHT_LIVE_TAG] lifecycle events. */
+    private val loggedLiveKeys = LinkedHashSet<String>()
+
     @JvmStatic
     internal fun resetDiagnosticsForTest() {
         synchronized(loggedCritical) { loggedCritical.clear() }
         synchronized(loggedRejection) { loggedRejection.clear() }
+        synchronized(loggedLiveKeys) { loggedLiveKeys.clear() }
+    }
+
+    @JvmStatic
+    internal fun resetForTest() {
+        resetDiagnosticsForTest()
+        statusBarWindowRef = null
+        lastRefreshGeneration.set(-1L)
     }
 
     @JvmStatic
@@ -80,6 +115,11 @@ object SystemStatusBarInsetsHooks {
     @JvmStatic
     internal fun rejectionKeyCountForTest(): Int {
         synchronized(loggedRejection) { return loggedRejection.size }
+    }
+
+    @JvmStatic
+    internal fun liveKeyCountForTest(): Int {
+        synchronized(loggedLiveKeys) { return loggedLiveKeys.size }
     }
 
     @JvmStatic
@@ -134,13 +174,14 @@ object SystemStatusBarInsetsHooks {
 
         StatusBarHeightConfig.configure(MainModule.mPrefs, resources)
 
+        val state = StatusBarHeightConfig.currentState()
         logInstall(
-            "enabled=${StatusBarHeightConfig.enabled} " +
-                "rawDp=${StatusBarHeightConfig.rawPreferenceDp} " +
-                "resolvedDp=${StatusBarHeightConfig.configuredDp} " +
-                "configuredPx=${StatusBarHeightConfig.configuredPx} " +
-                "density=${resources.displayMetrics.density} " +
-                "densityDpi=${resources.displayMetrics.densityDpi} " +
+            "enabled=${state.enabled} " +
+                "rawDp=${state.rawPreferenceDp} " +
+                "resolvedDp=${state.configuredDp} " +
+                "configuredPx=${state.configuredPx} " +
+                "density=${state.density} " +
+                "densityDpi=${state.densityDpi} " +
                 "encoding=${resolvedTypeInfo.encoding} " +
                 "statusType=${resolvedTypeInfo.statusBarType} " +
                 "navType=${resolvedTypeInfo.navigationType} " +
@@ -152,8 +193,8 @@ object SystemStatusBarInsetsHooks {
 
         val callback = SetFrameCallback(resolvedTypeInfo, hasGetId, hasGetFrame)
         ModuleHelper.hookAllMethods(insetsSourceClass, SET_FRAME_METHOD, callback)
-        insetsSourceHookInstalled = true
 
+        resolveWindowManagerAbi(classLoader)
         installDisplayPolicyHook(classLoader)
         installWindowStateHook(classLoader)
 
@@ -172,34 +213,29 @@ object SystemStatusBarInsetsHooks {
     /** `WindowManager.LayoutParams.TYPE_STATUS_BAR` = 2000. */
     private const val TYPE_STATUS_BAR = 2000
 
-    /** Weak reference to the most recently laid-out status bar WindowState for refresh. */
-    private var statusBarWindowRef: WeakReference<Any>? = null
-
-    /** Bounded log keys for [StatusBarHeightLive] lifecycle events. */
-    private val loggedLiveKeys = LinkedHashSet<String>()
-
     /** The display-aware preference observer installed in system_server. */
     private val statusBarHeightObserver = object : ModuleHelper.PreferenceObserver {
         override fun onChange(key: String?) {
             if (key != null && key != StatusBarHeightConfig.PREF_KEY) return
             try {
                 val oldGen = StatusBarHeightConfig.generation.get()
-                val oldPx = StatusBarHeightConfig.configuredPx
-                StatusBarHeightConfig.reconfigure(MainModule.mPrefs)
-                val newPx = StatusBarHeightConfig.configuredPx
+                val change = StatusBarHeightConfig.reconfigure(MainModule.mPrefs)
                 val newGen = StatusBarHeightConfig.generation.get()
+
                 logLive(
                     "preference-change " +
-                        "oldDp=${StatusBarHeightConfig.configuredDp} " +
-                        "newDp=${StatusBarHeightConfig.configuredDp} " +
-                        "oldPx=$oldPx " +
-                        "newPx=$newPx " +
-                        "generation=$newGen " +
-                        "refreshRequested=$statusBarWindowRef",
-                    "preference-change-$oldGen-$newGen"
+                        "oldDp=${change.previous.configuredDp} " +
+                        "newDp=${change.current.configuredDp} " +
+                        "oldPx=${change.previous.configuredPx} " +
+                        "newPx=${change.current.configuredPx} " +
+                        "oldGen=$oldGen " +
+                        "newGen=$newGen " +
+                        "densityDpi=${change.current.densityDpi}",
+                    "preference-change"
                 )
-                if (newPx != oldPx) {
-                    requestStatusBarSurfacePlacement()
+
+                if (change.current.enabled && newGen != oldGen) {
+                    requestStatusBarTraversal()
                 }
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
@@ -209,11 +245,13 @@ object SystemStatusBarInsetsHooks {
     }
 
     private fun logLive(message: String, key: String) {
+        val gen = StatusBarHeightConfig.generation.get()
+        val fullKey = "$key:$gen"
         synchronized(loggedLiveKeys) {
             if (loggedLiveKeys.size >= MAX_CRITICAL_KEYS) return
-            if (!loggedLiveKeys.add(key)) return
+            if (!loggedLiveKeys.add(fullKey)) return
         }
-        XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG $message")
+        XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG $message gen=$gen")
     }
 
     private fun installDisplayPolicyHook(classLoader: ClassLoader) {
@@ -225,55 +263,7 @@ object SystemStatusBarInsetsHooks {
 
         ModuleHelper.hookAllMethods(displayPolicyClass, LAYOUT_WINDOW_LW_METHOD, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
-                val win = chain.args.firstOrNull { it?.javaClass?.name == WINDOW_STATE_CLASS } ?: return chain.proceed()
-                if (!isStatusBarWindow(win)) return chain.proceed()
-
-                val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
-                if (StatusBarHeightConfig.enabled) {
-                    StatusBarHeightConfig.recomputePx(metrics)
-                }
-
-                logLive(
-                    "layoutWindowLw " +
-                        "displayId=${getDisplayId(win)} " +
-                        "rawDp=${StatusBarHeightConfig.rawPreferenceDp} " +
-                        "resolvedDp=${StatusBarHeightConfig.configuredDp} " +
-                        "density=${metrics.density} " +
-                        "densityDpi=${metrics.densityDpi} " +
-                        "configuredPx=${StatusBarHeightConfig.configuredPx}",
-                    "layout-start"
-                )
-
-                applyStatusBarWindowHeight(win)
-
-                val result = chain.proceed()
-
-                val frame = getWindowFrame(win)
-                if (frame != null && StatusBarHeightConfig.enabled) {
-                    val configuredPx = StatusBarHeightConfig.configuredPx
-                    if (configuredPx > 0 && frame.bottom != configuredPx) {
-                        frame.bottom = configuredPx
-                        setWindowFrame(win, frame)
-                        logLive(
-                            "window-frame " +
-                                "oldBottom=${frame.bottom} " +
-                                "newBottom=$configuredPx " +
-                                "layoutRequested=true",
-                            "window-frame-applied"
-                        )
-                    } else {
-                        logLive(
-                            "window-frame " +
-                                "bottom=${frame.bottom} " +
-                                "configuredPx=$configuredPx " +
-                                "layoutRequested=false",
-                            "window-frame-unchanged"
-                        )
-                    }
-                }
-
-                statusBarWindowRef = WeakReference(win)
-                return result
+                return onLayoutWindowLw(chain)
             }
         })
     }
@@ -285,52 +275,176 @@ object SystemStatusBarInsetsHooks {
             return
         }
 
-        for (methodName in arrayOf(SET_FRAMES_METHOD, COMPUTE_FRAME_METHOD)) {
-            ModuleHelper.hookAllMethods(windowStateClass, methodName, object : MethodHook() {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    val win = chain.thisObject ?: return chain.proceed()
-                    if (!isStatusBarWindow(win)) return chain.proceed()
+        resolveClientWindowFramesClass(windowStateClass)
 
-                    val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
-                    if (StatusBarHeightConfig.enabled) {
-                        StatusBarHeightConfig.recomputePx(metrics)
-                    }
+        ModuleHelper.hookAllMethods(windowStateClass, SET_FRAMES_METHOD, object : MethodHook() {
+            override fun intercept(chain: XposedInterface.Chain): Any? {
+                return onSetFrames(chain)
+            }
+        })
+    }
 
-                    applyStatusBarWindowHeight(win)
+    private fun resolveWindowManagerAbi(classLoader: ClassLoader) {
+        val windowStateClass = XposedHelpers.findClassIfExists(WINDOW_STATE_CLASS, classLoader) ?: return
 
-                    val result = chain.proceed()
-
-                    val frame = getWindowFrame(win)
-                    if (frame != null && StatusBarHeightConfig.enabled) {
-                        val configuredPx = StatusBarHeightConfig.configuredPx
-                        if (configuredPx > 0 && frame.bottom != configuredPx) {
-                            frame.bottom = configuredPx
-                            setWindowFrame(win, frame)
-                            logLive(
-                                "window-$methodName " +
-                                    "oldBottom=${frame.bottom} " +
-                                    "newBottom=$configuredPx",
-                                "window-$methodName-applied"
-                            )
-                        }
-                    }
-
-                    statusBarWindowRef = WeakReference(win)
-                    return result
-                }
-            })
+        windowStateGetFrameMethod = try {
+            windowStateClass.getMethod("getFrame")?.also { it.isAccessible = true }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+        windowStateGetDisplayMetricsMethod = try {
+            windowStateClass.getMethod("getDisplayMetrics")?.also { it.isAccessible = true }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+        windowStateGetDisplayIdMethod = try {
+            windowStateClass.getMethod("getDisplayId")?.also { it.isAccessible = true }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
         }
     }
 
-    private fun isStatusBarWindow(win: Any): Boolean {
+    private fun resolveClientWindowFramesClass(windowStateClass: Class<*>) {
+        val setFramesMethods = try {
+            windowStateClass.getDeclaredMethods().filter { it.name == SET_FRAMES_METHOD }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            emptyList<Method>()
+        }
+
+        val matched = setFramesMethods.firstOrNull { method ->
+            method.parameterTypes.isNotEmpty() && method.parameterTypes[0].simpleName == "ClientWindowFrames"
+        } ?: return
+
+        val clazz: Class<*> = matched.parameterTypes[0]
+        clientWindowFramesClass = clazz
+        try {
+            clientWindowFramesFrameField = clazz.getField("frame").also { it.isAccessible = true }
+            clientWindowFramesDisplayFrameField = clazz.getField("displayFrame").also { it.isAccessible = true }
+            clientWindowFramesParentFrameField = clazz.getField("parentFrame").also { it.isAccessible = true }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+        }
+    }
+
+    @JvmStatic
+    internal fun onLayoutWindowLw(chain: XposedInterface.Chain): Any? {
+        val win = chain.getArg(0) ?: return chain.proceed()
+        if (win.javaClass.name != WINDOW_STATE_CLASS) return chain.proceed()
+
+        val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
+        val displayId = getDisplayId(win)
+
+        StatusBarHeightConfig.recomputePx(metrics)
+        val generation = StatusBarHeightConfig.generation.get()
+        val state = StatusBarHeightConfig.currentState()
+
+        logLive(
+            "layout displayId=$displayId " +
+                "rawDp=${state.rawPreferenceDp} " +
+                "resolvedDp=${state.configuredDp} " +
+                "density=${state.density} " +
+                "densityDpi=${state.densityDpi} " +
+                "configuredPx=${state.configuredPx}",
+            "layout:$displayId"
+        )
+
+        if (!state.enabled || state.configuredPx <= 0 || !isStatusBarWindow(win)) {
+            statusBarWindowRef = WeakReference(win)
+            return chain.proceed()
+        }
+
+        applyStatusBarWindowHeight(win)
+
+        val result = chain.proceed()
+
+        val frame = readWindowFrame(win)
+        if (frame != null) {
+            logLive(
+                "window-frame displayId=$displayId " +
+                    "left=${frame.left} " +
+                    "top=${frame.top} " +
+                    "right=${frame.right} " +
+                    "bottom=${frame.bottom}",
+                "frame:$displayId"
+            )
+        }
+
+        statusBarWindowRef = WeakReference(win)
+        return result
+    }
+
+    @JvmStatic
+    internal fun onSetFrames(chain: XposedInterface.Chain): Any? {
+        if (!StatusBarHeightConfig.enabled) return chain.proceed()
+
+        val win = chain.thisObject ?: return chain.proceed()
+        if (!isStatusBarWindow(win)) return chain.proceed()
+
+        val clientFrames = chain.getArg(0) ?: return chain.proceed()
+        if (clientFramesClassMismatch(clientFrames)) return chain.proceed()
+
+        val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
+        val displayId = getDisplayId(win)
+
+        StatusBarHeightConfig.recomputePx(metrics)
+        val configuredPx = StatusBarHeightConfig.configuredPx
+        if (configuredPx <= 0) return chain.proceed()
+
+        val frame = readClientWindowFrame(clientFrames) ?: return chain.proceed()
+
+        val oldLeft = frame.left
+        val oldTop = frame.top
+        val oldRight = frame.right
+        val oldBottom = frame.bottom
+        val newBottom = oldTop + configuredPx
+
+        if (newBottom != oldBottom) {
+            frame.bottom = newBottom
+            logLive(
+                "frame displayId=$displayId " +
+                    "left=$oldLeft top=$oldTop right=$oldRight " +
+                    "oldBottom=$oldBottom newBottom=$newBottom " +
+                    "configuredPx=$configuredPx",
+                "frame:$displayId"
+            )
+        }
+
+        return chain.proceed()
+    }
+
+    private fun clientFramesClassMismatch(clientFrames: Any): Boolean {
+        val resolvedClass = clientWindowFramesClass
+        return if (resolvedClass != null) {
+            !resolvedClass.isInstance(clientFrames)
+        } else {
+            clientFrames.javaClass.simpleName != "ClientWindowFrames"
+        }
+    }
+
+    private fun readClientWindowFrame(clientFrames: Any): Rect? {
+        return try {
+            clientWindowFramesFrameField?.get(clientFrames) as? Rect
+                ?: XposedHelpers.getObjectField(clientFrames, "frame") as? Rect
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+    }
+
+    @JvmStatic
+    internal fun isStatusBarWindow(win: Any): Boolean {
         return try {
             val attrs = XposedHelpers.getObjectField(win, "mAttrs") ?: return false
             val type = XposedHelpers.getIntField(attrs, "type")
             if (type == TYPE_STATUS_BAR) return true
-            val title = XposedHelpers.getObjectField(attrs, "packageName") as? String
-            if (title?.contains("com.android.systemui") == true) {
-                val winStr = win.toString()
-                winStr.contains(STATUS_BAR_WINDOW_TAG)
+
+            val packageName = XposedHelpers.getObjectField(attrs, "packageName") as? String
+            if (packageName?.contains("com.android.systemui") == true) {
+                win.toString().contains(STATUS_BAR_WINDOW_TAG)
             } else {
                 false
             }
@@ -340,10 +454,11 @@ object SystemStatusBarInsetsHooks {
         }
     }
 
-    private fun tryGetWindowDisplayMetrics(win: Any): DisplayMetrics? {
+    @JvmStatic
+    internal fun tryGetWindowDisplayMetrics(win: Any): DisplayMetrics? {
         return try {
-            val metrics = XposedHelpers.callMethod(win, "getDisplayMetrics") as? DisplayMetrics
-            if (metrics != null) return metrics
+            val direct = windowStateGetDisplayMetricsMethod?.invoke(win) as? DisplayMetrics
+            if (direct != null) return direct
 
             val displayContent = XposedHelpers.getObjectField(win, "mDisplayContent") ?: return null
             XposedHelpers.callMethod(displayContent, "getDisplayMetrics") as? DisplayMetrics
@@ -353,46 +468,34 @@ object SystemStatusBarInsetsHooks {
         }
     }
 
-    private fun getDisplayId(win: Any): Int {
+    @JvmStatic
+    internal fun getDisplayId(win: Any): Int {
         return try {
-            XposedHelpers.callMethod(win, "getDisplayId") as? Int ?: -1
+            windowStateGetDisplayIdMethod?.invoke(win) as? Int
+                ?: XposedHelpers.callMethod(win, "getDisplayId") as? Int
+                ?: -1
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             -1
         }
     }
 
-    private fun getWindowFrame(win: Any): Rect? {
+    @JvmStatic
+    internal fun readWindowFrame(win: Any): Rect? {
         return try {
-            val windowFrames = XposedHelpers.getObjectField(win, "mWindowFrames")
-            if (windowFrames != null) {
-                val displayFrame = XposedHelpers.getObjectField(windowFrames, "mDisplayFrame") as? Rect
-                if (displayFrame != null) return displayFrame
-            }
-            XposedHelpers.getObjectField(win, "mFrame") as? Rect
+            windowStateGetFrameMethod?.invoke(win) as? Rect
+                ?: XposedHelpers.callMethod(win, "getFrame") as? Rect
+                ?: XposedHelpers.getObjectField(win, "mWindowFrames")?.let { frames ->
+                    XposedHelpers.getObjectField(frames, "mFrame") as? Rect
+                }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             null
         }
     }
 
-    private fun setWindowFrame(win: Any, frame: Rect) {
-        try {
-            val windowFrames = XposedHelpers.getObjectField(win, "mWindowFrames")
-            if (windowFrames != null) {
-                val displayFrame = XposedHelpers.getObjectField(windowFrames, "mDisplayFrame") as? Rect
-                if (displayFrame != null) {
-                    displayFrame.set(frame)
-                    return
-                }
-            }
-            XposedHelpers.setObjectField(win, "mFrame", frame)
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-        }
-    }
-
-    private fun applyStatusBarWindowHeight(win: Any) {
+    @JvmStatic
+    internal fun applyStatusBarWindowHeight(win: Any) {
         if (!StatusBarHeightConfig.enabled) return
         val configuredPx = StatusBarHeightConfig.configuredPx
         if (configuredPx <= 0) return
@@ -408,16 +511,52 @@ object SystemStatusBarInsetsHooks {
         }
     }
 
-    private fun requestStatusBarSurfacePlacement() {
+    @JvmStatic
+    internal fun requestStatusBarTraversal() {
         val win = statusBarWindowRef?.get() ?: return
         try {
             val wmService = XposedHelpers.getObjectField(win, "mWmService") ?: return
-            val windowPlacerLocked = XposedHelpers.getObjectField(wmService, "mWindowPlacerLocked") ?: return
-            XposedHelpers.callMethod(windowPlacerLocked, "performSurfacePlacement")
-            logLive("refresh performSurfacePlacement requested", "refresh-requested")
+            val windowPlacer = XposedHelpers.getObjectField(wmService, "mWindowPlacerLocked") ?: return
+
+            val newGen = StatusBarHeightConfig.generation.get()
+            val lastGen = lastRefreshGeneration.getAndSet(newGen)
+            if (lastGen == newGen) {
+                logLive("refresh coalesced gen=$newGen", "refresh")
+                return
+            }
+
+            try {
+                XposedHelpers.callMethod(windowPlacer, "requestTraversal")
+                logLive("refresh requestTraversal gen=$newGen", "refresh")
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                fallbackTraversal(wmService, windowPlacer, newGen)
+            }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG refresh failed: ${t.javaClass.simpleName}")
+        }
+    }
+
+    private fun fallbackTraversal(wmService: Any, windowPlacer: Any, generation: Long) {
+        try {
+            val handler = XposedHelpers.getObjectField(wmService, "mAnimationHandler") as? Handler
+                ?: return
+            val globalLock = XposedHelpers.getObjectField(wmService, "mGlobalLock")
+            handler.post {
+                try {
+                    synchronized(globalLock ?: Any()) {
+                        XposedHelpers.callMethod(windowPlacer, "performSurfacePlacement")
+                    }
+                } catch (inner: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(inner)
+                    XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG fallback traversal failed: ${inner.javaClass.simpleName}")
+                }
+            }
+            logLive("refresh fallback-traversal gen=$generation", "refresh")
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG refresh fallback setup failed: ${t.javaClass.simpleName}")
         }
     }
 
@@ -780,15 +919,16 @@ object SystemStatusBarInsetsHooks {
 
             val reason = decision.reason
             val isCritical = reason in CRITICAL_REASONS
+            val generation = StatusBarHeightConfig.generation.get()
 
             if (isCritical) {
-                val key = criticalKey(typeInfo.encoding, sourceId, type, overload, reason)
+                val key = criticalKey(typeInfo.encoding, sourceId, type, overload, reason, generation)
                 synchronized(loggedCritical) {
                     if (loggedCritical.size >= MAX_CRITICAL_KEYS) return
                     if (!loggedCritical.add(key)) return
                 }
             } else {
-                val key = rejectionKey(typeInfo.encoding, type, overload, reason)
+                val key = rejectionKey(typeInfo.encoding, type, overload, reason, generation)
                 synchronized(loggedRejection) {
                     if (loggedRejection.size >= MAX_REJECTION_KEYS) return
                     if (!loggedRejection.add(key)) return
@@ -796,7 +936,7 @@ object SystemStatusBarInsetsHooks {
             }
 
             XposedHelpers.log(
-                "[StatusBarInsets] source-hit " +
+                "[StatusBarInsets] insets " +
                     "encoding=${typeInfo.encoding} " +
                     "sourceId=${sourceId ?: "n/a"} " +
                     "type=$type " +
@@ -807,7 +947,8 @@ object SystemStatusBarInsetsHooks {
                     "resolvedDp=${StatusBarHeightConfig.configuredDp} " +
                     "configuredPx=${StatusBarHeightConfig.configuredPx} " +
                     "changed=${decision is ProceedWithArgs} " +
-                    "reason=$reason"
+                    "reason=$reason " +
+                    "gen=$generation"
             )
         }
 
@@ -861,8 +1002,9 @@ object SystemStatusBarInsetsHooks {
         type: Int,
         overload: String,
         reason: String,
+        generation: Long,
     ): String {
-        return "${encoding.name}:$sourceId:$type:$overload:$reason"
+        return "insets:${sourceId ?: "n/a"}:$generation"
     }
 
     /** Rejection keys deliberately omit sourceId so many non-status sources cannot starve critical logs. */
@@ -871,7 +1013,8 @@ object SystemStatusBarInsetsHooks {
         type: Int,
         overload: String,
         reason: String,
+        generation: Long,
     ): String {
-        return "${encoding.name}:$type:$overload:$reason"
+        return "insets-reject:$type:$overload:$reason:$generation"
     }
 }
