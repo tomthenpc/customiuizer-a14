@@ -2,7 +2,9 @@ package tv.withaibuild.customiuizer.mods
 
 import android.content.res.Resources
 import android.graphics.Rect
+import android.util.DisplayMetrics
 import android.view.WindowInsets
+import android.view.WindowManager
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
 import tv.withaibuild.customiuizer.MainModule
@@ -11,6 +13,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import java.lang.ref.WeakReference
 
 /**
  * system_server Insets boundary for status bar height.
@@ -44,7 +47,17 @@ object SystemStatusBarInsetsHooks {
     internal const val MAX_CRITICAL_KEYS = 16
     internal const val MAX_REJECTION_KEYS = 16
 
+    private const val WINDOW_STATE_CLASS = "com.android.server.wm.WindowState"
+    private const val DISPLAY_POLICY_CLASS = "com.android.server.wm.DisplayPolicy"
+    private const val LAYOUT_WINDOW_LW_METHOD = "layoutWindowLw"
+    private const val SET_FRAMES_METHOD = "setFrames"
+    private const val COMPUTE_FRAME_METHOD = "computeFrame"
+    private const val STATUS_BAR_WINDOW_TAG = "StatusBar"
+    private const val STATUS_BAR_HEIGHT_LIVE_TAG = "[StatusBarHeightLive]"
+
     private var typeInfo: InsetsTypeInfo? = null
+    private var insetsSourceHookInstalled: Boolean = false
+    private var windowStateHookInstalled: Boolean = false
     private var hookInstalled: Boolean = false
 
     /** Bounded set of critical diagnostic keys whose first hit has already been logged. */
@@ -139,11 +152,273 @@ object SystemStatusBarInsetsHooks {
 
         val callback = SetFrameCallback(resolvedTypeInfo, hasGetId, hasGetFrame)
         ModuleHelper.hookAllMethods(insetsSourceClass, SET_FRAME_METHOD, callback)
+        insetsSourceHookInstalled = true
+
+        installDisplayPolicyHook(classLoader)
+        installWindowStateHook(classLoader)
+
+        ModuleHelper.observePreferenceChange(statusBarHeightObserver, StatusBarHeightConfig)
+
         hookInstalled = true
     }
 
     private fun logInstall(message: String) {
         XposedHelpers.log("[StatusBarInsets] install $message")
+    }
+
+    /** Public `WindowInsets.Type.statusBars()` bit. */
+    private const val STATUS_BARS_TYPE = 1
+
+    /** `WindowManager.LayoutParams.TYPE_STATUS_BAR` = 2000. */
+    private const val TYPE_STATUS_BAR = 2000
+
+    /** Weak reference to the most recently laid-out status bar WindowState for refresh. */
+    private var statusBarWindowRef: WeakReference<Any>? = null
+
+    /** Bounded log keys for [StatusBarHeightLive] lifecycle events. */
+    private val loggedLiveKeys = LinkedHashSet<String>()
+
+    /** The display-aware preference observer installed in system_server. */
+    private val statusBarHeightObserver = object : ModuleHelper.PreferenceObserver {
+        override fun onChange(key: String?) {
+            if (key != null && key != StatusBarHeightConfig.PREF_KEY) return
+            try {
+                val oldGen = StatusBarHeightConfig.generation.get()
+                val oldPx = StatusBarHeightConfig.configuredPx
+                StatusBarHeightConfig.reconfigure(MainModule.mPrefs)
+                val newPx = StatusBarHeightConfig.configuredPx
+                val newGen = StatusBarHeightConfig.generation.get()
+                logLive(
+                    "preference-change " +
+                        "oldDp=${StatusBarHeightConfig.configuredDp} " +
+                        "newDp=${StatusBarHeightConfig.configuredDp} " +
+                        "oldPx=$oldPx " +
+                        "newPx=$newPx " +
+                        "generation=$newGen " +
+                        "refreshRequested=$statusBarWindowRef",
+                    "preference-change-$oldGen-$newGen"
+                )
+                if (newPx != oldPx) {
+                    requestStatusBarSurfacePlacement()
+                }
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG preference-change failed: ${t.javaClass.simpleName}")
+            }
+        }
+    }
+
+    private fun logLive(message: String, key: String) {
+        synchronized(loggedLiveKeys) {
+            if (loggedLiveKeys.size >= MAX_CRITICAL_KEYS) return
+            if (!loggedLiveKeys.add(key)) return
+        }
+        XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG $message")
+    }
+
+    private fun installDisplayPolicyHook(classLoader: ClassLoader) {
+        val displayPolicyClass = XposedHelpers.findClassIfExists(DISPLAY_POLICY_CLASS, classLoader)
+        if (displayPolicyClass == null) {
+            logInstall("DisplayPolicy class not found")
+            return
+        }
+
+        ModuleHelper.hookAllMethods(displayPolicyClass, LAYOUT_WINDOW_LW_METHOD, object : MethodHook() {
+            override fun intercept(chain: XposedInterface.Chain): Any? {
+                val win = chain.args.firstOrNull { it?.javaClass?.name == WINDOW_STATE_CLASS } ?: return chain.proceed()
+                if (!isStatusBarWindow(win)) return chain.proceed()
+
+                val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
+                if (StatusBarHeightConfig.enabled) {
+                    StatusBarHeightConfig.recomputePx(metrics)
+                }
+
+                logLive(
+                    "layoutWindowLw " +
+                        "displayId=${getDisplayId(win)} " +
+                        "rawDp=${StatusBarHeightConfig.rawPreferenceDp} " +
+                        "resolvedDp=${StatusBarHeightConfig.configuredDp} " +
+                        "density=${metrics.density} " +
+                        "densityDpi=${metrics.densityDpi} " +
+                        "configuredPx=${StatusBarHeightConfig.configuredPx}",
+                    "layout-start"
+                )
+
+                applyStatusBarWindowHeight(win)
+
+                val result = chain.proceed()
+
+                val frame = getWindowFrame(win)
+                if (frame != null && StatusBarHeightConfig.enabled) {
+                    val configuredPx = StatusBarHeightConfig.configuredPx
+                    if (configuredPx > 0 && frame.bottom != configuredPx) {
+                        frame.bottom = configuredPx
+                        setWindowFrame(win, frame)
+                        logLive(
+                            "window-frame " +
+                                "oldBottom=${frame.bottom} " +
+                                "newBottom=$configuredPx " +
+                                "layoutRequested=true",
+                            "window-frame-applied"
+                        )
+                    } else {
+                        logLive(
+                            "window-frame " +
+                                "bottom=${frame.bottom} " +
+                                "configuredPx=$configuredPx " +
+                                "layoutRequested=false",
+                            "window-frame-unchanged"
+                        )
+                    }
+                }
+
+                statusBarWindowRef = WeakReference(win)
+                return result
+            }
+        })
+    }
+
+    private fun installWindowStateHook(classLoader: ClassLoader) {
+        val windowStateClass = XposedHelpers.findClassIfExists(WINDOW_STATE_CLASS, classLoader)
+        if (windowStateClass == null) {
+            logInstall("WindowState class not found")
+            return
+        }
+
+        for (methodName in arrayOf(SET_FRAMES_METHOD, COMPUTE_FRAME_METHOD)) {
+            ModuleHelper.hookAllMethods(windowStateClass, methodName, object : MethodHook() {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    val win = chain.thisObject ?: return chain.proceed()
+                    if (!isStatusBarWindow(win)) return chain.proceed()
+
+                    val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
+                    if (StatusBarHeightConfig.enabled) {
+                        StatusBarHeightConfig.recomputePx(metrics)
+                    }
+
+                    applyStatusBarWindowHeight(win)
+
+                    val result = chain.proceed()
+
+                    val frame = getWindowFrame(win)
+                    if (frame != null && StatusBarHeightConfig.enabled) {
+                        val configuredPx = StatusBarHeightConfig.configuredPx
+                        if (configuredPx > 0 && frame.bottom != configuredPx) {
+                            frame.bottom = configuredPx
+                            setWindowFrame(win, frame)
+                            logLive(
+                                "window-$methodName " +
+                                    "oldBottom=${frame.bottom} " +
+                                    "newBottom=$configuredPx",
+                                "window-$methodName-applied"
+                            )
+                        }
+                    }
+
+                    statusBarWindowRef = WeakReference(win)
+                    return result
+                }
+            })
+        }
+    }
+
+    private fun isStatusBarWindow(win: Any): Boolean {
+        return try {
+            val attrs = XposedHelpers.getObjectField(win, "mAttrs") ?: return false
+            val type = XposedHelpers.getIntField(attrs, "type")
+            if (type == TYPE_STATUS_BAR) return true
+            val title = XposedHelpers.getObjectField(attrs, "packageName") as? String
+            if (title?.contains("com.android.systemui") == true) {
+                val winStr = win.toString()
+                winStr.contains(STATUS_BAR_WINDOW_TAG)
+            } else {
+                false
+            }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            false
+        }
+    }
+
+    private fun tryGetWindowDisplayMetrics(win: Any): DisplayMetrics? {
+        return try {
+            val metrics = XposedHelpers.callMethod(win, "getDisplayMetrics") as? DisplayMetrics
+            if (metrics != null) return metrics
+
+            val displayContent = XposedHelpers.getObjectField(win, "mDisplayContent") ?: return null
+            XposedHelpers.callMethod(displayContent, "getDisplayMetrics") as? DisplayMetrics
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+    }
+
+    private fun getDisplayId(win: Any): Int {
+        return try {
+            XposedHelpers.callMethod(win, "getDisplayId") as? Int ?: -1
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            -1
+        }
+    }
+
+    private fun getWindowFrame(win: Any): Rect? {
+        return try {
+            val windowFrames = XposedHelpers.getObjectField(win, "mWindowFrames")
+            if (windowFrames != null) {
+                val displayFrame = XposedHelpers.getObjectField(windowFrames, "mDisplayFrame") as? Rect
+                if (displayFrame != null) return displayFrame
+            }
+            XposedHelpers.getObjectField(win, "mFrame") as? Rect
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+    }
+
+    private fun setWindowFrame(win: Any, frame: Rect) {
+        try {
+            val windowFrames = XposedHelpers.getObjectField(win, "mWindowFrames")
+            if (windowFrames != null) {
+                val displayFrame = XposedHelpers.getObjectField(windowFrames, "mDisplayFrame") as? Rect
+                if (displayFrame != null) {
+                    displayFrame.set(frame)
+                    return
+                }
+            }
+            XposedHelpers.setObjectField(win, "mFrame", frame)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+        }
+    }
+
+    private fun applyStatusBarWindowHeight(win: Any) {
+        if (!StatusBarHeightConfig.enabled) return
+        val configuredPx = StatusBarHeightConfig.configuredPx
+        if (configuredPx <= 0) return
+
+        try {
+            val attrs = XposedHelpers.getObjectField(win, "mAttrs") ?: return
+            val currentHeight = XposedHelpers.getIntField(attrs, "height")
+            if (currentHeight != configuredPx) {
+                XposedHelpers.setIntField(attrs, "height", configuredPx)
+            }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+        }
+    }
+
+    private fun requestStatusBarSurfacePlacement() {
+        val win = statusBarWindowRef?.get() ?: return
+        try {
+            val wmService = XposedHelpers.getObjectField(win, "mWmService") ?: return
+            val windowPlacerLocked = XposedHelpers.getObjectField(wmService, "mWindowPlacerLocked") ?: return
+            XposedHelpers.callMethod(windowPlacerLocked, "performSurfacePlacement")
+            logLive("refresh performSurfacePlacement requested", "refresh-requested")
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG refresh failed: ${t.javaClass.simpleName}")
+        }
     }
 
     /**

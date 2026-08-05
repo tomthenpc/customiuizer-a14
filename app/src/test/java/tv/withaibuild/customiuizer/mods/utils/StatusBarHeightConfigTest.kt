@@ -177,6 +177,69 @@ class StatusBarHeightConfigTest {
         assertEquals(27, StatusBarHeightConfig.configuredPx)
     }
 
+    @Test
+    fun reconfigure_preservesDensityAndBumpsGeneration() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 40) },
+            fakeResources(469),
+        )
+        val before = StatusBarHeightConfig.generation.get()
+
+        StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
+
+        assertTrue(StatusBarHeightConfig.generation.get() > before)
+        assertEquals(44, StatusBarHeightConfig.configuredDp)
+        assertEquals(129, StatusBarHeightConfig.configuredPx) // 44 * 469 / 160 ≈ 129
+        assertEquals(469, StatusBarHeightConfig.densityDpi)
+    }
+
+    @Test
+    fun reconfigure_sameValue_doesNotBloatGeneration() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+        val before = StatusBarHeightConfig.generation.get()
+
+        StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
+
+        assertEquals(before + 1, StatusBarHeightConfig.generation.get())
+        assertEquals(129, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun dpToPx_469dpi_44dpIs129px() {
+        val metrics = DisplayMetrics().apply { densityDpi = 469; density = 2.93125f }
+        assertEquals(129, StatusBarHeightConfig.dpToPx(44, metrics))
+    }
+
+    @Test
+    fun dpToPx_440dpi_44dpIs121px() {
+        val metrics = DisplayMetrics().apply { densityDpi = 440; density = 2.75f }
+        assertEquals(121, StatusBarHeightConfig.dpToPx(44, metrics))
+    }
+
+    @Test
+    fun configuredPxFor_12dpAt469dpiIs35px() {
+        val metrics = DisplayMetrics().apply { densityDpi = 469; density = 2.93125f }
+        assertEquals(35, StatusBarHeightConfig.configuredPxFor(12, metrics))
+    }
+
+    @Test
+    fun configuredPxFor_doesNotMutateCache() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 27) },
+            fakeResources(160),
+        )
+        val cachedBefore = StatusBarHeightConfig.configuredPx
+
+        val metrics = DisplayMetrics().apply { densityDpi = 469; density = 2.93125f }
+        StatusBarHeightConfig.configuredPxFor(44, metrics)
+
+        assertEquals(cachedBefore, StatusBarHeightConfig.configuredPx)
+        assertEquals(160, StatusBarHeightConfig.densityDpi)
+    }
+
     private fun fakeResources(densityDpi: Int): Resources {
         val metrics = DisplayMetrics().apply { this.densityDpi = densityDpi }
         val constructor = AssetManager::class.java.getDeclaredConstructor()
