@@ -2,6 +2,7 @@ package tv.withaibuild.customiuizer.mods
 
 import android.content.ContentValues
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Environment
@@ -183,8 +184,8 @@ object System {
 
     @JvmStatic
     fun StatusBarHeightHook(lpparam: PackageReadyParam) {
-        val context = ModuleHelper.findContext() ?: return
-        StatusBarHeightConfig.configure(MainModule.mPrefs, context.resources)
+        val resources = ModuleHelper.findContext(lpparam)?.resources ?: Resources.getSystem()
+        StatusBarHeightConfig.configure(MainModule.mPrefs, resources)
 
         val heightDp = StatusBarHeightConfig.configuredDp
         val pkgName = lpparam.packageName
