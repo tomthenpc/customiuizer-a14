@@ -102,6 +102,7 @@ git diff --check
 | R1 corrective closure | `08cfa116` | 修复 enabled 语义与几何；`originalTop + configuredPx`；安装/命中诊断 |
 | R2 callback-boundary closure | `758b1c0f` | `SetFrameDecision` 拆分；`chain.proceed()` 只调用一次；Rect 输入不可变；type encoding 初版；诊断有界；`raw/resolved` 区分；新增 `StatusBarInsetsDecisionTest` |
 | R3 ABI resolver closure | `54701f15` | `InsetsSourceAbi` + `selectTypeEncoding()`；纯 ABI 驱动 MODERN_PUBLIC / LEGACY_INTERNAL / UNSUPPORTED；诊断分桶（critical / rejection）；新增 `StatusBarInsetsResolverTest`；任务记录清理 |
+| R4 resolver sentinel normalization closure | `50a0ad4f` | `RawTypeInfo` 可空；`safePublicType()`/`getStaticInt()` 失败返回 `null`；`selectTypeEncoding()` 拒绝负值 sentinel；扩展 `StatusBarInsetsResolverTest` 覆盖 sentinel/null 适配层 |
 
 ## 当前最终有效实现
 
@@ -119,6 +120,30 @@ git diff --check
   - `criticalKeys`（上限 16）记录 `status-source-changed`、`status-source-no-change`、`preprocessing-reflection-failed`、`invalid-argument-shape`。
   - `rejectionKeys`（上限 16）聚合记录 `non-status-type`、`disabled`；使用不含 `sourceId` 的 key，避免非状态栏 source 挤占关键日志。
 - 原方法普通异常和 fatal 异常均原样向上传播。
+- resolver 中间结果使用可空 `Int?`：`RawTypeInfo`、`safePublicType()`、`getStaticInt()` 解析失败返回 `null`，仅在 `InsetsTypeInfo` 最终输出中用 `-1` 表示缺失的辅助 type。负值 sentinel 不会进入已安装 callback。
+
+## R4 resolver sentinel normalization closure
+
+### 修正范围
+1. 将 resolver 中间结果统一为 nullable，失败返回 `null` 而不是 `-1`。
+   - `RawTypeInfo.statusBarType`、`navigationType`、`displayCutoutType` 全部改为 `Int?`。
+   - `safePublicType()` 与 `getStaticInt()` 失败时返回 `null`，普通异常仍先调用 `FatalErrors.unwrapAndRethrowIfFatal(t)`。
+   - `resolveLegacyTypes()` 找不到 `InsetsState` 时返回 `RawTypeInfo(null, null, null)`。
+2. `selectTypeEncoding()` 增加防御性校验，拒绝负值 sentinel：
+   - Modern 要求 `publicStatusType >= 0`。
+   - Legacy 要求 `legacyStatusType >= 0` 且 `legacyNavigationType >= 0`。
+   - `publicStatusType = -1` 或 `legacyStatusType = -1` 或 `legacyNavigationType = -1` 必须导致 `UNSUPPORTED`。
+3. 提取并测试解析结果规范化辅助函数（或直接让解析函数返回 nullable）。
+4. 扩展 `StatusBarInsetsResolverTest`：
+   - modern ABI + `publicStatusType = -1` → `UNSUPPORTED`
+   - legacy ABI + `legacyStatusType = -1` → `UNSUPPORTED`
+   - legacy ABI + `legacyNavigationType = -1` → `UNSUPPORTED`
+   - modern ABI + `publicStatusType = null` → `UNSUPPORTED`
+   - legacy ABI + status/nav 均为 `null` → `UNSUPPORTED`
+   - modern status=1 / nav=2 / cutout=128 → `MODERN_PUBLIC`
+   - legacy status=0 / nav=1 → `LEGACY_INTERNAL`
+   - 生产解析适配层返回 nullable 的覆盖
+5. 整理 closure timeline，记录 R4 engineering SHA。
 
 ## 测试
 
