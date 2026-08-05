@@ -125,7 +125,7 @@ Feature 安装
 - Base SHA: 9282443705799fbde6accfccdb8da16193aeefdb
 - Original engineering commit: 4e126c7b9981b5b642c19c6188e90b81305e817b
 - Corrective engineering commit: 0a270d9cdceacbf1ab822c37aaa83e1a3e220ee0
-- Current remote branch HEAD: 0a270d9cdceacbf1ab822c37aaa83e1a3e220ee0
+- Current remote branch HEAD: 8e00c5a9573ab27c3013f53148cfa4437c275f0e
 - Total commits in this corrective pass: 1
 - Behavior changed:
   - `DeviceInfoMonitor` handler 按 generation 失效，主线程消息携带 generation 并双检；
