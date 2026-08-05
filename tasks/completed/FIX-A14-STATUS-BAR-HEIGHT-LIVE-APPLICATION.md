@@ -1,7 +1,7 @@
 # FIX-A14-STATUS-BAR-HEIGHT-LIVE-APPLICATION
 
 - Platform: A14
-- Status: Active
+- Status: Completed
 - Priority: P0
 - Owner: Devin
 - Reviewer: ChatGPT / human
@@ -27,14 +27,27 @@
 4. 保留 `InsetsSource.setFrame` 作为 fallback，但不再作为主要边界。
 5. 增加 `[StatusBarHeightLive]` 有界诊断，记录 displayId/density/height 变化。
 
+## 提交
+
+- Engineering: `e71f8e84` FIX-A14-STATUS-BAR-HEIGHT-LIVE-APPLICATION: display-aware density and WindowState layout hook.
+- Closure: archive closure record with build provenance.
+
 ## 验证
 
-- `python tools/verify.py fast --changed`
-- `python -m compileall tools`
-- `python -m unittest discover -s tools/tests -p "test_*.py"`
-- `.​\gradlew.bat :app:testDebugUnitTest`
-- `python tools/verify.py full`
-- `git diff --check`
+- `python tools/verify.py fast --changed` — PASS
+- `python tools/verify.py fast --tests "*StatusBarInsets*"` — PASS
+- `python tools/verify.py fast --tests StatusBarHeightConfigTest` — PASS
+- `python tools/verify.py full` — PASS
+- `git diff --check` — PASS
+- `python tools/build_debug_apk.py` — PASS
+- `python tools/verify_apk_provenance.py --apk ... --expected-revision e71f8e84` — PASS
+
+## 产物
+
+- APK: `app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk`
+- APK SHA-256: `8A7034EA19A16EFE7F20137E6A1E8635F89B670AA468CE80949F79AA608F5F39`
+- Build revision: `e71f8e84`
+- Signature: Debug
 
 ## 实机状态
 
