@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.tasks.WriteProperties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -34,13 +35,36 @@ if (officialRelease) {
 
 val lastVersion = 192
 val lastVersionName = "r14.16.1"
-val buildRevision = providers.exec {
-    workingDir(rootDir)
-    commandLine("git", "rev-parse", "--short=8", "HEAD")
-    isIgnoreExitValue = true
-}.standardOutput.asText.map { output ->
-    output.trim().takeIf { it.matches(Regex("[0-9a-fA-F]{8}")) } ?: "unknown"
-}.getOrElse("unknown")
+
+fun resolveBuildRevision(): String {
+    val prop = project.findProperty("buildRevision")?.toString()
+    val env = providers.environmentVariable("CUSTOMIUIZER_BUILD_REVISION").orNull
+    val explicit = prop ?: env
+    if (!explicit.isNullOrBlank()) {
+        require(explicit.matches(Regex("^[0-9a-fA-F]{8}$"))) {
+            "buildRevision must be an 8-character hex SHA, got: $explicit"
+        }
+        return explicit.lowercase()
+    }
+    if (project.findProperty("requireBuildRevision")?.toString()?.toBoolean() == true) {
+        throw GradleException(
+            "buildRevision must be provided via -PbuildRevision=... or CUSTOMIUIZER_BUILD_REVISION"
+        )
+    }
+    val git = providers.exec {
+        workingDir(rootDir)
+        commandLine("git", "rev-parse", "--short=8", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.map { output ->
+        output.trim().takeIf { it.matches(Regex("^[0-9a-fA-F]{8}$")) }?.lowercase()
+    }.getOrNull()
+    if (git == null) {
+        throw GradleException("Unable to determine buildRevision from git")
+    }
+    return git
+}
+
+val buildRevision = resolveBuildRevision()
 val supportedLocales = setOf(
     "ru-rRU",
     "zh-rCN",
@@ -146,6 +170,33 @@ android {
         includeInApk = false
         // Disables dependency metadata when building Android App Bundles.
         includeInBundle = false
+    }
+}
+
+val buildProvenanceDir = layout.buildDirectory.dir("generated/assets/build-provenance")
+
+val writeBuildProvenance = tasks.register<WriteProperties>("writeBuildProvenance") {
+    description = "Writes build-provenance.properties for inclusion in the APK"
+    group = "build"
+
+    destinationFile.set(buildProvenanceDir.map { it.file("build-provenance.properties") })
+    properties(
+        mapOf(
+            "revision" to buildRevision,
+            "versionName" to lastVersionName,
+            "versionCode" to lastVersion.toString(),
+            "buildType" to "debug",
+        )
+    )
+}
+
+android.sourceSets.getByName("main").assets.directories.add(
+    buildProvenanceDir.get().asFile.absolutePath
+)
+
+afterEvaluate {
+    tasks.named("mergeDebugAssets").configure {
+        dependsOn(writeBuildProvenance)
     }
 }
 

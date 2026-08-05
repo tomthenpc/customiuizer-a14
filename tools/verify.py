@@ -68,6 +68,21 @@ def run(cmd: list[str]) -> int:
     return 0
 
 
+def resolve_build_revision() -> str:
+    """Return the current 8-character HEAD revision for gradle builds."""
+    result = subprocess.run(
+        ["git", "rev-parse", "--short=8", "HEAD"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    revision = result.stdout.strip()
+    if not re.fullmatch(r"[0-9a-fA-F]{8}", revision):
+        fail(f"could not determine 8-character build revision: {revision!r}")
+    return revision
+
+
 def gradle(*tasks: str) -> int:
     """Run gradle tasks, after making sure none are prohibited."""
     for task in tasks:
@@ -75,7 +90,8 @@ def gradle(*tasks: str) -> int:
             fail(f"prohibited task requested: {task}")
     if not GRADLEW_PATH.exists():
         fail(f"gradle wrapper not found: {GRADLEW_PATH}")
-    return run([str(GRADLEW_PATH), "--no-daemon", *tasks])
+    revision = resolve_build_revision()
+    return run([str(GRADLEW_PATH), "--no-daemon", f"-PbuildRevision={revision}", *tasks])
 
 
 def check_invariants(changed: bool = False, staged: bool = False) -> int:
