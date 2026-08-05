@@ -102,8 +102,8 @@ git diff --check
 ## 完成记录
 
 - Base SHA: cd935311621c07e660c159191302524c6795a177
-- Final SHA: 92222bf8
-- Commits: ebe0ba03, 92222bf8
+- Final SHA: a2bc4b0d
+- Commits: ebe0ba03, 2d4e2f90, a2bc4b0d
 - Behavior changed:
   - 新增 `StatusBarHeightConfig` 统一解析与缓存 `system_statusbarheight` 配置 dp/px；
   - `System.StatusBarHeightHook` 复用该配置进行 `status_bar_height*` 资源替换；
