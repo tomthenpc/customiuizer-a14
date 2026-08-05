@@ -28,6 +28,10 @@ object StatusBarHeightConfig {
         private set
 
     @Volatile
+    var rawPreferenceDp = DEFAULT_SENTINEL
+        private set
+
+    @Volatile
     var configuredDp = DEFAULT_DP
         private set
 
@@ -81,6 +85,7 @@ object StatusBarHeightConfig {
     fun configure(prefs: PrefMap, resources: Resources) {
         val raw = prefs.getInt(PREF_KEY, DEFAULT_SENTINEL)
         val dp = if (raw == DEFAULT_SENTINEL) DEFAULT_DP else raw
+        rawPreferenceDp = raw
         enabled = raw > DEFAULT_SENTINEL
         configuredDp = dp
         configuredPx = dpToPx(dp, resources)
@@ -104,6 +109,7 @@ object StatusBarHeightConfig {
     @JvmStatic
     internal fun resetForTest() {
         enabled = false
+        rawPreferenceDp = DEFAULT_SENTINEL
         configuredDp = DEFAULT_DP
         configuredPx = -1
     }

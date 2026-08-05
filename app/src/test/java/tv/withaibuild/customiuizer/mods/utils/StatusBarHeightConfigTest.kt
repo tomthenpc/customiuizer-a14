@@ -81,6 +81,7 @@ class StatusBarHeightConfigTest {
         StatusBarHeightConfig.configure(prefs, fakeResources(160))
 
         assertFalse(StatusBarHeightConfig.enabled)
+        assertEquals(11, StatusBarHeightConfig.rawPreferenceDp)
         assertEquals(27, StatusBarHeightConfig.configuredDp)
         assertEquals(27, StatusBarHeightConfig.configuredPx)
     }
@@ -143,6 +144,17 @@ class StatusBarHeightConfigTest {
         assertTrue(StatusBarHeightConfig.enabled)
         assertEquals(40, StatusBarHeightConfig.configuredDp)
         assertEquals(120, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun configure_customValue_rawPreferenceDpStored() {
+        val prefs = PrefMap().apply { put("system_statusbarheight", 35) }
+        StatusBarHeightConfig.configure(prefs, fakeResources(160))
+
+        assertTrue(StatusBarHeightConfig.enabled)
+        assertEquals(35, StatusBarHeightConfig.rawPreferenceDp)
+        assertEquals(35, StatusBarHeightConfig.configuredDp)
+        assertEquals(35, StatusBarHeightConfig.configuredPx)
     }
 
     @Test

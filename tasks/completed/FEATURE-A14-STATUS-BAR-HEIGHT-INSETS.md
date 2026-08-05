@@ -141,3 +141,44 @@ git diff --check
 4. 增加低频冷路径诊断日志：raw preference、resolved dp、configured px、density、enabled、public/internal status bar type、InsetsSource class、setFrame overloads、hook install result。
 5. 首次命中 source 后按 source identity/display/rotation 限频记录：source id/type、overload、old/new frame、configured dp/px、changed 与未修改原因。
 6. 所有 `catch (Throwable)` 先调用 `FatalErrors.unwrapAndRethrowIfFatal(t)`。
+
+## R2 callback-boundary corrective closure
+
+### 修正范围
+1. `SetFrameCallback.intercept()` 拆分为：
+   - 前置兼容层：读取 type、检查 source、计算替换参数；普通异常只生成 `ProceedOriginal` 决策。
+   - `chain.proceed()` 只调用一次，不捕获 `chain.proceed()` 抛出的异常。
+   - 原方法普通异常原样传播且 proceed count = 1；fatal 原样传播且 proceed count = 1。
+2. `Rect` 参数不可变性：
+   - 不再修改调用者传入的 `Rect`；改为 `Rect(firstArg).apply { bottom = newBottom }`。
+   - 纯几何函数同时支持 `Rect` 和四参数 overload，两者共享同一 `originalTop + configuredPx` 计算。
+3. Insets type encoding 冷路径判定：
+   - 新增 `InsetsTypeEncoding`：`MODERN_PUBLIC`、`LEGACY_INTERNAL`、`UNSUPPORTED`。
+   - 在安装时通过 ABI 能力（`InsetsSource` 构造函数签名、`getId()`、`InsetsState` 常量是否存在）冻结唯一模式。
+   - `MODERN_PUBLIC` 模式只匹配 `WindowInsets.Type.statusBars()`。
+   - `LEGACY_INTERNAL` 模式只匹配真实反射到的 `ITYPE_STATUS_BAR`，不再假设 `0`。
+   - 解决 `ITYPE_NAVIGATION_BAR = 1` 与 `WindowInsets.Type.statusBars() = 1` 的冲突。
+4. source 几何判断：
+   - 优先用精确 type encoding 判定；不再依赖 `source.getFrame()` 旧值做 top-anchored 兜底。
+   - 如需方向防线，使用当前 incoming frame 参数，而非 source 内部旧 frame。
+5. 诊断改进：
+   - `StatusBarHeightConfig` 增加 `rawPreferenceDp` 缓存，安装日志区分 `raw` / `resolved` / `enabled`。
+   - 日志基于 incoming 参数生成不可变 `oldFrame` / `newFrame` 快照。
+   - `loggedFirstHit` 改为有界集合（上限 32），使用稳定 key（encoding / source id / type / overload / result）。
+   - 拒绝原因枚举：`HOOK_NOT_INSTALLED`、`UNSUPPORTED_ENCODING`、`STATUS_SOURCE_CHANGED`、`STATUS_SOURCE_NO_CHANGE`、`NON_STATUS_TYPE`、`INVALID_ARGUMENT_SHAPE`、`PREPROCESSING_REFLECTION_FAILED`、`DISABLED`。
+6. 所有 `catch (Throwable)` 先 `FatalErrors.unwrapAndRethrowIfFatal(t)`，且不再用 catch 重试 `chain.proceed()`。
+
+### 测试要求
+- modern public status / navigation / displayCutout 判定
+- legacy internal status / navigation 判定
+- unsupported encoding 完全放行
+- Rect 输入对象不被修改
+- 四参数顺序正确
+- 前置异常 proceed 一次
+- 日志异常 proceed 一次
+- 原方法普通异常向上传播且 proceed 一次
+- 原方法 fatal 向上传播且 proceed 一次
+- changed=false / disabled proceed 一次
+- diagnostic key 上限生效
+- raw=11 / resolved=27 / enabled=false
+- raw=27 / resolved=27 / enabled=true
