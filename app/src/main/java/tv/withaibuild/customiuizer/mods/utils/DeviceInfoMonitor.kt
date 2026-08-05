@@ -48,7 +48,13 @@ internal fun formatMonitorTwoDecimals(value: Float): String = monitorTwoDecimalF
  * sysfs reads back off on repeated failures; all user preferences are captured
  * in an immutable snapshot that is refreshed when a relevant preference key
  * changes.
+ *
+ * activeContext is the SystemUI application context, captured in the hook and
+ * released in [destroy]. It is used to register/unregister the screen receiver
+ * and schedule monitor ticks. Lint cannot see the explicit ownership/receiver
+ * lifecycle, so the static-Context warning is suppressed at the object level.
  */
+@SuppressLint("StaticFieldLeak")
 object DeviceInfoMonitor {
 
     private const val MONITOR_MESSAGE = 200021

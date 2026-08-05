@@ -40,6 +40,11 @@ import tv.withaibuild.customiuizer.utils.Helpers
 import java.lang.reflect.Method
 import tv.withaibuild.customiuizer.utils.HookUtils
 
+// basePWMContext is the system_server PhoneWindowManager mContext, a per-process
+// singleton, not an Activity Context. It is captured once per PhoneWindowManager
+// and used by the navigation-key long-press Runnables. There is no owner hand-off
+// to manage because the system_server process recreates it only on crash/restart.
+@SuppressLint("StaticFieldLeak")
 object Controls {
 
     private const val NAV_BAR_DARK_STATE_FIELD = "custo_nav_bar_buttons_dark"

@@ -29,7 +29,14 @@ import java.lang.ref.WeakReference
  *   the receiver and any delayed refresh job.
  * - A missed force refresh is remembered and executed when the screen turns
  *   back on.
+ *
+ * context is set to [Context.applicationContext] in [initContext]; a previous
+ * context is unregistered and its coroutine scope is cancelled before the
+ * replacement. updateTarget is a WeakReference. Lint cannot see this explicit
+ * ownership/receiver lifecycle, so the static-Context warning is suppressed at
+ * the object level.
  */
+@SuppressLint("StaticFieldLeak")
 object WeatherDataController : ScreenStateController.ScreenStateListener {
 
     @JvmField

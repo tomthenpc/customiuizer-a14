@@ -33,7 +33,13 @@ import java.lang.ref.WeakReference
  *   polling [PowerManager.isInteractive] on every tick.
  * - Step queries are single-flight: a new tick is skipped while a query is
  *   already in flight, preventing parallel ContentProvider requests.
+ *
+ * context is set to [Context.applicationContext] in [initContext]; a previous
+ * context is unregistered and its coroutine scope is cancelled before the
+ * replacement. Lint cannot see this explicit ownership/receiver lifecycle, so
+ * the static-Context warning is suppressed at the object level.
  */
+@SuppressLint("StaticFieldLeak")
 object StepCounterController : ScreenStateController.ScreenStateListener {
 
     private val stepViewList = ArrayList<WeakReference<TextView>>(2)
