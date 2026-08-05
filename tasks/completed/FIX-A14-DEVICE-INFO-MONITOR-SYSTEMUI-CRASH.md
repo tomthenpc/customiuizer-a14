@@ -81,8 +81,8 @@ Feature 安装
 ## 完成记录
 
 - Base SHA: c359bc79ee740a49bd0ad2af00f3d1f7042c8dc9
-- Final SHA:
-- Commits:
+- Final SHA: 4e126c7b9981b5b642c19c6188e90b81305e817b
+- Commits: 4e126c7b
 - Behavior changed:
   - `DeviceInfoMonitor` handler 按 generation 失效；
   - `addHolder` 对自定义 type 91/92 增加完整 try/catch 与 null fallback；
