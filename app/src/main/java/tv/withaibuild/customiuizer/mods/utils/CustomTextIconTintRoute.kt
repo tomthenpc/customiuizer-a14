@@ -79,8 +79,9 @@ internal object CustomTextIconTintRoute {
             registration.releaseSilently("release-all")
             try {
                 registration.view.removeOnAttachStateChangeListener(registration.listener)
-            } catch (_: Throwable) {
-                // The View may already be gone; do not let cleanup fail the whole stop.
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                // The View may already be gone; do not let ordinary cleanup failures stop the stop.
             }
         }
     }
