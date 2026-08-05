@@ -53,9 +53,8 @@ object DeviceInfoFormatter {
             FileInputStream("/sys/class/power_supply/battery/uevent").use { fis ->
                 Properties().apply { load(fis) }
             }
-        } catch (oom: OutOfMemoryError) {
-            throw oom
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             null
         }
     }
@@ -69,9 +68,8 @@ object DeviceInfoFormatter {
         if (thermalId == -1) return null
         return try {
             RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$thermalId/temp", "r").use { it.readLine() }
-        } catch (oom: OutOfMemoryError) {
-            throw oom
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             null
         }
     }

@@ -1,12 +1,54 @@
 # FIX-A14-DEVICE-INFO-MONITOR-SYSTEMUI-CRASH
 
 - Platform: A14
-- Status: Completed
+- Status: Completed (R1 corrective closure)
 - Priority: P0
 - Owner: Devin
 - Reviewer: ChatGPT / human
 - Related version: A14
 - Cross-repo task: no
+
+## R1 修正目标
+
+1. 所有新增/修改的 `catch (Throwable)` 边界必须先调用 `FatalErrors.unwrapAndRethrowIfFatal(t)`，不得只重抛 `OutOfMemoryError`。
+2. 封闭 `publishReadings()` 中 `activeMainHandler` 的 generation TOCTOU：`IconUpdate` 必须携带 generation，主线程 Handler 同时校验 message generation 与自身 handler id。
+3. 统一 `NetworkSpeedView` 类路由：提取 `resolveNetworkSpeedViewClassName(classLoader)`，探测、`getSlot` hook 与相关逻辑复用同一结果。
+4. 修复 `addHolder` 边界：`mType` 读取、自定义 type 处理全程处于 fatal-aware 边界；非 91/92 放行原方法；失败时安全 `returnAndSkip(null)`。
+5. 修复 `findIconManagerGroup()` 候选字段 fallback：逐个尝试 `mGroup`/`mIcons`/`iconGroup`，普通缺失继续下一个，fatal error 立即抛出。
+
+## R1 修正内容
+
+1. **fatal error 边界**
+   - `DeviceInfoMonitor.kt`、`DeviceInfoFormatter.kt`、`SystemUIStatusBarHooks.kt` 中所有本轮新增/修改的 `catch (Throwable)` 先调用 `FatalErrors.unwrapAndRethrowIfFatal(t)`，再执行兼容降级。
+   - `DeviceInfoMonitor.kt` 的 monitor 热路径保留显式 `catch (oom: OutOfMemoryError) { throw oom }` 以满足 `device-info-monitor-hot-path` 不变式，同时 `catch (t: Throwable)` 内部仍然调用 `FatalErrors.unwrapAndRethrowIfFatal(t)`，避免只重抛 OOM。
+
+2. **generation TOCTOU 封闭**
+   - `IconUpdate` 增加 `generation` 字段。
+   - `DeviceInfoMonitorState` 接管 `battery` / `temp` 去重状态，提供 `shouldPublish` 与 `commitPublished`。
+   - `startNewGeneration()` / `stop()` 重置去重状态，避免新 generation 因旧状态被错误去重。
+   - 主线程 Handler 同时检查 `update.generation == myId` 与 `monitorState.isActiveMain(myId)`，旧消息不修改当前状态。
+   - `publishReadings()` 不再直接修改 `batteryState`/`tempState`，只通过 `activeMainHandler` 投递携带 generation 的消息。
+
+3. **NetworkSpeedView 路由统一**
+   - 提取 `resolveNetworkSpeedViewClassName(classLoader)`，按 AOSP → MIUI 顺序探测并复用结果。
+   - `hookNetworkSpeedView` 和 `isStatusbarTextIconSupported` 使用同一解析结果，避免“探测 MIUI、hook AOSP”的分叉。
+   - 探测逻辑可注入 `probe` 函数，支持单元测试。
+
+4. **addHolder 边界加固**
+   - `interceptAddHolder` 先安全读取 `mType`；无法确定 type 时放行 ROM 原方法。
+   - 确认是 91/92 后进入完整 fatal-aware `try/catch`；任意非 fatal 失败 `returnAndSkip(null)`。
+   - 外层 `catch` 也调用 `FatalErrors.unwrapAndRethrowIfFatal(t)`，再 `returnAndSkip(null)`。
+
+5. **候选字段解析**
+   - 提取 `FieldCandidateResolver`，逐个尝试 `mGroup`/`mIcons`/`iconGroup`。
+   - 普通 `NoSuchFieldError` 继续下一个候选；fatal error 立即抛出；找到 `ViewGroup` 立即返回。
+
+## R1 新增/修改测试
+
+- `FatalErrorsTest.kt`：补充 `ThreadDeath`、`VirtualMachineError`、`InvocationTargetException(ThreadDeath)`、`InvocationTargetException(VirtualMachineError)`、`ExecutionException(ThreadDeath)` 不被吞掉的测试。
+- `DeviceInfoMonitorStateTest.kt`：补充 generation 切换、旧消息污染、去重状态重置、`commitPublished`/`shouldPublish` 边界。
+- `NetworkSpeedViewResolverTest.kt`：测试 AOSP/MIUI 路由选择、均不存在、fatal 传播。
+- `FieldCandidateResolverTest.kt`：测试首个字段缺失时继续尝试第二、第三候选。
 
 ## 目标
 
@@ -80,17 +122,23 @@ Feature 安装
 
 ## 完成记录
 
-- Base SHA: c359bc79ee740a49bd0ad2af00f3d1f7042c8dc9
-- Final SHA: 4e126c7b9981b5b642c19c6188e90b81305e817b
-- Commits: 4e126c7b
+- Base SHA: 9282443705799fbde6accfccdb8da16193aeefdb
+- Original engineering commit: 4e126c7b9981b5b642c19c6188e90b81305e817b
+- Corrective engineering commit: (to be recorded after push)
+- Current remote branch HEAD: 9282443705799fbde6accfccdb8da16193aeefdb
+- Total commits in this corrective pass: 1
 - Behavior changed:
-  - `DeviceInfoMonitor` handler 按 generation 失效；
-  - `addHolder` 对自定义 type 91/92 增加完整 try/catch 与 null fallback；
-  - `NetworkSpeedView` 类探测与跳过；
-  - `updateStatusbarTextIcons` 清理 detached View 并带方法缺失 fallback；
-  - `DeviceInfoFormatter` 独立且可测试；
-  - `consecutiveFailCount` 原子化。
+  - `DeviceInfoMonitor` handler 按 generation 失效，主线程消息携带 generation 并双检；
+  - `addHolder` 对自定义 type 91/92 增加完整 fatal-aware 边界与 null fallback；
+  - `NetworkSpeedView` 类路由统一，探测、`getSlot` hook 和相关逻辑复用同一解析结果；
+  - `findIconManagerGroup` 候选字段 `mGroup`/`mIcons`/`iconGroup` 逐个尝试并加 fatal 传播；
+  - `DeviceInfoFormatter` / `DeviceInfoMonitor` / `SystemUIStatusBarHooks` 的 `catch (Throwable)` 先调用 `FatalErrors.unwrapAndRethrowIfFatal(t)`；
+  - `DeviceInfoMonitorState` 接管去重状态并在 generation 切换/停止时重置；
+  - 新增 `FieldCandidateResolver` 与 `NetworkSpeedViewResolver` 测试。
 - Verification: PASS
+- Debug APK: `app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk`
+- APK SHA-256: 3A4482C0C4637D687D4BFBDC8B51DB6FE543DAE01ABFC2FC2A7BE488CC7E4A8D
+- APK signature type: Debug
 - Device evidence: 无实机日志；静态/单元/构建验证通过。
 - Known limits:
   - `StatusBarDisplayRegistry` 未改动，已通过现有测试验证生成隔离；

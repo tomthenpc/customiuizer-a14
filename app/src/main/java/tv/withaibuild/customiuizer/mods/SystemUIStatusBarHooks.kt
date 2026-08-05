@@ -167,9 +167,8 @@ object SystemUIStatusBarHooks {
         return try {
             XposedHelpers.getObjectField(iconView, "mNetworkSpeedNumberText") as? TextView
                 ?: iconView.findViewWithTag<View>("network_speed_number") as? TextView
-        } catch (oom: OutOfMemoryError) {
-            throw oom
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             iconView.findViewWithTag<View>("network_speed_number") as? TextView
         }
     }
@@ -179,9 +178,8 @@ object SystemUIStatusBarHooks {
         if (!fromController) {
             try {
                 XposedHelpers.callMethod(iconView, "setBlocked", false)
-            } catch (oom: OutOfMemoryError) {
-                throw oom
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
             }
         }
         val iconTextView = getIconTextView(iconView)
@@ -240,9 +238,8 @@ object SystemUIStatusBarHooks {
         val iconView = try {
             LayoutInflater.from(mContext).inflate(statusbarTextIconLayoutResId, null)
                 ?: throw IllegalStateException("LayoutInflater returned null for statusbar_text_icon")
-        } catch (oom: OutOfMemoryError) {
-            throw oom
         } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             throw IllegalStateException("Failed to inflate statusbar_text_icon for type $iconType", t)
         }
         iconView.setTag(textIconTagId, iconType)
@@ -252,17 +249,15 @@ object SystemUIStatusBarHooks {
         if (mNumber != null) {
             try {
                 XposedHelpers.setObjectField(iconView, "mNetworkSpeedNumberText", mNumber)
-            } catch (oom: OutOfMemoryError) {
-                throw oom
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
             }
         }
         if (mUnit != null) {
             try {
                 XposedHelpers.setObjectField(iconView, "mNetworkSpeedUnitText", mUnit)
-            } catch (oom: OutOfMemoryError) {
-                throw oom
-            } catch (_: Throwable) {
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
             }
         }
         initStatusbarTextIcon(mContext, iconType, iconView, fromController)
@@ -488,9 +483,8 @@ object SystemUIStatusBarHooks {
             try {
                 XposedHelpers.callMethod(iconView, "setVisibilityByController", show)
                 if (show) XposedHelpers.callMethod(iconView, "setNetworkSpeed", text, "")
-            } catch (oom: OutOfMemoryError) {
-                throw oom
             } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
                 // If the custom NetworkSpeedView does not have the expected methods, fall back to
                 // a plain View visibility/text update so the icon degrades rather than crashing.
                 try {
@@ -499,7 +493,8 @@ object SystemUIStatusBarHooks {
                     if (show && numberView is TextView) {
                         numberView.text = text
                     }
-                } catch (_: Throwable) {
+                } catch (t2: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t2)
                 }
                 XposedHelpers.log("updateStatusbarTextIcons fallback for $iconType: ${t.javaClass.simpleName}")
             }

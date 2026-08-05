@@ -22,11 +22,15 @@ class FatalErrorsTest {
         FatalErrors.rethrowIfFatal(InternalError("vm error"))
     }
 
+    @Test(expected = StackOverflowError::class)
+    fun rethrowsStackOverflowError() {
+        FatalErrors.rethrowIfFatal(StackOverflowError("stack overflow"))
+    }
+
     @Test
     fun doesNotRethrowOrdinaryException() {
         val t = IllegalStateException("ordinary")
         FatalErrors.rethrowIfFatal(t)
-        // Should reach here.
     }
 
     @Test(expected = OutOfMemoryError::class)
@@ -36,9 +40,30 @@ class FatalErrorsTest {
         FatalErrors.unwrapAndRethrowIfFatal(wrapped)
     }
 
+    @Test(expected = ThreadDeath::class)
+    fun unwrapsInvocationTargetCauseAndRethrowsThreadDeath() {
+        val cause = ThreadDeath()
+        val wrapped = java.lang.reflect.InvocationTargetException(cause)
+        FatalErrors.unwrapAndRethrowIfFatal(wrapped)
+    }
+
+    @Test(expected = StackOverflowError::class)
+    fun unwrapsInvocationTargetCauseAndRethrowsVirtualMachineError() {
+        val cause = StackOverflowError("wrapped soe")
+        val wrapped = java.lang.reflect.InvocationTargetException(cause)
+        FatalErrors.unwrapAndRethrowIfFatal(wrapped)
+    }
+
     @Test(expected = InternalError::class)
     fun unwrapsExecutionExceptionCauseAndRethrowsIfFatal() {
         val cause = InternalError("wrapped vm error")
+        val wrapped = ExecutionException("wrapped", cause)
+        FatalErrors.unwrapAndRethrowIfFatal(wrapped)
+    }
+
+    @Test(expected = ThreadDeath::class)
+    fun unwrapsExecutionExceptionCauseAndRethrowsThreadDeath() {
+        val cause = ThreadDeath()
         val wrapped = ExecutionException("wrapped", cause)
         FatalErrors.unwrapAndRethrowIfFatal(wrapped)
     }
@@ -57,7 +82,6 @@ class FatalErrorsTest {
         a.initCause(b)
         try {
             FatalErrors.unwrapAndRethrowIfFatal(a, maxDepth = 10)
-            // Reached depth limit without fatal.
         } catch (_: StackOverflowError) {
             fail("Must not recurse infinitely")
         }

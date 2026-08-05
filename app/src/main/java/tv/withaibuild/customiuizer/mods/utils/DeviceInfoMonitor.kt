@@ -43,6 +43,11 @@ object DeviceInfoMonitor {
     private const val BASE_MONITOR_DELAY_MS = 2000L
     private const val MAX_MONITOR_DELAY_MS = 60000L
 
+    private val NETWORK_SPEED_VIEW_CANDIDATES = listOf(
+        "com.android.systemui.statusbar.views.NetworkSpeedView",
+        "com.miui.systemui.statusbar.views.NetworkSpeedView"
+    )
+
     private data class ConfigSnapshot(
         val showBatteryDetail: Boolean,
         val showDeviceTemp: Boolean,
@@ -90,7 +95,8 @@ object DeviceInfoMonitor {
     private data class IconUpdate(
         val type: Int,
         val show: Boolean,
-        val text: String
+        val text: String,
+        val generation: Long
     )
 
     private data class DeviceData(
@@ -100,16 +106,9 @@ object DeviceInfoMonitor {
         val tempText: String
     )
 
-    private data class TextIconState(
-        var show: Boolean = false,
-        var text: String = ""
-    )
-
     private val monitorState = DeviceInfoMonitorState()
 
     private val monitorLock = Any()
-    private val batteryState = TextIconState()
-    private val tempState = TextIconState()
 
     @Volatile
     private var config: ConfigSnapshot? = null
@@ -143,7 +142,8 @@ object DeviceInfoMonitor {
         lpClassLoader = lpparam.classLoader
         if (cfg.customIconTypes.isEmpty()) return
 
-        if (!isStatusbarTextIconSupported(lpparam.classLoader)) {
+        val networkSpeedViewClass = resolveNetworkSpeedViewClassName(lpparam.classLoader)
+        if (networkSpeedViewClass == null) {
             XposedHelpers.log("DeviceInfoMonitor: NetworkSpeedView not available, skipping icon slots")
             return
         }
@@ -162,18 +162,34 @@ object DeviceInfoMonitor {
         // Everything the ticker reads (formats, units, content options, the in-charge
         // condition) is picked up on the next tick.
         hookIconSlots(lpparam, cfg)
-        hookNetworkSpeedView(lpparam)
+        hookNetworkSpeedView(lpparam, networkSpeedViewClass)
         hookMonitor(lpparam)
     }
 
-    private fun isStatusbarTextIconSupported(classLoader: ClassLoader): Boolean {
-        return XposedHelpers.findClassIfExists(
-            "com.android.systemui.statusbar.views.NetworkSpeedView",
-            classLoader
-        ) != null || XposedHelpers.findClassIfExists(
-            "com.miui.systemui.statusbar.views.NetworkSpeedView",
-            classLoader
-        ) != null
+    /**
+     * Resolves the actual NetworkSpeedView class name for this ROM, trying the known
+     * candidates in order. Returns null if neither exists.
+     *
+     * The [probe] parameter is normally [XposedHelpers.findClassIfExists]; it is exposed so
+     * unit tests can verify the resolution strategy without requiring a real ROM class loader.
+     */
+    @JvmStatic
+    internal fun resolveNetworkSpeedViewClassName(
+        classLoader: ClassLoader,
+        probe: (String, ClassLoader) -> Class<*>? = { name, loader -> XposedHelpers.findClassIfExists(name, loader) }
+    ): String? {
+        for (name in NETWORK_SPEED_VIEW_CANDIDATES) {
+            val found = try {
+                probe(name, classLoader) != null
+            } catch (oom: OutOfMemoryError) {
+                throw oom
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                false
+            }
+            if (found) return name
+        }
+        return null
     }
 
     private fun buildConfig(mPrefs: PrefMap): ConfigSnapshot {
@@ -278,93 +294,101 @@ object DeviceInfoMonitor {
         if (args.isEmpty()) return
 
         val iconHolderArg = args.find { it?.javaClass?.simpleName?.contains("StatusBarIconHolder") == true } ?: return
-        val iconHolder = iconHolderArg ?: return
-        val type = XposedHelpers.getIntField(iconHolder, "mType")
-        if (type != 91 && type != 92) return
-
-        // Find the ViewGroup (mGroup / mIcons / etc.) safely. On some ROMs the field has a
-        // different name; if we cannot find the group, the original addHolder would receive an
-        // icon holder with an unknown type and likely return null, causing a downstream NPE.
-        // We return null as well but we do not let our own reflection errors propagate.
-        val thisObj = param.getThisObject() ?: run {
-            param.returnAndSkip(null)
-            return
-        }
-        val group = findIconManagerGroup(thisObj)
-        if (group == null) {
-            param.returnAndSkip(null)
-            return
-        }
-
-        // Find the insertion index. The first argument is the index in every known signature;
-        // if it is not an int, default to 0 and clamp it below.
-        val requestedIndex = (args[0] as? Int) ?: 0
-
-        // If a custom icon with the same type already lives in this group, reuse it.
-        for (j in 0 until group.childCount) {
-            val child = group.getChildAt(j)
-            if (child != null && child.getTag(SystemUIStatusBarHooks.textIconTagId) == type) {
-                param.returnAndSkip(child)
-                return
-            }
-        }
-
-        val context = findIconManagerContext(thisObj, group) ?: run {
-            param.returnAndSkip(null)
-            return
-        }
-
-        val lp = try {
-            XposedHelpers.callMethod(thisObj, "onCreateLayoutParams") as? LinearLayout.LayoutParams
-                ?: LinearLayout.LayoutParams(-2, -2)
-        } catch (oom: OutOfMemoryError) {
-            throw oom
-        } catch (_: Throwable) {
-            LinearLayout.LayoutParams(-2, -2)
-        }
-
-        val iconView = try {
-            SystemUIStatusBarHooks.createStatusbarTextIcon(context, lp, type, true)
+        val type = try {
+            XposedHelpers.getIntField(iconHolderArg, "mType")
         } catch (oom: OutOfMemoryError) {
             throw oom
         } catch (t: Throwable) {
-            XposedHelpers.log("DeviceInfoMonitor: failed to create custom icon view for type $type: ${t.javaClass.simpleName}")
-            param.returnAndSkip(null)
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            // We cannot determine the type; let the original method handle it.
             return
         }
+        if (type != 91 && type != 92) return
 
-        val safeIndex = StatusbarViewMaths.clampStatusIconInsertIndex(requestedIndex, group.childCount)
-        group.addView(iconView, safeIndex)
-        SystemUIStatusBarHooks.registerStatusbarTextIcon(iconView)
-        param.returnAndSkip(iconView)
+        // Confirmed custom type. The whole custom handling path is in a fatal-aware boundary;
+        // any non-fatal failure returns null so SystemUI does not crash on an unknown icon type.
+        try {
+            val thisObj = param.getThisObject() ?: run {
+                param.returnAndSkip(null)
+                return
+            }
+
+            val group = findIconManagerGroup(thisObj) ?: run {
+                param.returnAndSkip(null)
+                return
+            }
+
+            // Find the insertion index. The first argument is the index in every known signature;
+            // if it is not an int, default to 0 and clamp it below.
+            val requestedIndex = (args[0] as? Int) ?: 0
+
+            // If a custom icon with the same type already lives in this group, reuse it.
+            for (j in 0 until group.childCount) {
+                val child = group.getChildAt(j)
+                if (child != null && child.getTag(SystemUIStatusBarHooks.textIconTagId) == type) {
+                    param.returnAndSkip(child)
+                    return
+                }
+            }
+
+            val context = findIconManagerContext(thisObj, group) ?: run {
+                param.returnAndSkip(null)
+                return
+            }
+
+            val lp = try {
+                XposedHelpers.callMethod(thisObj, "onCreateLayoutParams") as? LinearLayout.LayoutParams
+                    ?: LinearLayout.LayoutParams(-2, -2)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                LinearLayout.LayoutParams(-2, -2)
+            }
+
+            val iconView = try {
+                SystemUIStatusBarHooks.createStatusbarTextIcon(context, lp, type, true)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log("DeviceInfoMonitor: failed to create custom icon view for type $type: ${t.javaClass.simpleName}")
+                param.returnAndSkip(null)
+                return
+            }
+
+            val safeIndex = StatusbarViewMaths.clampStatusIconInsertIndex(requestedIndex, group.childCount)
+            group.addView(iconView, safeIndex)
+            SystemUIStatusBarHooks.registerStatusbarTextIcon(iconView)
+            param.returnAndSkip(iconView)
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("DeviceInfoMonitor: addHolder custom path failed: ${t.javaClass.simpleName}")
+            param.returnAndSkip(null)
+        }
     }
 
     private fun findIconManagerGroup(iconManager: Any): ViewGroup? {
-        return try {
-            XposedHelpers.getObjectField(iconManager, "mGroup") as? ViewGroup
-                ?: XposedHelpers.getObjectField(iconManager, "mIcons") as? ViewGroup
-                ?: XposedHelpers.getObjectField(iconManager, "iconGroup") as? ViewGroup
-        } catch (oom: OutOfMemoryError) {
-            throw oom
-        } catch (_: Throwable) {
-            null
-        }
+        return FieldCandidateResolver.resolve(iconManager, listOf("mGroup", "mIcons", "iconGroup"))
     }
 
     private fun findIconManagerContext(iconManager: Any, fallbackGroup: ViewGroup): Context? {
-        return try {
-            XposedHelpers.getObjectField(iconManager, "mContext") as? Context
-                ?: fallbackGroup.context
+        val context = try {
+            XposedHelpers.getObjectField(iconManager, "mContext")
         } catch (oom: OutOfMemoryError) {
             throw oom
-        } catch (_: Throwable) {
-            fallbackGroup.context
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
         }
+        return (context as? Context) ?: fallbackGroup.context
     }
 
-    private fun hookNetworkSpeedView(lpparam: PackageReadyParam) {
+    private fun hookNetworkSpeedView(lpparam: PackageReadyParam, className: String) {
         ModuleHelper.findAndHookMethod(
-            "com.android.systemui.statusbar.views.NetworkSpeedView",
+            className,
             lpparam.classLoader,
             "getSlot",
             object : MethodHook() {
@@ -417,6 +441,11 @@ object DeviceInfoMonitor {
                                 }
                                 if (msg.what == UPDATE_MESSAGE) {
                                     val update = msg.obj as? IconUpdate ?: return@guarded
+                                    if (update.generation != myId) {
+                                        removeMessages(UPDATE_MESSAGE)
+                                        return@guarded
+                                    }
+                                    monitorState.commitPublished(myId, update.type, update.show, update.text)
                                     SystemUIStatusBarHooks.updateStatusbarTextIcons(update.type, update.show, update.text)
                                 }
                             }
@@ -487,7 +516,8 @@ object DeviceInfoMonitor {
             activeContext?.unregisterReceiver(receiver)
         } catch (oom: OutOfMemoryError) {
             throw oom
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
         }
     }
 
@@ -534,24 +564,23 @@ object DeviceInfoMonitor {
     }
 
     private fun publishReadings(cfg: ConfigSnapshot, data: DeviceData, handlerId: Long) {
-        if (!monitorState.isActiveMain(handlerId)) return
+        if (!monitorState.isActiveBg(handlerId) || !monitorState.isActiveMain(handlerId)) return
+
+        val handler = activeMainHandler ?: return
+
         if (cfg.showBatteryDetail &&
-            (data.batteryShow != batteryState.show || data.batteryText != batteryState.text)
+            monitorState.shouldPublish(handlerId, 91, data.batteryShow, data.batteryText)
         ) {
-            batteryState.show = data.batteryShow
-            batteryState.text = data.batteryText
-            activeMainHandler?.let { handler ->
-                handler.sendMessage(handler.obtainMessage(UPDATE_MESSAGE, IconUpdate(91, data.batteryShow, data.batteryText)))
-            }
+            handler.sendMessage(
+                handler.obtainMessage(UPDATE_MESSAGE, IconUpdate(91, data.batteryShow, data.batteryText, handlerId))
+            )
         }
         if (cfg.showDeviceTemp &&
-            (data.tempShow != tempState.show || data.tempText != tempState.text)
+            monitorState.shouldPublish(handlerId, 92, data.tempShow, data.tempText)
         ) {
-            tempState.show = data.tempShow
-            tempState.text = data.tempText
-            activeMainHandler?.let { handler ->
-                handler.sendMessage(handler.obtainMessage(UPDATE_MESSAGE, IconUpdate(92, data.tempShow, data.tempText)))
-            }
+            handler.sendMessage(
+                handler.obtainMessage(UPDATE_MESSAGE, IconUpdate(92, data.tempShow, data.tempText, handlerId))
+            )
         }
     }
 
@@ -608,7 +637,8 @@ object DeviceInfoMonitor {
             XposedHelpers.callMethod(batteryStatus, "isCharging") as? Boolean ?: true
         } catch (oom: OutOfMemoryError) {
             throw oom
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             true
         }
     }

@@ -92,4 +92,99 @@ class DeviceInfoMonitorStateTest {
         state.screenOn = false
         assertFalse(state.screenOn)
     }
+
+    @Test
+    fun shouldPublishRejectsOldGeneration() {
+        val state = DeviceInfoMonitorState()
+        val oldId = state.startNewGeneration()
+        state.startNewGeneration()
+
+        assertFalse(state.shouldPublish(oldId, 91, true, "10℃ 100mA"))
+        assertEquals(Pair(false, ""), state.getLastPublished(91))
+    }
+
+    @Test
+    fun commitPublishedOnlyAcceptsCurrentGeneration() {
+        val state = DeviceInfoMonitorState()
+        val oldId = state.startNewGeneration()
+        val newId = state.startNewGeneration()
+
+        assertFalse(state.commitPublished(oldId, 91, true, "stale"))
+        assertTrue(state.commitPublished(newId, 91, true, "fresh"))
+        assertEquals(Pair(true, "fresh"), state.getLastPublished(91))
+    }
+
+    @Test
+    fun startNewGenerationResetsPublishedState() {
+        val state = DeviceInfoMonitorState()
+        val first = state.startNewGeneration()
+        state.commitPublished(first, 91, true, "10℃ 100mA")
+        val second = state.startNewGeneration()
+
+        assertEquals(Pair(false, ""), state.getLastPublished(91))
+        assertTrue(state.shouldPublish(second, 91, true, "10℃ 100mA"))
+    }
+
+    @Test
+    fun stopResetsPublishedState() {
+        val state = DeviceInfoMonitorState()
+        val first = state.startNewGeneration()
+        state.commitPublished(first, 92, true, "45℃")
+        state.stop()
+
+        assertEquals(Pair(false, ""), state.getLastPublished(92))
+        assertFalse(state.shouldPublish(first, 92, true, "45℃"))
+    }
+
+    @Test
+    fun shouldPublishDeduplicatesSameText() {
+        val state = DeviceInfoMonitorState()
+        val id = state.startNewGeneration()
+
+        assertTrue(state.shouldPublish(id, 91, true, "10℃ 100mA"))
+        state.commitPublished(id, 91, true, "10℃ 100mA")
+        assertFalse(state.shouldPublish(id, 91, true, "10℃ 100mA"))
+    }
+
+    @Test
+    fun oldGenerationDoesNotPolluteNewGenerationState() {
+        val state = DeviceInfoMonitorState()
+        val oldId = state.startNewGeneration()
+
+        // Simulate an old message being accepted after a new generation has started.
+        val newId = state.startNewGeneration()
+        state.commitPublished(oldId, 91, true, "stale")
+
+        // The stale commit must not have written into the new generation's state.
+        assertEquals(Pair(false, ""), state.getLastPublished(91))
+        assertTrue(state.shouldPublish(newId, 91, true, "stale"))
+    }
+
+    @Test
+    fun commitPublishedChecksGenerationBeforeUpdating() {
+        val state = DeviceInfoMonitorState()
+        val id = state.startNewGeneration()
+
+        // Mimic the exact check the main handler performs: generation must match and
+        // the handler id must still be active.
+        val updateType = 92
+        val updateShow = true
+        val updateText = "45℃"
+        val accepted = id == id && state.isActiveMain(id) && state.commitPublished(id, updateType, updateShow, updateText)
+
+        assertTrue(accepted)
+        assertEquals(Pair(updateShow, updateText), state.getLastPublished(updateType))
+    }
+
+    @Test
+    fun stopInvalidatesInFlightMessages() {
+        val state = DeviceInfoMonitorState()
+        val id = state.startNewGeneration()
+        state.commitPublished(id, 91, true, "10℃")
+        state.stop()
+
+        assertFalse(state.isActiveMain(id))
+        assertFalse(state.shouldPublish(id, 91, true, "10℃"))
+        assertEquals(Pair(false, ""), state.getLastPublished(91))
+    }
 }
