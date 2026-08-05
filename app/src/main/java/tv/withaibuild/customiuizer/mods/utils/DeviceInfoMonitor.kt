@@ -19,26 +19,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallbac
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.utils.PrefMap
-import java.io.FileInputStream
-import java.io.RandomAccessFile
-import java.math.RoundingMode
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
-import java.util.Locale
 import java.util.Properties
-
-private fun newMonitorDecimalFormat(pattern: String) =
-    DecimalFormat(pattern, DecimalFormatSymbols(Locale.ROOT)).apply {
-        roundingMode = RoundingMode.HALF_UP
-        isGroupingUsed = false
-    }
-
-private val monitorOneDecimalFormat = ThreadLocal.withInitial { newMonitorDecimalFormat("0.0") }
-private val monitorTwoDecimalFormat = ThreadLocal.withInitial { newMonitorDecimalFormat("0.00") }
-
-internal fun formatMonitorOneDecimal(value: Float): String = monitorOneDecimalFormat.get()!!.format(value)
-
-internal fun formatMonitorTwoDecimals(value: Float): String = monitorTwoDecimalFormat.get()!!.format(value)
 
 /**
  * Battery / device-temperature status bar text icon monitor.
@@ -50,7 +31,7 @@ internal fun formatMonitorTwoDecimals(value: Float): String = monitorTwoDecimalF
  * changes.
  *
  * activeContext is the SystemUI application context, captured in the hook and
- * released in [destroy]. It is used to register/unregister the screen receiver
+ * released in [stopMonitoring]. It is used to register/unregister the screen receiver
  * and schedule monitor ticks. Lint cannot see the explicit ownership/receiver
  * lifecycle, so the static-Context warning is suppressed at the object level.
  */
@@ -87,6 +68,23 @@ object DeviceInfoMonitor {
             if (batteryAtLeft || batteryAtRight) add(91)
             if (tempAtLeft || tempAtRight) add(92)
         }
+
+        fun toFormatterConfig(): DeviceInfoConfig = DeviceInfoConfig(
+            showBatteryDetail = showBatteryDetail,
+            showDeviceTemp = showDeviceTemp,
+            batteryInCharge = batteryInCharge,
+            batteryTempDecimal = batteryTempDecimal,
+            batteryFixCurrentRatio = batteryFixCurrentRatio,
+            batteryPositive = batteryPositive,
+            batterySingleRow = batterySingleRow,
+            batteryReverseOrder = batteryReverseOrder,
+            batteryHideUnit = batteryHideUnit,
+            deviceTempSingleRow = deviceTempSingleRow,
+            deviceTempReverseOrder = deviceTempReverseOrder,
+            deviceTempHideUnit = deviceTempHideUnit,
+            batteryContentOpt = batteryContentOpt,
+            deviceTempContentOpt = deviceTempContentOpt
+        )
     }
 
     private data class IconUpdate(
@@ -107,8 +105,7 @@ object DeviceInfoMonitor {
         var text: String = ""
     )
 
-    @Volatile
-    private var screenOn: Boolean = true
+    private val monitorState = DeviceInfoMonitorState()
 
     private val monitorLock = Any()
     private val batteryState = TextIconState()
@@ -122,7 +119,6 @@ object DeviceInfoMonitor {
     private var activeBgHandler: Handler? = null
     private var screenReceiver: BroadcastReceiver? = null
 
-    private var consecutiveFailCount = 0
     private var chargeUtilsClass: Class<*>? = null
     private var lpClassLoader: ClassLoader? = null
 
@@ -147,6 +143,11 @@ object DeviceInfoMonitor {
         lpClassLoader = lpparam.classLoader
         if (cfg.customIconTypes.isEmpty()) return
 
+        if (!isStatusbarTextIconSupported(lpparam.classLoader)) {
+            XposedHelpers.log("DeviceInfoMonitor: NetworkSpeedView not available, skipping icon slots")
+            return
+        }
+
         if (cfg.showBatteryDetail && cfg.batteryInCharge) {
             chargeUtilsClass = XposedHelpers.findClassIfExists(
                 "com.miui.charge.ChargeUtils",
@@ -163,6 +164,16 @@ object DeviceInfoMonitor {
         hookIconSlots(lpparam, cfg)
         hookNetworkSpeedView(lpparam)
         hookMonitor(lpparam)
+    }
+
+    private fun isStatusbarTextIconSupported(classLoader: ClassLoader): Boolean {
+        return XposedHelpers.findClassIfExists(
+            "com.android.systemui.statusbar.views.NetworkSpeedView",
+            classLoader
+        ) != null || XposedHelpers.findClassIfExists(
+            "com.miui.systemui.statusbar.views.NetworkSpeedView",
+            classLoader
+        ) != null
     }
 
     private fun buildConfig(mPrefs: PrefMap): ConfigSnapshot {
@@ -215,6 +226,8 @@ object DeviceInfoMonitor {
 
         synchronized(monitorLock) {
             activeBgHandler?.removeMessages(MONITOR_MESSAGE)
+            activeBgHandler?.removeMessages(UPDATE_MESSAGE)
+            monitorState.screenOn = true
             activeBgHandler?.sendEmptyMessage(MONITOR_MESSAGE)
         }
     }
@@ -233,7 +246,7 @@ object DeviceInfoMonitor {
                     val iconController = XposedHelpers.getObjectField(
                         XposedHelpers.getObjectField(param.getThisObject(), "mStatusBarIconController"),
                         "mStatusBarIconList"
-                    )
+                    ) ?: return
                     for (iconType in cfg.customIconTypes) {
                         val slot = SystemUIStatusBarHooks.getSlotNameByType(iconType)
                         val mStatusBarIconList = XposedHelpers.getObjectField(iconController, "mStatusBarIconList")
@@ -253,33 +266,100 @@ object DeviceInfoMonitor {
             lpparam.classLoader,
             "addHolder",
             object : MethodHook() {
-                override fun before(param: BeforeHookCallback) {
-                    if (param.getArgs().size != 4) return
-                    val iconHolder = param.getArg(3)
-                    val type = XposedHelpers.getIntField(iconHolder, "mType")
-                    if (type != 91 && type != 92) return
-
-                    val i = param.getArg(0) as Int
-                    val mGroup = XposedHelpers.getObjectField(param.getThisObject(), "mGroup") as ViewGroup
-
-                    for (j in 0 until mGroup.childCount) {
-                        val child = mGroup.getChildAt(j)
-                        if (child.getTag(SystemUIStatusBarHooks.textIconTagId) == type) {
-                            param.returnAndSkip(child)
-                            return
-                        }
-                    }
-
-                    val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
-                    val lp = XposedHelpers.callMethod(param.getThisObject(), "onCreateLayoutParams") as LinearLayout.LayoutParams
-                    val iconView = SystemUIStatusBarHooks.createStatusbarTextIcon(mContext, lp, type, true)
-                    val safeIndex = StatusbarViewMaths.clampStatusIconInsertIndex(i, mGroup.childCount)
-                    mGroup.addView(iconView, safeIndex)
-                    SystemUIStatusBarHooks.registerStatusbarTextIcon(iconView)
-                    param.returnAndSkip(iconView)
-                }
+                override fun before(param: BeforeHookCallback) = interceptAddHolder(param)
             }
         )
+    }
+
+    private fun interceptAddHolder(param: BeforeHookCallback) {
+        // We only care about our custom icon types; for everything else the ROM's original
+        // implementation is the right path.
+        val args = param.getArgs()
+        if (args.isEmpty()) return
+
+        val iconHolderArg = args.find { it?.javaClass?.simpleName?.contains("StatusBarIconHolder") == true } ?: return
+        val iconHolder = iconHolderArg ?: return
+        val type = XposedHelpers.getIntField(iconHolder, "mType")
+        if (type != 91 && type != 92) return
+
+        // Find the ViewGroup (mGroup / mIcons / etc.) safely. On some ROMs the field has a
+        // different name; if we cannot find the group, the original addHolder would receive an
+        // icon holder with an unknown type and likely return null, causing a downstream NPE.
+        // We return null as well but we do not let our own reflection errors propagate.
+        val thisObj = param.getThisObject() ?: run {
+            param.returnAndSkip(null)
+            return
+        }
+        val group = findIconManagerGroup(thisObj)
+        if (group == null) {
+            param.returnAndSkip(null)
+            return
+        }
+
+        // Find the insertion index. The first argument is the index in every known signature;
+        // if it is not an int, default to 0 and clamp it below.
+        val requestedIndex = (args[0] as? Int) ?: 0
+
+        // If a custom icon with the same type already lives in this group, reuse it.
+        for (j in 0 until group.childCount) {
+            val child = group.getChildAt(j)
+            if (child != null && child.getTag(SystemUIStatusBarHooks.textIconTagId) == type) {
+                param.returnAndSkip(child)
+                return
+            }
+        }
+
+        val context = findIconManagerContext(thisObj, group) ?: run {
+            param.returnAndSkip(null)
+            return
+        }
+
+        val lp = try {
+            XposedHelpers.callMethod(thisObj, "onCreateLayoutParams") as? LinearLayout.LayoutParams
+                ?: LinearLayout.LayoutParams(-2, -2)
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (_: Throwable) {
+            LinearLayout.LayoutParams(-2, -2)
+        }
+
+        val iconView = try {
+            SystemUIStatusBarHooks.createStatusbarTextIcon(context, lp, type, true)
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            XposedHelpers.log("DeviceInfoMonitor: failed to create custom icon view for type $type: ${t.javaClass.simpleName}")
+            param.returnAndSkip(null)
+            return
+        }
+
+        val safeIndex = StatusbarViewMaths.clampStatusIconInsertIndex(requestedIndex, group.childCount)
+        group.addView(iconView, safeIndex)
+        SystemUIStatusBarHooks.registerStatusbarTextIcon(iconView)
+        param.returnAndSkip(iconView)
+    }
+
+    private fun findIconManagerGroup(iconManager: Any): ViewGroup? {
+        return try {
+            XposedHelpers.getObjectField(iconManager, "mGroup") as? ViewGroup
+                ?: XposedHelpers.getObjectField(iconManager, "mIcons") as? ViewGroup
+                ?: XposedHelpers.getObjectField(iconManager, "iconGroup") as? ViewGroup
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private fun findIconManagerContext(iconManager: Any, fallbackGroup: ViewGroup): Context? {
+        return try {
+            XposedHelpers.getObjectField(iconManager, "mContext") as? Context
+                ?: fallbackGroup.context
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (_: Throwable) {
+            fallbackGroup.context
+        }
     }
 
     private fun hookNetworkSpeedView(lpparam: PackageReadyParam) {
@@ -289,7 +369,7 @@ object DeviceInfoMonitor {
             "getSlot",
             object : MethodHook() {
                 override fun before(param: BeforeHookCallback) {
-                    val nsView = param.getThisObject() as View
+                    val nsView = param.getThisObject() as? View ?: return
                     val tagData = nsView.getTag(SystemUIStatusBarHooks.textIconTagId)
                     if (tagData != null) {
                         param.returnAndSkip(SystemUIStatusBarHooks.getSlotNameByType(tagData as Int))
@@ -305,9 +385,9 @@ object DeviceInfoMonitor {
      * Deliberately takes no [ConfigSnapshot]. It used to capture the one built at hook time
      * in the constructor hook's closure and hand it to every tick for the life of the
      * process, so [onConfigMayHaveChanged] refreshed a `config` field that the ticker never
-     * read: changing the temperature format, the hide-unit option or the in-charge condition
-     * had no effect until SystemUI restarted, while the preference screen behaved as though
-     * it had. Each tick now takes one snapshot of the volatile field and uses that.
+     * read: changing the temperature format, the hide-unit option or the in-charge
+     * condition had no effect until SystemUI restarted, while the preference screen behaved as
+     * though it had. Each tick now takes one snapshot of the volatile field and uses that.
      */
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     private fun hookMonitor(lpparam: PackageReadyParam) {
@@ -316,16 +396,25 @@ object DeviceInfoMonitor {
             lpparam.classLoader,
             object : MethodHook() {
                 override fun after(param: AfterHookCallback) {
-                    val mContext = param.getArgs()[0] as Context
-                    val looper = param.getArgs()[1] as Looper
+                    val mContext = param.getArgs().getOrNull(0) as? Context ?: return
+                    val looper = param.getArgs().getOrNull(1) as? Looper ?: return
 
                     synchronized(monitorLock) {
                         activeBgHandler?.removeMessages(MONITOR_MESSAGE)
                         activeBgHandler?.removeMessages(UPDATE_MESSAGE)
                         stopScreenReceiverLocked()
 
+                        val handlerId = monitorState.startNewGeneration()
+                        monitorState.screenOn = true
+                        monitorState.resetFailCount()
+
                         activeMainHandler = object : Handler(Looper.getMainLooper()) {
+                            val myId = handlerId
                             override fun handleMessage(msg: Message) = ModuleHelper.guarded {
+                                if (!monitorState.isActiveMain(myId)) {
+                                    removeMessages(UPDATE_MESSAGE)
+                                    return@guarded
+                                }
                                 if (msg.what == UPDATE_MESSAGE) {
                                     val update = msg.obj as? IconUpdate ?: return@guarded
                                     SystemUIStatusBarHooks.updateStatusbarTextIcons(update.type, update.show, update.text)
@@ -334,24 +423,28 @@ object DeviceInfoMonitor {
                         }
 
                         activeBgHandler = object : Handler(looper) {
+                            val myId = handlerId
                             override fun handleMessage(msg: Message) = ModuleHelper.guarded {
+                                if (!monitorState.isActiveBg(myId)) {
+                                    removeMessages(MONITOR_MESSAGE)
+                                    removeMessages(UPDATE_MESSAGE)
+                                    return@guarded
+                                }
                                 if (msg.what == MONITOR_MESSAGE) {
                                     // One read of the volatile per tick, so the whole tick
                                     // works from a single consistent snapshot even if a
                                     // preference changes halfway through it.
                                     val current = config ?: return@guarded
-                                    doMonitorTick(mContext, current)
+                                    doMonitorTick(mContext, current, myId)
                                 }
                             }
                         }
 
                         activeContext = mContext
-                        consecutiveFailCount = 0
-                        screenOn = true
-
                         startScreenReceiverLocked(mContext)
                     }
 
+                    activeBgHandler?.removeMessages(MONITOR_MESSAGE)
                     activeBgHandler?.sendEmptyMessage(MONITOR_MESSAGE)
                 }
             }
@@ -364,12 +457,12 @@ object DeviceInfoMonitor {
             override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
                 when (intent.action) {
                     Intent.ACTION_SCREEN_ON -> {
-                        screenOn = true
+                        monitorState.screenOn = true
                         activeBgHandler?.removeMessages(MONITOR_MESSAGE)
                         activeBgHandler?.sendEmptyMessage(MONITOR_MESSAGE)
                     }
                     Intent.ACTION_SCREEN_OFF -> {
-                        screenOn = false
+                        monitorState.screenOn = false
                         activeBgHandler?.removeMessages(MONITOR_MESSAGE)
                         activeBgHandler?.removeMessages(UPDATE_MESSAGE)
                     }
@@ -406,7 +499,8 @@ object DeviceInfoMonitor {
             activeMainHandler = null
             activeBgHandler = null
             activeContext = null
-            consecutiveFailCount = 0
+            monitorState.stop()
+            monitorState.resetFailCount()
         }
     }
 
@@ -417,81 +511,82 @@ object DeviceInfoMonitor {
      * must degrade to "no reading this round", never to a ticker that stops for the rest of the
      * process lifetime.
      */
-    private fun doMonitorTick(mContext: Context, cfg: ConfigSnapshot) {
-        if (!screenOn) return
+    private fun doMonitorTick(mContext: Context, cfg: ConfigSnapshot, handlerId: Long) {
+        if (!monitorState.screenOn) return
+        if (!monitorState.isActiveBg(handlerId)) return
 
         val powerMgr = mContext.getSystemService(Context.POWER_SERVICE) as? PowerManager
         if (powerMgr != null && !powerMgr.isInteractive) {
-            screenOn = false
+            monitorState.screenOn = false
             return
         }
 
         try {
-            publishReadings(cfg, readDeviceData(mContext, cfg))
+            val data = readDeviceData(mContext, cfg, handlerId)
+            if (data != null && monitorState.isActiveBg(handlerId)) {
+                publishReadings(cfg, data, handlerId)
+            }
         } finally {
-            scheduleNextTick()
-        }
-    }
-
-    private fun publishReadings(cfg: ConfigSnapshot, data: DeviceData?) {
-        if (data != null) {
-            if (cfg.showBatteryDetail &&
-                (data.batteryShow != batteryState.show || data.batteryText != batteryState.text)
-            ) {
-                batteryState.show = data.batteryShow
-                batteryState.text = data.batteryText
-                activeMainHandler?.let { handler ->
-                    handler.sendMessage(handler.obtainMessage(UPDATE_MESSAGE, IconUpdate(91, data.batteryShow, data.batteryText)))
-                }
-            }
-            if (cfg.showDeviceTemp &&
-                (data.tempShow != tempState.show || data.tempText != tempState.text)
-            ) {
-                tempState.show = data.tempShow
-                tempState.text = data.tempText
-                activeMainHandler?.let { handler ->
-                    handler.sendMessage(handler.obtainMessage(UPDATE_MESSAGE, IconUpdate(92, data.tempShow, data.tempText)))
-                }
+            if (monitorState.isActiveBg(handlerId)) {
+                scheduleNextTick(handlerId)
             }
         }
     }
 
-    private fun scheduleNextTick() {
-        synchronized(monitorLock) {
-            if (!screenOn) return
-            val delay = calculateDelay()
-            activeBgHandler?.sendEmptyMessageDelayed(MONITOR_MESSAGE, delay)
+    private fun publishReadings(cfg: ConfigSnapshot, data: DeviceData, handlerId: Long) {
+        if (!monitorState.isActiveMain(handlerId)) return
+        if (cfg.showBatteryDetail &&
+            (data.batteryShow != batteryState.show || data.batteryText != batteryState.text)
+        ) {
+            batteryState.show = data.batteryShow
+            batteryState.text = data.batteryText
+            activeMainHandler?.let { handler ->
+                handler.sendMessage(handler.obtainMessage(UPDATE_MESSAGE, IconUpdate(91, data.batteryShow, data.batteryText)))
+            }
+        }
+        if (cfg.showDeviceTemp &&
+            (data.tempShow != tempState.show || data.tempText != tempState.text)
+        ) {
+            tempState.show = data.tempShow
+            tempState.text = data.tempText
+            activeMainHandler?.let { handler ->
+                handler.sendMessage(handler.obtainMessage(UPDATE_MESSAGE, IconUpdate(92, data.tempShow, data.tempText)))
+            }
         }
     }
 
-    private fun calculateDelay(): Long {
-        if (consecutiveFailCount <= 0) return BASE_MONITOR_DELAY_MS
-        val multiplier = 1L shl consecutiveFailCount.coerceAtMost(5)
-        return (BASE_MONITOR_DELAY_MS * multiplier).coerceAtMost(MAX_MONITOR_DELAY_MS)
+    private fun scheduleNextTick(handlerId: Long) {
+        if (!monitorState.screenOn) return
+        if (!monitorState.isActiveBg(handlerId)) return
+        val delay = monitorState.calculateDelay(BASE_MONITOR_DELAY_MS, MAX_MONITOR_DELAY_MS)
+        activeBgHandler?.sendEmptyMessageDelayed(MONITOR_MESSAGE, delay)
     }
 
-    private fun readDeviceData(mContext: Context, cfg: ConfigSnapshot): DeviceData? {
+    private fun readDeviceData(mContext: Context, cfg: ConfigSnapshot, handlerId: Long): DeviceData? {
+        if (!monitorState.isActiveBg(handlerId)) return null
+
         val shouldShowBattery = if (cfg.showBatteryDetail) shouldShowBatteryInfo(cfg) else false
         val shouldShowTemp = cfg.showDeviceTemp
 
         if (!shouldShowBattery && !shouldShowTemp) return DeviceData(false, "", false, "")
 
-        val props: Properties? = if (shouldShowBattery || shouldShowTemp) readBatteryProps() else null
-        val cpuProps: String? = if (shouldShowTemp) readCpuTemp() else null
+        val props: Properties? = if (shouldShowBattery || shouldShowTemp) DeviceInfoFormatter.readBatteryProps() else null
+        val cpuProps: String? = if (shouldShowTemp) DeviceInfoFormatter.readCpuTemp(ModuleHelper.getCPUThermalId()) else null
 
         val batteryFailed = shouldShowBattery && props == null
         val tempFailed = shouldShowTemp && cpuProps == null
         val anyFailed = batteryFailed || tempFailed
 
         if (anyFailed) {
-            consecutiveFailCount++
+            monitorState.bumpFailCount()
             if (props == null && cpuProps == null) return null
         } else {
-            consecutiveFailCount = 0
+            monitorState.resetFailCount()
         }
 
-        val batteryText = if (shouldShowBattery && props != null) buildBatteryInfo(cfg, props) else ""
-        val deviceText = if (shouldShowTemp && props != null && cpuProps != null) buildDeviceInfo(cfg, props, cpuProps) else ""
+        val fmtCfg = cfg.toFormatterConfig()
+        val batteryText = if (shouldShowBattery && props != null) DeviceInfoFormatter.formatBatteryInfo(fmtCfg, props) else ""
+        val deviceText = if (shouldShowTemp && props != null && cpuProps != null) DeviceInfoFormatter.formatDeviceInfo(fmtCfg, props, cpuProps) else ""
 
         return DeviceData(
             batteryShow = shouldShowBattery,
@@ -510,128 +605,11 @@ object DeviceInfoMonitor {
             return true
         }
         return try {
-            XposedHelpers.callMethod(batteryStatus, "isCharging") as Boolean
+            XposedHelpers.callMethod(batteryStatus, "isCharging") as? Boolean ?: true
         } catch (oom: OutOfMemoryError) {
             throw oom
         } catch (_: Throwable) {
             true
-        }
-    }
-
-    private fun readBatteryProps(): Properties? {
-        return try {
-            FileInputStream("/sys/class/power_supply/battery/uevent").use { fis ->
-                Properties().apply { load(fis) }
-            }
-        } catch (oom: OutOfMemoryError) {
-            throw oom
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
-    private fun readCpuTemp(): String? {
-        val thermalId = ModuleHelper.getCPUThermalId()
-        if (thermalId == -1) return null
-        return try {
-            RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$thermalId/temp", "r").use { it.readLine() }
-        } catch (oom: OutOfMemoryError) {
-            throw oom
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
-    /**
-     * Parses a sysfs value, falling back to [fallback].
-     *
-     * `/sys/class/power_supply/battery/uevent` is a vendor surface: keys go missing and values
-     * appear with signs, whitespace or units depending on the kernel. Parsing runs on the monitor
-     * thread every two seconds, so a malformed line must produce a wrong-but-harmless reading
-     * rather than an exception.
-     */
-    private fun parseSysfsInt(raw: String?, fallback: Int = 0): Int {
-        if (raw.isNullOrEmpty()) return fallback
-        return raw.trim().toIntOrNull() ?: fallback
-    }
-
-    private fun buildBatteryInfo(cfg: ConfigSnapshot, props: Properties): String {
-        val opt = cfg.batteryContentOpt
-        var simpleTempVal = ""
-        if (opt == 1 || opt == 4) {
-            val tempVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_TEMP"))
-            simpleTempVal = if (cfg.batteryTempDecimal) {
-                (tempVal / 10f).toString()
-            } else {
-                if (tempVal % 10 == 0) (tempVal / 10).toString() else (tempVal / 10f).toString()
-            }
-        }
-
-        val currentRatio = if (cfg.batteryFixCurrentRatio) 1f else 1000f
-        val curReadVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_CURRENT_NOW"))
-        var rawCurr = -1 * Math.round(curReadVal / currentRatio)
-
-        var currVal = ""
-        var currUnit = "mA"
-        if (opt == 1 || opt == 3 || opt == 5) {
-            if (cfg.batteryPositive) rawCurr = Math.abs(rawCurr)
-            if (Math.abs(rawCurr) > 999) {
-                currUnit = "A"
-                currVal = formatMonitorTwoDecimals(rawCurr / 1000f)
-            } else {
-                currVal = rawCurr.toString()
-            }
-        }
-
-        val hideUnit = cfg.batteryHideUnit
-        val tempUnit = if (hideUnit == 1 || hideUnit == 2) "" else "℃"
-        val powerUnit = if (hideUnit == 1 || hideUnit == 3) "" else "W"
-        val finalCurrUnit = if (hideUnit == 1 || hideUnit == 3) "" else currUnit
-
-        var simpleWatt = ""
-        if (opt == 2 || opt == 4 || opt == 5) {
-            val voltVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_VOLTAGE_NOW")) / 1000f / 1000f
-            simpleWatt = formatMonitorTwoDecimals(Math.abs(voltVal * rawCurr) / 1000)
-        }
-
-        val splitChar = if (cfg.batterySingleRow) " " else "\n"
-        return when (opt) {
-            1 -> if (cfg.batteryReverseOrder) {
-                currVal + finalCurrUnit + splitChar + simpleTempVal + tempUnit
-            } else {
-                simpleTempVal + tempUnit + splitChar + currVal + finalCurrUnit
-            }
-            4 -> if (cfg.batteryReverseOrder) {
-                simpleWatt + powerUnit + splitChar + simpleTempVal + tempUnit
-            } else {
-                simpleTempVal + tempUnit + splitChar + simpleWatt + powerUnit
-            }
-            2 -> simpleWatt + powerUnit
-            5 -> if (cfg.batteryReverseOrder) {
-                simpleWatt + powerUnit + splitChar + currVal + finalCurrUnit
-            } else {
-                currVal + finalCurrUnit + splitChar + simpleWatt + powerUnit
-            }
-            else -> currVal + finalCurrUnit
-        }
-    }
-
-    private fun buildDeviceInfo(cfg: ConfigSnapshot, props: Properties, cpuProps: String): String {
-        val batteryTempVal = parseSysfsInt(props.getProperty("POWER_SUPPLY_TEMP"))
-        val cpuTempVal = parseSysfsInt(cpuProps)
-        val simpleBatteryTemp = formatMonitorOneDecimal(batteryTempVal / 10f)
-        val simpleCpuTemp = formatMonitorOneDecimal(cpuTempVal / 1000f)
-        val opt = cfg.deviceTempContentOpt
-        val tempUnit = if (cfg.deviceTempHideUnit) "" else "℃"
-        val splitChar = if (cfg.deviceTempSingleRow) " " else "\n"
-        return when (opt) {
-            1 -> if (cfg.deviceTempReverseOrder) {
-                simpleCpuTemp + tempUnit + splitChar + simpleBatteryTemp + tempUnit
-            } else {
-                simpleBatteryTemp + tempUnit + splitChar + simpleCpuTemp + tempUnit
-            }
-            2 -> simpleBatteryTemp + tempUnit
-            else -> simpleCpuTemp + tempUnit
         }
     }
 }
