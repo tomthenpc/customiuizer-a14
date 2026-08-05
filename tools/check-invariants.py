@@ -579,12 +579,33 @@ def check_method_hook_fatal_boundary(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def _catch_body_starts_with_fatal_guard(body: str, variable: str) -> bool:
+    """Return true if the catch body begins by rethrowing or unwrapping fatal errors.
+
+    Accepts either an unconditional `throw variable` or a call to
+    FatalErrors.unwrapAndRethrowIfFatal(variable) as the first statement, optionally
+    wrapped in a `val` assignment.  The surrounding OOM catch no longer satisfies this
+    rule because each generic catch must handle its own fatal boundary.
+    """
+    if not body:
+        return False
+    # The body starts with '{'.  Strip it and leading whitespace; what follows must be
+    # either `throw variable` or a statement whose first expression is the fatal guard.
+    return re.search(
+        rf"^\{{\s*(?:throw\s+{re.escape(variable)}\b"
+        rf"|(?:(?:val|var)\s+\w+\s*=\s*)?FatalErrors\.unwrapAndRethrowIfFatal\s*\(\s*{re.escape(variable)}\s*\))",
+        body,
+        re.DOTALL,
+    ) is not None
+
+
 def check_module_helper_fatal_boundaries(path: Path, text: str) -> list[Finding]:
     """Shared runtime helpers may isolate ordinary failures but must propagate fatal errors.
 
-    Every catch(Throwable) must call FatalErrors.unwrapAndRethrowIfFatal(caught) before
-    treating the failure as non-fatal. An explicit catch(OutOfMemoryError) { throw oom }
-    may still precede the generic catch.
+    Every catch(Throwable) must itself call FatalErrors.unwrapAndRethrowIfFatal(caught) or
+    unconditionally throw the caught exception before any other statement. A preceding
+    catch(OutOfMemoryError) does not protect a later generic catch; each catch body is
+    responsible for its own fatal boundary.
     """
     if rel_posix(path) != MODULE_HELPER:
         return []
@@ -602,34 +623,16 @@ def check_module_helper_fatal_boundaries(path: Path, text: str) -> list[Finding]
                 )
             )
             continue
-        if re.search(rf"\bthrow\s+{re.escape(variable)}\b", body):
+        if _catch_body_starts_with_fatal_guard(body, variable):
             continue
-        if re.search(rf"FatalErrors\.unwrapAndRethrowIfFatal\(\s*{re.escape(variable)}\s*\)", body):
-            continue
-
-        preceding = None
-        for oom in re.finditer(
-            r"catch\s*\(\s*([A-Za-z]\w*)\s*:\s*OutOfMemoryError\s*\)",
-            text[:generic.start()],
-        ):
-            preceding = oom
-        safe = False
-        if preceding is not None:
-            oom_body, oom_body_start = block_at(text, preceding.start())
-            between = text[oom_body_start + len(oom_body):generic.start()]
-            safe = not between.strip() and re.search(
-                rf"\bthrow\s+{re.escape(preceding.group(1))}\b",
-                oom_body,
-            ) is not None
-        if not safe:
-            findings.append(
-                Finding(
-                    "module-helper-fatal-boundary",
-                    path,
-                    line_of(text, generic.start()),
-                    "ModuleHelper catch(Throwable) must rethrow it, call FatalErrors.unwrapAndRethrowIfFatal, or follow an OOM rethrow catch",
-                )
+        findings.append(
+            Finding(
+                "module-helper-fatal-boundary",
+                path,
+                line_of(text, generic.start()),
+                f"ModuleHelper catch(Throwable) '{variable}' must start with throw {variable} or FatalErrors.unwrapAndRethrowIfFatal({variable})",
             )
+        )
     return findings
 
 
@@ -1543,12 +1546,63 @@ def check_owned_registrations_model(path: Path, text: str) -> list[Finding]:
     return findings
 
 
+def _statement_offset_in_body(body: str, needle: str) -> int | None:
+    """Return the character offset of a statement token inside an already-extracted body."""
+    match = re.search(needle, body)
+    if match is None:
+        return None
+    return match.start()
+
+
+def _require_after(
+    findings: list[Finding],
+    rule: str,
+    path: Path,
+    line: int,
+    before: int | None,
+    after: int | None,
+    before_label: str,
+    after_label: str,
+) -> None:
+    """Add a finding if a statement does not occur after another within the same body."""
+    if before is None:
+        return
+    if after is None:
+        findings.append(
+            Finding(
+                rule,
+                path,
+                line,
+                f"{after_label} must follow {before_label}",
+            )
+        )
+        return
+    if after <= before:
+        findings.append(
+            Finding(
+                rule,
+                path,
+                line,
+                f"{after_label} must come after {before_label} in the same block",
+            )
+        )
+
+
 def check_status_bar_display_registry_prune(path: Path, text: str) -> list[Finding]:
     """Dead per-display and pending states must release their registrations before removal.
 
     A state can only be dropped after every registration it owns has been released. A
     reentrant cleanup that registers a new entry must keep the state alive. Pending owners
     must be held weakly so a never-bound view can still be garbage collected.
+
+    Inside prune():
+      - bound states are iterated in a for loop over byDisplay;
+      - for each dead display state, registrations.cleanupAll() runs first;
+      - the generation and registration list are re-checked after cleanup;
+      - the dead-display list is populated only after both re-checks;
+      - byDisplay.remove() is never called before the dead list is populated;
+      - pending references are expunged, the return value is kept, and every
+        cleared pending state has its registrations cleaned.
     """
     if rel_posix(path) != "tv/withaibuild/customiuizer/mods/utils/StatusBarDisplayRegistry.kt":
         return []
@@ -1595,52 +1649,178 @@ def check_status_bar_display_registry_prune(path: Path, text: str) -> list[Findi
             )
         )
     else:
-        body = _body_before(text, prune_match.start())
-        if "cleanupAll()" not in body:
+        prune_body, prune_body_start = block_at(text, prune_match.start())
+        if not prune_body:
             findings.append(
                 Finding(
                     "status-bar-display-registry-prune",
                     path,
-                    1,
-                    "prune must call registrations.cleanupAll() before removing a state",
+                    line_of(text, prune_match.start()),
+                    "prune() must have a brace-balanced body",
                 )
             )
-        if "byDisplay.remove" not in body:
-            findings.append(
-                Finding(
+        else:
+            # --- bound display cleanup / re-check / dead-list order ---
+            bound_loop = re.search(
+                r"for\s*\(\s*\(?\s*(\w+)\s*,\s*(\w+)\s*\)?\s+in\s+byDisplay\s*\)",
+                prune_body,
+            )
+            if bound_loop is None:
+                findings.append(
+                    Finding(
+                        "status-bar-display-registry-prune",
+                        path,
+                        line_of(text, prune_body_start),
+                        "prune must iterate byDisplay to find dead displays",
+                    )
+                )
+            else:
+                display_var = re.escape(bound_loop.group(1))
+                state_var = re.escape(bound_loop.group(2))
+                loop_body, _ = block_at(prune_body, bound_loop.start())
+
+                cleanup_pos = _statement_offset_in_body(loop_body, rf"\b{state_var}\.registrations\.cleanupAll\s*\(\s*\)")
+                gen_recheck_pos = _statement_offset_in_body(loop_body, rf"\b{state_var}\.generation\?\.get\(\)\s*==\s*null")
+                size_recheck_pos = _statement_offset_in_body(loop_body, rf"\b{state_var}\.registrations\.size\s*==\s*0")
+                add_dead_pos = _statement_offset_in_body(loop_body, rf"\b\w+\.add\s*\(\s*{display_var}\s*\)")
+
+                if cleanup_pos is None:
+                    findings.append(
+                        Finding(
+                            "status-bar-display-registry-prune",
+                            path,
+                            line_of(text, prune_body_start),
+                            f"prune loop must call {state_var}.registrations.cleanupAll() before removing a state",
+                        )
+                    )
+                if gen_recheck_pos is None:
+                    findings.append(
+                        Finding(
+                            "status-bar-display-registry-prune",
+                            path,
+                            line_of(text, prune_body_start),
+                            f"prune loop must re-check {state_var}.generation?.get() == null after cleanup",
+                        )
+                    )
+                if size_recheck_pos is None:
+                    findings.append(
+                        Finding(
+                            "status-bar-display-registry-prune",
+                            path,
+                            line_of(text, prune_body_start),
+                            f"prune loop must re-check {state_var}.registrations.size == 0 after cleanup",
+                        )
+                    )
+                if add_dead_pos is None:
+                    findings.append(
+                        Finding(
+                            "status-bar-display-registry-prune",
+                            path,
+                            line_of(text, prune_body_start),
+                            f"prune loop must add {display_var} to a dead-display list after re-checks",
+                        )
+                    )
+
+                _require_after(
+                    findings,
                     "status-bar-display-registry-prune",
                     path,
-                    1,
-                    "prune must remove dead display states",
+                    line_of(text, prune_body_start),
+                    cleanup_pos,
+                    gen_recheck_pos,
+                    f"{state_var}.registrations.cleanupAll()",
+                    f"{state_var}.generation?.get() == null re-check",
                 )
-            )
-        if "pendingByOwner" not in body or ".remove" not in body:
-            findings.append(
-                Finding(
+                _require_after(
+                    findings,
                     "status-bar-display-registry-prune",
                     path,
-                    1,
-                    "prune must remove dead pending states",
+                    line_of(text, prune_body_start),
+                    gen_recheck_pos,
+                    size_recheck_pos,
+                    f"{state_var}.generation?.get() == null re-check",
+                    f"{state_var}.registrations.size == 0 re-check",
                 )
-            )
-        if "state.generation?.get() == null" not in body:
-            findings.append(
-                Finding(
+                _require_after(
+                    findings,
                     "status-bar-display-registry-prune",
                     path,
-                    1,
-                    "prune must re-verify the generation is still gone after cleanup",
+                    line_of(text, prune_body_start),
+                    size_recheck_pos,
+                    add_dead_pos,
+                    f"{state_var}.registrations.size == 0 re-check",
+                    "dead-displays.add()",
                 )
+
+                # byDisplay.remove must not appear inside the bound loop (it runs after the dead list is built).
+                if re.search(rf"\bbyDisplay\.remove\s*\(", loop_body):
+                    findings.append(
+                        Finding(
+                            "status-bar-display-registry-prune",
+                            path,
+                            line_of(text, prune_body_start),
+                            "byDisplay.remove() must not run inside the bound-state loop; collect ids first",
+                        )
+                    )
+
+                # byDisplay.remove must appear after the dead list is populated in the rest of prune().
+                if add_dead_pos is not None:
+                    remaining = prune_body[bound_loop.end() :]
+                    remove_match = re.search(r"\bbyDisplay\.remove\s*\(", remaining)
+                    if remove_match is None:
+                        findings.append(
+                            Finding(
+                                "status-bar-display-registry-prune",
+                                path,
+                                line_of(text, prune_body_start),
+                                "prune must call byDisplay.remove() after the dead-display list is collected",
+                            )
+                        )
+
+            # --- pending state expunge and cleanup ---
+            expunge_assignment = re.search(
+                r"val\s+(\w+)\s*=\s*pendingByOwner\.expunge\s*\(\s*\)",
+                prune_body,
             )
-        if "state.registrations.size == 0" not in body:
-            findings.append(
-                Finding(
-                    "status-bar-display-registry-prune",
-                    path,
-                    1,
-                    "prune must re-verify the registration list is empty after cleanup",
+            if expunge_assignment is None:
+                findings.append(
+                    Finding(
+                        "status-bar-display-registry-prune",
+                        path,
+                        line_of(text, prune_body_start),
+                        "prune must keep the return value of pendingByOwner.expunge() and use it",
+                    )
                 )
-            )
+            else:
+                cleared_var = re.escape(expunge_assignment.group(1))
+                pending_loop = re.search(
+                    rf"for\s*\(\s*(\w+)\s+in\s+{cleared_var}\s*\)",
+                    prune_body,
+                )
+                if pending_loop is None:
+                    findings.append(
+                        Finding(
+                            "status-bar-display-registry-prune",
+                            path,
+                            line_of(text, prune_body_start),
+                            f"prune must iterate the expunged pending states ({expunge_assignment.group(1)})",
+                        )
+                    )
+                else:
+                    pending_state_var = re.escape(pending_loop.group(1))
+                    pending_loop_body, _ = block_at(prune_body, pending_loop.start())
+                    if not re.search(
+                        rf"\b{pending_state_var}\.registrations\.cleanupAll\s*\(\s*\)",
+                        pending_loop_body,
+                    ):
+                        findings.append(
+                            Finding(
+                                "status-bar-display-registry-prune",
+                                path,
+                                line_of(text, prune_body_start),
+                                f"prune must call {pending_state_var}.registrations.cleanupAll() for every cleared pending state",
+                            )
+                        )
 
     bind_match = re.search(r"fun\s+bind\s*\(", text)
     if bind_match is not None:
@@ -1686,6 +1866,157 @@ def check_status_bar_display_registry_prune(path: Path, text: str) -> list[Findi
         )
 
     return findings
+
+
+def _check_left_icon_handle(path: Path, text: str, findings: list[Finding]) -> None:
+    """Verify the onAttachedToWindow left icon manager uses an exact-once handle.
+
+    The method must:
+      - read the previous leftIconRegistrationHandle;
+      - call oldHandle.cleanupNow() in the oldHandle != null branch before addIconGroup;
+      - call addIconGroup with a new manager;
+      - register a new handle whose cleanup removes that same manager from the same controller;
+      - save the new handle as leftIconRegistrationHandle.
+
+    An oldHandle == null fallback that releases a staleManager directly is allowed.
+    """
+    method_body = None
+    method_start = None
+    for match in re.finditer(r"\bfun\s+(\w+)\s*\(", text):
+        body, start = block_at(text, match.start())
+        if "leftIconRegistrationHandle" in body:
+            method_body = body
+            method_start = start
+            break
+
+    if method_body is None:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                1,
+                "left icon hook must read and save leftIconRegistrationHandle in a method block",
+            )
+        )
+        return
+
+    # 1. Read the existing handle.
+    old_handle_pattern = r"val\s+(\w+)\s*=\s*XposedHelpers\.getAdditionalInstanceField\s*\(\s*mStatusBar\s*,\s*\"leftIconRegistrationHandle\"\s*\)"
+    old_handle_match = re.search(old_handle_pattern, method_body)
+    if old_handle_match is None:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                line_of(text, method_start),
+                "left icon hook must read the existing leftIconRegistrationHandle",
+            )
+        )
+        return
+    old_handle_var = re.escape(old_handle_match.group(1))
+
+    # 2. cleanupNow when oldHandle != null, before addIconGroup.
+    if_match = re.search(rf"if\s*\(\s*{old_handle_var}\s*!=\s*null\s*\)", method_body)
+    if if_match is None:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                line_of(text, method_start),
+                f"left icon hook must check {old_handle_match.group(1)} != null before cleanup",
+            )
+        )
+    else:
+        if_body, _ = block_at(method_body, if_match.start())
+        cleanup_match = re.search(rf"\b{old_handle_var}\.cleanupNow\s*\(\s*\)", if_body)
+        if cleanup_match is None:
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    line_of(text, method_start),
+                    f"left icon hook must call {old_handle_match.group(1)}.cleanupNow() when an old handle exists",
+                )
+            )
+
+    # 3. Find addIconGroup and the controller/manager it uses.
+    add_icon_group_match = re.search(
+        r'XposedHelpers\.callMethod\s*\(\s*(\w+)\s*,\s*"addIconGroup"\s*,\s*(\w+)\s*\)',
+        method_body,
+    )
+    if add_icon_group_match is None:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                line_of(text, method_start),
+                "left icon hook must call addIconGroup before registering a new handle",
+            )
+        )
+        return
+    controller_var = re.escape(add_icon_group_match.group(1))
+    manager_var = re.escape(add_icon_group_match.group(2))
+
+    # 4. cleanupNow must appear before addIconGroup in the method body.
+    if if_match is not None:
+        cleanup_pos_match = re.search(rf"\b{old_handle_var}\.cleanupNow\s*\(\s*\)", method_body)
+        if cleanup_pos_match is not None and cleanup_pos_match.start() >= add_icon_group_match.start():
+            findings.append(
+                Finding(
+                    "status-bar-registration-cleanup",
+                    path,
+                    line_of(text, method_start),
+                    "left icon oldHandle.cleanupNow() must run before addIconGroup",
+                )
+            )
+
+    # 5. New handle from state.registrations.register after addIconGroup.
+    tail = method_body[add_icon_group_match.end() :]
+    register_match = re.search(
+        r"val\s+(\w+)\s*=\s*state\.registrations\.register\s*\(\s*mStatusBar\s*\)\s*\{",
+        tail,
+    )
+    if register_match is None:
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                line_of(text, method_start),
+                "left icon hook must register a new handle after addIconGroup",
+            )
+        )
+        return
+    new_handle_var = re.escape(register_match.group(1))
+
+    # 6. The cleanup must removeIconGroup with the same controller/manager.
+    register_body, _ = block_at(tail, register_match.start())
+    cleanup_pattern = (
+        rf"releaseRegistrationSilently\s*\(\s*{controller_var}\s*,\s*\"removeIconGroup\"\s*,\s*{manager_var}\s*,"
+    )
+    if not re.search(cleanup_pattern, register_body):
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                line_of(text, method_start),
+                "left icon registration cleanup must call removeIconGroup on the same controller and manager",
+            )
+        )
+
+    # 7. Save the new handle to leftIconRegistrationHandle.
+    after_register = tail[register_match.start() :]
+    save_pattern = (
+        rf'XposedHelpers\.setAdditionalInstanceField\s*\(\s*mStatusBar\s*,\s*"leftIconRegistrationHandle"\s*,\s*{new_handle_var}\s*\)'
+    )
+    if not re.search(save_pattern, after_register):
+        findings.append(
+            Finding(
+                "status-bar-registration-cleanup",
+                path,
+                line_of(text, method_start),
+                "left icon handle must be saved as leftIconRegistrationHandle",
+            )
+        )
 
 
 def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding]:
@@ -1769,15 +2100,7 @@ def check_status_bar_registration_cleanup(path: Path, text: str) -> list[Finding
         )
 
     # --- the left icon group handle must be saved on the status bar view ---
-    if not re.search(r'setAdditionalInstanceField\s*\(\s*mStatusBar\s*,\s*"leftIconRegistrationHandle"\s*,\s*handle\s*\)', text):
-        findings.append(
-            Finding(
-                "status-bar-registration-cleanup",
-                path,
-                1,
-                "left icon group handle must be saved as leftIconRegistrationHandle",
-            )
-        )
+    _check_left_icon_handle(path, text, findings)
 
     # --- no direct manual remove outside the release helper ---
     for method in ("removeIconGroup", "removeDarkReceiver"):

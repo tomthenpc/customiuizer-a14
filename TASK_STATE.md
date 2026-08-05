@@ -828,6 +828,80 @@ Risks：
 - `installStatusBarViewLifecycleHook` 使用 `HookInstallStateMachine` 保证一次安装，但依赖 `DualRowsStatusbarHook` 或 `StatusBarIconsPositionAdjustHook` 被启用；若两者都禁用，该进程内没有 status bar registry 使用，无需 detach hook。
 - `getCPUThermalId` 的 `scanForCpuThermalId` 注入仅用于测试；生产路径仍直接读取 `/sys/devices/virtual/thermal/thermal_zone*/type`，HyperOS 14 上路径存在；其他 ROM 若无此路径会返回 `-1` 并 memoize，属既有行为。
 
+## P6.1A-R3B Status bar lifecycle invariant closeout
+
+State: `IN_PROGRESS`
+
+Task: `A14-P6.1A-R3B`
+Priority: `P1`
+
+Files:
+- `tools/check-invariants.py`
+- `tools/tests/test_status_bar_registration_invariants.py`
+- `tools/tests/test_module_helper_invariants.py`（新增）
+- `docs/progress/A14_PROGRESS_CURRENT.json` / `.md`
+- `docs/process/handoffs/A14-P6.1A-R3B-STATUS-BAR-LIFECYCLE-INVARIANT-CLOSEOUT-HANDOFF.md`（新增）
+
+Original behavior（R3B 修复前）：
+
+- `tools/check-invariants.py` 的 `check_status_bar_display_registry_prune` 在缺失 `prune()` 时早期 `return findings`，导致无法继续检查 `bind()` 是否调用 `cleanupAll()`；且未对 `prune()` 函数体做结构顺序校验，无法识别 `byDisplay.remove()` 在 `cleanupAll()` 之前、缺少 `generation?.get() == null` 与 `registrations.size == 0` 重检、`pendingByOwner.expunge()` 返回值未保留、已清除 pending state 未调用 `cleanupAll()` 等反例。
+- `check_status_bar_registration_cleanup` 的 left icon manager 检查仅依赖 token `setAdditionalInstanceField(..., "leftIconRegistrationHandle", handle)` 字符串匹配，无法识别：旧 handle 未读、未调用 `oldHandle.cleanupNow()`、`cleanupNow()` 在 `addIconGroup()` 之后、直接 `releaseRegistrationSilently(..., staleManager)` 替代 handle、保存的变量不是 `register` 返回值等反例。
+- `check_module_helper_fatal_boundaries` 允许一个前面的 `catch(oom: OutOfMemoryError) { throw oom }` “保护”后面的 `catch(t: Throwable)`，导致后面的 generic catch 可以只写 `null` 而吞掉 fatal；与 AGENTS.md 要求每个 `catch(Throwable)` 必须先处理 fatal 不一致。
+- 继承的 Hermeticity 修复（audit_hook_ownership、brutal_test_runner、CI）需要以 clean working tree 再次确认。
+
+Invariant（R3B）：
+
+- `StatusBarDisplayRegistry.prune()` 必须存在且函数体结构正确：遍历 `byDisplay`；对每个 dead display 先 `state.registrations.cleanupAll()`；再按顺序重检 `state.generation?.get() == null`、`state.registrations.size == 0`；再 `deadDisplays.add(displayId)`；循环结束后 `byDisplay.remove(displayId)`；循环内不得直接 `byDisplay.remove`。
+- `prune()` 必须执行 `val clearedStates = pendingByOwner.expunge()` 并遍历每个 `clearedState` 调用 `registrations.cleanupAll()`。
+- `StatusBarDisplayRegistry.bind()` 替换同 display 旧 generation 时必须先 `registrations.cleanupAll()`。
+- left icon manager hook 必须读取旧 `leftIconRegistrationHandle`；当旧 handle 存在时先 `oldHandle.cleanupNow()`，且该调用必须出现在新的 `addIconGroup()` 之前；`addIconGroup` 后必须用 `state.registrations.register(mStatusBar)` 注册新的 exact-once handle，其 cleanup 中 `releaseRegistrationSilently` 必须使用与 `addIconGroup` 相同的 controller 与 manager；新的 handle 必须保存到 `leftIconRegistrationField`。
+- 兼容的 fallback：当 `oldHandle == null` 时，允许直接释放历史 `staleManager`。
+- `ModuleHelper` 中每个 `catch(t: Throwable)` 函数体必须以 `throw t` 或 `FatalErrors.unwrapAndRethrowIfFatal(t)` 开头；可选包裹在 `val x = FatalErrors.unwrapAndRethrowIfFatal(t)` 中。
+
+Implementation：
+
+- 重写 `tools/check-invariants.py` 的 `check_status_bar_display_registry_prune`：提取 `prune()` 函数体，用 `_statement_offset_in_body` 与 `_require_after` 检查 `cleanupAll`、`generation?.get() == null`、`registrations.size == 0`、`deadDisplays.add`、`byDisplay.remove` 的相对顺序；禁止循环内 `byDisplay.remove`；检查 `pendingByOwner.expunge()` 返回值被保留并遍历执行 `cleanupAll`。
+- 新增 `_check_left_icon_handle` 辅助函数：定位包含 `leftIconRegistrationHandle` 的 hook 方法，读取旧 handle，检查 `if (oldHandle != null) { oldHandle.cleanupNow() }` 与位置；解析 `addIconGroup` 的 controller/manager；检查 `state.registrations.register(mStatusBar)` 返回的新 handle cleanup 是否移除相同参数；检查新 handle 被保存为 `leftIconRegistrationHandle`。
+- 重写 `check_module_helper_fatal_boundaries`：新增 `_catch_body_starts_with_fatal_guard` 要求 catch 函数体开头即 `throw variable` 或 `FatalErrors.unwrapAndRethrowIfFatal(variable)`；移除对前置 `catch(OutOfMemoryError)` 的豁免；按变量名精确检查。
+- 新增 `tools/tests/test_module_helper_invariants.py`，覆盖 OOM 前置不保护、正确 unwrap、无条件 throw、错误变量、另一 catch 中 unwrap、赋值包裹 unwrap 6 个 counterexample。
+- 扩展 `tools/tests/test_status_bar_registration_invariants.py`：新增 prune 结构 8 个 counterexample 与 left icon 结构 7 个 counterexample（含兼容 fallback pass 与变量重命名 pass）。
+- 确认继承 Hermeticity 修复：`tools/audit_hook_ownership.py` 默认只读，测试时写临时目录；`tools/brutal_test_runner.py` 使用 stable 路径排序；`.github/workflows/a14-fast-ci.yml` 在 hermeticity 前校验 clean tree。
+
+Commands / Exit codes：
+
+```text
+python -m unittest discover -s tools/tests -p "test_*.py"                              -> 0 (Ran 335, OK)
+python tools/check-invariants.py                                                       -> 0 (205 files, no violations)
+python tools/check_document_contracts.py                                               -> 0
+python tools/check_automation_state.py                                                 -> 0
+python tools/progress_snapshot.py --check                                              -> 0 (fresh)
+python tools/progress_snapshot.py --write                                              -> 0
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast    -> 0
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json hermeticity  -> 0
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json determinism  -> 0
+python tools/brutal_test_runner.py --config tools/brutal_test_config.json mutate      -> 0
+```
+
+Tests（新增/扩展）：
+
+- `tools/tests/test_status_bar_registration_invariants.py`：新增 15 个 Python 单元测试（prune 8 个 + left icon 7 个），总计 45 个。
+- `tools/tests/test_module_helper_invariants.py`：新增 6 个 Python 单元测试，覆盖 ModuleHelper fatal boundary 反例。
+- `tools/tests/test_a14_6g_invariants.py`：ModuleHelper fatal boundary 测试仍通过。
+
+CI：待 GitHub Actions Fast CI 验证。
+
+Commit: 待创建
+
+Push: 待推送
+
+Device evidence: `NOT_EXERCISED`（真机需验证：prune 后 dead display 的 icon group / dark receiver 已释放；left icon 重新 attach 时旧 handle cleanup 后再 add，无重复 group；ModuleHelper 在 fatal 时正确重新抛出而不吞异常）。
+
+Risks：
+
+- 新的 left icon 结构检查要求方法内存在 `leftIconRegistrationHandle` 字符串且完整数据流；若 future 实现重命名/重构只要语义等价即可通过。
+- prune 结构检查依赖 Kotlin 代码的大括号平衡；若生产代码使用非常规缩进/大括号，可能需要调整 `block_at`/`_statement_offset_in_body`。
+- ModuleHelper fatal boundary 现要求每个 `catch(Throwable)` 自身先处理 fatal；所有现有生产代码已符合。
+
 ## P6.2 周期与监控
 
 State: `COMPLETE`

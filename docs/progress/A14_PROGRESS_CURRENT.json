@@ -1,8 +1,8 @@
 {
   "schemaVersion": 7,
-  "generatedAt": "2026-08-05T07:45:20.940024+08:00",
-  "sourceCommit": "54982925898ab38614df38c19d5e23083ca97733",
-  "sourceTree": "991b783c334c185fd714fdd5bea02d8dde6f1e7e",
+  "generatedAt": "2026-08-05T10:08:29.534120+08:00",
+  "sourceCommit": "b9ff8a04418148be6303be403c40e71a0037547a",
+  "sourceTree": "9da90cb55fd9a259a4c0394d43456ab97fc4fb1a",
   "verifiedTree": "64cfcf36988f0c78cc005783861854cac6ef1453",
   "verifiedMode": "Fast",
   "ciState": "PENDING",
@@ -341,7 +341,13 @@
         "app/src/test/java/tv/withaibuild/customiuizer/mods/utils/StatusBarNetworkSpeedDispatcherTest.kt",
         "tools/check_document_contracts.py",
         "tools/check_automation_state.py",
-        "tools/verify.py"
+        "tools/verify.py",
+        "tools/tests/test_module_helper_invariants.py",
+        "docs/process/handoffs/A14-P6.1A-R3B-STATUS-BAR-LIFECYCLE-INVARIANT-CLOSEOUT-HANDOFF.md",
+        "tools/audit_hook_ownership.py",
+        "tools/brutal_test_runner.py",
+        ".github/workflows/a14-fast-ci.yml",
+        "tools/brutal_test_config.json"
       ],
       "evidence_commands": [],
       "evidence_commit": "c2904adbd01bb38fc4ea327f670d898e6644736b",

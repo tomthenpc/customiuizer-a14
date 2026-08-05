@@ -164,6 +164,10 @@ private fun onFinishInflate(sbView: FrameLayout) {
 private fun leftIcons(mStatusBar: FrameLayout) {
     val state = statusBarDisplayRegistry.bind(mStatusBar, 0)
     val iconController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.phone.StatusBarIconController") ?: return
+    val oldHandle = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle") as? OwnedRegistrations.RegistrationHandle
+    if (oldHandle != null) {
+        oldHandle.cleanupNow()
+    }
     val IconsContainer = XposedHelpers.findClass("com.android.systemui.statusbar.views.MiuiStatusIconContainer", lpparam.classLoader)
     val iconContainer = XposedHelpers.newInstance(IconsContainer, mStatusBar.context) as LinearLayout
     val mDarkIconManager = XposedHelpers.newInstance(DarkIconManager, iconContainer) as Any
@@ -403,6 +407,143 @@ ModuleHelper.hookAllMethodsSilently(
             any("installNetSpeedSecondRowHook" in d for d in details),
             f"details: {details}",
         )
+
+    def _replace_left_icon_block(self, block: str) -> str:
+        """Return _passing_base with the leftIcons function replaced by block."""
+        base = self._passing_base
+        start = base.find("private fun leftIcons")
+        if start == -1:
+            raise RuntimeError("leftIcons block not found in passing base")
+        brace_start = base.find("{", start)
+        depth = 0
+        end = brace_start
+        for i in range(brace_start, len(base)):
+            if base[i] == "{":
+                depth += 1
+            elif base[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        return base[:start] + block + base[end:]
+
+    def _left_icon_base(self) -> str:
+        return """
+private fun leftIcons(mStatusBar: FrameLayout) {
+    val state = statusBarDisplayRegistry.bind(mStatusBar, 0)
+    val iconController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.phone.StatusBarIconController") ?: return
+    val oldHandle = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle") as? OwnedRegistrations.RegistrationHandle
+    if (oldHandle != null) {
+        oldHandle.cleanupNow()
+    }
+    val IconsContainer = XposedHelpers.findClass("com.android.systemui.statusbar.views.MiuiStatusIconContainer", lpparam.classLoader)
+    val iconContainer = XposedHelpers.newInstance(IconsContainer, mStatusBar.context) as LinearLayout
+    val mDarkIconManager = XposedHelpers.newInstance(DarkIconManager, iconContainer) as Any
+    XposedHelpers.callMethod(iconController, "addIconGroup", mDarkIconManager)
+    val handle = state.registrations.register(mStatusBar) {
+        releaseRegistrationSilently(iconController, "removeIconGroup", mDarkIconManager, "left-icon-group")
+    }
+    XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)
+}
+"""
+
+    def test_missing_old_handle_cleanup_now_fails(self):
+        block = self._left_icon_base().replace(
+            'if (oldHandle != null) {\n        oldHandle.cleanupNow()\n    }',
+            'if (oldHandle != null) {\n        // no cleanup\n    }',
+        )
+        details = self._details(self._findings(self._replace_left_icon_block(block)))
+        self.assertTrue(
+            any("oldHandle.cleanupNow()" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_cleanup_now_after_add_icon_group_fails(self):
+        block = """
+private fun leftIcons(mStatusBar: FrameLayout) {
+    val state = statusBarDisplayRegistry.bind(mStatusBar, 0)
+    val iconController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.phone.StatusBarIconController") ?: return
+    val oldHandle = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle") as? OwnedRegistrations.RegistrationHandle
+    val IconsContainer = XposedHelpers.findClass("com.android.systemui.statusbar.views.MiuiStatusIconContainer", lpparam.classLoader)
+    val iconContainer = XposedHelpers.newInstance(IconsContainer, mStatusBar.context) as LinearLayout
+    val mDarkIconManager = XposedHelpers.newInstance(DarkIconManager, iconContainer) as Any
+    XposedHelpers.callMethod(iconController, "addIconGroup", mDarkIconManager)
+    if (oldHandle != null) {
+        oldHandle.cleanupNow()
+    }
+    val handle = state.registrations.register(mStatusBar) {
+        releaseRegistrationSilently(iconController, "removeIconGroup", mDarkIconManager, "left-icon-group")
+    }
+    XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)
+}
+"""
+        details = self._details(self._findings(self._replace_left_icon_block(block)))
+        self.assertTrue(
+            any("cleanupNow() must run before addIconGroup" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_direct_release_replacing_handle_fails(self):
+        block = self._left_icon_base().replace(
+            'if (oldHandle != null) {\n        oldHandle.cleanupNow()\n    }',
+            'if (oldHandle != null) {\n        val staleManager = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconManager")\n        if (staleManager != null) {\n            releaseRegistrationSilently(iconController, "removeIconGroup", staleManager, "left-icon-group")\n        }\n    }',
+        )
+        details = self._details(self._findings(self._replace_left_icon_block(block)))
+        self.assertTrue(
+            any("oldHandle.cleanupNow()" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_unrelated_handle_token_fails(self):
+        block = """
+private fun leftIcons(mStatusBar: FrameLayout) {
+    val state = statusBarDisplayRegistry.bind(mStatusBar, 0)
+    val iconController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.phone.StatusBarIconController") ?: return
+    val x = "leftIconRegistrationHandle"
+    val IconsContainer = XposedHelpers.findClass("com.android.systemui.statusbar.views.MiuiStatusIconContainer", lpparam.classLoader)
+    val iconContainer = XposedHelpers.newInstance(IconsContainer, mStatusBar.context) as LinearLayout
+    val mDarkIconManager = XposedHelpers.newInstance(DarkIconManager, iconContainer) as Any
+    XposedHelpers.callMethod(iconController, "addIconGroup", mDarkIconManager)
+    val handle = state.registrations.register(mStatusBar) {
+        releaseRegistrationSilently(iconController, "removeIconGroup", mDarkIconManager, "left-icon-group")
+    }
+    XposedHelpers.setAdditionalInstanceField(mStatusBar, x, handle)
+}
+"""
+        details = self._details(self._findings(self._replace_left_icon_block(block)))
+        self.assertTrue(
+            any("leftIconRegistrationHandle" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_unrelated_register_result_saved_fails(self):
+        block = self._left_icon_base().replace(
+            'val handle = state.registrations.register(mStatusBar) {\n        releaseRegistrationSilently(iconController, "removeIconGroup", mDarkIconManager, "left-icon-group")\n    }\n    XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", handle)',
+            'val other = makeHandle()\n    val handle = state.registrations.register(mStatusBar) {\n        releaseRegistrationSilently(iconController, "removeIconGroup", mDarkIconManager, "left-icon-group")\n    }\n    XposedHelpers.setAdditionalInstanceField(mStatusBar, "leftIconRegistrationHandle", other)',
+        )
+        details = self._details(self._findings(self._replace_left_icon_block(block)))
+        self.assertTrue(
+            any("must be saved as leftIconRegistrationHandle" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_correct_compatibility_fallback_passes(self):
+        block = self._left_icon_base().replace(
+            'if (oldHandle != null) {\n        oldHandle.cleanupNow()\n    }',
+            'if (oldHandle != null) {\n        oldHandle.cleanupNow()\n    } else {\n        val staleManager = XposedHelpers.getAdditionalInstanceField(mStatusBar, "leftIconManager")\n        if (staleManager != null) {\n            releaseRegistrationSilently(iconController, "removeIconGroup", staleManager, "left-icon-group")\n        }\n    }',
+        )
+        self.assertEqual([], self._findings(self._replace_left_icon_block(block)))
+
+    def test_equivalent_left_icon_variable_rename_passes(self):
+        """The structural rule accepts any local identifiers as long as the data flow is identical."""
+        block = self._left_icon_base()
+        block = block.replace("oldHandle", "prevHandle")
+        block = block.replace("iconController", "iconCtl")
+        block = block.replace("mDarkIconManager", "darkMgr")
+        block = block.replace("IconsContainer", "IconBox")
+        block = block.replace("iconContainer", "iconBox")
+        block = block.replace("handle", "regHandle")
+        self.assertEqual([], self._findings(self._replace_left_icon_block(block)))
 
 
 class OwnedRegistrationsModelInvariantsTest(unittest.TestCase):
@@ -682,6 +823,260 @@ class StatusBarDisplayRegistry<O : Any, R : Any> {
             any("bind" in d and "cleanupAll" in d for d in details),
             f"details: {details}",
         )
+
+    def test_remove_before_cleanup_fails(self):
+        """byDisplay.remove() inside the bound loop is a re-entrant cleanup hazard."""
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val byDisplay = mutableMapOf<Int, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun detach(owner: O) {}
+    fun allStatesSnapshot(): List<StatusBarDisplayState<O, R>> = emptyList()
+    fun prune() {
+        val deadDisplays = mutableListOf<Int>()
+        for ((displayId, state) in byDisplay) {
+            val generationAlive = state.generation?.get() != null
+            if (!generationAlive) {
+                byDisplay.remove(displayId)
+                state.registrations.cleanupAll()
+                if (state.generation?.get() == null && state.registrations.size == 0) {
+                    deadDisplays.add(displayId)
+                }
+            }
+        }
+        for (displayId in deadDisplays) { byDisplay.remove(displayId) }
+
+        val deadPending = pendingByOwner.expunge()
+        for (state in deadPending) {
+            state.registrations.cleanupAll()
+        }
+    }
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("byDisplay.remove() must not run inside the bound-state loop" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_add_dead_before_cleanup_fails(self):
+        """The dead list must only be populated after cleanup and re-checks."""
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val byDisplay = mutableMapOf<Int, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun detach(owner: O) {}
+    fun allStatesSnapshot(): List<StatusBarDisplayState<O, R>> = emptyList()
+    fun prune() {
+        val deadDisplays = mutableListOf<Int>()
+        for ((displayId, state) in byDisplay) {
+            if (state.generation?.get() == null) {
+                deadDisplays.add(displayId)
+                state.registrations.cleanupAll()
+            }
+        }
+        for (displayId in deadDisplays) { byDisplay.remove(displayId) }
+
+        val deadPending = pendingByOwner.expunge()
+        for (state in deadPending) {
+            state.registrations.cleanupAll()
+        }
+    }
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("registrations.cleanupAll() before removing" in d for d in details)
+            or any("re-check" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_missing_generation_recheck_fails(self):
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val byDisplay = mutableMapOf<Int, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun detach(owner: O) {}
+    fun allStatesSnapshot(): List<StatusBarDisplayState<O, R>> = emptyList()
+    fun prune() {
+        val deadDisplays = mutableListOf<Int>()
+        for ((displayId, state) in byDisplay) {
+            val generationAlive = state.generation?.get() != null
+            if (!generationAlive) {
+                state.registrations.cleanupAll()
+                if (state.registrations.size == 0) {
+                    deadDisplays.add(displayId)
+                }
+            }
+        }
+        for (displayId in deadDisplays) { byDisplay.remove(displayId) }
+
+        val deadPending = pendingByOwner.expunge()
+        for (state in deadPending) {
+            state.registrations.cleanupAll()
+        }
+    }
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("generation?.get() == null" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_missing_size_recheck_fails(self):
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val byDisplay = mutableMapOf<Int, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun detach(owner: O) {}
+    fun allStatesSnapshot(): List<StatusBarDisplayState<O, R>> = emptyList()
+    fun prune() {
+        val deadDisplays = mutableListOf<Int>()
+        for ((displayId, state) in byDisplay) {
+            val generationAlive = state.generation?.get() != null
+            if (!generationAlive) {
+                state.registrations.cleanupAll()
+                if (state.generation?.get() == null) {
+                    deadDisplays.add(displayId)
+                }
+            }
+        }
+        for (displayId in deadDisplays) { byDisplay.remove(displayId) }
+
+        val deadPending = pendingByOwner.expunge()
+        for (state in deadPending) {
+            state.registrations.cleanupAll()
+        }
+    }
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("registrations.size == 0" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_missing_pending_expunge_fails(self):
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val byDisplay = mutableMapOf<Int, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun detach(owner: O) {}
+    fun allStatesSnapshot(): List<StatusBarDisplayState<O, R>> = emptyList()
+    fun prune() {
+        val deadDisplays = mutableListOf<Int>()
+        for ((displayId, state) in byDisplay) {
+            val generationAlive = state.generation?.get() != null
+            if (!generationAlive) {
+                state.registrations.cleanupAll()
+                if (state.generation?.get() == null && state.registrations.size == 0) {
+                    deadDisplays.add(displayId)
+                }
+            }
+        }
+        for (displayId in deadDisplays) { byDisplay.remove(displayId) }
+    }
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("pendingByOwner.expunge()" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_ignored_expunge_result_fails(self):
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val byDisplay = mutableMapOf<Int, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun detach(owner: O) {}
+    fun allStatesSnapshot(): List<StatusBarDisplayState<O, R>> = emptyList()
+    fun prune() {
+        val deadDisplays = mutableListOf<Int>()
+        for ((displayId, state) in byDisplay) {
+            val generationAlive = state.generation?.get() != null
+            if (!generationAlive) {
+                state.registrations.cleanupAll()
+                if (state.generation?.get() == null && state.registrations.size == 0) {
+                    deadDisplays.add(displayId)
+                }
+            }
+        }
+        for (displayId in deadDisplays) { byDisplay.remove(displayId) }
+
+        pendingByOwner.expunge()
+    }
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("keep the return value" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_missing_cleared_state_cleanup_fails(self):
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val byDisplay = mutableMapOf<Int, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun detach(owner: O) {}
+    fun allStatesSnapshot(): List<StatusBarDisplayState<O, R>> = emptyList()
+    fun prune() {
+        val deadDisplays = mutableListOf<Int>()
+        for ((displayId, state) in byDisplay) {
+            val generationAlive = state.generation?.get() != null
+            if (!generationAlive) {
+                state.registrations.cleanupAll()
+                if (state.generation?.get() == null && state.registrations.size == 0) {
+                    deadDisplays.add(displayId)
+                }
+            }
+        }
+        for (displayId in deadDisplays) { byDisplay.remove(displayId) }
+
+        val clearedStates = pendingByOwner.expunge()
+        for (state in clearedStates) {
+            state.secondRow = null
+        }
+    }
+}
+"""
+        details = self._details(self._findings(text))
+        self.assertTrue(
+            any("registrations.cleanupAll() for every cleared pending state" in d for d in details),
+            f"details: {details}",
+        )
+
+    def test_equivalent_variable_rename_passes(self):
+        """Structural order must hold with any local variable names."""
+        text = """
+class StatusBarDisplayRegistry<O : Any, R : Any> {
+    private val byDisplay = mutableMapOf<Int, StatusBarDisplayState<O, R>>()
+    private val pendingByOwner = WeakIdentityMap<O, StatusBarDisplayState<O, R>>()
+    fun detach(owner: O) {}
+    fun allStatesSnapshot(): List<StatusBarDisplayState<O, R>> = emptyList()
+    fun prune() {
+        val goneIds = mutableListOf<Int>()
+        for ((id, st) in byDisplay) {
+            val alive = st.generation?.get() != null
+            if (!alive) {
+                st.registrations.cleanupAll()
+                if (st.generation?.get() == null && st.registrations.size == 0) {
+                    goneIds.add(id)
+                }
+            }
+        }
+        for (id in goneIds) { byDisplay.remove(id) }
+
+        val cleared = pendingByOwner.expunge()
+        for (st in cleared) {
+            st.registrations.cleanupAll()
+        }
+    }
+}
+"""
+        self.assertEqual([], self._findings(text))
 
 
 if __name__ == "__main__":
