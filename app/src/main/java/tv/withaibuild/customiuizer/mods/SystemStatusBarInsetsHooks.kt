@@ -194,25 +194,27 @@ object SystemStatusBarInsetsHooks {
      * - UNSUPPORTED: anything else, including ambiguous ABI where both constructors
      *   exist but the modern contract is not fully satisfied.
      */
+    private fun Int?.isResolvedType(): Boolean = this != null && this >= 0
+
     @JvmStatic
     internal fun selectTypeEncoding(abi: InsetsSourceAbi): InsetsTypeInfo {
         val isModern = abi.hasIdTypeConstructor &&
             abi.hasGetId &&
             abi.hasGetType &&
-            abi.publicStatusType != null
+            abi.publicStatusType.isResolvedType()
 
         val isLegacy = abi.hasOneIntConstructor &&
             !abi.hasIdTypeConstructor &&
             abi.hasGetType &&
-            abi.legacyStatusType != null &&
-            abi.legacyNavigationType != null
+            abi.legacyStatusType.isResolvedType() &&
+            abi.legacyNavigationType.isResolvedType()
 
         return when {
             isModern -> InsetsTypeInfo(
                 InsetsTypeEncoding.MODERN_PUBLIC,
                 abi.publicStatusType!!,
-                abi.publicNavigationType ?: -1,
-                abi.publicDisplayCutoutType ?: -1,
+                abi.publicNavigationType.takeIf { it.isResolvedType() } ?: -1,
+                abi.publicDisplayCutoutType.takeIf { it.isResolvedType() } ?: -1,
             )
             isLegacy -> InsetsTypeInfo(
                 InsetsTypeEncoding.LEGACY_INTERNAL,
@@ -266,18 +268,25 @@ object SystemStatusBarInsetsHooks {
         return RawTypeInfo(status, nav, cutout)
     }
 
-    private fun safePublicType(block: () -> Int): Int {
+    /**
+     * Resolves a public `WindowInsets.Type` method. Returns `null` on failure so that
+     * `-1` is never mistaken for a valid type mask.
+     */
+    private fun safePublicType(block: () -> Int): Int? {
         return try {
-            block()
+            normalizeResolvedType(block())
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
-            -1
+            null
         }
     }
 
+    @JvmStatic
+    internal fun normalizeResolvedType(value: Int): Int? = value.takeIf { it >= 0 }
+
     private fun resolveLegacyTypes(classLoader: ClassLoader?): RawTypeInfo {
         val insetsStateClass = XposedHelpers.findClassIfExists(INSETS_STATE_CLASS, classLoader)
-            ?: return RawTypeInfo(-1, -1, -1)
+            ?: return RawTypeInfo(null, null, null)
         return RawTypeInfo(
             getStaticInt(insetsStateClass, "ITYPE_STATUS_BAR"),
             getStaticInt(insetsStateClass, "ITYPE_NAVIGATION_BAR"),
@@ -285,12 +294,16 @@ object SystemStatusBarInsetsHooks {
         )
     }
 
-    private fun getStaticInt(clazz: Class<*>, fieldName: String): Int {
+    /**
+     * Resolves a static int field. Returns `null` when the field is missing or negative,
+     * so that `-1` is never treated as a resolved legacy type.
+     */
+    private fun getStaticInt(clazz: Class<*>, fieldName: String): Int? {
         return try {
-            XposedHelpers.getStaticIntField(clazz, fieldName)
+            normalizeResolvedType(XposedHelpers.getStaticIntField(clazz, fieldName))
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
-            -1
+            null
         }
     }
 
@@ -305,9 +318,9 @@ object SystemStatusBarInsetsHooks {
 
     /** Small helper used for both public and legacy type resolution. */
     internal data class RawTypeInfo(
-        val statusBarType: Int,
-        val navigationType: Int,
-        val displayCutoutType: Int,
+        val statusBarType: Int?,
+        val navigationType: Int?,
+        val displayCutoutType: Int?,
     )
 
     internal fun isStatusBarType(type: Int, typeInfo: InsetsTypeInfo): Boolean {
