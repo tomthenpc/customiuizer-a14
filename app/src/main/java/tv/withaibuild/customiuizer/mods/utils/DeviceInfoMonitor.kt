@@ -360,6 +360,14 @@ object DeviceInfoMonitor {
             val safeIndex = StatusbarViewMaths.clampStatusIconInsertIndex(requestedIndex, group.childCount)
             group.addView(iconView, safeIndex)
             SystemUIStatusBarHooks.registerStatusbarTextIcon(iconView)
+
+            val classLoader = lpClassLoader
+            if (classLoader != null) {
+                CustomTextIconTintRoute.register(iconView, classLoader, "left")
+            } else {
+                XposedHelpers.log("DeviceInfoMonitor: cannot register dark receiver, class loader not captured")
+            }
+
             param.returnAndSkip(iconView)
         } catch (oom: OutOfMemoryError) {
             throw oom
@@ -531,6 +539,7 @@ object DeviceInfoMonitor {
             activeContext = null
             monitorState.stop()
             monitorState.resetFailCount()
+            CustomTextIconTintRoute.releaseAll()
         }
     }
 

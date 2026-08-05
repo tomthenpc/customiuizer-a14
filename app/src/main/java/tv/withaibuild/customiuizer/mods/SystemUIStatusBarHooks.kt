@@ -33,6 +33,7 @@ import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
+import tv.withaibuild.customiuizer.mods.utils.CustomTextIconTintRoute
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.HookInstallStateMachine
@@ -607,26 +608,11 @@ object SystemUIStatusBarHooks {
                     customIconTypes.add(92)
                 }
                 if (!customIconTypes.isEmpty()) {
-                    val DarkIconDispatcher = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.plugins.DarkIconDispatcher")
-                    if (DarkIconDispatcher != null) {
-                        for (iconType in customIconTypes) {
-                            val iconView = createStatusbarTextIcon(mContext, LinearLayout.LayoutParams(-2, -2), iconType, false)
-                            secondRight.addView(iconView, 0)
-                            registerStatusbarTextIcon(iconView)
-
-                            val added = try {
-                                XposedHelpers.callMethod(DarkIconDispatcher, "addDarkReceiver", iconView)
-                                true
-                            } catch (t: Throwable) {
-                                FatalErrors.unwrapAndRethrowIfFatal(t)
-                                false
-                            }
-                            if (added) {
-                                state.registrations.register(sbView) {
-                                    releaseRegistrationSilently(DarkIconDispatcher, "removeDarkReceiver", iconView, "dark-receiver-$iconType")
-                                }
-                            }
-                        }
+                    for (iconType in customIconTypes) {
+                        val iconView = createStatusbarTextIcon(mContext, LinearLayout.LayoutParams(-2, -2), iconType, false)
+                        secondRight.addView(iconView, 0)
+                        registerStatusbarTextIcon(iconView)
+                        CustomTextIconTintRoute.register(iconView, lpparam.classLoader, "right")
                     }
                 }
 
