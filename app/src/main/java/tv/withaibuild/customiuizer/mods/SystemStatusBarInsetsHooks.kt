@@ -41,22 +41,32 @@ object SystemStatusBarInsetsHooks {
     private const val GET_FRAME_METHOD = "getFrame"
     private const val GET_ID_METHOD = "getId"
 
-    internal const val MAX_DIAGNOSTIC_KEYS = 32
+    internal const val MAX_CRITICAL_KEYS = 16
+    internal const val MAX_REJECTION_KEYS = 16
 
     private var typeInfo: InsetsTypeInfo? = null
     private var hookInstalled: Boolean = false
 
-    /** Bounded set of stable diagnostic keys whose first hit has already been logged. */
-    private val loggedFirstHit = LinkedHashSet<String>()
+    /** Bounded set of critical diagnostic keys whose first hit has already been logged. */
+    private val loggedCritical = LinkedHashSet<String>()
+
+    /** Bounded set of aggregated rejection keys whose first hit has already been logged. */
+    private val loggedRejection = LinkedHashSet<String>()
 
     @JvmStatic
     internal fun resetDiagnosticsForTest() {
-        synchronized(loggedFirstHit) { loggedFirstHit.clear() }
+        synchronized(loggedCritical) { loggedCritical.clear() }
+        synchronized(loggedRejection) { loggedRejection.clear() }
     }
 
     @JvmStatic
-    internal fun diagnosticKeyCountForTest(): Int {
-        synchronized(loggedFirstHit) { return loggedFirstHit.size }
+    internal fun criticalKeyCountForTest(): Int {
+        synchronized(loggedCritical) { return loggedCritical.size }
+    }
+
+    @JvmStatic
+    internal fun rejectionKeyCountForTest(): Int {
+        synchronized(loggedRejection) { return loggedRejection.size }
     }
 
     @JvmStatic
@@ -90,7 +100,8 @@ object SystemStatusBarInsetsHooks {
             return
         }
 
-        val resolvedTypeInfo = resolveInsetsTypeInfo(classLoader)
+        val sourceAbi = resolveInsetsSourceAbi(insetsSourceClass, classLoader)
+        val resolvedTypeInfo = selectTypeEncoding(sourceAbi)
         if (resolvedTypeInfo.encoding == InsetsTypeEncoding.UNSUPPORTED) {
             logInstall("status bar Insets type encoding not resolvable")
             return
@@ -122,7 +133,8 @@ object SystemStatusBarInsetsHooks {
                 "navType=${resolvedTypeInfo.navigationType} " +
                 "cutoutType=${resolvedTypeInfo.displayCutoutType} " +
                 "setFrame1=$setFrameOneArg setFrame4=$setFrameFourArg " +
-                "getId=$hasGetId getFrame=$hasGetFrame"
+                "getId=$hasGetId getFrame=$hasGetFrame " +
+                "abi=$sourceAbi"
         )
 
         val callback = SetFrameCallback(resolvedTypeInfo, hasGetId, hasGetFrame)
@@ -154,41 +166,97 @@ object SystemStatusBarInsetsHooks {
         val displayCutoutType: Int,
     )
 
-    internal data class RawTypeInfo(
-        val statusBarType: Int,
-        val navigationType: Int,
-        val displayCutoutType: Int,
+    /**
+     * Cold-path description of the `InsetsSource` ABI. All fields are filled by
+     * reflection on the install ClassLoader; `selectTypeEncoding` uses only this
+     * snapshot to freeze the unique type encoding.
+     */
+    internal data class InsetsSourceAbi(
+        val hasOneIntConstructor: Boolean,
+        val hasIdTypeConstructor: Boolean,
+        val hasGetId: Boolean,
+        val hasGetType: Boolean,
+        val legacyStatusType: Int?,
+        val legacyNavigationType: Int?,
+        val publicStatusType: Int?,
+        val publicNavigationType: Int?,
+        val publicDisplayCutoutType: Int?,
     )
 
-    private fun resolveInsetsTypeInfo(classLoader: ClassLoader?): InsetsTypeInfo {
-        val public = resolvePublicTypes()
-        val legacy = resolveLegacyTypes(classLoader)
+    /**
+     * Select the unique type encoding from the observed ABI.
+     *
+     * Rules:
+     * - MODERN_PUBLIC: modern `(int id, int type)` constructor, `getId()`,
+     *   `getType()` and `WindowInsets.Type.statusBars()` are all resolvable.
+     * - LEGACY_INTERNAL: legacy `(int type)` constructor, no modern constructor,
+     *   `getType()` and both `ITYPE_STATUS_BAR` / `ITYPE_NAVIGATION_BAR` resolvable.
+     * - UNSUPPORTED: anything else, including ambiguous ABI where both constructors
+     *   exist but the modern contract is not fully satisfied.
+     */
+    @JvmStatic
+    internal fun selectTypeEncoding(abi: InsetsSourceAbi): InsetsTypeInfo {
+        val isModern = abi.hasIdTypeConstructor &&
+            abi.hasGetId &&
+            abi.hasGetType &&
+            abi.publicStatusType != null
 
-        // If the legacy internal constants are present, prefer them: AOSP/HyperOS
-        // InsetsSource.getType() returns the internal index (e.g. ITYPE_STATUS_BAR=0)
-        // and public masks like statusBars()=1 would alias ITYPE_NAVIGATION_BAR=1.
-        return if (legacy.statusBarType != -1) {
-            InsetsTypeInfo(
-                InsetsTypeEncoding.LEGACY_INTERNAL,
-                legacy.statusBarType,
-                if (legacy.navigationType != -1) legacy.navigationType else public.navigationType,
-                if (legacy.displayCutoutType != -1) legacy.displayCutoutType else public.displayCutoutType,
-            )
-        } else if (public.statusBarType != -1) {
-            InsetsTypeInfo(
+        val isLegacy = abi.hasOneIntConstructor &&
+            !abi.hasIdTypeConstructor &&
+            abi.hasGetType &&
+            abi.legacyStatusType != null &&
+            abi.legacyNavigationType != null
+
+        return when {
+            isModern -> InsetsTypeInfo(
                 InsetsTypeEncoding.MODERN_PUBLIC,
-                public.statusBarType,
-                public.navigationType,
-                public.displayCutoutType,
+                abi.publicStatusType!!,
+                abi.publicNavigationType ?: -1,
+                abi.publicDisplayCutoutType ?: -1,
             )
-        } else {
-            InsetsTypeInfo(
+            isLegacy -> InsetsTypeInfo(
+                InsetsTypeEncoding.LEGACY_INTERNAL,
+                abi.legacyStatusType!!,
+                abi.legacyNavigationType!!,
+                -1,
+            )
+            else -> InsetsTypeInfo(
                 InsetsTypeEncoding.UNSUPPORTED,
                 -1,
                 -1,
                 -1,
             )
         }
+    }
+
+    private fun resolveInsetsSourceAbi(insetsSourceClass: Class<*>, classLoader: ClassLoader?): InsetsSourceAbi {
+        val constructors = try {
+            insetsSourceClass.declaredConstructors
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            emptyArray()
+        }
+
+        val hasOneIntConstructor = constructors.any { it.parameterTypes.contentEquals(arrayOf(Int::class.java)) }
+        val hasIdTypeConstructor = constructors.any { it.parameterTypes.contentEquals(arrayOf(Int::class.java, Int::class.java)) }
+
+        val hasGetId = hasMethod(insetsSourceClass, GET_ID_METHOD)
+        val hasGetType = hasMethod(insetsSourceClass, GET_TYPE_METHOD)
+
+        val public = resolvePublicTypes()
+        val legacy = resolveLegacyTypes(classLoader)
+
+        return InsetsSourceAbi(
+            hasOneIntConstructor = hasOneIntConstructor,
+            hasIdTypeConstructor = hasIdTypeConstructor,
+            hasGetId = hasGetId,
+            hasGetType = hasGetType,
+            legacyStatusType = legacy.statusBarType,
+            legacyNavigationType = legacy.navigationType,
+            publicStatusType = public.statusBarType,
+            publicNavigationType = public.navigationType,
+            publicDisplayCutoutType = public.displayCutoutType,
+        )
     }
 
     private fun resolvePublicTypes(): RawTypeInfo {
@@ -234,6 +302,13 @@ object SystemStatusBarInsetsHooks {
             false
         }
     }
+
+    /** Small helper used for both public and legacy type resolution. */
+    internal data class RawTypeInfo(
+        val statusBarType: Int,
+        val navigationType: Int,
+        val displayCutoutType: Int,
+    )
 
     internal fun isStatusBarType(type: Int, typeInfo: InsetsTypeInfo): Boolean {
         return type == typeInfo.statusBarType
@@ -416,11 +491,20 @@ object SystemStatusBarInsetsHooks {
             } else null
 
             val reason = decision.reason
+            val isCritical = reason in CRITICAL_REASONS
 
-            val key = stableKey(typeInfo.encoding, sourceId, type, overload, reason)
-            synchronized(loggedFirstHit) {
-                if (loggedFirstHit.size >= MAX_DIAGNOSTIC_KEYS) return
-                if (!loggedFirstHit.add(key)) return
+            if (isCritical) {
+                val key = criticalKey(typeInfo.encoding, sourceId, type, overload, reason)
+                synchronized(loggedCritical) {
+                    if (loggedCritical.size >= MAX_CRITICAL_KEYS) return
+                    if (!loggedCritical.add(key)) return
+                }
+            } else {
+                val key = rejectionKey(typeInfo.encoding, type, overload, reason)
+                synchronized(loggedRejection) {
+                    if (loggedRejection.size >= MAX_REJECTION_KEYS) return
+                    if (!loggedRejection.add(key)) return
+                }
             }
 
             XposedHelpers.log(
@@ -476,7 +560,14 @@ object SystemStatusBarInsetsHooks {
         }
     }
 
-    private fun stableKey(
+    private val CRITICAL_REASONS = setOf(
+        "status-source-changed",
+        "status-source-no-change",
+        "preprocessing-reflection-failed",
+        "invalid-argument-shape",
+    )
+
+    private fun criticalKey(
         encoding: InsetsTypeEncoding,
         sourceId: Int?,
         type: Int,
@@ -484,5 +575,15 @@ object SystemStatusBarInsetsHooks {
         reason: String,
     ): String {
         return "${encoding.name}:$sourceId:$type:$overload:$reason"
+    }
+
+    /** Rejection keys deliberately omit sourceId so many non-status sources cannot starve critical logs. */
+    private fun rejectionKey(
+        encoding: InsetsTypeEncoding,
+        type: Int,
+        overload: String,
+        reason: String,
+    ): String {
+        return "${encoding.name}:$type:$overload:$reason"
     }
 }

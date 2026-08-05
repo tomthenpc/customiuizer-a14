@@ -255,7 +255,7 @@ class StatusBarInsetsDecisionTest {
     }
 
     @Test
-    fun diagnosticKeyCapStopsAtMax() {
+    fun criticalKeyCapStopsAtMax() {
         configureHeight(40, 160) // -> 40 px
 
         val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, hasGetFrame = false)
@@ -265,7 +265,42 @@ class StatusBarInsetsDecisionTest {
             callback.intercept(chain)
         }
 
-        assertEquals(32, Insets.diagnosticKeyCountForTest())
+        assertEquals(16, Insets.criticalKeyCountForTest())
+    }
+
+    @Test
+    fun rejectionKeyCapStopsAtMax() {
+        // 40 distinct non-status sourceIds, all with the same navigation type, should
+        // collapse into a single aggregated rejection key.
+        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, hasGetFrame = false)
+
+        repeat(40) { index ->
+            val chain = fakeChain(source(type = 2, id = index), fakeRect(bottom = 104))
+            callback.intercept(chain)
+        }
+
+        assertEquals(1, Insets.rejectionKeyCountForTest())
+    }
+
+    @Test
+    fun rejectionDoesNotStarveCritical() {
+        // 40 unique non-status sourceIds first, then one status source. The critical
+        // status-source-changed log must still be recorded.
+        configureHeight(40, 160) // -> 40 px
+
+        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, hasGetFrame = false)
+
+        repeat(40) { index ->
+            val chain = fakeChain(source(type = 2, id = index), fakeRect(bottom = 104))
+            callback.intercept(chain)
+        }
+
+        val statusChain = fakeChain(source(type = 1, id = 1000), fakeRect(bottom = 104))
+        callback.intercept(statusChain)
+
+        assertTrue(statusChain.calledWithArgs)
+        assertEquals(1, Insets.criticalKeyCountForTest())
+        assertEquals(1, Insets.rejectionKeyCountForTest())
     }
 
     private fun modernPublicInfo() = Insets.InsetsTypeInfo(
