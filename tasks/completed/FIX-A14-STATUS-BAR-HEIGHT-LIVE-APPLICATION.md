@@ -14,39 +14,40 @@
 
 ## 根因
 
-- `StatusBarHeightConfig.configure` 使用 `Resources.getSystem()`，在 fuxi 上得到 `densityDpi=440`/`density=2.75`，但目标 display 的有效逻辑密度是 `densityDpi=469`/`density=2.93125`。
-- 因此 `configuredPx=121`（44×2.75），而 WindowManager 实际状态栏窗口高度是 `129`（44×2.93125）。
-- `InsetsSource.setFrame` Hook 只观察到 `type=128` 的 displayCutout source，未观察到 `type=1` 的 statusBars source，说明当前 ROM 的状态栏 insets 权威更新边界不是 `InsetsSource.setFrame()`。
-- 偏好变化后没有通知 system_server 重新 layout，也没有触发布局刷新。
+- `StatusBarHeightConfig` 直接修改 `mWindowFrames.mDisplayFrame` 的先前实现越过了 WindowManager 的 frame 所有权边界；`mDisplayFrame`/`mParentFrame`/`mRelFrame`/`mCompatFrame` 都不应被外部修改。
+- `performSurfacePlacement` 被直接从 PreferenceObserver 线程调用，可能持有错误的锁或在错误的线程上触发 surface placement。
+- `StatusBarHeightConfig` 的 generation 在相同 preference / 相同 density 下也会增长，导致无意义刷新和诊断膨胀。
+- 刷新路径没有按 display 重新计算 density，`configuredPx` 在 fuxi 等机器上使用错误 density。
 
 ## 实现方向
 
-1. `StatusBarHeightConfig` 改为基于目标 display 的 `DisplayMetrics` 计算 px，并增加 `generation` 字段。
-2. 在 `system_server` 通过 `com.android.server.wm.DisplayPolicy.layoutWindowLw` 或 `WindowState.setFrames` 识别状态栏 `WindowState`，直接调整其 frame 高度。
-3. 通过 `PreferenceObserver` 监听 `system_statusbarheight` 变化，更新 `StatusBarHeightConfig` 并触发一次安全的 WindowManager 重新 layout。
-4. 保留 `InsetsSource.setFrame` 作为 fallback，但不再作为主要边界。
-5. 增加 `[StatusBarHeightLive]` 有界诊断，记录 displayId/density/height 变化。
+1. `StatusBarHeightConfig` 增加 `State` / `ReconfigureResult` 快照，基于目标 display 的 `DisplayMetrics` 计算 px，`generation` 只在真正状态变化时递增。
+2. 在 `DisplayPolicy.layoutWindowLw` 的 `before` 路径中，对 status bar `WindowState` 调整 `mAttrs.height`，让原生的 `WindowLayout.computeFrames` 和 `WindowState.setFrames` 写出正确的 `mFrame`。
+3. `WindowState.setFrames` 只作为 fallback：只修改 `ClientWindowFrames.frame.bottom = frame.top + configuredPx`，并保留 `left/top/right`，不碰 `displayFrame`/`parentFrame`。
+4. `PreferenceObserver` 更新配置后，通过 `WindowSurfacePlacer.requestTraversal()` 请求一次安全的重新 layout；不能直接 `performSurfacePlacement`。
+5. 诊断日志 key 全部包含 generation：`preference-change:<gen>`、`layout:<displayId>:<gen>`、`frame:<displayId>:<gen>`、`insets:<sourceId>:<gen>`、`refresh:<gen>`。
 
 ## 提交
 
-- Engineering: `e71f8e84` FIX-A14-STATUS-BAR-HEIGHT-LIVE-APPLICATION: display-aware density and WindowState layout hook.
+- Engineering: `48e63d40` FIX-A14-STATUS-BAR-HEIGHT-LIVE-APPLICATION: correct frame ownership, traversal threading and generation diagnostics.
 - Closure: archive closure record with build provenance.
+- Base SHA: `15bbe615`
+- Final SHA: `48e63d40`
 
 ## 验证
 
 - `python tools/verify.py fast --changed` — PASS
+- `python tools/verify.py fast --tests "*StatusBarHeight*"` — PASS
 - `python tools/verify.py fast --tests "*StatusBarInsets*"` — PASS
-- `python tools/verify.py fast --tests StatusBarHeightConfigTest` — PASS
 - `python tools/verify.py full` — PASS
 - `git diff --check` — PASS
-- `python tools/build_debug_apk.py` — PASS
-- `python tools/verify_apk_provenance.py --apk ... --expected-revision e71f8e84` — PASS
+- `.\gradlew.bat :app:assembleDebug` — PASS
 
 ## 产物
 
 - APK: `app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk`
-- APK SHA-256: `8A7034EA19A16EFE7F20137E6A1E8635F89B670AA468CE80949F79AA608F5F39`
-- Build revision: `e71f8e84`
+- APK SHA-256: `8EF0ADF16692582B3FF2143B7FE286FD774ABB0B5AD9E7C41F35554285944EDD`
+- Build revision: `48e63d40`
 - Signature: Debug
 
 ## 实机状态
