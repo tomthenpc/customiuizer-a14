@@ -1,594 +1,180 @@
-# AGENTS.md — A14 最终自治规则
+# AGENTS.md — CustoMIUIzer A14 执行规则 v2
 
-## 1. 角色
+## 1. 身份与职责
 
-你是 `tomthenpc/customiuizer-a14` 的唯一写入 Agent。
+用户与 ChatGPT 管理长期架构、优先级和最终代码审查。
 
-你需要自行：
+Devin 负责：
 
-- 分析现状；
-- 建立动态计划；
-- 修改代码；
-- 运行构建；
-- 添加测试；
-- 主动发现新问题；
-- 修复并回归；
-- 更新 `TASK_STATE.md`；
-- 创建 checkpoint commit；
-- 推送唯一授权分支；
-- 读取并修复 GitHub CI；
-- 结束当前会话并生成 handoff。
+- 按当前任务合同直接实现；
+- 自行处理普通编译和测试失败；
+- 在同一任务中修复；
+- 运行 A14 门禁；
+- 按需构建 APK；
+- 输出最终 diff 和证据。
 
-本仓库的项目连续推进发生在多个独立会话之间，不在一个上下文中无限执行。
+禁止创建独立 Review、Implement、Audit、Parity 或 HEAD 核对任务。
 
-当仓库所有者显式调用 `a14-safe-implementation` Skill 时，该 Skill 是当前会话的最新明确执行范围。当前 Implementer 会话只允许完成一个批准的 A14 Task Slice：
+## 2. 平台边界
 
-- 一个原子目标；
-- 一个 qualifying engineering checkpoint；
-- 检查该工程 checkpoint 的 CI；
-- 写 A14 handoff；
-- 结束当前会话。
+- HyperOS 1 / Android 14 / SDK 34；
+- applicationId：`tv.withaibuild.customiuizer.r14`；
+- `minSdk=34`、`targetSdk=34`；
+- ABI：`arm64-v8a`；
+- libxposed：API 101 最低运行基线，API 102 为目标能力；
+- API 102 专属类型不得进入 API 101 必经生产路径；
+- 不支持 Android 13、Android 15 或 Android 16；
+- A14 独立版本、签名、APK、发布和兼容策略。
 
-当前会话不得自行选择第二个目标。R2、R3、R4 变更必须在新的独立上下文中调用 `a14-independent-review` Skill 进行审查；Reviewer 会话不得修改生产代码。
-
-"持续自治"是跨多个新会话的项目连续性，不是一个上下文无限执行。
-
-终点是 `GOAL.md` 定义的 `PROJECT_COMPLETE`。
-
-不要在普通任务或阶段完成后等待用户确认。只有真实外部设备、ROM 样本、签名材料、仓库权限或无法推导的产品决策才允许阻塞。
-
----
-
-## 2. 必读顺序
-
-每次新会话、上下文压缩或恢复工作时，完整读取：
-
-1. `GOAL.md`
-2. `AGENTS.md`
-3. `TASK_STATE.md`
-4. `scripts/verify.ps1`
-5. `tools/verify.py`
-6. `tools/check-invariants.py`
-7. ROM intelligence、runtime hardening、verification、performance 和 device checklist
-8. 当前 Feature/Installer/ProcessRouter/API bridge/gesture architecture
-9. Git 仓库、origin、精确分支、upstream、HEAD、status 和最近提交
-
-代码是实现事实来源，`GOAL.md` 是完成标准，`TASK_STATE.md` 是动态台账。
-
----
-
-## 3. 指令优先级
-
-1. 仓库所有者最新明确指令；
-2. 显式调用的 repository Skill 和当前 Task Slice；
-3. `GOAL.md`；
-4. 本文件；
-5. `TASK_STATE.md`；
-6. 其他项目文档；
-7. 代码注释。
-
-冲突时不选择更宽松规则。记录冲突并继续不受影响的任务。
-
----
-
-## 4. 唯一仓库和精确分支
-
-唯一仓库：
+## 3. 控制权
 
 ```text
-tomthenpc/customiuizer-a14
+用户本轮明确要求
+> 当前 active 任务合同
+> AGENTS.md
+> PROJECT.md / ARCHITECTURE.md / WORKFLOW.md
+> 当前源码、测试、构建和日志证据
+> Git 历史
 ```
 
-唯一分支：
+旧文档已删除，不得从旧提交恢复旧执行流程。
+
+## 4. 单任务闭环
 
 ```text
-devin/a14-rom-intelligence-audit
+读取目标
+→ 限定进程和功能
+→ 定位真实调用链
+→ 直接实现
+→ 针对性验证
+→ 修复
+→ 完整验证
+→ 按需构建
+→ 最终报告
 ```
 
-模式：
+有明确路径后停止无边界审计。普通技术决策自行完成，不逐项向用户索要确认。
 
-```text
-EXACT_LOCK
-```
+## 5. Git
 
-必须确认：
-
-- origin 规范化后完全一致；
-- 当前本地分支完全一致；
-- upstream 为 `origin/devin/a14-rom-intelligence-audit`；
-- 非 detached HEAD；
-- 无 unfinished merge/rebase/cherry-pick/revert。
-
-禁止：
-
-- wildcard 分支；
-- 新建分支；
-- 切换其他分支继续；
-- push main；
-- merge/rebase；
-- force-push；
-- tag/release；
-- PR merge；
-- 修改其他 worktree。
-
-最终完成后也不得自行创建新分支。
-
----
-
-## 5.1 签名配置
-
-```text
-SigningDiscoveryMode: EXACT_CONFIG_ONLY
-SigningGradleProperty: customiuizerA14KeystoreProperties
-SigningEnvironmentVariable: CUSTOMIUIZER_A14_KEYSTORE_PROPERTIES
-RecursiveSigningSearch: forbidden
-CrossProductKeyUse: forbidden
-```
-
-- 签名配置只能来自 `customiuizerA14KeystoreProperties` Gradle 属性或 `CUSTOMIUIZER_A14_KEYSTORE_PROPERTIES` 环境变量。
-- 实际 keystore 文件由 `keystore.properties` 中的 `storeFile` 定义。
-- 禁止递归扫描 `C:\Users\tv`、`Documents` 或 `*.jks/*.p12/*.keystore`。
-- 禁止猜测其他项目密钥、读取/打印密码、把路径或秘密提交到 Git。
-- 验证脚本：`scripts/check-signing-config.ps1`。
-- 签名配置文档：`docs/build/SIGNING_CONFIGURATION.md`。
-
-## 5. 受保护控制层
-
-除仓库所有者明确更新控制层外，不得修改：
-
-```text
-GOAL.md
-AGENTS.md
-DEVIN_START_PROMPT.md
-INSTALL_A14_CONTROL_PLANE.md
-scripts/verify.ps1
-scripts/bootstrap-and-start.ps1
-```
-
-允许持续修改：
-
-```text
-TASK_STATE.md
-```
-
-不得通过传入其他分支参数、临时修改验证器、提交后重写或 shell alias 绕过保护。
-
-本次 A14 Devin Local 控制面迁移由仓库所有者明确授权。完成后恢复保护，后续不得自行重写控制层。
-
----
-
-## 6. 自治闭环
-
-每个闭环：
-
-1. 读取最新 `TASK_STATE.md`。
-2. 验证仓库、分支、upstream、HEAD、status 和 Git operation。
-3. 选择最高优先级未阻塞的小任务。
-4. 读取完整调用链、偏好默认值、target、phase、Feature spec、definition、installer、state、diagnostics、lifecycle、tests 和 Git 历史。
-5. 在 `TASK_STATE.md` 记录原行为、约束、风险、验证方法。
-6. 实施最小完整修改。
-7. 添加 focused test、static gate 或生成器检查。
-8. 运行 targeted verification。
-9. 运行：
+任务开始：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
-```
-
-10. 审查 diff：
-    - 无无关格式化；
-    - 无调试残留；
-    - 无 secret/artifact；
-    - 无弱化门禁；
-    - 无无意功能变化；
-    - 无错误 API 边界。
-11. 更新 `TASK_STATE.md`。
-12. 创建小而完整的 checkpoint commit。
-13. 只 push 授权分支。
-14. 读取 GitHub CI，失败则修复并重跑。
-15. 结束当前 Implementer 会话；新会话由仓库所有者通过新的 Skill 调用启动。
-
-不要只返回计划。
-
----
-
-## 7. 自主 discovery sweep
-
-每完成一个任务或阶段，主动检查：
-
-- compiler warning/lint；
-- failing/skipped/missing tests；
-- TODO/FIXME/temporary/workaround；
-- Feature ID/spec/definition/registry/state 不一致；
-- eager disabled object；
-- duplicate Registry/install route；
-- MainModule 业务安装；
-- ProcessRouter/helper process；
-- API 101/102 leakage；
-- legacy Xposed API；
-- Gesture machine duplication、状态遗漏和重复 side effect；
-- callback guard；
-- Receiver/Observer/Handler/coroutine/View/Bitmap/Drawable/Controller 生命周期；
-- duplicate icon group；
-- unsafe view index；
-- stale owner/context；
-- fatal error boundary；
-- reflection/DexKit/cache bounds；
-- hot-path Regex、collection、args copy、I/O、blocking；
-- APK size/R8；
-- process/target/ROM inventory drift；
-- dead/orphan/unreachable；
-- CI；
-- stale docs；
-- LSPosed/logcat（存在时）。
-
-将新问题加入 `TASK_STATE.md`，设定 ID、P0-P3、证据、复现、验收和依赖，继续最高优先级任务。
-
----
-
-## 8. 动态计划
-
-允许：
-
-- 拆分、合并和新增任务；
-- 调整顺序；
-- 改变实现假设；
-- 自动增加 tests/tools/CI；
-- 自动更新普通文档；
-- 使用只读 subagent。
-
-禁止：
-
-- 两个写 Agent 同时操作同一 worktree；
-- 删除未满足验收项；
-- 把失败改成通过；
-- 修改目标迎合代码；
-- 删除测试或 lint；
-- required 降级；
-- 删除功能；
-- broad catch/吞异常；
-- 伪造设备证据。
-
----
-
-## 9. 失败策略
-
-第一次失败：
-
-- 阅读完整日志；
-- 定位首个根因；
-- 校正假设。
-
-第二次同假设失败：
-
-- 停止重复补丁；
-- 检查调用链、Git 历史、缓存、工具版本和环境；
-- 设计最小区分实验。
-
-同一根因三次失败：
-
-- 状态设为 `DIAGNOSTIC_MODE`；
-- 提出至少两个竞争解释；
-- 调用只读审计 Agent；
-- 记录全部尝试；
-- 继续其他独立任务。
-
-禁止：
-
-```text
-git reset --hard
-git clean
-force-push
-删除测试
-关闭 lint
-blanket suppress
-吞异常
-删除功能
-降级 required contract
-将失败写成成功
-```
-
-硬阻塞报告必须包含：
-
-```text
-Failing command
-Exit code
-Log
-First root cause
-Evidence
-Attempts
-Safe work remaining
-Smallest owner action
-```
-
----
-
-## 10. 代码风格
-
-采用直接、显式、低抽象的系统代码风格：
-
-- 明确状态；
-- 明确 owner；
-- 明确 process；
-- 明确 phase；
-- 明确 failure boundary；
-- 冷热路径分离；
-- 短调用链；
-- 可机械验证；
-- 稳定优先。
-
-避免：
-
-- speculative framework；
-- 多层 facade；
-- service locator；
-- 隐式全局状态；
-- 魔法 reflection；
-- 为复用一行创建抽象；
-- 热路径 collection pipeline；
-- 隐藏 side effect。
-
-注释解释 ROM、API、ClassLoader、生命周期、并发和性能约束。
-
----
-
-## 11. Feature Registry 规则
-
-生产业务功能的统一入口是 `FeatureInstallRegistry`；不得以其他 Registry、Installer 私有状态或手工调用形成第二套业务生命周期。
-
-每个业务 Feature 必须有：
-
-- stable `FeatureId`；
-- `LazyFeatureSpec` 或等价惰性 spec；
-- `isEnabled`；
-- `FeatureTarget`；
-- `InstallPhase`；
-- `FeatureDefinition` factory；
-- guarded installer；
-- `FeatureInstallResult`；
-- `FeatureInstallState`；
-- diagnostics；
-- tests；
-- inventory。
-
-disabled path 不得创建 business definition。
-
-不得：
-
-- 手工绕过 Registry 安装同一业务 Feature；
-- 每个 Installer 自建重复 state map；
-- install 后长期持有 FeatureDefinition；
-- 将 `FAILED` 记录为成功；
-- fatal 后留下 `INSTALLING`。
-
----
-
-## 12. Process 与 Installer
-
-- MainModule 只 bootstrap/routing。
-- ProcessRouter 是 process 判断事实源。
-- package-specific 路径属于 dedicated Installer。
-- helper process 默认拒绝。
-- attach phase 仅用于 app ClassLoader。
-- generic/ANY Feature 必须有明确理由。
-- 同一 package 不能被两个 Installer 重复处理。
-- process recreation 不共享错误状态。
-
----
-
-## 13. API 101/102
-
-- API 101 路径必须完整。
-- API 102-only 类型和调用隔离。
-- optional API 102 增强必须 capability detect。
-- fallback 必须回到 API 101 等价路径。
-- 不得把 API 102 类加载失败带入 API 101。
-- stable hook ID/replaceHook/hot reload 必须有清晰最终分类和测试。
-- `staticScope=false` 保持。
-
----
-
-## 14. Gesture
-
-- 一个物理手势最多一个 side effect。
-- DOWN/MOVE/UP/CANCEL/pointer/multi-touch/orientation/RTL/shade/config/reentry 全部定义。
-- config、geometry、state、dependency 和 effect 分离。
-- 只能有一个生产状态机。
-- side effect gate 幂等。
-- 无主线程阻塞或热路径反射。
-- stress/randomized tests 必须稳定和可重复。
-
----
-
-## 15. 生命周期
-
-每个 Receiver、Observer、Handler、Runnable、coroutine、listener、View、Bitmap、Drawable、Context、Activity、Controller 必须：
-
-- 有 owner；
-- 可替换；
-- 可释放；
-- 不重复；
-- 不跨 owner 复用；
-- 不保留 stale Context；
-- 不产生无界队列；
-- config/theme/display/fold/recreate 后行为正确。
-
-SystemUI status bar custom View 和 icon group 是高风险区，必须有 idempotency、有效 index 和 cleanup。
-
----
-
-## 16. Fatal 与异常
-
-始终 rethrow：
-
-```text
-OutOfMemoryError
-ThreadDeath
-VirtualMachineError
-```
-
-所有 `catch(Throwable)` 先执行共享 fatal 检查。
-
-fatal 后清理半安装状态，不得写错误 permanent state/negative cache。
-
-非 fatal failure 有真实 diagnostics，并仅隔离当前 Feature。
-
----
-
-## 17. 性能
-
-disabled：
-
-```text
-0 business definition
-0 Hook object
-0 Receiver
-0 Observer
-0 Controller
-0 task
-0 reflection/DexKit
-```
-
-hot path：
-
-- 无 Regex 创建；
-- 无只读 args array；
-- 无重复 reflection；
-- 无临时集合；
-- 无 I/O/blocking；
-- 无高频日志；
-- 无无界 cache；
-- UI 只在值变化时更新；
-- 周期任务可取消、去重、合并。
-
-性能变更必须保持行为并有证据。
-
----
-
-## 18. Java → Kotlin
-
-迁移前记录：
-
-- JVM signature；
-- static/instance；
-- overload；
-- reflection name；
-- ClassLoader；
-- nullability；
-- exception；
-- synchronized/volatile；
-- initialization order；
-- callback capture；
-- resource owner；
-- API boundary。
-
-迁移后添加等价测试。
-
-不追求 100% Kotlin。剩余 Java 必须进入 `docs/JAVA_BOUNDARY_ALLOWLIST.md`，最终无 `UNCLASSIFIED` 或临时 blocker。
-
----
-
-## 19. 验证
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Audit
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Full
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Final
-```
-
-每个 defect 修复必须有 regression test 或机械门禁。
-
----
-
-## 20. Git
-
-提交前：
-
-```powershell
-git diff --check
+git branch --show-current
 git status --short
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1 -Mode Fast
+git rev-parse HEAD
+git fetch origin
 ```
 
-提交应小而完整：
+- 长期文档不绑定分支；
+- 普通任务不锁死 HEAD；
+- 不为 Review 建平行分支；
+- 不覆盖未知工作区修改；
+- 禁止 force push、破坏性 reset 和无差别 clean；
+- 当前任务分支可以正常 commit 和已授权 push；
+- 最终记录 Base SHA、Final SHA、commits；
+- 用户不再手工核对 HEAD。
 
-```text
-test:
-fix:
-refactor:
-perf:
-docs:
-chore:
+## 6. A14 运行时约束
+
+- 无关进程不初始化无关 Feature；
+- Feature 同一进程只安装一次；
+- preference 变化不得把已安装 Hook 重置为未安装；
+- Hook 时序、参数改写和 `chain.proceed()` 次数必须保持；
+- 回调最外层使用项目既有安全边界，普通异常局部隔离；
+- `OutOfMemoryError` 不得吞掉；
+- Receiver/Observer/listener/controller 注册必须绑定所有者；
+- 多实例注册必须有替换、失效和释放闭环；
+- 不静态强持有 Activity、View 或短生命周期 controller；
+- 反射、DexKit、磁盘 I/O 和同步 Binder 留在冷路径；
+- 热路径只读已准备好的不可变或原子状态；
+- 缓存有界、按 ClassLoader 隔离；
+- API 102 能力必须隔离，不得污染 API 101 主路径；
+- 删除或改名必须核对 Manifest、R8、反射、DexKit、资源、动态入口和
+  `META-INF/xposed`。
+
+## 7. JVM 和语言边界
+
+以下 Java 边界默认保留，除非任务明确证明可以安全改变：
+
+- `MainModule.java`
+- `XposedHelpers.java`
+- `MemberUtilsX.java`
+
+Java→Kotlin：
+
+- 小批量；
+- 行为等价；
+- 迁移与功能变化原则上分开；
+- 保持 JVM 签名、反射和框架入口；
+- 利用 Kotlin 降低空指针和样板；
+- 热路径避免隐式分配、装箱、多层 lambda 和复杂 DSL。
+
+## 8. A13 关系
+
+A13 可作为旧行为或功能语义参考，但不得：
+
+- 将 Android 13 target 直接加入 A14；
+- 用 A13 实机结果证明 A14；
+- 为逐行一致牺牲 A14 的 SDK 34 和 HyperOS 1 架构；
+- 建立跨仓库运行时依赖。
+
+跨版本工作必须是 `PORT` 任务，并明确 API、ROM、生命周期和资源差异。
+
+## 9. 验证
+
+开发中：
+
+```powershell
+python tools/verify.py fast --changed
 ```
 
-只 push：
+针对性测试：
 
-```text
-origin/devin/a14-rom-intelligence-audit
+```powershell
+python tools/verify.py fast --tests <TestClassName>
 ```
 
----
+收口：
 
-## 21. 证据台账
-
-每项任务记录：
-
-```text
-Task ID
-Priority
-State
-Files
-Original behavior
-Invariant
-Implementation
-Commands
-Exit codes
-Tests
-CI
-Device evidence
-Commit
-Push
-Risks
-Next
+```powershell
+python tools/verify.py full
+git diff --check
 ```
 
-无实机证据保持 `NOT_EXERCISED`。
----
+工具目录改动时补充：
 
-## 22. Professional autonomous stewardship
-
-执行自治统一由 [`SMART_CONTINUOUS_OPERATION.md`](SMART_CONTINUOUS_OPERATION.md) 定义。
-
-```text
-Repository: tomthenpc/customiuizer-a14
-AuthorizedBranch: devin/a14-rom-intelligence-audit
-BranchMode: EXACT_LOCK
-OperationMode: PROFESSIONAL_AUTONOMOUS_STEWARDSHIP
-StateMode: MACHINE_RECONCILED
-SessionMode: ATOMIC_TASK_SLICE
-IndependentReviewRequired: R2_R3_R4
-AutoResumeWithinSlice: true
-AutoStartNextSlice: false
-ProjectContinuity: MULTI_SESSION
-ContextHandoffThreshold: 70_PERCENT
+```powershell
+python -m compileall tools
+python -m unittest discover -s tools/tests -p "test_*.py"
 ```
 
-本节替换旧“停止规则”和旧 `## Smart continuous operation`，不得同时保留冲突版本。
+文档专用任务不跑 Android 编译。失败在原任务内修复，不通过删测试、降断言或吞异常
+制造通过。
 
-规则：
+## 10. 构建
 
-- `PROJECT_COMPLETE` 是证据里程碑，不是主动停止条件；
-- 里程碑后留在当前精确分支进入 `CONTINUOUS_MAINTENANCE`；
-- 不要求用户检查代码、commit、CI、分支或批准继续；
-- 每轮先执行 control-state reconciliation；
-- 只有 qualifying work 才增加 checkpoint；
-- state-only commit 不计数；
-- 按风险自动选择测试；
-- 重复人工检查工具化；
-- 重复 bug 固化为测试/门禁；
-- dead code 仅按 proof-gated policy 删除；
-- 无合理变更时继续验证和审计，不制造 churn；
-- 中断后从 Git、TASK_STATE 和 SMART state 恢复。
+任务要求 Debug APK 时：
 
-本节不放宽分支、main、force-push、rebase、secret、签名、ADB、设备证据和 Release 限制。
+```powershell
+.\gradlew.bat :app:assembleDebug
+```
+
+正式 Release 仅在用户明确要求、A14 仓库外签名配置有效时执行。不得：
+
+- Debug 冒充 Release；
+- 提交 APK、keystore、密码或本地签名配置；
+- 自动创建 Release/Tag；
+- 自动公开上传 APK。
+
+## 11. 完成定义
+
+- 用户目标已实际实现；
+- 验收标准逐项有证据；
+- A14 静态规则、编译、测试和 lint 按任务范围通过；
+- API 101/102 边界未被破坏；
+- 没有未解释改动；
+- 最终 diff 已审查；
+- 需要 APK 时给出路径、签名类型和 SHA-256；
+- 实机状态明确分级；
+- 最终报告只保留有决策价值的事实。
