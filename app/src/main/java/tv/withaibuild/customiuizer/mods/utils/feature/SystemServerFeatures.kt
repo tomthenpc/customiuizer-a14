@@ -9,7 +9,9 @@ import tv.withaibuild.customiuizer.mods.SystemLockScreenHooks
 import tv.withaibuild.customiuizer.mods.SystemNotificationHooks
 import tv.withaibuild.customiuizer.mods.SystemSecurityHooks
 import tv.withaibuild.customiuizer.mods.SystemShareMenuHooks
+import tv.withaibuild.customiuizer.mods.SystemStatusBarInsetsHooks
 import tv.withaibuild.customiuizer.mods.SystemWindowHooks
+import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
 import tv.withaibuild.customiuizer.mods.Various
 import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition
 import tv.withaibuild.customiuizer.mods.utils.FeatureId
@@ -876,6 +878,23 @@ internal class AllowUntrustedTouchFeature(
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = SystemWindowHooks.AllowUntrustedTouchHook(lpparam)
 }
+internal class StatusBarHeightInsetsFeature(
+    lpparam: XposedModuleInterface.SystemServerStartingParam
+) : BaseSystemServerFeature(
+    lpparam,
+    StatusBarHeightInsetsFeatureId,
+    "Status Bar Height Insets",
+    "system_statusbarheight"
+) {
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = StatusBarHeightConfig.isEnabled(prefs)
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
+    override fun installHook() = SystemStatusBarInsetsHooks.StatusBarInsetsHeightHook(lpparam)
+}
+
 
 /**
  * All preference-guarded features that belong in system_server.
@@ -1327,6 +1346,15 @@ object SystemServerFeatures {
             phase = InstallPhase.SYSTEM_SERVER_STARTING,
             enabled = { prefs -> AllowUntrustedTouchFeature.evaluateEnabled(prefs) },
             factory = { AllowUntrustedTouchFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = StatusBarHeightInsetsFeatureId,
+            name = "Status Bar Height Insets",
+            preferenceKey = "system_statusbarheight",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> StatusBarHeightInsetsFeature.evaluateEnabled(prefs) },
+            factory = { StatusBarHeightInsetsFeature(lpparam) },
         ),
     )
 }

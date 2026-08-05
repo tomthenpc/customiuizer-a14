@@ -25,6 +25,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
+import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -182,13 +183,15 @@ object System {
 
     @JvmStatic
     fun StatusBarHeightHook(lpparam: PackageReadyParam) {
-        val opt = MainModule.mPrefs.getInt("system_statusbarheight", 11)
-        val heightDpi = if (opt == 11) 27 else opt
+        val context = ModuleHelper.findContext() ?: return
+        StatusBarHeightConfig.configure(MainModule.mPrefs, context.resources)
+
+        val heightDp = StatusBarHeightConfig.configuredDp
         val pkgName = lpparam.packageName
-        ModuleHelper.replacePkgAndFrameworkValue(pkgName, "dimen", "status_bar_height_default", heightDpi)
-        ModuleHelper.replacePkgAndFrameworkValue(pkgName, "dimen", "status_bar_height", heightDpi)
-        ModuleHelper.replacePkgAndFrameworkValue(pkgName, "dimen", "status_bar_height_portrait", heightDpi)
-        ModuleHelper.replacePkgAndFrameworkValue(pkgName, "dimen", "status_bar_height_landscape", heightDpi)
+        ModuleHelper.replacePkgAndFrameworkValue(pkgName, "dimen", "status_bar_height_default", heightDp)
+        ModuleHelper.replacePkgAndFrameworkValue(pkgName, "dimen", "status_bar_height", heightDp)
+        ModuleHelper.replacePkgAndFrameworkValue(pkgName, "dimen", "status_bar_height_portrait", heightDp)
+        ModuleHelper.replacePkgAndFrameworkValue(pkgName, "dimen", "status_bar_height_landscape", heightDp)
     }
 
     @JvmStatic

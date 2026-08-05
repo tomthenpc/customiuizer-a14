@@ -1018,3 +1018,9 @@ data object GenericAppVolumeMediaPlayerFeatureId : FeatureId {
     override val id = 244
     override val name = "generic_app_volume_media_player"
 }
+
+// system_server status bar Insets synchronization
+data object StatusBarHeightInsetsFeatureId : FeatureId {
+    override val id = 245
+    override val name = "status_bar_height_insets"
+}
