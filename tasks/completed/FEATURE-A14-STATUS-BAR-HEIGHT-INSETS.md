@@ -59,7 +59,7 @@
 ## 完成记录
 
 - Base SHA: cd935311621c07e660c159191302524c6795a177
-- Final SHA: ebe0ba03
+- Final SHA: c07061e6
 - Device evidence: 未在实机验证；依赖 AOSP 14 `android.view.InsetsSource` / `WindowInsets.Type.statusBars()` 契约。
 - Known limits:
   - 当前几何逻辑以 `max(originalBottom, configuredPx)` 为底线，不支持把高度缩到低于系统当前计算值以下。
