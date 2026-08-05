@@ -830,7 +830,7 @@ Risks：
 
 ## P6.1A-R3B Status bar lifecycle invariant closeout
 
-State: `IN_PROGRESS`
+State: `VERIFIED_CI`
 
 Task: `A14-P6.1A-R3B`
 Priority: `P1`
@@ -888,11 +888,11 @@ Tests（新增/扩展）：
 - `tools/tests/test_module_helper_invariants.py`：新增 6 个 Python 单元测试，覆盖 ModuleHelper fatal boundary 反例。
 - `tools/tests/test_a14_6g_invariants.py`：ModuleHelper fatal boundary 测试仍通过。
 
-CI：待 GitHub Actions Fast CI 验证。
+CI：GitHub Actions A14 Fast CI run 30968737715 / job 92188272016 在 `47ca5e36` 上通过（9m11s）。`A14 Full CI` 未触发（仅在 commit message 含 `[full-ci]` 时触发）。
 
-Commit: 待创建
+Commit: `47ca5e36`
 
-Push: 待推送
+Push: `origin/devin/a14-rom-intelligence-audit` `afeb737e..47ca5e36`
 
 Device evidence: `NOT_EXERCISED`（真机需验证：prune 后 dead display 的 icon group / dark receiver 已释放；left icon 重新 attach 时旧 handle cleanup 后再 add，无重复 group；ModuleHelper 在 fatal 时正确重新抛出而不吞异常）。
 
