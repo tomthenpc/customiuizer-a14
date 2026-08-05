@@ -612,7 +612,10 @@ object SystemUIStatusBarHooks {
                         val iconView = createStatusbarTextIcon(mContext, LinearLayout.LayoutParams(-2, -2), iconType, false)
                         secondRight.addView(iconView, 0)
                         registerStatusbarTextIcon(iconView)
-                        CustomTextIconTintRoute.register(iconView, lpparam.classLoader, "right")
+                        val handle = CustomTextIconTintRoute.register(iconView, lpparam.classLoader, "right")
+                        state.registrations.register(sbView) {
+                            handle.release("generation-replaced")
+                        }
                     }
                 }
 

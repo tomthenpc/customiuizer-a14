@@ -8,10 +8,9 @@ import java.io.File
  * Source-level wiring tests for the dark-tint registration route.
  *
  * These tests verify that the production call sites actually delegate to
- * [CustomTextIconTintRoute] and that the route itself contains the release
- * and initial-tint lifecycle hooks. They are needed because the route touches
- * Android Views and the SystemUI plugin, which are difficult to exercise in a
- * plain JVM unit test.
+ * [CustomTextIconTintRoute], that the route contains the attach/detach/dispose
+ * lifecycle hooks, and that the right-hand path binds to the per-generation
+ * [StatusBarDisplayRegistry].
  */
 class CustomTextIconTintWiringTest {
 
@@ -24,11 +23,13 @@ class CustomTextIconTintWiringTest {
     }
 
     @Test
-    fun rightPathRegistersWithCustomTextIconTintRoute() {
+    fun rightPathRegistersWithCustomTextIconTintRouteAndBindsToGenerationOwner() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt")
         val dualRows = methodBody(source, "fun DualRowsStatusbarHook")
 
-        assertTrue("right dual rows must call CustomTextIconTintRoute.register", dualRows.contains("CustomTextIconTintRoute.register(iconView, lpparam.classLoader, \"right\")"))
+        assertTrue("right dual rows must call CustomTextIconTintRoute.register", dualRows.contains("val handle = CustomTextIconTintRoute.register(iconView, lpparam.classLoader, \"right\")"))
+        assertTrue("right must bind the returned handle to the status-bar generation owner", dualRows.contains("state.registrations.register(sbView)"))
+        assertTrue("right owner release must call handle.release", dualRows.contains("handle.release(\"generation-replaced\")"))
     }
 
     @Test
@@ -40,25 +41,29 @@ class CustomTextIconTintWiringTest {
     }
 
     @Test
-    fun customTextIconTintRouteUsesOnAttachStateChangeListenerForRelease() {
+    fun customTextIconTintRouteSplitsLifecycle() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/CustomTextIconTintRoute.kt")
 
+        assertTrue("route must expose a handle interface", source.contains("interface DarkTintRegistrationHandle"))
         assertTrue("route must listen to onViewAttachedToWindow", source.contains("onViewAttachedToWindow"))
         assertTrue("route must listen to onViewDetachedFromWindow", source.contains("onViewDetachedFromWindow"))
         assertTrue("route must call removeDarkReceiver on detach", source.contains("\"removeDarkReceiver\""))
         assertTrue("route must call addDarkReceiver on attach", source.contains("\"addDarkReceiver\""))
-        assertTrue("route must prevent duplicate registration", source.contains("isActive"))
+        assertTrue("route must have a dispose terminal path", source.contains("fun dispose("))
+        assertTrue("route must use weak references to avoid permanent strong hold", source.contains("WeakReference"))
+        assertTrue("route must track disposed", source.contains("isDisposed"))
     }
 
     @Test
-    fun darkTintRegistrationStateTracksInitialTintAndRelease() {
+    fun darkTintRegistrationStateTracksLifecycle() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/DarkTintRegistrationState.kt")
 
         assertTrue("DarkTintRegistrationState must have register", source.contains("fun register("))
         assertTrue("DarkTintRegistrationState must have release", source.contains("fun release("))
+        assertTrue("DarkTintRegistrationState must have dispose", source.contains("fun dispose("))
         assertTrue("DarkTintRegistrationState must track isActive", source.contains("val isActive"))
         assertTrue("DarkTintRegistrationState must track isReleased", source.contains("val isReleased"))
-        assertTrue("DarkTintRegistrationState must support reset for replacement", source.contains("fun reset()"))
+        assertTrue("DarkTintRegistrationState must track isDisposed", source.contains("val isDisposed"))
     }
 
     private fun source(relativePath: String): String {

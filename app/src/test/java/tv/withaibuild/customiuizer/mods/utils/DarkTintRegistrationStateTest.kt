@@ -45,6 +45,7 @@ class DarkTintRegistrationStateTest {
         val released = state.release { releaseCalls++ }
         assertFalse(released)
         assertEquals(0, releaseCalls)
+        assertTrue(state.isReleased)
     }
 
     @Test
@@ -73,14 +74,26 @@ class DarkTintRegistrationStateTest {
     }
 
     @Test
-    fun releasedStateCannotRegisterAgainWithoutReset() {
+    fun releasedStateCanRegisterAgain() {
         val state = DarkTintRegistrationState("owner", "test")
         state.register(registerFn = { true })
         state.release { }
 
-        val reRegister = state.register(registerFn = { true })
-        assertFalse(reRegister)
         assertFalse(state.isActive)
+        val reRegister = state.register(registerFn = { true })
+        assertTrue(reRegister)
+        assertTrue(state.isActive)
+    }
+
+    @Test
+    fun releasedStateDoesNotSetReleasedOnSubsequentRegisterUntilReleasedAgain() {
+        val state = DarkTintRegistrationState("owner", "test")
+        state.register(registerFn = { true })
+        state.release { }
+        state.register(registerFn = { true })
+
+        assertTrue(state.isActive)
+        assertFalse(state.isReleased)
     }
 
     @Test
@@ -101,6 +114,84 @@ class DarkTintRegistrationStateTest {
     }
 
     @Test
+    fun disposeWithoutRegisterStillCallsDisposeFn() {
+        val state = DarkTintRegistrationState("owner", "test")
+        var disposeCalls = 0
+        var wasRegistered: Boolean? = null
+        val ok = state.dispose { wasRegistered = it; disposeCalls++ }
+
+        assertTrue(ok)
+        assertEquals(1, disposeCalls)
+        assertFalse(wasRegistered!!)
+        assertTrue(state.isDisposed)
+        assertFalse(state.isActive)
+    }
+
+    @Test
+    fun disposeWithRegisteredCallsDisposeFnAndMarksNotActive() {
+        val state = DarkTintRegistrationState("owner", "test")
+        var disposeCalls = 0
+        var wasRegistered: Boolean? = null
+        state.register(registerFn = { true })
+
+        val ok = state.dispose { wasRegistered = it; disposeCalls++ }
+        assertTrue(ok)
+        assertEquals(1, disposeCalls)
+        assertTrue(wasRegistered!!)
+        assertFalse(state.isActive)
+        assertTrue(state.isDisposed)
+    }
+
+    @Test
+    fun disposeIsIdempotent() {
+        val state = DarkTintRegistrationState("owner", "test")
+        var disposeCalls = 0
+        state.register(registerFn = { true })
+        state.dispose { disposeCalls++ }
+
+        val second = state.dispose { disposeCalls++ }
+        assertFalse(second)
+        assertEquals(1, disposeCalls)
+    }
+
+    @Test
+    fun disposeBlocksRegisterAndRelease() {
+        val state = DarkTintRegistrationState("owner", "test")
+        var fnCalls = 0
+        state.dispose { fnCalls++ }
+
+        assertFalse(state.register(registerFn = { fnCalls++; true }))
+        assertFalse(state.release { fnCalls++ })
+        assertEquals(1, fnCalls)
+    }
+
+    @Test
+    fun releaseThenDisposeStillCallsDisposeFnOnce() {
+        val state = DarkTintRegistrationState("owner", "test")
+        var disposeCalls = 0
+        var wasRegistered: Boolean? = null
+        state.register(registerFn = { true })
+        state.release { }
+
+        val ok = state.dispose { wasRegistered = it; disposeCalls++ }
+        assertTrue(ok)
+        assertFalse(wasRegistered!!)
+        assertEquals(1, disposeCalls)
+    }
+
+    @Test
+    fun disposeThenReleaseIsNoOp() {
+        val state = DarkTintRegistrationState("owner", "test")
+        var fnCalls = 0
+        state.register(registerFn = { true })
+        state.dispose { fnCalls++ }
+
+        val released = state.release { fnCalls++ }
+        assertFalse(released)
+        assertEquals(1, fnCalls)
+    }
+
+    @Test
     fun ownerAndRouteAreStored() {
         val state = DarkTintRegistrationState("owner-42", "left")
         assertEquals("owner-42", state.owner)
@@ -108,7 +199,7 @@ class DarkTintRegistrationStateTest {
     }
 
     @Test
-    fun isActiveReflectsRegistrationAndRelease() {
+    fun isActiveReflectsRegistrationReleaseAndDispose() {
         val state = DarkTintRegistrationState("owner", "test")
         assertFalse(state.isActive)
 
@@ -116,6 +207,9 @@ class DarkTintRegistrationStateTest {
         assertTrue(state.isActive)
 
         state.release { }
+        assertFalse(state.isActive)
+
+        state.dispose { }
         assertFalse(state.isActive)
     }
 }

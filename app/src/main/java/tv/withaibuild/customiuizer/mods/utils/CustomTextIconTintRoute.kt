@@ -1,35 +1,49 @@
 package tv.withaibuild.customiuizer.mods.utils
 
 import android.view.View
+import java.lang.ref.WeakReference
 
 /**
  * Per-View dark receiver registration for module-created type 91/92 text icons.
  *
- * The route uses [View.OnAttachStateChangeListener] to mirror the View lifecycle:
- * a View is registered with [DarkIconDispatcher] when attached and released when
- * detached. This matches the way SystemUI already manages its own dark receivers,
- * without duplicating the per-generation [StatusBarDisplayRegistry].
+ * The route uses [View.OnAttachStateChangeListener] to mirror the View attach/detach
+ * lifecycle, but splits it into three independent phases:
+ * - `attach/register` — add the View as a [DarkReceiver] and receive the current tint;
+ * - `detach/unregister` — remove the receiver, but keep the listener for reattach;
+ * - `terminal dispose` — remove the listener and any route tracking, regardless of
+ *   whether the receiver was ever successfully registered.
  *
- * Registrations are exact-once per View: calling [register] twice for the same View
- * is a no-op unless the View was previously released (for example after a full
- * detach/re-attach cycle). This is safe because the dispatcher itself is the
- * authoritative registry, and the listener keeps the View from being re-registered.
+ * Callers that have a per-generation owner (for example the right-hand
+ * `StatusBarDisplayRegistry`) must use the returned [DarkTintRegistrationHandle] to
+ * dispose the registration when the generation is replaced. Callers without such an
+ * owner (the left-hand `DeviceInfoMonitor`) can rely on View detach/re-attach alone.
+ *
+ * Registrations are exact-once per View per generation. A failed `addDarkReceiver`
+ * does not leak the View: terminal dispose removes the listener and tracking even when
+ * the receiver was never added.
  *
  * All operations are expected to run on the SystemUI main looper.
  */
 internal object CustomTextIconTintRoute {
 
-    private val registrations = mutableMapOf<View, DarkTintRegistration>()
+    /**
+     * Opaque handle returned by [register]. Calling [release] disposes the registration
+     * and is idempotent: repeated calls are no-ops.
+     */
+    interface DarkTintRegistrationHandle {
+        fun release(reason: String)
+    }
+
+    private val registrations = mutableListOf<DarkTintRegistration>()
 
     /**
-     * Register [view] with the ROM [DarkIconDispatcher] when it is attached, and
-     * remove the registration when it is detached.
+     * Register [view] with the ROM [DarkIconDispatcher] when attached, release the
+     * receiver on normal detach, and allow reattach to re-register.
      *
-     * The [route] string is used only for diagnostics (for example "left", "right").
+     * The [route] string is used only for diagnostics ("left" / "right").
      * [classLoader] is used to look up the ROM `DarkIconDispatcher` plugin instance.
-     * A non-null [darkIconDispatcher] is used directly instead of resolving from
-     * [classLoader], which is useful for tests and for callers that already have
-     * the dispatcher in hand.
+     * A non-null [darkIconDispatcher] is used directly, which is useful for tests and
+     * callers that already have the dispatcher.
      */
     @JvmOverloads
     fun register(
@@ -37,52 +51,54 @@ internal object CustomTextIconTintRoute {
         classLoader: ClassLoader,
         route: String,
         darkIconDispatcher: Any? = null,
-    ) {
-        val existing = synchronized(registrations) {
-            val old = registrations[view]
-            if (old != null && old.state.isActive) {
-                return
+    ): DarkTintRegistrationHandle {
+        val registration: DarkTintRegistration
+        val handle: DarkTintRegistrationHandle
+        synchronized(registrations) {
+            prune()
+            val existing = findLiveRegistration(view)
+            if (existing != null) {
+                if (existing.state.isActive) {
+                    XposedHelpers.log("CustomTextIconTintRoute: reusing active ${existing.describe()}")
+                    return existing.handle
+                }
+                // Re-registering a previously failed/detached view: terminal dispose the
+                // old registration before creating a new one so the listener is not leaked.
+                XposedHelpers.log("CustomTextIconTintRoute: superseding stale ${existing.describe()}")
+                existing.dispose("superseded")
             }
-            if (old != null) {
-                old.releaseSilently("superseded")
-                registrations.remove(view)
-            }
-            val registration = DarkTintRegistration(view, classLoader, route, darkIconDispatcher)
-            registrations[view] = registration
-            registration
+            registration = DarkTintRegistration(view, classLoader, route, darkIconDispatcher)
+            registrations.add(registration)
+            handle = registration.handle
         }
 
-        view.addOnAttachStateChangeListener(existing.listener)
+        view.addOnAttachStateChangeListener(registration.listener)
 
         // If the View is already attached when we register, the listener will not
         // fire for the current attach; trigger it manually.
         if (view.isAttachedToWindow) {
-            existing.attach()
+            registration.attach(view)
         }
 
-        if (existing.state.isActive) {
-            XposedHelpers.log("CustomTextIconTintRoute: registered ${existing.describe()}")
+        if (registration.state.isActive) {
+            XposedHelpers.log("CustomTextIconTintRoute: registered ${registration.describe()}")
         }
+
+        return handle
     }
 
     /**
      * Release every outstanding registration. This is a cold-path helper for feature
-     * stop or process-level teardown. The listener is removed and the map is cleared.
+     * stop or process-level teardown. The listener is removed and the list is cleared.
      */
     fun releaseAll() {
         val snapshot: List<DarkTintRegistration>
         synchronized(registrations) {
-            snapshot = registrations.values.toList()
+            snapshot = registrations.toList()
             registrations.clear()
         }
         for (registration in snapshot) {
-            registration.releaseSilently("release-all")
-            try {
-                registration.view.removeOnAttachStateChangeListener(registration.listener)
-            } catch (t: Throwable) {
-                FatalErrors.unwrapAndRethrowIfFatal(t)
-                // The View may already be gone; do not let ordinary cleanup failures stop the stop.
-            }
+            registration.dispose("release-all")
         }
     }
 
@@ -91,27 +107,49 @@ internal object CustomTextIconTintRoute {
      */
     fun trackedCount(): Int = synchronized(registrations) { registrations.size }
 
+    private fun findLiveRegistration(view: View): DarkTintRegistration? {
+        return registrations.find { it.viewRef.get() === view && !it.state.isDisposed }
+    }
+
+    private fun prune() {
+        val iterator = registrations.iterator()
+        while (iterator.hasNext()) {
+            val registration = iterator.next()
+            if (registration.viewRef.get() == null || registration.state.isDisposed) {
+                iterator.remove()
+            }
+        }
+    }
+
     private class DarkTintRegistration(
-        val view: View,
+        view: View,
         private val classLoader: ClassLoader,
         val route: String,
         initialDispatcher: Any?,
     ) {
-        val state = DarkTintRegistrationState(view, route)
+        val viewRef = WeakReference(view)
+        val state = DarkTintRegistrationState(identityHash(view), route)
         private var darkIconDispatcher: Any? = initialDispatcher
 
-        val listener = object : View.OnAttachStateChangeListener {
-            override fun onViewAttachedToWindow(v: View) {
-                CallbackGuard.guarded { attach() }
-            }
-
-            override fun onViewDetachedFromWindow(v: View) {
-                CallbackGuard.guarded { releaseSilently("view-detached") }
-                v.removeOnAttachStateChangeListener(this)
+        val handle: DarkTintRegistrationHandle = object : DarkTintRegistrationHandle {
+            override fun release(reason: String) {
+                dispose(reason)
             }
         }
 
-        fun attach() {
+        val listener = object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                CallbackGuard.guarded { attach(v) }
+            }
+
+            override fun onViewDetachedFromWindow(v: View) {
+                CallbackGuard.guarded { detach(v, "view-detached") }
+                // Normal detach does NOT remove the listener. Re-attach must be able
+                // to re-register. Terminal dispose is the only path that removes it.
+            }
+        }
+
+        fun attach(view: View) {
             if (!state.canRegister()) return
             if (darkIconDispatcher == null) {
                 darkIconDispatcher = try {
@@ -123,7 +161,7 @@ internal object CustomTextIconTintRoute {
             }
             val dispatcher = darkIconDispatcher
             if (dispatcher == null) {
-                XposedHelpers.log("CustomTextIconTintRoute: no DarkIconDispatcher for ${describe()}")
+                XposedHelpers.log("CustomTextIconTintRoute: no DarkIconDispatcher for ${describe(view)}")
                 return
             }
 
@@ -138,13 +176,13 @@ internal object CustomTextIconTintRoute {
             state.register(registerFn = { registered })
 
             if (registered) {
-                XposedHelpers.log("CustomTextIconTintRoute: attached ${describe()}")
+                XposedHelpers.log("CustomTextIconTintRoute: attached ${describe(view)}")
             } else {
-                XposedHelpers.log("CustomTextIconTintRoute: attach-failed ${describe()}")
+                XposedHelpers.log("CustomTextIconTintRoute: attach-failed ${describe(view)}")
             }
         }
 
-        fun releaseSilently(reason: String) {
+        fun detach(view: View, reason: String) {
             val released = state.release {
                 val dispatcher = darkIconDispatcher
                 if (dispatcher != null) {
@@ -154,17 +192,48 @@ internal object CustomTextIconTintRoute {
                         FatalErrors.unwrapAndRethrowIfFatal(t)
                     }
                 }
-                synchronized(registrations) { registrations.remove(view) }
             }
             if (released) {
-                XposedHelpers.log("CustomTextIconTintRoute: released ${describe()}; reason=$reason")
+                XposedHelpers.log("CustomTextIconTintRoute: detached ${describe(view)}; reason=$reason")
             }
         }
 
-        fun describe(): String {
-            val viewName = view.javaClass.name
-            val identity = System.identityHashCode(view)
+        fun dispose(reason: String) {
+            val view = viewRef.get()
+            val disposed = state.dispose { wasRegistered ->
+                if (view != null) {
+                    if (wasRegistered) {
+                        val dispatcher = darkIconDispatcher
+                        if (dispatcher != null) {
+                            try {
+                                XposedHelpers.callMethod(dispatcher, "removeDarkReceiver", view)
+                            } catch (t: Throwable) {
+                                FatalErrors.unwrapAndRethrowIfFatal(t)
+                            }
+                        }
+                    }
+                    try {
+                        view.removeOnAttachStateChangeListener(listener)
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                    }
+                }
+                synchronized(registrations) { registrations.remove(this) }
+            }
+            if (disposed) {
+                XposedHelpers.log("CustomTextIconTintRoute: disposed ${describe(view)}; reason=$reason")
+            }
+        }
+
+        fun describe(view: View? = null): String {
+            val v = view ?: viewRef.get()
+            val viewName = v?.javaClass?.name ?: "gc-ed"
+            val identity = identityHash(v)
             return "$route/$viewName@$identity"
+        }
+
+        fun identityHash(view: View?): Int {
+            return view?.let { System.identityHashCode(it) } ?: 0
         }
     }
 }

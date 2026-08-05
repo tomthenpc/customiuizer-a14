@@ -1,7 +1,7 @@
 # FIX-A14-STATUS-BAR-CUSTOM-TEXT-ICON-DARK-TINT
 
 - Platform: HyperOS 1 / Android 14 / SDK 34
-- Status: Active
+- Status: Done
 - Priority: P0
 - Owner: Devin
 - Reviewer: ChatGPT / human
@@ -103,5 +103,35 @@ Preference
 
 ## 完成记录
 - Base SHA: 5d1a6f639c4daed94c301c8742e8903fc5791de0
-- Engineering commit: (to be recorded after push)
-- Additional closure commits: (to be recorded if any)
+- Engineering commit: 4e8d7016a8ff35bedaa1b1292a953c32031562cf
+- R2: beb4417a9422d6a9fc14bff8cce80e1e9e35b870
+- R3 corrective engineering commit: (to be recorded after push)
+
+## R3 lifecycle corrective closure
+
+### 实机日志结论
+- 日志目录：`C:\Users\tv\Downloads\Peengeek\LSPosed_log\r14\r14.16.1-debug\Vector-logs-release-20260805-154107`
+- 注入：
+  - `tv.withaibuild.customiuizer.r14` 成功加载于 `system` / `com.android.systemui` / `com.miui.home` / `com.android.settings`。
+  - `HookSummary stage=onSystemServerStarting process=system installed=41 classMissing=0 memberMissing=0 failed=0`
+  - `HookSummary stage=onPackageReady process=com.android.systemui installed=48`
+  - `HookSummary stage=post-init process=com.android.systemui installed=49 failed=0`
+- 稳定性：采集窗口内没有 SystemUI FATAL、ANR、死亡或重启。
+- 路径未触发：日志未出现 `CustomTextIconTintRoute`、`DeviceInfoMonitor`、`battery_info`、`device_temp` 关键字，因此本次日志只能说明模块稳定加载，不能直接证明 dark tint 已修复。
+- 设备信息：
+  - `ro.build.fingerprint = Xiaomi/fuxi_global/fuxi:14/UKQ1.230804.001/V816.0.7.0.UMCTWXM:user/release-keys`
+  - `ro.build.version.sdk = 34`
+  - `ro.build.version.release = 14`
+- 已知 backlog（不纳入本次）：
+  - `Failed to hook onDetachedFromWindow method in miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl`
+- 本次实机状态标记：
+  - `BOOT_LOG_VERIFIED`
+  - `SYSTEMUI_STABILITY_OBSERVED`
+  - `DARK_TINT_PATH_NOT_EXERCISED`
+
+### 修正范围
+1. `CustomTextIconTintRoute` 拆分 `attach/register`、`detach/unregister`、`terminal dispose` 三个阶段。
+2. 注册失败后不保留强引用：tracking 在 terminal dispose 时无条件移除，listener 无论注册是否成功均可移除。
+3. 支持 `attach → detach → reattach` 生命周期，普通 detach 不破坏 listener；terminal dispose 后不再注册。
+4. 右侧恢复 `StatusBarDisplayRegistry` generation owner：`CustomTextIconTintRoute.register` 返回幂等 `DarkTintRegistrationHandle`，右侧继续 `state.registrations.register(sbView) { handle.release("generation-replaced") }`。
+5. Fake dispatcher 立即模拟初始 tint callback，测试覆盖 initial tint、reattach、generation replacement、失败后的清理。
