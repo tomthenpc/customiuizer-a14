@@ -277,6 +277,118 @@ class StatusBarHeightLiveTest {
         assertEquals("live diagnostic keys must not grow for the same generation", liveCount, SystemStatusBarInsetsHooks.liveKeyCountForTest())
     }
 
+    @Test
+    fun layoutWindowLw_nonStatusBar_returnsBeforeMetricsRecomputeOrRef() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(160),
+        )
+
+        val win = FakeWindowState().apply {
+            mAttrs.type = WindowManager.LayoutParams.TYPE_APPLICATION
+            mAttrs.packageName = "com.example.app"
+            mDisplayContent = FakeWindowState.FakeDisplayContent(
+                displayId = 1,
+                metrics = DisplayMetrics().apply { densityDpi = 469; density = 2.93125f },
+            )
+        }
+
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(160, StatusBarHeightConfig.densityDpi)
+        assertEquals(44, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun layoutWindowLw_disabledAfterEnabled_restoresOriginalHeight() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        val originalHeight = WindowManager.LayoutParams.WRAP_CONTENT
+
+        val chain1 = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain1)
+
+        assertEquals(1, chain1.proceedCount)
+        assertEquals(129, win.mAttrs.height)
+
+        StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 11) })
+
+        val chain2 = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain2)
+
+        assertEquals(1, chain2.proceedCount)
+        assertEquals(originalHeight, win.mAttrs.height)
+    }
+
+    @Test
+    fun requestStatusBarTraversal_disabledAfterCustomChange_requestsOnceAndCoalesces() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        val placer = (win.mWmService as FakeWindowState.FakeWindowManagerService)
+            .mWindowPlacerLocked as FakeWindowState.FakeWindowSurfacePlacer
+
+        StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 11) })
+        SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+        SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+
+        assertEquals(1, placer.requestTraversalCount)
+    }
+
+    @Test
+    fun requestStatusBarTraversal_unavailable_doesNotFallbackToPerformSurfacePlacement() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        val placer = NoRequestTraversalPlacer()
+        val wmService = win.mWmService as FakeWindowState.FakeWindowManagerService
+        wmService.mWindowPlacerLocked = placer
+
+        SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+
+        assertEquals(0, placer.performSurfacePlacementCount)
+    }
+
+    @Test
+    fun layoutWindowLw_secondaryDisplay_usesLocalPxAndDoesNotPolluteGlobal() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        win.mDisplayContent = FakeWindowState.FakeDisplayContent(
+            displayId = 1,
+            metrics = DisplayMetrics().apply { densityDpi = 200; density = 1.25f },
+        )
+
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(55, win.mAttrs.height) // 44 * 200 / 160
+        assertEquals(469, StatusBarHeightConfig.densityDpi)
+        assertEquals(129, StatusBarHeightConfig.configuredPx)
+    }
+
     private fun setRect(rect: Rect, left: Int, top: Int, right: Int, bottom: Int) {
         rect.left = left
         rect.top = top
@@ -353,4 +465,19 @@ class ClientWindowFrames {
 
     @JvmField
     val parentFrame: Rect = Rect()
+}
+
+/**
+ * Test double for a `WindowSurfacePlacer` that does not expose `requestTraversal()`.
+ *
+ * Used to verify that the status-bar refresh path falls back to waiting for a
+ * natural layout instead of calling `performSurfacePlacement()` directly.
+ */
+private class NoRequestTraversalPlacer {
+    var performSurfacePlacementCount = 0
+        private set
+
+    fun performSurfacePlacement() {
+        performSurfacePlacementCount++
+    }
 }

@@ -63,6 +63,7 @@ object SystemStatusBarInsetsHooks {
     private const val SET_FRAMES_METHOD = "setFrames"
     private const val STATUS_BAR_WINDOW_TAG = "StatusBar"
     private const val STATUS_BAR_HEIGHT_LIVE_TAG = "[StatusBarHeightLive]"
+    private const val ORIGINAL_STATUS_BAR_HEIGHT_KEY = "customiuizer_originalStatusBarHeight"
 
     private var typeInfo: InsetsTypeInfo? = null
     private var hookInstalled: Boolean = false
@@ -234,7 +235,7 @@ object SystemStatusBarInsetsHooks {
                     "preference-change"
                 )
 
-                if (change.current.enabled && newGen != oldGen) {
+                if (change.changed) {
                     requestStatusBarTraversal()
                 }
             } catch (t: Throwable) {
@@ -334,30 +335,42 @@ object SystemStatusBarInsetsHooks {
     internal fun onLayoutWindowLw(chain: XposedInterface.Chain): Any? {
         val win = chain.getArg(0) ?: return chain.proceed()
         if (win.javaClass.name != WINDOW_STATE_CLASS) return chain.proceed()
+        if (!isStatusBarWindow(win)) return chain.proceed()
+
+        statusBarWindowRef = WeakReference(win)
+
+        val state = StatusBarHeightConfig.currentState()
+        if (!state.enabled) {
+            restoreStatusBarWindowHeight(win)
+            return chain.proceed()
+        }
 
         val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
         val displayId = getDisplayId(win)
 
-        StatusBarHeightConfig.recomputePx(metrics)
-        val generation = StatusBarHeightConfig.generation.get()
-        val state = StatusBarHeightConfig.currentState()
+        val configuredPx = if (displayId == 0) {
+            StatusBarHeightConfig.recomputePx(metrics)
+            StatusBarHeightConfig.configuredPx
+        } else {
+            StatusBarHeightConfig.configuredPxFor(state.configuredDp, metrics)
+        }
+
+        if (configuredPx <= 0) return chain.proceed()
+
+        val densityForLog = if (displayId == 0) StatusBarHeightConfig.density else metrics.density
+        val densityDpiForLog = if (displayId == 0) StatusBarHeightConfig.densityDpi else metrics.densityDpi
 
         logLive(
             "layout displayId=$displayId " +
                 "rawDp=${state.rawPreferenceDp} " +
                 "resolvedDp=${state.configuredDp} " +
-                "density=${state.density} " +
-                "densityDpi=${state.densityDpi} " +
-                "configuredPx=${state.configuredPx}",
+                "density=$densityForLog " +
+                "densityDpi=$densityDpiForLog " +
+                "configuredPx=$configuredPx",
             "layout:$displayId"
         )
 
-        if (!state.enabled || state.configuredPx <= 0 || !isStatusBarWindow(win)) {
-            statusBarWindowRef = WeakReference(win)
-            return chain.proceed()
-        }
-
-        applyStatusBarWindowHeight(win)
+        applyStatusBarWindowHeight(win, configuredPx)
 
         val result = chain.proceed()
 
@@ -373,7 +386,6 @@ object SystemStatusBarInsetsHooks {
             )
         }
 
-        statusBarWindowRef = WeakReference(win)
         return result
     }
 
@@ -390,8 +402,11 @@ object SystemStatusBarInsetsHooks {
         val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
         val displayId = getDisplayId(win)
 
-        StatusBarHeightConfig.recomputePx(metrics)
-        val configuredPx = StatusBarHeightConfig.configuredPx
+        val configuredPx = if (displayId == 0) {
+            StatusBarHeightConfig.configuredPx
+        } else {
+            StatusBarHeightConfig.configuredPxFor(StatusBarHeightConfig.configuredDp, metrics)
+        }
         if (configuredPx <= 0) return chain.proceed()
 
         val frame = readClientWindowFrame(clientFrames) ?: return chain.proceed()
@@ -495,16 +510,31 @@ object SystemStatusBarInsetsHooks {
     }
 
     @JvmStatic
-    internal fun applyStatusBarWindowHeight(win: Any) {
-        if (!StatusBarHeightConfig.enabled) return
-        val configuredPx = StatusBarHeightConfig.configuredPx
+    internal fun applyStatusBarWindowHeight(win: Any, configuredPx: Int) {
         if (configuredPx <= 0) return
 
         try {
             val attrs = XposedHelpers.getObjectField(win, "mAttrs") ?: return
             val currentHeight = XposedHelpers.getIntField(attrs, "height")
+            if (XposedHelpers.getAdditionalInstanceField(win, ORIGINAL_STATUS_BAR_HEIGHT_KEY) == null) {
+                XposedHelpers.setAdditionalInstanceField(win, ORIGINAL_STATUS_BAR_HEIGHT_KEY, currentHeight)
+            }
             if (currentHeight != configuredPx) {
                 XposedHelpers.setIntField(attrs, "height", configuredPx)
+            }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+        }
+    }
+
+    @JvmStatic
+    internal fun restoreStatusBarWindowHeight(win: Any) {
+        try {
+            val attrs = XposedHelpers.getObjectField(win, "mAttrs") ?: return
+            val originalHeight = XposedHelpers.getAdditionalInstanceField(win, ORIGINAL_STATUS_BAR_HEIGHT_KEY) as? Int ?: return
+            val currentHeight = XposedHelpers.getIntField(attrs, "height")
+            if (currentHeight != originalHeight) {
+                XposedHelpers.setIntField(attrs, "height", originalHeight)
             }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
@@ -530,33 +560,12 @@ object SystemStatusBarInsetsHooks {
                 logLive("refresh requestTraversal gen=$newGen", "refresh")
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
-                fallbackTraversal(wmService, windowPlacer, newGen)
+                logLive("refresh requestTraversal-unavailable gen=$newGen", "refresh")
+                XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG requestTraversal unavailable, waiting for natural layout: ${t.javaClass.simpleName}")
             }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG refresh failed: ${t.javaClass.simpleName}")
-        }
-    }
-
-    private fun fallbackTraversal(wmService: Any, windowPlacer: Any, generation: Long) {
-        try {
-            val handler = XposedHelpers.getObjectField(wmService, "mAnimationHandler") as? Handler
-                ?: return
-            val globalLock = XposedHelpers.getObjectField(wmService, "mGlobalLock")
-            handler.post {
-                try {
-                    synchronized(globalLock ?: Any()) {
-                        XposedHelpers.callMethod(windowPlacer, "performSurfacePlacement")
-                    }
-                } catch (inner: Throwable) {
-                    FatalErrors.unwrapAndRethrowIfFatal(inner)
-                    XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG fallback traversal failed: ${inner.javaClass.simpleName}")
-                }
-            }
-            logLive("refresh fallback-traversal gen=$generation", "refresh")
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG refresh fallback setup failed: ${t.javaClass.simpleName}")
         }
     }
 
