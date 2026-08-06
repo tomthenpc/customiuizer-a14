@@ -49,7 +49,7 @@ class CIPortabilityCheckerTest(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("CI portability checks pass.", result.stdout)
 
-    def test_windows_path_in_tool_fails(self):
+    def test_hardcoded_windows_drive_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_fake_repo(tmp)
             (root / "tools" / "bad.py").write_text(
@@ -59,7 +59,7 @@ class CIPortabilityCheckerTest(unittest.TestCase):
             self.assertEqual(1, result.returncode, result.stdout + result.stderr)
             self.assertIn("hardcoded drive letter", result.stdout)
 
-    def test_gradlew_bat_in_python_fails(self):
+    def test_direct_gradlew_bat_subprocess_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_fake_repo(tmp)
             (root / "tools" / "bad.py").write_text(
@@ -81,15 +81,51 @@ class CIPortabilityCheckerTest(unittest.TestCase):
             self.assertEqual(1, result.returncode, result.stdout + result.stderr)
             self.assertIn("path separator replace", result.stdout)
 
-    def test_verify_py_allowed_to_switch_gradlew(self):
+    def test_canonical_cross_platform_wrapper_selection_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self.make_fake_repo(tmp)
-            (root / "tools" / "verify.py").write_text(
-                'import os\nGRADLEW = "gradlew.bat" if os.name == "nt" else "gradlew"\n',
+            (root / "tools" / "compile.py").write_text(
+                'import sys\n'
+                'GRADLEW = "gradlew.bat" if sys.platform == "win32" else "gradlew"\n',
                 encoding="utf-8",
             )
             result = self.run_checker(root, root / "tools" / "check_ci_portability.py")
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_verify_py_cross_platform_selection_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_fake_repo(tmp)
+            (root / "tools" / "verify.py").write_text(
+                'import os\n'
+                'GRADLEW = "gradlew.bat" if os.name == "nt" else "gradlew"\n',
+                encoding="utf-8",
+            )
+            result = self.run_checker(root, root / "tools" / "check_ci_portability.py")
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_build_debug_apk_cross_platform_selection_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_fake_repo(tmp)
+            (root / "tools" / "build_debug_apk.py").write_text(
+                'import os\n'
+                'REPO_ROOT = "/fake"\n'
+                'GRADLEW = "gradlew.bat" if os.name == "nt" else "gradlew"\n'
+                'GRADLEW_PATH = REPO_ROOT / GRADLEW\n',
+                encoding="utf-8",
+            )
+            result = self.run_checker(root, root / "tools" / "check_ci_portability.py")
+            self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
+    def test_incomplete_windows_only_branch_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self.make_fake_repo(tmp)
+            (root / "tools" / "bad.py").write_text(
+                'import os\nif os.name == "nt":\n    GRADLEW = "gradlew.bat"\n',
+                encoding="utf-8",
+            )
+            result = self.run_checker(root, root / "tools" / "check_ci_portability.py")
+            self.assertEqual(1, result.returncode, result.stdout + result.stderr)
+            self.assertIn("os.name branching", result.stdout)
 
     def test_workflow_without_fetch_depth_fails(self):
         with tempfile.TemporaryDirectory() as tmp:

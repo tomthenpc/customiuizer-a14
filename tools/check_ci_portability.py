@@ -31,8 +31,31 @@ ALLOWED_FILES = {
     TOOLS_TESTS_DIR / "test_check_ci_portability.py",
 }
 
-# Files that intentionally select gradlew/gradlew.bat based on the host OS.
-GRADLEW_SWITCH_FILES = {TOOLS_DIR / "verify.py", TOOLS_DIR / "brutal_test_runner.py"}
+# Canonical cross-platform gradlew wrapper selection.  These spans are masked
+# before the Windows-only rules run so the literal "gradlew.bat" and the
+# platform check inside a proper wrapper selection do not trip the detector.
+_GRADLEW_TERNARY_PATTERN = re.compile(
+    r"""
+    ^\s*\w+\s*=\s*(?:["']gradlew\.bat["'])\s+if\s+.*?\b(?:os\.name|sys\.platform|shutil\.which)\b.*?\s+else\s+(?:["']gradlew["'])\s*$
+    |
+    ^\s*\w+\s*=\s*(?:["']gradlew["'])\s+if\s+.*?\b(?:os\.name|sys\.platform|shutil\.which)\b.*?\s+else\s+(?:["']gradlew\.bat["'])\s*$
+    """,
+    re.VERBOSE | re.M,
+)
+_GRADLEW_IFELSE_PATTERN = re.compile(
+    r"""
+    if\s*[^:\n]*\b(?:os\.name|sys\.platform|shutil\.which)\b[^:\n]*:\s*\n
+    \s+\w+\s*=\s*(?:["']gradlew\.bat["'])\s*\n
+    \s*else:\s*\n
+    \s+\w+\s*=\s*(?:["']gradlew["'])\s*$
+    |
+    if\s*[^:\n]*\b(?:os\.name|sys\.platform|shutil\.which)\b[^:\n]*:\s*\n
+    \s+\w+\s*=\s*(?:["']gradlew["'])\s*\n
+    \s*else:\s*\n
+    \s+\w+\s*=\s*(?:["']gradlew\.bat["'])\s*$
+    """,
+    re.VERBOSE | re.M,
+)
 
 # Patterns that appear in markdown escaping and other legitimate contexts;
 # the portability checker only flags the path-separator variant of replace().
@@ -49,6 +72,25 @@ GRADLEW_BAT_PATTERN = re.compile(r'\bgradlew\.bat\b')
 OS_NAME_PATTERN = re.compile(r'\bos\.name\b')
 
 
+def _canonical_gradlew_spans(text: str) -> list[tuple[int, int]]:
+    """Return text spans that are canonical cross-platform gradlew selections."""
+    spans: list[tuple[int, int]] = []
+    for pattern in (_GRADLEW_TERNARY_PATTERN, _GRADLEW_IFELSE_PATTERN):
+        for match in pattern.finditer(text):
+            spans.append((match.start(), match.end()))
+    return spans
+
+
+def _mask_spans(text: str, spans: list[tuple[int, int]]) -> str:
+    """Replace *spans* with spaces, preserving newlines, so offsets stay valid."""
+    chars = list(text)
+    for start, end in sorted(spans):
+        for i in range(start, min(end, len(chars))):
+            if chars[i] != "\n":
+                chars[i] = " "
+    return "".join(chars)
+
+
 def iter_text_files(root: Path) -> list[Path]:
     """Return text files under *root*, excluding __pycache__."""
     if not root.is_dir():
@@ -62,17 +104,23 @@ def iter_text_files(root: Path) -> list[Path]:
     return files
 
 
-def check_text_file(path: Path, rules: list[tuple[str, re.Pattern]]) -> list[str]:
-    """Apply *rules* to a single file, returning human-readable violations."""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        return []
+def check_text_file(
+    path: Path,
+    text: str,
+    rules: list[tuple[str, re.Pattern]],
+    *,
+    original: str | None = None,
+) -> list[str]:
+    """Apply *rules* to *text*, returning human-readable violations.
+
+    *original* is used for snippet extraction when *text* has been masked.
+    """
     violations = []
+    source = original if original is not None else text
     for name, pattern in rules:
         for match in pattern.finditer(text):
             line = text[: match.start()].count("\n") + 1
-            snippet = text[match.start() : match.end()].replace("\n", " ")[:80]
+            snippet = source[match.start() : match.end()].replace("\n", " ")[:80]
             violations.append(f"  {path.relative_to(REPO_ROOT)}:{line}: {name}: {snippet!r}")
     return violations
 
@@ -82,18 +130,23 @@ def check_python_file(path: Path) -> list[str]:
     if path in ALLOWED_FILES:
         return []
 
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return []
+
+    masked = _mask_spans(text, _canonical_gradlew_spans(text))
+
     rules: list[tuple[str, re.Pattern]] = [
         ("path separator replace", PATH_REPLACE_PATTERNS[0]),
         ("path separator replace", PATH_REPLACE_PATTERNS[1]),
         ("hardcoded drive letter", HARD_DRIVE_PATTERN),
+        ("Powershell invocation", POWERSHELL_PATTERN),
+        ("gradlew.bat only", GRADLEW_BAT_PATTERN),
+        ("os.name branching", OS_NAME_PATTERN),
     ]
 
-    if path not in GRADLEW_SWITCH_FILES:
-        rules.append(("Powershell invocation", POWERSHELL_PATTERN))
-        rules.append(("gradlew.bat only", GRADLEW_BAT_PATTERN))
-        rules.append(("os.name branching", OS_NAME_PATTERN))
-
-    return check_text_file(path, rules)
+    return check_text_file(path, masked, rules, original=text)
 
 
 def check_workflow_file(path: Path) -> list[str]:

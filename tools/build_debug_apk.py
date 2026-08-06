@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Controlled delivery build for CustoMIUIzer A14 Debug APK.
+"""Explicit diagnostic Debug APK build for CustoMIUIzer A14.
 
-This script is the only supported way to produce a delivery Debug APK. It:
+This script builds a diagnostic Debug APK only when explicitly authorized.
+It is not a delivery build, not the develop variant, and not a release
+candidate. It is intended for short-term engineering diagnostics only.
+
+It:
 1. Verifies the tracked worktree is clean.
 2. Resolves the current engineering HEAD revision.
 3. Builds the APK with an explicit buildRevision and disabled configuration cache.
@@ -25,6 +29,7 @@ import build_revision
 import verify_apk_provenance
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+# Canonical cross-platform wrapper selection; this is not a Windows-only branch.
 GRADLEW = "gradlew.bat" if os.name == "nt" else "gradlew"
 GRADLEW_PATH = REPO_ROOT / GRADLEW
 APK_OUTPUT = (
