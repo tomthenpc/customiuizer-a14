@@ -1,7 +1,7 @@
 # FIX-A14-STATUS-BAR-HEIGHT-LIVE-APPLICATION
 
 - Platform: A14
-- Status: Corrective required | Release blocked
+- Status: Corrective required | Release blocked | PARKED — NOT RUN / ENVIRONMENT BLOCKED
 - Priority: P0
 - Owner: Devin
 - Reviewer: ChatGPT / human
@@ -20,9 +20,9 @@ c. `requestTraversal` 不可用时存在直接 `performSurfacePlacement` fallbac
 
 ## 实机状态
 
-NOT DEVICE_VERIFIED
+NOT RUN / ENVIRONMENT BLOCKED
 
-在 `fuxi` 完成 `44 -> 40 -> 12 -> 44 -> disabled` 且不重启的验证之前，本任务不得重新进入 `tasks/completed`。
+R3 修正已通过本地静态、单元测试与 Debug 构建验证，但当前会话未连接 `fuxi` 物理设备，无法执行 `44 -> 40 -> 12 -> 44 -> disabled` 实机验证。本任务保留在 `tasks/active` 作为 parked 项，待 fuxi 连接后继续验证；在实机验证通过前不得重新进入 `tasks/completed`。
 
 ## R3 修正要求
 

@@ -42,11 +42,11 @@ internal abstract class BaseSystemUiFeature(
     override val phase = InstallPhase.PACKAGE_READY
 
     protected abstract fun isEnabledCondition(prefs: PrefMap): Boolean
-    protected abstract fun installHook()
+    protected open fun installHook() {}
 
     final override fun isEnabled(prefs: PrefMap) = isEnabledCondition(prefs)
 
-    final override fun install(): FeatureInstallResult {
+    open override fun install(): FeatureInstallResult {
         installHook()
         return FeatureInstallResult.INSTALLED
     }
@@ -1177,7 +1177,7 @@ internal class ChargingInfoFeature(
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
-    override fun installHook() = SystemLockScreenHooks.ChargingInfoHook(lpparam)
+    override fun install(): FeatureInstallResult = SystemLockScreenHooks.ChargingInfoHook(lpparam)
 }
 
 internal class SecureQSTilesFeature(

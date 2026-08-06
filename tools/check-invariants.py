@@ -640,9 +640,9 @@ def check_charging_info_hot_path(path: Path, text: str) -> list[Finding]:
     """Charging hint updates must skip disabled detail I/O and avoid Formatter churn."""
     if rel_posix(path) != SYSTEM_LOCK_SCREEN_HOOKS:
         return []
-    method = re.search(r"fun\s+ChargingInfoHook\s*\(", text)
+    method = re.search(r"fun\s+buildChargingInfoDetails\s*\(", text)
     if method is None:
-        return [Finding("charging-info-hot-path", path, 1, "ChargingInfoHook is missing")]
+        return [Finding("charging-info-hot-path", path, 1, "buildChargingInfoDetails is missing")]
     body, _ = block_at(text, method.start())
     findings = []
     for match in re.finditer(r"\bString\.format\s*\(", body):
@@ -655,10 +655,29 @@ def check_charging_info_hot_path(path: Path, text: str) -> list[Finding]:
             )
         )
     disabled_return = body.find("!showCurr && !showVolt && !showWatt && !showTemp")
+    is_keyguard_caller = body.find("isKeyguardCaller()")
     detail_allocation = body.find("ArrayList<String>")
-    sysfs_read = body.find("/sys/class/power_supply/battery/uevent")
-    if disabled_return < 0 or any(
-        position >= 0 and disabled_return > position
+    sysfs_read = body.find("batteryPropsProvider()")
+    if disabled_return < 0:
+        findings.append(
+            Finding(
+                "charging-info-hot-path",
+                path,
+                line_of(text, method.start()),
+                "all-disabled charging details short-circuit is missing",
+            )
+        )
+    elif is_keyguard_caller < 0 or disabled_return > is_keyguard_caller:
+        findings.append(
+            Finding(
+                "charging-info-hot-path",
+                path,
+                line_of(text, method.start()),
+                "all-disabled charging details must return before caller classification",
+            )
+        )
+    elif any(
+        position >= 0 and is_keyguard_caller > position
         for position in (detail_allocation, sysfs_read)
     ):
         findings.append(
@@ -666,7 +685,7 @@ def check_charging_info_hot_path(path: Path, text: str) -> list[Finding]:
                 "charging-info-hot-path",
                 path,
                 line_of(text, method.start()),
-                "all-disabled charging details must return before collection allocation and sysfs I/O",
+                "caller classification must precede collection allocation and sysfs I/O",
             )
         )
     return findings

@@ -15,7 +15,6 @@ import android.net.wifi.WifiManager
 import android.os.Binder
 import android.os.Bundle
 import android.os.Handler
-import android.text.TextUtils
 import android.text.format.DateFormat
 import android.text.format.DateUtils
 import android.util.ArrayMap
@@ -34,6 +33,8 @@ import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
 import org.json.JSONObject
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
@@ -42,6 +43,7 @@ import tv.withaibuild.customiuizer.mods.utils.formatMonitorOneDecimal
 import tv.withaibuild.customiuizer.mods.utils.formatMonitorTwoDecimals
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.HookUtils
+import tv.withaibuild.customiuizer.utils.PrefMap
 import tv.withaibuild.customiuizer.utils.PrefPair
 import java.io.File
 import java.io.FileInputStream
@@ -250,8 +252,6 @@ object SystemLockScreenHooks {
     private var isUnlockedWithFingerprint = false
 
     private var isUnlockedWithStrong = false
-
-    private var isChargingInfoHooked = false
 
     private var forcedOption = -1
 
@@ -1130,109 +1130,209 @@ object SystemLockScreenHooks {
     internal fun resolveChargingInfoFontSizeSp(raw: Int): Float? =
         if (raw in 17..40) raw / 2f else null
 
-    @JvmStatic
-    fun ChargingInfoHook(lpparam: PackageReadyParam) {
-        if (isChargingInfoHooked) return
-        isChargingInfoHooked = true
-        ModuleHelper.findAndHookMethod("com.miui.charge.ChargeUtils", lpparam.classLoader, "getChargingHintText", Int::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Context::class.java, object : MethodHook() {
-            override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any?
-                var throwable: Throwable? = null
-                try {
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
+    /**
+     * Read the battery sysfs uevent file into a [Properties] object.
+     *
+     * This is intentionally a cold-path helper: the call only happens after charge/hint,
+     * preference and caller classification checks have passed.  Non-fatal I/O errors are
+     * handled by the caller; [OutOfMemoryError] propagates.
+     */
+    private fun readBatteryProperties(): Properties = Properties().apply {
+        FileInputStream("/sys/class/power_supply/battery/uevent").use { input ->
+            load(input)
+        }
+    }
+
+    /**
+     * Parse a single sysfs property value, treating missing or malformed values as null.
+     *
+     * NumberFormatException is local to this field; other throwables are fatal and propagate.
+     */
+    private fun parseBatteryInt(raw: String?): Int? = try {
+        raw?.let { Integer.parseInt(it) }
+    } catch (_: NumberFormatException) {
+        null
+    }
+
+    /**
+     * Build the augmented charging info string.
+     *
+     * Hot-path ordering:
+     * 1. charge/hint guard
+     * 2. read four detail switches
+     * 3. all-disabled short-circuit (no stack trace, no sysfs, no allocations)
+     * 4. keyguard caller classification
+     * 5. only then: ArrayList, sysfs read, formatting, joinToString
+     *
+     * Non-fatal failures (e.g. missing property, I/O error, malformed number) return null
+     * so the caller can fall back to the original hint.  [OutOfMemoryError] is rethrown.
+     */
+    internal fun buildChargingInfoDetails(
+        charge: Int,
+        hint: String,
+        prefs: PrefMap,
+        isKeyguardCaller: () -> Boolean,
+        batteryPropsProvider: () -> Properties?
+    ): String? {
+        if (charge > 100) return null
+
+        val showCurr = prefs.getBoolean("system_charginginfo_current")
+        val showVolt = prefs.getBoolean("system_charginginfo_voltage")
+        val showWatt = prefs.getBoolean("system_charginginfo_wattage")
+        val showTemp = prefs.getBoolean("system_charginginfo_temp")
+        if (!showCurr && !showVolt && !showWatt && !showTemp) return null
+
+        if (!isKeyguardCaller()) return null
+
+        val values = ArrayList<String>(4)
+        val props = try {
+            batteryPropsProvider()
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+        if (props != null) {
+            if (showCurr) {
+                parseBatteryInt(props.getProperty("POWER_SUPPLY_CURRENT_NOW"))?.let { currVal ->
+                    values.add(formatMonitorTwoDecimals(Math.abs(currVal) / 1000f / 1000f) + " A")
                 }
-                try {
+            }
+            if (showVolt) {
+                parseBatteryInt(props.getProperty("POWER_SUPPLY_VOLTAGE_NOW"))?.let { voltVal ->
+                    values.add(formatMonitorOneDecimal(voltVal / 1000f / 1000f) + " V")
+                }
+            }
+            if (showWatt) {
+                val currVal = parseBatteryInt(props.getProperty("POWER_SUPPLY_CURRENT_NOW")) ?: 0
+                val voltVal = parseBatteryInt(props.getProperty("POWER_SUPPLY_VOLTAGE_NOW")) ?: 0
+                if (currVal != 0 && voltVal != 0) {
+                    val c = Math.abs(currVal) / 1000f / 1000f
+                    val v = voltVal / 1000f / 1000f
+                    values.add(formatMonitorOneDecimal(v * c) + " W")
+                }
+            }
+            if (showTemp) {
+                parseBatteryInt(props.getProperty("POWER_SUPPLY_TEMP"))?.let { tempVal ->
+                    values.add(Math.round(tempVal / 10f).toString() + " ℃")
+                }
+            }
+        }
+        if (values.isEmpty()) return null
 
-                    val charge = chain.getArg(0) as Int
-                    val hint = result as String?
+        val info = values.joinToString(" · ")
+        if (hint.contains(info)) return null
 
-                    if (charge <= 100 && hint != null && isKeyguardIndicationCaller()) {
-                        val showCurr = MainModule.mPrefs.getBoolean("system_charginginfo_current")
-                        val showVolt = MainModule.mPrefs.getBoolean("system_charginginfo_voltage")
-                        val showWatt = MainModule.mPrefs.getBoolean("system_charginginfo_wattage")
-                        val showTemp = MainModule.mPrefs.getBoolean("system_charginginfo_temp")
-                        if (!showCurr && !showVolt && !showWatt && !showTemp) {
+        val opt = prefs.getStringAsInt("system_charginginfo_view", 1)
+        return when (opt) {
+            1 -> hint + "\n" + info
+            2 -> hint + " · " + info
+            3 -> info + " · " + hint
+            else -> hint
+        }
+    }
+
+    /**
+     * Install the charging-info hooks.
+     *
+     * - The core hook on [com.miui.charge.ChargeUtils#getChargingHintText] is required.
+     *   If it cannot be installed the feature reports [FeatureInstallResult.FAILED_TRANSIENT]
+     *   so the registry can retry, but only after the previous failed attempt.
+     * - The font/single-line hook on [KeyguardIndicationTextView#onFinishInflate] is optional.
+     *   Its failure is recorded by [HookInstallerFacade] but does not fail the feature.
+     *
+     * Process-level once-deduplication is provided by [FeatureInstallState] / [FeatureInstallRegistry];
+     * this function intentionally does not maintain a second local owner.
+     */
+    @JvmStatic
+    fun ChargingInfoHook(lpparam: PackageReadyParam): FeatureInstallResult {
+        val coreUnhooker = ModuleHelper.findAndHookMethod(
+            "com.miui.charge.ChargeUtils",
+            lpparam.classLoader,
+            "getChargingHintText",
+            Int::class.javaPrimitiveType!!,
+            Boolean::class.javaPrimitiveType!!,
+            Context::class.java,
+            object : MethodHook() {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    var result: Any?
+                    var throwable: Throwable? = null
+                    try {
+                        result = chain.proceed()
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        throwable = t
+                        result = null
+                    }
+                    try {
+                        val charge = chain.getArg(0) as Int
+                        val hint = result as String?
+                        if (charge > 100 || hint == null) {
                             return XposedHelpers.throwOrReturn(throwable, result)
                         }
 
-                        val values = ArrayList<String>(4)
-                        val props = try {
-                            Properties().apply {
-                                FileInputStream("/sys/class/power_supply/battery/uevent").use { input ->
-                                    load(input)
-                                }
-                            }
-                        } catch (oom: OutOfMemoryError) {
-                            throw oom
-                        } catch (_: Throwable) {
-                            null
+                        val info = buildChargingInfoDetails(
+                            charge,
+                            hint,
+                            MainModule.mPrefs,
+                            { isKeyguardIndicationCaller() },
+                            { readBatteryProperties() }
+                        )
+                        if (info != null) {
+                            result = info
+                            throwable = null
                         }
-                        if (props != null) {
-                            val currVal = Math.abs(Integer.parseInt(props.getProperty("POWER_SUPPLY_CURRENT_NOW") ?: "0")) / 1000f / 1000f
-                            if (showCurr) values.add(formatMonitorTwoDecimals(currVal) + " A")
-                            val voltVal = Integer.parseInt(props.getProperty("POWER_SUPPLY_VOLTAGE_NOW") ?: "0") / 1000f / 1000f
-                            if (showVolt)
-                                values.add(formatMonitorOneDecimal(voltVal) + " V")
-                            if (showWatt)
-                                values.add(formatMonitorOneDecimal(voltVal * currVal) + " W")
-                            if (showTemp) {
-                                val tempVal = Integer.parseInt(props.getProperty("POWER_SUPPLY_TEMP") ?: "0")
-                                values.add(Math.round(tempVal / 10f).toString() + " ℃")
-                            }
-                        }
-                        if (values.isEmpty()) { return XposedHelpers.throwOrReturn(throwable, result) }
-                        val info = TextUtils.join(" · ", values)
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log(t)
+                    }
+                    return XposedHelpers.throwOrReturn(throwable, result)
+                }
+            }
+        )
+        if (coreUnhooker == null) {
+            return FeatureInstallResult.FAILED_TRANSIENT
+        }
 
-                        if (hint.contains(info)) { return XposedHelpers.throwOrReturn(throwable, result) }
+        ModuleHelper.findAndHookMethod(
+            "com.android.systemui.statusbar.phone.KeyguardIndicationTextView",
+            lpparam.classLoader,
+            "onFinishInflate",
+            object : MethodHook() {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    var result: Any?
+                    var throwable: Throwable? = null
+                    try {
+                        result = chain.proceed()
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        throwable = t
+                        result = null
+                    }
+                    try {
+                        val thisObject = chain.thisObject
+                        val indicator = thisObject as TextView
+
+                        val fontSizeRaw = MainModule.mPrefs.getInt("system_charginginfo_fontsize", 16)
+                        resolveChargingInfoFontSizeSp(fontSizeRaw)?.let { resolvedSizeSp ->
+                            indicator.setTextSize(TypedValue.COMPLEX_UNIT_SP, resolvedSizeSp)
+                        }
 
                         val opt = MainModule.mPrefs.getStringAsInt("system_charginginfo_view", 1)
-                        if (opt == 1)
-                            { result = hint + "\n" + info; throwable = null }
-                        else if (opt == 2)
-                            { result = hint + " · " + info; throwable = null }
-                        else if (opt == 3)
-                            { result = info + " · " + hint; throwable = null }
+                        if (opt != 1) { return XposedHelpers.throwOrReturn(throwable, result) }
+                        indicator.isSingleLine = false
+
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log(t)
                     }
-
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
+                    return XposedHelpers.throwOrReturn(throwable, result)
                 }
-                return XposedHelpers.throwOrReturn(throwable, result)
             }
-        })
+        )
 
-        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.KeyguardIndicationTextView", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
-            override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any?
-                var throwable: Throwable? = null
-                try {
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
-                }
-                try {
-                    val thisObject = chain.thisObject
-                    val indicator = thisObject as TextView
-
-                    val fontSizeRaw = MainModule.mPrefs.getInt("system_charginginfo_fontsize", 16)
-                    resolveChargingInfoFontSizeSp(fontSizeRaw)?.let { resolvedSizeSp ->
-                        indicator.setTextSize(TypedValue.COMPLEX_UNIT_SP, resolvedSizeSp)
-                    }
-
-                    val opt = MainModule.mPrefs.getStringAsInt("system_charginginfo_view", 1)
-                    if (opt != 1) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    indicator.isSingleLine = false
-
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
-            }
-        })
+        return FeatureInstallResult.INSTALLED
     }
 
     private fun isKeyguardIndicationCaller(): Boolean {
@@ -1242,7 +1342,9 @@ object SystemLockScreenHooks {
                 if (className.contains("KeyguardIndication")) return true
                 if (className.contains("MiuiCharge") || className.contains("miui.charge")) return false
             }
-        } catch (ignore: Throwable) {}
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+        }
         return false
     }
 

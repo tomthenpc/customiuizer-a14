@@ -302,28 +302,64 @@ catch (t: Throwable) { null }
             "tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt"
         )
         clean = """
-fun ChargingInfoHook(param: Any) {
+fun buildChargingInfoDetails(
+    charge: Int,
+    hint: String,
+    prefs: PrefMap,
+    isKeyguardCaller: () -> Boolean,
+    batteryPropsProvider: () -> Properties?
+): String? {
     val showCurr = enabled()
     val showVolt = enabled()
     val showWatt = enabled()
     val showTemp = enabled()
-    if (!showCurr && !showVolt && !showWatt && !showTemp) return
+    if (!showCurr && !showVolt && !showWatt && !showTemp) return null
+    if (!isKeyguardCaller()) return null
     val values = ArrayList<String>(4)
-    read("/sys/class/power_supply/battery/uevent")
+    val props = batteryPropsProvider()
     values.add(formatMonitorOneDecimal(1f))
 }
 """
         self.assertEqual([], self.mod.check_charging_info_hot_path(path, clean))
 
-        unsafe = """
-fun ChargingInfoHook(param: Any) {
-    val values = ArrayList<String>()
-    read("/sys/class/power_supply/battery/uevent")
+        missing_disabled = """
+fun buildChargingInfoDetails(param: Any) {
+    val values = ArrayList<String>(4)
+    val props = batteryPropsProvider()
+    values.add(formatMonitorOneDecimal(1f))
+}
+"""
+        findings = self.mod.check_charging_info_hot_path(path, missing_disabled)
+        self.assertEqual(1, len(findings))
+
+        caller_after_alloc = """
+fun buildChargingInfoDetails(
+    isKeyguardCaller: () -> Boolean,
+    batteryPropsProvider: () -> Properties?
+): String? {
+    if (!showCurr && !showVolt && !showWatt && !showTemp) return null
+    val values = ArrayList<String>(4)
+    val props = batteryPropsProvider()
+    if (!isKeyguardCaller()) return null
+}
+"""
+        findings = self.mod.check_charging_info_hot_path(path, caller_after_alloc)
+        self.assertEqual(1, len(findings))
+
+        uses_string_format = """
+fun buildChargingInfoDetails(
+    isKeyguardCaller: () -> Boolean,
+    batteryPropsProvider: () -> Properties?
+): String? {
+    if (!showCurr && !showVolt && !showWatt && !showTemp) return null
+    if (!isKeyguardCaller()) return null
+    val values = ArrayList<String>(4)
+    val props = batteryPropsProvider()
     values.add(String.format("%.1f", 1f))
 }
 """
-        findings = self.mod.check_charging_info_hot_path(path, unsafe)
-        self.assertEqual(2, len(findings))
+        findings = self.mod.check_charging_info_hot_path(path, uses_string_format)
+        self.assertEqual(1, len(findings))
 
     def test_album_art_requires_detach_cleanup_and_owned_bitmap_release(self):
         path = self._source_path(
