@@ -1,19 +1,34 @@
 package tv.withaibuild.customiuizer.mods
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Typeface
+import android.os.Looper
+
 import android.util.DisplayMetrics
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.io.File
+import java.lang.ref.WeakReference
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
+import tv.withaibuild.customiuizer.mods.utils.ScreenStateController
 import tv.withaibuild.customiuizer.utils.PrefMap
 
 private fun source(relativePath: String): String {
@@ -62,7 +77,83 @@ class SystemClockHotPathTest {
         }
     }
 
-    private inner class RecordingTextView : TextView(null) {
+    @Suppress("DEPRECATION", "NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
+    private inner class FakeContext : ContextWrapper(null) {
+        private val fakeResources = FakeResources()
+        override fun getMainLooper(): Looper? = null
+        override fun getResources(): Resources = fakeResources
+        override fun getApplicationContext(): Context = this
+        override fun getSystemService(name: String): Any? = null
+        override fun registerReceiver(receiver: BroadcastReceiver?, filter: IntentFilter?, flags: Int): Intent? = null
+        override fun unregisterReceiver(receiver: BroadcastReceiver?) {}
+    }
+
+    private class FakeController {
+        lateinit var mContext: Context
+        var mCalendar: Any = java.util.Calendar.getInstance()
+        val mClockListeners = ArrayList<Any>()
+    }
+
+    private inner class RecordingClockView : RecordingTextView() {
+        val updateTimeCalls = mutableListOf<Any?>()
+        fun updateTime() {
+            updateTimeCalls.add(null)
+        }
+    }
+
+    private fun setCurrentSnapshot(snapshot: SystemClockHooks.ClockStyleSnapshot?) {
+        val field = SystemClockHooks::class.java.getDeclaredField("clockStyleSnapshot")
+        field.isAccessible = true
+        field.set(SystemClockHooks, snapshot)
+    }
+
+    private fun screenStateListeners(): ArrayList<*> {
+        val listenersField = ScreenStateController::class.java.getDeclaredField("listeners")
+        listenersField.isAccessible = true
+        return listenersField.get(ScreenStateController) as ArrayList<*>
+    }
+
+    @Before
+    fun setUp() {
+        MainModule.mPrefs.clear()
+    }
+
+    @After
+    fun tearDown() {
+        val listeners = screenStateListeners()
+        @Suppress("UNCHECKED_CAST")
+        val copy = ArrayList(listeners as ArrayList<ScreenStateController.ScreenStateListener>)
+        for (listener in copy) {
+            ScreenStateController.removeListener(listener)
+        }
+    }
+
+    private fun makeControllerWithClock(clock: View = RecordingClockView()): FakeController {
+        val controller = FakeController()
+        controller.mContext = FakeContext()
+        ModuleHelper.setViewInfo(clock, "clockName", "clock")
+        controller.mClockListeners.add(clock)
+        return controller
+    }
+
+    private fun makeSnapshotWithSeconds(statusBar: Boolean, cc: Boolean): SystemClockHooks.ClockStyleSnapshot {
+        val prefs = PrefMap().apply {
+            put("system_statusbar_clock_show_seconds", statusBar)
+            put("system_statusbar_clock_24hour_format", true)
+            put("system_statusbar_clock_show_ampm", false)
+            put("system_statusbar_clock_leadingzero", true)
+            put("system_cc_clock_customformat", if (cc) "HH:mm:ss" else "")
+        }
+        return SystemClockHooks.buildClockStyleSnapshot(prefs, FakeResources())
+    }
+
+    private fun disposeTicker(ticker: Any?) {
+        if (ticker != null) {
+            ticker.javaClass.getMethod("dispose").invoke(ticker)
+        }
+    }
+
+    private open inner class RecordingTextView : TextView(null) {
         override fun getResources(): Resources = FakeResources()
         val setTextSizeCalls = mutableListOf<Pair<Int, Float>>()
         val setTextColorCalls = mutableListOf<Int>()
@@ -301,5 +392,134 @@ class SystemClockHotPathTest {
             "initClockStyle must not read MainModule.mPrefs",
             initClockStyleBody.contains("MainModule.mPrefs")
         )
+    }
+
+    @Test
+    fun secondTicker_enablingSecondsCreatesOneActiveTicker() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller)
+
+        val ticker = SystemClockHooks.activeSecondTicker(controller)
+        assertNotNull("one active ticker must be stored on the controller", ticker)
+        assertTrue("ScreenStateController must hold exactly one listener", screenStateListeners().size == 1)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTicker_repeatedSameSeconds_doesNotRestartTicker() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller)
+        val first = SystemClockHooks.activeSecondTicker(controller)
+
+        SystemClockHooks.initSecondTicker(controller)
+        val second = SystemClockHooks.activeSecondTicker(controller)
+
+        assertSame("same seconds flags must keep the same ticker instance", first, second)
+        assertEquals("only one ScreenStateController listener", 1, screenStateListeners().size)
+
+        disposeTicker(second)
+    }
+
+    @Test
+    fun secondTicker_disablingSecondsDisposesAndRemovesTicker() {
+        val onSnapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(onSnapshot)
+
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)
+        assertNotNull(ticker)
+
+        val offSnapshot = makeSnapshotWithSeconds(statusBar = false, cc = false)
+        setCurrentSnapshot(offSnapshot)
+        SystemClockHooks.initSecondTicker(controller)
+
+        assertNull("ticker must be removed when seconds are off", SystemClockHooks.activeSecondTicker(controller))
+        assertTrue("ScreenStateController listeners must be empty", screenStateListeners().isEmpty())
+    }
+
+    @Test
+    fun secondTicker_onThenOffThenOn_createsNewTickerDoesNotStack() {
+        val onSnapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(onSnapshot)
+
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller)
+        val first = SystemClockHooks.activeSecondTicker(controller)!!
+
+        val offSnapshot = makeSnapshotWithSeconds(statusBar = false, cc = false)
+        setCurrentSnapshot(offSnapshot)
+        SystemClockHooks.initSecondTicker(controller)
+
+        val second = SystemClockHooks.activeSecondTicker(controller)
+        assertNull(second)
+
+        setCurrentSnapshot(onSnapshot)
+        SystemClockHooks.initSecondTicker(controller)
+        val third = SystemClockHooks.activeSecondTicker(controller)!!
+
+        assertTrue("new ticker must not be the disposed old one", first !== third)
+        assertEquals("exactly one listener at the end", 1, screenStateListeners().size)
+
+        disposeTicker(third)
+    }
+
+    @Test
+    fun secondTicker_holdsControllerWeakly() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        fun createAndDrop(): Pair<Any, WeakReference<Any>> {
+            val controller = makeControllerWithClock() as Any
+            SystemClockHooks.initSecondTicker(controller)
+            val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+            @Suppress("UNCHECKED_CAST")
+            val ref = WeakReference(controller)
+            return ticker to ref
+        }
+
+        val (ticker, controllerRef) = createAndDrop()
+        java.lang.System.gc()
+        Thread.sleep(200L)
+
+        assertNull("ticker must not keep the controller alive after it is dropped", controllerRef.get())
+        assertNotNull("ScreenStateController still holds the ticker", screenStateListeners().find { it === ticker })
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTicker_tickerDoesNotHoldViewOrControllerStrongly() {
+        val tickerClass = Class.forName("tv.withaibuild.customiuizer.mods.SystemClockHooks\$SecondTicker")
+        val controllerField = tickerClass.getDeclaredField("clockControllerRef")
+        assertEquals("SecondTicker must hold controller through a WeakReference", WeakReference::class.java, controllerField.type)
+
+        val viewFields = tickerClass.declaredFields.filter {
+            View::class.java.isAssignableFrom(it.type)
+        }
+        assertTrue("SecondTicker must not hold any View field strongly", viewFields.isEmpty())
+    }
+
+    @Test
+    fun secondTicker_disablingSecondsStopsPendingRuitables() {
+        val onSnapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(onSnapshot)
+
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller)
+
+        val offSnapshot = makeSnapshotWithSeconds(statusBar = false, cc = false)
+        setCurrentSnapshot(offSnapshot)
+        SystemClockHooks.initSecondTicker(controller)
+
+        val ticker = SystemClockHooks.activeSecondTicker(controller)
+        assertNull(ticker)
     }
 }

@@ -247,3 +247,52 @@ charging info font size was reviewed against the five lifecycle questions:
    dropped when the view dies, and each view gets at most one observer.
 
 The charging-info implementation is sound and was not changed.
+
+## SecondTicker lifecycle verification
+
+`SystemClockHooks.initSecondTicker` now stores a single `SecondTicker` per
+`MiuiStatusBarClockController`, reuses it when the seconds configuration does not
+change, and disposes it when seconds are disabled. The ticker:
+
+- holds the controller through a `WeakReference` so the controller can be garbage
+  collected without being pinned by the static `ScreenStateController` listener list;
+- does not hold any `View` strongly;
+- is removed from `ScreenStateController` when `dispose()` is called, when the
+  controller is collected (via `start()` / `stop()` weak-ref checks), or when the
+  seconds snapshot turns off.
+
+Evidence:
+
+- `SystemClockHotPathTest.secondTicker_enablingSecondsCreatesOneActiveTicker` — a
+  seconds-on snapshot installs exactly one ticker and one `ScreenStateController`
+  listener.
+- `SystemClockHotPathTest.secondTicker_repeatedSameSeconds_doesNotRestartTicker` —
+  re-invoking `initSecondTicker` with the same seconds flags keeps the same ticker
+  instance and does not add duplicate listeners.
+- `SystemClockHotPathTest.secondTicker_disablingSecondsDisposesAndRemovesTicker` —
+  a seconds-off snapshot disposes the old ticker and leaves no listeners behind.
+- `SystemClockHotPathTest.secondTicker_onThenOffThenOn_createsNewTickerDoesNotStack`
+  — cycling seconds off and on creates a fresh ticker and never stacks listeners.
+- `SystemClockHotPathTest.secondTicker_holdsControllerWeakly` — after the only
+  external references to the controller are dropped and GC runs, the controller is
+  collected while the ticker (still held by `ScreenStateController`) remains; the
+  weak ref does not keep the controller alive.
+- `SystemClockHotPathTest.secondTicker_tickerDoesNotHoldViewOrControllerStrongly` —
+  reflective inspection confirms the `clockControllerRef` field is a `WeakReference`
+  and the `SecondTicker` class has no strongly held `View` fields.
+
+## Status
+
+`ENGINEERING_COMPLETE_DEVICE_EVIDENCE_PENDING`
+
+Engineering verification is complete:
+
+- `ClockStyleSnapshot` eliminates `MainModule.mPrefs` reads from `buildClockText`
+  and `initClockStyle`.
+- `SecondTicker` lifecycle has owner-bound disposal, deduplication, and weak
+  references satisfying the A14 runtime constraints.
+- `python tools/verify.py full`, `gradlew :app:assembleRelease`, and
+  `python tools/source_hazard_scan.py` all pass.
+
+Device-level PSS / USS / CPU measurements remain pending per the protocol in
+`P0_RUNTIME_BASELINE_AND_AUDIT_PROTOCOL.md`.

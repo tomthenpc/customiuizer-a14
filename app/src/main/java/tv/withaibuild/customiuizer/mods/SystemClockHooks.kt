@@ -16,6 +16,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.annotation.VisibleForTesting
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
@@ -234,7 +235,8 @@ object SystemClockHooks {
 
         val baseFormat = try {
             res.getString(fmtResId)
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             ""
         }
         if (baseFormat.isEmpty()) return ""
@@ -473,17 +475,18 @@ object SystemClockHooks {
     /**
      * Starts or stops the one-second ticker and refreshes the `showSeconds`
      * tags on every view in `mClockListeners`.
+     *
+     * A new ticker is only created when the seconds flags actually change, or
+     * when there is no previous ticker. This avoids re-posting the same
+     * runnable and re-registering the same screen-state listener on repeated
+     * preference notifications. The `SecondTicker` holds a `WeakReference` to
+     * the controller so that a garbage-collected controller does not keep the
+     * ticker (and its associated screen-state listener) alive.
      */
-    private fun initSecondTicker(clockController: Any) {
+    @VisibleForTesting
+    internal fun initSecondTicker(clockController: Any) {
         val mContext = XposedHelpers.getObjectField(clockController, "mContext") as Context
         val snapshot = currentClockStyleSnapshot() ?: ensureClockStyleSnapshot(mContext.resources)
-
-        @Suppress("UNCHECKED_CAST")
-        val previousTicker = XposedHelpers.getAdditionalInstanceField(clockController, "secondTicker") as SecondTicker?
-        if (previousTicker != null) {
-            previousTicker.dispose()
-            XposedHelpers.removeAdditionalInstanceField(clockController, "secondTicker")
-        }
 
         @Suppress("UNCHECKED_CAST")
         val clockListeners = XposedHelpers.getObjectField(clockController, "mClockListeners") as? ArrayList<Any>
@@ -504,23 +507,59 @@ object SystemClockHooks {
             }
         }
 
-        if (snapshot.showCCSeconds || snapshot.showStatusBarSeconds) {
-            val ticker = SecondTicker(clockController, mContext)
+        @Suppress("UNCHECKED_CAST")
+        val previousTicker = XposedHelpers.getAdditionalInstanceField(clockController, "secondTicker") as SecondTicker?
+        val needsTicker = snapshot.showCCSeconds || snapshot.showStatusBarSeconds
+
+        if (needsTicker) {
+            if (previousTicker != null
+                && previousTicker.showStatusBarSeconds == snapshot.showStatusBarSeconds
+                && previousTicker.showCCSeconds == snapshot.showCCSeconds
+            ) {
+                // Same seconds configuration: keep the existing ticker to avoid
+                // restarting the timer and re-registering listeners.
+                return
+            }
+            previousTicker?.dispose()
+            val ticker = SecondTicker(clockController, mContext, snapshot.showStatusBarSeconds, snapshot.showCCSeconds)
             XposedHelpers.setAdditionalInstanceField(clockController, "secondTicker", ticker)
             ticker.start()
+        } else {
+            previousTicker?.dispose()
+            XposedHelpers.removeAdditionalInstanceField(clockController, "secondTicker")
         }
     }
 
+    /**
+     * Returns the [SecondTicker] currently stored on [clockController], or null.
+     */
+    @VisibleForTesting
+    internal fun activeSecondTicker(clockController: Any): Any? {
+        return XposedHelpers.getAdditionalInstanceField(clockController, "secondTicker")
+    }
+
+    /**
+     * One-second ticker that posts a runnable on the provided looper. It holds
+     * a [WeakReference] to the clock controller to avoid pinning a short-lived
+     * SystemUI controller from a static listener list.
+     */
     private class SecondTicker(
-        private val clockController: Any,
+        clockController: Any,
         private val context: Context,
+        internal val showStatusBarSeconds: Boolean,
+        internal val showCCSeconds: Boolean,
     ) : Runnable, ScreenStateController.ScreenStateListener {
-        private val handler = Handler(context.mainLooper)
+        private val clockControllerRef = WeakReference(clockController)
+        private val handler = context.mainLooper?.let { Handler(it) }
         private var running = false
         private var screenStateRegistered = false
 
         fun start() {
             if (running) return
+            if (clockControllerRef.get() == null) {
+                dispose()
+                return
+            }
             if (!screenStateRegistered) {
                 screenStateRegistered = true
                 ScreenStateController.addListener(context, this)
@@ -532,7 +571,11 @@ object SystemClockHooks {
 
         fun stop() {
             running = false
-            handler.removeCallbacks(this)
+            handler?.removeCallbacks(this)
+            if (clockControllerRef.get() == null) {
+                screenStateRegistered = false
+                ScreenStateController.removeListener(this)
+            }
         }
 
         fun dispose() {
@@ -549,6 +592,11 @@ object SystemClockHooks {
 
         override fun run() {
             if (!running) return
+            val clockController = clockControllerRef.get()
+            if (clockController == null) {
+                dispose()
+                return
+            }
             ModuleHelper.guarded {
                 val calendar = XposedHelpers.getObjectField(clockController, "mCalendar")
                 XposedHelpers.callMethod(calendar, "setTimeInMillis", java.lang.System.currentTimeMillis())
@@ -566,7 +614,7 @@ object SystemClockHooks {
         }
 
         private fun scheduleNextTick() {
-            if (!running) return
+            if (!running || handler == null) return
             val delay = 1000L - java.lang.System.currentTimeMillis() % 1000L
             handler.postDelayed(this, delay)
         }
