@@ -1,270 +1,477 @@
 #!/usr/bin/env python3
-"""Mechanical validation for docs/A14_CURRENT_ARCHITECTURE.md.
+"""Mechanical validation of the current A14 source architecture.
 
-This test is the evidence that the CURRENT architecture document is faithful to
-the source tree at the declared EvidenceCommit.
+This test replaces the previous markdown-backed architecture evidence with
+direct source and JVM-test parsing. It does not read or require
+docs/A14_CURRENT_ARCHITECTURE.md and does not modify app/src/main.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import re
-import subprocess
+import sys
+import types
 import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DOC = REPO_ROOT / "docs" / "A14_CURRENT_ARCHITECTURE.md"
-
-EXPECTED_REPOSITORY = "tomthenpc/customiuizer-a14"
-EXPECTED_BRANCH = "devin/a14-rom-intelligence-audit"
-
-REQUIRED_SECTIONS = [
-    "1. Startup and installation entry points",
-    "2. Process and package routing",
-    "3. Feature architecture",
-    "4. Hook ownership",
-    "5. ClassLoader and lifecycle",
-    "6. Java/Kotlin boundary",
-    "7. Configuration and event flow",
-    "8. Verification architecture",
-    "9. Current known limitations",
-    "10. Evidence",
-]
-
-# Key architecture symbols and the source files that must contain them at EvidenceCommit.
-KEY_SYMBOLS = {
-    "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java": [
-        "MainModule",
-        "onPackageReady",
-        "PackageReadyParam",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ProcessRouter.kt": [
-        "ProcessRouter",
-        "resolve",
-        "ProcessScope",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/PreferenceBootstrap.kt": [
-        "PreferenceBootstrap",
-        "bootstrap",
-        "isReady",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/utils/PrefMap.kt": [
-        "PrefMap",
-        "replaceSnapshot",
-        "put",
-        "remove",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistry.kt": [
-        "FeatureInstallRegistry",
-        "register",
-        "installAll",
-        "FeatureSpec",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/LazyFeatureSpec.kt": [
-        "LazyFeatureSpec",
-        "enabled",
-        "factory",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/FeatureIds.kt": [
-        "FeatureId",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/SystemServerInstaller.kt": [
-        "SystemServerInstaller",
-        "install",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/installers/SystemUiInstaller.kt": [
-        "SystemUiInstaller",
-        "install",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/installers/LauncherInstaller.kt": [
-        "LauncherInstaller",
-        "install",
-        "handleLoadLauncher",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/installers/SecurityCenterInstaller.kt": [
-        "SecurityCenterInstaller",
-        "install",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/installers/GenericAppInstaller.kt": [
-        "GenericAppInstaller",
-        "installPostAttach",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/installers/PackageInstallerRouter.kt": [
-        "PackageInstallerRouter",
-        "install",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/SystemUiBootstrapCoordinator.kt": [
-        "SystemUiBootstrapCoordinator",
-        "install",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/Api102HookBridge.kt": [
-        "Api102HookBridge",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ResourceHooks.kt": [
-        "ResourceHooks",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ReflectionCache.kt": [
-        "ReflectionCache",
-        "LoaderState",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt": [
-        "ModuleHelper",
-        "findAndHookMethod",
-        "guarded",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/gesture/ControlCenterGestureRuntimeHolder.kt": [
-        "ControlCenterGestureRuntimeHolder",
-        "bind",
-        "unbind",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/gesture/GestureMachine.kt": [
-        "GestureMachine",
-        "clear",
-        "prepare",
-    ],
-    "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/gesture/PhysicalGestureArbiter.kt": [
-        "PhysicalGestureArbiter",
-        "release",
-        "releaseOwner",
-        "releaseAll",
-    ],
-}
+SOURCE_ROOT = REPO_ROOT / "app" / "src" / "main" / "java"
+TEST_ROOT = REPO_ROOT / "app" / "src" / "test" / "java"
+RESOURCES_ROOT = REPO_ROOT / "app" / "src" / "main" / "resources"
+CHECK_INVARIANTS = REPO_ROOT / "tools" / "check-invariants.py"
+SOURCE_HAZARD_SCAN = REPO_ROOT / "tools" / "source_hazard_scan.py"
 
 
-def parse_metadata(text: str) -> dict[str, str] | None:
-    for match in re.finditer(r"```text\s*\n(.*?)\n```", text, re.DOTALL):
-        block = match.group(1)
-        result: dict[str, str] = {}
-        for line in block.splitlines():
-            if ":" not in line:
-                continue
-            key, value = line.split(":", 1)
-            result[key.strip()] = value.strip()
-        if "DocumentKind" in result:
-            return result
-    return None
+def _load_module(name: str, path: Path) -> types.ModuleType:
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    if spec.loader is not None:
+        spec.loader.exec_module(module)
+    return module
 
 
-def git_run(args: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        args, cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace"
-    )
+CI = _load_module("check_invariants", CHECK_INVARIANTS)
+SHS = _load_module("source_hazard_scan", SOURCE_HAZARD_SCAN)
 
 
-def read_doc() -> str:
-    return DOC.read_text(encoding="utf-8")
+def source(rel: str) -> str:
+    """Return the text of a repo-relative source file under app/src/main/java."""
+    path = SOURCE_ROOT / rel
+    if not path.is_file():
+        path = REPO_ROOT / rel
+    return path.read_text(encoding="utf-8")
+
+
+def test_source(rel: str) -> str:
+    return (TEST_ROOT / rel).read_text(encoding="utf-8")
+
+
+def _method_body(text: str, header_pattern: str) -> str:
+    """Extract the brace-balanced body of a method starting with header_pattern."""
+    m = re.search(header_pattern, text)
+    if not m:
+        raise AssertionError(f"Method header {header_pattern!r} not found")
+    open_brace = text.find("{", m.start())
+    if open_brace == -1:
+        raise AssertionError(f"Method body start not found for {header_pattern!r}")
+    end = SHS.find_block_end(text, open_brace)
+    if end == -1:
+        raise AssertionError(f"Method body end not found for {header_pattern!r}")
+    return text[open_brace : end + 1]
 
 
 class CurrentArchitectureTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.doc_text = read_doc()
-        self.metadata = parse_metadata(self.doc_text)
-        self.assertIsNotNone(self.metadata, "Document metadata block not found")
+    """Verify the source-mechanical architecture invariants for A14."""
 
-    def test_document_exists(self) -> None:
-        self.assertTrue(DOC.is_file(), f"{DOC} does not exist")
+    def test_main_module_is_xposed_entry_point_and_routes(self) -> None:
+        raw = source("tv/withaibuild/customiuizer/MainModule.java")
+        text = CI.strip_comments(raw)
+        self.assertRegex(text, r"public\s+class\s+MainModule\s+extends\s+XposedModule\b")
+        self.assertIn("public void onModuleLoaded(", text)
+        self.assertIn("public void onSystemServerStarting(", text)
+        self.assertIn("public void onPackageReady(", text)
 
-    def test_document_kind_is_current(self) -> None:
-        self.assertEqual("CURRENT", self.metadata.get("DocumentKind"))
+        on_loaded = _method_body(text, r"public\s+void\s+onModuleLoaded\s*\(")
+        self.assertIn("XposedApiCapabilities.initialize(getApiVersion())", on_loaded)
+        self.assertIn("PreferenceBootstrap.create(", on_loaded)
 
-    def test_repository_and_branch(self) -> None:
-        self.assertEqual(EXPECTED_REPOSITORY, self.metadata.get("Repository"))
-        self.assertEqual(EXPECTED_BRANCH, self.metadata.get("Branch"))
+        on_server = _method_body(text, r"public\s+void\s+onSystemServerStarting\s*\(")
+        self.assertIn("initPrefs()", on_server)
+        self.assertIn("SystemServerInstaller.install(", on_server)
+        self.assertLess(
+            on_server.find("initPrefs()"),
+            on_server.find("SystemServerInstaller.install("),
+            "preference snapshot must be ready before system_server hooks install",
+        )
 
-    def test_evidence_commit_is_40_char_sha(self) -> None:
-        sha = self.metadata.get("EvidenceCommit", "")
-        self.assertRegex(sha, r"^[0-9a-f]{40}$", f"EvidenceCommit is not a 40-char SHA: {sha!r}")
+        on_ready = _method_body(text, r"public\s+void\s+onPackageReady\s*\(")
+        self.assertIn("ProcessRouter.resolve(pkg, processName)", on_ready)
+        self.assertIn("scope.isInstallable()", on_ready)
+        self.assertIn("initPrefs()", on_ready)
 
-    def test_evidence_commit_exists_and_is_ancestor(self) -> None:
-        sha = self.metadata["EvidenceCommit"]
-        exists = git_run(["git", "cat-file", "-e", f"{sha}^{{commit}}"])
-        self.assertEqual(0, exists.returncode, f"EvidenceCommit {sha} is not a valid commit object")
-        ancestor = git_run(["git", "merge-base", "--is-ancestor", sha, "HEAD"])
-        self.assertEqual(0, ancestor.returncode, f"EvidenceCommit {sha} is not an ancestor of HEAD")
+        installer_calls = [
+            "AndroidPackageInstaller.install(",
+            "InputMethodInstaller.install(",
+            "FeatureInstallRegistry()",
+            "MediaInstaller.install(",
+            "SystemUiBootstrapCoordinator.install(",
+            "GuardProviderInstaller.install(",
+            "PhoneInstaller.install(",
+            "SecurityCenterInstaller.install(",
+            "PowerKeeperInstaller.install(",
+            "SettingsInstaller.install(",
+            "PackageInstallerRouter.install(",
+            "LauncherInstaller.install(",
+            "GenericAppInstaller.installPostAttach(",
+        ]
+        init_idx = on_ready.find("initPrefs()")
+        self.assertGreaterEqual(init_idx, 0)
+        for token in installer_calls:
+            idx = on_ready.find(token)
+            self.assertGreaterEqual(idx, 0, f"{token} missing from MainModule.onPackageReady")
+            self.assertLess(init_idx, idx, f"initPrefs() must precede {token}")
 
-    def test_required_sections_present(self) -> None:
-        for section in REQUIRED_SECTIONS:
-            self.assertIn(section, self.doc_text, f"Missing required section: {section}")
+        init_list = (
+            RESOURCES_ROOT / "META-INF" / "xposed" / "java_init.list"
+        ).read_text().strip()
+        self.assertEqual("tv.withaibuild.customiuizer.MainModule", init_list)
 
-    def test_referenced_source_paths_exist_at_evidence_commit(self) -> None:
-        sha = self.metadata["EvidenceCommit"]
-        # Collect all repo-relative path-like tokens from the document.
-        paths = set()
-        for match in re.finditer(r"`([^`\n]+)`", self.doc_text):
-            token = match.group(1).strip()
-            if re.match(r"^(?:app|tools|scripts|docs|feature-semantics)/[-.\w/]+", token):
-                paths.add(token)
-        for path in re.findall(r"\b(?:app|tools|scripts|docs|feature-semantics)/[-.\w/]+", self.doc_text):
-            paths.add(path)
+        module_prop = (RESOURCES_ROOT / "META-INF" / "xposed" / "module.prop").read_text()
+        self.assertIn("minApiVersion=101", module_prop)
+        self.assertIn("targetApiVersion=102", module_prop)
 
-        for path in sorted(paths):
-            result = git_run(["git", "cat-file", "-e", f"{sha}:{path}"])
-            self.assertEqual(
-                0,
-                result.returncode,
-                f"Referenced source path {path} does not exist at EvidenceCommit {sha}",
-            )
+        jvm_test = test_source("tv/withaibuild/customiuizer/MainModuleSystemServerLoadMarkerTest.kt")
+        self.assertIn("systemServerLoadMarkerIsLoggedBeforeAnyHookInstallation", jvm_test)
 
-    def test_key_symbols_exist_in_declared_source_paths(self) -> None:
-        sha = self.metadata["EvidenceCommit"]
-        for path, symbols in KEY_SYMBOLS.items():
-            content = git_run(["git", "show", f"{sha}:{path}"])
-            self.assertEqual(0, content.returncode, f"Could not read {path} at {sha}")
-            for symbol in symbols:
-                self.assertRegex(
-                    content.stdout,
-                    rf"\b{re.escape(symbol)}\b",
-                    f"Symbol {symbol!r} not found in {path} at {sha}",
+    def test_process_router_resolves_process_scope(self) -> None:
+        text = CI.strip_comments(
+            source("tv/withaibuild/customiuizer/mods/utils/ProcessRouter.kt")
+        )
+        self.assertIn("object ProcessRouter", text)
+        self.assertIn("@JvmStatic", text)
+        self.assertIn("fun resolve(", text)
+        self.assertIn("ProcessScope", text)
+
+        body = _method_body(text, r"\bfun\s+resolve\s*\(")
+        for scope in [
+            "ProcessScope.SYSTEM_SERVER",
+            "ProcessScope.SYSTEM_UI",
+            "ProcessScope.LAUNCHER",
+            "ProcessScope.SETTINGS_MAIN",
+            "ProcessScope.SECURITY_CENTER_MAIN",
+            "ProcessScope.POWER_KEEPER",
+            "ProcessScope.GUARD_PROVIDER",
+            "ProcessScope.WALLPAPER",
+            "ProcessScope.MEDIA",
+            "ProcessScope.PHONE",
+            "ProcessScope.PACKAGE_INSTALLER",
+            "ProcessScope.INPUT_METHOD",
+            "ProcessScope.GENERIC_APP",
+        ]:
+            self.assertIn(scope, body, f"ProcessRouter must resolve {scope}")
+
+        scope_text = CI.strip_comments(
+            source("tv/withaibuild/customiuizer/mods/utils/ProcessScope.kt")
+        )
+        self.assertIn("enum class ProcessScope", scope_text)
+        self.assertIn("val isInstallable: Boolean", scope_text)
+
+        jvm_test = test_source("tv/withaibuild/customiuizer/mods/utils/ProcessRouterTest.kt")
+        self.assertIn("resolvesPrimaryProcesses", jvm_test)
+
+    def test_package_installer_router_exists_and_routes(self) -> None:
+        text = CI.strip_comments(
+            source("tv/withaibuild/customiuizer/installers/PackageInstallerRouter.kt")
+        )
+        self.assertIn("object PackageInstallerRouter", text)
+        self.assertIn("@JvmStatic", text)
+        self.assertIn("fun install(", text)
+        body = _method_body(text, r"\bfun\s+install\s*\(")
+        self.assertIn("FeatureInstallRegistry()", body)
+        self.assertIn("PackageInstallerFeatures.all(", body)
+        self.assertIn("registry.installAll(", body)
+        self.assertIn("FeatureTarget.SYSTEM_PACKAGE", body)
+        self.assertIn("InstallPhase.PACKAGE_READY", body)
+
+    def test_explicit_installer_classes_exist_with_jvm_abi(self) -> None:
+        installers = [
+            {
+                "rel": "tv/withaibuild/customiuizer/mods/utils/SystemServerInstaller.kt",
+                "object": "SystemServerInstaller",
+                "methods": [
+                    {
+                        "pattern": r"\bfun\s+install\s*\(",
+                        "checks": [
+                            "FeatureInstallRegistry()",
+                            "FeatureTarget.SYSTEM_SERVER",
+                            "InstallPhase.SYSTEM_SERVER_STARTING",
+                            "MainModule.mPrefs",
+                            "PackagePermissionsFeature(",
+                            "SystemServerFeatures.all(",
+                            "registry.installAll(",
+                        ],
+                    },
+                ],
+            },
+            {
+                "rel": "tv/withaibuild/customiuizer/installers/SystemUiInstaller.kt",
+                "object": "SystemUiInstaller",
+                "methods": [
+                    {
+                        "pattern": r"\bfun\s+install\s*\(",
+                        "checks": [
+                            "FeatureInstallRegistry()",
+                            "FeatureTarget.SYSTEM_UI",
+                            "InstallPhase.PACKAGE_READY",
+                            "SystemUiFeatures.all(",
+                            "registry.installAll(",
+                        ],
+                    },
+                ],
+            },
+            {
+                "rel": "tv/withaibuild/customiuizer/installers/LauncherInstaller.kt",
+                "object": "LauncherInstaller",
+                "methods": [
+                    {
+                        "pattern": r"\bfun\s+install\s*\(",
+                        "checks": [
+                            "FeatureInstallRegistry()",
+                            "FeatureTarget.LAUNCHER",
+                            "InstallPhase.PACKAGE_READY",
+                            "LauncherPackageReadyFeatures.all(",
+                            "registry.installAll(",
+                        ],
+                    },
+                    {
+                        "pattern": r"\bfun\s+handleLoadLauncher\s*\(",
+                        "checks": [
+                            "FeatureInstallRegistry()",
+                            "FeatureTarget.LAUNCHER",
+                            "InstallPhase.APPLICATION_ATTACHED",
+                            "LauncherPostAttachFeatures.all(",
+                            "registry.installAll(",
+                        ],
+                    },
+                ],
+            },
+            {
+                "rel": "tv/withaibuild/customiuizer/installers/SecurityCenterInstaller.kt",
+                "object": "SecurityCenterInstaller",
+                "methods": [
+                    {
+                        "pattern": r"\bfun\s+install\s*\(",
+                        "checks": [
+                            "FeatureInstallRegistry()",
+                            "FeatureTarget.SYSTEM_PACKAGE",
+                            "InstallPhase.PACKAGE_READY",
+                            "SecurityCenterFeatures.all(",
+                            "registry.installAll(",
+                        ],
+                    },
+                ],
+            },
+            {
+                "rel": "tv/withaibuild/customiuizer/installers/GenericAppInstaller.kt",
+                "object": "GenericAppInstaller",
+                "methods": [
+                    {
+                        "pattern": r"\bfun\s+installPostAttach\s*\(",
+                        "checks": [
+                            "ModuleHelper.findAndHookMethod",
+                            "Application::class.java",
+                            "FeatureInstallRegistry()",
+                            "GenericAppFeatures.selected(",
+                            "FeatureTarget.LAUNCHER",
+                            "FeatureTarget.ANY",
+                            "registry.installAll(",
+                        ],
+                    },
+                ],
+            },
+        ]
+
+        for entry in installers:
+            with self.subTest(rel=entry["rel"]):
+                path = SOURCE_ROOT / entry["rel"]
+                self.assertTrue(path.is_file(), f"{entry['rel']} does not exist")
+                text = CI.strip_comments(path.read_text(encoding="utf-8"))
+                self.assertIn(
+                    f"object {entry['object']}",
+                    text,
+                    f"{entry['rel']} must declare object {entry['object']}",
                 )
+                self.assertIn("@JvmStatic", text)
+                for method in entry["methods"]:
+                    self.assertRegex(text, method["pattern"])
+                    body = _method_body(text, method["pattern"])
+                    for token in method["checks"]:
+                        self.assertIn(
+                            token,
+                            body,
+                            f"{entry['rel']} method body must contain {token}",
+                        )
 
-    def test_no_pending_or_tbd_as_completed_conclusions(self) -> None:
-        # TBD must not appear.
-        self.assertNotIn("TBD", self.doc_text, "Document contains TBD")
-        self.assertNotIn("tbd", self.doc_text, "Document contains tbd")
+        jvm_test = test_source("tv/withaibuild/customiuizer/installers/InstallerJvmAbiTest.kt")
+        for name in ["GenericAppInstaller", "SystemUiInstaller", "LauncherInstaller", "SecurityCenterInstaller"]:
+            self.assertIn(name, jvm_test)
 
-        # "pending" is only allowed in the known-limitations / evidence_pending context.
-        # It must not be paired with completion language.
-        self.assertFalse(
-            re.search(r"(?i)\bpending\b.*\b(?:complete|completed|done|finished)\b", self.doc_text),
-            "Document pairs 'pending' with completion language",
+    def test_feature_install_registry_owns_feature_installation(self) -> None:
+        text = CI.strip_comments(
+            source("tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistry.kt")
+        )
+        self.assertIn("class FeatureInstallRegistry", text)
+        self.assertIn("fun register(", text)
+        self.assertIn("fun installAll(", text)
+
+        register_body = _method_body(text, r"\bfun\s+register\s*\(")
+        self.assertIn("FeatureInstallState.initialize(feature.id)", register_body)
+
+        install_one = _method_body(text, r"\bfun\s+installOne\s*\(")
+        self.assertIn("if (!spec.isEnabled(prefs))", install_one)
+        self.assertIn("FeatureInstallState.beginInstall(id)", install_one)
+        self.assertIn("spec.create().install()", install_one)
+        self.assertIn("FeatureInstallState.set(id, toState(result))", install_one)
+        self.assertIn("FatalErrors.unwrapAndRethrowIfFatal(", install_one)
+        self.assertIn("recordInstallFailure(", install_one)
+
+        is_enabled = install_one.find("if (!spec.isEnabled(prefs))")
+        create = install_one.find("spec.create().install()")
+        begin = install_one.find("FeatureInstallState.beginInstall(id)")
+        self.assertLess(is_enabled, begin)
+        self.assertLess(begin, create)
+
+        install_all = _method_body(text, r"\bfun\s+installAll\s*\(")
+        self.assertIn("spec.target != target && spec.target != FeatureTarget.ANY", install_all)
+        self.assertIn("spec.phase != phase", install_all)
+
+        jvm_tests = [
+            ("tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistryTest.kt", "installAll_idempotent"),
+            ("tv/withaibuild/customiuizer/mods/utils/FeatureInstallBoundaryContractTest.kt", "registryKeepsFatalAndOrdinaryFailurePathsSeparate"),
+            ("tv/withaibuild/customiuizer/mods/utils/FeatureRegistryWiringTest.kt", "packagePermissionsFeatureIsRegisteredInSystemServerInstaller"),
+        ]
+        for rel, token in jvm_tests:
+            self.assertIn(token, test_source(rel))
+
+    def test_lazy_feature_spec_defers_creation_until_enabled(self) -> None:
+        text = CI.strip_comments(
+            source("tv/withaibuild/customiuizer/mods/utils/LazyFeatureSpec.kt")
+        )
+        self.assertIn("internal data class LazyFeatureSpec", text)
+        self.assertIn("private val enabled: (PrefMap) -> Boolean", text)
+        self.assertIn("private val factory: () -> FeatureDefinition", text)
+        self.assertIn("override fun isEnabled(prefs: PrefMap): Boolean = enabled(prefs)", text)
+        self.assertIn("override fun create(): FeatureDefinition = factory()", text)
+
+        registry_text = CI.strip_comments(
+            source("tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistry.kt")
+        )
+        install_one = _method_body(registry_text, r"\bfun\s+installOne\s*\(")
+        is_enabled = install_one.find("if (!spec.isEnabled(prefs))")
+        create = install_one.find("spec.create().install()")
+        self.assertLess(is_enabled, create, "FeatureInstallRegistry must check isEnabled before create")
+
+        jvm_test = test_source("tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistryTest.kt")
+        self.assertIn("lazySpec_disabledFeatureDoesNotCreateDefinition", jvm_test)
+        self.assertIn("lazySpec_enabledFeatureCreatesAndInstalls", jvm_test)
+
+    def test_feature_install_state_is_process_level_state(self) -> None:
+        text = CI.strip_comments(
+            source("tv/withaibuild/customiuizer/mods/utils/FeatureInstallState.kt")
+        )
+        self.assertIn("object FeatureInstallState", text)
+        self.assertIn("private val states = HashMap<Int, FeatureState>()", text)
+        self.assertIn("synchronized(states)", text)
+        for m in ["initialize", "beginInstall", "get", "set", "reset"]:
+            self.assertRegex(text, rf"@JvmStatic\s*\n\s*fun\s+{m}\s*\(")
+
+    def test_preference_bootstrap_initializes_snapshot_before_install(self) -> None:
+        pb_text = CI.strip_comments(
+            source("tv/withaibuild/customiuizer/mods/utils/PreferenceBootstrap.kt")
+        )
+        self.assertIn("class PreferenceBootstrap", pb_text)
+        self.assertIn("fun bootstrap()", pb_text)
+        self.assertIn("fun isReady()", pb_text)
+        self.assertIn("enum class State", pb_text)
+        self.assertIn("State.LOADED", pb_text)
+        self.assertIn("State.VALID_EMPTY", pb_text)
+
+        publish = _method_body(pb_text, r"\bfun\s+publishSecondSnapshotLocked\s*\(")
+        self.assertIn("prefs.replaceSnapshot(second)", publish)
+
+        main_text = CI.strip_comments(source("tv/withaibuild/customiuizer/MainModule.java"))
+        init_prefs = _method_body(main_text, r"\bprivate\s+boolean\s+initPrefs\s*\(")
+        self.assertIn("preferenceBootstrap.bootstrap()", init_prefs)
+        self.assertIn("preferenceBootstrap.isReady()", init_prefs)
+
+        on_server = _method_body(main_text, r"\bpublic\s+void\s+onSystemServerStarting\s*\(")
+        self.assertLess(
+            on_server.find("initPrefs()"),
+            on_server.find("SystemServerInstaller.install("),
+            "preference bootstrap must complete before system_server install",
         )
 
-    def test_no_a13_references(self) -> None:
-        self.assertNotIn("A13", self.doc_text, "Document references A13")
-        self.assertNotIn("customiuizer-a13", self.doc_text, "Document references A13 repository")
-        self.assertNotIn("a13", self.doc_text.lower(), "Document references a13")
+        on_ready = _method_body(main_text, r"\bpublic\s+void\s+onPackageReady\s*\(")
+        init_idx = on_ready.find("initPrefs()")
+        first_installer = min(
+            on_ready.find("AndroidPackageInstaller.install("),
+            on_ready.find("FeatureInstallRegistry()"),
+        )
+        self.assertGreaterEqual(init_idx, 0)
+        self.assertGreaterEqual(first_installer, 0)
+        self.assertLess(
+            init_idx,
+            first_installer,
+            "preference bootstrap must complete before package installers",
+        )
 
-    def test_no_nonexistent_source_paths(self) -> None:
-        # The EvidenceCommit-based test already covers most paths. This also checks the
-        # current working tree for paths that should exist now (including the doc and test).
-        for match in re.finditer(r"`([^`\n]+)`", self.doc_text):
-            token = match.group(1).strip()
-            if re.match(r"^(?:app|tools|scripts|docs|feature-semantics)/[-.\w/]+", token):
-                p = REPO_ROOT / token
-                self.assertTrue(
-                    p.exists() or (REPO_ROOT / (token + ".md")).exists() or (REPO_ROOT / (token + ".kt")).exists(),
-                    f"Path {token} does not exist in the current working tree",
-                )
+        jvm_test = test_source("tv/withaibuild/customiuizer/mods/utils/PreferenceBootstrapTest.kt")
+        self.assertIn("bootstrap_nonEmptySnapshot_reachesLoaded", jvm_test)
+        self.assertIn("bootstrap_listenerNotRegistered_notReady", jvm_test)
 
-    def test_p12_3_and_p12_4_not_described_as_complete(self) -> None:
-        self.assertRegex(
-            self.doc_text,
-            r"P12\.3[^\n]*TODO",
-            "P12.3 must be described as TODO",
+    def test_api102_hook_bridge_is_isolated(self) -> None:
+        bridge_text = source("tv/withaibuild/customiuizer/mods/utils/Api102HookBridge.kt")
+        self.assertIn("internal object Api102HookBridge", bridge_text)
+        self.assertIn("fun setStableHookId(", bridge_text)
+        self.assertIn("XposedApiCapabilities.supportsStableHookId()", bridge_text)
+        self.assertIn("builder.setId(id)", bridge_text)
+        self.assertIn("STABLE_ID_RES_TEXT", bridge_text)
+
+        findings: list = []
+        for path in sorted(SOURCE_ROOT.rglob("*.kt")) + sorted(SOURCE_ROOT.rglob("*.java")):
+            text = CI.strip_comments(path.read_text(encoding="utf-8"))
+            findings.extend(CI.check_api102_isolation(path, text))
+        if findings:
+            for f in findings:
+                print(f)
+        self.assertEqual(
+            [],
+            findings,
+            "API 102 setId/replaceHook/hot-reload must not leak outside Api102HookBridge",
         )
-        self.assertRegex(
-            self.doc_text,
-            r"P12\.4[^\n]*TODO",
-            "P12.4 must be described as TODO",
+
+        xposed_helpers = source("tv/withaibuild/customiuizer/mods/utils/XposedHelpers.java")
+        self.assertNotIn("Api102HookBridge", xposed_helpers)
+        self.assertNotIn("setStableHookId", xposed_helpers)
+        self.assertNotIn(".setId(", xposed_helpers)
+
+        jvm_test = test_source("tv/withaibuild/customiuizer/mods/utils/Api102CapabilityTest.kt")
+        self.assertIn("api101_flagsAreZero", jvm_test)
+        self.assertIn("bridge_setStableHookId_appliesToBuilder", jvm_test)
+
+    def test_java_kotlin_boundary_is_preserved(self) -> None:
+        java_files = sorted(
+            p.relative_to(REPO_ROOT).as_posix()
+            for p in (REPO_ROOT / "app" / "src" / "main" / "java").rglob("*.java")
         )
-        self.assertIsNone(
-            re.search(
-                r"P12\.[34][^\n]*(?:\bCOMPLETE\b|\bcompleted\b|\bdone\b|\bfinished\b)",
-                self.doc_text,
-                re.IGNORECASE,
-            ),
-            "P12.3 or P12.4 must not be described as completed",
+        expected = [
+            "app/src/main/java/org/apache/commons/lang3/reflect/MemberUtilsX.java",
+            "app/src/main/java/tv/withaibuild/customiuizer/MainModule.java",
+            "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/XposedHelpers.java",
+        ]
+        self.assertEqual(
+            expected,
+            java_files,
+            "only the three allowed Java files may exist in the module",
         )
+
+        self.assertIn(
+            "public class MainModule extends XposedModule",
+            source("tv/withaibuild/customiuizer/MainModule.java"),
+        )
+        self.assertIn(
+            "public final class XposedHelpers",
+            source("tv/withaibuild/customiuizer/mods/utils/XposedHelpers.java"),
+        )
+        self.assertIn(
+            "public class MemberUtilsX",
+            source("org/apache/commons/lang3/reflect/MemberUtilsX.java"),
+        )
+
+        jvm_test = test_source("tv/withaibuild/customiuizer/mods/utils/XposedHelpersAbiTest.kt")
+        self.assertIn("publicAbiSnapshotContainsExpectedMethods", jvm_test)
 
 
 if __name__ == "__main__":

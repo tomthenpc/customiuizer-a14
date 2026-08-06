@@ -104,6 +104,61 @@ class StagedSnapshotV2Tests(unittest.TestCase):
         errors = c.check_staged_snapshot(commit_msg_path=str(msg))
         self.assertEqual(errors, [])
 
+    def test_staged_task_state_is_rejected(self):
+        root = self._make_git_repo()
+        self._stage(root, "TASK_STATE.md", "# Legacy state\n")
+        errors = c.check_staged_snapshot()
+        self.assertTrue(
+            any("legacy control-plane file is forbidden under v2: TASK_STATE.md" in e for e in errors)
+        )
+
+    def test_staged_smart_operation_state_is_rejected(self):
+        root = self._make_git_repo()
+        self._stage(root, "SMART_OPERATION_STATE.md", "# Legacy state\n")
+        errors = c.check_staged_snapshot()
+        self.assertTrue(
+            any("legacy control-plane file is forbidden under v2: SMART_OPERATION_STATE.md" in e for e in errors)
+        )
+
+    def test_staged_goal_is_rejected(self):
+        root = self._make_git_repo()
+        self._stage(root, "GOAL.md", "# Legacy goal\n")
+        errors = c.check_staged_snapshot()
+        self.assertTrue(
+            any("legacy control-plane file is forbidden under v2: GOAL.md" in e for e in errors)
+        )
+
+    def test_legacy_control_file_with_source_change_still_rejected(self):
+        root = self._make_git_repo()
+        self._stage(root, "TASK_STATE.md", "# Legacy state\n")
+        self._stage(root, "tools/foo.py", "print(1)\n")
+        errors = c.check_staged_snapshot()
+        self.assertTrue(
+            any("legacy control-plane file is forbidden under v2: TASK_STATE.md" in e for e in errors)
+        )
+
+    def test_untracked_legacy_file_is_ignored(self):
+        root = self._make_git_repo()
+        legacy = root / "DEVIN_START_PROMPT.md"
+        legacy.write_text("# start", encoding="utf-8")
+        self._stage(root, "tools/foo.py", "print(1)\n")
+        errors = c.check_staged_snapshot()
+        self.assertEqual(errors, [])
+
+    def test_v2_active_task_with_work_product_passes(self):
+        root = self._make_git_repo()
+        self._stage(root, "tasks/active/T1.md", "# T1\n\n- Status: Active\n")
+        self._stage(root, "app/src/main/java/tv/withaibuild/customiuizer/Foo.kt", "class Foo\n")
+        errors = c.check_staged_snapshot()
+        self.assertEqual(errors, [])
+
+    def test_roadmap_with_documentation_work_passes(self):
+        root = self._make_git_repo()
+        self._stage(root, "ROADMAP.md", "# Roadmap\n")
+        self._stage(root, "docs/design.md", "# Design\n")
+        errors = c.check_staged_snapshot()
+        self.assertEqual(errors, [])
+
 
 if __name__ == "__main__":
     unittest.main()

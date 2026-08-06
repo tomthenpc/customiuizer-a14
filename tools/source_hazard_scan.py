@@ -433,7 +433,7 @@ def main(argv: list[str] | None = None) -> int:
         default="production",
         help="predefined scan scope; ignored if --path is given",
     )
-    p.add_argument("--baseline", default="docs/audit/SOURCE_HAZARD_BASELINE.json")
+    p.add_argument("--baseline", default="tools/SOURCE_HAZARD_BASELINE.json")
     p.add_argument("--write-baseline", action="store_true")
     p.add_argument("--strict-all", action="store_true")
     p.add_argument("--json-output")

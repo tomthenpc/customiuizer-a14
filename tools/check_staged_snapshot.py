@@ -38,13 +38,22 @@ FORBIDDEN_STAGED = {
     "*.keystore.properties",
 }
 
+LEGACY_CONTROL_PLANE_FILES = {
+    "TASK_STATE.md",
+    "SMART_OPERATION_STATE.md",
+    "GOAL.md",
+    "DEVIN_START_PROMPT.md",
+    "INSTALL_A14_CONTROL_PLANE.md",
+    "SMART_CONTINUOUS_OPERATION.md",
+}
+
 
 def is_state_path(rel: str) -> bool:
     """Return True if the relative path is a v2 state or generated progress file."""
     parts = rel.replace("\\", "/").split("/")
     if parts[0] == "tasks" and len(parts) >= 2:
         return parts[1] in ("active", "backlog", "blocked", "completed")
-    if rel in ("ROADMAP.md", "TASK_STATE.md", "SMART_OPERATION_STATE.md"):
+    if rel == "ROADMAP.md":
         return True
     if rel.startswith("docs/progress/A14_PROGRESS_CURRENT"):
         return True
@@ -85,6 +94,9 @@ def check_staged_snapshot(commit_msg_path: str | None = None, is_qualifying: boo
     for p in files:
         p = p if p.is_absolute() else REPO_ROOT / p
         rel = p.relative_to(REPO_ROOT).as_posix()
+        if rel in LEGACY_CONTROL_PLANE_FILES:
+            errors.append(f"legacy control-plane file is forbidden under v2: {rel}")
+            continue
         if rel == "tools/check_staged_snapshot.py":
             continue
         text = p.read_text(encoding="utf-8", errors="replace")
