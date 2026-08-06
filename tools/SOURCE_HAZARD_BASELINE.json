@@ -100,7 +100,6 @@
     "171fb5e3ad02281b5cf5",
     "17d55903c3f5fc63e64e",
     "17d97de771b3011bf5ca",
-    "180519bb9829d468795b",
     "180a56fe40582ed0ef87",
     "185aaa6d511799ac1b89",
     "18cef98cae4bc4ddec1f",
@@ -108,7 +107,6 @@
     "18eec5b852580c277ee8",
     "18f65955824d6af72267",
     "191425d0310dd5184d47",
-    "19201abbffe99af2012c",
     "1946feab03e4c2028982",
     "1954e2c7f9267dc47994",
     "195808248a1bd10d3f93",
@@ -211,7 +209,6 @@
     "31b80b1339d05c6eedd2",
     "322bd4345b91c915bf32",
     "324185e8ab1dfd25c85f",
-    "3248b6b0351b9c7a880c",
     "32d8677603a333b730e1",
     "3352add2d2f2f2104d70",
     "33e2e489058a1925bf74",
@@ -233,7 +230,6 @@
     "3862260786607c2898d1",
     "38cbd983167f060c590c",
     "38d0d60c0cd7f1f03e4f",
-    "38d5c8cd2e5c45234aed",
     "38f9217db95c5a7e4e1a",
     "3978d4909b08d2a734f0",
     "39f0b2c2ff3584befeb1",
@@ -303,7 +299,6 @@
     "461815938bc90536db5f",
     "461b4e30017090dd1a7f",
     "46d7a2cb278abdcee9e4",
-    "474d1837cdadcfe8fcc1",
     "4770ed5eb7dc9b07f904",
     "483f4a694de2c8b3f075",
     "48ac60eed46ac21af968",
@@ -313,6 +308,7 @@
     "49f9574f74d91254a6db",
     "4a36b405e7fbf8f45616",
     "4a4096346a80fd0a8171",
+    "4aab6bda09371fe59996",
     "4afae761f865e5e25dd4",
     "4afee214bbe3b02800de",
     "4b3e606397907c9a4a05",
@@ -352,6 +348,7 @@
     "546a10ef3bcd83d584b6",
     "54bafb329096ec8ecf6e",
     "5533a3c9e44aa511c695",
+    "55399fcac4a98c186a15",
     "5545f16679e08101825f",
     "55723d70dae54daa49bb",
     "55c02e9ba372c50abcd0",
@@ -530,7 +527,6 @@
     "8427e5ca94aa72562ffc",
     "843f86d998ba3e011bf9",
     "8462e314d655bdb04b93",
-    "84930d9af05c139a7af0",
     "854fe037ff968acc5dde",
     "855dcbae099fdfae8eb4",
     "859fea552f5abbb81ad2",
@@ -563,7 +559,6 @@
     "8bb2f4ae85029cc51eb5",
     "8bbf790ec11524191176",
     "8bfb7d2dbe85fdeae007",
-    "8cc0be6c604c1e80bb0e",
     "8cfbeead2b0f80a28564",
     "8d2adcc7c8b8f02a60de",
     "8d6f26b16dc200b7c99e",
@@ -605,7 +600,6 @@
     "9536ec3f4c286d27b006",
     "9586d566564e173f794f",
     "95b97b4f26b1df1f2960",
-    "964720242a7e2ec6a3c0",
     "9651d5e2be13050caa5a",
     "973bfcccb91a651b48f1",
     "9781c8f73f5189880096",
@@ -633,7 +627,6 @@
     "9dd01d97cd37b91e18a0",
     "9e5aee23515e75a432a2",
     "9ee663856ee2226e7739",
-    "9ef3580ce33df82cb3e4",
     "9f3f4d1f95d5d9963f3c",
     "9fc2096d150f39c426bb",
     "9ff2f4f7c87ff62fa5ab",
@@ -674,7 +667,6 @@
     "ab8ad93a90539dfdf5e3",
     "ab8b1c72248647c87e3f",
     "abc362c53efe05c47889",
-    "abe2e1c705c5619ed0b9",
     "abe6f9a85dd66c98983f",
     "ac8d1c29c57cbe3a2e6c",
     "acbd0746c888b0770957",
@@ -700,7 +692,6 @@
     "b1e6e017747a147c30ea",
     "b3297834243528b8194b",
     "b33bc6a27645ea7a9ac5",
-    "b342da4bfccdb1a862a1",
     "b34ec251d547180ded56",
     "b35667c2df4639b6118c",
     "b39bbc5b86420ee8a0c6",
@@ -757,7 +748,6 @@
     "c000722a723e2107854f",
     "c02dc54c70266858d327",
     "c0b39a552fb04e6286fa",
-    "c1187256e79a43ac7be1",
     "c245f24562da76857d4d",
     "c2914b285ca1e53c4d07",
     "c2aa8edde7dac92d184d",
@@ -922,6 +912,7 @@
     "e6b028501a8091612238",
     "e705777c8839ea62a3b1",
     "e70b7ece426b635654af",
+    "e728cc1fe45ddab60fb0",
     "e73686999b1704348f9e",
     "e749e4599c7a3413be5b",
     "e75cc65eb00dca9046ff",
@@ -6344,90 +6335,18 @@
     {
       "rule": "STATIC_STRONG_ANDROID_OWNER",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1610,
-      "snippet": " val numberView =",
-      "disposition": "accepted",
-      "fingerprint": "474d1837cdadcfe8fcc1"
-    },
-    {
-      "rule": "STATIC_STRONG_ANDROID_OWNER",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1735,
-      "snippet": " val numberView =",
-      "disposition": "accepted",
-      "fingerprint": "3248b6b0351b9c7a880c"
-    },
-    {
-      "rule": "STATIC_STRONG_ANDROID_OWNER",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1737,
-      "snippet": " val unitView =",
-      "disposition": "accepted",
-      "fingerprint": "9ef3580ce33df82cb3e4"
-    },
-    {
-      "rule": "STATIC_STRONG_ANDROID_OWNER",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1822,
-      "snippet": " val textView =",
-      "disposition": "accepted",
-      "fingerprint": "84930d9af05c139a7af0"
-    },
-    {
-      "rule": "STATIC_STRONG_ANDROID_OWNER",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1824,
-      "snippet": " val speedView =",
-      "disposition": "accepted",
-      "fingerprint": "38d5c8cd2e5c45234aed"
-    },
-    {
-      "rule": "STATIC_STRONG_ANDROID_OWNER",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1834,
-      "snippet": " val speedView =",
-      "disposition": "accepted",
-      "fingerprint": "b342da4bfccdb1a862a1"
-    },
-    {
-      "rule": "STATIC_STRONG_ANDROID_OWNER",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1847,
-      "snippet": " val speedView =",
-      "disposition": "accepted",
-      "fingerprint": "abe2e1c705c5619ed0b9"
-    },
-    {
-      "rule": "STATIC_STRONG_ANDROID_OWNER",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1850,
-      "snippet": " val numberView =",
-      "disposition": "accepted",
-      "fingerprint": "8cc0be6c604c1e80bb0e"
-    },
-    {
-      "rule": "STATIC_STRONG_ANDROID_OWNER",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1852,
-      "snippet": " val unitView =",
-      "disposition": "accepted",
-      "fingerprint": "19201abbffe99af2012c"
-    },
-    {
-      "rule": "STATIC_STRONG_ANDROID_OWNER",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 1953,
+      "line": 1994,
       "snippet": " val mobileView =",
       "disposition": "accepted",
-      "fingerprint": "964720242a7e2ec6a3c0"
+      "fingerprint": "4aab6bda09371fe59996"
     },
     {
       "rule": "STATIC_STRONG_ANDROID_OWNER",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 2136,
+      "line": 2177,
       "snippet": " val hideMobileActivity =",
       "disposition": "accepted",
-      "fingerprint": "c1187256e79a43ac7be1"
+      "fingerprint": "55399fcac4a98c186a15"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
@@ -6456,10 +6375,10 @@
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 2070,
+      "line": 2111,
       "snippet": "catch (t: Throwable) { XposedHelpers.log(t) false",
       "disposition": "accepted",
-      "fingerprint": "180519bb9829d468795b"
+      "fingerprint": "e728cc1fe45ddab60fb0"
     },
     {
       "rule": "EMPTY_CATCH",

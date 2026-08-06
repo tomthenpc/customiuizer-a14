@@ -94,7 +94,7 @@ TextView.setTextAppearance(resId)
 2. `applyNetSpeedTextStyle` must read `MainModule.mPrefs` **0** times.
 3. Snapshot is built at most once per pref-set and updated only when a relevant key changes.
 4. Per-tick redundant View setters are eliminated: the same `NetSpeedTextStyleSnapshot.id`
-   applied to the same `speedView` with `typefaceOnly = true` returns early.
+   applied to the same `speedView` with `typefaceOnly = false` returns early.
 5. The text update (`setNetworkSpeed` itself) is never blocked or reordered by the style
    snapshot; `applyNetSpeedTextStyle` does not call `setText()`.
 6. No new Xposed Hook, thread, HandlerThread, Timer, polling, or global Receiver.
@@ -108,30 +108,39 @@ TextView.setTextAppearance(resId)
 NetworkSpeedView.setNetworkSpeed(number, unit, visible)
   -> NetSpeedStyleHook.setNetworkSpeed.afterHook
      -> currentOrBuildNetSpeedTextStyleSnapshot()   (one volatile read, 9 reads only on first call)
-     -> if view not inited: applyNetSpeedTextStyle(speedView, snapshot, false)
-        if view inited:   applyNetSpeedTextStyle(speedView, snapshot, true)
+     -> applyNetSpeedTextStyle(speedView, snapshot, typefaceOnly = false)
+        -> XposedHelpers.getAdditionalInstanceField(speedView, NETSPEED_LAST_FULL_STYLE_SNAPSHOT_ID)
+        -> if lastFullId == snapshot.id: return   // 0 setter calls; text update proceeds unchanged
+        -> otherwise full style apply and set lastFullId = snapshot.id
 ```
 
-`applyNetSpeedTextStyle(speedView, snapshot, true)` (the common per-tick case):
-
-```text
-  -> XposedHelpers.getAdditionalInstanceField(speedView, NETSPEED_LAST_STYLE_SNAPSHOT_ID)
-  -> if lastAppliedId == snapshot.id: return   // 0 setter calls
-  -> getNetSpeedNumberView / getNetSpeedUnitView
-  -> ensureNetSpeedTypeface(numberView, bold)  // only if typeface changed
-  -> setAdditionalInstanceField(..., snapshot.id)
-```
-
-No `MainModule.mPrefs` reads, no `XposedHelpers.getObjectField` after the first apply because
-`getNetSpeedNumberView` caches the result as a keyed tag.
+`setNetworkSpeed` always asks for a full style. `applyNetSpeedTextStyle` short-circuits when the
+same `NetSpeedTextStyleSnapshot.id` has already been fully applied to the same view, so the common
+per-tick path performs zero full-style setters and never touches the text content.
 
 ### View attach / config change path
 
 ```text
-NetworkSpeedView.onFinishInflate() / TextView.setTextAppearance()
-  -> currentOrBuildNetSpeedTextStyleSnapshot()
-  -> applyNetSpeedTextStyle(speedView, snapshot, false)
-     -> full style apply (text size, layout params, padding, translationY, typeface)
+NetworkSpeedView.onFinishInflate()
+  -> NetSpeedStyleHook.onFinishInflate.afterHook
+     -> currentOrBuildNetSpeedTextStyleSnapshot()
+     -> if useClockStyle == false: applyNetSpeedTextStyle(speedView, snapshot, typefaceOnly = false)
+        -> full style apply (text size, layout params, padding, translationY, typeface)
+        -> set lastFullId = snapshot.id
+     -> if useClockStyle == true:
+        -> numberText.setTextAppearance(styleId)
+        -> TextView.setTextAppearance.afterHook
+           -> applyNetSpeedTextStyle(parent, snapshot, typefaceOnly = true)
+              -> only restore typeface / fake-bold state
+              -> set lastFullId = snapshot.id
+```
+
+```text
+TextView.setTextAppearance(resId)
+  -> NetSpeedStyleHook.setTextAppearance.afterHook
+     -> applyNetSpeedTextStyle(parent, snapshot, typefaceOnly = true)
+        -> only restore typeface / fake-bold state
+        -> set lastFullId = snapshot.id
 ```
 
 ### Snapshot refresh path
@@ -145,6 +154,34 @@ PreferenceObserver.onChange(key)
 
 The observer is registered with `SystemUIStatusBarHooks` as the owner. The next
 `setNetworkSpeed` tick picks up the new snapshot.
+
+## `applyNetSpeedTextStyle` `typefaceOnly` semantics
+
+| Caller | `typefaceOnly` value | Reason | What it touches |
+|---|---|---|---|
+| `setNetworkSpeed` after-hook | `false` | The framework has just updated the text. The hook asks for a full style; `applyNetSpeedTextStyle` short-circuits if the view already has the current `snapshot.id` as `lastFullId`, so the common per-second case does **0** full setters. | Short-circuits, or full size/layout/gravity/padding/translationY/typeface when the view or snapshot is new. |
+| `onFinishInflate` with `useClockStyle == false` | `false` | The view is brand new and needs a complete custom style. | Full style, then sets `lastFullId` and `viewInitedTag`. |
+| `TextView.setTextAppearance` after-hook | `true` | The framework (or the clock-style `onFinishInflate` path) has just applied a system text appearance, which set size, color, padding and layout. We must only restore the network-speed-specific typeface and `fakeBold` state without undoing the text appearance. | Only `ensureNetSpeedTypeface`. Does **not** call `setTextSize`, `setPadding`, `setGravity`, `setTextAlignment`, `setTranslationY`, `setSingleLine`, `setMaxLines`, `setLineSpacing` or `setLayoutParams`. |
+
+The additional instance field `NETSPEED_LAST_FULL_STYLE_SNAPSHOT_ID` stores the id of the last
+snapshot that was fully applied to a `speedView`. `typefaceOnly = false` returns immediately when
+this id equals the incoming `snapshot.id`; `typefaceOnly = true` never returns early because it is
+called after a text-appearance change and must ensure the typeface is current.
+
+## Preference observer lifecycle review
+
+`netSpeedTextStyleObserver` is a single process-scoped, owner-bound observer:
+
+- **Owner**: `SystemUIStatusBarHooks` (the module singleton). The observer is not registered against
+  a `Context`, `Activity` or `View`, so it cannot hold a strong reference to a short-lived object.
+- **Lifecycle**: `ModuleHelper.observePreferenceChange(..., SystemUIStatusBarHooks)` registers once
+  per process. The registry stores a weak reference and drops it when the owner is collected.
+- **What it holds**: a `PreferenceObserver` instance. It stores no `View`, `Context`, `Fragment` or
+  controller.
+- **On change**: for any key in `NETSPEED_TEXT_STYLE_PREFERENCE_KEYS` it sets
+  `currentNetSpeedTextStyleSnapshot` to `null`. The next call to `currentOrBuildNetSpeedTextStyleSnapshot()`
+  rebuilds the snapshot, atomically publishes it, and the next `setNetworkSpeed` tick applies it.
+- **No polling, no thread, no HandlerThread, no global BroadcastReceiver**.
 
 ## `mPrefs.get*` count after optimization
 
@@ -176,24 +213,18 @@ The observer is registered with `SystemUIStatusBarHooks` as the owner. The next
   rather than any cached or stale density.
 - `SystemUIStatusBarHotPathTest.applyNetSpeedTextStyle_invalidValues_fallsBackSafely` checks
   invalid style/font/position values complete without crashing.
-
-## Preference observer lifecycle review
-
-The `netSpeedTextStyleObserver` is registered with `SystemUIStatusBarHooks` as the owner:
-
-1. **Initial snapshot availability**: the first `setNetworkSpeed` tick (or `onFinishInflate`)
-   calls `currentOrBuildNetSpeedTextStyleSnapshot()`. The snapshot is built once and cached.
-2. **Actual value changes**: `onChange` invalidates the snapshot by setting it to `null`. The
-   next tick rebuilds with the new values and re-applies the full style if the view has not
-   yet been seen, or re-applies only the typeface on the next per-tick call.
-3. **Owner-bound disposal**: `PreferenceObserverRegistry` holds a weak reference keyed by the
-   owner `SystemUIStatusBarHooks` object, which lives for the SystemUI process lifetime. The
-   registry drops the reference when the owner is garbage collected.
-4. **Duplicate registration**: `PreferenceObserverRegistry.observePreferenceChange` removes
-   any existing observer for the same owner before registering, so process recreation does not
-   accumulate duplicates.
-5. **Unbounded accumulation**: the process-scoped observer set contains one weak reference per
-   module owner. No static list of Views, Contexts, or controllers is kept.
+- `SystemUIStatusBarHotPathTest.setNetworkSpeedSimulation_100Ticks_zeroFullSetters_textStillUpdates`
+  simulates 100 per-second `setNetworkSpeed` ticks: the first tick applies the full style once,
+  the remaining 99 perform zero full-style setters, and the text content is still updated 100
+  times.
+- `SystemUIStatusBarHotPathTest.setTextAppearanceSimulation_typefaceOnlyRestoresTypefaceWithoutFullSetters`
+  confirms the `setTextAppearance` after-hook uses `typefaceOnly = true` and only restores the
+  typeface, leaving size, padding, gravity, translationY and layout untouched.
+- `SystemUIStatusBarHotPathTest.applyNetSpeedTextStyle_fullSameViewSameSnapshot_secondCall_zeroSetters`
+  verifies the `typefaceOnly = false` short-circuit: same view, same snapshot, the second call
+  performs zero setters.
+- `SystemUIStatusBarHotPathTest.callback_typefaceOnly_values` records the exact `typefaceOnly`
+  argument used by each production callback path.
 
 ## Status
 
@@ -203,8 +234,10 @@ Engineering verification is complete:
 
 - `NetSpeedTextStyleSnapshot` eliminates `MainModule.mPrefs` reads from the per-tick
   `applyNetSpeedTextStyle` path.
-- View setter idempotency is enforced by the per-View `NETSPEED_LAST_STYLE_SNAPSHOT_ID`
+- View setter idempotency is enforced by the per-View `NETSPEED_LAST_FULL_STYLE_SNAPSHOT_ID`
   additional instance field.
+- `typefaceOnly = true` for the `TextView.setTextAppearance` after-hook only restores the
+  typeface and fake-bold state, never re-applying layout, padding, size or gravity.
 - The preference observer has owner-bound registration, deduplication, and no strong View
   references.
 - `python tools/verify.py full`, `python tools/source_hazard_scan.py --strict-all`, and

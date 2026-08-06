@@ -84,6 +84,7 @@ private class FakeResources(density: Float = 2.0f) : Resources(null, DisplayMetr
 
 private open class RecordingTextView(density: Float = 2.0f) : TextView(null) {
     val setTextSizeCalls = mutableListOf<Pair<Int, Float>>()
+    val setTextColorCalls = mutableListOf<Int>()
     val setTypefaceCalls = mutableListOf<Pair<Typeface?, Int>>()
     val setGravityCalls = mutableListOf<Int>()
     val setTextAlignmentCalls = mutableListOf<Int>()
@@ -91,6 +92,7 @@ private open class RecordingTextView(density: Float = 2.0f) : TextView(null) {
     val setSingleLineCalls = mutableListOf<Boolean>()
     val setMaxLinesCalls = mutableListOf<Int>()
     val setLineSpacingCalls = mutableListOf<Pair<Float, Float>>()
+    val setPaddingCalls = mutableListOf<Quad<Int, Int, Int, Int>>()
     val onTextChangedCalls = mutableListOf<CharSequence?>()
     val layoutParamsCalls = mutableListOf<ViewGroup.LayoutParams?>()
 
@@ -157,6 +159,23 @@ private open class RecordingTextView(density: Float = 2.0f) : TextView(null) {
         setLineSpacingCalls.add(multiplier to add)
     }
 
+    /**
+     * Simulates the framework text-update path in unit tests where the stub TextView.setText()
+     * does not emit onTextChanged. Production NetworkSpeedView.setNetworkSpeed() updates the text
+     * directly; our after-hook never calls this.
+     */
+    fun recordTextChange(text: CharSequence?) {
+        onTextChanged(text, 0, 0, 0)
+    }
+
+    override fun setTextColor(color: Int) {
+        setTextColorCalls.add(color)
+    }
+
+    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+        setPaddingCalls.add(Quad(left, top, right, bottom))
+    }
+
     private var storedLayoutParams: ViewGroup.LayoutParams? = null
 
     override fun getLayoutParams(): ViewGroup.LayoutParams? = storedLayoutParams
@@ -169,6 +188,7 @@ private open class RecordingTextView(density: Float = 2.0f) : TextView(null) {
 
 private class RecordingLinearLayout(density: Float = 2.0f) : LinearLayout(null) {
     val setPaddingRelativeCalls = mutableListOf<Quad<Int, Int, Int, Int>>()
+    val setPaddingCalls = mutableListOf<Quad<Int, Int, Int, Int>>()
     val setTranslationYCalls = mutableListOf<Float>()
 
     @JvmField var mNetworkSpeedNumberText: TextView? = null
@@ -187,6 +207,10 @@ private class RecordingLinearLayout(density: Float = 2.0f) : LinearLayout(null) 
 
     override fun setPaddingRelative(start: Int, top: Int, end: Int, bottom: Int) {
         setPaddingRelativeCalls.add(Quad(start, top, end, bottom))
+    }
+
+    override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+        setPaddingCalls.add(Quad(left, top, right, bottom))
     }
 
     override fun setTranslationY(translationY: Float) {
@@ -587,6 +611,143 @@ class SystemUIStatusBarHotPathTest {
         assertTrue(widthAtDensity4 > 0)
         assertEquals(40, widthAtDensity2)
         assertEquals(80, widthAtDensity4)
+    }
+
+    // 19. 模拟 setNetworkSpeed 每秒回调：首次完整应用，之后 99 次 0 完整 setter，文本仍更新
+    @Test
+    fun setNetworkSpeedSimulation_100Ticks_zeroFullSetters_textStillUpdates() {
+        val snapshot = makeCustomSnapshot()
+        val number = RecordingTextView()
+        val unit = RecordingTextView()
+        val speedView = speedViewWith(number, unit)
+
+        // 100 ticks. The production setNetworkSpeed after-hook passes typefaceOnly = false;
+        // applyNetSpeedTextStyle short-circuits when the full style is already applied.
+        // The text content update is independent; recordTextChange simulates the framework text setter.
+        repeat(100) { index ->
+            SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshot, typefaceOnly = false)
+            number.recordTextChange("${index + 1}")
+            unit.recordTextChange("KB")
+        }
+
+        assertEquals(100, number.onTextChangedCalls.size)
+        assertEquals(1, number.setTextSizeCalls.size) // only first full apply (fontSize 20 > 13)
+        assertEquals(1, number.layoutParamsCalls.size) // fixedWidth 20 > 10
+        assertEquals(1, speedView.setTranslationYCalls.size) // verticalOffset 12 != 8
+        assertEquals(1, speedView.setPaddingRelativeCalls.size)
+        assertEquals(1, number.setTypefaceCalls.size) // set once on first full apply, then idempotent
+        assertEquals(0, number.setTextColorCalls.size)
+        assertEquals(0, number.setPaddingCalls.size)
+        assertEquals(0, unit.setPaddingCalls.size)
+    }
+
+    // 20. snapshot 变化后下一次完整样式只应用一次，之后再变化前不再重复
+    @Test
+    fun setNetworkSpeedSimulation_snapshotChange_fullStyleOnceThenZero() {
+        val snapshotA = makeCustomSnapshot()
+        val number = RecordingTextView()
+        val speedView = speedViewWith(number)
+
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshotA, typefaceOnly = false)
+        val textSizeAfterA = number.setTextSizeCalls.size
+        val typefaceAfterA = number.setTypefaceCalls.size
+
+        repeat(50) {
+            SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshotA, typefaceOnly = false)
+        }
+        assertEquals(textSizeAfterA, number.setTextSizeCalls.size)
+        assertEquals(typefaceAfterA, number.setTypefaceCalls.size)
+
+        val snapshotB = snapshotFrom(mapOf("system_netspeed_boldfont" to false))
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshotB, typefaceOnly = false)
+
+        // Snapshot B still has fontSize 13 default, so setTextSize is not called again (only A had fontSize 20).
+        assertEquals(textSizeAfterA, number.setTextSizeCalls.size)
+        assertTrue(number.setTypefaceCalls.size > typefaceAfterA)
+
+        val typefaceAfterB = number.setTypefaceCalls.size
+        repeat(50) {
+            SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshotB, typefaceOnly = false)
+        }
+        assertEquals(typefaceAfterB, number.setTypefaceCalls.size)
+    }
+
+    // 21. setTextAppearance 后只恢复 Typeface，不重复 size / padding / gravity / layout
+    @Test
+    fun setTextAppearanceSimulation_typefaceOnlyRestoresTypefaceWithoutFullSetters() {
+        val snapshot = makeCustomSnapshot()
+        val number = RecordingTextView()
+        val speedView = speedViewWith(number)
+
+        // onFinishInflate (useClockStyle = false) performs a full style apply.
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshot, typefaceOnly = false)
+
+        val textSizeBefore = number.setTextSizeCalls.size
+        val layoutParamsBefore = number.layoutParamsCalls.size
+        val gravityBefore = number.setGravityCalls.size
+        val paddingRelativeBefore = speedView.setPaddingRelativeCalls.size
+        val paddingBefore = speedView.setPaddingCalls.size
+        val textColorBefore = number.setTextColorCalls.size
+        val typefaceBefore = number.setTypefaceCalls.size
+
+        // Simulate the framework calling setTextAppearance on the number TextView. In production the
+        // setTextAppearance after-hook calls applyNetSpeedTextStyle(speedView, snapshot, true).
+        // The framework call would have changed the base typeface; the typefaceOnly path must only
+        // restore the network-speed typeface and must not re-apply size, padding, gravity or layout.
+        number.setTypeface(Typeface.DEFAULT)
+        val snapshotAfterTextAppearance = snapshot.copy(bold = !snapshot.bold)
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshotAfterTextAppearance, typefaceOnly = true)
+
+        assertEquals(textSizeBefore, number.setTextSizeCalls.size)
+        assertEquals(layoutParamsBefore, number.layoutParamsCalls.size)
+        assertEquals(gravityBefore, number.setGravityCalls.size)
+        assertEquals(paddingRelativeBefore, speedView.setPaddingRelativeCalls.size)
+        assertEquals(paddingBefore, speedView.setPaddingCalls.size)
+        assertEquals(textColorBefore, number.setTextColorCalls.size)
+        assertTrue(number.setTypefaceCalls.size > typefaceBefore)
+    }
+
+    // 22. 明确记录三个生产回调传入的 typefaceOnly 参数语义
+    @Test
+    fun callback_typefaceOnly_values() {
+        val snapshot = makeDefaultSnapshot()
+        val number = RecordingTextView()
+        val speedView = speedViewWith(number)
+
+        // onFinishInflate (useClockStyle = false) and the first setNetworkSpeed both request a full
+        // style apply: typefaceOnly = false.
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshot, typefaceOnly = false)
+        assertEquals(1, speedView.setTranslationYCalls.size)
+
+        // setTextAppearance after-hook always requests typeface-only restoration.
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshot, typefaceOnly = true)
+
+        // Subsequent setNetworkSpeed calls request a full style, but the implementation
+        // short-circuits when the same snapshot has already been fully applied.
+        val callsBefore = number.setTextSizeCalls.size
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshot, typefaceOnly = false)
+        assertEquals(callsBefore, number.setTextSizeCalls.size)
+    }
+
+    // 23. typefaceOnly = false 时，相同 View + 相同 snapshot 第二次直接 return
+    @Test
+    fun applyNetSpeedTextStyle_fullSameViewSameSnapshot_secondCall_zeroSetters() {
+        val snapshot = makeCustomSnapshot()
+        val number = RecordingTextView()
+        val speedView = speedViewWith(number)
+
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshot, typefaceOnly = false)
+        val textSize = number.setTextSizeCalls.size
+        val translationY = speedView.setTranslationYCalls.size
+        val padding = speedView.setPaddingRelativeCalls.size
+        val layoutParams = number.layoutParamsCalls.size
+
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshot, typefaceOnly = false)
+
+        assertEquals(textSize, number.setTextSizeCalls.size)
+        assertEquals(translationY, speedView.setTranslationYCalls.size)
+        assertEquals(padding, speedView.setPaddingRelativeCalls.size)
+        assertEquals(layoutParams, number.layoutParamsCalls.size)
     }
 
     private fun getNetSpeedTextStyleObserver(): ModuleHelper.PreferenceObserver {
