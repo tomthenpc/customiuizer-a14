@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Verify the staged snapshot is a coherent transaction."""
+"""Verify the staged snapshot is a coherent transaction under the v2 task-state control plane.
+
+The checker only looks at git cached (staged) files. Untracked local files are
+never treated as repo facts. v2 state includes:
+  - tasks/active/*.md, tasks/backlog/*.md, tasks/blocked/*.md, tasks/completed/*.md
+  - ROADMAP.md
+  - docs/progress/A14_PROGRESS_CURRENT.{json,md}
+"""
 from __future__ import annotations
 
 import argparse
@@ -32,7 +39,20 @@ FORBIDDEN_STAGED = {
 }
 
 
+def is_state_path(rel: str) -> bool:
+    """Return True if the relative path is a v2 state or generated progress file."""
+    parts = rel.replace("\\", "/").split("/")
+    if parts[0] == "tasks" and len(parts) >= 2:
+        return parts[1] in ("active", "backlog", "blocked", "completed")
+    if rel in ("ROADMAP.md", "TASK_STATE.md", "SMART_OPERATION_STATE.md"):
+        return True
+    if rel.startswith("docs/progress/A14_PROGRESS_CURRENT"):
+        return True
+    return False
+
+
 def staged_files() -> list[Path]:
+    """Return only cached/staged files. Untracked files are intentionally ignored."""
     result = subprocess.run(
         ["git", "diff", "--cached", "--name-only"],
         cwd=REPO_ROOT,
@@ -56,10 +76,11 @@ def check_staged_snapshot(commit_msg_path: str | None = None, is_qualifying: boo
         errors.append("No staged files")
         return errors
 
+    rels = [p.relative_to(REPO_ROOT).as_posix() for p in files]
     has_source = any(p.suffix in {".kt", ".java", ".py", ".ps1"} for p in files)
-    has_test = any("test" in p.name.lower() or "/tests/" in str(p) for p in files)
-    has_doc = any("docs/" in str(p) for p in files)
-    has_state = any(p.name in {"TASK_STATE.md", "SMART_OPERATION_STATE.md"} for p in files)
+    has_test = any("test" in p.name.lower() or "/tests/" in rel for p, rel in zip(files, rels))
+    has_doc = any(rel.startswith("docs/") for rel in rels)
+    has_state = any(is_state_path(rel) for rel in rels)
 
     for p in files:
         p = p if p.is_absolute() else REPO_ROOT / p
@@ -78,7 +99,7 @@ def check_staged_snapshot(commit_msg_path: str | None = None, is_qualifying: boo
         if not (has_source or has_test or has_doc):
             errors.append("Qualifying commit must contain source/test/doc changes, not only state")
 
-    if has_state and not (has_source or has_test or has_doc or has_state):
+    if has_state and not (has_source or has_test or has_doc):
         errors.append("Staged state change without work product is a state-only checkpoint")
 
     if commit_msg_path:

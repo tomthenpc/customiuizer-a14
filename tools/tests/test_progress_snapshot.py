@@ -1,12 +1,167 @@
 import json
+import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from tools import progress_snapshot
 
+HEAD_COMMIT = "5febf001a75831163ad75991d8bd52ee570fd804"
+PARENT_COMMIT = "1111111111111111111111111111111111111111"
+FULL_COMMIT = "cd152365a1b258a7b36e978d1050db71f427fa83"
 
-class ProgressSnapshotV7Test(unittest.TestCase):
+
+def _fake_canonical(sha: str) -> str | None:
+    if not sha or not re_fullmatch(r"[0-9a-f]{7,40}", sha, 2):
+        return None
+    s = sha.lower()
+    if s == HEAD_COMMIT or s == "0" * 40:
+        return None
+    if s == FULL_COMMIT or s == PARENT_COMMIT:
+        return s
+    if FULL_COMMIT.startswith(s):
+        return FULL_COMMIT
+    if PARENT_COMMIT.startswith(s):
+        return PARENT_COMMIT
+    return None
+
+
+def _fake_git_rev(name: str) -> str:
+    if name == "HEAD":
+        return HEAD_COMMIT
+    if name == "HEAD~1":
+        return PARENT_COMMIT
+    if name == "HEAD^{tree}":
+        return HEAD_COMMIT
+    return "pending"
+
+
+# re.fullmatch with flags helper to avoid re import collision
+def re_fullmatch(pattern, string, flags=0):
+    import re
+
+    return re.fullmatch(pattern, string, flags)
+
+
+class V2RepoFixtureMixin:
+    def _make_repo(self, task_files, roadmap="", git=False):
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        root = Path(td.name)
+
+        old_root = progress_snapshot.REPO_ROOT
+        old_json = progress_snapshot.OUT_JSON
+        old_md = progress_snapshot.OUT_MD
+
+        def restore():
+            progress_snapshot.REPO_ROOT = old_root
+            progress_snapshot.OUT_JSON = old_json
+            progress_snapshot.OUT_MD = old_md
+
+        self.addCleanup(restore)
+        progress_snapshot.REPO_ROOT = root
+        progress_snapshot.OUT_JSON = root / "A14_PROGRESS_CURRENT.json"
+        progress_snapshot.OUT_MD = root / "A14_PROGRESS_CURRENT.md"
+
+        (root / "tasks" / "active").mkdir(parents=True, exist_ok=True)
+        (root / "tasks" / "backlog").mkdir(parents=True, exist_ok=True)
+        (root / "tasks" / "blocked").mkdir(parents=True, exist_ok=True)
+        (root / "tasks" / "completed").mkdir(parents=True, exist_ok=True)
+        (root / "docs" / "progress").mkdir(parents=True, exist_ok=True)
+
+        (root / "ROADMAP.md").write_text(roadmap, encoding="utf-8")
+
+        for path_parts, content in task_files.items():
+            p = root / path_parts
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(content, encoding="utf-8")
+
+        if git:
+            subprocess_git = self._init_git(root)
+            if not subprocess_git:
+                self.skipTest("git not available")
+
+        return root
+
+    def _init_git(self, root: Path):
+        import subprocess
+
+        if not shutil.which("git"):
+            return False
+        try:
+            subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
+            subprocess.run(
+                ["git", "-c", "user.email=test@test.com", "-c", "user.name=Test", "commit", "--allow-empty", "-m", "init"],
+                cwd=root,
+                check=True,
+                capture_output=True,
+            )
+            return True
+        except (subprocess.CalledProcessError, OSError):
+            return False
+
+    def _write_task(self, root: Path, directory: str, name: str, body: str) -> None:
+        p = root / "tasks" / directory / name
+        p.write_text(body, encoding="utf-8")
+
+
+class ProgressSnapshotV8Test(V2RepoFixtureMixin, unittest.TestCase):
+    def setUp(self):
+        self._patchers = [
+            patch("tools.progress_snapshot.canonical_commit", side_effect=_fake_canonical),
+            patch("tools.progress_snapshot.git_rev", side_effect=_fake_git_rev),
+        ]
+        for p in self._patchers:
+            p.start()
+            self.addCleanup(p.stop)
+
+        # Start every test in an isolated, empty v2 repo so --print and other
+        # commands never accidentally read the real working tree.
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        root = Path(td.name)
+        (root / "tasks" / "active").mkdir(parents=True, exist_ok=True)
+        (root / "tasks" / "backlog").mkdir(parents=True, exist_ok=True)
+        (root / "tasks" / "blocked").mkdir(parents=True, exist_ok=True)
+        (root / "tasks" / "completed").mkdir(parents=True, exist_ok=True)
+        (root / "docs" / "progress").mkdir(parents=True, exist_ok=True)
+        (root / "ROADMAP.md").write_text("# Roadmap\n", encoding="utf-8")
+
+        self._base_root = root
+        self._base_old_root = progress_snapshot.REPO_ROOT
+        self._base_old_json = progress_snapshot.OUT_JSON
+        self._base_old_md = progress_snapshot.OUT_MD
+
+        def restore():
+            progress_snapshot.REPO_ROOT = self._base_old_root
+            progress_snapshot.OUT_JSON = self._base_old_json
+            progress_snapshot.OUT_MD = self._base_old_md
+
+        self.addCleanup(restore)
+        progress_snapshot.REPO_ROOT = root
+        progress_snapshot.OUT_JSON = root / "A14_PROGRESS_CURRENT.json"
+        progress_snapshot.OUT_MD = root / "A14_PROGRESS_CURRENT.md"
+
+    def _task(self, title, status="Active", priority="P0", extras=""):
+        return f"""# {title}
+
+- Platform: A14
+- Status: {status}
+- Priority: {priority}
+- Owner: Devin
+
+## 目标
+
+A test task.
+
+## 验收标准
+
+- [ ] pass
+
+{extras}
+"""
 
     def _temp_outputs(self):
         td = tempfile.TemporaryDirectory()
@@ -39,8 +194,10 @@ class ProgressSnapshotV7Test(unittest.TestCase):
             self.assertEqual(before_md, progress_snapshot.OUT_MD.stat().st_mtime)
 
     def test_check_is_read_only(self):
-        # First write a known snapshot, then run --check against it.
         self._temp_outputs()
+        self._make_repo({
+            Path("tasks/active/T1.md"): self._task("FIX-T1", "Active", "P0"),
+        })
         progress_snapshot.main(["--write"])
         before_json = progress_snapshot.OUT_JSON.stat().st_mtime
         before_md = progress_snapshot.OUT_MD.stat().st_mtime
@@ -51,8 +208,10 @@ class ProgressSnapshotV7Test(unittest.TestCase):
 
     def test_check_detects_drift(self):
         self._temp_outputs()
+        self._make_repo({
+            Path("tasks/active/T1.md"): self._task("FIX-T1", "Active", "P0"),
+        })
         progress_snapshot.main(["--write"])
-        # Corrupt the JSON with a fake state to force semantic drift.
         existing = json.loads(progress_snapshot.OUT_JSON.read_text(encoding="utf-8"))
         existing["projectProgress"] = -1.0
         progress_snapshot.OUT_JSON.write_text(json.dumps(existing, indent=2), encoding="utf-8")
@@ -60,64 +219,55 @@ class ProgressSnapshotV7Test(unittest.TestCase):
         self.assertEqual(1, code)
 
     def test_parent_child_not_double_counted(self):
-        # P5 is a parent with children P5.1-P5.5; P5 itself must not appear as a leaf.
-        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
-        leaves = progress_snapshot.parse_task_sections(text)
-        ids = {it for it in leaves}
+        self._make_repo({
+            Path("tasks/active/P5.md"): self._task("P5", "Active", "P2"),
+            Path("tasks/active/P5.1.md"): self._task("P5.1", "Active", "P2"),
+            Path("tasks/active/P5.2.md"): self._task("P5.2", "Active", "P2"),
+        })
+        leaves = progress_snapshot.load_task_state_v2()["leaves"]
+        ids = set(leaves)
         self.assertIn("P5.1", ids)
         self.assertNotIn("P5", ids)
 
     def test_blocked_external_accounted(self):
-        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
-        leaves = progress_snapshot.parse_task_sections(text)
-        issues = progress_snapshot.parse_issue_table(text)
-        items = progress_snapshot.build_capability_items(leaves, issues)
-        buckets = {
-            "complete": 0,
-            "verified": 0,
-            "in_progress": 0,
-            "not_started": 0,
-            "blocked_internal": 0,
-            "blocked_external": 0,
-            "excluded": 0,
-            "fail": 0,
-            "evidence_pending": 0,
-        }
+        self._make_repo({
+            Path("tasks/blocked/T1.md"): self._task("FIX-T1", "Blocked", "P0"),
+        })
+        leaves = progress_snapshot.load_task_state_v2()["leaves"]
+        items = progress_snapshot.build_capability_items(leaves)
+        buckets = {b: 0 for b in progress_snapshot.compute_progress([])["taskCounts"] if b != "total"}
         for it in items:
             buckets[it.bucket] = buckets.get(it.bucket, 0) + 1
         self.assertEqual(sum(buckets.values()), progress_snapshot.compute_progress(items)["taskCounts"]["total"])
-        self.assertGreaterEqual(buckets["blocked_external"], 0)
+        self.assertGreaterEqual(buckets["blocked_external"], 1)
 
     def test_machine_progress_excludes_device(self):
-        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
-        leaves = progress_snapshot.parse_task_sections(text)
-        issues = progress_snapshot.parse_issue_table(text)
-        items = progress_snapshot.build_capability_items(leaves, issues)
+        self._make_repo({
+            Path("tasks/completed/T1.md"): self._task("FIX-T1", "Done", "P0"),
+            Path("tasks/completed/T2.md"): self._task("FEATURE-T2", "Done", "P0"),
+        })
+        leaves = progress_snapshot.load_task_state_v2()["leaves"]
+        # Completed without commit provenance; device domain earns 0.
+        items = progress_snapshot.build_capability_items(leaves)
         progress = progress_snapshot.compute_progress(items)
         device_earned = sum(it.earned for it in items if it.domain == "Device validation")
         non_device_total = 95.0
         non_device_earned = sum(it.earned for it in items if it.domain != "Device validation")
         expected = round(non_device_earned / non_device_total * 100, 1)
         self.assertEqual(expected, progress["machineProgressPercent"])
+        self.assertEqual(0.0, device_earned)
 
     def test_sum_of_buckets_equals_total(self):
-        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
-        leaves = progress_snapshot.parse_task_sections(text)
-        issues = progress_snapshot.parse_issue_table(text)
-        items = progress_snapshot.build_capability_items(leaves, issues)
+        self._make_repo({
+            Path("tasks/active/T1.md"): self._task("FIX-T1", "Active", "P0"),
+            Path("tasks/backlog/T2.md"): self._task("FEATURE-T2", "Backlog", "P1"),
+            Path("tasks/blocked/T3.md"): self._task("FIX-T3", "Blocked", "P0"),
+        })
+        leaves = progress_snapshot.load_task_state_v2()["leaves"]
+        items = progress_snapshot.build_capability_items(leaves)
         progress = progress_snapshot.compute_progress(items)
         counts = progress["taskCounts"]
-        total = (
-            counts["complete"]
-            + counts["verified"]
-            + counts["in_progress"]
-            + counts["not_started"]
-            + counts["blocked_internal"]
-            + counts["blocked_external"]
-            + counts["excluded"]
-            + counts["fail"]
-            + counts["evidence_pending"]
-        )
+        total = sum(counts[k] for k in counts if k != "total")
         self.assertEqual(counts["total"], total)
 
     def test_state_factor_bucket_consistency(self):
@@ -133,11 +283,15 @@ class ProgressSnapshotV7Test(unittest.TestCase):
         self.assertEqual("excluded", progress_snapshot.item_bucket("NOT_APPLICABLE"))
 
     def test_p12_children_preserved(self):
-        """Removing an unfinished P12 child from TASK_STATE must fail validation."""
-        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
-        leaves = progress_snapshot.parse_task_sections(text)
-        issues = progress_snapshot.parse_issue_table(text)
-        items = progress_snapshot.build_capability_items(leaves, issues)
+        """Removing an unfinished P12 child from v2 tasks must fail validation."""
+        self._make_repo({
+            Path("tasks/completed/P12.1.md"): self._task("P12.1", "Done", "P0"),
+            Path("tasks/completed/P12.2.md"): self._task("P12.2", "Done", "P0"),
+            Path("tasks/completed/P12.3.md"): self._task("P12.3", "Done", "P0"),
+            Path("tasks/completed/P12.4.md"): self._task("P12.4", "Done", "P0"),
+        })
+        state = progress_snapshot.load_task_state_v2()
+        items = progress_snapshot.build_capability_items(state["leaves"])
 
         # Baseline is valid: all four P12 children exist.
         progress_snapshot.validate_capability_items(items)
@@ -147,9 +301,8 @@ class ProgressSnapshotV7Test(unittest.TestCase):
             f"Expected {progress_snapshot.EXPECTED_P12_IDS}, got {p12_ids}",
         )
 
-        # Mutation: drop one unfinished child and rebuild.
-        mutated = {sid: info for sid, info in leaves.items() if sid != "P12.2"}
-        mutated_items = progress_snapshot.build_capability_items(mutated, issues)
+        mutated = {sid: info for sid, info in state["leaves"].items() if sid != "P12.2"}
+        mutated_items = progress_snapshot.build_capability_items(mutated)
         with self.assertRaises(ValueError) as ctx:
             progress_snapshot.validate_capability_items(mutated_items)
         self.assertIn("P12.2", str(ctx.exception))
@@ -186,7 +339,7 @@ class ProgressSnapshotV7Test(unittest.TestCase):
                 evidence_level="verified",
                 evidence_paths=["docs/some.md"],
                 evidence_commands=["python tools/x.py"],
-                evidence_commit="cd152365a1b258a7b36e978d1050db71f427fa83",
+                evidence_commit=FULL_COMMIT,
             ),
             progress_snapshot.CapabilityItem(
                 id="P12.2",
@@ -197,8 +350,6 @@ class ProgressSnapshotV7Test(unittest.TestCase):
                 earned=0.0,
                 bucket="not_started",
                 evidence_level="pending",
-                evidence_paths=[],
-                evidence_commands=[],
             ),
             progress_snapshot.CapabilityItem(
                 id="P12.3",
@@ -209,8 +360,6 @@ class ProgressSnapshotV7Test(unittest.TestCase):
                 earned=0.0,
                 bucket="not_started",
                 evidence_level="pending",
-                evidence_paths=[],
-                evidence_commands=[],
             ),
             progress_snapshot.CapabilityItem(
                 id="P12.4",
@@ -221,8 +370,6 @@ class ProgressSnapshotV7Test(unittest.TestCase):
                 earned=0.0,
                 bucket="not_started",
                 evidence_level="pending",
-                evidence_paths=[],
-                evidence_commands=[],
             ),
         ]
         with self.assertRaises(ValueError) as ctx:
@@ -230,16 +377,157 @@ class ProgressSnapshotV7Test(unittest.TestCase):
         self.assertIn("full Documentation / provenance", str(ctx.exception))
 
     def test_current_verified_items_have_evidence(self):
-        """The real TASK_STATE must produce a valid snapshot without provenance contradictions."""
-        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
-        leaves = progress_snapshot.parse_task_sections(text)
-        issues = progress_snapshot.parse_issue_table(text)
-        items = progress_snapshot.build_capability_items(leaves, issues)
+        """A v2 repo fixture must produce a valid snapshot without provenance contradictions."""
+        self._make_repo({
+            Path("tasks/completed/P12.1.md"): self._task("P12.1", "Done", "P0", "\n## 提交\n\n- Final SHA: `1111111111111111111111111111111111111111`\n"),
+            Path("tasks/completed/P12.2.md"): self._task("P12.2", "Done", "P0", "\n## 提交\n\n- Final SHA: `1111111111111111111111111111111111111111`\n"),
+            Path("tasks/completed/P12.3.md"): self._task("P12.3", "Done", "P0", "\n## 提交\n\n- Final SHA: `1111111111111111111111111111111111111111`\n"),
+            Path("tasks/completed/P12.4.md"): self._task("P12.4", "Done", "P0", "\n## 提交\n\n- Final SHA: `1111111111111111111111111111111111111111`\n"),
+        })
+        state = progress_snapshot.load_task_state_v2()
+        items = progress_snapshot.build_capability_items(state["leaves"])
         progress_snapshot.validate_capability_items(items)
 
+    def test_active_context_empty_active_is_none(self):
+        self._make_repo({
+            Path("tasks/backlog/T1.md"): self._task("FIX-T1", "Backlog", "P0"),
+        })
+        state = progress_snapshot.load_task_state_v2()
+        self.assertIsNone(state["active_context"])
 
-class EvidenceProvenanceTest(unittest.TestCase):
-    """Mechanical evidence and provenance semantics (A14-P12.1R-R2)."""
+    def test_completed_task_not_active_context(self):
+        self._make_repo({
+            Path("tasks/completed/T1.md"): self._task("FIX-T1", "Done", "P0"),
+        })
+        state = progress_snapshot.load_task_state_v2()
+        self.assertIsNone(state["active_context"])
+
+    def test_parked_active_not_default_context(self):
+        self._make_repo({
+            Path("tasks/active/T1.md"): self._task("FIX-T1", "Engineering complete | PARKED — NOT RUN / ENVIRONMENT BLOCKED", "P0"),
+            Path("tasks/active/T2.md"): self._task("FEATURE-T2", "Active", "P1"),
+        })
+        state = progress_snapshot.load_task_state_v2()
+        self.assertIsNotNone(state["active_context"])
+        self.assertEqual("T2", state["active_context"]["id"])
+        self.assertIn("T1", state["parked_tasks"])
+
+    def test_multiple_active_chooses_highest_priority(self):
+        self._make_repo({
+            Path("tasks/active/T1.md"): self._task("FIX-T1", "Active", "P1"),
+            Path("tasks/active/T2.md"): self._task("FEATURE-T2", "Active", "P0"),
+        })
+        state = progress_snapshot.load_task_state_v2()
+        self.assertEqual("T2", state["active_context"]["id"])
+
+    def test_blocked_only_from_blocked_or_external_active(self):
+        self._make_repo({
+            Path("tasks/blocked/T1.md"): self._task("FIX-T1", "Blocked", "P0"),
+            Path("tasks/active/T2.md"): self._task("FEATURE-T2", "Blocked (external dependency)", "P1"),
+            Path("tasks/active/T3.md"): self._task("FIX-T3", "Active", "P0"),
+        })
+        state = progress_snapshot.load_task_state_v2()
+        items = progress_snapshot.build_capability_items(state["leaves"])
+        buckets = {b: 0 for b in progress_snapshot.compute_progress([])["taskCounts"] if b != "total"}
+        for it in items:
+            buckets[it.bucket] = buckets.get(it.bucket, 0) + 1
+        self.assertEqual(2, buckets["blocked_external"])
+
+    def test_p12_weights_fixed_after_missing_child(self):
+        self._make_repo({
+            Path("tasks/completed/P12.1.md"): self._task("P12.1", "Done", "P0"),
+            Path("tasks/completed/P12.2.md"): self._task("P12.2", "Done", "P0"),
+            Path("tasks/completed/P12.3.md"): self._task("P12.3", "Done", "P0"),
+            Path("tasks/completed/P12.4.md"): self._task("P12.4", "Done", "P0"),
+        })
+        state = progress_snapshot.load_task_state_v2()
+        # Remove P12.4 but keep the others.
+        mutated = {sid: info for sid, info in state["leaves"].items() if sid != "P12.4"}
+        items = progress_snapshot.build_capability_items(mutated)
+        for it in items:
+            if it.id in ("P12.1", "P12.2", "P12.3"):
+                self.assertEqual(1.25, it.weight, f"{it.id} must stay at 1.25")
+        with self.assertRaises(ValueError) as ctx:
+            progress_snapshot.validate_capability_items(items)
+        self.assertIn("P12.4", str(ctx.exception))
+
+    def test_non_p12_weights_unchanged(self):
+        self._make_repo({
+            Path("tasks/active/P5.1.md"): self._task("P5.1", "Active", "P2"),
+            Path("tasks/active/P5.2.md"): self._task("P5.2", "Active", "P2"),
+            Path("tasks/active/P5.3.md"): self._task("P5.3", "Active", "P2"),
+            Path("tasks/active/P5.4.md"): self._task("P5.4", "Active", "P2"),
+            Path("tasks/active/P5.5.md"): self._task("P5.5", "Active", "P2"),
+        })
+        state = progress_snapshot.load_task_state_v2()
+        items = progress_snapshot.build_capability_items(state["leaves"])
+        for it in items:
+            if not it.id.startswith("P12.") and not it.id.startswith("P0"):
+                self.assertGreater(it.weight, 0.0, f"{it.id} must have positive weight")
+                self.assertNotAlmostEqual(1.25, it.weight, msg=f"{it.id} must not inherit the P12 1.25 split")
+
+    def test_synthetic_complete_cannot_fake_progress_with_prose(self):
+        text = """\nState: `COMPLETE`\n\n证据：\n\n- docs/progress/A14_PROGRESS_CURRENT.json 与 .md 已重新生成\n- P12.1 文档已经验证\n- 退出码 0\n- 验证通过\n"""
+        ev = progress_snapshot.extract_evidence(text)
+        item = progress_snapshot.CapabilityItem(
+            id="P99.3",
+            domain="Documentation / provenance",
+            weight=2.0,
+            state="COMPLETE",
+            factor=progress_snapshot.effective_factor("COMPLETE", ev["evidence_level"]),
+            earned=2.0 * progress_snapshot.effective_factor("COMPLETE", ev["evidence_level"]),
+            bucket=progress_snapshot.effective_bucket("COMPLETE", ev["evidence_level"]),
+            evidence_level=ev["evidence_level"],
+            evidence_paths=ev["evidence_paths"],
+            evidence_commands=ev["evidence_commands"],
+            evidence_commit=ev["evidence_commit"],
+        )
+        self.assertEqual("pending", ev["evidence_level"])
+        self.assertEqual(0.0, item.factor)
+        self.assertEqual(0.0, item.earned)
+        self.assertEqual("evidence_pending", item.bucket)
+
+
+class EvidenceProvenanceTest(V2RepoFixtureMixin, unittest.TestCase):
+    def setUp(self):
+        self._patchers = [
+            patch("tools.progress_snapshot.canonical_commit", side_effect=_fake_canonical),
+            patch("tools.progress_snapshot.git_rev", side_effect=_fake_git_rev),
+        ]
+        for p in self._patchers:
+            p.start()
+            self.addCleanup(p.stop)
+
+        # Start every test in an isolated, empty v2 repo.
+        td = tempfile.TemporaryDirectory()
+        self.addCleanup(td.cleanup)
+        root = Path(td.name)
+        (root / "tasks" / "active").mkdir(parents=True, exist_ok=True)
+        (root / "tasks" / "backlog").mkdir(parents=True, exist_ok=True)
+        (root / "tasks" / "blocked").mkdir(parents=True, exist_ok=True)
+        (root / "tasks" / "completed").mkdir(parents=True, exist_ok=True)
+        (root / "docs" / "progress").mkdir(parents=True, exist_ok=True)
+        (root / "ROADMAP.md").write_text("# Roadmap\n", encoding="utf-8")
+
+        self._base_old_root = progress_snapshot.REPO_ROOT
+        self._base_old_json = progress_snapshot.OUT_JSON
+        self._base_old_md = progress_snapshot.OUT_MD
+
+        def restore():
+            progress_snapshot.REPO_ROOT = self._base_old_root
+            progress_snapshot.OUT_JSON = self._base_old_json
+            progress_snapshot.OUT_MD = self._base_old_md
+
+        self.addCleanup(restore)
+        progress_snapshot.REPO_ROOT = root
+        progress_snapshot.OUT_JSON = root / "A14_PROGRESS_CURRENT.json"
+        progress_snapshot.OUT_MD = root / "A14_PROGRESS_CURRENT.md"
+
+    def _make_repo_with_doc(self):
+        return self._make_repo({
+            Path("docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md"): "# Doc\n\nEvidenceCommit: 1111111111111111111111111111111111111111\n",
+            Path("tools/tests/test_gesture_lifecycle_inventory.py"): "# test\n",
+        })
 
     def test_narrative_only_command_rejected(self):
         text = """\nState: `COMPLETE`\n\n证据：\n\n- docs/progress/A14_PROGRESS_CURRENT.json 与 .md 已重新生成\n- P12.1 文档已经验证\n"""
@@ -250,20 +538,22 @@ class EvidenceProvenanceTest(unittest.TestCase):
     def test_path_in_sentence_is_not_command(self):
         text = """\nState: `COMPLETE`\n\n证据：\n\n- `docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md` 已经被验证\n"""
         ev = progress_snapshot.extract_evidence(text)
-        # A path-like sentence is not a command.
         self.assertEqual([], ev["evidence_commands"])
 
     def test_nonexistent_path_rejected(self):
+        root = self._make_repo_with_doc()
         text = """\nState: `VERIFIED_STATIC`\n\n文件：\n\n- `docs/this-does-not-exist.md`\n"""
         ev = progress_snapshot.extract_evidence(text)
         self.assertEqual([], ev["evidence_paths"])
 
     def test_escape_path_rejected(self):
+        root = self._make_repo_with_doc()
         text = """\nState: `VERIFIED_STATIC`\n\n文件：\n\n- `../outside/repo.md`\n- `docs/../TASK_STATE.md`\n"""
         ev = progress_snapshot.extract_evidence(text)
         self.assertEqual([], ev["evidence_paths"])
 
     def test_real_repo_path_accepted(self):
+        root = self._make_repo_with_doc()
         text = """\nState: `VERIFIED_STATIC`\n\n文件：\n\n- `docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md`\n- `tools/tests/test_gesture_lifecycle_inventory.py`\n"""
         ev = progress_snapshot.extract_evidence(text)
         self.assertIn("docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md", ev["evidence_paths"])
@@ -316,6 +606,7 @@ class EvidenceProvenanceTest(unittest.TestCase):
         self.assertEqual(0.0, progress_snapshot.effective_factor(item.state, item.evidence_level))
 
     def test_verified_static_with_ancestor_commit_verified(self):
+        root = self._make_repo_with_doc()
         text = """\nState: `VERIFIED_STATIC`\n\nEvidenceCommit: cd152365a1b258a7b36e978d1050db71f427fa83\n\n文件：\n\n- `docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md`\n\n证据：\n\n```text\npython -m unittest tools.tests.test_gesture_lifecycle_inventory\n```\n"""
         ev = progress_snapshot.extract_evidence(text)
         self.assertEqual("verified", ev["evidence_level"])
@@ -336,12 +627,12 @@ class EvidenceProvenanceTest(unittest.TestCase):
         self.assertEqual("pending", ev["evidence_commit"])
 
     def test_non_ancestor_commit_rejected(self):
-        # HEAD is not an ancestor of itself for the purpose of evidence; an ancestor must be older.
         head = progress_snapshot.git_rev("HEAD")
         text = f"""\nState: `VERIFIED_STATIC`\n\nEvidenceCommit: {head}\n\n证据：\n\n```text\npython -m unittest tools.tests.test_x\n```\n"""
         ev = progress_snapshot.extract_evidence(text)
-        # HEAD itself is an ancestor by git's definition (merge-base --is-ancestor HEAD HEAD is true),
-        # so use a parent commit to represent an older ancestor.
+        # HEAD is rejected by canonical_commit.
+        self.assertIn(ev["evidence_level"], ("pending", "partial"))
+
         parent = progress_snapshot.git_rev("HEAD~1")
         text2 = f"""\nState: `VERIFIED_STATIC`\n\nEvidenceCommit: {parent}\n\n证据：\n\n```text\npython -m unittest tools.tests.test_x\n```\n"""
         ev2 = progress_snapshot.extract_evidence(text2)
@@ -361,9 +652,9 @@ class EvidenceProvenanceTest(unittest.TestCase):
         self.assertEqual("pending", ev["evidence_commit"])
 
     def test_referenced_doc_evidence_commit_used_if_path_valid(self):
+        root = self._make_repo_with_doc()
         text = """\nState: `VERIFIED_STATIC`\n\n文件：\n\n- `docs/A14_GESTURE_LIFECYCLE_OWNER_INVENTORY.md`\n"""
         ev = progress_snapshot.extract_evidence(text)
-        # The referenced doc already has a valid EvidenceCommit, so it should be adopted.
         self.assertEqual("verified", ev["evidence_level"])
         self.assertEqual(40, len(ev["evidence_commit"]))
 
@@ -372,110 +663,12 @@ class EvidenceProvenanceTest(unittest.TestCase):
         ev = progress_snapshot.extract_evidence(text)
         self.assertEqual("pending", ev["evidence_level"])
 
-    def test_p12_weights_fixed_after_missing_child(self):
-        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
-        leaves = progress_snapshot.parse_task_sections(text)
-        issues = progress_snapshot.parse_issue_table(text)
-        # Remove P12.4 but keep the others.
-        mutated = {sid: info for sid, info in leaves.items() if sid != "P12.4"}
-        items = progress_snapshot.build_capability_items(mutated, issues)
-        for it in items:
-            if it.id in ("P12.1", "P12.2", "P12.3"):
-                self.assertEqual(1.25, it.weight, f"{it.id} must stay at 1.25")
-        with self.assertRaises(ValueError) as ctx:
-            progress_snapshot.validate_capability_items(items)
-        self.assertIn("P12.4", str(ctx.exception))
-
-    def test_p12_single_child_cannot_take_full_weight(self):
-        items = [
-            progress_snapshot.CapabilityItem(
-                id="P12.1",
-                domain="Documentation / provenance",
-                weight=5.0,
-                state="VERIFIED_STATIC",
-                factor=0.7,
-                earned=3.5,
-                bucket="verified",
-                evidence_level="verified",
-                evidence_paths=["docs/some.md"],
-                evidence_commands=["python tools/x.py"],
-                evidence_commit="cd152365a1b258a7b36e978d1050db71f427fa83",
-            ),
-            progress_snapshot.CapabilityItem(
-                id="P12.2",
-                domain="Documentation / provenance",
-                weight=0.0,
-                state="TODO",
-                factor=0.0,
-                earned=0.0,
-                bucket="not_started",
-                evidence_level="pending",
-            ),
-            progress_snapshot.CapabilityItem(
-                id="P12.3",
-                domain="Documentation / provenance",
-                weight=0.0,
-                state="TODO",
-                factor=0.0,
-                earned=0.0,
-                bucket="not_started",
-                evidence_level="pending",
-            ),
-            progress_snapshot.CapabilityItem(
-                id="P12.4",
-                domain="Documentation / provenance",
-                weight=0.0,
-                state="TODO",
-                factor=0.0,
-                earned=0.0,
-                bucket="not_started",
-                evidence_level="pending",
-            ),
-        ]
-        with self.assertRaises(ValueError) as ctx:
-            progress_snapshot.validate_capability_items(items)
-        self.assertIn("full Documentation / provenance", str(ctx.exception))
-
-    def test_non_p12_weights_unchanged(self):
-        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
-        leaves = progress_snapshot.parse_task_sections(text)
-        issues = progress_snapshot.parse_issue_table(text)
-        items = progress_snapshot.build_capability_items(leaves, issues)
-        for it in items:
-            if not it.id.startswith("P12.") and not it.id.startswith("P0"):
-                # Non-P12 domains still split by the total number of mapped leaves.
-                self.assertGreater(it.weight, 0.0, f"{it.id} must have positive weight")
-                self.assertNotAlmostEqual(1.25, it.weight, msg=f"{it.id} must not inherit the P12 1.25 split")
-
-    def test_synthetic_complete_cannot_fake_progress_with_prose(self):
-        text = """\nState: `COMPLETE`\n\n证据：\n\n- docs/progress/A14_PROGRESS_CURRENT.json 与 .md 已重新生成\n- P12.1 文档已经验证\n- 退出码 0\n- 验证通过\n"""
-        ev = progress_snapshot.extract_evidence(text)
-        item = progress_snapshot.CapabilityItem(
-            id="P99.3",
-            domain="Documentation / provenance",
-            weight=2.0,
-            state="COMPLETE",
-            factor=progress_snapshot.effective_factor("COMPLETE", ev["evidence_level"]),
-            earned=2.0 * progress_snapshot.effective_factor("COMPLETE", ev["evidence_level"]),
-            bucket=progress_snapshot.effective_bucket("COMPLETE", ev["evidence_level"]),
-            evidence_level=ev["evidence_level"],
-            evidence_paths=ev["evidence_paths"],
-            evidence_commands=ev["evidence_commands"],
-            evidence_commit=ev["evidence_commit"],
-        )
-        self.assertEqual("pending", ev["evidence_level"])
-        self.assertEqual(0.0, item.factor)
-        self.assertEqual(0.0, item.earned)
-        self.assertEqual("evidence_pending", item.bucket)
-
     def test_mutation_all_bullets_are_commands_fails(self):
-        # Temporarily allow all bullets as commands; the parser must not.
         text = """\nState: `COMPLETE`\n\n证据：\n\n- docs/progress/A14_PROGRESS_CURRENT.json 与 .md 已重新生成\n- P12.1 文档已经验证\n"""
         ev = progress_snapshot.extract_evidence(text)
         self.assertEqual([], ev["evidence_commands"])
 
     def test_mutation_evidence_level_from_state_fails(self):
-        # Ensure level is not simply state.lower() or a state mapping.
         for state in ["VERIFIED_STATIC", "VERIFIED_BUILD", "VERIFIED_CI", "COMPLETE"]:
             text = f"""\nState: `{state}`\n\n证据：\n\n```text\necho no evidence\n```\n"""
             ev = progress_snapshot.extract_evidence(text)
@@ -504,22 +697,6 @@ class EvidenceProvenanceTest(unittest.TestCase):
         self.assertEqual(0.0, item.factor)
         self.assertEqual(0.0, item.earned)
         self.assertEqual("evidence_pending", item.bucket)
-
-    def test_mutation_p12_weight_by_count_fails(self):
-        text = progress_snapshot.TASK_STATE.read_text(encoding="utf-8")
-        leaves = progress_snapshot.parse_task_sections(text)
-        issues = progress_snapshot.parse_issue_table(text)
-        # Only P12.1 exists in a synthetic view.
-        mutated = {sid: info for sid, info in leaves.items() if sid == "P12.1"}
-        items = progress_snapshot.build_capability_items(mutated, issues)
-        for it in items:
-            if it.id == "P12.1":
-                self.assertEqual(1.25, it.weight)
-
-    def test_mutation_nonexistent_path_accepted_fails(self):
-        text = """\nState: `VERIFIED_STATIC`\n\n文件：\n\n- `docs/this-file-does-not-exist-in-the-repo.md`\n"""
-        ev = progress_snapshot.extract_evidence(text)
-        self.assertEqual([], ev["evidence_paths"])
 
 
 if __name__ == "__main__":
