@@ -39,6 +39,7 @@ class ChargingInfoFontSizeLifecycleTest {
 
         val setTextSizeCalls = mutableListOf<Pair<Int, Float>>()
         val setSingleLineCalls = mutableListOf<Boolean>()
+        val postCalls = mutableListOf<Runnable?>()
 
         override fun getTextSize(): Float = currentTextSize
 
@@ -55,6 +56,7 @@ class ChargingInfoFontSizeLifecycleTest {
         }
 
         override fun post(action: Runnable?): Boolean {
+            postCalls.add(action)
             action?.run()
             return true
         }
@@ -276,39 +278,23 @@ class ChargingInfoFontSizeLifecycleTest {
     }
 
     @Test
-    fun observerCallback_originalSingleLineFalse_opt1KeepsFalse_opt2RestoresFalse() {
+    fun observerCallback_usesProductionFactory() {
         val textView = RecordingTextView()
-        textView.originalSingleLine = false
-        textView.currentSingleLine = false
-
         val prefs = PrefMap().apply {
             put("system_charginginfo", true)
             put("system_charginginfo_fontsize", 20)
             put("system_charginginfo_view", 1)
         }
 
-        val viewRef = WeakReference(textView)
-        val observer = object : tv.withaibuild.customiuizer.mods.utils.ModuleHelper.PreferenceObserver {
-            override fun onChange(key: String?) {
-                if (key !in SystemLockScreenHooks.CHARGING_INFO_OBSERVED_KEYS) return
-                val view = viewRef.get() ?: return
-                view.post { SystemLockScreenHooks.applyChargingInfoStyle(view, prefs) }
-            }
-        }
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(textView, prefs)
 
-        // First apply through the observer path.
-        observer.onChange("system_charginginfo_fontsize")
+        observer.onChange("system_charginginfo")
+        assertEquals(10.0f, textView.currentTextSize, 0.001f)
         assertEquals(false, textView.currentSingleLine)
-
-        // Switch to opt 2; original (false) must be restored.
-        prefs.put("system_charginginfo_view", 2)
-        observer.onChange("system_charginginfo_view")
-        assertEquals(false, textView.currentSingleLine)
-        assertEquals(listOf(false, false), textView.setSingleLineCalls)
     }
 
     @Test
-    fun observerCallback_masterToggleTrueFalseTrueThroughObserver() {
+    fun productionObserver_masterToggleTrueFalseTrueThroughObserver() {
         val textView = RecordingTextView()
         val prefs = PrefMap().apply {
             put("system_charginginfo", true)
@@ -316,14 +302,7 @@ class ChargingInfoFontSizeLifecycleTest {
             put("system_charginginfo_view", 1)
         }
 
-        val viewRef = WeakReference(textView)
-        val observer = object : tv.withaibuild.customiuizer.mods.utils.ModuleHelper.PreferenceObserver {
-            override fun onChange(key: String?) {
-                if (key !in SystemLockScreenHooks.CHARGING_INFO_OBSERVED_KEYS) return
-                val view = viewRef.get() ?: return
-                view.post { SystemLockScreenHooks.applyChargingInfoStyle(view, prefs) }
-            }
-        }
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(textView, prefs)
 
         // Feature enabled: custom style applied.
         observer.onChange("system_charginginfo")
@@ -344,7 +323,106 @@ class ChargingInfoFontSizeLifecycleTest {
     }
 
     @Test
-    fun observerCallback_repeatedSameKey_doesNotAccumulateSize() {
+    fun productionObserver_fontSizeCustomThenDefault_restoresOriginal() {
+        val textView = RecordingTextView()
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_view", 2)
+        }
+
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(textView, prefs)
+
+        prefs.put("system_charginginfo_fontsize", 20)
+        observer.onChange("system_charginginfo_fontsize")
+        assertEquals(10.0f, textView.currentTextSize, 0.001f)
+
+        prefs.put("system_charginginfo_fontsize", 16)
+        observer.onChange("system_charginginfo_fontsize")
+        assertEquals(textView.originalTextSize, textView.currentTextSize, 0.001f)
+    }
+
+    @Test
+    fun productionObserver_opt1ThenOpt2_restoresSingleLine() {
+        val textView = RecordingTextView()
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_fontsize", 20)
+            put("system_charginginfo_view", 1)
+        }
+
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(textView, prefs)
+
+        observer.onChange("system_charginginfo_view")
+        assertEquals(false, textView.currentSingleLine)
+
+        prefs.put("system_charginginfo_view", 2)
+        observer.onChange("system_charginginfo_view")
+        assertEquals(textView.originalSingleLine, textView.currentSingleLine)
+    }
+
+    @Test
+    fun productionObserver_originalSingleLineFalse_opt1KeepsFalse_opt2RestoresFalse() {
+        val textView = RecordingTextView()
+        textView.originalSingleLine = false
+        textView.currentSingleLine = false
+
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_fontsize", 20)
+            put("system_charginginfo_view", 1)
+        }
+
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(textView, prefs)
+
+        observer.onChange("system_charginginfo_fontsize")
+        assertEquals(false, textView.currentSingleLine)
+
+        prefs.put("system_charginginfo_view", 2)
+        observer.onChange("system_charginginfo_view")
+        assertEquals(false, textView.currentSingleLine)
+        assertTrue(textView.setSingleLineCalls.all { it == false })
+    }
+
+    @Test
+    fun productionObserver_unrelatedKey_doesNotModifyView() {
+        val textView = RecordingTextView()
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_fontsize", 20)
+            put("system_charginginfo_view", 1)
+        }
+
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(textView, prefs)
+
+        SystemLockScreenHooks.applyChargingInfoStyle(textView, prefs)
+        textView.setTextSizeCalls.clear()
+        textView.setSingleLineCalls.clear()
+
+        observer.onChange("system_statusbarheight")
+
+        assertTrue("unrelated key must not modify text size", textView.setTextSizeCalls.isEmpty())
+        assertTrue("unrelated key must not modify single-line", textView.setSingleLineCalls.isEmpty())
+    }
+
+    @Test
+    fun productionObserver_viewWeakReferenceCleared_returnsSafely() {
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_fontsize", 20)
+            put("system_charginginfo_view", 1)
+        }
+
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(RecordingTextView(), prefs)
+        val viewRefField = observer.javaClass.declaredFields.first { it.type == WeakReference::class.java }
+            .apply { isAccessible = true }
+        (viewRefField.get(observer) as WeakReference<*>).clear()
+
+        observer.onChange("system_charginginfo")
+        // No exception and no action is the passing condition.
+    }
+
+    @Test
+    fun productionObserver_repeatedSameKey_doesNotAccumulateSize() {
         val textView = RecordingTextView()
         val prefs = PrefMap().apply {
             put("system_charginginfo", true)
@@ -352,14 +430,7 @@ class ChargingInfoFontSizeLifecycleTest {
             put("system_charginginfo_view", 2)
         }
 
-        val viewRef = WeakReference(textView)
-        val observer = object : tv.withaibuild.customiuizer.mods.utils.ModuleHelper.PreferenceObserver {
-            override fun onChange(key: String?) {
-                if (key !in SystemLockScreenHooks.CHARGING_INFO_OBSERVED_KEYS) return
-                val view = viewRef.get() ?: return
-                view.post { SystemLockScreenHooks.applyChargingInfoStyle(view, prefs) }
-            }
-        }
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(textView, prefs)
 
         repeat(3) { observer.onChange("system_charginginfo_fontsize") }
 
@@ -371,7 +442,7 @@ class ChargingInfoFontSizeLifecycleTest {
     }
 
     @Test
-    fun observerCallback_unrelatedKey_doesNotModifyView() {
+    fun productionObserver_postsExactlyOncePerRelevantKey() {
         val textView = RecordingTextView()
         val prefs = PrefMap().apply {
             put("system_charginginfo", true)
@@ -379,22 +450,32 @@ class ChargingInfoFontSizeLifecycleTest {
             put("system_charginginfo_view", 1)
         }
 
-        val viewRef = WeakReference(textView)
-        val observer = object : tv.withaibuild.customiuizer.mods.utils.ModuleHelper.PreferenceObserver {
-            override fun onChange(key: String?) {
-                if (key !in SystemLockScreenHooks.CHARGING_INFO_OBSERVED_KEYS) return
-                val view = viewRef.get() ?: return
-                view.post { SystemLockScreenHooks.applyChargingInfoStyle(view, prefs) }
-            }
-        }
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(textView, prefs)
 
-        SystemLockScreenHooks.applyChargingInfoStyle(textView, prefs)
-        textView.setTextSizeCalls.clear()
-        textView.setSingleLineCalls.clear()
+        observer.onChange("system_charginginfo")
+        assertEquals(1, textView.postCalls.size)
 
         observer.onChange("system_statusbarheight")
+        assertEquals(1, textView.postCalls.size)
+    }
 
-        assertTrue("unrelated key must not modify text size", textView.setTextSizeCalls.isEmpty())
-        assertTrue("unrelated key must not modify single-line", textView.setSingleLineCalls.isEmpty())
+    @Test
+    fun productionObserver_doesNotHoldTextViewStrongly() {
+        val textView = RecordingTextView()
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_fontsize", 20)
+            put("system_charginginfo_view", 1)
+        }
+
+        val observer = SystemLockScreenHooks.createChargingInfoPreferenceObserver(textView, prefs)
+
+        for (field in observer.javaClass.declaredFields) {
+            field.isAccessible = true
+            assertFalse(
+                "observer must not hold a TextView strong reference",
+                TextView::class.java.isAssignableFrom(field.type)
+            )
+        }
     }
 }

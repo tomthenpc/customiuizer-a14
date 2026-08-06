@@ -1,6 +1,7 @@
 package tv.withaibuild.customiuizer.mods.utils
 
 import android.os.Process
+import tv.withaibuild.customiuizer.utils.canonicalPreferenceKey
 import java.lang.ref.WeakReference
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
@@ -102,9 +103,10 @@ object PreferenceObserverRegistry {
      * seeing the change, so each callback is isolated.
      */
     fun handlePreferenceChanged(key: String?) {
+        val canonicalKey = canonicalPreferenceKey(key)
         for (prefObserver in observers) {
             try {
-                prefObserver.onChange(key)
+                prefObserver.onChange(canonicalKey)
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {
@@ -120,7 +122,7 @@ object PreferenceObserverRegistry {
                 continue
             }
             try {
-                prefObserver.onChange(key)
+                prefObserver.onChange(canonicalKey)
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (t: Throwable) {

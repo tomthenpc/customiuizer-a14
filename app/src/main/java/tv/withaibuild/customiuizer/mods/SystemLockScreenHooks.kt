@@ -70,6 +70,37 @@ object SystemLockScreenHooks {
         "system_charginginfo_view",
     )
 
+    /**
+     * Creates a preference observer for the charging-info TextView.
+     *
+     * The observer holds a [WeakReference] to the view, filters to the three
+     * charging-info keys, and re-applies [applyChargingInfoStyle] on the view's
+     * UI thread. Fatal errors are re-thrown; ordinary failures are logged and
+     * swallowed, matching the production hook contract.
+     */
+    internal fun createChargingInfoPreferenceObserver(
+        textView: TextView,
+        prefs: PrefMap = MainModule.mPrefs,
+    ): ModuleHelper.PreferenceObserver {
+        val viewRef = WeakReference(textView)
+        return object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) {
+                if (key !in CHARGING_INFO_OBSERVED_KEYS) return
+                val view = viewRef.get() ?: return
+                view.post {
+                    try {
+                        applyChargingInfoStyle(view, prefs)
+                    } catch (oom: OutOfMemoryError) {
+                        throw oom
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log(t)
+                    }
+                }
+            }
+        }
+    }
+
     @JvmStatic
     fun ScramblePINHook(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod("com.android.keyguard.KeyguardPINView", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
@@ -1185,7 +1216,7 @@ object SystemLockScreenHooks {
     internal fun applyChargingInfoStyle(textView: TextView, prefs: PrefMap = MainModule.mPrefs) {
         saveOriginalChargingInfoStyle(textView)
 
-        if (!prefs.getBoolean("system_charginginfo", true)) {
+        if (!prefs.getBoolean("system_charginginfo")) {
             restoreChargingInfoStyle(textView)
             return
         }
@@ -1403,26 +1434,8 @@ object SystemLockScreenHooks {
                         // after this view is inflated. The initial snapshot is published silently by
                         // [PreferenceBootstrap], so the observer does not re-apply the style on first
                         // inflation. Any cold-boot gap must be reproduced and fixed with a device.
-                        val indicatorRef = WeakReference(indicator)
-                        ModuleHelper.observePreferenceChange(
-                            object : ModuleHelper.PreferenceObserver {
-                                override fun onChange(key: String?) {
-                                    if (key !in CHARGING_INFO_OBSERVED_KEYS) return
-                                    val view = indicatorRef.get() ?: return
-                                    view.post {
-                                        try {
-                                            applyChargingInfoStyle(view)
-                                        } catch (oom: OutOfMemoryError) {
-                                            throw oom
-                                        } catch (t: Throwable) {
-                                            FatalErrors.unwrapAndRethrowIfFatal(t)
-                                            XposedHelpers.log(t)
-                                        }
-                                    }
-                                }
-                            },
-                            indicator
-                        )
+                        val observer = createChargingInfoPreferenceObserver(indicator)
+                        ModuleHelper.observePreferenceChange(observer, indicator)
                     } catch (t: Throwable) {
                         FatalErrors.unwrapAndRethrowIfFatal(t)
                         XposedHelpers.log(t)

@@ -1173,7 +1173,7 @@ internal class ChargingInfoFeature(
 
     companion object {
         @JvmStatic
-        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_charginginfo", true)
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_charginginfo")
     }
 
     override fun isEnabled(prefs: PrefMap) = Companion.evaluateEnabled(prefs)

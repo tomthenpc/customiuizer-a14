@@ -2,6 +2,7 @@ package tv.withaibuild.customiuizer.mods.utils
 
 import android.content.SharedPreferences
 import tv.withaibuild.customiuizer.utils.PrefMap
+import tv.withaibuild.customiuizer.utils.canonicalPreferenceKey
 
 /**
  * Thread-safe, idempotent bootstrap for the process-local preference snapshot.
@@ -64,20 +65,6 @@ class PreferenceBootstrap private constructor(
 
     private var initAttempts = 0
     private var emptyPendingAttempts = 0
-
-    /**
-     * Remote preference keys are stored with this prefix. The [PrefMap] snapshot uses the short form,
-     * but the [OnSharedPreferenceChangeListener] receives the full storage key, so it must be
-     * normalized before it is dispatched to the observers.
-     *
-     * Normalization is the canonical conversion from storage key to source-level short key:
-     * `pref_key_system_visualizer_animdur` -> `system_visualizer_animdur`.
-     */
-    private val storagePrefix = "pref_key_"
-
-    private fun normalizeStorageKey(key: String): String {
-        return if (key.startsWith(storagePrefix)) key.substring(storagePrefix.length) else key
-    }
 
     private var unavailableReported = false
     private var emptyPendingReported = false
@@ -295,9 +282,9 @@ class PreferenceBootstrap private constructor(
 
             synchronizeState()
 
-            val normalizedKey = normalizeStorageKey(key)
-            if (normalizedKey != "systemui_restart_time") {
-                changeDispatcher(normalizedKey)
+            val canonicalKey = canonicalPreferenceKey(key)
+            if (canonicalKey != "systemui_restart_time") {
+                changeDispatcher(canonicalKey)
             }
         } catch (t: Throwable) {
             XposedHelpers.log(t)

@@ -17,10 +17,6 @@ import java.util.concurrent.atomic.AtomicReference
  */
 class PrefMap {
 
-    private companion object {
-        const val STORAGE_PREFIX = "pref_key_"
-    }
-
     /** A parse result. [value] is null when [raw] could not be read as an integer. */
     private data class CachedInt(val raw: String, val value: Int?)
 
@@ -28,14 +24,10 @@ class PrefMap {
 
     private val snapshot = AtomicReference<Map<String, Any>>(emptyMap())
 
-    private fun normalizeStorageKey(key: String): String {
-        return if (key.startsWith(STORAGE_PREFIX)) key.substring(STORAGE_PREFIX.length) else key
-    }
-
     private fun currentSnapshot(): Map<String, Any> = snapshot.get()
 
     private fun getValue(key: String): Any? {
-        return currentSnapshot()[if (key.startsWith(STORAGE_PREFIX)) normalizeStorageKey(key) else key]
+        return currentSnapshot()[canonicalPreferenceKey(key) ?: key]
     }
 
     /**
@@ -49,7 +41,7 @@ class PrefMap {
         val normalized = HashMap<String, Any>(values.size)
         for ((key, value) in values) {
             if (value != null) {
-                normalized[normalizeStorageKey(key)] = value
+                normalized[canonicalPreferenceKey(key) ?: key] = value
             }
         }
         snapshot.set(normalized)
@@ -64,7 +56,7 @@ class PrefMap {
      * that a reader sees a consistent snapshot and never a mixed old/new state.
      */
     fun put(key: String, value: Any) {
-        val normalized = normalizeStorageKey(key)
+        val normalized = canonicalPreferenceKey(key) ?: key
         parsedIntCache.remove(normalized)
 
         while (true) {
@@ -79,7 +71,7 @@ class PrefMap {
      * Atomically remove a single key.
      */
     fun remove(key: String) {
-        val normalized = normalizeStorageKey(key)
+        val normalized = canonicalPreferenceKey(key) ?: key
         parsedIntCache.remove(normalized)
 
         while (true) {
@@ -158,7 +150,7 @@ class PrefMap {
         if (value is Number) return value.toInt()
         if (value !is String) return defaultValue
 
-        val normalized = normalizeStorageKey(key)
+        val normalized = canonicalPreferenceKey(key) ?: key
         val cached = parsedIntCache[normalized]
         if (cached != null && cached.raw == value) return cached.value ?: defaultValue
 

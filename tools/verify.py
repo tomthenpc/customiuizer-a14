@@ -109,6 +109,12 @@ def check_feature_semantics() -> int:
     return run(cmd)
 
 
+def check_observer_key_contract() -> int:
+    """Ensure production PreferenceObserver onChange bodies do not depend on pref_key_ strings."""
+    cmd = [sys.executable, str(REPO_ROOT / "tools" / "check_observer_key_contract.py")]
+    return run(cmd)
+
+
 def read_build_gradle() -> str:
     build_file = REPO_ROOT / "app" / "build.gradle.kts"
     if build_file.exists():
@@ -187,6 +193,9 @@ def fast(tests: list[str] | None, changed: bool = False, staged: bool = False) -
     code = check_static_rules()
     if code != 0:
         return code
+    code = check_observer_key_contract()
+    if code != 0:
+        return code
     code = check_invariants(changed=changed, staged=staged)
     if code != 0:
         return code
@@ -214,6 +223,9 @@ def fast(tests: list[str] | None, changed: bool = False, staged: bool = False) -
 
 def full() -> int:
     code = check_static_rules()
+    if code != 0:
+        return code
+    code = check_observer_key_contract()
     if code != 0:
         return code
     code = check_invariants()
