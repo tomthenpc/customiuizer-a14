@@ -1,27 +1,30 @@
 #!/usr/bin/env python3
-"""Generate a reproducible, machine-verifiable APK size delta report.
+"""Compute an APK size delta report from explicit manifest inputs.
+
+This tool is purely computational. It does not build APKs, check out commits,
+modify the worktree, or require repository-side generated artifacts.
 
 Usage:
     python tools/apk_size_delta.py \
-        --baseline-commit 55fc2a21... \
-        --current-commit 1856c4e2...
+        --inputs-manifest path/to/manifest.json \
+        --baseline-commit 55fc2a21d0e96f9ef643f53fcc9b74374bd959db \
+        --current-commit 1856c4e229213dfae47ff575aee446ce6a7b5f22 \
+        --gradle-file app/build.gradle.kts \
+        --out-json path/to/report.json \
+        --out-md path/to/report.md
 
-This tool does not modify build configuration or source code. It only reads
-existing APK size baseline/current JSON files and the build configuration
-(app/build.gradle.kts), then writes the delta JSON and markdown report.
+All input and output paths are explicit. The manifest is the single source of
+truth for which variants and measurement files are compared.
 """
 
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import re
 import sys
 from pathlib import Path
-
-REPO_ROOT = Path(__file__).resolve().parents[1]
-PERF_DIR = REPO_ROOT / "docs" / "performance"
-GRADLE_FILE = REPO_ROOT / "app" / "build.gradle.kts"
 
 DELTA_FIELDS = [
     "apkFileBytes",
@@ -44,6 +47,55 @@ DELTA_FIELDS = [
     "manifestCompressedBytes",
 ]
 
+REQUIRED_MEASUREMENT_FIELDS = {
+    "variant",
+    "sha256",
+    "apkFileBytes",
+    "apkPath",
+    "zipEntriesUncompressedBytes",
+    "zipEntriesCompressedBytes",
+    "fileCount",
+    "dexUncompressedBytes",
+    "dexCompressedBytes",
+    "resourcesArscUncompressedBytes",
+    "resourcesArscCompressedBytes",
+    "libUncompressedBytes",
+    "libCompressedBytes",
+    "resUncompressedBytes",
+    "resCompressedBytes",
+    "assetsUncompressedBytes",
+    "assetsCompressedBytes",
+    "metaUncompressedBytes",
+    "metaCompressedBytes",
+    "manifestUncompressedBytes",
+    "manifestCompressedBytes",
+    "files",
+}
+
+SECRETS_PATTERNS = [
+    re.compile(r"BEGIN (?:RSA |DSA |EC |OPENSSH )?PRIVATE KEY", re.I),
+    re.compile(r"BEGIN CERTIFICATE", re.I),
+    re.compile(r"api[_-]?key\s*=\s*['\"][^'\"]+['\"]", re.I),
+    re.compile(r"password\s*=\s*['\"][^'\"]+['\"]", re.I),
+    re.compile(r"token\s*=\s*['\"][^'\"]+['\"]", re.I),
+    re.compile(r"keystore\.properties", re.I),
+    re.compile(r"storePassword", re.I),
+    re.compile(r"keyPassword", re.I),
+]
+
+ABSOLUTE_PATH_RE = re.compile(r"^[A-Za-z]:[\\/]|^[\\/]|^(?:/home/|/Users/|~[\\/])")
+HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
+HEX40_RE = re.compile(r"^[0-9a-f]{40}$")
+
+
+class ApkSizeError(Exception):
+    """Report error with enough context for a failing CLI exit."""
+
+    def __init__(self, message: str, variant: str | None = None) -> None:
+        if variant:
+            message = f"{variant}: {message}"
+        super().__init__(message)
+
 
 class GradleInfo:
     def __init__(self, gradle_text: str) -> None:
@@ -53,7 +105,6 @@ class GradleInfo:
         self.targetSdk = self._literal_int("targetSdk")
         self.abi = self._first(r'abiFilters\s*\+?=\s*"([^"]+)"')
 
-        # versionName and versionCode may reference `lastVersionName` / `lastVersion`.
         last_version = self._int_var("lastVersion")
         last_version_name = self._string_var("lastVersionName")
         self.versionCode = self._resolve_or_literal("versionCode", last_version)
@@ -184,16 +235,13 @@ def zip_entry_diffs(baseline: dict, current: dict) -> dict:
     }
 
 
-def conclude(debug_metrics: dict, develop_metrics: dict) -> str:
-    """Pick one of the five allowed conclusion categories based on observed deltas."""
-    significant = any(
-        abs(m["delta"]) > 0
-        for m in list(debug_metrics.values()) + list(develop_metrics.values())
-    )
-    if not significant:
+def conclude(all_metrics: list[dict]) -> str:
+    """Pick one of the five allowed conclusion categories across all variants."""
+    all_values = [m for metrics in all_metrics for m in metrics.values()]
+    if not any(abs(m["delta"]) > 0 for m in all_values):
         return "NO_MEANINGFUL_CHANGE"
-    any_increase = any(m["delta"] > 0 for m in list(debug_metrics.values()) + list(develop_metrics.values()))
-    any_decrease = any(m["delta"] < 0 for m in list(debug_metrics.values()) + list(develop_metrics.values()))
+    any_increase = any(m["delta"] > 0 for m in all_values)
+    any_decrease = any(m["delta"] < 0 for m in all_values)
     if any_increase and any_decrease:
         return "MIXED_CHANGE"
     if any_increase:
@@ -203,44 +251,134 @@ def conclude(debug_metrics: dict, develop_metrics: dict) -> str:
     return "NO_MEANINGFUL_CHANGE"
 
 
-def generate(
+def validate_commit(commit: str, label: str) -> None:
+    if not isinstance(commit, str) or not HEX40_RE.match(commit):
+        raise ApkSizeError(f"{label} must be a 40-character hex SHA: {commit!r}")
+
+
+def validate_measurement(data: dict, variant: str) -> None:
+    """Validate a single baseline or current measurement JSON."""
+    missing = REQUIRED_MEASUREMENT_FIELDS - set(data.keys())
+    if missing:
+        raise ApkSizeError(f"missing measurement fields: {sorted(missing)}", variant=variant)
+
+    if data["variant"] != variant:
+        raise ApkSizeError(
+            f"measurement variant mismatch: expected {variant!r}, got {data['variant']!r}",
+            variant=variant,
+        )
+
+    if not HEX64_RE.match(data["sha256"]):
+        raise ApkSizeError(f"invalid sha256: {data['sha256']!r}", variant=variant)
+
+    apk_path = data["apkPath"]
+    if not isinstance(apk_path, str) or ABSOLUTE_PATH_RE.search(apk_path):
+        raise ApkSizeError(f"apkPath must be relative and not absolute: {apk_path!r}", variant=variant)
+
+    for pat in SECRETS_PATTERNS:
+        if pat.search(apk_path):
+            raise ApkSizeError("apkPath contains secret-like pattern", variant=variant)
+
+    for field in DELTA_FIELDS:
+        if field not in data:
+            raise ApkSizeError(f"missing metric {field}", variant=variant)
+        value = data[field]
+        if not isinstance(value, int) or value < 0:
+            raise ApkSizeError(f"{field} must be a non-negative integer", variant=variant)
+
+    files = data.get("files")
+    if not isinstance(files, list) or not files:
+        raise ApkSizeError("files must be a non-empty list", variant=variant)
+
+    seen_names: set[str] = set()
+    for entry in files:
+        if not isinstance(entry, dict):
+            raise ApkSizeError("each file entry must be an object", variant=variant)
+        for key in ("name", "bucket", "uncompressedSize", "compressedSize"):
+            if key not in entry:
+                raise ApkSizeError(f"file entry missing {key}", variant=variant)
+        name = entry["name"]
+        if name in seen_names:
+            raise ApkSizeError(f"duplicate file name: {name}", variant=variant)
+        seen_names.add(name)
+        for size_key in ("uncompressedSize", "compressedSize"):
+            value = entry[size_key]
+            if not isinstance(value, int) or value < 0:
+                raise ApkSizeError(f"{size_key} negative for {name}", variant=variant)
+        for pat in SECRETS_PATTERNS:
+            if pat.search(name):
+                raise ApkSizeError(f"file name contains secret-like pattern: {name}", variant=variant)
+
+
+def load_inputs_manifest(manifest_path: Path) -> tuple[Path, dict]:
+    """Load and validate the inputs manifest. Return (manifest_dir, manifest)."""
+    manifest_dir = manifest_path.resolve().parent
+    manifest = load_json(manifest_path)
+
+    if not isinstance(manifest, dict):
+        raise ApkSizeError("manifest must be a JSON object")
+
+    schema = manifest.get("schema")
+    if schema != 1:
+        raise ApkSizeError(f"unsupported manifest schema: {schema!r}")
+
+    variants = manifest.get("variants")
+    if not isinstance(variants, dict) or not variants:
+        raise ApkSizeError("manifest must define at least one variant")
+
+    variant_names = list(variants.keys())
+    empty_or_invalid = [v for v in variant_names if not isinstance(v, str) or not v.strip()]
+    if empty_or_invalid:
+        raise ApkSizeError(f"variant names must be non-empty strings: {empty_or_invalid}")
+    if len(variant_names) != len(set(variant_names)):
+        raise ApkSizeError("variant names must be unique")
+
+    baseline_variants = set()
+    current_variants = set()
+    for name, spec in variants.items():
+        if not isinstance(spec, dict):
+            raise ApkSizeError(f"variant {name!r} must be an object")
+        baseline = spec.get("baseline")
+        current = spec.get("current")
+        if isinstance(baseline, str) and baseline:
+            baseline_variants.add(name)
+        if isinstance(current, str) and current:
+            current_variants.add(name)
+
+    if baseline_variants != current_variants:
+        raise ApkSizeError("baseline and current variant sets must match exactly")
+
+    for name, spec in variants.items():
+        baseline = spec.get("baseline")
+        current = spec.get("current")
+        if not isinstance(baseline, str) or not baseline:
+            raise ApkSizeError(f"variant {name!r} missing baseline path")
+        if not isinstance(current, str) or not current:
+            raise ApkSizeError(f"variant {name!r} missing current path")
+
+    return manifest_dir, manifest
+
+
+def resolve_measurement(manifest_dir: Path, rel_path: str, variant: str) -> dict:
+    path = manifest_dir / rel_path
+    try:
+        data = load_json(path)
+    except FileNotFoundError:
+        raise ApkSizeError(f"measurement file not found: {rel_path}", variant=variant)
+    except json.JSONDecodeError as e:
+        raise ApkSizeError(f"invalid JSON in {rel_path}: {e}", variant=variant)
+    validate_measurement(data, variant)
+    return copy.deepcopy(data)
+
+
+def build_report(
+    manifest: dict,
+    gradle_info: GradleInfo,
     baseline_commit: str,
     current_commit: str,
-    out_json: Path,
-    out_md: Path,
-) -> int:
-    gradle_info = GradleInfo(GRADLE_FILE.read_text(encoding="utf-8"))
-
-    debug_base = load_json(PERF_DIR / "A14_APK_SIZE_BASELINE.json")
-    debug_cur = load_json(PERF_DIR / "A14_APK_SIZE_CURRENT.json")
-    develop_base = load_json(PERF_DIR / "A14_APK_SIZE_BASELINE_DEVELOP.json")
-    develop_cur = load_json(PERF_DIR / "A14_APK_SIZE_CURRENT_DEVELOP.json")
-
-    debug_metrics = compute_deltas(debug_base, debug_cur)
-    develop_metrics = compute_deltas(develop_base, develop_cur)
-    debug_entry_diffs = zip_entry_diffs(debug_base, debug_cur)
-    develop_entry_diffs = zip_entry_diffs(develop_base, develop_cur)
-
-    def enrich_current(raw: dict, variant: str) -> dict:
-        return {
-            "sourceCommit": current_commit,
-            "variant": variant,
-            "versionName": gradle_info.versionName,
-            "versionCode": gradle_info.versionCode,
-            "sha256": raw["sha256"],
-            "apkFileBytes": raw["apkFileBytes"],
-            "apkPath": raw["apkPath"],
-        }
-
-    def enrich_baseline(raw: dict, variant: str) -> dict:
-        return {
-            "sourceCommit": baseline_commit,
-            "variant": variant,
-            "sha256": raw["sha256"],
-            "apkFileBytes": raw["apkFileBytes"],
-            "apkPath": raw["apkPath"],
-        }
-
+    variants_data: dict,
+) -> dict:
+    """Compute the report data structure without writing files."""
     build_config = {
         "versionCode": gradle_info.versionCode,
         "versionName": gradle_info.versionName,
@@ -250,64 +388,73 @@ def generate(
         "abi": gradle_info.abi,
     }
 
-    conclusion = conclude(debug_metrics, develop_metrics)
+    all_metrics: list[dict] = []
+    report_variants: dict[str, dict] = {}
 
-    result = {
+    for variant in sorted(variants_data.keys()):
+        baseline, current = variants_data[variant]
+        metrics = compute_deltas(baseline, current)
+        entry_diffs = zip_entry_diffs(baseline, current)
+        all_metrics.append(metrics)
+
+        def enrich(raw: dict, commit: str) -> dict:
+            return {
+                "sourceCommit": commit,
+                "variant": raw["variant"],
+                "versionName": gradle_info.versionName,
+                "versionCode": gradle_info.versionCode,
+                "sha256": raw["sha256"],
+                "apkFileBytes": raw["apkFileBytes"],
+                "apkPath": raw["apkPath"],
+            }
+
+        report_variants[variant] = {
+            "baseline": enrich(baseline, baseline_commit),
+            "current": enrich(current, current_commit),
+            "metrics": metrics,
+            "entryDiffs": entry_diffs,
+        }
+
+    return {
+        "schema": 1,
         "reportVersion": 1,
         "baselineCommit": baseline_commit,
         "currentSourceCommit": current_commit,
         "buildConfig": build_config,
-        "conclusion": conclusion,
-        "variants": {
-            "debug": {
-                "description": "Uncompressed, non-R8 development diagnostic build",
-                "baseline": enrich_baseline(debug_base, "debug"),
-                "current": enrich_current(debug_cur, "debug"),
-                "metrics": debug_metrics,
-                "entryDiffs": debug_entry_diffs,
-            },
-            "develop": {
-                "description": "R8 + resource-shrinking unsigned build closer to, but not equivalent to, a signed release",
-                "baseline": enrich_baseline(develop_base, "develop"),
-                "current": enrich_current(develop_cur, "develop"),
-                "metrics": develop_metrics,
-                "entryDiffs": develop_entry_diffs,
-            },
-        },
+        "conclusion": conclude(all_metrics),
+        "variants": report_variants,
     }
 
-    with out_json.open("w", encoding="utf-8", newline="\n") as f:
-        json.dump(result, f, indent=2, ensure_ascii=False)
-        f.write("\n")
 
-    with out_md.open("w", encoding="utf-8", newline="\n") as f:
-        f.write(_render_markdown(result))
-    return 0
-
-
-def _render_markdown(data: dict) -> str:
+def render_markdown(data: dict) -> str:
+    """Render a Markdown report from report data without touching the file system."""
     lines: list[str] = [
-        "# A14 APK Size Delta Report",
+        "# APK Size Delta Report",
         "",
         "## 1. Measurement scope",
         "",
-        "This report compares two builds of the same A14 source tree:",
+        "This report compares two sets of existing APK size measurements. It does not",
+        "build, sign, or install APKs; it only consumes the supplied baseline and",
+        "current measurement JSONs.",
         "",
         f"- Baseline commit: `{data['baselineCommit']}`",
         f"- Current source commit: `{data['currentSourceCommit']}`",
         "",
         "Variants measured:",
         "",
-        "- **Debug**: `assembleDebug`, uncompressed, non-R8, diagnostic build.",
-        "- **Develop**: `assembleDevelop`, unsigned, R8 + resource-shrinking; closer to a release APK but **not** a signed release.",
+    ]
+    for variant in sorted(data["variants"].keys()):
+        lines.append(f"- **{variant}**: baseline vs. current measurement.")
+
+    lines += [
         "",
         "## 2. Baseline provenance",
         "",
         "| Variant | Baseline commit | SHA-256 | APK bytes |",
         "| --- | --- | --- | --- |",
     ]
-    for variant, v in data["variants"].items():
-        b = v["baseline"]
+    for variant in sorted(data["variants"].keys()):
+        b = data["variants"][variant]["baseline"]
         lines.append(f"| {b['variant']} | `{b['sourceCommit']}` | `{b['sha256']}` | {b['apkFileBytes']} |")
 
     lines += [
@@ -317,11 +464,11 @@ def _render_markdown(data: dict) -> str:
         "| Variant | Current commit | Version | Version code | SHA-256 | APK bytes |",
         "| --- | --- | --- | --- | --- | --- |",
     ]
-    for variant, v in data["variants"].items():
-        c = v["current"]
+    for variant in sorted(data["variants"].keys()):
+        c = data["variants"][variant]["current"]
         lines.append(
-            f"| {c['variant']} | `{c['sourceCommit']}` | {c['versionName']} | {c['versionCode']} | "
-            f"`{c['sha256']}` | {c['apkFileBytes']} |"
+            f"| {c['variant']} | `{c['sourceCommit']}` | {c['versionName']} | "
+            f"{c['versionCode']} | `{c['sha256']}` | {c['apkFileBytes']} |"
         )
 
     lines += [
@@ -330,131 +477,146 @@ def _render_markdown(data: dict) -> str:
         "",
         "| applicationId | minSdk | targetSdk | ABI |",
         "| --- | --- | --- | --- |",
-        f"| {data['buildConfig']['applicationId']} | {data['buildConfig']['minSdk']} | {data['buildConfig']['targetSdk']} | {data['buildConfig']['abi']} |",
-        "",
-        "## 5. Debug comparison",
-        "",
-        "| Metric | Baseline | Current | Delta | Delta % | Trend |",
-        "| --- | --- | --- | --- | --- | --- |",
+        f"| {data['buildConfig']['applicationId']} | {data['buildConfig']['minSdk']} | "
+        f"{data['buildConfig']['targetSdk']} | {data['buildConfig']['abi']} |",
     ]
-    for metric, vals in data["variants"]["debug"]["metrics"].items():
-        lines.append(
-            f"| {metric} | {vals['baseline']} | {vals['current']} | "
-            f"{vals['delta']} | {vals['deltaPercent']:.4f}% | {vals['trend']} |"
-        )
+
+    for variant in sorted(data["variants"].keys()):
+        v = data["variants"][variant]
+        lines += [
+            "",
+            f"## 5. {variant} comparison",
+            "",
+            "| Metric | Baseline | Current | Delta | Delta % | Trend |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ]
+        for metric, vals in v["metrics"].items():
+            lines.append(
+                f"| {metric} | {vals['baseline']} | {vals['current']} | "
+                f"{vals['delta']} | {vals['deltaPercent']:.4f}% | {vals['trend']} |"
+            )
+
+    lines += ["", "## 6. Bucket-level changes", ""]
+    for variant in sorted(data["variants"].keys()):
+        lines += [f"", f"### {variant}", "", _entry_summary(data["variants"][variant]["entryDiffs"]), ""]
+
+    lines += ["", "## 7. Largest entry changes", ""]
+    for variant in sorted(data["variants"].keys()):
+        diffs = data["variants"][variant]["entryDiffs"]
+        lines += [
+            f"",
+            f"### {variant} top 20 compressed-size increases",
+            "",
+            _entry_table(diffs["topIncreases"]),
+            "",
+            f"### {variant} top 20 compressed-size decreases",
+            "",
+            _entry_table(diffs["topDecreases"]),
+            "",
+        ]
 
     lines += [
         "",
-        "## 6. Develop/R8 comparison",
-        "",
-        "| Metric | Baseline | Current | Delta | Delta % | Trend |",
-        "| --- | --- | --- | --- | --- | --- |",
-    ]
-    for metric, vals in data["variants"]["develop"]["metrics"].items():
-        lines.append(
-            f"| {metric} | {vals['baseline']} | {vals['current']} | "
-            f"{vals['delta']} | {vals['deltaPercent']:.4f}% | {vals['trend']} |"
-        )
-
-    lines += [
-        "",
-        "## 7. Bucket-level changes",
-        "",
-        "### Debug",
-        "",
-        _entry_summary(data["variants"]["debug"]["entryDiffs"]),
-        "",
-        "### Develop",
-        "",
-        _entry_summary(data["variants"]["develop"]["entryDiffs"]),
-        "",
-        "## 8. Largest entry changes",
-        "",
-        "### Debug top 20 compressed-size increases",
-        "",
-        _entry_table(data["variants"]["debug"]["entryDiffs"]["topIncreases"]),
-        "",
-        "### Debug top 20 compressed-size decreases",
-        "",
-        _entry_table(data["variants"]["debug"]["entryDiffs"]["topDecreases"]),
-        "",
-        "### Develop top 20 compressed-size increases",
-        "",
-        _entry_table(data["variants"]["develop"]["entryDiffs"]["topIncreases"]),
-        "",
-        "### Develop top 20 compressed-size decreases",
-        "",
-        _entry_table(data["variants"]["develop"]["entryDiffs"]["topDecreases"]),
-        "",
-        "## 9. Interpretation",
+        "## 8. Interpretation",
         "",
         f"Conclusion: `{data['conclusion']}`",
         "",
-        "The changes above reflect differences between the baseline build and the current build. "
-        "Because the Debug build is uncompressed and does not run R8, it is primarily useful for "
-        "diagnosing raw source growth. The Develop build applies R8 and resource shrinking, so "
-        "bucket-level shifts there are closer to what a release artifact would experience, but it "
-        "remains unsigned and is not equivalent to an official signed release.",
-        "",
-        "A smaller APK is not automatically a performance improvement, and a larger APK is not "
-        "automatically a regression; the interpretation must be anchored to dex, resource, library "
-        "and asset bucket changes rather than the headline APK byte count.",
-        "",
-        "## 10. Limitations",
-        "",
-        "- This is a static build-size measurement, not a runtime or device performance measurement.",
-        "- No real device was exercised during this comparison.",
-        "- The Develop variant is unsigned and excludes official signing metadata; it is not a "
-          "release-quality APK.",
-        "- APK size differences between builds may include nondeterministic build artifacts, "
-          "timestamps, and generated auxiliary files.",
-        "",
-        "## Reproduction commands",
-        "",
-        "```text",
-        "./gradlew --no-daemon clean :app:assembleDebug :app:assembleDevelop",
-        f"python tools/apk_size_report.py app/build/outputs/apk/debug/CustoMIUIzer-A14-{data['buildConfig']['versionName']}-debug.apk --out docs/performance/A14_APK_SIZE_CURRENT.json",
-        f"python tools/apk_size_report.py app/build/outputs/apk/develop/CustoMIUIzer-A14-{data['buildConfig']['versionName']}-develop-unsigned.apk --out docs/performance/A14_APK_SIZE_CURRENT_DEVELOP.json",
-        f"python tools/apk_size_delta.py --baseline-commit {data['baselineCommit']} --current-commit {data['currentSourceCommit']}",
-        "```",
+        "The changes above reflect differences between the supplied baseline and",
+        "current measurements. They do not prove runtime performance, installation",
+        "size on a target device, or release-candidate suitability. Artifact names",
+        "do not imply signing state; treat release-named variants as measurements",
+        "only until explicitly verified.",
         "",
     ]
-    return "\n".join(lines)
+    return "\n".join(lines) + "\n"
 
 
 def _entry_summary(diffs: dict) -> str:
-    return (
-        f"- Added: {len(diffs['added'])}\n"
-        f"- Removed: {len(diffs['removed'])}\n"
-        f"- Changed: {len(diffs['changed'])}"
-    )
+    summary = {
+        "addedCount": len(diffs["added"]),
+        "removedCount": len(diffs["removed"]),
+        "changedCount": len(diffs["changed"]),
+        "topIncreaseCount": len(diffs["topIncreases"]),
+        "topDecreaseCount": len(diffs["topDecreases"]),
+    }
+    return json.dumps(summary, indent=2)
 
 
 def _entry_table(entries: list[dict]) -> str:
     if not entries:
-        return "_No entries."
-    rows = ["| Name | Bucket | Baseline compressed | Current compressed | Delta |", "| --- | --- | --- | --- | --- |"]
+        return "*No entries.*"
+    lines = ["| Name | Bucket | Baseline compressed | Current compressed | Delta |", "| --- | --- | --- | --- | --- |"]
     for e in entries:
-        baseline = e.get("baselineCompressed", "-")
-        current = e.get("currentCompressed", "-")
-        rows.append(f"| `{e['name']}` | {e['bucket']} | {baseline} | {current} | {e['compressedDelta']} |")
-    return "\n".join(rows)
+        lines.append(
+            f"| {e['name']} | {e['bucket']} | {e.get('baselineCompressed', '-')} | "
+            f"{e.get('currentCompressed', '-')} | {e.get('compressedDelta', '-')} |"
+        )
+    return "\n".join(lines)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate APK size delta JSON and report.")
-    parser.add_argument("--baseline-commit", required=True, help="40-char baseline SHA")
-    parser.add_argument("--current-commit", required=True, help="40-char current source SHA")
-    parser.add_argument("--out-json", default=str(PERF_DIR / "A14_APK_SIZE_DELTA.json"))
-    parser.add_argument("--out-md", default=str(PERF_DIR / "A14_APK_SIZE_DELTA.md"))
-    args = parser.parse_args()
+def write_report(report: dict, out_json: Path, out_md: Path) -> None:
+    out_json.parent.mkdir(parents=True, exist_ok=True)
+    out_md.parent.mkdir(parents=True, exist_ok=True)
 
-    return generate(
-        baseline_commit=args.baseline_commit,
-        current_commit=args.current_commit,
-        out_json=Path(args.out_json),
-        out_md=Path(args.out_md),
-    )
+    with out_json.open("w", encoding="utf-8", newline="\n") as f:
+        json.dump(report, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+    with out_md.open("w", encoding="utf-8", newline="\n") as f:
+        f.write(render_markdown(report))
+
+
+def run(
+    inputs_manifest: Path,
+    baseline_commit: str,
+    current_commit: str,
+    gradle_file: Path,
+    out_json: Path,
+    out_md: Path,
+) -> int:
+    validate_commit(baseline_commit, "baseline-commit")
+    validate_commit(current_commit, "current-commit")
+
+    if not gradle_file.is_file():
+        raise ApkSizeError(f"gradle file not found: {gradle_file}")
+
+    manifest_dir, manifest = load_inputs_manifest(inputs_manifest)
+    gradle_info = GradleInfo(gradle_file.read_text(encoding="utf-8"))
+
+    variants_data: dict[str, tuple[dict, dict]] = {}
+    for variant in sorted(manifest["variants"].keys()):
+        spec = manifest["variants"][variant]
+        baseline = resolve_measurement(manifest_dir, spec["baseline"], variant)
+        current = resolve_measurement(manifest_dir, spec["current"], variant)
+        variants_data[variant] = (baseline, current)
+
+    report = build_report(manifest, gradle_info, baseline_commit, current_commit, variants_data)
+    write_report(report, out_json, out_md)
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--inputs-manifest", required=True, type=Path, help="path to the inputs manifest JSON")
+    p.add_argument("--baseline-commit", required=True, help="40-character baseline SHA")
+    p.add_argument("--current-commit", required=True, help="40-character current SHA")
+    p.add_argument("--gradle-file", required=True, type=Path, help="path to build.gradle.kts")
+    p.add_argument("--out-json", required=True, type=Path, help="path to write the JSON report")
+    p.add_argument("--out-md", required=True, type=Path, help="path to write the Markdown report")
+    args = p.parse_args(argv)
+
+    try:
+        return run(
+            args.inputs_manifest,
+            args.baseline_commit,
+            args.current_commit,
+            args.gradle_file,
+            args.out_json,
+            args.out_md,
+        )
+    except ApkSizeError as e:
+        print(f"apk_size_delta: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
