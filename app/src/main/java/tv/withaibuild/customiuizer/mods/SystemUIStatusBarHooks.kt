@@ -125,6 +125,46 @@ internal data class DetailedNetSpeedFormatSnapshot(
     val hideSecUnit: Boolean,
 )
 
+/**
+ * Immutable snapshot of the status-bar icon visibility hide configuration.
+ *
+ * Contains one [Boolean] per `system_statusbaricons_*` key that is read in the three
+ * hide-icon hot paths (`checkSlot`, `HideIconsSignalHook`, `HideIconsFromSystemManager`).
+ * It holds no View, Context, Resources or controller.
+ */
+@VisibleForTesting
+internal data class StatusBarIconVisibilitySnapshot(
+    val id: Long,
+    val hideHeadset: Boolean,
+    val hideSound: Boolean,
+    val hideDnd: Boolean,
+    val hideAlarm: Boolean,
+    val hideProfile: Boolean,
+    val hideVpn: Boolean,
+    val hideAirplane: Boolean,
+    val hideNfc: Boolean,
+    val hideSecondSpace: Boolean,
+    val hideGps: Boolean,
+    val hideWifi: Boolean,
+    val hideHotspot: Boolean,
+    val hideNoSims: Boolean,
+    val hideBtBattery: Boolean,
+    val hideBleUnlock: Boolean,
+    val hideBluetoothIcn: Boolean,
+    val hideVolte: Boolean,
+    val hideSignal: Boolean,
+    val hideSignalWifiConnected: Boolean,
+    val hideSim1: Boolean,
+    val hideSim2: Boolean,
+    val hideSimNoData: Boolean,
+    val hideRoaming: Boolean,
+    val hidePrivacy: Boolean,
+    val hideMute: Boolean,
+    val hideSpeaker: Boolean,
+    val hideRecord: Boolean,
+    val hideWirelessHeadset: Boolean,
+)
+
 /** Converts [dp] to physical pixels using the current [Resources] display metrics. */
 private fun Resources.dp2px(dp: Float): Float =
     dp * getDisplayMetrics().density
@@ -198,6 +238,56 @@ object SystemUIStatusBarHooks {
         "system_detailednetspeed_icon",
         "system_detailednetspeed_secunit",
     )
+
+    /** Process-scoped, atomically published snapshot for the status-bar icon visibility hot path. */
+    private val currentStatusBarIconVisibilitySnapshot = AtomicReference<StatusBarIconVisibilitySnapshot?>(null)
+
+    /** Monotonic id generator for [StatusBarIconVisibilitySnapshot]. */
+    private val statusBarIconVisibilitySnapshotIdGenerator = AtomicLong(0L)
+
+    /** Dedicated, non-Android owner token for the B3 preference observer. */
+    private object StatusBarIconVisibilityObserverOwner
+
+    /** Keys whose changes require the status-bar icon visibility snapshot to be rebuilt. */
+    private val statusBarIconVisibilityRelevantKeys = setOf(
+        "system_statusbaricons_headset",
+        "system_statusbaricons_sound",
+        "system_statusbaricons_dnd",
+        "system_statusbaricons_alarm",
+        "system_statusbaricons_profile",
+        "system_statusbaricons_vpn",
+        "system_statusbaricons_airplane",
+        "system_statusbaricons_nfc",
+        "system_statusbaricons_secondspace",
+        "system_statusbaricons_gps",
+        "system_statusbaricons_wifi",
+        "system_statusbaricons_hotspot",
+        "system_statusbaricons_nosims",
+        "system_statusbaricons_btbattery",
+        "system_statusbaricons_ble_unlock",
+        "system_statusbaricons_bluetoothicn",
+        "system_statusbaricons_volte",
+        "system_statusbaricons_signal",
+        "system_statusbaricons_signal_wificonnected",
+        "system_statusbaricons_sim1",
+        "system_statusbaricons_sim2",
+        "system_statusbaricons_sim_nodata",
+        "system_statusbaricons_roaming",
+        "system_statusbaricons_privacy",
+        "system_statusbaricons_mute",
+        "system_statusbaricons_speaker",
+        "system_statusbaricons_record",
+        "system_statusbaricons_wireless_headset",
+    )
+
+    /** Preference observer that rebuilds the snapshot when a B3 icon-visibility key changes. */
+    private val statusBarIconVisibilityObserver = object : ModuleHelper.PreferenceObserver {
+        override fun onChange(key: String?) {
+            if (key != null && key !in statusBarIconVisibilityRelevantKeys) return
+            val built = buildStatusBarIconVisibilitySnapshot(MainModule.mPrefs)
+            currentStatusBarIconVisibilitySnapshot.set(built)
+        }
+    }
 
     @JvmStatic
     fun setupStatusBar(mContext: Context) {
@@ -1805,6 +1895,57 @@ object SystemUIStatusBarHooks {
     }
 
     /**
+     * Builds an immutable [StatusBarIconVisibilitySnapshot] from [prefs].
+     *
+     * This is the only place the `system_statusbaricons_*` keys are read for the three hide-icon
+     * hot paths. The snapshot contains one [Boolean] per relevant key.
+     */
+    @VisibleForTesting
+    internal fun buildStatusBarIconVisibilitySnapshot(prefs: PrefMap): StatusBarIconVisibilitySnapshot {
+        return StatusBarIconVisibilitySnapshot(
+            id = statusBarIconVisibilitySnapshotIdGenerator.incrementAndGet(),
+            hideHeadset = prefs.getBoolean("system_statusbaricons_headset"),
+            hideSound = prefs.getBoolean("system_statusbaricons_sound"),
+            hideDnd = prefs.getBoolean("system_statusbaricons_dnd"),
+            hideAlarm = prefs.getBoolean("system_statusbaricons_alarm"),
+            hideProfile = prefs.getBoolean("system_statusbaricons_profile"),
+            hideVpn = prefs.getBoolean("system_statusbaricons_vpn"),
+            hideAirplane = prefs.getBoolean("system_statusbaricons_airplane"),
+            hideNfc = prefs.getBoolean("system_statusbaricons_nfc"),
+            hideSecondSpace = prefs.getBoolean("system_statusbaricons_secondspace"),
+            hideGps = prefs.getBoolean("system_statusbaricons_gps"),
+            hideWifi = prefs.getBoolean("system_statusbaricons_wifi"),
+            hideHotspot = prefs.getBoolean("system_statusbaricons_hotspot"),
+            hideNoSims = prefs.getBoolean("system_statusbaricons_nosims"),
+            hideBtBattery = prefs.getBoolean("system_statusbaricons_btbattery"),
+            hideBleUnlock = prefs.getBoolean("system_statusbaricons_ble_unlock"),
+            hideBluetoothIcn = prefs.getBoolean("system_statusbaricons_bluetoothicn"),
+            hideVolte = prefs.getBoolean("system_statusbaricons_volte"),
+            hideSignal = prefs.getBoolean("system_statusbaricons_signal"),
+            hideSignalWifiConnected = prefs.getBoolean("system_statusbaricons_signal_wificonnected"),
+            hideSim1 = prefs.getBoolean("system_statusbaricons_sim1"),
+            hideSim2 = prefs.getBoolean("system_statusbaricons_sim2"),
+            hideSimNoData = prefs.getBoolean("system_statusbaricons_sim_nodata"),
+            hideRoaming = prefs.getBoolean("system_statusbaricons_roaming"),
+            hidePrivacy = prefs.getBoolean("system_statusbaricons_privacy"),
+            hideMute = prefs.getBoolean("system_statusbaricons_mute"),
+            hideSpeaker = prefs.getBoolean("system_statusbaricons_speaker"),
+            hideRecord = prefs.getBoolean("system_statusbaricons_record"),
+            hideWirelessHeadset = prefs.getBoolean("system_statusbaricons_wireless_headset"),
+        )
+    }
+
+    /** Returns the current snapshot, building it from [MainModule.mPrefs] if it does not yet exist. */
+    private fun currentOrBuildStatusBarIconVisibilitySnapshot(): StatusBarIconVisibilitySnapshot {
+        val existing = currentStatusBarIconVisibilitySnapshot.get()
+        if (existing != null) return existing
+
+        val built = buildStatusBarIconVisibilitySnapshot(MainModule.mPrefs)
+        currentStatusBarIconVisibilitySnapshot.set(built)
+        return built
+    }
+
+    /**
      * Applies the network-speed text style to [speedView].
      *
      * Callers:
@@ -2147,8 +2288,98 @@ object SystemUIStatusBarHooks {
         })
     }
 
+    /** Result of [computeSignalIconHiding] for applying to the [mobileIconState] object. */
+    @VisibleForTesting
+    internal data class SignalIconHidingResult(
+        val visible: Boolean? = null,
+        val roaming: Boolean? = null,
+        val volte: Boolean? = null,
+        val speechHd: Boolean? = null,
+    )
+
+    /**
+     * Computes the visibility/roaming/volte changes for [HideIconsSignalHook].
+     *
+     * Pure function: it reads only the supplied primitives and the [snapshot]. It does not
+     * access [MainModule.mPrefs], [View] or reflection.
+     */
+    @VisibleForTesting
+    internal fun computeSignalIconHiding(
+        wifiAvailable: Boolean,
+        subId: Int,
+        dataSubId: Int,
+        slotId: Int,
+        snapshot: StatusBarIconVisibilitySnapshot,
+    ): SignalIconHidingResult {
+        if (snapshot.hideSignal) {
+            if (!snapshot.hideSignalWifiConnected || wifiAvailable) {
+                return SignalIconHidingResult(visible = false)
+            }
+        }
+        if ((snapshot.hideSim1 && slotId == 0)
+            || (snapshot.hideSim2 && slotId == 1)
+            || (snapshot.hideSimNoData && subId != dataSubId)
+        ) {
+            return SignalIconHidingResult(visible = false)
+        }
+        return SignalIconHidingResult(
+            roaming = if (snapshot.hideRoaming) false else null,
+            volte = if (snapshot.hideVolte) false else null,
+            speechHd = if (snapshot.hideVolte) false else null,
+        )
+    }
+
+    /**
+     * Determines whether a status-bar icon should be hidden for [HideIconsHook].
+     *
+     * Pure function: it matches the [slotName] against the fixed slot set using [when] and
+     * reads only the [snapshot]. It does not touch [MainModule.mPrefs].
+     */
+    @VisibleForTesting
+    internal fun checkSlot(slotName: String?, snapshot: StatusBarIconVisibilitySnapshot): Boolean {
+        return when (slotName) {
+            "headset" -> snapshot.hideHeadset
+            "volume" -> snapshot.hideSound
+            "zen" -> snapshot.hideDnd
+            "alarm_clock" -> snapshot.hideAlarm
+            "managed_profile" -> snapshot.hideProfile
+            "vpn" -> snapshot.hideVpn
+            "airplane" -> snapshot.hideAirplane
+            "nfc" -> snapshot.hideNfc
+            "second_space" -> snapshot.hideSecondSpace
+            "location" -> snapshot.hideGps
+            "wifi" -> snapshot.hideWifi
+            "hotspot" -> snapshot.hideHotspot
+            "no_sim" -> snapshot.hideNoSims
+            "bluetooth_handsfree_battery" -> snapshot.hideBtBattery
+            "ble_unlock_mode" -> snapshot.hideBleUnlock
+            "bluetooth" -> snapshot.hideBluetoothIcn
+            "hd" -> snapshot.hideVolte
+            else -> false
+        }
+    }
+
+    /**
+     * Determines whether a system-manager icon should be hidden.
+     *
+     * Pure function: it matches the fixed slot set with [when] and reads only the [snapshot].
+     */
+    @VisibleForTesting
+    internal fun shouldHideSystemManagerIcon(slotName: String, snapshot: StatusBarIconVisibilitySnapshot): Boolean {
+        return when (slotName) {
+            "stealth" -> snapshot.hidePrivacy
+            "mute" -> snapshot.hideMute
+            "speakerphone" -> snapshot.hideSpeaker
+            "call_record" -> snapshot.hideRecord
+            "wireless_headset" -> snapshot.hideWirelessHeadset
+            else -> false
+        }
+    }
+
     @JvmStatic
     fun HideIconsSignalHook(lpparam: PackageReadyParam) {
+        ModuleHelper.observePreferenceChange(statusBarIconVisibilityObserver, StatusBarIconVisibilityObserverOwner)
+
         val stateHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
                 val mobileIconState = param.getArg(0)
@@ -2158,28 +2389,24 @@ object SystemUIStatusBarHooks {
                     shouldUpdate = mState == null
                 }
                 if (!shouldUpdate) return
-                if (MainModule.mPrefs.getBoolean("system_statusbaricons_signal")) {
-                    if (!MainModule.mPrefs.getBoolean("system_statusbaricons_signal_wificonnected") || XposedHelpers.getBooleanField(mobileIconState, "wifiAvailable")) {
-                        XposedHelpers.setObjectField(mobileIconState, "visible", false)
-                        return
-                    }
-                }
+
+                val snapshot = currentOrBuildStatusBarIconVisibilitySnapshot()
+                val wifiAvailable = XposedHelpers.getBooleanField(mobileIconState, "wifiAvailable")
                 val subId = XposedHelpers.getObjectField(mobileIconState, "subId") as Int
                 val dataSubId = SubscriptionManager.getActiveDataSubscriptionId()
                 val slotId = SubscriptionManager.getSlotIndex(subId)
-                if ((MainModule.mPrefs.getBoolean("system_statusbaricons_sim1") && slotId == 0)
-                    || (MainModule.mPrefs.getBoolean("system_statusbaricons_sim2") && slotId == 1)
-                    || (MainModule.mPrefs.getBoolean("system_statusbaricons_sim_nodata") && subId != dataSubId)
-                ) {
+                val result = computeSignalIconHiding(wifiAvailable, subId, dataSubId, slotId, snapshot)
+
+                if (result.visible == false) {
                     XposedHelpers.setObjectField(mobileIconState, "visible", false)
                     return
                 }
-                if (MainModule.mPrefs.getBoolean("system_statusbaricons_roaming")) {
-                    XposedHelpers.setObjectField(mobileIconState, "roaming", false)
+                if (result.roaming != null) {
+                    XposedHelpers.setObjectField(mobileIconState, "roaming", result.roaming)
                 }
-                if (MainModule.mPrefs.getBoolean("system_statusbaricons_volte")) {
-                    XposedHelpers.setObjectField(mobileIconState, "volte", false)
-                    XposedHelpers.setObjectField(mobileIconState, "speechHd", false)
+                if (result.volte != null) {
+                    XposedHelpers.setObjectField(mobileIconState, "volte", result.volte)
+                    XposedHelpers.setObjectField(mobileIconState, "speechHd", result.speechHd)
                 }
             }
         }
@@ -2187,37 +2414,15 @@ object SystemUIStatusBarHooks {
         ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateState", stateHook)
     }
 
-    private fun checkSlot(slotName: String?): Boolean {
-        return try {
-            ("headset" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_headset"))
-                || ("volume" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_sound"))
-                || ("zen" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_dnd"))
-                || ("alarm_clock" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_alarm"))
-                || ("managed_profile" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_profile"))
-                || ("vpn" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_vpn"))
-                || ("airplane" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_airplane"))
-                || ("nfc" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_nfc"))
-                || ("second_space" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_secondspace"))
-                || ("location" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_gps"))
-                || ("wifi" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_wifi"))
-                || ("hotspot" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_hotspot"))
-                || ("no_sim" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_nosims"))
-                || ("bluetooth_handsfree_battery" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_btbattery"))
-                || ("ble_unlock_mode" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_ble_unlock"))
-                || ("bluetooth" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_bluetoothicn"))
-                || ("hd" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_volte"))
-        } catch (t: Throwable) {
-            XposedHelpers.log(t)
-            false
-        }
-    }
-
     @JvmStatic
     fun HideIconsHook(lpparam: PackageReadyParam) {
+        ModuleHelper.observePreferenceChange(statusBarIconVisibilityObserver, StatusBarIconVisibilityObserverOwner)
+
         val iconHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val iconType = param.getArgs()[0] as String
-                if (checkSlot(iconType)) {
+                val slotName = param.getArgs()[0] as? String
+                val snapshot = currentOrBuildStatusBarIconVisibilitySnapshot()
+                if (checkSlot(slotName, snapshot)) {
                     param.getArgs()[1] = false
                 }
             }
@@ -2227,15 +2432,13 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun HideIconsFromSystemManager(lpparam: PackageReadyParam) {
+        ModuleHelper.observePreferenceChange(statusBarIconVisibilityObserver, StatusBarIconVisibilityObserverOwner)
+
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.CommandQueue", lpparam.classLoader, "setIcon", String::class.java, "com.android.internal.statusbar.StatusBarIcon", object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
                 val slotName = param.getArg(0) as String
-                if (("stealth" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_privacy"))
-                    || ("mute" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_mute"))
-                    || ("speakerphone" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_speaker"))
-                    || ("call_record" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_record"))
-                    || ("wireless_headset" == slotName && MainModule.mPrefs.getBoolean("system_statusbaricons_wireless_headset"))
-                ) {
+                val snapshot = currentOrBuildStatusBarIconVisibilitySnapshot()
+                if (shouldHideSystemManagerIcon(slotName, snapshot)) {
                     XposedHelpers.setObjectField(param.getArg(1), "visible", false)
                 }
             }

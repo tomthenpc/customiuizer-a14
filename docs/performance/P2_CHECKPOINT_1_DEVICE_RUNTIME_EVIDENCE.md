@@ -325,16 +325,16 @@ is low but the hook still performs 5 `mPrefs` reads each call.
 
 ### Estimated PrefMap read elimination for 100 consecutive calls
 
-| Hook | Worst-case reads per call | Estimated reads per 100 calls |
+| Hook | Worst-case reads per single callback | Estimated reads per 100 callbacks |
 |---|---|---|
 | `checkSlot` | 17 | 1700 |
 | `HideIconsSignalHook` | 7 | 700 |
 | `HideIconsFromSystemManager` | 5 | 500 |
-| **Total worst-case** | **29** | **2900** |
+| **Combined across three independent 100-call runs** | **—** | **2900** |
 
-With a shared immutable snapshot, all of these become **0 hot-path `mPrefs` reads**.
-The only `mPrefs` reads would be the one-time snapshot build (~29 keys) and a
-single rebuild on any B3 preference change.
+With a shared immutable snapshot, all three hooks become **0 `mPrefs` reads per
+hot callback**. The only `mPrefs` reads are the one-time snapshot build (~29
+unique keys) and a single rebuild on any B3 preference change.
 
 ### Would a snapshot increase String / Set / Map / Pair / hash overhead?
 
@@ -382,9 +382,10 @@ This is the same pattern as B1 (`NetSpeedTextStyleSnapshot`) and B2
   needed.
 - **Build function**: `buildStatusBarIconVisibilitySnapshot(prefs)` reads the
   ~29 `system_statusbaricons_*` keys once and pre-computes any derived state.
-- **Observer**: a new `statusBarIconVisibilityObserver` registered with owner
-  `SystemUIStatusBarHooks`, listening to all B3 keys; on change it sets
-  `currentStatusBarIconVisibilitySnapshot` to `null`.
+- **Observer**: a new `statusBarIconVisibilityObserver` registered with a
+  dedicated owner token (e.g. `StatusBarIconVisibilityObserverOwner`), not with
+  `SystemUIStatusBarHooks`, listening to all B3 keys; on change it builds and
+  atomically publishes the new snapshot.
 - **Hot-path refactors**:
   - `checkSlot(slotName, snapshot)` -> `when (slotName)` over fixed slots.
   - `HideIconsSignalHook(snapshot)` -> read `snapshot.signal`,
@@ -401,11 +402,13 @@ This is the same pattern as B1 (`NetSpeedTextStyleSnapshot`) and B2
 | `checkSlot` mPrefs reads | 1700 | 0 |
 | `HideIconsSignalHook` mPrefs reads | 700 | 0 |
 | `HideIconsFromSystemManager` mPrefs reads | 500 | 0 |
-| Hot-path allocations | 1–29 `Boolean` boxing + string reads | 0 mPrefs reads; only cheap field/boolean reads |
+| Hot-path allocations | up to 17 / 7 / 5 `mPrefs.getBoolean` calls per callback, plus the existing `Throwable` catch in `checkSlot` | 0 `mPrefs` reads per callback; only cheap snapshot field reads |
 
 The B3 audit concludes that a single immutable snapshot is feasible and would
-eliminate up to 29 `mPrefs.getBoolean` reads per combined hot-path call, with
-minimal runtime overhead and no new lifecycle complexity.
+eliminate the per-callback `mPrefs.getBoolean` reads in all three hot paths
+(17 + 7 + 5 distinct keys, 28–29 unique keys total). Across three independent
+100-callback stress runs the combined worst-case saving is 2900 `mPrefs`
+reads, with minimal runtime overhead and no new lifecycle complexity.
 
 ## Measurement limitations
 
