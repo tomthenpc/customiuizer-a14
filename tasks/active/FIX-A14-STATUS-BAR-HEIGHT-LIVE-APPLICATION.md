@@ -1,7 +1,7 @@
 # FIX-A14-STATUS-BAR-HEIGHT-LIVE-APPLICATION
 
 - Platform: A14
-- Status: Corrective required | Release blocked | PARKED — NOT RUN / ENVIRONMENT BLOCKED
+- Status: Engineering complete | Device validation pending | Release blocked | PARKED — NOT RUN / ENVIRONMENT BLOCKED
 - Priority: P0
 - Owner: Devin
 - Reviewer: ChatGPT / human
@@ -12,11 +12,19 @@
 
 让状态栏高度修改后实时、可靠地应用到 SystemUI 状态栏窗口、WindowManager 布局和 `statusBars` Insets，而不需要完整重启手机。
 
-## 当前正式版阻断项
+## 当前唯一剩余门禁
 
-a. `DisplayPolicy.layoutWindowLw` 在确认 status bar 之前读取 `WindowState` 的 display metrics 并更新 `StatusBarHeightConfig` 全局状态，导致非 status bar 窗口和多 display 布局反复污染全局 density/generation。
-b. `custom -> disabled` 切换不会恢复首次捕获的原始 `mAttrs.height`，禁用后状态栏高度仍保持为自定义值。
-c. `requestTraversal` 不可用时存在直接 `performSurfacePlacement` fallback，且 fallback 未持有真实 `mGlobalLock`，可能破坏 WindowManager 线程/锁模型。
+- `fuxi 44 -> 40 -> 12 -> 44 -> disabled` 不重启实机验证尚未执行。
+- 原因：当前环境没有 A14/fuxi 设备。
+- 状态：NOT RUN / ENVIRONMENT BLOCKED。
+- 不是 TEST FAIL。
+- 任务继续留在 `tasks/active`。
+
+## R3 已修复的工程问题
+
+- 非 status bar WindowState 热路径污染：非 status bar 窗口在 `metrics`、`displayId`、`recomputePx`、`diagnostics`、`WeakReference` 之前立即返回。
+- `custom -> disabled` 不恢复原始高度：`custom -> disabled` 请求一次安全 `requestTraversal` 并在下一次 `layoutWindowLw` 中恢复真实原始 `mAttrs.height`。
+- `performSurfacePlacement fallback`：删除所有直接 `performSurfacePlacement` fallback；`requestTraversal` 不可用时安全等待自然 layout。
 
 ## 实机状态
 
@@ -55,8 +63,10 @@ R3 修正已通过本地静态、单元测试与 Debug 构建验证，但当前�
 
 ## 构建产物
 
-- APK: `app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk`
-- APK SHA-256: `E464FAB2C5631A772627D71BD1BE6CA6B0ECAF48FCBD5E99E5078AB6EDADA99A`
-- Build revision: `93a7394` (R3 corrective)
-- Signature: Debug
-- 类型：diagnostic build，不是 release candidate
+- 本次 R4.1 不生成任何 APK。
+- 历史 Debug APK（R3 修正工程验证产物，保留为诊断 provenance）：
+  - APK: `app/build/outputs/apk/debug/CustoMIUIzer-A14-r14.16.1-debug.apk`
+  - APK SHA-256: `E464FAB2C5631A772627D71BD1BE6CA6B0ECAF48FCBD5E99E5078AB6EDADA99A`
+  - Build revision: `93a7394` (R3 corrective)
+  - Signature: Debug
+  - 类型：diagnostic build，不是 release candidate；不安装、不作为 develop、不作为 release candidate。
