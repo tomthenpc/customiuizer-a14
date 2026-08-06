@@ -237,6 +237,21 @@ afterEvaluate {
     tasks.named("mergeReleaseAssets").configure {
         dependsOn(writeReleaseBuildProvenance)
     }
+
+    // Lint, model and analysis tasks read the generated assets directory, so they
+    // must run after the per-variant provenance file has been written.
+    tasks.configureEach {
+        if (name.startsWith("write") || !name.contains("Lint", ignoreCase = true)) {
+            return@configureEach
+        }
+        val writeTask = when {
+            name.contains("Debug") -> writeDebugBuildProvenance
+            name.contains("Develop") -> writeDevelopBuildProvenance
+            name.contains("Release") -> writeReleaseBuildProvenance
+            else -> null
+        }
+        writeTask?.let { dependsOn(it) }
+    }
 }
 
 androidComponents {
