@@ -6,7 +6,7 @@ import java.lang.reflect.Modifier
 import java.util.Properties
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
+
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -171,7 +171,7 @@ class ChargingInfoHotPathTest {
 
         val lpparam = fakePackageReadyParam()
         val prefs = PrefMap().apply { put("system_charginginfo", true) }
-        val realFeature = ChargingInfoFeature(lpparam, prefs)
+        val realFeature = ChargingInfoFeature(lpparam)
 
         // Wrap the real feature so the test does not depend on a live Xposed bridge,
         // but preserves the same feature id and registry identity.
@@ -194,21 +194,34 @@ class ChargingInfoHotPathTest {
     }
 
     @Test
-    fun chargingInfo_chargingInfoFeatureOverridesInstallToReturnResult() {
-        // BaseSystemUiFeature.install is open so ChargingInfoFeature can return FAILED_TRANSIENT
-        // when the core hook cannot be installed, not a hardcoded INSTALLED.
-        val method = ChargingInfoFeature::class.java.getMethod("install")
-        assertTrue("ChargingInfoFeature.install() must be an override", Modifier.isPublic(method.modifiers))
-        assertEquals(FeatureInstallResult::class.java, method.returnType)
+    fun baseSystemUiFeature_installHookRemainsAbstract() {
+        val base = Class.forName("tv.withaibuild.customiuizer.mods.utils.feature.BaseSystemUiFeature")
+        val installHook = base.getDeclaredMethod("installHook")
+        assertTrue("BaseSystemUiFeature.installHook() must be abstract", Modifier.isAbstract(installHook.modifiers))
+        assertTrue("BaseSystemUiFeature.installHook() must be protected", Modifier.isProtected(installHook.modifiers))
     }
 
     @Test
-    fun chargingInfo_baseSystemUiFeature_installHookHasDefaultNoopAndInstallIsOpen() {
+    fun baseSystemUiFeature_installRemainsFinal() {
         val base = Class.forName("tv.withaibuild.customiuizer.mods.utils.feature.BaseSystemUiFeature")
         val install = base.getMethod("install")
-        val installHook = base.getDeclaredMethod("installHook")
-        assertTrue("BaseSystemUiFeature.install() must be overridable", Modifier.isPublic(install.modifiers))
-        assertTrue("BaseSystemUiFeature.installHook() must be open/no-op by default", Modifier.isProtected(installHook.modifiers))
+        assertTrue("BaseSystemUiFeature.install() must be final", Modifier.isFinal(install.modifiers))
+        assertTrue("BaseSystemUiFeature.install() must be public", Modifier.isPublic(install.modifiers))
+    }
+
+    @Test
+    fun chargingInfoFeature_directlyImplementsFeatureDefinition() {
+        assertTrue(
+            "ChargingInfoFeature must directly implement FeatureDefinition",
+            FeatureDefinition::class.java.isAssignableFrom(ChargingInfoFeature::class.java)
+        )
+        assertFalse(
+            "ChargingInfoFeature must not inherit BaseSystemUiFeature",
+            Class.forName("tv.withaibuild.customiuizer.mods.utils.feature.BaseSystemUiFeature")
+                .isAssignableFrom(ChargingInfoFeature::class.java)
+        )
+        val method = ChargingInfoFeature::class.java.getMethod("install")
+        assertEquals(FeatureInstallResult::class.java, method.returnType)
     }
 
     private fun allDisabledPrefs(): PrefMap = PrefMap().apply {

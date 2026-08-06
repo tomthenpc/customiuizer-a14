@@ -30,13 +30,23 @@ class FeatureInstallBoundaryContractTest {
         val registry = source(
             "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/FeatureInstallRegistry.kt"
         ).readText()
-        val oomCatch = registry.indexOf("catch (oom: OutOfMemoryError)")
-        val throwableCatch = registry.indexOf("catch (t: Throwable)", oomCatch)
+        val throwableCatch = registry.indexOf("catch (t: Throwable)")
 
-        assertTrue(oomCatch >= 0)
-        assertTrue(throwableCatch > oomCatch)
-        assertTrue(registry.substring(oomCatch, throwableCatch).contains("throw oom"))
-        assertTrue(registry.substring(throwableCatch).contains("recordInstallFailure(spec, t)"))
+        assertTrue("Throwable catch must exist and delegate fatal propagation", throwableCatch >= 0)
+
+        val afterCatch = registry.substring(throwableCatch)
+        assertTrue(
+            "state must roll back to FAILED_TRANSIENT before fatal/non-fatal dispatch",
+            afterCatch.contains("FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)")
+        )
+        assertTrue(
+            "fatal errors must be unwrapped and rethrown before logging/recording",
+            afterCatch.contains("FatalErrors.unwrapAndRethrowIfFatal(t)")
+        )
+        assertTrue(
+            "non-fatal failures must still be recorded as FAILED_TRANSIENT",
+            afterCatch.contains("recordInstallFailure(spec, reportable)")
+        )
     }
 
     @Test

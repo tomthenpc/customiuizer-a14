@@ -42,11 +42,11 @@ internal abstract class BaseSystemUiFeature(
     override val phase = InstallPhase.PACKAGE_READY
 
     protected abstract fun isEnabledCondition(prefs: PrefMap): Boolean
-    protected open fun installHook() {}
+    protected abstract fun installHook()
 
     final override fun isEnabled(prefs: PrefMap) = isEnabledCondition(prefs)
 
-    open override fun install(): FeatureInstallResult {
+    final override fun install(): FeatureInstallResult {
         installHook()
         return FeatureInstallResult.INSTALLED
     }
@@ -1162,21 +1162,22 @@ internal class DisableStrongToastFeature(
 }
 
 internal class ChargingInfoFeature(
-    lpparam: PackageReadyParam,
-    mPrefs: PrefMap
-) : BaseSystemUiFeature(
-    lpparam,
-    mPrefs,
-    ChargingInfoFeatureId,
-    "Charging Info",
-    "system_charginginfo"
-) {
+    private val lpparam: PackageReadyParam
+) : FeatureDefinition {
+
+    override val id = ChargingInfoFeatureId
+    override val name = "Charging Info"
+    override val preferenceKey = "system_charginginfo"
+    override val target = FeatureTarget.SYSTEM_UI
+    override val phase = InstallPhase.PACKAGE_READY
+
     companion object {
         @JvmStatic
         fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_charginginfo")
     }
 
-    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
+    override fun isEnabled(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
+
     override fun install(): FeatureInstallResult = SystemLockScreenHooks.ChargingInfoHook(lpparam)
 }
 
@@ -2465,7 +2466,7 @@ object SystemUiFeatures {
             target = FeatureTarget.SYSTEM_UI,
             phase = InstallPhase.PACKAGE_READY,
             enabled = { prefs -> ChargingInfoFeature.evaluateEnabled(prefs) },
-            factory = { ChargingInfoFeature(lpparam, mPrefs) },
+            factory = { ChargingInfoFeature(lpparam) },
         ),
         LazyFeatureSpec(
             id = SecureQSTilesFeatureId,

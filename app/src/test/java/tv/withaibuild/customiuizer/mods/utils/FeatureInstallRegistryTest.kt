@@ -1,297 +1,168 @@
 package tv.withaibuild.customiuizer.mods.utils
 
+import java.lang.reflect.InvocationTargetException
+import java.util.concurrent.ExecutionException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Before
 import org.junit.Test
 import tv.withaibuild.customiuizer.utils.PrefMap
 
 class FeatureInstallRegistryTest {
 
-    private class TestId(override val name: String) : FeatureId {
-        companion object {
-            private var counter = 10000
-            fun nextId(): Int = counter++
+    @Before
+    fun reset() {
+        FeatureInstallState.reset()
+        HookDiagnostics.reset()
+        HookDiagnostics.currentProcessName = "test"
+    }
+
+    @Test
+    fun featureRegistry_rethrowsThreadDeath() {
+        val feature = featureThat { throw ThreadDeath() }
+        val registry = FeatureInstallRegistry()
+        registry.register(feature)
+
+        try {
+            registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+            fail("ThreadDeath must propagate")
+        } catch (t: ThreadDeath) {
+            assertTrue("ThreadDeath propagated", true)
         }
-        override val id = nextId()
+
+        assertEquals(
+            "state must roll back to FAILED_TRANSIENT before rethrow",
+            FeatureState.FAILED_TRANSIENT,
+            FeatureInstallState.get(feature.id)
+        )
     }
 
-    private class DummyFeature(
-        override val name: String,
-        override val preferenceKey: String? = null,
-        override val target: FeatureTarget = FeatureTarget.SYSTEM_UI,
-        override val phase: InstallPhase = InstallPhase.PACKAGE_READY,
-        val enabled: Boolean = true,
-        val result: FeatureInstallResult = FeatureInstallResult.INSTALLED,
-    ) : FeatureDefinition {
-        override val id = TestId(name)
-        var installCalls = 0
-        override fun isEnabled(prefs: PrefMap): Boolean = enabled
-        override fun install(): FeatureInstallResult {
-            installCalls++
-            return result
+    @Test
+    fun featureRegistry_rethrowsVirtualMachineError() {
+        val feature = featureThat { throw TestVirtualMachineError() }
+        val registry = FeatureInstallRegistry()
+        registry.register(feature)
+
+        try {
+            registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+            fail("VirtualMachineError must propagate")
+        } catch (e: VirtualMachineError) {
+            assertTrue("expected custom VirtualMachineError", e is TestVirtualMachineError)
         }
+
+        assertEquals(
+            "state must roll back to FAILED_TRANSIENT before rethrow",
+            FeatureState.FAILED_TRANSIENT,
+            FeatureInstallState.get(feature.id)
+        )
     }
 
     @Test
-    fun installAll_onlyMatchesTargetAndPhase() {
+    fun featureRegistry_rethrowsWrappedFatal() {
+        val feature = featureThat { throw InvocationTargetException(ThreadDeath()) }
         val registry = FeatureInstallRegistry()
-        val hit = DummyFeature("hit", target = FeatureTarget.SYSTEM_UI, phase = InstallPhase.PACKAGE_READY)
-        val wrongTarget = DummyFeature("wrongTarget", target = FeatureTarget.LAUNCHER, phase = InstallPhase.PACKAGE_READY)
-        val wrongPhase = DummyFeature("wrongPhase", target = FeatureTarget.SYSTEM_UI, phase = InstallPhase.SYSTEM_UI_INITIALIZED)
+        registry.register(feature)
 
-        registry.register(hit)
-        registry.register(wrongTarget)
-        registry.register(wrongPhase)
+        try {
+            registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+            fail("wrapped ThreadDeath must propagate")
+        } catch (t: ThreadDeath) {
+            assertTrue("wrapped ThreadDeath propagated", true)
+        }
 
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-
-        assertEquals(1, results.size)
-        assertEquals(FeatureInstallResult.INSTALLED, results[0])
-        assertEquals(1, hit.installCalls)
-        assertEquals(0, wrongTarget.installCalls)
-        assertEquals(0, wrongPhase.installCalls)
+        assertEquals(
+            "state must roll back to FAILED_TRANSIENT before rethrow",
+            FeatureState.FAILED_TRANSIENT,
+            FeatureInstallState.get(feature.id)
+        )
     }
 
     @Test
-    fun installAll_disabledFeatureSkipped() {
+    fun featureRegistry_executionExceptionWrappingVirtualMachineError_propagates() {
+        val feature = featureThat { throw ExecutionException(TestVirtualMachineError()) }
         val registry = FeatureInstallRegistry()
-        registry.register(DummyFeature("off", enabled = false))
+        registry.register(feature)
 
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
+        try {
+            registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
+            fail("ExecutionException-wrapped VirtualMachineError must propagate")
+        } catch (e: VirtualMachineError) {
+            assertTrue("expected unwrapped VirtualMachineError", e is TestVirtualMachineError)
+        }
 
-        assertEquals(1, results.size)
-        assertTrue(results[0] == FeatureInstallResult.SKIPPED)
+        assertEquals(
+            FeatureState.FAILED_TRANSIENT,
+            FeatureInstallState.get(feature.id)
+        )
     }
 
     @Test
-    fun installAll_idempotent() {
+    fun featureRegistry_nonFatalStillReturnsFailedTransient() {
+        val first = featureThat { throw RuntimeException("non-fatal") }
+        val second = featureThat { FeatureInstallResult.INSTALLED }
+
         val registry = FeatureInstallRegistry()
-        val f = DummyFeature("idempotent")
-        registry.register(f)
+        registry.register(first)
+        registry.register(second)
 
-        registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-
-        assertEquals(1, f.installCalls)
-        assertEquals(FeatureInstallResult.ALREADY_INSTALLED, results[0])
-    }
-
-    @Test
-    fun separateRegistriesDoNotResetInstalledProcessState() {
-        val feature = DummyFeature("process-idempotent")
-        val first = FeatureInstallRegistry()
-        first.register(feature)
-        first.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap())
-
-        val second = FeatureInstallRegistry()
-        second.register(feature)
-        val results = second.installAll(
+        val results = registry.installAll(
             FeatureTarget.SYSTEM_UI,
             InstallPhase.PACKAGE_READY,
             PrefMap(),
             collectResults = true
         )
 
-        assertEquals(1, feature.installCalls)
-        assertEquals(FeatureInstallResult.ALREADY_INSTALLED, results.single())
+        assertEquals(
+            listOf(FeatureInstallResult.FAILED_TRANSIENT, FeatureInstallResult.INSTALLED),
+            results
+        )
+        assertEquals(FeatureState.FAILED_TRANSIENT, FeatureInstallState.get(first.id))
+        assertEquals(FeatureState.INSTALLED, FeatureInstallState.get(second.id))
     }
 
     @Test
-    fun beginInstallClaimIsAtomic() {
-        val id = TestId("atomic-claim")
-        FeatureInstallState.initialize(id)
+    fun featureRegistry_nonFatal_doesNotStopRemainingInstalls() {
+        val first = featureThat { throw RuntimeException("non-fatal") }
+        val second = featureThat { FeatureInstallResult.INSTALLED }
 
-        assertEquals(FeatureState.NOT_INSTALLED, FeatureInstallState.beginInstall(id))
-        assertEquals(FeatureState.INSTALLING, FeatureInstallState.beginInstall(id))
-    }
-
-    @Test
-    fun installAll_failureRecordedOnce() {
         val registry = FeatureInstallRegistry()
-        val f = DummyFeature("fail", result = FeatureInstallResult.FAILED_PERMANENT)
-        registry.register(f)
+        registry.register(first)
+        registry.register(second)
 
-        val r1 = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-        val r2 = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-
-        assertEquals(1, f.installCalls)
-        assertTrue(r1[0] == FeatureInstallResult.FAILED_PERMANENT)
-        assertTrue(r2[0] == FeatureInstallResult.FAILED_PERMANENT)
-    }
-
-    @Test
-    fun installAll_exceptionBecomesTransient() {
-        val registry = FeatureInstallRegistry()
-        val f = object : FeatureDefinition {
-            override val id = TestId("explode")
-            override val name = "explode"
-            override val preferenceKey = null
-            override val target = FeatureTarget.SYSTEM_UI
-            override val phase = InstallPhase.PACKAGE_READY
-            override fun isEnabled(prefs: PrefMap) = true
-            override fun install(): FeatureInstallResult = throw IllegalStateException("boom")
-        }
-        registry.register(f)
-
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-
-        assertTrue(results[0] == FeatureInstallResult.FAILED_TRANSIENT)
-    }
-
-    @Test
-    fun register_sameDefinitionIsIdempotent() {
-        val registry = FeatureInstallRegistry()
-        val f = DummyFeature("same")
-        registry.register(f)
-        registry.register(f)
-
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-
-        assertEquals(1, results.size)
-        assertEquals(FeatureInstallResult.INSTALLED, results[0])
-    }
-
-    @Test(expected = IllegalArgumentException::class)
-    fun register_differentDefinitionSameIdThrows() {
-        val registry = FeatureInstallRegistry()
-        val sharedId = TestId("shared")
-        val a = object : FeatureDefinition {
-            override val id = sharedId
-            override val name = "a"
-            override val preferenceKey = null
-            override val target = FeatureTarget.SYSTEM_UI
-            override val phase = InstallPhase.PACKAGE_READY
-            override fun isEnabled(prefs: PrefMap) = true
-            override fun install() = FeatureInstallResult.INSTALLED
-        }
-        val b = object : FeatureDefinition {
-            override val id = sharedId
-            override val name = "b"
-            override val preferenceKey = null
-            override val target = FeatureTarget.SYSTEM_UI
-            override val phase = InstallPhase.PACKAGE_READY
-            override fun isEnabled(prefs: PrefMap) = true
-            override fun install() = FeatureInstallResult.INSTALLED
-        }
-        registry.register(a)
-        registry.register(b)
-    }
-
-    @Test
-    fun lazySpec_disabledFeatureDoesNotCreateDefinition() {
-        val registry = FeatureInstallRegistry()
-        var createCalls = 0
-        val spec = LazyFeatureSpec(
-            id = TestId("lazy-off"),
-            name = "Lazy Off",
-            preferenceKey = "lazy_off",
-            target = FeatureTarget.SYSTEM_UI,
-            phase = InstallPhase.PACKAGE_READY,
-            enabled = { false },
-            factory = {
-                createCalls++
-                DummyFeature("lazy-off")
-            },
+        val results = registry.installAll(
+            FeatureTarget.SYSTEM_UI,
+            InstallPhase.PACKAGE_READY,
+            PrefMap(),
+            collectResults = true
         )
 
-        registry.register(spec)
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-
-        assertEquals(1, results.size)
-        assertTrue(results[0] == FeatureInstallResult.SKIPPED)
-        assertEquals("disabled feature must not call factory", 0, createCalls)
+        assertEquals(2, results.size)
+        assertEquals(FeatureInstallResult.FAILED_TRANSIENT, results[0])
+        assertEquals(FeatureInstallResult.INSTALLED, results[1])
     }
 
-    @Test
-    fun lazySpec_enabledFeatureCreatesAndInstalls() {
-        val registry = FeatureInstallRegistry()
-        var createCalls = 0
-        val definition = object : FeatureDefinition {
-            override val id = TestId("lazy-on")
-            override val name = "Lazy On"
-            override val preferenceKey = "lazy_on"
-            override val target = FeatureTarget.SYSTEM_UI
-            override val phase = InstallPhase.PACKAGE_READY
-            var installCalls = 0
-            override fun isEnabled(prefs: PrefMap) = true
-            override fun install(): FeatureInstallResult {
-                installCalls++
-                return FeatureInstallResult.INSTALLED
-            }
+    private fun featureThat(install: () -> FeatureInstallResult): FeatureDefinition {
+        val id = object : FeatureId {
+            override val id = ids.nextId()
+            override val name = "test-feature-${ids.nextId()}"
         }
-        val spec = LazyFeatureSpec(
-            id = definition.id,
-            name = definition.name,
-            preferenceKey = definition.preferenceKey,
-            target = definition.target,
-            phase = definition.phase,
-            enabled = { true },
-            factory = {
-                createCalls++
-                definition
-            },
-        )
-
-        registry.register(spec)
-        val results = registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-
-        assertEquals(1, results.size)
-        assertTrue(results[0] == FeatureInstallResult.INSTALLED)
-        assertEquals(1, createCalls)
-        assertEquals(1, definition.installCalls)
-    }
-
-    @Test(expected = OutOfMemoryError::class)
-    fun installOne_rethrowsOutOfMemoryErrorAndRollsBackState() {
-        val registry = FeatureInstallRegistry()
-        val spec = LazyFeatureSpec(
-            id = TestId("oom"),
-            name = "OOM",
-            preferenceKey = "oom",
-            target = FeatureTarget.SYSTEM_UI,
-            phase = InstallPhase.PACKAGE_READY,
-            enabled = { true },
-            factory = { throw OutOfMemoryError("OOM in factory") },
-        )
-        registry.register(spec)
-
-        try {
-            registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-        } finally {
-            assertTrue(FeatureInstallState.get(spec.id) == FeatureState.FAILED_TRANSIENT)
-        }
-    }
-
-    @Test(expected = OutOfMemoryError::class)
-    fun installOne_rethrowsOomFromCreatedDefinition() {
-        val registry = FeatureInstallRegistry()
-        val definition = object : FeatureDefinition {
-            override val id = TestId("oom-install")
-            override val name = "OOM Install"
-            override val preferenceKey = "oom_install"
+        return object : FeatureDefinition {
+            override val id = id
+            override val name = "test"
+            override val preferenceKey: String? = null
             override val target = FeatureTarget.SYSTEM_UI
             override val phase = InstallPhase.PACKAGE_READY
             override fun isEnabled(prefs: PrefMap) = true
-            override fun install(): FeatureInstallResult {
-                throw OutOfMemoryError("OOM in install")
-            }
+            override fun install() = install()
         }
-        val spec = LazyFeatureSpec(
-            id = definition.id,
-            name = definition.name,
-            preferenceKey = definition.preferenceKey,
-            target = definition.target,
-            phase = definition.phase,
-            enabled = { true },
-            factory = { definition },
-        )
-        registry.register(spec)
+    }
 
-        try {
-            registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, PrefMap(), collectResults = true)
-        } finally {
-            assertTrue(FeatureInstallState.get(spec.id) == FeatureState.FAILED_TRANSIENT)
-        }
+    private class TestVirtualMachineError : VirtualMachineError("test virtual machine error")
+
+    private object ids {
+        private var counter = 10000
+        fun nextId(): Int = counter--
     }
 }

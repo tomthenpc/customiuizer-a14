@@ -82,13 +82,11 @@ class FeatureInstallRegistry {
             FeatureState.FAILED_TRANSIENT, FeatureState.NOT_INSTALLED -> {
                 val result = try {
                     spec.create().install()
-                } catch (oom: OutOfMemoryError) {
-                    FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
-                    throw oom
                 } catch (t: Throwable) {
                     FeatureInstallState.set(id, FeatureState.FAILED_TRANSIENT)
-                    XposedHelpers.log(t)
-                    recordInstallFailure(spec, t)
+                    val reportable = FatalErrors.unwrapAndRethrowIfFatal(t)
+                    XposedHelpers.log(reportable)
+                    recordInstallFailure(spec, reportable)
                     FeatureInstallResult.FAILED_TRANSIENT
                 }
                 FeatureInstallState.set(id, toState(result))
