@@ -343,16 +343,17 @@ so it is not flagged as `STATIC_STRONG_ANDROID_OWNER`.
 ## Verification performed
 
 - `gradlew.bat --no-daemon :app:compileDebugKotlin` — BUILD SUCCESSFUL
+- `gradlew.bat --no-daemon :app:assembleDebug` — BUILD SUCCESSFUL
+- `gradlew.bat --no-daemon :app:assembleRelease` — BUILD SUCCESSFUL (R8 + lintVitalRelease passed)
 - `gradlew.bat --no-daemon :app:testDebugUnitTest` — BUILD SUCCESSFUL
+- `python tools/verify.py full` — passed
+- `python tools/audit-feature-semantics.py --validate` — Validation passed
 - `python tools/source_hazard_scan.py --write-baseline` — Wrote 1012 findings
 - `python tools/source_hazard_scan.py --strict-all` — passed, 0 new findings
 - `git diff --check` — clean
 
 ## Verification not performed
 
-- `gradlew.bat :app:assembleDebug` and `:app:assembleRelease` — not yet run.
-- `python tools/verify.py full`
-- `python tools/audit-feature-semantics.py --validate`
 - Real-device measurements (blocked by `DEVICE_CHECKPOINT_BLOCKED_NO_DEVICE`).
 
 ## Status
