@@ -64,7 +64,7 @@ object LauncherIconHooks {
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
                         override fun onChange(key: String?) {
                             ModuleHelper.guarded {
-                                if (key == null || !key.contains("pref_key_launcher_renameapps_list")) return
+                                if (key == null || !key.startsWith("launcher_renameapps_list")) return
                                 val newTitle = MainModule.mPrefs.getString(key, "")
                                 var mAllLoadedApps: HashSet<*>? = null
                                 if (XposedHelpers.findFieldIfExists(thisObject.javaClass, "mAllLoadedShortcut") != null)
@@ -80,7 +80,7 @@ object LauncherIconHooks {
                                         val pkgName = XposedHelpers.callMethod(shortcutObj, "getPackageName") as String
                                         val actName = XposedHelpers.callMethod(shortcutObj, "getClassName") as String
                                         val user = XposedHelpers.getObjectField(shortcutObj, "user") as UserHandle
-                                        if (("pref_key_launcher_renameapps_list:" + pkgName + "|" + actName + "|" + user.hashCode()) == key) {
+                                        if (("launcher_renameapps_list:" + pkgName + "|" + actName + "|" + user.hashCode()) == key) {
                                             val newStr: CharSequence? = if (TextUtils.isEmpty(newTitle)) XposedHelpers.getAdditionalInstanceField(shortcutObj, "mLabelOrig") as? CharSequence else newTitle
                                             XposedHelpers.setObjectField(shortcutObj, "mLabel", newStr)
 

@@ -8,7 +8,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
+import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.PrefMap
+import java.lang.ref.WeakReference
 
 /**
  * Lifecycle and style-application tests for the lock-screen charging info font size fix.
@@ -49,6 +52,11 @@ class ChargingInfoFontSizeLifecycleTest {
         override fun setSingleLine(singleLine: Boolean) {
             setSingleLineCalls.add(singleLine)
             currentSingleLine = singleLine
+        }
+
+        override fun post(action: Runnable?): Boolean {
+            action?.run()
+            return true
         }
     }
 
@@ -265,5 +273,128 @@ class ChargingInfoFontSizeLifecycleTest {
         assertNotNull(tv.withaibuild.customiuizer.mods.utils.XposedHelpers.getAdditionalInstanceField(
             textView, "charging_info_original_single_line"
         ))
+    }
+
+    @Test
+    fun observerCallback_originalSingleLineFalse_opt1KeepsFalse_opt2RestoresFalse() {
+        val textView = RecordingTextView()
+        textView.originalSingleLine = false
+        textView.currentSingleLine = false
+
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_fontsize", 20)
+            put("system_charginginfo_view", 1)
+        }
+
+        val viewRef = WeakReference(textView)
+        val observer = object : tv.withaibuild.customiuizer.mods.utils.ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) {
+                if (key !in SystemLockScreenHooks.CHARGING_INFO_OBSERVED_KEYS) return
+                val view = viewRef.get() ?: return
+                view.post { SystemLockScreenHooks.applyChargingInfoStyle(view, prefs) }
+            }
+        }
+
+        // First apply through the observer path.
+        observer.onChange("system_charginginfo_fontsize")
+        assertEquals(false, textView.currentSingleLine)
+
+        // Switch to opt 2; original (false) must be restored.
+        prefs.put("system_charginginfo_view", 2)
+        observer.onChange("system_charginginfo_view")
+        assertEquals(false, textView.currentSingleLine)
+        assertEquals(listOf(false, false), textView.setSingleLineCalls)
+    }
+
+    @Test
+    fun observerCallback_masterToggleTrueFalseTrueThroughObserver() {
+        val textView = RecordingTextView()
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_fontsize", 20)
+            put("system_charginginfo_view", 1)
+        }
+
+        val viewRef = WeakReference(textView)
+        val observer = object : tv.withaibuild.customiuizer.mods.utils.ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) {
+                if (key !in SystemLockScreenHooks.CHARGING_INFO_OBSERVED_KEYS) return
+                val view = viewRef.get() ?: return
+                view.post { SystemLockScreenHooks.applyChargingInfoStyle(view, prefs) }
+            }
+        }
+
+        // Feature enabled: custom style applied.
+        observer.onChange("system_charginginfo")
+        assertEquals(10.0f, textView.currentTextSize, 0.001f)
+        assertEquals(false, textView.currentSingleLine)
+
+        // Master switch off: original style restored.
+        prefs.put("system_charginginfo", false)
+        observer.onChange("system_charginginfo")
+        assertEquals(textView.originalTextSize, textView.currentTextSize, 0.001f)
+        assertEquals(textView.originalSingleLine, textView.currentSingleLine)
+
+        // Master switch on again: current prefs re-applied.
+        prefs.put("system_charginginfo", true)
+        observer.onChange("system_charginginfo")
+        assertEquals(10.0f, textView.currentTextSize, 0.001f)
+        assertEquals(false, textView.currentSingleLine)
+    }
+
+    @Test
+    fun observerCallback_repeatedSameKey_doesNotAccumulateSize() {
+        val textView = RecordingTextView()
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_fontsize", 20)
+            put("system_charginginfo_view", 2)
+        }
+
+        val viewRef = WeakReference(textView)
+        val observer = object : tv.withaibuild.customiuizer.mods.utils.ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) {
+                if (key !in SystemLockScreenHooks.CHARGING_INFO_OBSERVED_KEYS) return
+                val view = viewRef.get() ?: return
+                view.post { SystemLockScreenHooks.applyChargingInfoStyle(view, prefs) }
+            }
+        }
+
+        repeat(3) { observer.onChange("system_charginginfo_fontsize") }
+
+        assertEquals(3, textView.setTextSizeCalls.size)
+        for ((_, size) in textView.setTextSizeCalls) {
+            assertEquals(10.0f, size, 0.001f)
+        }
+        assertEquals(10.0f, textView.currentTextSize, 0.001f)
+    }
+
+    @Test
+    fun observerCallback_unrelatedKey_doesNotModifyView() {
+        val textView = RecordingTextView()
+        val prefs = PrefMap().apply {
+            put("system_charginginfo", true)
+            put("system_charginginfo_fontsize", 20)
+            put("system_charginginfo_view", 1)
+        }
+
+        val viewRef = WeakReference(textView)
+        val observer = object : tv.withaibuild.customiuizer.mods.utils.ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) {
+                if (key !in SystemLockScreenHooks.CHARGING_INFO_OBSERVED_KEYS) return
+                val view = viewRef.get() ?: return
+                view.post { SystemLockScreenHooks.applyChargingInfoStyle(view, prefs) }
+            }
+        }
+
+        SystemLockScreenHooks.applyChargingInfoStyle(textView, prefs)
+        textView.setTextSizeCalls.clear()
+        textView.setSingleLineCalls.clear()
+
+        observer.onChange("system_statusbarheight")
+
+        assertTrue("unrelated key must not modify text size", textView.setTextSizeCalls.isEmpty())
+        assertTrue("unrelated key must not modify single-line", textView.setSingleLineCalls.isEmpty())
     }
 }

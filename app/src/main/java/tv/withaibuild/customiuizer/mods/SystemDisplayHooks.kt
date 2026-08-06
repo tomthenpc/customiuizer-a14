@@ -57,7 +57,7 @@ object SystemDisplayHooks {
                     }
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
                         override fun onChange(key: String?) = ModuleHelper.guarded {
-                            if (key?.contains("system_screenanim_duration") == true) {
+                            if (key == "system_screenanim_duration") {
                                 if (mColorFadeOffAnimator == null) return
                                 var value2 = MainModule.mPrefs.getInt("system_screenanim_duration", 0)
                                 if (value2 == 0) value2 = 250
@@ -122,7 +122,7 @@ object SystemDisplayHooks {
                     mCustomBlurModifier[0] = MainModule.mPrefs.getInt("system_drawer_blur", 100)
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
                         override fun onChange(key: String?) = ModuleHelper.guarded {
-                            if (key?.contains("system_drawer_blur") == true) {
+                            if (key == "system_drawer_blur") {
                                 mCustomBlurModifier[0] = MainModule.mPrefs.getInt("system_drawer_blur", 100)
                             }
                         }
@@ -516,7 +516,7 @@ object SystemDisplayHooks {
                     XposedHelpers.setObjectField(thisObject, "mMaxWallpaperScale", scale)
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
                         override fun onChange(key: String?) = ModuleHelper.guarded {
-                            if (key?.contains("system_other_wallpaper_scale") == true) {
+                            if (key == "system_other_wallpaper_scale") {
                                 val value = MainModule.mPrefs.getInt("system_other_wallpaper_scale", 6)
                                 XposedHelpers.setObjectField(thisObject, "mMaxWallpaperScale", value / 10.0f)
                             }

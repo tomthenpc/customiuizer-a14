@@ -69,6 +69,9 @@ class PreferenceBootstrap private constructor(
      * Remote preference keys are stored with this prefix. The [PrefMap] snapshot uses the short form,
      * but the [OnSharedPreferenceChangeListener] receives the full storage key, so it must be
      * normalized before it is dispatched to the observers.
+     *
+     * Normalization is the canonical conversion from storage key to source-level short key:
+     * `pref_key_system_visualizer_animdur` -> `system_visualizer_animdur`.
      */
     private val storagePrefix = "pref_key_"
 

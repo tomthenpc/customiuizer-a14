@@ -98,7 +98,7 @@ object SystemAudioHooks {
                     XposedHelpers.setAdditionalInstanceField(thisObject, "mVibrationMode", Integer.parseInt(MainModule.mPrefs.getString("system_vibration", "1") ?: "1"))
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
                         override fun onChange(key: String?) = ModuleHelper.guarded {
-                            if (key?.endsWith("system_vibration") == true) {
+                            if (key == "system_vibration") {
                                 XposedHelpers.setAdditionalInstanceField(thisObject, "mVibrationMode", MainModule.mPrefs.getStringAsInt("system_vibration", 1))
                             }
                         }
@@ -107,7 +107,7 @@ object SystemAudioHooks {
                     XposedHelpers.setAdditionalInstanceField(thisObject, "mVibrationApps", MainModule.mPrefs.getStringSet("system_vibration_apps"))
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
                         override fun onChange(key: String?) = ModuleHelper.guarded {
-                            if (key?.contains("system_vibration_apps") == true) {
+                            if (key == "system_vibration_apps") {
                                 XposedHelpers.setAdditionalInstanceField(thisObject, "mVibrationApps", MainModule.mPrefs.getStringSet("system_vibration_apps"))
                             }
                         }

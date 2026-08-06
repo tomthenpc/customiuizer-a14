@@ -135,7 +135,7 @@ object SystemNotificationHooks {
                     XposedHelpers.setIntField(thisObject, "mHeadsUpNotificationDecay", delay)
                     ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
                         override fun onChange(key: String?) = ModuleHelper.guarded {
-                            if (key?.contains("system_betterpopups_delay") == true) {
+                            if (key == "system_betterpopups_delay") {
                                 var delay2 = MainModule.mPrefs.getInt("system_betterpopups_delay", 0) * 1000
                                 if (delay2 == 0) delay2 = 5000
                                 XposedHelpers.setIntField(thisObject, "mMinimumDisplayTime", delay2)

@@ -210,42 +210,42 @@ class AudioVisualizer @JvmOverloads constructor(
             if (detached) return
             try {
                 when (key) {
-                    "pref_key_system_visualizer_animdur" ->
+                    "system_visualizer_animdur" ->
                         animDur = MainModule.mPrefs.getInt("system_visualizer_animdur", 65)
-                    "pref_key_system_visualizer_transp" -> {
+                    "system_visualizer_transp" -> {
                         transparency = (255f - 255f * MainModule.mPrefs.getInt("system_visualizer_transp", 40) / 100f).roundToInt()
                         setColor(mOpaqueColor)
                         updateRainbowColors()
                     }
-                    "pref_key_system_visualizer_color" -> {
+                    "system_visualizer_color" -> {
                         colorMode = ColorMode.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_color", 1)]
                         updateBarStyle()
                         updateColorMode()
                     }
-                    "pref_key_system_visualizer_style" -> {
+                    "system_visualizer_style" -> {
                         barStyle = BarStyle.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_style", 1)]
                         updateBarStyle()
                     }
-                    "pref_key_system_visualizer_render" -> {
+                    "system_visualizer_render" -> {
                         renderType = RenderType.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_render", 0)]
                         updateBarStyle()
                     }
-                    "pref_key_system_visualizer_glowlevel" -> {
+                    "system_visualizer_glowlevel" -> {
                         glowLevel = MainModule.mPrefs.getInt("system_visualizer_glowlevel", 50)
                         updateGlowPaint()
                     }
-                    "pref_key_system_visualizer_colorval" -> {
+                    "system_visualizer_colorval" -> {
                         customColor = MainModule.mPrefs.getInt("system_visualizer_colorval", Color.WHITE)
                         setColor(customColor)
                     }
-                    "pref_key_system_visualizer_dyntime" -> {
+                    "system_visualizer_dyntime" -> {
                         randomizeInterval = MainModule.mPrefs.getInt("system_visualizer_dyntime", 10) * 1000
                         randomizeColorJob?.cancel()
                         randomizeColorJob = viewScope.launch { runRandomizeColor() }
                     }
-                    "pref_key_system_visualizer_drawer" ->
+                    "system_visualizer_drawer" ->
                         showInDrawer = MainModule.mPrefs.getBoolean("system_visualizer_drawer", false)
-                    "pref_key_system_visualizer_controller" ->
+                    "system_visualizer_controller" ->
                         showWithControllerOnly = MainModule.mPrefs.getBoolean("system_visualizer_controller", false)
                 }
             } catch (t: Throwable) {

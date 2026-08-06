@@ -11,8 +11,9 @@ import java.util.concurrent.atomic.AtomicReference
  * replaced with a single reference swap, so a reader on a hot path can never see a half-written or
  * temporarily empty map.  Single-key updates use a CAS loop on the same reference.
  *
- * Remote preferences use `pref_key_` names. They are normalized once when inserted so hot hook paths
- * can read their short, source-level keys without allocating a prefixed String on every invocation.
+ * Remote preferences use `pref_key_` storage names. They are normalized once when inserted so hot
+ * hook paths can read their short, source-level keys without allocating a prefixed String on every
+ * invocation. [PreferenceBootstrap] dispatches the same short key to [PreferenceObserver] callbacks.
  */
 class PrefMap {
 

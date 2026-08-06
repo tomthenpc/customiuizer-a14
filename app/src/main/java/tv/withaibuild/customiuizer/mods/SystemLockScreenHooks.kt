@@ -64,6 +64,12 @@ import java.util.TimeZone
  */
 object SystemLockScreenHooks {
 
+    internal val CHARGING_INFO_OBSERVED_KEYS = setOf(
+        "system_charginginfo",
+        "system_charginginfo_fontsize",
+        "system_charginginfo_view",
+    )
+
     @JvmStatic
     fun ScramblePINHook(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod("com.android.keyguard.KeyguardPINView", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
@@ -1393,19 +1399,15 @@ object SystemLockScreenHooks {
 
                         applyChargingInfoStyle(indicator)
 
-                        // The remote preference snapshot may not be ready when the lock screen
-                        // view is first inflated.  Register an owner-bound observer so the style
-                        // is re-applied as soon as the value is loaded or changed.
+                        // The owner-bound observer only handles real preference changes that happen
+                        // after this view is inflated. The initial snapshot is published silently by
+                        // [PreferenceBootstrap], so the observer does not re-apply the style on first
+                        // inflation. Any cold-boot gap must be reproduced and fixed with a device.
                         val indicatorRef = WeakReference(indicator)
                         ModuleHelper.observePreferenceChange(
                             object : ModuleHelper.PreferenceObserver {
-                                private val observedKeys = setOf(
-                                    "system_charginginfo_fontsize",
-                                    "system_charginginfo_view"
-                                )
-
                                 override fun onChange(key: String?) {
-                                    if (key !in observedKeys) return
+                                    if (key !in CHARGING_INFO_OBSERVED_KEYS) return
                                     val view = indicatorRef.get() ?: return
                                     view.post {
                                         try {

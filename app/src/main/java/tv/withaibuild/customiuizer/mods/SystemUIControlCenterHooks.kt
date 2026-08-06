@@ -152,11 +152,11 @@ object SystemUIControlCenterHooks {
 
     private val volumeBlurPreferenceObserver = object : ModuleHelper.PreferenceObserver {
         override fun onChange(key: String?) = ModuleHelper.guarded {
-            if (key == "pref_key_system_volumeblur_collapsed") {
-                blurCollapsed = MainModule.mPrefs.getInt(key, 0) / 100f
+            if (key == "system_volumeblur_collapsed") {
+                blurCollapsed = MainModule.mPrefs.getInt("system_volumeblur_collapsed", 0) / 100f
             }
-            if (key == "pref_key_system_volumeblur_expanded") {
-                blurExpanded = MainModule.mPrefs.getInt(key, 0) / 100f
+            if (key == "system_volumeblur_expanded") {
+                blurExpanded = MainModule.mPrefs.getInt("system_volumeblur_expanded", 0) / 100f
             }
         }
     }

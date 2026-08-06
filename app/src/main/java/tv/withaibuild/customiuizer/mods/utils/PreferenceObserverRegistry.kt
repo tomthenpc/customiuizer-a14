@@ -15,6 +15,13 @@ import java.util.concurrent.CopyOnWriteArraySet
  */
 object PreferenceObserverRegistry {
 
+    /**
+     * Canonical preference change observer.
+     *
+     * [key] is always the source-level short form with the `pref_key_` storage prefix removed.
+     * For example, a remote change for `pref_key_system_visualizer_animdur` is delivered as
+     * `system_visualizer_animdur`. Observers must match against short keys only.
+     */
     interface PreferenceObserver {
         fun onChange(key: String?)
     }
