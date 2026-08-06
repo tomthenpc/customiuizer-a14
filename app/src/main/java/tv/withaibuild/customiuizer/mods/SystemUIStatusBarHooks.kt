@@ -108,6 +108,23 @@ internal data class NetSpeedTextStyleSnapshot(
     val adjustment: Int,
 )
 
+/**
+ * Immutable snapshot of the detailed network-speed text-format configuration.
+ *
+ * Contains only the logical format flags used by [DetailedNetSpeedHook.updateText]; the module
+ * resource unit strings are read from the provided [Resources] each tick because they may depend
+ * on the current configuration. The snapshot itself holds no View, Context or controller.
+ */
+@VisibleForTesting
+internal data class DetailedNetSpeedFormatSnapshot(
+    val id: Long,
+    val hideLow: Boolean,
+    val lowLevelBytes: Int,
+    val speedStyle: Int,
+    val icons: Int,
+    val hideSecUnit: Boolean,
+)
+
 /** Converts [dp] to physical pixels using the current [Resources] display metrics. */
 private fun Resources.dp2px(dp: Float): Float =
     dp * getDisplayMetrics().density
@@ -153,11 +170,34 @@ object SystemUIStatusBarHooks {
     /** Preference observer that rebuilds the snapshot when a relevant style key changes. */
     private val netSpeedTextStyleObserver = object : ModuleHelper.PreferenceObserver {
         override fun onChange(key: String?) {
-            if (key != null && key !in netSpeedTextStyleRelevantKeys) return
-            val built = buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
-            currentNetSpeedTextStyleSnapshot.set(built)
+            if (key != null && key !in netSpeedTextStyleRelevantKeys && key !in detailedNetSpeedFormatRelevantKeys) return
+            if (key == null || key in netSpeedTextStyleRelevantKeys) {
+                val built = buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
+                currentNetSpeedTextStyleSnapshot.set(built)
+            }
+            if (key == null || key in detailedNetSpeedFormatRelevantKeys) {
+                // The detailed format snapshot needs a [Context] to read module resources, which
+                // the observer does not hold. We invalidate the cached snapshot here and let the
+                // next [updateText] tick build it with the controller's [Resources].
+                currentDetailedNetSpeedFormatSnapshot.set(null)
+            }
         }
     }
+
+    /** Process-scoped, atomically published snapshot for the detailed network-speed text hot path. */
+    private val currentDetailedNetSpeedFormatSnapshot = AtomicReference<DetailedNetSpeedFormatSnapshot?>(null)
+
+    /** Monotonic id generator for [DetailedNetSpeedFormatSnapshot]. */
+    private val detailedNetSpeedFormatSnapshotIdGenerator = AtomicLong(0L)
+
+    /** Keys whose changes require the detailed network-speed format snapshot to be rebuilt. */
+    private val detailedNetSpeedFormatRelevantKeys = setOf(
+        "system_detailednetspeed_low",
+        "system_detailednetspeed_lowlevel",
+        "system_detailednetspeed_style",
+        "system_detailednetspeed_icon",
+        "system_detailednetspeed_secunit",
+    )
 
     @JvmStatic
     fun setupStatusBar(mContext: Context) {
@@ -1498,11 +1538,17 @@ object SystemUIStatusBarHooks {
         sampledRxBytes = rx
     }
 
-    private fun humanReadableByteCount(ctx: Context, bytes: Long): String {
+    /**
+     * Formats [bytes] as a human-readable network speed string.
+     *
+     * Pure function: it reads only [bytes], the format [snapshot] and the module [modRes]. It does
+     * not access [MainModule.mPrefs], [Context], [View] or reflection. The original implementation
+     * only ever divided once by 1024 (KB -> MB), so this preserves the same unit boundaries.
+     */
+    @VisibleForTesting
+    internal fun humanReadableByteCount(bytes: Long, snapshot: DetailedNetSpeedFormatSnapshot, modRes: Resources): String {
         try {
-            val modRes = ModuleHelper.getModuleRes(ctx)
-            val hideSecUnit = MainModule.mPrefs.getBoolean("system_detailednetspeed_secunit")
-            val unitSuffix = if (hideSecUnit) "" else modRes.getString(R.string.Bs)
+            val unitSuffix = if (snapshot.hideSecUnit) "" else modRes.getString(R.string.Bs)
             var f = bytes / 1024.0f
             var expIndex = 0
             if (f > 999.0f) {
@@ -1511,11 +1557,55 @@ object SystemUIStatusBarHooks {
             }
             val pre = modRes.getString(R.string.speedunits)[expIndex]
             val number = formatNetSpeedValue(f)
-            return "$number$pre$unitSuffix"
+            return StringBuilder().append(number).append(pre).append(unitSuffix).toString()
         } catch (t: Throwable) {
             XposedHelpers.log(t)
             return ""
         }
+    }
+
+    /**
+     * Builds the detailed network speed text for [updateText].
+     *
+     * All formatting uses the [snapshot]; [modRes] is only used to resolve module unit strings.
+     */
+    @VisibleForTesting
+    internal fun formatDetailedNetSpeedText(
+        txSpeed: Long,
+        rxSpeed: Long,
+        snapshot: DetailedNetSpeedFormatSnapshot,
+        modRes: Resources,
+    ): Array<String?> {
+        val txarrow: String
+        val rxarrow: String
+        if (snapshot.speedStyle == 2) {
+            when (snapshot.icons) {
+                2 -> {
+                    txarrow = if (txSpeed < snapshot.lowLevelBytes) "△" else "▲"
+                    rxarrow = if (rxSpeed < snapshot.lowLevelBytes) "▽" else "▼"
+                }
+                3 -> {
+                    txarrow = if (txSpeed < snapshot.lowLevelBytes) " ☖" else " ☗"
+                    rxarrow = if (rxSpeed < snapshot.lowLevelBytes) " ⛉" else " ⛊"
+                }
+                else -> {
+                    txarrow = ""
+                    rxarrow = ""
+                }
+            }
+        } else {
+            txarrow = ""
+            rxarrow = ""
+        }
+
+        val rx = if (snapshot.hideLow && rxSpeed < snapshot.lowLevelBytes) "" else humanReadableByteCount(rxSpeed, snapshot, modRes) + rxarrow
+        val text = if (snapshot.speedStyle == 2) {
+            val tx = if (snapshot.hideLow && txSpeed < snapshot.lowLevelBytes) "" else humanReadableByteCount(txSpeed, snapshot, modRes) + txarrow
+            "$tx\n$rx"
+        } else {
+            rx
+        }
+        return arrayOf<String?>(text, "")
     }
 
     @JvmStatic
@@ -1525,6 +1615,10 @@ object SystemUIStatusBarHooks {
             XposedHelpers.log("DetailedNetSpeedHook", "No NetworkSpeed view or controller")
             return
         }
+
+        // Ensure the shared, owner-bound preference observer is registered. NetSpeedStyleHook also
+        // registers it; PreferenceObserverRegistry deduplicates by owner (SystemUIStatusBarHooks).
+        ModuleHelper.observePreferenceChange(netSpeedTextStyleObserver, SystemUIStatusBarHooks)
 
         val mBgHandlerField = XposedHelpers.findField(NetworkSpeedController, "mBgHandler")
         ModuleHelper.findAndHookMethod(mBgHandlerField.type, "handleMessage", Message::class.java, object : MethodHook() {
@@ -1569,35 +1663,10 @@ object SystemUIStatusBarHooks {
 
         ModuleHelper.hookAllMethods(NetworkSpeedController, "updateText", object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val mContext = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
-                val hideLow = MainModule.mPrefs.getBoolean("system_detailednetspeed_low")
-                val lowLevel = MainModule.mPrefs.getInt("system_detailednetspeed_lowlevel", 1) * 1024
-
-                val speedStyle = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_style", 1)
-
-                var txarrow = ""
-                var rxarrow = ""
-                if (speedStyle == 2) {
-                    val icons = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_icon", 2)
-                    if (icons == 2) {
-                        txarrow = if (txSpeed < lowLevel) "△" else "▲"
-                        rxarrow = if (rxSpeed < lowLevel) "▽" else "▼"
-                    } else if (icons == 3) {
-                        txarrow = if (txSpeed < lowLevel) " ☖" else " ☗"
-                        rxarrow = if (rxSpeed < lowLevel) " ⛉" else " ⛊"
-                    }
-                }
-
-                val strArr = arrayOfNulls<String>(2)
-                val rx = if (hideLow && rxSpeed < lowLevel) "" else humanReadableByteCount(mContext, rxSpeed) + rxarrow
-                if (speedStyle == 2) {
-                    val tx = if (hideLow && txSpeed < lowLevel) "" else humanReadableByteCount(mContext, txSpeed) + txarrow
-                    strArr[0] = "$tx\n$rx"
-                } else {
-                    strArr[0] = rx
-                }
-                strArr[1] = ""
-                param.getArgs()[0] = strArr
+                val context = XposedHelpers.getObjectField(param.getThisObject(), "mContext") as Context
+                val modRes = ModuleHelper.getModuleRes(context)
+                val snapshot = currentOrBuildDetailedNetSpeedFormatSnapshot()
+                param.getArgs()[0] = formatDetailedNetSpeedText(txSpeed, rxSpeed, snapshot, modRes)
             }
         })
     }
@@ -1703,6 +1772,35 @@ object SystemUIStatusBarHooks {
 
         val built = buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
         currentNetSpeedTextStyleSnapshot.set(built)
+        return built
+    }
+
+    /**
+     * Builds an immutable [DetailedNetSpeedFormatSnapshot] from [prefs].
+     *
+     * This is the only place these preference keys are read for the per-second detailed network
+     * speed text hot path.  The [lowLevelBytes] value is pre-multiplied by 1024 to match the
+     * threshold used in [updateText].
+     */
+    @VisibleForTesting
+    internal fun buildDetailedNetSpeedFormatSnapshot(prefs: PrefMap): DetailedNetSpeedFormatSnapshot {
+        return DetailedNetSpeedFormatSnapshot(
+            id = detailedNetSpeedFormatSnapshotIdGenerator.incrementAndGet(),
+            hideLow = prefs.getBoolean("system_detailednetspeed_low"),
+            lowLevelBytes = prefs.getInt("system_detailednetspeed_lowlevel", 1) * 1024,
+            speedStyle = prefs.getStringAsInt("system_detailednetspeed_style", 1),
+            icons = prefs.getStringAsInt("system_detailednetspeed_icon", 2),
+            hideSecUnit = prefs.getBoolean("system_detailednetspeed_secunit"),
+        )
+    }
+
+    /** Returns the current snapshot, building it from [MainModule.mPrefs] if it does not yet exist. */
+    private fun currentOrBuildDetailedNetSpeedFormatSnapshot(): DetailedNetSpeedFormatSnapshot {
+        val existing = currentDetailedNetSpeedFormatSnapshot.get()
+        if (existing != null) return existing
+
+        val built = buildDetailedNetSpeedFormatSnapshot(MainModule.mPrefs)
+        currentDetailedNetSpeedFormatSnapshot.set(built)
         return built
     }
 
