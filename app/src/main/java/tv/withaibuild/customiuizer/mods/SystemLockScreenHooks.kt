@@ -47,6 +47,7 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 import tv.withaibuild.customiuizer.utils.PrefPair
 import java.io.File
 import java.io.FileInputStream
+import java.lang.ref.WeakReference
 import java.text.SimpleDateFormat
 import java.util.ArrayList
 import java.util.Calendar
@@ -1131,6 +1132,31 @@ object SystemLockScreenHooks {
         if (raw in 17..40) raw / 2f else null
 
     /**
+     * Applies the charging-info font size and single-line state to the indication [TextView].
+     *
+     * - The raw SeekBar value is resolved to SP and applied only when it is in the valid range.
+     * - The default value (16) leaves the system text size untouched.
+     * - Single-line is only forced to `false` for the multi-line view option (opt == 1).
+     *
+     * This helper is kept separate from the hook so the same logic can be re-run from the
+     * preference observer when the remote snapshot becomes available after the first
+     * SystemUI startup, or when the user changes the setting while SystemUI is running.
+     */
+    internal fun applyChargingInfoStyle(textView: TextView, prefs: PrefMap = MainModule.mPrefs) {
+        if (!prefs.getBoolean("system_charginginfo", true)) return
+
+        val fontSizeRaw = prefs.getInt("system_charginginfo_fontsize", 16)
+        resolveChargingInfoFontSizeSp(fontSizeRaw)?.let { resolvedSizeSp ->
+            textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, resolvedSizeSp)
+        }
+
+        val opt = prefs.getStringAsInt("system_charginginfo_view", 1)
+        if (opt == 1) {
+            textView.isSingleLine = false
+        }
+    }
+
+    /**
      * Read the battery sysfs uevent file into a [Properties] object.
      *
      * This is intentionally a cold-path helper: the call only happens after charge/hint,
@@ -1241,6 +1267,9 @@ object SystemLockScreenHooks {
      *   so the registry can retry, but only after the previous failed attempt.
      * - The font/single-line hook on [KeyguardIndicationTextView#onFinishInflate] is optional.
      *   Its failure is recorded by [HookInstallerFacade] but does not fail the feature.
+     * - An owner-bound preference observer is attached to each inflated view so the style is
+     *   re-applied if the remote preference snapshot was not yet ready at first inflation, or
+     *   when the user changes the setting while SystemUI is running.
      *
      * Process-level once-deduplication is provided by [FeatureInstallState] / [FeatureInstallRegistry];
      * this function intentionally does not maintain a second local owner.
@@ -1311,18 +1340,39 @@ object SystemLockScreenHooks {
                         result = null
                     }
                     try {
-                        val thisObject = chain.thisObject
-                        val indicator = thisObject as TextView
+                        val indicator = chain.thisObject as? TextView
+                            ?: return XposedHelpers.throwOrReturn(throwable, result)
 
-                        val fontSizeRaw = MainModule.mPrefs.getInt("system_charginginfo_fontsize", 16)
-                        resolveChargingInfoFontSizeSp(fontSizeRaw)?.let { resolvedSizeSp ->
-                            indicator.setTextSize(TypedValue.COMPLEX_UNIT_SP, resolvedSizeSp)
-                        }
+                        applyChargingInfoStyle(indicator)
 
-                        val opt = MainModule.mPrefs.getStringAsInt("system_charginginfo_view", 1)
-                        if (opt != 1) { return XposedHelpers.throwOrReturn(throwable, result) }
-                        indicator.isSingleLine = false
+                        // The remote preference snapshot may not be ready when the lock screen
+                        // view is first inflated.  Register an owner-bound observer so the style
+                        // is re-applied as soon as the value is loaded or changed.
+                        val indicatorRef = WeakReference(indicator)
+                        ModuleHelper.observePreferenceChange(
+                            object : ModuleHelper.PreferenceObserver {
+                                private val observedKeys = setOf(
+                                    "system_charginginfo_fontsize",
+                                    "system_charginginfo_view"
+                                )
 
+                                override fun onChange(key: String?) {
+                                    if (key !in observedKeys) return
+                                    val view = indicatorRef.get() ?: return
+                                    view.post {
+                                        try {
+                                            applyChargingInfoStyle(view)
+                                        } catch (oom: OutOfMemoryError) {
+                                            throw oom
+                                        } catch (t: Throwable) {
+                                            FatalErrors.unwrapAndRethrowIfFatal(t)
+                                            XposedHelpers.log(t)
+                                        }
+                                    }
+                                }
+                            },
+                            indicator
+                        )
                     } catch (t: Throwable) {
                         FatalErrors.unwrapAndRethrowIfFatal(t)
                         XposedHelpers.log(t)
