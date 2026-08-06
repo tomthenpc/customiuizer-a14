@@ -6298,6 +6298,28 @@
       "notes": ""
     },
     {
+      "featureId": "pref_key_system_charginginfo_fontsize",
+      "featureName": "pref_key_system_charginginfo_fontsize",
+      "preferenceKeys": [
+        "pref_key_system_charginginfo_fontsize"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system_charginginfo.xml",
+      "defaultValue": "16",
+      "sourceFile": "app/src/main/res/xml/prefs_system_charginginfo.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system_charginginfo.xml",
+      "notes": ""
+    },
+    {
       "featureId": "pref_key_system_charginginfo_voltage",
       "featureName": "pref_key_system_charginginfo_voltage",
       "preferenceKeys": [
@@ -16525,6 +16547,28 @@
       "hotReloadable": false,
       "confidence": "UNKNOWN",
       "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt:1180",
+      "notes": ""
+    },
+    {
+      "featureId": "system_charginginfo_fontsize",
+      "featureName": "Lock screen charging text size",
+      "preferenceKeys": [
+        "system_charginginfo_fontsize"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system_charginginfo.xml",
+      "defaultValue": "16",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt:ChargingInfoHook",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "CALLBACK_READ",
+      "enableEffect": "Adjusts the font size of the lock screen charging indication",
+      "disableEffect": "Uses the default system font size",
+      "valueChangeEffect": "New value applies after SystemUI restart",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt:1317",
       "notes": ""
     },
     {

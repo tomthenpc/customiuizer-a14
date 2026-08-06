@@ -177,7 +177,7 @@
 			android:title="@string/launcher_spread_title" />
 
 	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
-	
+
 	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
 		android:key="pref_key_launcher_cat_bugfixes"
 		android:title="@string/launcher_bugfixes">

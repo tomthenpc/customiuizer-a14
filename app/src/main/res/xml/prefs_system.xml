@@ -121,7 +121,7 @@
 			android:key="pref_key_system_cc_volume_showpct"
 			android:title="@string/system_cc_volume_showpct_title"
 			android:defaultValue="false" />
-		
+
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 			android:key="pref_key_system_volumetimer"
 			android:title="@string/system_volumetimer_title"

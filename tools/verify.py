@@ -103,6 +103,12 @@ def check_invariants(changed: bool = False, staged: bool = False) -> int:
     return run(cmd)
 
 
+def check_feature_semantics() -> int:
+    """Validate feature-semantics/a14.json against schema and current source."""
+    cmd = [sys.executable, str(REPO_ROOT / "tools" / "audit-feature-semantics.py"), "--validate"]
+    return run(cmd)
+
+
 def read_build_gradle() -> str:
     build_file = REPO_ROOT / "app" / "build.gradle.kts"
     if build_file.exists():
@@ -184,6 +190,9 @@ def fast(tests: list[str] | None, changed: bool = False, staged: bool = False) -
     code = check_invariants(changed=changed, staged=staged)
     if code != 0:
         return code
+    code = check_feature_semantics()
+    if code != 0:
+        return code
 
     if changed or staged:
         changed = changed_files("HEAD" if changed else "--cached")
@@ -208,6 +217,9 @@ def full() -> int:
     if code != 0:
         return code
     code = check_invariants()
+    if code != 0:
+        return code
+    code = check_feature_semantics()
     if code != 0:
         return code
 

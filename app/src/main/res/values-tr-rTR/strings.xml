@@ -74,20 +74,20 @@
     <string name="system_clock_leadingzero_title">Sıfırdan saate kadar göster</string>
     <string name="system_clock_customformat_enable_title">Özel biçimi etkinleştir</string>
     <string name="system_clock_customformat_setting_title">Biçimi ayarla</string>
-    <string name="system_clock_customformat_help_summ">Yeni satır girilebilir, 2 satırdan sonra içerik kesilecek 
-yyyy - dört basamaklı yıl(2023) 
-yy - iki basamaklı yıl(23) 
-MM - iki basamaklı ay(02、12) 
-M - tek basamaklı ay(2、12) 
-dd - iki basamaklı gün(02、23) 
-d - tek basamaklı gün(2、23) 
-E - kısa hafta (Güneş) 
-a - AM、PM 
-HH - 24 saatlik iki basamaklı saat(09、14) 
-H - 24 saatlik tek basamaklı saat(9、14) 
-hh - 12 saatlik iki basamaklı saat(09、02) 
-h - 12 saatlik tek basamaklı saat(9、2) 
-mm - iki basamaklı dakika(09) 
+    <string name="system_clock_customformat_help_summ">Yeni satır girilebilir, 2 satırdan sonra içerik kesilecek
+yyyy - dört basamaklı yıl(2023)
+yy - iki basamaklı yıl(23)
+MM - iki basamaklı ay(02、12)
+M - tek basamaklı ay(2、12)
+dd - iki basamaklı gün(02、23)
+d - tek basamaklı gün(2、23)
+E - kısa hafta (Güneş)
+a - AM、PM
+HH - 24 saatlik iki basamaklı saat(09、14)
+H - 24 saatlik tek basamaklı saat(9、14)
+hh - 12 saatlik iki basamaklı saat(09、02)
+h - 12 saatlik tek basamaklı saat(9、2)
+mm - iki basamaklı dakika(09)
 ss - iki basamaklı saniye(09)</string>
     <string name="system_clock_fixedwidth_title">Yatay titremeyi önlemek için içerik genişliğini düzeltin</string>
     <string name="system_clock_fixedwidth_summ">Saniye görüntülendiğinde genişliği ayarlayın</string>
