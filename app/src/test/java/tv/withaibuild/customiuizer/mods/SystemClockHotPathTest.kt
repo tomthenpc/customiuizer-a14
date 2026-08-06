@@ -5,12 +5,18 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.content.res.Resources
+import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
 import android.os.Looper
 
 import android.util.DisplayMetrics
+import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
@@ -52,6 +58,9 @@ class SystemClockHotPathTest {
         private val fmtPm: String = this@SystemClockHotPathTest.fmtTimePm,
         private val density: Float = 2.0f,
     ) : Resources(null, DisplayMetrics().apply { this.density = density }, Configuration()) {
+        override fun getDisplayMetrics(): DisplayMetrics =
+            DisplayMetrics().apply { this.density = this@FakeResources.density }
+
         override fun getIdentifier(name: String?, defType: String?, defPackage: String?): Int {
             return when (name) {
                 "fmt_time_12hour_minute" -> 1
@@ -155,35 +164,133 @@ class SystemClockHotPathTest {
 
     private open inner class RecordingTextView : TextView(null) {
         override fun getResources(): Resources = FakeResources()
+
+        // Recorded setter calls for assertions.  Each setter also delegates to the
+        // real TextView implementation so that final getters such as textColors,
+        // textSize, and translationY reflect the recorded state.
         val setTextSizeCalls = mutableListOf<Pair<Int, Float>>()
-        val setTextColorCalls = mutableListOf<Int>()
+        val setTextColorCalls = mutableListOf<android.content.res.ColorStateList?>()
         val setBackgroundCalls = mutableListOf<android.graphics.drawable.Drawable?>()
-        var translationYValue: Float? = null
+        val setTypefaceCalls = mutableListOf<Pair<Typeface?, Int>>()
+        val setLayoutParamsCalls = mutableListOf<ViewGroup.LayoutParams?>()
+        val setLineSpacingCalls = mutableListOf<Pair<Float, Float>>()
+        val setTextAlignmentCalls = mutableListOf<Int>()
         var singleLineValue: Boolean? = null
         var maxLinesValue: Int? = null
+        var translationYValue: Float? = null
+        var currentTextColorValue: Int = Color.BLACK
+        var layoutParamsValue: ViewGroup.LayoutParams? = null
+        var typefaceValue: Typeface? = null
+        var textColorsValue: ColorStateList? = null
+        var backgroundValue: Drawable? = null
+        var textSizeValue: Float = 15f
+        var textAlignmentValue: Int = View.TEXT_ALIGNMENT_GRAVITY
+        var lineSpacingExtraValue: Float = 0f
+        var lineSpacingMultiplierValue: Float = 1.0f
+        private val keyedTags = mutableMapOf<Int, Any?>()
+
+        override fun getTypeface(): Typeface? = typefaceValue
+
+        override fun getBackground(): Drawable? = backgroundValue
+
+        override fun getTextSize(): Float = textSizeValue
+
+        override fun getTextAlignment(): Int = textAlignmentValue
+
+        override fun getLineSpacingMultiplier(): Float = lineSpacingMultiplierValue
+
+        override fun getLineSpacingExtra(): Float = lineSpacingExtraValue
+
+        override fun setTag(key: Int, tag: Any?) {
+            keyedTags[key] = tag
+            super.setTag(key, tag)
+        }
+
+        override fun getTag(key: Int): Any? = keyedTags[key] ?: super.getTag(key)
+
+        override fun getMaxLines(): Int = maxLinesValue ?: 1
+
+        override fun isSingleLine(): Boolean = singleLineValue ?: true
 
         override fun setTextSize(unit: Int, size: Float) {
             setTextSizeCalls.add(unit to size)
+            textSizeValue = when (unit) {
+                TypedValue.COMPLEX_UNIT_PX -> size
+                TypedValue.COMPLEX_UNIT_DIP -> size * resources.displayMetrics.density
+                else -> size
+            }
+            super.setTextSize(unit, size)
         }
 
         override fun setTextColor(color: Int) {
-            setTextColorCalls.add(color)
+            currentTextColorValue = color
+            val colors = ColorStateList.valueOf(color) ?: ColorStateList(arrayOf(IntArray(0)), intArrayOf(color))
+            textColorsValue = colors
+            setTextColorCalls.add(colors)
+            super.setTextColor(colors)
+        }
+
+        override fun setTextColor(colors: android.content.res.ColorStateList?) {
+            textColorsValue = colors
+            currentTextColorValue = colors?.defaultColor ?: Color.BLACK
+            setTextColorCalls.add(colors)
+            if (colors != null) super.setTextColor(colors)
         }
 
         override fun setBackground(background: android.graphics.drawable.Drawable?) {
             setBackgroundCalls.add(background)
+            backgroundValue = background
+            super.setBackground(background)
         }
+
+        override fun setTypeface(tf: Typeface?) {
+            setTypefaceCalls.add(tf to Typeface.NORMAL)
+            typefaceValue = tf
+            super.setTypeface(tf)
+        }
+
+        override fun setTypeface(tf: Typeface?, style: Int) {
+            setTypefaceCalls.add(tf to style)
+            if (style == Typeface.NORMAL) typefaceValue = tf
+            super.setTypeface(tf, style)
+        }
+
+        override fun setTextAlignment(textAlignment: Int) {
+            setTextAlignmentCalls.add(textAlignment)
+            textAlignmentValue = textAlignment
+            super.setTextAlignment(textAlignment)
+        }
+
+        override fun setLineSpacing(add: Float, mult: Float) {
+            setLineSpacingCalls.add(add to mult)
+            lineSpacingExtraValue = add
+            lineSpacingMultiplierValue = mult
+            super.setLineSpacing(add, mult)
+        }
+
+        override fun getTranslationY(): Float = translationYValue ?: 0f
 
         override fun setTranslationY(translationY: Float) {
             translationYValue = translationY
+            super.setTranslationY(translationY)
         }
 
         override fun setSingleLine(singleLine: Boolean) {
             singleLineValue = singleLine
+            super.setSingleLine(singleLine)
         }
 
         override fun setMaxLines(maxLines: Int) {
             maxLinesValue = maxLines
+            super.setMaxLines(maxLines)
+        }
+
+        override fun getLayoutParams(): ViewGroup.LayoutParams? = layoutParamsValue
+
+        override fun setLayoutParams(params: ViewGroup.LayoutParams?) {
+            setLayoutParamsCalls.add(params)
+            layoutParamsValue = params
+            super.setLayoutParams(params)
         }
     }
 
@@ -191,6 +298,92 @@ class SystemClockHotPathTest {
         prefs: PrefMap,
     ): SystemClockHooks.ClockStyleSnapshot {
         return SystemClockHooks.buildClockStyleSnapshot(prefs, FakeResources())
+    }
+
+    private fun statusbarSnapshotWith(
+        fontSize: Int = 13,
+        bold: Boolean = false,
+        align: Int = 1,
+        leftMargin: Int = 0,
+        rightMargin: Int = 0,
+        verticalOffset: Int = 8,
+        chip: Boolean = false,
+        chipUseMonet: Boolean = false,
+        chipCustomTextColor: Boolean = false,
+        chipTextColor: Int = Color.WHITE,
+        fixedWidth: Int = 10,
+        customFormat: String = "",
+        customFormatEnable: Boolean = false,
+    ): SystemClockHooks.ClockStyleSnapshot {
+        val prefs = PrefMap().apply {
+            put("system_statusbar_clock_fontsize", fontSize)
+            put("system_statusbar_clock_bold", bold)
+            put("system_statusbar_clock_align", align)
+            put("system_statusbar_clock_leftmargin", leftMargin)
+            put("system_statusbar_clock_rightmargin", rightMargin)
+            put("system_statusbar_clock_verticaloffset", verticalOffset)
+            put("system_statusbar_clock_chip", chip)
+            put("system_statusbar_clock_chip_usemonet", chipUseMonet)
+            put("system_statusbar_clock_chip_customtextcolor", chipCustomTextColor)
+            put("system_statusbar_clock_chip_textcolor", chipTextColor)
+            put("system_statusbar_clock_fixedcontent_width", fixedWidth)
+            put("system_statusbar_clock_customformat_enable", customFormatEnable)
+            put("system_statusbar_clock_customformat", customFormat)
+        }
+        return buildSnapshot(prefs)
+    }
+
+    private fun originalTypeface(): Typeface? {
+        val base = Typeface.DEFAULT_BOLD
+        return if (base != null) {
+            Typeface.create(base, Typeface.ITALIC)
+        } else {
+            null
+        }
+    }
+
+    private fun colorStateList(color: Int): ColorStateList =
+        ColorStateList.valueOf(color) ?: ColorStateList(arrayOf(IntArray(0)), intArrayOf(color))
+
+    private fun setOriginalStyle(
+        clock: RecordingTextView,
+        textSizePx: Float = 28f,
+        typeface: Typeface? = originalTypeface(),
+        textColor: Int = Color.BLACK,
+        textAlignment: Int = View.TEXT_ALIGNMENT_CENTER,
+        translationY: Float = 0f,
+        background: android.graphics.drawable.Drawable? = ColorDrawable(Color.RED),
+        singleLine: Boolean = true,
+        maxLines: Int = 1,
+        lineSpacingExtra: Float = 0f,
+        lineSpacingMultiplier: Float = 1f,
+        width: Int = ViewGroup.LayoutParams.WRAP_CONTENT,
+        height: Int = ViewGroup.LayoutParams.WRAP_CONTENT,
+        leftMargin: Int = 5,
+        rightMargin: Int = 5,
+        topMargin: Int = 2,
+        bottomMargin: Int = 2,
+        gravity: Int = Gravity.CENTER_VERTICAL or Gravity.START,
+    ) {
+        clock.textSizeValue = textSizePx
+        clock.setTypeface(typeface)
+        clock.setTextColor(textColor)
+        clock.setTextAlignment(textAlignment)
+        clock.setTranslationY(translationY)
+        clock.setBackground(background)
+        clock.setSingleLine(singleLine)
+        if (!singleLine) clock.setMaxLines(maxLines)
+        clock.setLineSpacing(lineSpacingExtra, lineSpacingMultiplier)
+        val lp = LinearLayout.LayoutParams(width, height).apply {
+            this.width = width
+            this.height = height
+            this.leftMargin = leftMargin
+            this.rightMargin = rightMargin
+            this.topMargin = topMargin
+            this.bottomMargin = bottomMargin
+            this.gravity = gravity
+        }
+        clock.setLayoutParams(lp)
     }
 
     @Test
@@ -369,6 +562,152 @@ class SystemClockHotPathTest {
         assertEquals(2, clock.setTextSizeCalls.size)
         assertEquals(10.0f, clock.setTextSizeCalls[0].second, 0.001f)
         assertEquals(12.0f, clock.setTextSizeCalls[1].second, 0.001f)
+    }
+
+    @Test
+    fun initClockStyle_boldTrueThenFalseRestoresOriginalTypeface() {
+        val clock = RecordingTextView()
+        val original = originalTypeface()
+        setOriginalStyle(clock, typeface = original)
+
+        val boldOn = statusbarSnapshotWith(bold = true)
+        val boldOff = statusbarSnapshotWith(bold = false)
+
+        SystemClockHooks.initClockStyle(clock, "clock", boldOn)
+        val afterBoldOn = clock.setTypefaceCalls.size
+
+        SystemClockHooks.initClockStyle(clock, "clock", boldOff)
+        assertEquals("bold off must restore original typeface", original, clock.typeface)
+        assertTrue(
+            "bold off must call setTypeface to restore the original",
+            clock.setTypefaceCalls.size > afterBoldOn,
+        )
+    }
+
+    @Test
+    fun initClockStyle_chipTrueThenFalseRestoresOriginalBackgroundAndColors() {
+        val clock = RecordingTextView()
+        val originalBackground = ColorDrawable(Color.RED)
+        setOriginalStyle(clock, background = originalBackground, textColor = Color.BLACK)
+        val originalTextColors = clock.textColors
+
+        val chipOn = statusbarSnapshotWith(
+            chip = true,
+            chipCustomTextColor = true,
+            chipTextColor = Color.GREEN,
+        )
+        val chipOff = statusbarSnapshotWith(chip = false)
+
+        SystemClockHooks.initClockStyle(clock, "clock", chipOn)
+        assertTrue("chip on must set a new background", clock.background !== originalBackground)
+        assertEquals(Color.GREEN, clock.currentTextColorValue)
+
+        SystemClockHooks.initClockStyle(clock, "clock", chipOff)
+        assertSame("chip off must restore original background", originalBackground, clock.background)
+        assertSame("chip off must restore original text colors", originalTextColors, clock.textColors)
+    }
+
+    @Test
+    fun initClockStyle_align2Then1RestoresOriginalTextAlignment() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, textAlignment = View.TEXT_ALIGNMENT_TEXT_END)
+
+        val align2 = statusbarSnapshotWith(align = 2)
+        val align1 = statusbarSnapshotWith(align = 1)
+
+        SystemClockHooks.initClockStyle(clock, "clock", align2)
+        assertEquals(View.TEXT_ALIGNMENT_TEXT_START, clock.textAlignment)
+
+        SystemClockHooks.initClockStyle(clock, "clock", align1)
+        assertEquals("align 1 must restore original text alignment", View.TEXT_ALIGNMENT_TEXT_END, clock.textAlignment)
+    }
+
+    @Test
+    fun initClockStyle_verticalOffsetCustomThenDefaultRestoresOriginalTranslationY() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, translationY = 5f)
+
+        val offset12 = statusbarSnapshotWith(verticalOffset = 12)
+        val offset8 = statusbarSnapshotWith(verticalOffset = 8)
+
+        SystemClockHooks.initClockStyle(clock, "clock", offset12)
+        assertNotNull(clock.translationYValue)
+        assertTrue(clock.translationYValue != 0f)
+
+        SystemClockHooks.initClockStyle(clock, "clock", offset8)
+        assertEquals("vertical offset 8 must restore original translationY", 5f, clock.translationYValue ?: Float.NaN, 0.001f)
+    }
+
+    @Test
+    fun initClockStyle_leftRightMarginCustomThenDefaultRestoresOriginalMargins() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, leftMargin = 5, rightMargin = 7)
+
+        val marginOn = statusbarSnapshotWith(leftMargin = 20, rightMargin = 30)
+        val marginOff = statusbarSnapshotWith(leftMargin = 0, rightMargin = 0)
+
+        SystemClockHooks.initClockStyle(clock, "clock", marginOn)
+        val lp1 = clock.layoutParams as LinearLayout.LayoutParams
+        assertTrue(lp1!!.leftMargin > 0)
+        assertTrue(lp1.rightMargin > 0)
+
+        SystemClockHooks.initClockStyle(clock, "clock", marginOff)
+        val lp2 = clock.layoutParams as LinearLayout.LayoutParams
+        assertEquals("left margin must restore", 5, lp2!!.leftMargin)
+        assertEquals("right margin must restore", 7, lp2.rightMargin)
+    }
+
+    @Test
+    fun initClockStyle_fixedWidthCustomThenDefaultRestoresOriginalWidth() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, width = 123)
+
+        val widthOn = statusbarSnapshotWith(fixedWidth = 50)
+        val widthOff = statusbarSnapshotWith(fixedWidth = 10)
+
+        SystemClockHooks.initClockStyle(clock, "clock", widthOn)
+        val lp1 = clock.layoutParams!!
+        assertTrue(lp1.width != 123)
+
+        SystemClockHooks.initClockStyle(clock, "clock", widthOff)
+        val lp2 = clock.layoutParams!!
+        assertEquals("fixed width off must restore original width", 123, lp2.width)
+    }
+
+    @Test
+    fun initClockStyle_dualRowsFalseThenTrueThenFalseRestoresSingleLineAndLineSpacing() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, singleLine = true, maxLines = 1, lineSpacingMultiplier = 1.25f)
+
+        val dualOn = statusbarSnapshotWith(customFormatEnable = true, customFormat = "HH\nmm")
+        val dualOff = statusbarSnapshotWith()
+
+        SystemClockHooks.initClockStyle(clock, "clock", dualOn)
+        assertEquals(false, clock.singleLineValue)
+        assertEquals(2, clock.maxLinesValue)
+
+        SystemClockHooks.initClockStyle(clock, "clock", dualOff)
+        assertEquals("single line must restore", true, clock.singleLineValue)
+        assertEquals("max lines must restore", 1, clock.maxLinesValue)
+        assertEquals("line spacing multiplier must restore", 1.25f, clock.lineSpacingMultiplier, 0.001f)
+    }
+
+    @Test
+    fun initClockStyle_fontSizeCustomThenDefaultRestoresOriginalTextSize() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, textSizePx = 40f)
+
+        val bigFont = statusbarSnapshotWith(fontSize = 20)
+        val defaultFont = statusbarSnapshotWith(fontSize = 13)
+
+        SystemClockHooks.initClockStyle(clock, "clock", bigFont)
+        assertEquals(1, clock.setTextSizeCalls.size)
+
+        SystemClockHooks.initClockStyle(clock, "clock", defaultFont)
+        assertEquals(2, clock.setTextSizeCalls.size)
+        val last = clock.setTextSizeCalls.last()
+        assertEquals("default font size must restore original px", TypedValue.COMPLEX_UNIT_PX, last.first)
+        assertEquals(40f, last.second, 0.001f)
     }
 
     @Test

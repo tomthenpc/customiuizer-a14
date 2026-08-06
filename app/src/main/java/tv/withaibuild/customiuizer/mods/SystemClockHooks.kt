@@ -4,9 +4,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.text.format.DateFormat
@@ -89,6 +91,9 @@ object SystemClockHooks {
 
     /** View tag key for the snapshot id that was last applied to a clock view. */
     private const val CLOCK_STYLE_SNAPSHOT_ID_FIELD = "clockStyleSnapshotId"
+
+    /** View tag key for the original style state captured on first style application. */
+    private const val CLOCK_ORIGINAL_STYLE_TAG = 0x7F000001
 
     /** All preference keys that can affect the clock style snapshot. */
     private val CLOCK_STYLE_PREFERENCE_KEYS = setOf(
@@ -341,135 +346,233 @@ object SystemClockHooks {
     internal fun initClockStyle(mClock: TextView, clockName: String, snapshot: ClockStyleSnapshot) {
         val lastId = XposedHelpers.getAdditionalInstanceField(mClock, CLOCK_STYLE_SNAPSHOT_ID_FIELD) as? Long
         if (lastId == snapshot.id) return
-        XposedHelpers.setAdditionalInstanceField(mClock, CLOCK_STYLE_SNAPSHOT_ID_FIELD, snapshot.id)
 
-        val res = mClock.resources
+        val originalState = getOrCaptureOriginalStyle(mClock)
+
+        applyClockStyle(mClock, clockName, snapshot, originalState)
+
+        XposedHelpers.setAdditionalInstanceField(mClock, CLOCK_STYLE_SNAPSHOT_ID_FIELD, snapshot.id)
+    }
+
+    private fun initClockStyle(mClock: TextView, clockName: String) {
+        initClockStyle(mClock, clockName, ensureClockStyleSnapshot(mClock.resources))
+    }
+
+    /**
+     * Immutable snapshot of the original, system-provided style state of a clock
+     * [TextView].  It deliberately holds no strong references to the view,
+     * context, resources, or layout params instance; primitive fields and
+     * detached [ColorStateList] / [Drawable] / [Typeface] values are enough to
+     * restore the original appearance.
+     */
+    @VisibleForTesting
+    internal data class ClockOriginalStyleState(
+        val textSizePx: Float,
+        val typeface: Typeface?,
+        val textColors: ColorStateList?,
+        val textAlignment: Int,
+        val translationY: Float,
+        val background: Drawable?,
+        val isSingleLine: Boolean,
+        val maxLines: Int,
+        val lineSpacingExtra: Float,
+        val lineSpacingMultiplier: Float,
+        val layoutParamsWidth: Int,
+        val layoutParamsHeight: Int,
+        val layoutParamsGravity: Int?,
+        val leftMargin: Int,
+        val rightMargin: Int,
+        val topMargin: Int,
+        val bottomMargin: Int,
+    ) {
+        companion object {
+            fun capture(view: TextView): ClockOriginalStyleState {
+                val lp = view.layoutParams
+                val linearLp = lp as? LinearLayout.LayoutParams
+                val marginLp = lp as? ViewGroup.MarginLayoutParams
+
+                return ClockOriginalStyleState(
+                    textSizePx = view.textSize,
+                    typeface = view.typeface,
+                    textColors = view.textColors,
+                    textAlignment = view.textAlignment,
+                    translationY = view.translationY,
+                    background = view.background,
+                    isSingleLine = view.isSingleLine,
+                    maxLines = view.maxLines,
+                    lineSpacingExtra = view.lineSpacingExtra,
+                    lineSpacingMultiplier = view.lineSpacingMultiplier,
+                    layoutParamsWidth = lp?.width ?: ViewGroup.LayoutParams.WRAP_CONTENT,
+                    layoutParamsHeight = lp?.height ?: ViewGroup.LayoutParams.WRAP_CONTENT,
+                    layoutParamsGravity = linearLp?.gravity,
+                    leftMargin = marginLp?.leftMargin ?: 0,
+                    rightMargin = marginLp?.rightMargin ?: 0,
+                    topMargin = marginLp?.topMargin ?: 0,
+                    bottomMargin = marginLp?.bottomMargin ?: 0,
+                )
+            }
+        }
+    }
+
+    private fun getOrCaptureOriginalStyle(view: TextView): ClockOriginalStyleState {
+        val existing = view.getTag(CLOCK_ORIGINAL_STYLE_TAG) as? ClockOriginalStyleState
+        if (existing != null) return existing
+
+        val state = ClockOriginalStyleState.capture(view)
+        view.setTag(CLOCK_ORIGINAL_STYLE_TAG, state)
+        return state
+    }
+
+    /**
+     * Builds a chip background drawable from a snapshot.  Isolated so that
+     * [applyClockStyle] can either set this drawable or fall back to the
+     * original background when the chip is disabled.
+     */
+    private fun buildChipDrawable(
+        snapshot: ClockStyleSnapshot,
+        displayMetrics: android.util.DisplayMetrics,
+    ): GradientDrawable {
+        val chipDrawable = GradientDrawable()
+        chipDrawable.orientation = if (snapshot.statusbarChipOrientationVertical) {
+            GradientDrawable.Orientation.TOP_BOTTOM
+        } else {
+            GradientDrawable.Orientation.LEFT_RIGHT
+        }
+        chipDrawable.colors = intArrayOf(snapshot.statusbarChipStartColor, snapshot.statusbarChipEndColor)
+        chipDrawable.shape = GradientDrawable.RECTANGLE
+
+        var horizPadding = snapshot.statusbarChipHorizPadding
+        var vertPadding = snapshot.statusbarChipVertPadding
+        if (horizPadding > 0) {
+            horizPadding = (horizPadding * displayMetrics.density).toInt()
+        }
+        if (vertPadding > 0) {
+            vertPadding = (vertPadding * displayMetrics.density).toInt()
+        }
+        if (horizPadding > 0 || vertPadding > 0) {
+            chipDrawable.setPadding(horizPadding, vertPadding, horizPadding, vertPadding)
+        }
+
+        var radiusPx = snapshot.statusbarChipRadius
+        if (radiusPx > 0) {
+            radiusPx = (radiusPx * displayMetrics.density).toInt()
+            chipDrawable.cornerRadius = radiusPx.toFloat()
+        }
+        return chipDrawable
+    }
+
+    /**
+     * Applies [snapshot] to [mClock] while preserving reversibility: every style
+     * property is either the snapshot-specific value or the value captured in
+     * [originalState].  Status-bar-only properties are not applied to
+     * non-status-bar clocks such as `ccClock`.
+     */
+    @VisibleForTesting
+    internal fun applyClockStyle(
+        mClock: TextView,
+        clockName: String,
+        snapshot: ClockStyleSnapshot,
+        originalState: ClockOriginalStyleState,
+    ) {
         val statusBarClock = clockName == "clock"
+        val res = mClock.resources
+        val displayMetrics = res.displayMetrics
+        val dimStep = 0.5f
+
         val enableCustomFormat = !statusBarClock || snapshot.statusbarCustomFormatEnable
         val customFormat = if (statusBarClock) snapshot.statusbarCustomFormat else snapshot.ccCustomFormat
         val dualRows = enableCustomFormat && customFormat.contains("\n")
 
         if (statusBarClock) {
-            val dimStep = 0.5f
-            val fontSize = snapshot.statusbarFontSize
-            if (fontSize > 13) {
-                mClock.setTextSize(TypedValue.COMPLEX_UNIT_DIP, fontSize * dimStep)
-            }
-            if (dualRows) {
-                val multiplier = if (0.5f * fontSize > 8.5f) 0.85f else 0.9f
-                mClock.setLineSpacing(0f, multiplier)
-            }
-            when (snapshot.statusbarAlign) {
-                2 -> mClock.textAlignment = View.TEXT_ALIGNMENT_TEXT_START
-                3 -> mClock.textAlignment = View.TEXT_ALIGNMENT_CENTER
-                4 -> mClock.textAlignment = View.TEXT_ALIGNMENT_TEXT_END
-            }
-            if (snapshot.statusbarBold) {
-                mClock.typeface = Typeface.DEFAULT_BOLD
-            }
-
-            var leftMargin = snapshot.statusbarLeftMargin
-            leftMargin = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                leftMargin * dimStep,
-                res.displayMetrics,
-            ).toInt()
-            var rightMargin = snapshot.statusbarRightMargin
-            rightMargin = TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                rightMargin * dimStep,
-                res.displayMetrics,
-            ).toInt()
-
-            val defaultVerticalOffset = 8
-            val verticalOffset = snapshot.statusbarVerticalOffset
-            if (verticalOffset != defaultVerticalOffset) {
-                val marginTop = TypedValue.applyDimension(
-                    TypedValue.COMPLEX_UNIT_DIP,
-                    (verticalOffset - defaultVerticalOffset) * dimStep,
-                    res.displayMetrics,
-                )
-                mClock.translationY = marginTop
-            }
-
-            if (snapshot.statusbarChip) {
-                val lp = mClock.layoutParams as LinearLayout.LayoutParams
-                lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
-                lp.gravity = Gravity.CENTER_VERTICAL or Gravity.START
-                if (leftMargin > 0) lp.leftMargin = leftMargin
-                if (rightMargin > 0) lp.rightMargin = rightMargin
-                mClock.layoutParams = lp
-
-                if (snapshot.statusbarChipUseMonet || snapshot.statusbarChipCustomTextColor) {
-                    mClock.setTextColor(snapshot.statusbarChipTextColor)
-                }
-
-                val chipDrawable = GradientDrawable()
-                chipDrawable.orientation = if (snapshot.statusbarChipOrientationVertical) {
-                    GradientDrawable.Orientation.TOP_BOTTOM
-                } else {
-                    GradientDrawable.Orientation.LEFT_RIGHT
-                }
-                chipDrawable.colors = intArrayOf(snapshot.statusbarChipStartColor, snapshot.statusbarChipEndColor)
-                chipDrawable.shape = GradientDrawable.RECTANGLE
-
-                var horizPadding = snapshot.statusbarChipHorizPadding
-                var vertPadding = snapshot.statusbarChipVertPadding
-                if (horizPadding > 0) {
-                    horizPadding = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        horizPadding.toFloat(),
-                        res.displayMetrics,
-                    ).toInt()
-                }
-                if (vertPadding > 0) {
-                    vertPadding = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        vertPadding.toFloat(),
-                        res.displayMetrics,
-                    ).toInt()
-                }
-                if (horizPadding > 0 || vertPadding > 0) {
-                    chipDrawable.setPadding(horizPadding, vertPadding, horizPadding, vertPadding)
-                }
-
-                var radiusPx = snapshot.statusbarChipRadius
-                if (radiusPx > 0) {
-                    radiusPx = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        radiusPx.toFloat(),
-                        res.displayMetrics,
-                    ).toInt()
-                    chipDrawable.cornerRadius = radiusPx.toFloat()
-                }
-                mClock.background = chipDrawable
+            if (snapshot.statusbarFontSize > 13) {
+                mClock.setTextSize(TypedValue.COMPLEX_UNIT_DIP, snapshot.statusbarFontSize * dimStep)
             } else {
-                if (leftMargin > 0 || rightMargin > 0) {
-                    val lp = mClock.layoutParams as LinearLayout.LayoutParams
-                    lp.height = ViewGroup.LayoutParams.WRAP_CONTENT
-                    lp.gravity = Gravity.CENTER_VERTICAL or Gravity.START
-                    if (leftMargin > 0) lp.leftMargin = leftMargin
-                    if (rightMargin > 0) lp.rightMargin = rightMargin
-                    mClock.layoutParams = lp
+                mClock.setTextSize(TypedValue.COMPLEX_UNIT_PX, originalState.textSizePx)
+            }
+
+            mClock.typeface = if (snapshot.statusbarBold) Typeface.DEFAULT_BOLD else originalState.typeface
+
+            if (snapshot.statusbarChip &&
+                (snapshot.statusbarChipUseMonet || snapshot.statusbarChipCustomTextColor)
+            ) {
+                mClock.setTextColor(snapshot.statusbarChipTextColor)
+            } else {
+                originalState.textColors?.let { mClock.setTextColor(it) }
+            }
+
+            mClock.textAlignment = when (snapshot.statusbarAlign) {
+                2 -> View.TEXT_ALIGNMENT_TEXT_START
+                3 -> View.TEXT_ALIGNMENT_TEXT_END
+                4 -> View.TEXT_ALIGNMENT_CENTER
+                else -> originalState.textAlignment
+            }
+
+            mClock.translationY = if (snapshot.statusbarVerticalOffset != 8) {
+                (snapshot.statusbarVerticalOffset - 8) * dimStep * displayMetrics.density
+            } else {
+                originalState.translationY
+            }
+
+            val desiredBackground = if (snapshot.statusbarChip) {
+                buildChipDrawable(snapshot, displayMetrics)
+            } else {
+                originalState.background
+            }
+            mClock.background = desiredBackground
+
+            val leftMarginPx = (snapshot.statusbarLeftMargin * dimStep * displayMetrics.density).toInt()
+            val rightMarginPx = (snapshot.statusbarRightMargin * dimStep * displayMetrics.density).toInt()
+            val hasHorizontalMargin = leftMarginPx > 0 || rightMarginPx > 0
+            val isChip = snapshot.statusbarChip
+
+            val lp = mClock.layoutParams ?: LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+
+            lp.width = if (snapshot.statusbarFixedWidth > 10) {
+                (displayMetrics.density * snapshot.statusbarFixedWidth).toInt()
+            } else {
+                originalState.layoutParamsWidth
+            }
+            lp.height = if (isChip || hasHorizontalMargin) {
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            } else {
+                originalState.layoutParamsHeight
+            }
+
+            if (lp is LinearLayout.LayoutParams) {
+                lp.gravity = if (isChip || hasHorizontalMargin) {
+                    Gravity.CENTER_VERTICAL or Gravity.START
+                } else {
+                    originalState.layoutParamsGravity ?: lp.gravity
                 }
             }
 
-            val fixedWidth = snapshot.statusbarFixedWidth
-            if (fixedWidth > 10) {
-                val lp = mClock.layoutParams
-                lp.width = (res.displayMetrics.density * fixedWidth).toInt()
-                mClock.layoutParams = lp
+            if (lp is ViewGroup.MarginLayoutParams) {
+                lp.leftMargin = if (leftMarginPx > 0) leftMarginPx else originalState.leftMargin
+                lp.rightMargin = if (rightMarginPx > 0) rightMarginPx else originalState.rightMargin
+                lp.topMargin = originalState.topMargin
+                lp.bottomMargin = originalState.bottomMargin
             }
+            mClock.layoutParams = lp
+        }
+
+        val (desiredLineSpacingExtra, desiredLineSpacingMultiplier) = if (dualRows && statusBarClock) {
+            val multiplier = if (0.5f * snapshot.statusbarFontSize > 8.5f) 0.85f else 0.9f
+            0f to multiplier
+        } else {
+            originalState.lineSpacingExtra to originalState.lineSpacingMultiplier
         }
 
         if (dualRows) {
             mClock.setSingleLine(false)
             mClock.maxLines = 2
+        } else {
+            mClock.setSingleLine(originalState.isSingleLine)
+            mClock.maxLines = originalState.maxLines
         }
-    }
-
-    private fun initClockStyle(mClock: TextView, clockName: String) {
-        initClockStyle(mClock, clockName, ensureClockStyleSnapshot(mClock.resources))
+        mClock.setLineSpacing(desiredLineSpacingExtra, desiredLineSpacingMultiplier)
     }
 
     /**
