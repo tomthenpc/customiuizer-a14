@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotEquals
 import org.junit.Test
 import tv.withaibuild.customiuizer.utils.FakeSharedPreferences
 import tv.withaibuild.customiuizer.utils.PrefMap
@@ -36,6 +37,69 @@ class PreferenceBootstrapTest {
         assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
         assertTrue(bootstrap.isReady())
         assertEquals(20, prefs.getInt("system_statusbarheight", 11))
+    }
+
+    @Test
+    fun bootstrap_initialSnapshot_doesNotDispatchChanges() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 20)
+
+        val prefs = PrefMap()
+        val dispatchedKeys = mutableListOf<String?>()
+        val bootstrap = PreferenceBootstrap.create(prefs, { fake }) { key ->
+            dispatchedKeys.add(key)
+        }
+
+        assertTrue(bootstrap.bootstrap())
+        assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
+        assertTrue(bootstrap.isReady())
+        assertTrue(
+            "initial first and second snapshot must be published silently; no observer dispatch",
+            dispatchedKeys.isEmpty()
+        )
+    }
+
+    @Test
+    fun bootstrap_initialSnapshot_dispatchesOnlyListenerChanges() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 20)
+
+        val prefs = PrefMap()
+        val dispatchedKeys = mutableListOf<String?>()
+        val bootstrap = PreferenceBootstrap.create(prefs, { fake }) { key ->
+            dispatchedKeys.add(key)
+        }
+
+        assertTrue(bootstrap.bootstrap())
+
+        val listener = getListener(bootstrap)
+        fake.put("pref_key_system_charginginfo_fontsize", 24)
+        listener?.onSharedPreferenceChanged(fake, "pref_key_system_charginginfo_fontsize")
+
+        assertEquals(listOf("system_charginginfo_fontsize"), dispatchedKeys)
+    }
+
+    @Test
+    fun bootstrap_windowedChangeWithoutListener_noDispatch() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 12)
+
+        val prefs = PrefMap()
+        val dispatchedKeys = mutableListOf<String?>()
+        val bootstrap = PreferenceBootstrap.create(prefs, { fake }) { key ->
+            dispatchedKeys.add(key)
+        }
+
+        // Mutate before bootstrap. The second snapshot picks up the new value, but no
+        // [handlePreferenceChanged] dispatch occurs for it.
+        fake.put("pref_key_system_statusbarheight", 24)
+
+        assertTrue(bootstrap.bootstrap())
+        assertEquals(24, prefs.getInt("system_statusbarheight", 11))
+        assertTrue(
+            "a change that happens before the listener is registered must not trigger a dispatch",
+            dispatchedKeys.isEmpty()
+        )
     }
 
     @Test

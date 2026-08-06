@@ -19,10 +19,17 @@ import tv.withaibuild.customiuizer.utils.PrefMap
  * The transition to [State.LOADED] / [State.VALID_EMPTY] only happens after the listener is
  * successfully registered and a second snapshot has been read.  No caller may use the snapshot for
  * hook installation decisions before [isReady] returns true.
+ *
+ * The initial snapshot is published silently: [changeDispatcher] is only invoked for changes that
+ * arrive through the registered [OnSharedPreferenceChangeListener], not for the initial first or
+ * second snapshot.  This means an owner-bound observer registered during the bootstrap window will
+ * only re-apply state when a later change arrives; it cannot be relied on to close an initial-value
+ * gap on its own.
  */
 class PreferenceBootstrap private constructor(
     private val prefs: PrefMap,
     private val remoteSource: RemotePreferenceSource,
+    private val changeDispatcher: (String?) -> Unit,
 ) {
 
     /**
@@ -58,6 +65,17 @@ class PreferenceBootstrap private constructor(
     private var initAttempts = 0
     private var emptyPendingAttempts = 0
 
+    /**
+     * Remote preference keys are stored with this prefix. The [PrefMap] snapshot uses the short form,
+     * but the [OnSharedPreferenceChangeListener] receives the full storage key, so it must be
+     * normalized before it is dispatched to the observers.
+     */
+    private val storagePrefix = "pref_key_"
+
+    private fun normalizeStorageKey(key: String): String {
+        return if (key.startsWith(storagePrefix)) key.substring(storagePrefix.length) else key
+    }
+
     private var unavailableReported = false
     private var emptyPendingReported = false
     private var validEmptyReported = false
@@ -68,7 +86,16 @@ class PreferenceBootstrap private constructor(
 
         @JvmStatic
         fun create(prefs: PrefMap, source: RemotePreferenceSource): PreferenceBootstrap {
-            return PreferenceBootstrap(prefs, source)
+            return PreferenceBootstrap(prefs, source, ModuleHelper::handlePreferenceChanged)
+        }
+
+        @JvmStatic
+        fun create(
+            prefs: PrefMap,
+            source: RemotePreferenceSource,
+            changeDispatcher: (String?) -> Unit,
+        ): PreferenceBootstrap {
+            return PreferenceBootstrap(prefs, source, changeDispatcher)
         }
     }
 
@@ -265,8 +292,9 @@ class PreferenceBootstrap private constructor(
 
             synchronizeState()
 
-            if (key != "pref_key_systemui_restart_time") {
-                ModuleHelper.handlePreferenceChanged(key)
+            val normalizedKey = normalizeStorageKey(key)
+            if (normalizedKey != "systemui_restart_time") {
+                changeDispatcher(normalizedKey)
             }
         } catch (t: Throwable) {
             XposedHelpers.log(t)

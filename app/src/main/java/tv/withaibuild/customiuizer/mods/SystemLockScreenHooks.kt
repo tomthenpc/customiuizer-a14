@@ -1131,28 +1131,72 @@ object SystemLockScreenHooks {
     internal fun resolveChargingInfoFontSizeSp(raw: Int): Float? =
         if (raw in 17..40) raw / 2f else null
 
+    private const val CHARGING_INFO_ORIGINAL_TEXT_SIZE = "charging_info_original_text_size"
+    private const val CHARGING_INFO_ORIGINAL_SINGLE_LINE = "charging_info_original_single_line"
+
+    /**
+     * Captures the original text size and single-line state of [textView] before the first
+     * modification, so [applyChargingInfoStyle] can restore them when the feature is disabled,
+     * the font size is set back to default, or the view option is no longer opt 1.
+     */
+    private fun saveOriginalChargingInfoStyle(textView: TextView) {
+        if (XposedHelpers.getAdditionalInstanceField(textView, CHARGING_INFO_ORIGINAL_TEXT_SIZE) == null) {
+            XposedHelpers.setAdditionalInstanceField(textView, CHARGING_INFO_ORIGINAL_TEXT_SIZE, textView.textSize)
+        }
+        if (XposedHelpers.getAdditionalInstanceField(textView, CHARGING_INFO_ORIGINAL_SINGLE_LINE) == null) {
+            XposedHelpers.setAdditionalInstanceField(textView, CHARGING_INFO_ORIGINAL_SINGLE_LINE, textView.isSingleLine)
+        }
+    }
+
+    private fun restoreChargingInfoTextSize(textView: TextView) {
+        val originalSize = XposedHelpers.getAdditionalInstanceField(textView, CHARGING_INFO_ORIGINAL_TEXT_SIZE) as? Float ?: return
+        textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, originalSize)
+    }
+
+    private fun restoreChargingInfoSingleLine(textView: TextView) {
+        val originalSingleLine = XposedHelpers.getAdditionalInstanceField(textView, CHARGING_INFO_ORIGINAL_SINGLE_LINE) as? Boolean ?: return
+        textView.isSingleLine = originalSingleLine
+    }
+
+    private fun restoreChargingInfoStyle(textView: TextView) {
+        restoreChargingInfoTextSize(textView)
+        restoreChargingInfoSingleLine(textView)
+    }
+
     /**
      * Applies the charging-info font size and single-line state to the indication [TextView].
      *
      * - The raw SeekBar value is resolved to SP and applied only when it is in the valid range.
-     * - The default value (16) leaves the system text size untouched.
-     * - Single-line is only forced to `false` for the multi-line view option (opt == 1).
+     * - The default value (16) restores the original text size captured on the first call.
+     * - Single-line is forced to `false` only for the multi-line view option (opt == 1); otherwise
+     *   the original single-line state is restored.
+     * - When the feature is disabled, both the text size and single-line state are restored.
      *
      * This helper is kept separate from the hook so the same logic can be re-run from the
-     * preference observer when the remote snapshot becomes available after the first
-     * SystemUI startup, or when the user changes the setting while SystemUI is running.
+     * preference observer when the user changes the setting while SystemUI is running.
      */
+    @JvmOverloads
     internal fun applyChargingInfoStyle(textView: TextView, prefs: PrefMap = MainModule.mPrefs) {
-        if (!prefs.getBoolean("system_charginginfo", true)) return
+        saveOriginalChargingInfoStyle(textView)
+
+        if (!prefs.getBoolean("system_charginginfo", true)) {
+            restoreChargingInfoStyle(textView)
+            return
+        }
 
         val fontSizeRaw = prefs.getInt("system_charginginfo_fontsize", 16)
-        resolveChargingInfoFontSizeSp(fontSizeRaw)?.let { resolvedSizeSp ->
+        val resolvedSizeSp = resolveChargingInfoFontSizeSp(fontSizeRaw)
+        if (resolvedSizeSp != null) {
             textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, resolvedSizeSp)
+        } else {
+            restoreChargingInfoTextSize(textView)
         }
 
         val opt = prefs.getStringAsInt("system_charginginfo_view", 1)
         if (opt == 1) {
             textView.isSingleLine = false
+        } else {
+            restoreChargingInfoSingleLine(textView)
         }
     }
 
@@ -1268,8 +1312,12 @@ object SystemLockScreenHooks {
      * - The font/single-line hook on [KeyguardIndicationTextView#onFinishInflate] is optional.
      *   Its failure is recorded by [HookInstallerFacade] but does not fail the feature.
      * - An owner-bound preference observer is attached to each inflated view so the style is
-     *   re-applied if the remote preference snapshot was not yet ready at first inflation, or
-     *   when the user changes the setting while SystemUI is running.
+     *   re-applied when the user changes the setting while SystemUI is running.
+     *
+     *   [PreferenceBootstrap] publishes the initial snapshot silently (it does not call
+     *   [ModuleHelper.handlePreferenceChanged] for the first or second snapshot), so the observer
+     *   cannot close an initial-value gap by itself. Any real cold-boot gap must be reproduced and
+     *   fixed with a connected device; QA checkpoint: DEVICE_CHECKPOINT_BLOCKED_NO_DEVICE.
      *
      * Process-level once-deduplication is provided by [FeatureInstallState] / [FeatureInstallRegistry];
      * this function intentionally does not maintain a second local owner.
