@@ -1349,42 +1349,33 @@ object SystemLockScreenHooks {
     }
 
     /**
-     * Production hook decision helper.
+     * Hot-path charging-info replacement computer.
      *
      * This is the same logic the core hook uses, but expressed as a pure
      * function that does not need a live Xposed [XposedInterface.Chain].
-     * It is the single place where the result/throwable passthrough contract
-     * is decided:
+     * It returns a replacement hint detail string, or null when the original
+     * result and throwable must be preserved.
      *
-     * - If [buildChargingInfoDetails] returns null, the original [result] and
-     *   [throwable] are preserved.
-     * - If it returns a non-null info string, the result is replaced with that
-     *   info and the throwable is cleared.
-     *
-     * The same [PrefMap] snapshot is shared with the style observer, so a
-     * true → false → true sequence in the same process uses the same
-     * preference source for both content and styling.
+     * The same [PrefMap] instance / atomically updated snapshot source is
+     * shared with the style observer, so a true → false → true sequence in
+     * the same process reads from the same preference object for both content
+     * and styling.
      */
-    internal fun updateChargingInfoResult(
+    internal fun computeChargingInfoReplacement(
         charge: Int,
         hint: String?,
-        result: Any?,
-        throwable: Throwable?,
         prefs: PrefMap,
         isKeyguardCaller: () -> Boolean,
         batteryPropsProvider: () -> Properties?
-    ): Pair<Any?, Throwable?> {
-        if (charge > 100 || hint == null) {
-            return result to throwable
-        }
-        val info = buildChargingInfoDetails(
+    ): String? {
+        if (charge > 100 || hint == null) return null
+        return buildChargingInfoDetails(
             charge,
             hint,
             prefs,
             isKeyguardCaller,
             batteryPropsProvider
         )
-        return if (info != null) info to null else result to throwable
     }
 
     /**
@@ -1429,17 +1420,17 @@ object SystemLockScreenHooks {
                     try {
                         val charge = chain.getArg(0) as Int
                         val hint = result as String?
-                        val (newResult, newThrowable) = updateChargingInfoResult(
+                        val replacement = computeChargingInfoReplacement(
                             charge,
                             hint,
-                            result,
-                            throwable,
                             MainModule.mPrefs,
                             { isKeyguardIndicationCaller() },
                             { readBatteryProperties() }
                         )
-                        result = newResult
-                        throwable = newThrowable
+                        if (replacement != null) {
+                            result = replacement
+                            throwable = null
+                        }
                     } catch (t: Throwable) {
                         FatalErrors.unwrapAndRethrowIfFatal(t)
                         XposedHelpers.log(t)

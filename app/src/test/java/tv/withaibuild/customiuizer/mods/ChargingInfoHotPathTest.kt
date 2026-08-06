@@ -194,7 +194,7 @@ class ChargingInfoHotPathTest {
         )
         assertNotNull(enabled)
 
-        // false -> null (same snapshot instance is not required here; the function is pure)
+        // false -> null (a new PrefMap instance is fine here; the function is pure)
         val (prefsFalse, _) = countingPrefMap(mapOf("system_charginginfo" to false))
         val disabled = SystemLockScreenHooks.buildChargingInfoDetails(
             charge = 50,
@@ -238,48 +238,98 @@ class ChargingInfoHotPathTest {
     }
 
     @Test
-    fun updateChargingInfoResult_infoNull_preservesOriginalResultAndThrowable() {
-        val originalThrowable = RuntimeException("original")
-        val (newResult, newThrowable) = SystemLockScreenHooks.updateChargingInfoResult(
-            charge = 50,
+    fun computeChargingInfoReplacement_chargeOver100_returnsNull() {
+        val replacement = SystemLockScreenHooks.computeChargingInfoReplacement(
+            charge = 101,
             hint = "50%",
-            result = "original hint",
-            throwable = originalThrowable,
-            prefs = countingPrefMap(mapOf("system_charginginfo" to false)).first,
-            isKeyguardCaller = { throw AssertionError("must not classify when disabled") },
-            batteryPropsProvider = { throw AssertionError("must not read sysfs when disabled") }
+            prefs = countingPrefMap(mapOf("system_charginginfo" to true)).first,
+            isKeyguardCaller = { throw AssertionError("must not classify when charge > 100") },
+            batteryPropsProvider = { throw AssertionError("must not read sysfs when charge > 100") }
         )
 
-        assertEquals("original hint", newResult)
-        assertEquals(originalThrowable, newThrowable)
+        assertNull(replacement)
     }
 
     @Test
-    fun updateChargingInfoResult_infoNonNull_replacesResultAndClearsThrowable() {
+    fun computeChargingInfoReplacement_hintNull_returnsNull() {
+        val replacement = SystemLockScreenHooks.computeChargingInfoReplacement(
+            charge = 50,
+            hint = null,
+            prefs = countingPrefMap(mapOf("system_charginginfo" to true)).first,
+            isKeyguardCaller = { throw AssertionError("must not classify when hint is null") },
+            batteryPropsProvider = { throw AssertionError("must not read sysfs when hint is null") }
+        )
+
+        assertNull(replacement)
+    }
+
+    @Test
+    fun computeChargingInfoReplacement_masterMissing_returnsNull() {
+        val (prefs, counter) = countingPrefMap(mapOf("system_charginginfo_current" to true))
+
+        val replacement = SystemLockScreenHooks.computeChargingInfoReplacement(
+            charge = 50,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { throw AssertionError("must not classify when master is missing") },
+            batteryPropsProvider = { throw AssertionError("must not read sysfs when master is missing") }
+        )
+
+        assertNull(replacement)
+        assertEquals(listOf("system_charginginfo"), counter.gets)
+    }
+
+    @Test
+    fun computeChargingInfoReplacement_masterFalse_returnsNull() {
+        val (prefs, counter) = countingPrefMap(mapOf("system_charginginfo" to false))
+
+        val replacement = SystemLockScreenHooks.computeChargingInfoReplacement(
+            charge = 50,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { throw AssertionError("must not classify when master is false") },
+            batteryPropsProvider = { throw AssertionError("must not read sysfs when master is false") }
+        )
+
+        assertNull(replacement)
+        assertEquals(listOf("system_charginginfo"), counter.gets)
+    }
+
+    @Test
+    fun computeChargingInfoReplacement_masterTrueDetailEnabled_returnsReplacement() {
         val props = Properties().apply {
             setProperty("POWER_SUPPLY_CURRENT_NOW", "2500000")
         }
-        val originalThrowable = RuntimeException("original")
-        val (newResult, newThrowable) = SystemLockScreenHooks.updateChargingInfoResult(
+        val (prefs, counter) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+        ))
+
+        val replacement = SystemLockScreenHooks.computeChargingInfoReplacement(
             charge = 50,
             hint = "50%",
-            result = "original hint",
-            throwable = originalThrowable,
-            prefs = countingPrefMap(mapOf(
-                "system_charginginfo" to true,
-                "system_charginginfo_current" to true,
-            )).first,
+            prefs = prefs,
             isKeyguardCaller = { true },
             batteryPropsProvider = { props }
         )
 
-        assertNotNull(newResult)
-        assertTrue(newResult.toString().contains("A"))
-        assertNull(newThrowable)
+        assertNotNull(replacement)
+        assertTrue(replacement!!.contains("A"))
+        assertEquals(
+            listOf(
+                "system_charginginfo",
+                "system_charginginfo_current",
+                "system_charginginfo_voltage",
+                "system_charginginfo_wattage",
+                "system_charginginfo_temp",
+                "system_charginginfo_view",
+            ),
+            counter.gets
+        )
     }
 
     @Test
-    fun updateChargingInfoResult_trueFalseTrue_usesSameSnapshotInstance() {
+    fun computeChargingInfoReplacement_trueFalseTrue_usesSamePrefMapInstance() {
         val props = Properties().apply {
             setProperty("POWER_SUPPLY_CURRENT_NOW", "2500000")
         }
@@ -289,43 +339,88 @@ class ChargingInfoHotPathTest {
             "system_charginginfo_current" to true,
         )).first
 
-        val enabled = SystemLockScreenHooks.updateChargingInfoResult(
+        val enabled = SystemLockScreenHooks.computeChargingInfoReplacement(
             charge = 50,
             hint = "50%",
-            result = "50%",
-            throwable = null,
             prefs = prefs,
             isKeyguardCaller = { true },
             batteryPropsProvider = { props }
         )
-        assertNotNull(enabled.first)
+        assertNotNull(enabled)
 
-        // Simulate the user turning the master switch off in the same snapshot.
+        // Simulate the user turning the master switch off on the same PrefMap
+        // instance. put() publishes a new internal immutable Map snapshot, but
+        // the PrefMap object itself is unchanged.
         prefs.put("system_charginginfo", false)
-        val disabled = SystemLockScreenHooks.updateChargingInfoResult(
+        val disabled = SystemLockScreenHooks.computeChargingInfoReplacement(
             charge = 50,
             hint = "50%",
-            result = "50%",
-            throwable = null,
             prefs = prefs,
             isKeyguardCaller = { throw AssertionError("must not classify when disabled") },
             batteryPropsProvider = { throw AssertionError("must not read sysfs when disabled") }
         )
-        assertEquals("50%", disabled.first)
-        assertNull(disabled.second)
+        assertNull(disabled)
 
         // Simulate the user turning the master switch on again.
         prefs.put("system_charginginfo", true)
-        val reenabled = SystemLockScreenHooks.updateChargingInfoResult(
+        val reenabled = SystemLockScreenHooks.computeChargingInfoReplacement(
             charge = 50,
             hint = "50%",
-            result = "50%",
-            throwable = null,
             prefs = prefs,
             isKeyguardCaller = { true },
             batteryPropsProvider = { props }
         )
-        assertNotNull(reenabled.first)
+        assertNotNull(reenabled)
+        assertEquals(enabled, reenabled)
+    }
+
+    @Test
+    fun computeChargingInfoReplacement_resultAndThrowablePreservedByCaller() {
+        // The helper itself never receives result/throwable. Its caller (the
+        // Hook) is responsible for preserving the original values when the
+        // replacement is null and for clearing the throwable when it is not.
+        val props = Properties().apply {
+            setProperty("POWER_SUPPLY_CURRENT_NOW", "2500000")
+        }
+
+        val disabledPrefs = countingPrefMap(mapOf("system_charginginfo" to false)).first
+        var result = "original hint"
+        var throwable: Throwable? = RuntimeException("original")
+        val replacement = SystemLockScreenHooks.computeChargingInfoReplacement(
+            charge = 50,
+            hint = "50%",
+            prefs = disabledPrefs,
+            isKeyguardCaller = { throw AssertionError("must not classify when disabled") },
+            batteryPropsProvider = { throw AssertionError("must not read sysfs when disabled") }
+        )
+        if (replacement == null) {
+            // null -> preserve original result and throwable
+        } else {
+            result = replacement
+            throwable = null
+        }
+
+        assertEquals("original hint", result)
+        assertNotNull(throwable)
+
+        val enabledPrefs = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+        )).first
+        val enabledReplacement = SystemLockScreenHooks.computeChargingInfoReplacement(
+            charge = 50,
+            hint = "50%",
+            prefs = enabledPrefs,
+            isKeyguardCaller = { true },
+            batteryPropsProvider = { props }
+        )
+        if (enabledReplacement != null) {
+            result = enabledReplacement
+            throwable = null
+        }
+
+        assertNotNull(result)
+        assertNull(throwable)
     }
 
     @Test

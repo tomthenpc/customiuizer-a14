@@ -59,7 +59,6 @@
     "0c973aa24ce3a9fd9c2e",
     "0cee0f4bb10d4b4e2371",
     "0d5af92a41350ee0c84e",
-    "0d6613cc119b144d876b",
     "0d933124de0438f3cf0b",
     "0da55f155f781d9a164e",
     "0dab9b175723d188ab51",
@@ -132,6 +131,7 @@
     "1ea1b82ee336bbcf6e2a",
     "1eafb1390852b9833041",
     "1ee227860b0b44dada06",
+    "1f383f0d9faebcc9e337",
     "1f43e6903b57a30a2f8a",
     "1f62741e6d0e5712c520",
     "1f7e263e0e24fa8fb328",
@@ -239,7 +239,6 @@
     "3a9bf912af46fca56f20",
     "3acf502a8ebbaca03227",
     "3af6df7a171829729704",
-    "3b0c8b8f9b23d7881162",
     "3b2c562713af92485b06",
     "3b8e227b5e20063952f4",
     "3bfd70a8765df1dc7f37",
@@ -299,6 +298,7 @@
     "461b4e30017090dd1a7f",
     "46d7a2cb278abdcee9e4",
     "4770ed5eb7dc9b07f904",
+    "48195a3978051f437355",
     "483f4a694de2c8b3f075",
     "48ac60eed46ac21af968",
     "48e715297d220e3d4bfc",
@@ -325,6 +325,7 @@
     "4f52280dca7e106fd1ef",
     "4f71ec763945c14cc375",
     "4f92e7dcb580b9450d91",
+    "4fcc5c8eeb86c81cf8fa",
     "4fe8cd1be13d05ba7c47",
     "4ffeb1bf2c8a6f062b57",
     "500ac5a762bafc66c9ab",
@@ -339,6 +340,7 @@
     "51cd5b465f2faa685b38",
     "520589372d787ef6a547",
     "521b85d458d71d2d364c",
+    "52a14441a917040730bc",
     "53134b79ae5449ac0c2f",
     "534138a223daadd3c1ca",
     "53488c9cb3969f9d687a",
@@ -360,7 +362,6 @@
     "5855c3312840b2a6ef85",
     "58f2b093df785459e4da",
     "590e3c0200a59c8b31a0",
-    "591abc9c079f810aa21a",
     "59519afc3477c5dbd66c",
     "5996875d0ddb830603af",
     "59bb7ae0ac121ee66f1e",
@@ -368,7 +369,6 @@
     "5ac14cc2a94dd1d961e0",
     "5ae9422b980a2e86d489",
     "5b3d71d282ccfe04252a",
-    "5b7a7be30d7fa105bf72",
     "5b8a389fbfb12931e22d",
     "5bb41ff9efa9c45b725e",
     "5c16c38391edb0d62b44",
@@ -402,7 +402,7 @@
     "621360f50b5431a55cfe",
     "6241fff91089a78cbc82",
     "62612508124722426035",
-    "62dd8a6eb0a3bd030ee0",
+    "62dcd41b178b9595b80d",
     "62e765910e0a7aee1f98",
     "6395ee2f3bd44b28699e",
     "63a444743e806bf01b5e",
@@ -435,6 +435,7 @@
     "6a2c5a88469fc6af7dc7",
     "6a318cd69bf174184ce0",
     "6a367052af3c61f54eed",
+    "6a683b558c420bd4a1b0",
     "6a868b51702f121d85ac",
     "6b2653b378c3aec7af72",
     "6b2d7db0300724fd7f48",
@@ -454,13 +455,11 @@
     "6f7981c740106eeebf43",
     "6f867ff302ac54312fb6",
     "708b04c30c2f23df3cae",
-    "70d340b87ada22ff2078",
     "711182892f8045205c6d",
     "718676496adcfed06ebd",
     "719db60cb336b0d774d7",
     "71e3b0928b9f0ade2772",
     "7223cadd54a6ab396b0e",
-    "7224702942e95646f405",
     "7233829645186b45c478",
     "735944ed7b8f645b890f",
     "7362b24f6e26991372c4",
@@ -722,7 +721,6 @@
     "b5c4e1a0ab85e02887dd",
     "b5f275c16996aad1160f",
     "b60513b68c112a39093b",
-    "b61aa3b7042c168f32fa",
     "b62ed2dde989624e04ec",
     "b68749e65b9d299fc97c",
     "b691026a128e1fde8f4e",
@@ -732,7 +730,6 @@
     "b6f80ba28ab9ea08fd80",
     "b70c8718346805d7548f",
     "b732ed2fcd34dc8f41ac",
-    "b760d878e5930f39fd81",
     "b782e02c53a8b40edb35",
     "b7a5c64bfadc75db8d9e",
     "b80e3588f0a26e553cab",
@@ -773,9 +770,9 @@
     "c3fe6ca54800226eaf0c",
     "c404305d4e90652dcd7e",
     "c41ad7fa1e904c720c86",
-    "c46e3b424b5d50210a90",
     "c46e67646ba95800d799",
     "c49b4a11e9dfa46157dd",
+    "c4a0d05ec1aa757eff95",
     "c4ce71961a8ee36e8700",
     "c4d7cb172288a6c5dd64",
     "c559aa6fc08edbe263cc",
@@ -790,6 +787,7 @@
     "c77660a94a30c1fe7445",
     "c7d59921d5809ee04b38",
     "c7f63b2181a8d5d3bb27",
+    "c82b9671d413a95ad6e5",
     "c83b220cba4d4a201cc8",
     "c85ff950f2ebfd45a077",
     "c8749a2326c62102fc2d",
@@ -799,6 +797,7 @@
     "ca39dd154e9096fcf308",
     "ca54519895dc3bb97fc1",
     "ca9a5110ea2fd3130c28",
+    "cb32ac1302a54d1efd2d",
     "cb6d4215c8c926baf47a",
     "cbaa129a9094d0dd27c4",
     "cbc055a8852230a0eacc",
@@ -853,7 +852,6 @@
     "d6c04db173d83c0380fd",
     "d6c6c619eafcfcca22cd",
     "d6f0ede019e0694d4322",
-    "d739b23d0e167b73986f",
     "d74e88e6f66dfa6d0c7c",
     "d7514da3bbd8cdc35be8",
     "d7c663427290d10b7401",
@@ -970,11 +968,13 @@
     "f346686eca737594398f",
     "f36486cd8925582fd46b",
     "f39d953db9aee63263c4",
+    "f3a87914b26112b4fcf6",
     "f3d1c1f710ec5e403f62",
     "f40273bcca7d17745cb7",
     "f40ff5a126fc098d6065",
     "f4bedc80a2e9b21a89cc",
     "f51bf1d216c0a183303f",
+    "f5214990e4fd8a08a45a",
     "f6285eaea5e51c9db3ec",
     "f65d5e9a85c925425869",
     "f67301cbcb9a4da17d44",
@@ -4293,10 +4293,10 @@
     {
       "rule": "EMPTY_CATCH",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1641,
+      "line": 1632,
       "snippet": "catch (ignore: Throwable) {}",
       "disposition": "accepted",
-      "fingerprint": "62dd8a6eb0a3bd030ee0"
+      "fingerprint": "6a683b558c420bd4a1b0"
     },
     {
       "rule": "STATIC_STRONG_ANDROID_OWNER",
@@ -4413,10 +4413,10 @@
     {
       "rule": "STATIC_STRONG_ANDROID_OWNER",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1634,
+      "line": 1625,
       "snippet": " val mContext =",
       "disposition": "accepted",
-      "fingerprint": "b61aa3b7042c168f32fa"
+      "fingerprint": "4fcc5c8eeb86c81cf8fa"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
@@ -4837,74 +4837,74 @@
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1525,
+      "line": 1516,
       "snippet": "catch (t: Throwable) { throwable = t result = null",
       "disposition": "accepted",
-      "fingerprint": "5b7a7be30d7fa105bf72"
+      "fingerprint": "cb32ac1302a54d1efd2d"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1542,
+      "line": 1533,
       "snippet": "catch (t: Throwable) { throwable = t result = null",
       "disposition": "accepted",
-      "fingerprint": "591abc9c079f810aa21a"
+      "fingerprint": "f5214990e4fd8a08a45a"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1561,
+      "line": 1552,
       "snippet": "catch (t: Throwable) { XposedHelpers.log(t)",
       "disposition": "accepted",
-      "fingerprint": "70d340b87ada22ff2078"
+      "fingerprint": "1f383f0d9faebcc9e337"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1581,
+      "line": 1572,
       "snippet": "catch (t: Throwable) { throwable = t result = null",
       "disposition": "accepted",
-      "fingerprint": "0d6613cc119b144d876b"
+      "fingerprint": "c4a0d05ec1aa757eff95"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1598,
+      "line": 1589,
       "snippet": "catch (t: Throwable) { throwable = t result = null",
       "disposition": "accepted",
-      "fingerprint": "b760d878e5930f39fd81"
+      "fingerprint": "52a14441a917040730bc"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1609,
+      "line": 1600,
       "snippet": "catch (t: Throwable) { XposedHelpers.log(t)",
       "disposition": "accepted",
-      "fingerprint": "7224702942e95646f405"
+      "fingerprint": "f3a87914b26112b4fcf6"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1625,
+      "line": 1616,
       "snippet": "catch (t: Throwable) { throwable = t result = null",
       "disposition": "accepted",
-      "fingerprint": "d739b23d0e167b73986f"
+      "fingerprint": "48195a3978051f437355"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1641,
+      "line": 1632,
       "snippet": "catch (ignore: Throwable) {",
       "disposition": "accepted",
-      "fingerprint": "c46e3b424b5d50210a90"
+      "fingerprint": "c82b9671d413a95ad6e5"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1709,
+      "line": 1700,
       "snippet": "catch (t: Throwable) { XposedHelpers.log(t)",
       "disposition": "accepted",
-      "fingerprint": "3b0c8b8f9b23d7881162"
+      "fingerprint": "62dcd41b178b9595b80d"
     },
     {
       "rule": "STATIC_STRONG_ANDROID_OWNER",

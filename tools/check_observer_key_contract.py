@@ -106,6 +106,120 @@ def find_kotlin_observer_bodies(text: str) -> list[tuple[int, int]]:
     return bodies
 
 
+def _walk(text: str, start: int, stop_on_brace: bool = False) -> int | None:
+    """Scan forward, skipping strings and comments, optionally stopping at '{'.
+
+    Returns the offset of the first '{' when [stop_on_brace] is True, otherwise
+    returns the length of the text.  The scan also returns early when the brace
+    or end-of-input is reached while inside a string or comment.
+    """
+    i = start
+    in_string: str | None = None
+    in_line_comment = False
+    in_block_comment = False
+    while i < len(text):
+        ch = text[i]
+        if in_string:
+            if ch == in_string and text[i - 1] != "\\":
+                in_string = None
+            i += 1
+            continue
+        if in_line_comment:
+            if ch == "\n":
+                in_line_comment = False
+            i += 1
+            continue
+        if in_block_comment:
+            if ch == "*" and i + 1 < len(text) and text[i + 1] == "/":
+                in_block_comment = False
+                i += 2
+                continue
+            i += 1
+            continue
+        if ch in ('"', "'", "`"):
+            in_string = ch
+            i += 1
+            continue
+        if ch == "/" and i + 1 < len(text):
+            if text[i + 1] == "/":
+                in_line_comment = True
+                i += 2
+                continue
+            if text[i + 1] == "*":
+                in_block_comment = True
+                i += 2
+                continue
+        if stop_on_brace and ch == "{":
+            return i
+        i += 1
+    return len(text) if not stop_on_brace else -1
+
+
+def _is_member_declaration_brace(text: str, brace_offset: int) -> bool:
+    """Return True if the brace at [brace_offset] starts a class/object member."""
+    line_start = text.rfind("\n", 0, brace_offset) + 1
+    line = text[line_start:brace_offset].strip()
+    return bool(
+        re.match(
+            r"(?:fun|class|object|companion|init|val|var|override)\b|}\s*$",
+            line,
+        )
+    )
+
+
+def _find_simple_expression_end(text: str, start: int) -> int:
+    """Scan for the end of a simple expression body (next member or class end)."""
+    i = start
+    in_string: str | None = None
+    in_line_comment = False
+    in_block_comment = False
+    while i < len(text):
+        ch = text[i]
+        if in_string:
+            if ch == in_string and text[i - 1] != "\\":
+                in_string = None
+            i += 1
+            continue
+        if in_line_comment:
+            if ch == "\n":
+                in_line_comment = False
+            i += 1
+            continue
+        if in_block_comment:
+            if ch == "*" and i + 1 < len(text) and text[i + 1] == "/":
+                in_block_comment = False
+                i += 2
+                continue
+            i += 1
+            continue
+        if ch in ('"', "'", "`"):
+            in_string = ch
+            i += 1
+            continue
+        if ch == "/" and i + 1 < len(text):
+            if text[i + 1] == "/":
+                in_line_comment = True
+                i += 2
+                continue
+            if text[i + 1] == "*":
+                in_block_comment = True
+                i += 2
+                continue
+        if ch == "\n":
+            line_start = i + 1
+            while line_start < len(text) and text[line_start] in " \t\r":
+                line_start += 1
+            if line_start < len(text):
+                rest = text[line_start:]
+                if re.match(
+                    r"(?:fun|val|var|companion|init|override|class|object)\b|}\s*(?:\n|$)",
+                    rest,
+                ):
+                    return i
+        i += 1
+    return len(text)
+
+
 def extract_onchange_body(text: str, match: re.Match) -> tuple[int, int] | None:
     """Return (start, end) offsets of an onChange body, or None if unparsable."""
     after = match.end()
@@ -124,20 +238,24 @@ def extract_onchange_body(text: str, match: re.Match) -> tuple[int, int] | None:
     if expr_start >= len(text):
         return None
 
-    first_brace = text.find("{", expr_start)
-    if first_brace >= 0:
-        # Most common cases: `= ModuleHelper.guarded { ... }` or
-        # `= someWrapper(key) { ... }`.  We treat the first `{` as the body.
+    # If the expression starts with a brace it is a lambda expression body.
+    if text[expr_start] == "{":
+        close = find_block_end(text, expr_start)
+        if close > 0:
+            return expr_start, close
+        return None
+
+    # Look for the first '{'.  If it is part of a trailing lambda we use it as
+    # the body; if it belongs to a subsequent class/object member we stop at
+    # the simple expression boundary instead.
+    first_brace = _walk(text, expr_start, stop_on_brace=True)
+    if first_brace >= 0 and not _is_member_declaration_brace(text, first_brace):
         close = find_block_end(text, first_brace)
         if close > 0:
             return first_brace, close
 
-    # No brace: simple expression body such as `= shortKeys.contains(key)`.
-    # Capture until the end of the statement (newline or semicolon).
-    m = re.search(r"(?:\n|;)", text[expr_start:])
-    if m:
-        return expr_start, expr_start + m.start()
-    return expr_start, len(text)
+    end = _find_simple_expression_end(text, expr_start)
+    return expr_start, end
 
 
 def check_kotlin_file(path: Path, rel: str, text: str) -> list[str]:

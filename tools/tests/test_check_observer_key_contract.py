@@ -112,6 +112,78 @@ object : ModuleHelper.PreferenceObserver {
         self.assertEqual(len(issues), 1)
         self.assertIn("pref_key_", issues[0])
 
+    def test_simple_expression_body_with_prefixed_key_fails(self) -> None:
+        path = self.write_kt(
+            "tv/foo/SimpleExprObserver.kt",
+            """
+package tv.foo
+object : PreferenceObserver {
+    override fun onChange(key: String?) =
+        key == "pref_key_system_example"
+
+    fun anotherMethod() {
+        println("later brace")
+    }
+}
+""",
+        )
+        issues = gate.check_file(path)
+        self.assertEqual(len(issues), 1)
+        self.assertIn("pref_key_", issues[0])
+
+    def test_simple_expression_body_with_short_key_passes(self) -> None:
+        path = self.write_kt(
+            "tv/foo/SimpleExprShortObserver.kt",
+            """
+package tv.foo
+object : PreferenceObserver {
+    override fun onChange(key: String?) =
+        key == "system_example"
+
+    fun anotherMethod() {
+        println("later brace")
+    }
+}
+""",
+        )
+        issues = gate.check_file(path)
+        self.assertEqual(issues, [])
+
+    def test_simple_expression_body_single_line_prefixed_key_fails(self) -> None:
+        path = self.write_kt(
+            "tv/foo/SingleLineExprObserver.kt",
+            """
+package tv.foo
+object : PreferenceObserver {
+    override fun onChange(key: String?) = key == "pref_key_system_example"
+
+    fun anotherMethod() {
+        println("later brace")
+    }
+}
+""",
+        )
+        issues = gate.check_file(path)
+        self.assertEqual(len(issues), 1)
+        self.assertIn("pref_key_", issues[0])
+
+    def test_simple_expression_body_single_line_short_key_passes(self) -> None:
+        path = self.write_kt(
+            "tv/foo/SingleLineExprShortObserver.kt",
+            """
+package tv.foo
+object : PreferenceObserver {
+    override fun onChange(key: String?) = key == "system_example"
+
+    fun anotherMethod() {
+        println("later brace")
+    }
+}
+""",
+        )
+        issues = gate.check_file(path)
+        self.assertEqual(issues, [])
+
     def test_non_observer_storage_key_does_not_flag(self) -> None:
         path = self.write_kt(
             "tv/foo/RegularClass.kt",
