@@ -4,17 +4,17 @@ import io.github.libxposed.api.XposedModuleInterface
 import java.io.FileNotFoundException
 import java.lang.reflect.Modifier
 import java.util.Properties
+import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
-import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallState
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
@@ -23,12 +23,341 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 
 class ChargingInfoHotPathTest {
 
+    /**
+     * A [Map] that records every [get] call. This is the "equivalent recorder"
+     * for the counting-PrefMap requirement: all public PrefMap typed getters
+     * eventually call [getValue], which calls [currentSnapshot] and then
+     * [Map.get]. Replacing the snapshot with this map lets the tests observe
+     * every key read without changing production signatures.
+     */
+    private class CountingMap(
+        private val backing: HashMap<String, Any>
+    ) : Map<String, Any> by backing {
+        val gets = mutableListOf<String?>()
+
+        override fun get(key: String): Any? {
+            gets.add(key)
+            return backing[key]
+        }
+    }
+
     @Test
-    fun chargingInfo_allDetailsDisabled_returnsBeforeCallerClassification() {
+    fun buildChargingInfoDetails_masterMissing_allDetailsTrue_returnsNull() {
+        val (prefs, counter) = countingPrefMap(mapOf(
+            "system_charginginfo_current" to true,
+            "system_charginginfo_voltage" to true,
+            "system_charginginfo_wattage" to true,
+            "system_charginginfo_temp" to true,
+        ))
+
+        val result = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { throw AssertionError("caller classification must not be reached") },
+            batteryPropsProvider = { throw AssertionError("sysfs read must not be reached") }
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun buildChargingInfoDetails_masterFalse_allDetailsTrue_returnsNull() {
+        val (prefs, counter) = countingPrefMap(mapOf(
+            "system_charginginfo" to false,
+            "system_charginginfo_current" to true,
+            "system_charginginfo_voltage" to true,
+            "system_charginginfo_wattage" to true,
+            "system_charginginfo_temp" to true,
+        ))
+
+        val result = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { throw AssertionError("caller classification must not be reached") },
+            batteryPropsProvider = { throw AssertionError("sysfs read must not be reached") }
+        )
+
+        assertNull(result)
+        assertEquals("master=false must read exactly one key", listOf("system_charginginfo"), counter.gets)
+    }
+
+    @Test
+    fun buildChargingInfoDetails_masterFalse_doesNotCallKeyguardClassifier() {
+        var callerCalls = 0
+        val (prefs, counter) = countingPrefMap(mapOf(
+            "system_charginginfo" to false,
+            "system_charginginfo_current" to true,
+        ))
+
+        val result = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { callerCalls++; true },
+            batteryPropsProvider = { throw AssertionError("sysfs read must not be reached") }
+        )
+
+        assertNull(result)
+        assertEquals("caller classification must not run when master is false", 0, callerCalls)
+    }
+
+    @Test
+    fun buildChargingInfoDetails_masterFalse_doesNotCallSysfsProvider() {
+        var providerCalls = 0
+        val (prefs, counter) = countingPrefMap(mapOf("system_charginginfo" to false))
+
+        val result = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { throw AssertionError("caller classification must not be reached") },
+            batteryPropsProvider = { providerCalls++; Properties() }
+        )
+
+        assertNull(result)
+        assertEquals("sysfs provider must not run when master is false", 0, providerCalls)
+    }
+
+    @Test
+    fun buildChargingInfoDetails_masterTrue_allDetailsFalse_returnsNullAndStopsAtAllDisabled() {
+        val (prefs, counter) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to false,
+            "system_charginginfo_voltage" to false,
+            "system_charginginfo_wattage" to false,
+            "system_charginginfo_temp" to false,
+        ))
+
+        val result = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { throw AssertionError("caller classification must not be reached") },
+            batteryPropsProvider = { throw AssertionError("sysfs read must not be reached") }
+        )
+
+        assertNull(result)
+        assertEquals(
+            "master=true all-off must read master then four detail switches",
+            listOf(
+                "system_charginginfo",
+                "system_charginginfo_current",
+                "system_charginginfo_voltage",
+                "system_charginginfo_wattage",
+                "system_charginginfo_temp",
+            ),
+            counter.gets
+        )
+    }
+
+    @Test
+    fun buildChargingInfoDetails_masterTrue_oneDetailEnabled_usesExistingOutput() {
+        val props = Properties().apply {
+            setProperty("POWER_SUPPLY_CURRENT_NOW", "2500000")
+        }
+        val (prefs, counter) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+        ))
+
+        val result = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { true },
+            batteryPropsProvider = { props }
+        )
+
+        assertNotNull(result)
+        assertTrue("current should be rendered", result!!.contains("A"))
+    }
+
+    @Test
+    fun buildChargingInfoDetails_masterTrueThenFalseThenTrue_togglesOutput() {
+        val props = Properties().apply {
+            setProperty("POWER_SUPPLY_CURRENT_NOW", "2500000")
+        }
+
+        // true -> output
+        val (prefsTrue, _) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+        ))
+        val enabled = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefsTrue,
+            isKeyguardCaller = { true },
+            batteryPropsProvider = { props }
+        )
+        assertNotNull(enabled)
+
+        // false -> null (same snapshot instance is not required here; the function is pure)
+        val (prefsFalse, _) = countingPrefMap(mapOf("system_charginginfo" to false))
+        val disabled = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefsFalse,
+            isKeyguardCaller = { throw AssertionError("must not classify when disabled") },
+            batteryPropsProvider = { throw AssertionError("must not read sysfs when disabled") }
+        )
+        assertNull(disabled)
+
+        // true again -> output
+        val (prefsTrueAgain, _) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+        ))
+        val reenabled = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefsTrueAgain,
+            isKeyguardCaller = { true },
+            batteryPropsProvider = { props }
+        )
+        assertNotNull(reenabled)
+        assertEquals(enabled, reenabled)
+    }
+
+    @Test
+    fun buildChargingInfoDetails_masterFalse_preservesOriginalHint() {
+        val (prefs, _) = countingPrefMap(mapOf("system_charginginfo" to false))
+
+        val result = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 50,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { throw AssertionError("must not classify when disabled") },
+            batteryPropsProvider = { throw AssertionError("must not read sysfs when disabled") }
+        )
+
+        assertNull(result)
+        // A null return tells the Hook to keep the original result/throwable.
+    }
+
+    @Test
+    fun updateChargingInfoResult_infoNull_preservesOriginalResultAndThrowable() {
+        val originalThrowable = RuntimeException("original")
+        val (newResult, newThrowable) = SystemLockScreenHooks.updateChargingInfoResult(
+            charge = 50,
+            hint = "50%",
+            result = "original hint",
+            throwable = originalThrowable,
+            prefs = countingPrefMap(mapOf("system_charginginfo" to false)).first,
+            isKeyguardCaller = { throw AssertionError("must not classify when disabled") },
+            batteryPropsProvider = { throw AssertionError("must not read sysfs when disabled") }
+        )
+
+        assertEquals("original hint", newResult)
+        assertEquals(originalThrowable, newThrowable)
+    }
+
+    @Test
+    fun updateChargingInfoResult_infoNonNull_replacesResultAndClearsThrowable() {
+        val props = Properties().apply {
+            setProperty("POWER_SUPPLY_CURRENT_NOW", "2500000")
+        }
+        val originalThrowable = RuntimeException("original")
+        val (newResult, newThrowable) = SystemLockScreenHooks.updateChargingInfoResult(
+            charge = 50,
+            hint = "50%",
+            result = "original hint",
+            throwable = originalThrowable,
+            prefs = countingPrefMap(mapOf(
+                "system_charginginfo" to true,
+                "system_charginginfo_current" to true,
+            )).first,
+            isKeyguardCaller = { true },
+            batteryPropsProvider = { props }
+        )
+
+        assertNotNull(newResult)
+        assertTrue(newResult.toString().contains("A"))
+        assertNull(newThrowable)
+    }
+
+    @Test
+    fun updateChargingInfoResult_trueFalseTrue_usesSameSnapshotInstance() {
+        val props = Properties().apply {
+            setProperty("POWER_SUPPLY_CURRENT_NOW", "2500000")
+        }
+
+        val prefs = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+        )).first
+
+        val enabled = SystemLockScreenHooks.updateChargingInfoResult(
+            charge = 50,
+            hint = "50%",
+            result = "50%",
+            throwable = null,
+            prefs = prefs,
+            isKeyguardCaller = { true },
+            batteryPropsProvider = { props }
+        )
+        assertNotNull(enabled.first)
+
+        // Simulate the user turning the master switch off in the same snapshot.
+        prefs.put("system_charginginfo", false)
+        val disabled = SystemLockScreenHooks.updateChargingInfoResult(
+            charge = 50,
+            hint = "50%",
+            result = "50%",
+            throwable = null,
+            prefs = prefs,
+            isKeyguardCaller = { throw AssertionError("must not classify when disabled") },
+            batteryPropsProvider = { throw AssertionError("must not read sysfs when disabled") }
+        )
+        assertEquals("50%", disabled.first)
+        assertNull(disabled.second)
+
+        // Simulate the user turning the master switch on again.
+        prefs.put("system_charginginfo", true)
+        val reenabled = SystemLockScreenHooks.updateChargingInfoResult(
+            charge = 50,
+            hint = "50%",
+            result = "50%",
+            throwable = null,
+            prefs = prefs,
+            isKeyguardCaller = { true },
+            batteryPropsProvider = { props }
+        )
+        assertNotNull(reenabled.first)
+    }
+
+    @Test
+    fun buildChargingInfoDetails_chargeOver100_returnsBeforeMasterSwitch() {
+        var providerCalls = 0
+        val (prefs, counter) = countingPrefMap(mapOf("system_charginginfo" to true))
+
+        val result = SystemLockScreenHooks.buildChargingInfoDetails(
+            charge = 101,
+            hint = "50%",
+            prefs = prefs,
+            isKeyguardCaller = { true },
+            batteryPropsProvider = { providerCalls++; Properties() }
+        )
+
+        assertNull(result)
+        assertEquals("charge > 100 must not read any preferences", 0, counter.gets.size)
+        assertEquals("charge > 100 must not call sysfs provider", 0, providerCalls)
+    }
+
+    @Test
+    fun buildChargingInfoDetails_allDetailsDisabled_returnsBeforeCallerClassification() {
+        val (prefs, counter) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to false,
+            "system_charginginfo_voltage" to false,
+            "system_charginginfo_wattage" to false,
+            "system_charginginfo_temp" to false,
+        ))
+
         var callerCalls = 0
         var providerCalls = 0
-        val prefs = allDisabledPrefs()
-
         val result = SystemLockScreenHooks.buildChargingInfoDetails(
             charge = 50,
             hint = "50%",
@@ -43,10 +372,13 @@ class ChargingInfoHotPathTest {
     }
 
     @Test
-    fun chargingInfo_enabled_nonKeyguard_returnsBeforeSysfs() {
+    fun buildChargingInfoDetails_enabled_nonKeyguard_returnsBeforeSysfs() {
         var callerCalls = 0
         var providerCalls = 0
-        val prefs = PrefMap().apply { put("system_charginginfo_current", true) }
+        val (prefs, counter) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+        ))
 
         val result = SystemLockScreenHooks.buildChargingInfoDetails(
             charge = 50,
@@ -62,34 +394,16 @@ class ChargingInfoHotPathTest {
     }
 
     @Test
-    fun chargingInfo_disabledReadsStopAtAllDetailsOff() {
-        val prefs = allDisabledPrefs()
-        // prefs.getBoolean on missing keys returns false, so every switch is false.
-        assertFalse(prefs.getBoolean("system_charginginfo_current"))
-        assertFalse(prefs.getBoolean("system_charginginfo_voltage"))
-        assertFalse(prefs.getBoolean("system_charginginfo_wattage"))
-        assertFalse(prefs.getBoolean("system_charginginfo_temp"))
-
-        val result = SystemLockScreenHooks.buildChargingInfoDetails(
-            charge = 50,
-            hint = "50%",
-            prefs = prefs,
-            isKeyguardCaller = { throw AssertionError("caller classification must not be reached") },
-            batteryPropsProvider = { throw AssertionError("sysfs read must not be reached") }
-        )
-        assertNull(result)
-    }
-
-    @Test
-    fun chargingInfo_malformedSingleProperty_skipsOnlyThatProperty() {
+    fun buildChargingInfoDetails_malformedSingleProperty_skipsOnlyThatProperty() {
         val props = Properties().apply {
             setProperty("POWER_SUPPLY_CURRENT_NOW", "not_a_number")
             setProperty("POWER_SUPPLY_VOLTAGE_NOW", "4200000")
         }
-        val prefs = PrefMap().apply {
-            put("system_charginginfo_current", true)
-            put("system_charginginfo_voltage", true)
-        }
+        val (prefs, _) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+            "system_charginginfo_voltage" to true,
+        ))
 
         val result = SystemLockScreenHooks.buildChargingInfoDetails(
             charge = 50,
@@ -105,11 +419,12 @@ class ChargingInfoHotPathTest {
     }
 
     @Test
-    fun chargingInfo_oomFromBusinessPath_isRethrown() {
-        val prefs = PrefMap().apply {
-            put("system_charginginfo_current", true)
-            put("system_charginginfo_voltage", true)
-        }
+    fun buildChargingInfoDetails_oomFromBusinessPath_isRethrown() {
+        val (prefs, _) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+            "system_charginginfo_voltage" to true,
+        ))
 
         try {
             SystemLockScreenHooks.buildChargingInfoDetails(
@@ -126,8 +441,11 @@ class ChargingInfoHotPathTest {
     }
 
     @Test
-    fun chargingInfo_nonFatalReadFailure_returnsOriginalHint() {
-        val prefs = PrefMap().apply { put("system_charginginfo_current", true) }
+    fun buildChargingInfoDetails_nonFatalReadFailure_returnsOriginalHint() {
+        val (prefs, _) = countingPrefMap(mapOf(
+            "system_charginginfo" to true,
+            "system_charginginfo_current" to true,
+        ))
 
         val result = SystemLockScreenHooks.buildChargingInfoDetails(
             charge = 50,
@@ -137,7 +455,6 @@ class ChargingInfoHotPathTest {
             batteryPropsProvider = { throw FileNotFoundException("/sys/class/power_supply/battery/uevent") }
         )
 
-        // A non-fatal I/O error must not crash and must allow the original hint to be preserved.
         assertNull(result)
     }
 
@@ -153,8 +470,6 @@ class ChargingInfoHotPathTest {
 
     @Test
     fun chargingInfo_featureHasNoLocalInstallOwner() {
-        // The previous implementation kept a private boolean isChargingInfoHooked that duplicated
-        // the registry's once-guard. It must be gone.
         for (field in SystemLockScreenHooks::class.java.declaredFields) {
             assertFalse(
                 "isChargingInfoHooked local owner must not exist",
@@ -173,8 +488,6 @@ class ChargingInfoHotPathTest {
         val prefs = PrefMap().apply { put("system_charginginfo", true) }
         val realFeature = ChargingInfoFeature(lpparam)
 
-        // Wrap the real feature so the test does not depend on a live Xposed bridge,
-        // but preserves the same feature id and registry identity.
         val countingFeature = object : FeatureDefinition by realFeature {
             override fun create(): FeatureDefinition = this
             override fun install(): FeatureInstallResult {
@@ -224,11 +537,13 @@ class ChargingInfoHotPathTest {
         assertEquals(FeatureInstallResult::class.java, method.returnType)
     }
 
-    private fun allDisabledPrefs(): PrefMap = PrefMap().apply {
-        put("system_charginginfo_current", false)
-        put("system_charginginfo_voltage", false)
-        put("system_charginginfo_wattage", false)
-        put("system_charginginfo_temp", false)
+    private fun countingPrefMap(values: Map<String, Any>): Pair<PrefMap, CountingMap> {
+        val prefs = PrefMap()
+        val counting = CountingMap(HashMap(values))
+        val field = PrefMap::class.java.getDeclaredField("snapshot").apply { isAccessible = true }
+        val snapshot = field.get(prefs) as AtomicReference<Map<String, Any>>
+        snapshot.set(counting)
+        return prefs to counting
     }
 
     private fun fakePackageReadyParam(): XposedModuleInterface.PackageReadyParam {

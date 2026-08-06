@@ -1266,10 +1266,16 @@ object SystemLockScreenHooks {
      *
      * Hot-path ordering:
      * 1. charge/hint guard
-     * 2. read four detail switches
-     * 3. all-disabled short-circuit (no stack trace, no sysfs, no allocations)
-     * 4. keyguard caller classification
-     * 5. only then: ArrayList, sysfs read, formatting, joinToString
+     * 2. master switch guard (installed hook must become transparent when disabled)
+     * 3. read four detail switches
+     * 4. all-disabled short-circuit (no stack trace, no sysfs, no allocations)
+     * 5. keyguard caller classification
+     * 6. only then: ArrayList, sysfs read, formatting, joinToString
+     *
+     * When the master switch is off the hook is already installed, so this function returns
+     * null immediately and preserves the original charging hint.  This is the runtime-off
+     * path; turning the feature on from a cold-start-off state still requires a SystemUI
+     * restart as per the product definition.
      *
      * Non-fatal failures (e.g. missing property, I/O error, malformed number) return null
      * so the caller can fall back to the original hint.  [OutOfMemoryError] is rethrown.
@@ -1282,6 +1288,8 @@ object SystemLockScreenHooks {
         batteryPropsProvider: () -> Properties?
     ): String? {
         if (charge > 100) return null
+
+        if (!prefs.getBoolean("system_charginginfo")) return null
 
         val showCurr = prefs.getBoolean("system_charginginfo_current")
         val showVolt = prefs.getBoolean("system_charginginfo_voltage")
@@ -1341,6 +1349,45 @@ object SystemLockScreenHooks {
     }
 
     /**
+     * Production hook decision helper.
+     *
+     * This is the same logic the core hook uses, but expressed as a pure
+     * function that does not need a live Xposed [XposedInterface.Chain].
+     * It is the single place where the result/throwable passthrough contract
+     * is decided:
+     *
+     * - If [buildChargingInfoDetails] returns null, the original [result] and
+     *   [throwable] are preserved.
+     * - If it returns a non-null info string, the result is replaced with that
+     *   info and the throwable is cleared.
+     *
+     * The same [PrefMap] snapshot is shared with the style observer, so a
+     * true → false → true sequence in the same process uses the same
+     * preference source for both content and styling.
+     */
+    internal fun updateChargingInfoResult(
+        charge: Int,
+        hint: String?,
+        result: Any?,
+        throwable: Throwable?,
+        prefs: PrefMap,
+        isKeyguardCaller: () -> Boolean,
+        batteryPropsProvider: () -> Properties?
+    ): Pair<Any?, Throwable?> {
+        if (charge > 100 || hint == null) {
+            return result to throwable
+        }
+        val info = buildChargingInfoDetails(
+            charge,
+            hint,
+            prefs,
+            isKeyguardCaller,
+            batteryPropsProvider
+        )
+        return if (info != null) info to null else result to throwable
+    }
+
+    /**
      * Install the charging-info hooks.
      *
      * - The core hook on [com.miui.charge.ChargeUtils#getChargingHintText] is required.
@@ -1382,21 +1429,17 @@ object SystemLockScreenHooks {
                     try {
                         val charge = chain.getArg(0) as Int
                         val hint = result as String?
-                        if (charge > 100 || hint == null) {
-                            return XposedHelpers.throwOrReturn(throwable, result)
-                        }
-
-                        val info = buildChargingInfoDetails(
+                        val (newResult, newThrowable) = updateChargingInfoResult(
                             charge,
                             hint,
+                            result,
+                            throwable,
                             MainModule.mPrefs,
                             { isKeyguardIndicationCaller() },
                             { readBatteryProperties() }
                         )
-                        if (info != null) {
-                            result = info
-                            throwable = null
-                        }
+                        result = newResult
+                        throwable = newThrowable
                     } catch (t: Throwable) {
                         FatalErrors.unwrapAndRethrowIfFatal(t)
                         XposedHelpers.log(t)
