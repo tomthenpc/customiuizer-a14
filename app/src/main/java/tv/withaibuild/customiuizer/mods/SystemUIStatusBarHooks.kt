@@ -47,6 +47,7 @@ import tv.withaibuild.customiuizer.mods.utils.releaseRegistrationSilently
 import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
+import androidx.annotation.VisibleForTesting
 import tv.withaibuild.customiuizer.utils.HookUtils
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.lang.ref.WeakReference
@@ -54,6 +55,7 @@ import java.net.NetworkInterface
 import java.util.ArrayList
 import java.util.HashSet
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Status bar content hooks.
@@ -84,6 +86,32 @@ internal fun formatNetSpeedValue(value: Float): String {
     return "${tenths / 10}.${tenths % 10}"
 }
 
+/**
+ * Immutable snapshot of the network-speed text-style configuration.
+ *
+ * Stores logical (dp/sp/enum) values, not physical px, so density, fontScale and configuration
+ * changes do not require snapshot reconstruction; the hot path converts to px on demand using the
+ * current View resources.  The [id] is a per-process monotonic value used by each NetworkSpeedView
+ * to skip redundant style setters when the same snapshot is applied repeatedly.
+ */
+@VisibleForTesting
+internal data class NetSpeedTextStyleSnapshot(
+    val id: Long,
+    val speedStyle: Int,
+    val bold: Boolean,
+    val fontSize: Int,
+    val fixedWidth: Int,
+    val leftMargin: Int,
+    val rightMargin: Int,
+    val verticalOffset: Int,
+    val align: Int,
+    val adjustment: Int,
+)
+
+/** Converts [dp] to physical pixels using the current [Resources] display metrics. */
+private fun Resources.dp2px(dp: Float): Float =
+    dp * getDisplayMetrics().density
+
 object SystemUIStatusBarHooks {
 
     private val StatusBarCls = "com.android.systemui.statusbar.phone.CentralSurfacesImpl"
@@ -99,6 +127,37 @@ object SystemUIStatusBarHooks {
     private val netspeedUnitViewTag = ResourceHooks.getFakeResId("netspeed_unit_view")
 
     private val netspeedTypefaceStateTag = ResourceHooks.getFakeResId("netspeed_typeface_state")
+
+    /** Additional instance field key for the last [NetSpeedTextStyleSnapshot] id applied to a view. */
+    private const val NETSPEED_LAST_STYLE_SNAPSHOT_ID = "netspeed_last_applied_style_snapshot_id"
+
+    /** Process-scoped, atomically published snapshot for the network-speed text-style hot path. */
+    private val currentNetSpeedTextStyleSnapshot = AtomicReference<NetSpeedTextStyleSnapshot?>(null)
+
+    /** Monotonic id generator for [NetSpeedTextStyleSnapshot]. */
+    private val netSpeedSnapshotIdGenerator = AtomicLong(0L)
+
+    /** Keys whose changes require the network-speed style snapshot to be rebuilt. */
+    private val netSpeedTextStyleRelevantKeys = setOf(
+        "system_detailednetspeed_style",
+        "system_netspeed_boldfont",
+        "system_netspeed_fontsize",
+        "system_netspeed_fixedcontent_width",
+        "system_netspeed_leftmargin",
+        "system_netspeed_rightmargin",
+        "system_netspeed_verticaloffset",
+        "system_detailednetspeed_align",
+        "system_netspeed_rowspacing",
+    )
+
+    /** Preference observer that rebuilds the snapshot when a relevant style key changes. */
+    private val netSpeedTextStyleObserver = object : ModuleHelper.PreferenceObserver {
+        override fun onChange(key: String?) {
+            if (key != null && key !in netSpeedTextStyleRelevantKeys) return
+            val built = buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
+            currentNetSpeedTextStyleSnapshot.set(built)
+        }
+    }
 
     @JvmStatic
     fun setupStatusBar(mContext: Context) {
@@ -839,9 +898,9 @@ object SystemUIStatusBarHooks {
         return level
     }
 
-    private val DUAL_SIGNAL_WHITE_TINT = ColorStateList.valueOf(Color.WHITE)
+    private val DUAL_SIGNAL_WHITE_TINT by lazy { ColorStateList.valueOf(Color.WHITE) }
 
-    private val DUAL_SIGNAL_BLACK_TINT = ColorStateList.valueOf(Color.BLACK)
+    private val DUAL_SIGNAL_BLACK_TINT by lazy { ColorStateList.valueOf(Color.BLACK) }
 
     private val MOBILE_STATE_SYNC_FIELDS = arrayOf("showName", "activityIn", "activityOut", "dataConnected")
 
@@ -1613,18 +1672,76 @@ object SystemUIStatusBarHooks {
         state.target = target
     }
 
+    /**
+     * Builds an immutable [NetSpeedTextStyleSnapshot] from [prefs].
+     *
+     * This is the only place these preference keys are read for the per-second network speed
+     * styling hot path. The snapshot is published atomically, so hot-path readers never see a
+     * partially-constructed snapshot.
+     */
+    @VisibleForTesting
+    internal fun buildNetSpeedTextStyleSnapshot(prefs: PrefMap): NetSpeedTextStyleSnapshot {
+        return NetSpeedTextStyleSnapshot(
+            id = netSpeedSnapshotIdGenerator.incrementAndGet(),
+            speedStyle = prefs.getStringAsInt("system_detailednetspeed_style", 1),
+            bold = prefs.getBoolean("system_netspeed_boldfont"),
+            fontSize = prefs.getInt("system_netspeed_fontsize", 13),
+            fixedWidth = prefs.getInt("system_netspeed_fixedcontent_width", 10),
+            leftMargin = prefs.getInt("system_netspeed_leftmargin", 0),
+            rightMargin = prefs.getInt("system_netspeed_rightmargin", 0),
+            verticalOffset = prefs.getInt("system_netspeed_verticaloffset", 8),
+            align = prefs.getStringAsInt("system_detailednetspeed_align", 1),
+            adjustment = prefs.getInt("system_netspeed_rowspacing", 100),
+        )
+    }
+
+    /** Returns the current snapshot, building it from [MainModule.mPrefs] if it does not yet exist. */
+    private fun currentOrBuildNetSpeedTextStyleSnapshot(): NetSpeedTextStyleSnapshot {
+        val existing = currentNetSpeedTextStyleSnapshot.get()
+        if (existing != null) return existing
+
+        val built = buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
+        currentNetSpeedTextStyleSnapshot.set(built)
+        return built
+    }
+
+    /** Overload used by [NetSpeedStyleHook] callbacks that uses the current published snapshot. */
+    @JvmName("applyNetSpeedTextStyleFromCurrentSnapshot")
     private fun applyNetSpeedTextStyle(speedView: LinearLayout, typefaceOnly: Boolean = false) {
+        applyNetSpeedTextStyle(speedView, currentOrBuildNetSpeedTextStyleSnapshot(), typefaceOnly)
+    }
+
+    /**
+     * Applies the network-speed text style to [speedView].
+     *
+     * Hot-path invariants:
+     * - No [MainModule.mPrefs] reads.
+     * - No reflection, resource-name searches, or temporary collections.
+     * - Logical configuration is converted to physical pixels on demand using the View's
+     *   current resources, so density/fontScale changes never use stale px values.
+     * - The last applied [NetSpeedTextStyleSnapshot.id] is stored as an additional instance field
+     *   on [speedView]; if the same [snapshot] has already been applied, the typeface-only path
+     *   returns early and skips all setters.
+     */
+    @VisibleForTesting
+    internal fun applyNetSpeedTextStyle(speedView: LinearLayout, snapshot: NetSpeedTextStyleSnapshot, typefaceOnly: Boolean = false) {
         if (speedView.tag as? String == "slot_text_icon") return
+
+        val lastAppliedId = XposedHelpers.getAdditionalInstanceField(speedView, NETSPEED_LAST_STYLE_SNAPSHOT_ID) as? Long
+        if (lastAppliedId == snapshot.id && typefaceOnly) {
+            // setNetworkSpeed per-second path: same view, same snapshot, no need to touch setters.
+            return
+        }
 
         val numberView = getNetSpeedNumberView(speedView) ?: return
         val unitView = getNetSpeedUnitView(speedView)
 
-        val speedStyle = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_style", 1)
+        val speedStyle = snapshot.speedStyle
         val unitVisible = speedStyle == 1
-        val bold = MainModule.mPrefs.getBoolean("system_netspeed_boldfont")
+        val bold = snapshot.bold
 
         if (!typefaceOnly) {
-            val fontSize = MainModule.mPrefs.getInt("system_netspeed_fontsize", 13)
+            val fontSize = snapshot.fontSize
 
             if (fontSize > 13) {
                 val size = fontSize * 0.5f
@@ -1632,7 +1749,7 @@ object SystemUIStatusBarHooks {
                 if (unitVisible) unitView?.setTextSize(TypedValue.COMPLEX_UNIT_DIP, size)
             }
 
-            val fixedWidth = MainModule.mPrefs.getInt("system_netspeed_fixedcontent_width", 10)
+            val fixedWidth = snapshot.fixedWidth
             val singleOrDual = speedStyle == 2 || speedStyle == 3
             if (singleOrDual) {
                 numberView.gravity = Gravity.CENTER_VERTICAL or Gravity.START
@@ -1641,7 +1758,7 @@ object SystemUIStatusBarHooks {
             if (fixedWidth > 10 || singleOrDual) {
                 val numberLp = copyLinearLayoutParams(numberView.layoutParams)
                 if (fixedWidth > 10) {
-                    numberLp.width = HookUtils.dp2px(fixedWidth.toFloat()).toInt()
+                    numberLp.width = numberView.resources.dp2px(fixedWidth.toFloat()).toInt()
                 }
                 if (singleOrDual) {
                     numberLp.topMargin = 0
@@ -1656,16 +1773,16 @@ object SystemUIStatusBarHooks {
                 }
             }
 
-            var leftMargin = MainModule.mPrefs.getInt("system_netspeed_leftmargin", 0)
-            leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
-            var rightMargin = MainModule.mPrefs.getInt("system_netspeed_rightmargin", 0)
-            rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
-            val verticalOffset = MainModule.mPrefs.getInt("system_netspeed_verticaloffset", 8)
-            val topMargin = if (verticalOffset == 8) 0 else HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
+            var leftMargin = snapshot.leftMargin
+            leftMargin = speedView.resources.dp2px(leftMargin * 0.5f).toInt()
+            var rightMargin = snapshot.rightMargin
+            rightMargin = speedView.resources.dp2px(rightMargin * 0.5f).toInt()
+            val verticalOffset = snapshot.verticalOffset
+            val topMargin = if (verticalOffset == 8) 0 else speedView.resources.dp2px((verticalOffset - 8) * 0.5f).toInt()
             speedView.translationY = topMargin.toFloat()
             speedView.setPaddingRelative(leftMargin, 0, rightMargin, 0)
 
-            val align = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_align", 1)
+            val align = snapshot.align
             if (align > 1) {
                 val alignVal = when (align) {
                     3 -> View.TEXT_ALIGNMENT_CENTER
@@ -1677,7 +1794,7 @@ object SystemUIStatusBarHooks {
             }
 
             if (speedStyle == 2) {
-                val adjustment = MainModule.mPrefs.getInt("system_netspeed_rowspacing", 100)
+                val adjustment = snapshot.adjustment
                 val spacing = resolveNetSpeedLineSpacing(fontSize, adjustment)
                 numberView.setSingleLine(false)
                 numberView.maxLines = 2
@@ -1689,10 +1806,17 @@ object SystemUIStatusBarHooks {
 
         ensureNetSpeedTypeface(numberView, bold)
         if (unitVisible) unitView?.let { ensureNetSpeedTypeface(it, bold) }
+
+        XposedHelpers.setAdditionalInstanceField(speedView, NETSPEED_LAST_STYLE_SNAPSHOT_ID, snapshot.id)
     }
 
     @JvmStatic
     fun NetSpeedStyleHook(lpparam: PackageReadyParam) {
+        // One process-scoped, owner-bound observer. The owner is this module singleton, which lives
+        // for the SystemUI process; the registry drops the weak reference and the additional instance
+        // field if it ever goes away. The observer holds no View, Context or controller.
+        ModuleHelper.observePreferenceChange(netSpeedTextStyleObserver, SystemUIStatusBarHooks)
+
         ModuleHelper.hookAllMethods("android.widget.TextView", lpparam.classLoader, "setTextAppearance", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val textView = param.getThisObject() as? TextView ?: return
@@ -1701,7 +1825,7 @@ object SystemUIStatusBarHooks {
                 if (speedView.tag as? String == "slot_text_icon") return
                 state.base = textView.typeface
                 state.target = null
-                applyNetSpeedTextStyle(speedView, false)
+                applyNetSpeedTextStyle(speedView, currentOrBuildNetSpeedTextStyleSnapshot(), false)
             }
         })
 
@@ -1709,10 +1833,11 @@ object SystemUIStatusBarHooks {
             override fun after(param: AfterHookCallback) {
                 val speedView = param.getThisObject() as? LinearLayout ?: return
                 if (speedView.tag as? String == "slot_text_icon") return
+                val snapshot = currentOrBuildNetSpeedTextStyleSnapshot()
                 if (speedView.getTag(viewInitedTag) == null) {
-                    applyNetSpeedTextStyle(speedView, false)
+                    applyNetSpeedTextStyle(speedView, snapshot, false)
                 } else {
-                    applyNetSpeedTextStyle(speedView, true)
+                    applyNetSpeedTextStyle(speedView, snapshot, true)
                 }
             }
         })
@@ -1733,16 +1858,16 @@ object SystemUIStatusBarHooks {
                         ?: NetSpeedTypefaceState().also { view.setTag(netspeedTypefaceStateTag, it) }
                 }
 
+                val snapshot = currentOrBuildNetSpeedTextStyleSnapshot()
                 val useClockStyle = MainModule.mPrefs.getBoolean("system_netspeed_use_clock_style")
                 if (useClockStyle) {
                     val styleId = speedView.resources.getIdentifier("TextAppearance.StatusBar.Clock", "style", "com.android.systemui")
-                    val speedStyle = MainModule.mPrefs.getStringAsInt("system_detailednetspeed_style", 1)
                     if (styleId != 0) {
                         numberView.setTextAppearance(styleId)
-                        if (speedStyle == 1) unitView?.setTextAppearance(styleId)
+                        if (snapshot.speedStyle == 1) unitView?.setTextAppearance(styleId)
                     }
                 } else {
-                    applyNetSpeedTextStyle(speedView, false)
+                    applyNetSpeedTextStyle(speedView, snapshot, false)
                 }
             }
         })
