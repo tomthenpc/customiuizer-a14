@@ -6,7 +6,6 @@ CustoMIUIzer A14 is a system UI and interaction customization module maintained 
 
 - Current release: `r14.18.0`
 - Application ID: `tv.withaibuild.customiuizer.r14`
-- Deployed framework: [Vector v2.2](https://github.com/JingMatrix/Vector/releases/tag/v2.2)
 - Source: <https://github.com/tomthenpc/customiuizer-a14>
 - User downloads: <https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases>
 
@@ -27,7 +26,7 @@ Availability depends on the device ROM and system-app versions. Do not enable th
 | System | HyperOS 1 / Android 14 |
 | SDK | minSdk 34 / targetSdk 34 |
 | ABI | `arm64-v8a` |
-| Xposed framework | [Vector v2.2](https://github.com/JingMatrix/Vector/releases/tag/v2.2), libxposed API 101/102 |
+| Xposed framework | libxposed API 101/102 |
 | Module metadata | `minApiVersion=101`, `targetApiVersion=102`, `staticScope=false` |
 
 Android 15, Android 16, and other major MIUI / HyperOS versions are not supported. API 102 capabilities remain isolated from production Hook paths required on API 101.

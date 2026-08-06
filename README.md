@@ -6,7 +6,6 @@ CustoMIUIzer A14 是面向 **HyperOS 1 / Android 14（SDK 34）** 的系统界�
 
 - 当前正式版：`r14.18.0`
 - 应用 ID：`tv.withaibuild.customiuizer.r14`
-- 实装框架：[Vector v2.2](https://github.com/JingMatrix/Vector/releases/tag/v2.2)
 - 源码仓库：<https://github.com/tomthenpc/customiuizer-a14>
 - 用户下载：<https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases>
 
@@ -27,7 +26,7 @@ CustoMIUIzer A14 是面向 **HyperOS 1 / Android 14（SDK 34）** 的系统界�
 | 系统 | HyperOS 1 / Android 14 |
 | SDK | minSdk 34 / targetSdk 34 |
 | ABI | `arm64-v8a` |
-| Xposed 框架 | [Vector v2.2](https://github.com/JingMatrix/Vector/releases/tag/v2.2)，libxposed API 101/102 |
+| Xposed 框架 | libxposed API 101/102 |
 | 模块元数据 | `minApiVersion=101`、`targetApiVersion=102`、`staticScope=false` |
 
 不支持 Android 15、Android 16 或其他 MIUI / HyperOS 大版本。API 102 能力保持隔离，未接入 API 101 必经的生产 Hook 路径。
