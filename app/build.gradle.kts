@@ -33,8 +33,8 @@ if (officialRelease) {
     }
 }
 
-val lastVersion = 192
-val lastVersionName = "r14.16.1"
+val lastVersion = 193
+val lastVersionName = "r14.18.0"
 
 fun resolveBuildRevision(): String {
     val prop = project.findProperty("buildRevision")?.toString()
@@ -175,11 +175,10 @@ android {
 
 val buildProvenanceDir = layout.buildDirectory.dir("generated/assets/build-provenance")
 
-val writeBuildProvenance = tasks.register<WriteProperties>("writeBuildProvenance") {
-    description = "Writes build-provenance.properties for inclusion in the APK"
+val writeDebugBuildProvenance = tasks.register<WriteProperties>("writeDebugBuildProvenance") {
+    description = "Writes build-provenance.properties for the debug variant"
     group = "build"
-
-    destinationFile.set(buildProvenanceDir.map { it.file("build-provenance.properties") })
+    destinationFile.set(buildProvenanceDir.map { it.dir("debug").file("build-provenance.properties") })
     properties(
         mapOf(
             "revision" to buildRevision,
@@ -190,13 +189,53 @@ val writeBuildProvenance = tasks.register<WriteProperties>("writeBuildProvenance
     )
 }
 
-android.sourceSets.getByName("main").assets.directories.add(
-    buildProvenanceDir.get().asFile.absolutePath
+val writeDevelopBuildProvenance = tasks.register<WriteProperties>("writeDevelopBuildProvenance") {
+    description = "Writes build-provenance.properties for the develop variant"
+    group = "build"
+    destinationFile.set(buildProvenanceDir.map { it.dir("develop").file("build-provenance.properties") })
+    properties(
+        mapOf(
+            "revision" to buildRevision,
+            "versionName" to lastVersionName,
+            "versionCode" to lastVersion.toString(),
+            "buildType" to "develop",
+        )
+    )
+}
+
+val writeReleaseBuildProvenance = tasks.register<WriteProperties>("writeReleaseBuildProvenance") {
+    description = "Writes build-provenance.properties for the release variant"
+    group = "build"
+    destinationFile.set(buildProvenanceDir.map { it.dir("release").file("build-provenance.properties") })
+    properties(
+        mapOf(
+            "revision" to buildRevision,
+            "versionName" to lastVersionName,
+            "versionCode" to lastVersion.toString(),
+            "buildType" to "release",
+        )
+    )
+}
+
+android.sourceSets.getByName("debug").assets.directories.add(
+    buildProvenanceDir.get().dir("debug").asFile.absolutePath
+)
+android.sourceSets.getByName("develop").assets.directories.add(
+    buildProvenanceDir.get().dir("develop").asFile.absolutePath
+)
+android.sourceSets.getByName("release").assets.directories.add(
+    buildProvenanceDir.get().dir("release").asFile.absolutePath
 )
 
 afterEvaluate {
     tasks.named("mergeDebugAssets").configure {
-        dependsOn(writeBuildProvenance)
+        dependsOn(writeDebugBuildProvenance)
+    }
+    tasks.named("mergeDevelopAssets").configure {
+        dependsOn(writeDevelopBuildProvenance)
+    }
+    tasks.named("mergeReleaseAssets").configure {
+        dependsOn(writeReleaseBuildProvenance)
     }
 }
 

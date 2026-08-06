@@ -2,6 +2,27 @@
 
 [简体中文](CHANGELOG.md) | English
 
+## r14.18.0 — 2026-08-06
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+
+### Core Changes
+
+- Added adjustable lock-screen charging text size; the default keeps the system text size and changes apply after restarting SystemUI.
+- Hardened charging-info initialization and hot paths. Disabled details skip unnecessary work, reducing duplicate installation, invalid reads, and fallback overhead.
+- Fixed a possible SystemUI crash when status-bar battery or temperature information is enabled, and hardened stale Handlers, detached Views, ROM field fallbacks, and custom-icon creation.
+- Fixed left-side custom status-bar text icons becoming invisible on dark backgrounds by completing tint registration, initial synchronization, recreation, and release lifecycles.
+- Added status-bar height synchronization with WindowInsets and the SystemUI window, including runtime application and restoration of the system height when disabled; no-reboot fuxi switching still awaits device verification.
+- Hardened status-bar and control-center gesture, View, callback, and ClassLoader lifecycles to reduce duplicate effects, state conflicts, and stale-object retention.
+- Optimized process routing, feature install deduplication, and disabled-feature initialization. Ordinary failures remain isolated while fatal errors continue to propagate.
+- Added Git revision and APK provenance records, with feature semantics, Python gates, unit tests, and lint integrated into the unified verification flow.
+
+### Verification Status
+
+- `python tools/verify.py full`, feature-semantics validation, source-hazard scanning, CI portability checks, and the full Python suite pass.
+- All 396 Python tool tests pass, together with Android JVM unit tests and `lintDebug`.
+- The no-reboot `44 → 40 → 12 → 44 → disabled` status-bar-height sequence has not yet been run on fuxi, so this release is not claimed as fully `DEVICE_VERIFIED`.
+
 ## r14.16.1 — 2026-08-01
 
 `versionCode 192`, targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.

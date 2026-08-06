@@ -38,7 +38,13 @@ def read_apk_provenance(apk_path: Path) -> dict[str, str]:
     return props
 
 
-def verify_apk_provenance(apk_path: Path, expected_revision: str) -> dict[str, str]:
+def verify_apk_provenance(
+    apk_path: Path,
+    expected_revision: str,
+    expected_build_type: str = "debug",
+    expected_version_name: str | None = None,
+    expected_version_code: str | None = None,
+) -> dict[str, str]:
     """Verify provenance and return the parsed properties."""
     if not REVISION_RE.fullmatch(expected_revision):
         raise ValueError(f"expected revision must be an 8-character hex SHA: {expected_revision!r}")
@@ -58,8 +64,20 @@ def verify_apk_provenance(apk_path: Path, expected_revision: str) -> dict[str, s
         )
 
     build_type = props["buildType"]
-    if build_type != "debug":
-        raise RuntimeError(f"provenance buildType must be 'debug', found: {build_type!r}")
+    if build_type != expected_build_type:
+        raise RuntimeError(
+            f"provenance buildType mismatch: expected {expected_build_type}, found: {build_type!r}"
+        )
+
+    if expected_version_name is not None and props["versionName"] != expected_version_name:
+        raise RuntimeError(
+            f"provenance versionName mismatch: expected {expected_version_name}, found {props['versionName']}"
+        )
+
+    if expected_version_code is not None and props["versionCode"] != expected_version_code:
+        raise RuntimeError(
+            f"provenance versionCode mismatch: expected {expected_version_code}, found {props['versionCode']}"
+        )
 
     try:
         int(props["versionCode"])
@@ -77,10 +95,31 @@ def main() -> int:
         required=True,
         help="expected 8-character engineering SHA",
     )
+    parser.add_argument(
+        "--expected-build-type",
+        default="debug",
+        help="expected build type (default: debug)",
+    )
+    parser.add_argument(
+        "--expected-version",
+        default=None,
+        help="expected versionName",
+    )
+    parser.add_argument(
+        "--expected-version-code",
+        default=None,
+        help="expected versionCode",
+    )
     args = parser.parse_args()
 
     try:
-        props = verify_apk_provenance(args.apk, args.expected_revision)
+        props = verify_apk_provenance(
+            args.apk,
+            args.expected_revision,
+            expected_build_type=args.expected_build_type,
+            expected_version_name=args.expected_version,
+            expected_version_code=args.expected_version_code,
+        )
     except (RuntimeError, ValueError) as exc:
         print(f"verify_apk_provenance: {exc}", file=sys.stderr)
         return 1

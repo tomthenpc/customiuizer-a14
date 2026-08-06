@@ -108,6 +108,68 @@ class VerifyApkProvenanceTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             verify_apk_provenance.verify_apk_provenance(apk, "50a0ad4f")
 
+    def test_release_build_type_matches(self) -> None:
+        apk = make_fake_apk(
+            {
+                "revision": "50a0ad4f",
+                "versionName": "r14.18.0",
+                "versionCode": "193",
+                "buildType": "release",
+            }
+        )
+        result = verify_apk_provenance.verify_apk_provenance(
+            apk, "50a0ad4f", expected_build_type="release"
+        )
+        self.assertEqual(result["buildType"], "release")
+
+    def test_develop_build_type_matches(self) -> None:
+        apk = make_fake_apk(
+            {
+                "revision": "50a0ad4f",
+                "versionName": "r14.18.0",
+                "versionCode": "193",
+                "buildType": "develop",
+            }
+        )
+        result = verify_apk_provenance.verify_apk_provenance(
+            apk, "50a0ad4f", expected_build_type="develop"
+        )
+        self.assertEqual(result["buildType"], "develop")
+
+    def test_version_name_mismatch(self) -> None:
+        apk = make_fake_apk(
+            {
+                "revision": "50a0ad4f",
+                "versionName": "r14.18.0",
+                "versionCode": "193",
+                "buildType": "release",
+            }
+        )
+        with self.assertRaises(RuntimeError):
+            verify_apk_provenance.verify_apk_provenance(
+                apk,
+                "50a0ad4f",
+                expected_build_type="release",
+                expected_version_name="r14.17.0",
+            )
+
+    def test_version_code_mismatch(self) -> None:
+        apk = make_fake_apk(
+            {
+                "revision": "50a0ad4f",
+                "versionName": "r14.18.0",
+                "versionCode": "193",
+                "buildType": "release",
+            }
+        )
+        with self.assertRaises(RuntimeError):
+            verify_apk_provenance.verify_apk_provenance(
+                apk,
+                "50a0ad4f",
+                expected_build_type="release",
+                expected_version_code="192",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
