@@ -1,7 +1,7 @@
 # FIX-A14-STATUS-BAR-HEIGHT-LIVE-APPLICATION
 
 - Platform: A14
-- Status: Engineering complete | Device validation pending | Release blocked | PARKED — NOT RUN / ENVIRONMENT BLOCKED
+- Status: Engineering complete | Device validation deferred | Release waiver approved by owner | PARKED — NOT RUN / ENVIRONMENT BLOCKED
 - Priority: P0
 - Owner: Devin
 - Reviewer: ChatGPT / human
@@ -19,6 +19,7 @@
 - 状态：NOT RUN / ENVIRONMENT BLOCKED。
 - 不是 TEST FAIL。
 - 任务继续留在 `tasks/active`。
+- Release gate waived for r14.18.0 by project owner on 2026-08-06. Device validation remains pending and this task stays active.
 
 ## R3 已修复的工程问题
 

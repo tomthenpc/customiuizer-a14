@@ -20,7 +20,7 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/10
 ### Verification Status
 
 - `python tools/verify.py full`, feature-semantics validation, source-hazard scanning, CI portability checks, and the full Python suite pass.
-- All 396 Python tool tests pass, together with Android JVM unit tests and `lintDebug`.
+- All 405 Python tool tests pass, together with Android JVM unit tests and `lintDebug`.
 - The no-reboot `44 → 40 → 12 → 44 → disabled` status-bar-height sequence has not yet been run on fuxi, so this release is not claimed as fully `DEVICE_VERIFIED`.
 
 ## r14.16.1 — 2026-08-01
