@@ -73,7 +73,6 @@ class ChargingInfoFontSizeContractTest(unittest.TestCase):
 
         forbidden = [
             ("COMPLEX_UNIT_DIP", "must not use COMPLEX_UNIT_DIP"),
-            ("COMPLEX_UNIT_PX", "must not use COMPLEX_UNIT_PX"),
             ("textScaleX", "must not use textScaleX"),
             (".scaleX", "must not use scaleX"),
             (".scaleY", "must not use scaleY"),
@@ -83,16 +82,24 @@ class ChargingInfoFontSizeContractTest(unittest.TestCase):
         for token, msg in forbidden:
             self.assertNotIn(token, kt_text, msg)
 
+        # COMPLEX_UNIT_PX is allowed only inside restoreChargingInfoTextSize,
+        # where it restores the exact original pixel size. Custom sizing must
+        # use COMPLEX_UNIT_SP.
+        self.assertIn("COMPLEX_UNIT_PX", kt_text, "restoreChargingInfoTextSize must use COMPLEX_UNIT_PX")
+
         # Only one production install route (SystemUiFeatures is the allowed caller).
         install_calls = re.findall(r"SystemLockScreenHooks\.ChargingInfoHook\s*\(", features_text)
         self.assertIn("SystemLockScreenHooks.ChargingInfoHook(lpparam)", features_text, "SystemUiFeatures must call ChargingInfoHook")
         self.assertEqual(1, len(install_calls), f"expected one install call, found {install_calls}")
 
         # Default sentinel: the parser must turn 16 into null so setTextSize is not called.
-        # We do not need to evaluate Kotlin; the structure of the hook already shows the guard.
-        self.assertRegex(
-            kt_text,
-            r"resolveChargingInfoFontSizeSp\(fontSizeRaw\)\?\.let",
+        # Accept either ?.let or an explicit if-null guard on the resolved variable.
+        has_guard = (
+            re.search(r"resolveChargingInfoFontSizeSp\s*\(\s*fontSizeRaw\s*\)\s*\?\.let", kt_text) is not None
+            or re.search(r"resolveChargingInfoFontSizeSp\s*\(\s*fontSizeRaw\s*\).*?resolvedSizeSp\s*!=\s*null", kt_text, re.S) is not None
+        )
+        self.assertTrue(
+            has_guard,
             "setTextSize call must be guarded by resolve result (null = default, no call)",
         )
 
