@@ -32,8 +32,6 @@ import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.HookUtils
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.lang.ref.WeakReference
-import java.lang.reflect.Field
-import java.lang.reflect.Method
 import java.util.ArrayList
 import java.util.concurrent.atomic.AtomicLong
 
@@ -731,121 +729,9 @@ object SystemClockHooks {
     }
 
     /**
-     * Resolved [Field] and [Method] references for the clock controller's hot-path
-     * members. Created once per controller instance and reused on every tick.
-     *
-     * Lifecycle: tied to the [SecondTicker] that owns it. The [WeakReference] to
-     * the controller ensures that a GC'd controller does not keep this state alive.
-     *
-     * Only holds [Field], [Method], and a [WeakReference]. Never holds [View],
-     * [Context], or the controller instance strongly.
-     */
-    private class ClockReflectionState(clockController: Any) {
-        private val controllerRef = WeakReference(clockController)
-
-        // Fields resolved from the controller's class hierarchy
-        private val mCalendarField: Field
-        private val mIs24Field: Field
-        private val mClockListenersField: Field
-
-        // Method resolved from the calendar object's class
-        private val setTimeInMillisMethod: Method
-
-        // Single-slot cache for the clock view's updateTime method.
-        // Updated when a view of a different class is encountered.
-        private var updateTimeClass: Class<*>? = null
-        private var updateTimeMethod: Method? = null
-
-        companion object {
-            /**
-             * Attempts to resolve all required fields and methods from the given
-             * controller. Returns null if any field or method is missing on this
-             * ROM, so the caller can fall back to the safe path.
-             */
-            @JvmStatic
-            fun resolve(clockController: Any): ClockReflectionState? {
-                return try {
-                    ClockReflectionState(clockController)
-                } catch (e: NoSuchFieldError) {
-                    null
-                } catch (e: NoSuchMethodError) {
-                    null
-                } catch (e: NoSuchFieldException) {
-                    null
-                } catch (e: NoSuchMethodException) {
-                    null
-                }
-            }
-        }
-
-        init {
-            val cls = clockController.javaClass
-            mCalendarField = XposedHelpers.findField(cls, "mCalendar").apply { isAccessible = true }
-            mIs24Field = XposedHelpers.findField(cls, "mIs24").apply { isAccessible = true }
-            mClockListenersField = XposedHelpers.findField(cls, "mClockListeners").apply { isAccessible = true }
-
-            val calendar = mCalendarField.get(clockController)
-                ?: throw NoSuchFieldException("mCalendar is null on $cls")
-            setTimeInMillisMethod = calendar.javaClass.getMethod("setTimeInMillis", Long::class.javaPrimitiveType)
-                .apply { isAccessible = true }
-        }
-
-        /** Returns the mCalendar value from the controller via direct field access. */
-        fun getCalendar(controller: Any): Any? {
-            return mCalendarField.get(controller)
-        }
-
-        /** Sets the calendar time via direct method invocation. */
-        fun setCalendarTime(calendar: Any, timeMillis: Long) {
-            setTimeInMillisMethod.invoke(calendar, timeMillis)
-        }
-
-        /** Sets the mIs24 field via direct field access. */
-        fun setIs24(controller: Any, is24: Boolean) {
-            mIs24Field.setBoolean(controller, is24)
-        }
-
-        /** Returns the mClockListeners list via direct field access. */
-        @Suppress("UNCHECKED_CAST")
-        fun getClockListeners(controller: Any): ArrayList<Any>? {
-            return mClockListenersField.get(controller) as? ArrayList<Any>
-        }
-
-        /**
-         * Calls updateTime on the given clock view via direct method invocation.
-         * Resolves the method from the view's class on first encounter or when
-         * the class changes. Returns true if the method was found and called.
-         */
-        fun callUpdateTime(view: View): Boolean {
-            val viewClass = view.javaClass
-            if (viewClass !== updateTimeClass) {
-                updateTimeMethod = try {
-                    viewClass.getMethod("updateTime").apply { isAccessible = true }
-                } catch (e: NoSuchMethodException) {
-                    null
-                }
-                updateTimeClass = viewClass
-            }
-            val method = updateTimeMethod ?: return false
-            method.invoke(view)
-            return true
-        }
-
-        /** Returns true if this state was created for the given controller instance. */
-        fun isForController(controller: Any): Boolean {
-            return controllerRef.get() === controller
-        }
-    }
-
-    /**
      * One-second ticker that posts a runnable on the provided looper. It holds
      * a [WeakReference] to the clock controller to avoid pinning a short-lived
      * SystemUI controller from a static listener list.
-     *
-     * The tick path uses [ClockReflectionState] to call resolved [Field] and
-     * [Method] objects directly, avoiding per-tick XposedHelpers HashMap lookups.
-     * If resolution fails (e.g. ROM field missing), the state is cleared and
-     * re-resolved on the next tick.
      */
     private class SecondTicker(
         clockController: Any,
@@ -857,9 +743,6 @@ object SystemClockHooks {
         private val handler = context.mainLooper?.let { Handler(it) }
         private var running = false
         private var screenStateRegistered = false
-
-        // Resolved reflection state — lazily initialized on first tick, cleared on failure.
-        private var reflectionState: ClockReflectionState? = null
 
         fun start() {
             if (running) return
@@ -905,22 +788,15 @@ object SystemClockHooks {
                 return
             }
             ModuleHelper.guarded {
-                // Resolve or reuse reflection state. On failure, clear so next tick retries.
-                var state = reflectionState
-                if (state == null || !state.isForController(clockController)) {
-                    state = ClockReflectionState.resolve(clockController)
-                    if (state == null) return@guarded
-                    reflectionState = state
-                }
-
-                val calendar = state.getCalendar(clockController) ?: return@guarded
-                state.setCalendarTime(calendar, java.lang.System.currentTimeMillis())
-                state.setIs24(clockController, DateFormat.is24HourFormat(context))
-                val clockListeners = state.getClockListeners(clockController) ?: return@guarded
+                val calendar = XposedHelpers.getObjectField(clockController, "mCalendar")
+                XposedHelpers.callMethod(calendar, "setTimeInMillis", java.lang.System.currentTimeMillis())
+                XposedHelpers.setObjectField(clockController, "mIs24", DateFormat.is24HourFormat(context))
+                @Suppress("UNCHECKED_CAST")
+                val clockListeners = XposedHelpers.getObjectField(clockController, "mClockListeners") as ArrayList<Any>
                 for (listener in clockListeners) {
-                    val clock = listener as? View ?: continue
+                    val clock = listener as View
                     if (ModuleHelper.getViewInfo(clock, "showSeconds") != null) {
-                        state.callUpdateTime(clock)
+                        XposedHelpers.callMethod(clock, "updateTime")
                     }
                 }
             }
