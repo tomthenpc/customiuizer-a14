@@ -10,25 +10,26 @@ class FastRebootContractTest {
 
     private val mainModule = source("app/src/main/java/tv/withaibuild/customiuizer/MainModule.java")
     private val systemUiBootstrap = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/SystemUiBootstrapCoordinator.kt")
+    private val fastRebootBootstrap = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/FastRebootBootstrap.kt")
     private val hooks = source("app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActionSystemServerHooks.kt")
     private val actions = source("app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt")
     private val preferences = source("app/src/main/java/tv/withaibuild/customiuizer/PreferenceFragmentBase.kt")
 
     @Test
     fun fastRebootRegistersOnceWithoutDependingOnCustomActions() {
-        val registration = "GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext)"
         val customActionGate =
-            "if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)"
+            "if (hasConfiguredGlobalActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)"
 
-        assertEquals(1, systemUiBootstrap.countOccurrences(registration))
-        assertTrue(systemUiBootstrap.indexOf(registration) < systemUiBootstrap.indexOf(customActionGate))
-        assertEquals(1, hooks.countOccurrences("\"fastRebootReceiver\""))
+        assertEquals(2, systemUiBootstrap.countOccurrences("setupFastRebootReceiver("))
+        assertTrue(systemUiBootstrap.indexOf("setupFastRebootReceiver(") < systemUiBootstrap.indexOf(customActionGate))
+        assertFalse(hooks.contains("setupFastRebootReceiver"))
+        assertFalse(hooks.contains("\"fastRebootReceiver\""))
     }
 
     @Test
     fun customActionRegistrationConditionIsUnchanged() {
         val customActionGate =
-            "if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)"
+            "if (hasConfiguredGlobalActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)"
 
         assertEquals(1, systemUiBootstrap.countOccurrences(customActionGate))
     }
@@ -36,13 +37,9 @@ class FastRebootContractTest {
     @Test
     fun fastRebootActionRemainsStableAndDedicated() {
         val fastRebootAction = "GlobalActions.ACTION_PREFIX + \"FastReboot\""
-        val dedicatedSetup = hooks.section(
-            "fun setupFastRebootReceiver(context: Context)",
-            "fun setupStatusBar(lpparam: PackageReadyParam)"
-        )
         val customSetup = hooks.section(
             "fun setupStatusBar(lpparam: PackageReadyParam)",
-            "if (GlobalActions.hasActionCode(28))"
+            "if (hasConfiguredActionCode(28))"
         )
         val customReceiver = actions.section(
             "val mSBReceiver: BroadcastReceiver",
@@ -50,10 +47,22 @@ class FastRebootContractTest {
         )
 
         assertTrue(preferences.contains("Intent($fastRebootAction)"))
-        assertTrue(dedicatedSetup.contains("IntentFilter($fastRebootAction)"))
-        assertTrue(dedicatedSetup.contains("GlobalActions.fastRebootReceiver"))
+        assertTrue(fastRebootBootstrap.contains("IntentFilter($fastRebootAction)"))
+        assertTrue(fastRebootBootstrap.contains("fastRebootReceiver"))
+        assertFalse(fastRebootBootstrap.contains("GlobalActions.fastRebootReceiver"))
         assertFalse(customSetup.contains("\"FastReboot\""))
         assertFalse(customReceiver.contains("\"FastReboot\""))
+    }
+
+    @Test
+    fun fastRebootBootstrapDoesNotReferenceGlobalActionsRuntime() {
+        assertFalse("FastRebootBootstrap should not runtime-depend on GlobalActions executor",
+            fastRebootBootstrap.contains("GlobalActions.fastRebootReceiver") ||
+            fastRebootBootstrap.contains("GlobalActions.handleAction") ||
+            fastRebootBootstrap.contains("GlobalActions.mSBReceiver")
+        )
+        assertTrue(fastRebootBootstrap.contains("GlobalActions.ACTION_PREFIX"))
+        assertTrue(fastRebootBootstrap.contains("GlobalActions.BROADCAST_PERMISSION"))
     }
 
     @Test
@@ -73,7 +82,7 @@ class FastRebootContractTest {
     fun customActionFilterSequenceIsUnchangedApartFromFastReboot() {
         val customSetup = hooks.section(
             "fun setupStatusBar(lpparam: PackageReadyParam)",
-            "if (GlobalActions.hasActionCode(28))"
+            "if (hasConfiguredActionCode(28))"
         )
         val actual = Regex("""intentfilter\.addAction\(GlobalActions\.ACTION_PREFIX \+ "([^"]+)"\)""")
             .findAll(customSetup)

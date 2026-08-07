@@ -157,13 +157,8 @@ class GlobalActionSystemServerReceiverSafetyTest {
     fun otherSystemUiReceivers_areNotModified() {
         val source = source()
 
-        // FastReboot, status bar and freeform receivers are unrelated and must keep
+        // status bar and freeform receivers are unrelated and must keep
         // their original registration shape. We do not wrap them in a completed flag.
-        assertFalse(
-            "fastRebootReceiver must not carry a completed flag",
-            source.sectionAfter("setupFastRebootReceiver").contains("completed")
-        )
-
         assertFalse(
             "statusBarActionReceiver must not carry a completed flag",
             source.sectionAfter("setupStatusBar").contains("completed")

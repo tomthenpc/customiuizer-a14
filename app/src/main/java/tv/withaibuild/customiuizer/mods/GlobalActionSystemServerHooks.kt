@@ -23,6 +23,8 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import tv.withaibuild.customiuizer.mods.utils.hasConfiguredActionCode
+import tv.withaibuild.customiuizer.mods.utils.hasConfiguredToggle
 
 object GlobalActionSystemServerHooks {
 
@@ -211,19 +213,6 @@ object GlobalActionSystemServerHooks {
     }
 
     @JvmStatic
-    fun setupFastRebootReceiver(context: Context): Boolean {
-        val filter = IntentFilter(GlobalActions.ACTION_PREFIX + "FastReboot")
-        return ModuleHelper.registerModuleReceiver(
-            context,
-            "fastRebootReceiver",
-            GlobalActions.fastRebootReceiver,
-            filter,
-            Context.RECEIVER_EXPORTED,
-            GlobalActions.BROADCAST_PERMISSION
-        )
-    }
-
-    @JvmStatic
     fun setupStatusBar(lpparam: PackageReadyParam) {
         val statusBarClass = XposedHelpers.findClassIfExists("com.android.systemui.statusbar.phone.CentralSurfacesImpl", lpparam.classLoader)
         if (statusBarClass == null) return
@@ -289,7 +278,7 @@ object GlobalActionSystemServerHooks {
             }
         })
 
-        if (GlobalActions.hasActionCode(28)) {
+        if (hasConfiguredActionCode(28)) {
             ModuleHelper.findAndHookMethod("com.android.wm.shell.miuifreeform.MiuiFreeformModeController", lpparam.classLoader, "onInit", object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var result: Any?
@@ -354,7 +343,7 @@ object GlobalActionSystemServerHooks {
                 }
             })
         }
-        if (GlobalActions.hasActionCode(29)) {
+        if (hasConfiguredActionCode(29)) {
             ModuleHelper.findAndHookMethod("com.android.wm.shell.sosc.SoScSplitScreenController", lpparam.classLoader, "onInit", object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var result: Any?
@@ -407,7 +396,7 @@ object GlobalActionSystemServerHooks {
                 }
             })
         }
-        if (GlobalActions.hasToggle(6)) {
+        if (hasConfiguredToggle(6)) {
             ModuleHelper.hookAllConstructors("com.android.systemui.controlcenter.policy.AutoBrightnessController", lpparam.classLoader, object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var result: Any?

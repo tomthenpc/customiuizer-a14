@@ -3,7 +3,6 @@ package tv.withaibuild.customiuizer.mods.utils
 import android.content.Context
 import android.provider.Settings
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
-import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks
 import tv.withaibuild.customiuizer.installers.SystemUiInstaller
 import tv.withaibuild.customiuizer.utils.PrefMap
@@ -73,7 +72,7 @@ object SystemUiBootstrapCoordinator {
 
                 try {
                     if (!fastRebootReceiverReady[0]) {
-                        fastRebootReceiverReady[0] = GlobalActionSystemServerHooks.setupFastRebootReceiver(context)
+                        fastRebootReceiverReady[0] = setupFastRebootReceiver(context)
                     }
                     if (!statusBarSetupDone[0]) {
                         setupSystemUiResources(context)
@@ -111,12 +110,12 @@ object SystemUiBootstrapCoordinator {
         val mContext = ModuleHelper.findContext(lpparam)
         if (mContext != null) {
             if (!fastRebootReceiverReady[0]) {
-                fastRebootReceiverReady[0] = GlobalActionSystemServerHooks.setupFastRebootReceiver(mContext)
+                fastRebootReceiverReady[0] = setupFastRebootReceiver(mContext)
             }
         } else {
             XposedHelpers.log("SystemUiBootstrapCoordinator: SystemUI context not ready at package ready, deferring FastReboot receiver")
         }
-        if (GlobalActions.hasCustomActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)
+        if (hasConfiguredGlobalActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)
 
         // 3. The 10s restart check is only allowed to skip the non-essential hooks below.
         var skipNonEssential = false

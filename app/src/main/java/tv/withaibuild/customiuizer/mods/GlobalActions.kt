@@ -19,14 +19,12 @@ import android.nfc.NfcAdapter
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.PowerManager
 import android.os.Process
 import android.os.SystemClock
 import android.os.UserHandle
 import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.MiuiMultiWindowUtils
-import android.util.SparseBooleanArray
 import android.view.InputDevice
 import android.view.InputEvent
 import android.view.KeyEvent
@@ -187,27 +185,6 @@ object GlobalActions {
             28 -> R.string.array_global_actions_pinningwindow
             29 -> R.string.array_global_actions_splitscreen
             else -> 0
-        }
-    }
-
-    @JvmField
-    val fastRebootReceiver: BroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action != ACTION_PREFIX + "FastReboot") return
-            ModuleHelper.guarded {
-                if (isOrderedBroadcast) resultCode = ACTION_FAILED
-                try {
-                    val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                    val mService = XposedHelpers.getObjectField(pm, "mService")
-                    if (isOrderedBroadcast) resultCode = ACTION_HANDLED
-                    // Does not return on success.
-                    XposedHelpers.callMethod(mService, "reboot", false, null, false)
-                } catch (t: Throwable) {
-                    if (t is OutOfMemoryError) throw t
-                    if (isOrderedBroadcast) resultCode = ACTION_FAILED
-                    XposedHelpers.log(t)
-                }
-            }
         }
     }
 
@@ -698,68 +675,6 @@ object GlobalActions {
                 return XposedHelpers.throwOrReturn(throwable, result)
             }
         })
-    }
-
-    private val customActionKeys = arrayOf(
-        "controls_backlong", "controls_homelong", "controls_menulong",
-        "controls_powerdt",
-        "controls_fsg_assist_left", "controls_fsg_assist_right",
-        "controls_fsg_swipeandstop",
-        "controls_navbarleft", "controls_navbarleftlong",
-        "controls_navbarright", "controls_navbarrightlong",
-        "launcher_swipedown", "launcher_swipeup", "launcher_swipedown2", "launcher_swipeup2",
-        "launcher_swipeleft", "launcher_swiperight",
-        "launcher_doubletap", "launcher_pinch", "launcher_shake", "launcher_spread",
-        "system_statusbarcontrols", "system_statusbarcontrols_longpress",
-        "system_lockscreenshortcuts_left", "system_lockscreenshortcuts_right"
-    )
-
-    @Volatile
-    private var customActionCodeMap: SparseBooleanArray? = null
-
-    @Volatile
-    private var customToggleMap: SparseBooleanArray? = null
-
-    @Volatile
-    private var customActionsReady = false
-
-    @JvmStatic
-    private fun ensureCustomActionMaps() {
-        if (customActionsReady) return
-        synchronized(GlobalActions::class.java) {
-            if (customActionsReady) return
-            val actionMap = SparseBooleanArray()
-            val toggleMap = SparseBooleanArray()
-            for (key in customActionKeys) {
-                val action = MainModule.mPrefs.getInt(key + "_action", 1)
-                if (action > 1) actionMap.put(action, true)
-                if (action == 10) {
-                    val toggle = MainModule.mPrefs.getInt(key + "_toggle", 0)
-                    if (toggle > 0) toggleMap.put(toggle, true)
-                }
-            }
-            customActionCodeMap = actionMap
-            customToggleMap = toggleMap
-            customActionsReady = true
-        }
-    }
-
-    @JvmStatic
-    fun hasCustomActions(): Boolean {
-        ensureCustomActionMaps()
-        return customActionCodeMap!!.size() > 0
-    }
-
-    @JvmStatic
-    fun hasActionCode(code: Int): Boolean {
-        ensureCustomActionMaps()
-        return customActionCodeMap!!.get(code)
-    }
-
-    @JvmStatic
-    fun hasToggle(what: Int): Boolean {
-        ensureCustomActionMaps()
-        return customToggleMap!!.get(what)
     }
 
     private fun showSidebar(context: Context, bundle: Bundle?): Boolean {

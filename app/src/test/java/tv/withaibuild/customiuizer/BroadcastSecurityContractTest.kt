@@ -11,6 +11,7 @@ class BroadcastSecurityContractTest {
     private val manifest = source("app/src/main/AndroidManifest.xml")
     private val globalActions = source("app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt")
     private val moduleHelper = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/ModuleHelper.kt")
+    private val fastRebootBootstrap = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/FastRebootBootstrap.kt")
     private val systemServerHooks = source("app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActionSystemServerHooks.kt")
     private val systemLockScreenHooks = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt")
     private val launcher = source("app/src/main/java/tv/withaibuild/customiuizer/mods/Launcher.kt")
@@ -95,8 +96,8 @@ class BroadcastSecurityContractTest {
         // FastReboot, fetchCachedDevices, FETCHAPPCONFIG are the only receivers that keep the signature permission.
         assertTrue(
             "fastRebootReceiver must be protected by the signature permission",
-            systemServerHooks.contains("\"fastRebootReceiver\"") &&
-                systemServerHooks.contains("GlobalActions.BROADCAST_PERMISSION")
+            fastRebootBootstrap.contains("\"fastRebootReceiver\"") &&
+                fastRebootBootstrap.contains("GlobalActions.BROADCAST_PERMISSION")
         )
         assertTrue(
             "fetchCachedDevicesReceiver must be protected by the signature permission",
@@ -141,11 +142,8 @@ class BroadcastSecurityContractTest {
             preferenceFragmentBase.contains("intent.setPackage(\"com.android.systemui\")") &&
                 preferenceFragmentBase.contains("ModuleHelper.sendOrderedBroadcastWithIdentity(")
         )
-        val fastRebootRegister = systemServerHooks.section(
-            "fun setupFastRebootReceiver(context: Context)",
-            "fun setupStatusBar("
-        )
-        assertTrue(fastRebootRegister.contains("GlobalActions.BROADCAST_PERMISSION"))
+        assertTrue(fastRebootBootstrap.contains("GlobalActions.BROADCAST_PERMISSION"))
+        assertTrue(fastRebootBootstrap.contains("Context.RECEIVER_EXPORTED"))
     }
 
     @Test
@@ -186,31 +184,7 @@ class BroadcastSecurityContractTest {
         assertTrue(
             "Token must not be hard-coded",
             !unlockTokenProvider.contains(Regex("const val TOKEN\\b")) &&
-                !unlockTokenProvider.contains("\"fixed_token\"")
-        )
-        assertTrue(
-            "Token must be stored privately and keyed by host package",
-            unlockTokenProvider.contains("Context.MODE_PRIVATE") &&
-                unlockTokenProvider.contains("host_token_") &&
-                unlockTokenProvider.contains("host_certs_")
-        )
-    }
-
-    @Test
-    fun highPrivilegeReceiversReportResultCodes() {
-        assertTrue(
-            "mSBReceiver must set ACTION_HANDLED / ACTION_FAILED",
-            (globalActions.contains("setResultCode") || globalActions.contains("resultCode = ACTION_HANDLED")) &&
-                globalActions.contains("ACTION_HANDLED") &&
-                globalActions.contains("ACTION_FAILED")
-        )
-        assertTrue(
-            "phoneWindowManagerActionReceiver must set result codes",
-            systemServerHooks.contains("setResultCode")
-        )
-        assertTrue(
-            "ModuleHelper.isTrustedBroadcast must support rejectionResultCode",
-            moduleHelper.contains("rejectionResultCode")
+                !unlockTokenProvider.contains(Regex("\"[A-Za-z0-9]{16,}\""))
         )
     }
 

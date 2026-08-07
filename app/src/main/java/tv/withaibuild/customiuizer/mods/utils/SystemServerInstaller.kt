@@ -3,7 +3,6 @@ package tv.withaibuild.customiuizer.mods.utils
 import io.github.libxposed.api.XposedModuleInterface
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks
-import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.mods.PackagePermissions
 import tv.withaibuild.customiuizer.mods.utils.feature.PackagePermissionsFeatureId
 import tv.withaibuild.customiuizer.mods.utils.feature.SystemServerFeatures
@@ -33,7 +32,7 @@ object SystemServerInstaller {
 
         // Global actions are still checked eagerly because they depend on a cached map that must
         // not be built before preferences are ready.
-        if (prefReady && GlobalActions.hasCustomActions()) {
+        if (prefReady && hasConfiguredGlobalActions()) {
             GlobalActionSystemServerHooks.setupGlobalActions(lpparam)
         }
 
