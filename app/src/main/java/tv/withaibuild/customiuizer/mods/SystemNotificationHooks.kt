@@ -23,6 +23,7 @@ import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.lang.reflect.InvocationHandler
@@ -253,22 +254,24 @@ object SystemNotificationHooks {
                         ModuleHelper.guarded {
                             if (view == null) return@OnClickListener
                             val uid = XposedHelpers.getIntField(notification, "mAppUid")
-                            var user = 0
-                            ModuleHelper.guarded {
-                                user = XposedHelpers.callStaticMethod(UserHandle::class.java, "getUserId", uid) as Int
-                            }
 
-                            if (view == mInfoBtn) {
-                                ModuleHelper.openAppInfo(mContext, pkgName, user)
-                            } else if (view == mForceCloseBtn) {
-                                val am = mContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-                                if (user != 0)
-                                    XposedHelpers.callMethod(am, "forceStopPackageAsUser", pkgName, user)
-                                else
-                                    XposedHelpers.callMethod(am, "forceStopPackage", pkgName)
-                                ModuleHelper.guarded {
-                                    val appName = mContext.packageManager.getApplicationLabel(mContext.packageManager.getApplicationInfo(pkgName, 0))
-                                    Toast.makeText(mContext, ModuleHelper.getModuleRes(mContext).getString(R.string.force_closed, appName), Toast.LENGTH_SHORT).show()
+                            if (view == mInfoBtn || view == mForceCloseBtn) {
+                                val user = resolveNotificationUserId {
+                                    XposedHelpers.callStaticMethod(UserHandle::class.java, "getUserId", uid) as Int
+                                } ?: return@OnClickListener
+
+                                if (view == mInfoBtn) {
+                                    ModuleHelper.openAppInfo(mContext, pkgName, user)
+                                } else {
+                                    val am = mContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                                    if (user != 0)
+                                        XposedHelpers.callMethod(am, "forceStopPackageAsUser", pkgName, user)
+                                    else
+                                        XposedHelpers.callMethod(am, "forceStopPackage", pkgName)
+                                    ModuleHelper.guarded {
+                                        val appName = mContext.packageManager.getApplicationLabel(mContext.packageManager.getApplicationInfo(pkgName, 0))
+                                        Toast.makeText(mContext, ModuleHelper.getModuleRes(mContext).getString(R.string.force_closed, appName), Toast.LENGTH_SHORT).show()
+                                    }
                                 }
                             } else if (view == mOpenFwBtn) {
                                 val miniWindowPkg = XposedHelpers.callMethod(expandNotifyRow, "getMiniWindowTargetPkg") as String
@@ -313,6 +316,23 @@ object SystemNotificationHooks {
                 return XposedHelpers.throwOrReturn(throwable, result)
             }
         })
+    }
+
+    /**
+     * Resolves a notification's user id for cross-user actions.
+     *
+     * Fatal errors are unwrapped and re-thrown. Non-fatal resolution failures
+     * are logged and returned as `null` so the caller can abort the action
+     * instead of falling back to user 0.
+     */
+    internal fun resolveNotificationUserId(resolver: () -> Int): Int? {
+        return try {
+            resolver()
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log(t)
+            null
+        }
     }
 
     @JvmStatic
