@@ -19,6 +19,7 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.io.File
@@ -187,6 +188,7 @@ class SystemClockHotPathTest {
         var textAlignmentValue: Int = View.TEXT_ALIGNMENT_GRAVITY
         var lineSpacingExtraValue: Float = 0f
         var lineSpacingMultiplierValue: Float = 1.0f
+        var setTextSizeFailCount = 0
         private val keyedTags = mutableMapOf<Int, Any?>()
 
         override fun getTypeface(): Typeface? = typefaceValue
@@ -213,6 +215,10 @@ class SystemClockHotPathTest {
         override fun isSingleLine(): Boolean = singleLineValue ?: true
 
         override fun setTextSize(unit: Int, size: Float) {
+            if (setTextSizeFailCount > 0) {
+                setTextSizeFailCount--
+                throw IllegalStateException("simulated setTextSize failure")
+            }
             setTextSizeCalls.add(unit to size)
             textSizeValue = when (unit) {
                 TypedValue.COMPLEX_UNIT_PX -> size
@@ -708,6 +714,379 @@ class SystemClockHotPathTest {
         val last = clock.setTextSizeCalls.last()
         assertEquals("default font size must restore original px", TypedValue.COMPLEX_UNIT_PX, last.first)
         assertEquals(40f, last.second, 0.001f)
+    }
+
+    @Test
+    fun initClockStyle_align2ThenDefaultRestoresOriginalTextAlignment() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, textAlignment = View.TEXT_ALIGNMENT_TEXT_END)
+
+        val align2 = statusbarSnapshotWith(align = 2)
+        val align1 = statusbarSnapshotWith(align = 1)
+
+        SystemClockHooks.initClockStyle(clock, "clock", align2)
+        assertEquals(View.TEXT_ALIGNMENT_TEXT_START, clock.textAlignment)
+
+        SystemClockHooks.initClockStyle(clock, "clock", align1)
+        assertEquals("align 2 -> default must restore original", View.TEXT_ALIGNMENT_TEXT_END, clock.textAlignment)
+    }
+
+    @Test
+    fun initClockStyle_align3ThenDefaultRestoresOriginalTextAlignment() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, textAlignment = View.TEXT_ALIGNMENT_TEXT_START)
+
+        val align3 = statusbarSnapshotWith(align = 3)
+        val align1 = statusbarSnapshotWith(align = 1)
+
+        SystemClockHooks.initClockStyle(clock, "clock", align3)
+        assertEquals(View.TEXT_ALIGNMENT_CENTER, clock.textAlignment)
+
+        SystemClockHooks.initClockStyle(clock, "clock", align1)
+        assertEquals("align 3 -> default must restore original", View.TEXT_ALIGNMENT_TEXT_START, clock.textAlignment)
+    }
+
+    @Test
+    fun initClockStyle_align4ThenDefaultRestoresOriginalTextAlignment() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, textAlignment = View.TEXT_ALIGNMENT_CENTER)
+
+        val align4 = statusbarSnapshotWith(align = 4)
+        val align1 = statusbarSnapshotWith(align = 1)
+
+        SystemClockHooks.initClockStyle(clock, "clock", align4)
+        assertEquals(View.TEXT_ALIGNMENT_TEXT_END, clock.textAlignment)
+
+        SystemClockHooks.initClockStyle(clock, "clock", align1)
+        assertEquals("align 4 -> default must restore original", View.TEXT_ALIGNMENT_CENTER, clock.textAlignment)
+    }
+
+    @Test
+    fun initClockStyle_chipFalseThenTrueSetsChipAndRestoresOriginal() {
+        val clock = RecordingTextView()
+        val originalBackground = ColorDrawable(Color.RED)
+        setOriginalStyle(clock, background = originalBackground, textColor = Color.BLACK)
+        val originalTextColors = clock.textColors
+
+        val chipOff = statusbarSnapshotWith(chip = false)
+        val chipOn = statusbarSnapshotWith(
+            chip = true,
+            chipCustomTextColor = true,
+            chipTextColor = Color.GREEN,
+        )
+
+        SystemClockHooks.initClockStyle(clock, "clock", chipOff)
+        assertSame(originalBackground, clock.background)
+        assertSame(originalTextColors, clock.textColors)
+
+        SystemClockHooks.initClockStyle(clock, "clock", chipOn)
+        assertTrue("chip on must set a new background", clock.background !== originalBackground)
+        assertEquals(Color.GREEN, clock.currentTextColorValue)
+    }
+
+    @Test
+    fun initClockStyle_singleLineFalseOriginalRestoresMaxLinesAndSingleLine() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, singleLine = false, maxLines = 2, lineSpacingMultiplier = 1.25f)
+
+        val dualOn = statusbarSnapshotWith(customFormatEnable = true, customFormat = "HH\nmm")
+        val dualOff = statusbarSnapshotWith()
+
+        SystemClockHooks.initClockStyle(clock, "clock", dualOn)
+        assertEquals(false, clock.singleLineValue)
+        assertEquals(2, clock.maxLinesValue)
+
+        SystemClockHooks.initClockStyle(clock, "clock", dualOff)
+        assertEquals("single line must restore", false, clock.singleLineValue)
+        assertEquals("max lines must restore", 2, clock.maxLinesValue)
+        assertEquals("line spacing multiplier must restore", 1.25f, clock.lineSpacingMultiplier, 0.001f)
+    }
+
+    @Test
+    fun initClockStyle_restoresOriginalWidthHeightAndGravity() {
+        val clock = RecordingTextView()
+        setOriginalStyle(
+            clock,
+            width = 123,
+            height = 42,
+            gravity = Gravity.CENTER,
+        )
+
+        val widthOn = statusbarSnapshotWith(fixedWidth = 50)
+        val widthOff = statusbarSnapshotWith(fixedWidth = 10)
+
+        SystemClockHooks.initClockStyle(clock, "clock", widthOn)
+        val lp1 = clock.layoutParams as LinearLayout.LayoutParams
+        assertEquals("custom fixed width must apply", 100, lp1.width)
+        assertEquals("height must stay original when no chip/margin", 42, lp1.height)
+        assertEquals("gravity must stay original when no chip/margin", Gravity.CENTER, lp1.gravity)
+
+        SystemClockHooks.initClockStyle(clock, "clock", widthOff)
+        val lp2 = clock.layoutParams as LinearLayout.LayoutParams
+        assertEquals("fixed width off must restore original width", 123, lp2.width)
+        assertEquals("height must restore", 42, lp2.height)
+        assertEquals("gravity must restore", Gravity.CENTER, lp2.gravity)
+    }
+
+    @Test
+    fun initClockStyle_nonLinearLayoutParams_appliesWidthAndDoesNotCrash() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, width = 123, height = 42)
+        clock.setLayoutParams(ViewGroup.LayoutParams(0, 0).apply {
+            width = 123
+            height = 42
+        })
+
+        val widthOn = statusbarSnapshotWith(fixedWidth = 50)
+        val widthOff = statusbarSnapshotWith(fixedWidth = 10)
+
+        SystemClockHooks.initClockStyle(clock, "clock", widthOn)
+        val lp1 = clock.layoutParams!!
+        assertEquals("custom fixed width must apply to plain LayoutParams", 100, lp1.width)
+        assertEquals("height must stay original", 42, lp1.height)
+
+        SystemClockHooks.initClockStyle(clock, "clock", widthOff)
+        val lp2 = clock.layoutParams!!
+        assertEquals("fixed width off must restore original width", 123, lp2.width)
+        assertEquals("height must restore", 42, lp2.height)
+    }
+
+    @Test
+    fun initClockStyle_nonLinearMarginLayoutParamsWithoutChip_appliesMarginsWidthAndHeight() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, width = 123, height = 42, leftMargin = 6, rightMargin = 8)
+        val frameLp = FrameLayout.LayoutParams(0, 0).apply {
+            width = 123
+            height = 42
+            leftMargin = 6
+            rightMargin = 8
+            topMargin = 2
+            bottomMargin = 2
+        }
+        clock.setLayoutParams(frameLp)
+
+        val widthOn = statusbarSnapshotWith(fixedWidth = 50)
+        val widthOff = statusbarSnapshotWith(fixedWidth = 10)
+
+        SystemClockHooks.initClockStyle(clock, "clock", widthOn)
+        val lp1 = clock.layoutParams as FrameLayout.LayoutParams
+        assertEquals(100, lp1.width)
+        assertEquals(42, lp1.height)
+        assertEquals(6, lp1.leftMargin)
+        assertEquals(8, lp1.rightMargin)
+
+        SystemClockHooks.initClockStyle(clock, "clock", widthOff)
+        val lp2 = clock.layoutParams as FrameLayout.LayoutParams
+        assertEquals(123, lp2.width)
+        assertEquals(42, lp2.height)
+        assertEquals(6, lp2.leftMargin)
+        assertEquals(8, lp2.rightMargin)
+    }
+
+    @Test
+    fun initClockStyle_chipOnNonLinearLayoutParams_doesNotCrashAndDoesNotMarkComplete() {
+        val clock = RecordingTextView()
+        val originalBackground = ColorDrawable(Color.RED)
+        setOriginalStyle(clock, background = originalBackground, width = 123, height = 42)
+        clock.setLayoutParams(FrameLayout.LayoutParams(0, 0).apply {
+            width = 123
+            height = 42
+        })
+
+        val chipOn = statusbarSnapshotWith(chip = true, chipCustomTextColor = true, chipTextColor = Color.GREEN)
+
+        SystemClockHooks.initClockStyle(clock, "clock", chipOn)
+
+        // Because FrameLayout.LayoutParams cannot receive the chip gravity, the
+        // snapshot must not be marked as completed. The next call with the same
+        // snapshot must therefore be a no-op only after a successful application,
+        // but here it will re-attempt.
+        assertTrue("chip on must set chip background", clock.background !== originalBackground)
+        assertEquals(Color.GREEN, clock.currentTextColorValue)
+        // One setTextSize call from the default-font path.
+        assertEquals(1, clock.setTextSizeCalls.size)
+
+        // Re-applying the same snapshot must retry (not marked complete the first
+        // time because layout params were not ready).
+        val textSizeCallsBefore = clock.setTextSizeCalls.size
+        SystemClockHooks.initClockStyle(clock, "clock", chipOn)
+        assertTrue("same snapshot must retry when layout params were not ready", clock.setTextSizeCalls.size > textSizeCallsBefore)
+    }
+
+    @Test
+    fun initClockStyle_nullLayoutParams_thenSetLayoutParamsAndRetry() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, textSizePx = 40f)
+        clock.setLayoutParams(null)
+
+        val widthOn = statusbarSnapshotWith(fixedWidth = 50)
+
+        // First attempt: no LayoutParams, but a fixed width is requested. The
+        // snapshot must not be marked as complete.
+        SystemClockHooks.initClockStyle(clock, "clock", widthOn)
+
+        // Even though layout failed, the text properties are still applied.
+        val lpNull = clock.layoutParams
+        assertNull(lpNull)
+        assertEquals(1, clock.setTextSizeCalls.size)
+
+        // Now give the view a LayoutParams and retry with the same snapshot.
+        clock.setLayoutParams(LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        SystemClockHooks.initClockStyle(clock, "clock", widthOn)
+
+        val lp = clock.layoutParams as LinearLayout.LayoutParams
+        assertEquals("retry must apply fixed width once LayoutParams exist", 100, lp.width)
+    }
+
+    @Test
+    fun initClockStyle_setterFailure_sameSnapshotRetriesAndSucceeds() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, textSizePx = 40f)
+        clock.setTextSizeFailCount = 1
+
+        val bigFont = statusbarSnapshotWith(fontSize = 20)
+
+        // First call: setTextSize fails, snapshot must not be marked complete.
+        SystemClockHooks.initClockStyle(clock, "clock", bigFont)
+        assertEquals("failure must not record setTextSize call", 0, clock.setTextSizeCalls.size)
+
+        // Second call with the same snapshot: must succeed.
+        SystemClockHooks.initClockStyle(clock, "clock", bigFont)
+        assertEquals(1, clock.setTextSizeCalls.size)
+        assertEquals(10.0f, clock.setTextSizeCalls[0].second, 0.001f)
+
+        // Third call with the same snapshot: must be a no-op.
+        SystemClockHooks.initClockStyle(clock, "clock", bigFont)
+        assertEquals("third call with same snapshot must be idempotent", 1, clock.setTextSizeCalls.size)
+    }
+
+    @Test
+    fun initClockStyle_idempotentSameSnapshot_zeroWorkForAllSettersAndLayout() {
+        val clock = RecordingTextView()
+        setOriginalStyle(
+            clock,
+            textSizePx = 40f,
+            typeface = Typeface.DEFAULT_BOLD,
+            textColor = Color.BLACK,
+            textAlignment = View.TEXT_ALIGNMENT_CENTER,
+            translationY = 2f,
+            background = ColorDrawable(Color.RED),
+            width = 123,
+            height = 42,
+            leftMargin = 6,
+            rightMargin = 8,
+            gravity = Gravity.CENTER,
+        )
+
+        val fullCustom = statusbarSnapshotWith(
+            fontSize = 20,
+            bold = true,
+            align = 2,
+            verticalOffset = 12,
+            chip = true,
+            chipCustomTextColor = true,
+            chipTextColor = Color.GREEN,
+            leftMargin = 20,
+            rightMargin = 30,
+            fixedWidth = 50,
+        )
+
+        SystemClockHooks.initClockStyle(clock, "clock", fullCustom)
+        val countsAfterFirst = mapOf(
+            "textSize" to clock.setTextSizeCalls.size,
+            "textColor" to clock.setTextColorCalls.size,
+            "background" to clock.setBackgroundCalls.size,
+            "typeface" to clock.setTypefaceCalls.size,
+            "textAlignment" to clock.setTextAlignmentCalls.size,
+            "lineSpacing" to clock.setLineSpacingCalls.size,
+            "layoutParams" to clock.setLayoutParamsCalls.size,
+        )
+
+        // Second and third calls with the same snapshot must be no-ops.
+        SystemClockHooks.initClockStyle(clock, "clock", fullCustom)
+        SystemClockHooks.initClockStyle(clock, "clock", fullCustom)
+
+        assertEquals("textSize no-op", countsAfterFirst["textSize"], clock.setTextSizeCalls.size)
+        assertEquals("textColor no-op", countsAfterFirst["textColor"], clock.setTextColorCalls.size)
+        assertEquals("background no-op", countsAfterFirst["background"], clock.setBackgroundCalls.size)
+        assertEquals("typeface no-op", countsAfterFirst["typeface"], clock.setTypefaceCalls.size)
+        assertEquals("textAlignment no-op", countsAfterFirst["textAlignment"], clock.setTextAlignmentCalls.size)
+        assertEquals("lineSpacing no-op", countsAfterFirst["lineSpacing"], clock.setLineSpacingCalls.size)
+        assertEquals("layoutParams no-op", countsAfterFirst["layoutParams"], clock.setLayoutParamsCalls.size)
+    }
+
+    @Test
+    fun initClockStyle_ccClock_doesNotApplyStatusBarStyles() {
+        val clock = RecordingTextView()
+        val originalBackground = ColorDrawable(Color.RED)
+        setOriginalStyle(
+            clock,
+            textSizePx = 40f,
+            typeface = Typeface.DEFAULT_BOLD,
+            textColor = Color.BLACK,
+            textAlignment = View.TEXT_ALIGNMENT_CENTER,
+            translationY = 2f,
+            background = originalBackground,
+            width = 123,
+            height = 42,
+            leftMargin = 6,
+            rightMargin = 8,
+            gravity = Gravity.CENTER,
+        )
+
+        val statusBarCustom = statusbarSnapshotWith(
+            fontSize = 20,
+            bold = true,
+            align = 2,
+            verticalOffset = 12,
+            chip = true,
+            chipCustomTextColor = true,
+            chipTextColor = Color.GREEN,
+            leftMargin = 20,
+            rightMargin = 30,
+            fixedWidth = 50,
+        )
+
+        val before = mapOf(
+            "textSize" to clock.setTextSizeCalls.size,
+            "textColor" to clock.setTextColorCalls.size,
+            "background" to clock.setBackgroundCalls.size,
+            "typeface" to clock.setTypefaceCalls.size,
+            "textAlignment" to clock.setTextAlignmentCalls.size,
+            "layoutParams" to clock.setLayoutParamsCalls.size,
+        )
+
+        SystemClockHooks.initClockStyle(clock, "ccClock", statusBarCustom)
+
+        assertEquals("ccClock must not touch textSize", before["textSize"], clock.setTextSizeCalls.size)
+        assertEquals("ccClock must not touch textColor", before["textColor"], clock.setTextColorCalls.size)
+        assertEquals("ccClock must not touch background", before["background"], clock.setBackgroundCalls.size)
+        assertEquals("ccClock must not touch typeface", before["typeface"], clock.setTypefaceCalls.size)
+        assertEquals("ccClock must not touch textAlignment", before["textAlignment"], clock.setTextAlignmentCalls.size)
+        assertEquals("ccClock must not touch layoutParams", before["layoutParams"], clock.setLayoutParamsCalls.size)
+        assertEquals("ccClock must not change translationY", 2f, clock.translationYValue ?: Float.NaN, 0.001f)
+        assertSame("ccClock must not change background", originalBackground, clock.background)
+    }
+
+    @Test
+    fun shouldSuppressDarkChange_usesSnapshotAndNotPrefMap() {
+        // Empty prefs: the decision must come from the snapshot, not from
+        // reading MainModule.mPrefs in the dark callback.
+        MainModule.mPrefs.clear()
+
+        val chipOn = statusbarSnapshotWith(chip = true, chipUseMonet = true)
+        setCurrentSnapshot(chipOn)
+        assertTrue("status bar clock with chip+monet must suppress dark changes", SystemClockHooks.shouldSuppressDarkChange("clock"))
+
+        val chipOff = statusbarSnapshotWith(chip = false)
+        setCurrentSnapshot(chipOff)
+        assertFalse("chip off must not suppress dark changes", SystemClockHooks.shouldSuppressDarkChange("clock"))
+
+        assertFalse("non-statusbar clock must not suppress dark changes", SystemClockHooks.shouldSuppressDarkChange("ccClock"))
+        assertFalse("null clockName must not suppress dark changes", SystemClockHooks.shouldSuppressDarkChange(null))
+
+        setCurrentSnapshot(null)
+        assertFalse("no snapshot must not suppress dark changes", SystemClockHooks.shouldSuppressDarkChange("clock"))
     }
 
     @Test

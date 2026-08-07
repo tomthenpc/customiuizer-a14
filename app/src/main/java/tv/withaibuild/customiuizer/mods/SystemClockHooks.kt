@@ -25,6 +25,7 @@ import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
+import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
 import tv.withaibuild.customiuizer.mods.utils.ScreenStateController
 import tv.withaibuild.customiuizer.mods.utils.WeatherDataController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
@@ -93,7 +94,7 @@ object SystemClockHooks {
     private const val CLOCK_STYLE_SNAPSHOT_ID_FIELD = "clockStyleSnapshotId"
 
     /** View tag key for the original style state captured on first style application. */
-    private const val CLOCK_ORIGINAL_STYLE_TAG = 0x7F000001
+    private val CLOCK_ORIGINAL_STYLE_TAG = ResourceHooks.getFakeResId("clock_original_style_state")
 
     /** All preference keys that can affect the clock style snapshot. */
     private val CLOCK_STYLE_PREFERENCE_KEYS = setOf(
@@ -271,6 +272,22 @@ object SystemClockHooks {
     internal fun currentClockStyleSnapshot(): ClockStyleSnapshot? = clockStyleSnapshot
 
     /**
+     * Decides whether `onDarkChanged` should be suppressed for a given clock.
+     *
+     * Only the status-bar clock (`clockName == "clock"`) is suppressed, and only
+     * when the current snapshot has a chip with a Monet or custom text color. The
+     * decision uses the cached [ClockStyleSnapshot] and reads no [PrefMap] values,
+     * so it reacts to preference changes through the observer refresh path.
+     */
+    @VisibleForTesting
+    internal fun shouldSuppressDarkChange(clockName: String?): Boolean {
+        if (clockName != "clock") return false
+        val snapshot = currentClockStyleSnapshot() ?: return false
+        return snapshot.statusbarChip &&
+            (snapshot.statusbarChipUseMonet || snapshot.statusbarChipCustomTextColor)
+    }
+
+    /**
      * Ensures a snapshot exists and matches the current `Configuration`.
      *
      * This is not called from the per-tick path. It is used from
@@ -347,11 +364,18 @@ object SystemClockHooks {
         val lastId = XposedHelpers.getAdditionalInstanceField(mClock, CLOCK_STYLE_SNAPSHOT_ID_FIELD) as? Long
         if (lastId == snapshot.id) return
 
-        val originalState = getOrCaptureOriginalStyle(mClock)
-
-        applyClockStyle(mClock, clockName, snapshot, originalState)
-
-        XposedHelpers.setAdditionalInstanceField(mClock, CLOCK_STYLE_SNAPSHOT_ID_FIELD, snapshot.id)
+        try {
+            val originalState = getOrCaptureOriginalStyle(mClock)
+            val applied = applyClockStyle(mClock, clockName, snapshot, originalState)
+            if (applied) {
+                XposedHelpers.setAdditionalInstanceField(mClock, CLOCK_STYLE_SNAPSHOT_ID_FIELD, snapshot.id)
+            }
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log(t)
+        }
     }
 
     private fun initClockStyle(mClock: TextView, clockName: String) {
@@ -466,6 +490,12 @@ object SystemClockHooks {
      * property is either the snapshot-specific value or the value captured in
      * [originalState].  Status-bar-only properties are not applied to
      * non-status-bar clocks such as `ccClock`.
+     *
+     * Returns `true` when the full style, including any requested layout changes,
+     * was applied. A `false` return means a required [LayoutParams] operation could
+     * not be completed (e.g. the view has no layout params, or the current
+     * [LayoutParams] type does not support margins/gravity). The caller must not
+     * record the snapshot as completed so the next call can retry.
      */
     @VisibleForTesting
     internal fun applyClockStyle(
@@ -473,7 +503,7 @@ object SystemClockHooks {
         clockName: String,
         snapshot: ClockStyleSnapshot,
         originalState: ClockOriginalStyleState,
-    ) {
+    ): Boolean {
         val statusBarClock = clockName == "clock"
         val res = mClock.resources
         val displayMetrics = res.displayMetrics
@@ -482,6 +512,8 @@ object SystemClockHooks {
         val enableCustomFormat = !statusBarClock || snapshot.statusbarCustomFormatEnable
         val customFormat = if (statusBarClock) snapshot.statusbarCustomFormat else snapshot.ccCustomFormat
         val dualRows = enableCustomFormat && customFormat.contains("\n")
+
+        var layoutParamsReady = true
 
         if (statusBarClock) {
             if (snapshot.statusbarFontSize > 13) {
@@ -502,8 +534,8 @@ object SystemClockHooks {
 
             mClock.textAlignment = when (snapshot.statusbarAlign) {
                 2 -> View.TEXT_ALIGNMENT_TEXT_START
-                3 -> View.TEXT_ALIGNMENT_TEXT_END
-                4 -> View.TEXT_ALIGNMENT_CENTER
+                3 -> View.TEXT_ALIGNMENT_CENTER
+                4 -> View.TEXT_ALIGNMENT_TEXT_END
                 else -> originalState.textAlignment
             }
 
@@ -524,45 +556,61 @@ object SystemClockHooks {
             val rightMarginPx = (snapshot.statusbarRightMargin * dimStep * displayMetrics.density).toInt()
             val hasHorizontalMargin = leftMarginPx > 0 || rightMarginPx > 0
             val isChip = snapshot.statusbarChip
+            val needsLayout = isChip || hasHorizontalMargin || snapshot.statusbarFixedWidth > 10
 
-            val lp = mClock.layoutParams ?: LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-            )
-
-            lp.width = if (snapshot.statusbarFixedWidth > 10) {
-                (displayMetrics.density * snapshot.statusbarFixedWidth).toInt()
-            } else {
-                originalState.layoutParamsWidth
-            }
-            lp.height = if (isChip || hasHorizontalMargin) {
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            } else {
-                originalState.layoutParamsHeight
-            }
-
-            if (lp is LinearLayout.LayoutParams) {
-                lp.gravity = if (isChip || hasHorizontalMargin) {
-                    Gravity.CENTER_VERTICAL or Gravity.START
-                } else {
-                    originalState.layoutParamsGravity ?: lp.gravity
+            val lp = mClock.layoutParams
+            if (lp == null) {
+                if (needsLayout) {
+                    layoutParamsReady = false
                 }
-            }
+            } else {
+                lp.width = if (snapshot.statusbarFixedWidth > 10) {
+                    (displayMetrics.density * snapshot.statusbarFixedWidth).toInt()
+                } else {
+                    originalState.layoutParamsWidth
+                }
+                lp.height = if (isChip || hasHorizontalMargin) {
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+                } else {
+                    originalState.layoutParamsHeight
+                }
 
-            if (lp is ViewGroup.MarginLayoutParams) {
-                lp.leftMargin = if (leftMarginPx > 0) leftMarginPx else originalState.leftMargin
-                lp.rightMargin = if (rightMarginPx > 0) rightMarginPx else originalState.rightMargin
-                lp.topMargin = originalState.topMargin
-                lp.bottomMargin = originalState.bottomMargin
+                if (isChip || hasHorizontalMargin) {
+                    if (lp is LinearLayout.LayoutParams) {
+                        lp.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                    } else {
+                        layoutParamsReady = false
+                    }
+                } else if (lp is LinearLayout.LayoutParams) {
+                    originalState.layoutParamsGravity?.let { lp.gravity = it }
+                }
+
+                if (lp is ViewGroup.MarginLayoutParams) {
+                    lp.leftMargin = if (leftMarginPx > 0) leftMarginPx else originalState.leftMargin
+                    lp.rightMargin = if (rightMarginPx > 0) rightMarginPx else originalState.rightMargin
+                    lp.topMargin = originalState.topMargin
+                    lp.bottomMargin = originalState.bottomMargin
+                } else if (hasHorizontalMargin ||
+                    originalState.leftMargin != 0 ||
+                    originalState.rightMargin != 0 ||
+                    originalState.topMargin != 0 ||
+                    originalState.bottomMargin != 0
+                ) {
+                    layoutParamsReady = false
+                }
+
+                mClock.layoutParams = lp
             }
-            mClock.layoutParams = lp
         }
 
-        val (desiredLineSpacingExtra, desiredLineSpacingMultiplier) = if (dualRows && statusBarClock) {
-            val multiplier = if (0.5f * snapshot.statusbarFontSize > 8.5f) 0.85f else 0.9f
-            0f to multiplier
+        val desiredLineSpacingExtra: Float
+        val desiredLineSpacingMultiplier: Float
+        if (dualRows && statusBarClock) {
+            desiredLineSpacingExtra = 0f
+            desiredLineSpacingMultiplier = if (0.5f * snapshot.statusbarFontSize > 8.5f) 0.85f else 0.9f
         } else {
-            originalState.lineSpacingExtra to originalState.lineSpacingMultiplier
+            desiredLineSpacingExtra = originalState.lineSpacingExtra
+            desiredLineSpacingMultiplier = originalState.lineSpacingMultiplier
         }
 
         if (dualRows) {
@@ -573,6 +621,8 @@ object SystemClockHooks {
             mClock.maxLines = originalState.maxLines
         }
         mClock.setLineSpacing(desiredLineSpacingExtra, desiredLineSpacingMultiplier)
+
+        return layoutParamsReady
     }
 
     /**
@@ -1012,33 +1062,27 @@ object SystemClockHooks {
                     return XposedHelpers.throwOrReturn(throwable, result)
                 }
             })
-            val customTextColor = MainModule.mPrefs.getBoolean("system_statusbar_clock_chip_customtextcolor")
-            val useMonet = MainModule.mPrefs.getBoolean("system_statusbar_clock_chip_usemonet")
-            if (MainModule.mPrefs.getBoolean("system_statusbar_clock_chip") && (customTextColor || useMonet)) {
-                ModuleHelper.hookAllMethods("com.android.systemui.statusbar.views.MiuiClock", lpparam.classLoader, "onDarkChanged", object : MethodHook() {
-                    override fun intercept(chain: XposedInterface.Chain): Any? {
-                        var skipped = false
-                        var result: Any? = null
-                        var throwable: Throwable? = null
-                        val thisObject = chain.thisObject
-                        try {
+            ModuleHelper.hookAllMethods("com.android.systemui.statusbar.views.MiuiClock", lpparam.classLoader, "onDarkChanged", object : MethodHook() {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    var skipped = false
+                    var result: Any? = null
+                    var throwable: Throwable? = null
+                    val thisObject = chain.thisObject
+                    try {
 
-                            val clock = thisObject as TextView
-                            val clockName = ModuleHelper.getViewInfo(clock, "clockName") as String?
-                            if ("clock" == clockName) {
-                                skipped = true; result = null; throwable = null
-                            }
+                        val clock = thisObject as TextView
+                        val clockName = ModuleHelper.getViewInfo(clock, "clockName") as? String
+                        skipped = shouldSuppressDarkChange(clockName)
 
-                            if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                            result = chain.proceed()
-                        } catch (t: Throwable) {
-                            throwable = t
-                            result = null
-                        }
-                        return XposedHelpers.throwOrReturn(throwable, result)
+                        if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
+                        result = chain.proceed()
+                    } catch (t: Throwable) {
+                        throwable = t
+                        result = null
                     }
-                })
-            }
+                    return XposedHelpers.throwOrReturn(throwable, result)
+                }
+            })
             ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.policy.FakeStatusBarClockController", lpparam.classLoader, "initState", object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var skipped = false
