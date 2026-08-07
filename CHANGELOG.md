@@ -15,8 +15,9 @@
 
 ### 验证边界
 
-- 通过 `python tools/verify.py full`、功能语义校验、源码风险扫描、不变量检查和 `git diff --check`。
-- 单元测试与 `lintVitalRelease` 通过；Release APK 完成 R8 压缩、资源收缩和正式签名。
+- 本次 Release-only 验收构建未执行 `python tools/verify.py full`，因为该模式会触发 `assembleDebug`。
+- 已执行并通过功能语义校验、源码风险扫描、不变量检查、`git diff --check` 及 JVM 单元测试。
+- Release APK 完成 R8 压缩、资源收缩和正式签名。
 - 本版本不标记为全面 `DEVICE_VERIFIED`；状态栏高度无重启序列等待实机验证。
 
 ### 已知 Major

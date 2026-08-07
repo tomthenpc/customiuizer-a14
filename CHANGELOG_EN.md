@@ -15,8 +15,9 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/10
 
 ### Verification Boundary
 
-- Passed `python tools/verify.py full`, feature-semantics validation, source-hazard scanning, invariant checks, and `git diff --check`.
-- Unit tests and `lintVitalRelease` pass; Release APK is R8-minified, resource-shrunk, and officially signed.
+- This Release-only build did not run `python tools/verify.py full`, because that mode triggers `assembleDebug`.
+- Feature-semantics validation, source-hazard scanning, invariant checks, `git diff --check`, and JVM unit tests were run and passed.
+- Release APK is R8-minified, resource-shrunk, and officially signed.
 - This release is not claimed as fully `DEVICE_VERIFIED`; the no-reboot status-bar-height sequence awaits device verification.
 
 ### Known Major
