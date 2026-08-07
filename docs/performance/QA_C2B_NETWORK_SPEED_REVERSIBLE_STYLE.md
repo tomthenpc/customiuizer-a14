@@ -53,15 +53,15 @@ TextView.setTextAppearance hook
        -> parent = textView.parent as? LinearLayout
        -> state.base = textView.typeface
        -> ensureNetSpeedTypeface(textView, snapshot.bold)
-       -> remove snapshot id from parent
-       -> remove original-style tag from parent
+       -> remove full-style snapshot id from parent
+       -> original-style tag on parent remains
 ```
 
 - This path only restores the network-speed typeface / fake-bold state.
 - It deliberately does **not** re-apply size, padding, gravity, or layout.
-- It invalidates the cached original style and last full snapshot so the next
-  full apply re-captures the post-text-appearance baseline and applies the full
-  custom NetworkSpeed style.
+- It invalidates the cached full-style snapshot id so the next full apply
+  re-applies the custom NetworkSpeed style, while the original baseline stays
+  captured for the lifetime of the NetworkSpeedView.
 
 ## Original style capture
 
@@ -69,6 +69,11 @@ TextView.setTextAppearance hook
 per `NetworkSpeedView` instance, on the first full `applyNetSpeedTextStyle` that
 reaches the layout-block.
 
+- Before capture, `applyNetSpeedTextStyle` returns immediately if
+  `numberText.layoutParams == null`.  No guessed `LinearLayout.LayoutParams` is
+  created, no original state is stored, and the full snapshot id is not written.
+  The next call with the same snapshot id will retry once real LayoutParams are
+  attached.
 - The original state is stored as a view tag on `speedView` keyed by
   `ResourceHooks.getFakeResId("netspeed_original_style_state")`.
 - The state is an immutable `NetSpeedOriginalStyleState` snapshot.
@@ -164,11 +169,41 @@ When `system_netspeed_use_clock_style` is enabled:
   TextViews first.
 - The full NetworkSpeed custom style is applied afterwards.
 - The `setTextAppearance` after-hook then only restores the network-speed
-  typeface and invalidates cached state, so the next full apply re-captures the
-  new baseline and re-applies the custom style.
+  typeface and invalidates the full-style snapshot id.  The per-view
+  `NetSpeedOriginalStyleState` is **not** cleared.
 
 This ensures the captured baseline can be the clock-styled appearance while the
-visible result is the user's NetworkSpeed configuration.
+visible result is the user's NetworkSpeed configuration, and that later
+`TextAppearance` callbacks do not replace the original baseline with the custom
+NetworkSpeed style.
+
+## Null LayoutParams guard
+
+`applyNetSpeedTextStyle` defers the first full-style apply when
+`numberText.layoutParams == null`:
+
+- No original state is captured.
+- No `LinearLayout.LayoutParams` is created from guessed values.
+- No full-style setters are applied.
+- The full snapshot id is not written and `viewInitedTag` is not set.
+- The next call with the same `snapshot.id` retries once the framework has
+  provided a real `LinearLayout.LayoutParams`.
+
+This prevents a guessed `WRAP_CONTENT` / zero-margin baseline from replacing the
+real stock baseline on early, not-yet-inflated views.
+
+## Configuration / theme refresh
+
+For future ROM or theme changes that update text size, fontScale, or padding via
+a fresh `TextAppearance` callback, this implementation:
+
+- Only refreshes the typeface baseline through `NetSpeedTypefaceState`.
+- Keeps the `NetSpeedOriginalStyleState` once captured for the lifetime of the
+  view.
+
+Re-capturing the whole original state on every `TextAppearance` change is
+considered a configuration-rebuild concern that requires device evidence.
+Documented as `DEVICE / CONFIGURATION REBUILD VALIDATION PENDING`.
 
 ## Feature-boundary gating
 

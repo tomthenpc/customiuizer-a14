@@ -382,12 +382,17 @@ class SystemUIStatusBarHotPathTest {
         ref?.set(null)
     }
 
-    private fun speedViewWith(number: RecordingTextView, unit: RecordingTextView? = null): RecordingLinearLayout {
+    private fun speedViewWith(
+        number: RecordingTextView,
+        unit: RecordingTextView? = null,
+        applyOriginalStyle: Boolean = true,
+    ): RecordingLinearLayout {
         val speedView = RecordingLinearLayout(number.fakeResources.displayMetrics.density)
         speedView.mNetworkSpeedNumberText = number
         if (unit != null) speedView.mNetworkSpeedUnitText = unit
         speedView.setTag(NETSPEED_NUMBER_VIEW_TAG, number)
         if (unit != null) speedView.setTag(NETSPEED_UNIT_VIEW_TAG, unit)
+        if (applyOriginalStyle) setOriginalNetSpeedStyle(number, unit, speedView)
         return speedView
     }
 
@@ -1208,7 +1213,8 @@ class SystemUIStatusBarHotPathTest {
         val custom = makeCustomSnapshot()
         SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, custom, false)
         assertNotNull(getFullSnapshotId(speedView))
-        assertNotNull(speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+        val original = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertNotNull(original)
 
         val textSizeBefore = number.setTextSizeCalls.size
         val typefaceBefore = number.setTypefaceCalls.size
@@ -1216,7 +1222,9 @@ class SystemUIStatusBarHotPathTest {
         SystemUIStatusBarHooks.onNetworkSpeedTextAppearanceChanged(number, speedView)
 
         assertNull(getFullSnapshotId(speedView))
-        assertNull(speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+        val after = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as? SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertNotNull(after)
+        assertSame(original, after)
         assertEquals(textSizeBefore, number.setTextSizeCalls.size)
         assertTrue(number.setTypefaceCalls.size > typefaceBefore)
 
@@ -1256,13 +1264,17 @@ class SystemUIStatusBarHotPathTest {
         val speedView = speedViewWith(number, unit)
         setOriginalNetSpeedStyle(number, unit, speedView)
 
+        // Original baseline is not captured before the first full apply.
+        assertNull(speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+
         SystemUIStatusBarHooks.onNetworkSpeedViewInflated(speedView)
 
         assertEquals(1, number.setTextAppearanceCalls.size)
         assertEquals(1, unit.setTextAppearanceCalls.size)
         assertEquals(1, number.setTextSizeCalls.size)
         assertNotNull(getFullSnapshotId(speedView))
-        assertNotNull(speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+        val original = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertNotNull(original)
 
         // Simulate a later framework setTextAppearance on the number view.
         val textSizeBefore = number.setTextSizeCalls.size
@@ -1272,7 +1284,9 @@ class SystemUIStatusBarHotPathTest {
         assertEquals(textSizeBefore, number.setTextSizeCalls.size)
         assertTrue(number.setTypefaceCalls.size > typefaceBefore)
         assertNull(getFullSnapshotId(speedView))
-        assertNull(speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+        val after = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as? SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertNotNull(after)
+        assertSame(original, after)
     }
 
     // I. simulated setter failure
@@ -1328,6 +1342,248 @@ class SystemUIStatusBarHotPathTest {
         assertEquals(1, unit.setTextSizeCalls.size)
         assertEquals(1, unit.setTextAlignmentCalls.size)
         assertEquals(1, unit.setVisibilityCalls.size)
+    }
+
+    /**
+     * C2B-R1: TextAppearance after-hook must invalidate full-style completion only.
+     * The per-view original style baseline must survive for the lifetime of the view.
+     */
+    @Test
+    fun textAppearance_doesNotReplaceOriginalBaselineWithCustomState() {
+        val number = RecordingTextView()
+        val unit = RecordingTextView()
+        val speedView = speedViewWith(number, unit)
+        setRichOriginalNetSpeedStyle(number, unit, speedView)
+
+        // original is captured on the first full apply
+        val style2 = snapshotFrom(
+            mapOf(
+                "system_detailednetspeed_style" to 2,
+                "system_netspeed_boldfont" to true,
+                "system_netspeed_fontsize" to 20,
+                "system_netspeed_fixedcontent_width" to 20,
+                "system_netspeed_leftmargin" to 10,
+                "system_netspeed_rightmargin" to 12,
+                "system_netspeed_verticaloffset" to 12,
+                "system_detailednetspeed_align" to 3,
+                "system_netspeed_rowspacing" to 110,
+            )
+        )
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, style2, false)
+        val original = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertNotNull(getFullSnapshotId(speedView))
+        assertNotNull(original)
+
+        // Framework TextAppearance callback: only typeface, full ID gone,
+        // original state must keep the same object identity.
+        number.setTag(NETSPEED_TYPEFACE_STATE_TAG, SystemUIStatusBarHooks.NetSpeedTypefaceState())
+        SystemUIStatusBarHooks.onNetworkSpeedTextAppearanceChanged(number, speedView)
+        assertNull(getFullSnapshotId(speedView))
+        val afterTextAppearance = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertSame(original, afterTextAppearance)
+
+        // Next full default/style1 apply must restore the original baseline precisely.
+        val default = makeDefaultSnapshot()
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, default, false)
+        val afterDefault = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertSame(original, afterDefault)
+
+        assertEquals(3f, speedView.translationY)
+        assertEquals(7, speedView.paddingStart)
+        assertEquals(4, speedView.paddingTop)
+        assertEquals(9, speedView.paddingEnd)
+        assertEquals(5, speedView.paddingBottom)
+
+        assertEquals(26f, number.textSize)
+        assertEquals(Gravity.CENTER, number.gravity)
+        assertTrue(number.isSingleLine)
+        assertEquals(1, number.maxLines)
+        assertEquals(0f, number.lineSpacingExtra)
+        assertEquals(1f, number.lineSpacingMultiplier)
+        assertEquals(View.TEXT_ALIGNMENT_GRAVITY, number.textAlignment)
+
+        val numberLp = number.layoutParams as LinearLayout.LayoutParams
+        assertEquals(137, numberLp.width)
+        assertEquals(43, numberLp.height)
+        assertEquals(0.5f, numberLp.weight)
+        assertEquals(Gravity.CENTER, numberLp.gravity)
+        assertEquals(6, numberLp.leftMargin)
+        assertEquals(8, numberLp.rightMargin)
+        assertEquals(2, numberLp.topMargin)
+        assertEquals(3, numberLp.bottomMargin)
+
+        assertEquals(View.VISIBLE, unit.visibility)
+        assertEquals(18f, unit.textSize)
+    }
+
+    /**
+     * C2B-R1: A null number LayoutParams must not trigger partial/full style application
+     * or guessed original-state capture. The view must wait for real LayoutParams.
+     */
+    @Test
+    fun nullNumberLayoutParams_doesNotCaptureOrApplyUntilRealLayoutExists() {
+        val number = RecordingTextView()
+        val speedView = speedViewWith(number, applyOriginalStyle = false)
+
+        // Precondition: the framework has not yet attached a LayoutParams.
+        assertNull(number.layoutParams)
+        assertNull(speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+
+        val custom = snapshotFrom(
+            mapOf(
+                "system_detailednetspeed_style" to 1,
+                "system_netspeed_boldfont" to true,
+                "system_netspeed_fontsize" to 20,
+                "system_netspeed_fixedcontent_width" to 20,
+                "system_netspeed_leftmargin" to 10,
+                "system_netspeed_rightmargin" to 12,
+                "system_netspeed_verticaloffset" to 12,
+                "system_detailednetspeed_align" to 3,
+                "system_netspeed_rowspacing" to 110,
+            )
+        )
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, custom, false)
+
+        assertNull(number.layoutParams)
+        assertNull(speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+        assertNull(getFullSnapshotId(speedView))
+        assertEquals(0, number.setTextSizeCalls.size)
+        assertEquals(0, speedView.setTranslationYCalls.size)
+        assertEquals(0, speedView.setPaddingRelativeCalls.size)
+        assertEquals(0, number.setTypefaceCalls.size)
+        assertEquals(0, number.layoutParamsCalls.size)
+
+        // Framework now provides a real LinearLayout.LayoutParams.
+        val realLp = LinearLayout.LayoutParams(137, 43)
+        realLp.width = 137
+        realLp.height = 43
+        realLp.weight = 0.5f
+        realLp.gravity = Gravity.CENTER
+        realLp.leftMargin = 6
+        realLp.rightMargin = 8
+        realLp.topMargin = 2
+        realLp.bottomMargin = 3
+        number.layoutParams = realLp
+        number.clearCalls()
+
+        // Same snapshot: should now capture the real baseline and fully apply.
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, custom, false)
+        val original = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertNotNull(original)
+        assertNotNull(getFullSnapshotId(speedView))
+        assertEquals(1, number.setTextSizeCalls.size)
+        assertEquals(1, number.layoutParamsCalls.size)
+
+        // Default snapshot must restore the real baseline, not a guessed WRAP_CONTENT/0.
+        number.clearCalls()
+        val default = makeDefaultSnapshot()
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, default, false)
+        val afterDefault = number.layoutParams as LinearLayout.LayoutParams
+        assertSame(original, speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+        assertEquals(137, afterDefault.width)
+        assertEquals(43, afterDefault.height)
+        assertEquals(0.5f, afterDefault.weight)
+        assertEquals(Gravity.CENTER, afterDefault.gravity)
+        assertEquals(6, afterDefault.leftMargin)
+        assertEquals(8, afterDefault.rightMargin)
+        assertEquals(2, afterDefault.topMargin)
+        assertEquals(3, afterDefault.bottomMargin)
+    }
+
+    /**
+     * C2B-R1: useClockStyle initial path — the original state must not exist before the first full
+     * apply, must be captured exactly once after it, and must survive later TextAppearance calls.
+     */
+    @Test
+    fun onNetworkSpeedViewInflated_initialClockStyle_baselineCapturedOnce() {
+        setMainPrefs(
+            mapOf(
+                "system_netspeed_use_clock_style" to true,
+                "system_netspeed_clock_style" to 123456,
+                "system_detailednetspeed_style" to 1,
+                "system_netspeed_boldfont" to true,
+                "system_netspeed_fontsize" to 20,
+                "system_netspeed_fixedcontent_width" to 20,
+                "system_netspeed_leftmargin" to 10,
+                "system_netspeed_rightmargin" to 12,
+                "system_netspeed_verticaloffset" to 12,
+                "system_detailednetspeed_align" to 3,
+                "system_netspeed_rowspacing" to 110,
+            )
+        )
+        resetNetSpeedSnapshotState()
+
+        val number = RecordingTextView()
+        val unit = RecordingTextView()
+        val speedView = speedViewWith(number, unit)
+        setOriginalNetSpeedStyle(number, unit, speedView)
+
+        assertNull(speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+
+        // Simulate the framework setTextAppearance callback that would fire during useClockStyle.
+        number.setTag(NETSPEED_TYPEFACE_STATE_TAG, SystemUIStatusBarHooks.NetSpeedTypefaceState())
+        unit.setTag(NETSPEED_TYPEFACE_STATE_TAG, SystemUIStatusBarHooks.NetSpeedTypefaceState())
+        SystemUIStatusBarHooks.onNetworkSpeedTextAppearanceChanged(number, speedView)
+        assertNull(speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG))
+        assertNull(getFullSnapshotId(speedView))
+
+        // First full apply captures the post-clock baseline.
+        val snapshot = SystemUIStatusBarHooks.buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
+        SystemUIStatusBarHooks.applyNetSpeedTextStyle(speedView, snapshot, false)
+        val original = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertNotNull(original)
+        assertNotNull(getFullSnapshotId(speedView))
+
+        // A later TextAppearance must not discard the original baseline.
+        SystemUIStatusBarHooks.onNetworkSpeedTextAppearanceChanged(number, speedView)
+        val after = speedView.getTag(NETSPEED_ORIGINAL_STYLE_STATE_TAG) as? SystemUIStatusBarHooks.NetSpeedOriginalStyleState
+        assertSame(original, after)
+        assertNull(getFullSnapshotId(speedView))
+    }
+
+    private fun setRichOriginalNetSpeedStyle(
+        number: RecordingTextView,
+        unit: RecordingTextView,
+        speedView: RecordingLinearLayout,
+    ) {
+        speedView.setTranslationY(3f)
+        speedView.setPaddingRelative(7, 4, 9, 5)
+
+        number.setTextSize(TypedValue.COMPLEX_UNIT_PX, 26f)
+        number.setGravity(Gravity.CENTER)
+        number.setTextAlignment(View.TEXT_ALIGNMENT_GRAVITY)
+        number.setSingleLine(true)
+        number.setMaxLines(1)
+        number.setLineSpacing(0f, 1f)
+
+        val numberLp = LinearLayout.LayoutParams(137, 43)
+        // The test stub LayoutParams constructor is a no-op, so assign width/height explicitly.
+        numberLp.width = 137
+        numberLp.height = 43
+        numberLp.weight = 0.5f
+        numberLp.gravity = Gravity.CENTER
+        numberLp.leftMargin = 6
+        numberLp.rightMargin = 8
+        numberLp.topMargin = 2
+        numberLp.bottomMargin = 3
+        number.layoutParams = numberLp
+
+        unit.setTextSize(TypedValue.COMPLEX_UNIT_PX, 18f)
+        unit.setTextAlignment(View.TEXT_ALIGNMENT_GRAVITY)
+        unit.setVisibility(View.VISIBLE)
+        val unitLp = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+        )
+        unitLp.width = LinearLayout.LayoutParams.WRAP_CONTENT
+        unitLp.height = LinearLayout.LayoutParams.WRAP_CONTENT
+        unitLp.weight = 0f
+        unitLp.gravity = Gravity.CENTER
+        unit.layoutParams = unitLp
+
+        number.clearCalls()
+        speedView.clearCalls()
+        unit.clearCalls()
     }
 
     private fun getNetSpeedTextStyleObserver(): ModuleHelper.PreferenceObserver {

@@ -140,7 +140,6 @@
     "218c2208d982caabf4e2",
     "22ca1f7de63dc562d4ce",
     "22f7a931dbf57ffe2dab",
-    "23172075cafed78cc2a0",
     "231ab529ee63c0383e5d",
     "2399cb68959d65ceacac",
     "239aea19bf6d76355f88",
@@ -439,6 +438,7 @@
     "6cae98725ef55ca14177",
     "6cf2c52658654ce749f9",
     "6cf7c5dd438c365b66c0",
+    "6d1f94c637f5ec40c5a2",
     "6d61b310b82b26ca34be",
     "6dc5c0bcf09c7ff263a1",
     "6e3267ddc645ceefa2fd",
@@ -558,7 +558,6 @@
     "895f65364066af4ba8a0",
     "89864b4625a99ecfaf8e",
     "89c930a46542e23f6588",
-    "8a0168496a6ef1be696d",
     "8a221f0d4f6f4334e43b",
     "8a371a0ca2706f705962",
     "8a5ae40463a2903346c8",
@@ -997,6 +996,7 @@
     "facb0a9fc63704bb76c6",
     "fb4405bc0954f6961d47",
     "fb793638abf5e182d41c",
+    "fb8d76b32b9f1f0c42e9",
     "fbc9109961ecf72e4eda",
     "fbdbc36f66c4de2e9e6a",
     "fbe410e5096f9bf79925",
@@ -6325,18 +6325,18 @@
     {
       "rule": "STATIC_STRONG_ANDROID_OWNER",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 2360,
+      "line": 2365,
       "snippet": " val mobileView =",
       "disposition": "accepted",
-      "fingerprint": "23172075cafed78cc2a0"
+      "fingerprint": "fb8d76b32b9f1f0c42e9"
     },
     {
       "rule": "STATIC_STRONG_ANDROID_OWNER",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt",
-      "line": 2605,
+      "line": 2610,
       "snippet": " val hideMobileActivity =",
       "disposition": "accepted",
-      "fingerprint": "8a0168496a6ef1be696d"
+      "fingerprint": "6d1f94c637f5ec40c5a2"
     },
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",

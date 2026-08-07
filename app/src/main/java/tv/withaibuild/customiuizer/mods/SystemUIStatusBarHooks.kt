@@ -2051,6 +2051,12 @@ object SystemUIStatusBarHooks {
             return
         }
 
+        // Guard: the original baseline cannot be captured before the framework has attached a real
+        // LinearLayout.LayoutParams to the number view.  Creating a guessed LP here would poison
+        // the per-view baseline and prevent correct custom->default reversibility.
+        // TEST
+        if (numberText.layoutParams == null) return
+
         val resources = speedView.resources
         val original = getNetSpeedOriginalStyleState(speedView, numberText, unitText)
         val fontSize = snapshot.fontSize
@@ -2194,10 +2200,10 @@ object SystemUIStatusBarHooks {
      * Handles `TextView.setTextAppearance` for the network-speed number/unit TextViews.
      *
      * Records the new base typeface, restores the network-speed typeface and fake-bold state,
-     * and invalidates the cached original style and last full snapshot on the parent.  This
-     * ensures the next full apply re-captures the post-text-appearance baseline and re-applies
-     * the custom NetworkSpeed style.  It deliberately does not mark the parent as fully styled,
-     * because the framework text appearance is not the same as the NetworkSpeed custom style.
+     * and invalidates the cached full-style snapshot id on the parent.  The original style
+     * baseline is intentionally left in place: it was captured once for this NetworkSpeedView
+     * and must survive for the lifetime of the view.  This ensures the next full apply re-applies
+     * the custom NetworkSpeed style while still being able to restore the true stock baseline.
      */
     @VisibleForTesting
     internal fun onNetworkSpeedTextAppearanceChanged(
@@ -2213,7 +2219,6 @@ object SystemUIStatusBarHooks {
         ensureNetSpeedTypeface(textView, snapshot.bold)
 
         XposedHelpers.removeAdditionalInstanceField(parent, NETSPEED_LAST_FULL_STYLE_SNAPSHOT_ID)
-        parent.setTag(netspeedOriginalStyleStateTag, null)
     }
 
     /**
