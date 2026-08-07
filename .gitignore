@@ -4,16 +4,10 @@
 app/release/*
 app/standalone/*
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+
 # IntelliJ IDEA / Android Studio — local/generated IDE state
-*.iml
-/.idea/caches
-/.idea/libraries
+/.idea/caches/
+/.idea/libraries/
 /.idea/modules.xml
 /.idea/workspace.xml
 /.idea/usage.statistics.xml
@@ -23,20 +17,18 @@ app/standalone/*
 /.idea/assetWizardSettings.xml
 /.idea/copilot/
 /.idea/.name
+/.idea/misc.xml
 /.idea/gradle.xml
 /.idea/deploymentTargetDropDown.xml
 /.idea/deploymentTargetSelector.xml
 /.idea/jarRepositories.xml
 /.idea/migrations.xml
+/.idea/inspectionProfiles/
 
 .DS_Store
 /build
 /captures
 .externalNativeBuild
-/.idea/misc.xml
-app/develop/
-.idea/.name
-.idea/copilot/
 
 # Temporary local analysis artifacts and build outputs at repo root
 /.vscode/
@@ -64,4 +56,3 @@ tools/tests/__pycache__/
 
 # Local ROM samples and intelligence outputs (never commit real ROM copies)
 /local-rom-samples/
-
