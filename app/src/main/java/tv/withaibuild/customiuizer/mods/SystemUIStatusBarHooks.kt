@@ -179,113 +179,161 @@ object SystemUIStatusBarHooks {
 
     private val viewInitedTag = ResourceHooks.getFakeResId("view_inited_tag")
 
-    private val netspeedNumberViewTag = ResourceHooks.getFakeResId("netspeed_number_view")
-
-    private val netspeedUnitViewTag = ResourceHooks.getFakeResId("netspeed_unit_view")
-
-    private val netspeedTypefaceStateTag = ResourceHooks.getFakeResId("netspeed_typeface_state")
-
     /** Additional instance field key for the last full [NetSpeedTextStyleSnapshot] id applied to a view. */
     private const val NETSPEED_LAST_FULL_STYLE_SNAPSHOT_ID = "netspeed_last_full_style_snapshot_id"
 
-    /** Process-scoped, atomically published snapshot for the network-speed text-style hot path. */
-    private val currentNetSpeedTextStyleSnapshot = AtomicReference<NetSpeedTextStyleSnapshot?>(null)
+    /** Nullable B1/B2 runtime-state holder. Only created when a net-speed feature is installed. */
+    private var netSpeedRuntimeState: NetSpeedRuntimeState? = null
 
-    /** Monotonic id generator for [NetSpeedTextStyleSnapshot]. */
-    private val netSpeedSnapshotIdGenerator = AtomicLong(0L)
+    /** Nullable B3 icon-visibility runtime-state holder. Only created when a B3 feature is installed. */
+    private var iconVisibilityRuntimeState: StatusBarIconVisibilityRuntimeState? = null
 
-    /** Keys whose changes require the network-speed style snapshot to be rebuilt. */
-    private val netSpeedTextStyleRelevantKeys = setOf(
-        "system_detailednetspeed_style",
-        "system_netspeed_boldfont",
-        "system_netspeed_fontsize",
-        "system_netspeed_fixedcontent_width",
-        "system_netspeed_leftmargin",
-        "system_netspeed_rightmargin",
-        "system_netspeed_verticaloffset",
-        "system_detailednetspeed_align",
-        "system_netspeed_rowspacing",
-    )
+    /** Runtime state for the B1 network-speed text-style feature. */
+    private class NetSpeedStyleRuntimeState {
+        /** Process-scoped, atomically published snapshot for the network-speed text-style hot path. */
+        val currentSnapshot = AtomicReference<NetSpeedTextStyleSnapshot?>(null)
 
-    /** Preference observer that rebuilds the snapshot when a relevant style key changes. */
-    private val netSpeedTextStyleObserver = object : ModuleHelper.PreferenceObserver {
-        override fun onChange(key: String?) {
-            if (key != null && key !in netSpeedTextStyleRelevantKeys && key !in detailedNetSpeedFormatRelevantKeys) return
-            if (key == null || key in netSpeedTextStyleRelevantKeys) {
-                val built = buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
-                currentNetSpeedTextStyleSnapshot.set(built)
-            }
-            if (key == null || key in detailedNetSpeedFormatRelevantKeys) {
-                // The detailed format snapshot needs a [Context] to read module resources, which
-                // the observer does not hold. We invalidate the cached snapshot here and let the
-                // next [updateText] tick build it with the controller's [Resources].
-                currentDetailedNetSpeedFormatSnapshot.set(null)
+        /** Monotonic id generator for [NetSpeedTextStyleSnapshot]. */
+        val idGenerator = AtomicLong(0L)
+
+        /** Keys whose changes require the network-speed style snapshot to be rebuilt. */
+        val relevantKeys = setOf(
+            "system_detailednetspeed_style",
+            "system_netspeed_boldfont",
+            "system_netspeed_fontsize",
+            "system_netspeed_fixedcontent_width",
+            "system_netspeed_leftmargin",
+            "system_netspeed_rightmargin",
+            "system_netspeed_verticaloffset",
+            "system_detailednetspeed_align",
+            "system_netspeed_rowspacing",
+        )
+
+        /** Fake-resource tag IDs used only by B1. Generated once when B1 is installed. */
+        val numberViewTag = ResourceHooks.getFakeResId("netspeed_number_view")
+        val unitViewTag = ResourceHooks.getFakeResId("netspeed_unit_view")
+        val typefaceStateTag = ResourceHooks.getFakeResId("netspeed_typeface_state")
+        val originalStyleStateTag = ResourceHooks.getFakeResId("netspeed_original_style_state")
+    }
+
+    /** Runtime state for the B2 detailed network-speed text-format feature. */
+    private class DetailedNetSpeedRuntimeState {
+        /** Process-scoped, atomically published snapshot for the detailed network-speed text hot path. */
+        val currentSnapshot = AtomicReference<DetailedNetSpeedFormatSnapshot?>(null)
+
+        /** Monotonic id generator for [DetailedNetSpeedFormatSnapshot]. */
+        val idGenerator = AtomicLong(0L)
+
+        /** Keys whose changes require the detailed network-speed format snapshot to be rebuilt. */
+        val relevantKeys = setOf(
+            "system_detailednetspeed_low",
+            "system_detailednetspeed_lowlevel",
+            "system_detailednetspeed_style",
+            "system_detailednetspeed_icon",
+            "system_detailednetspeed_secunit",
+        )
+    }
+
+    /** Combined B1/B2 runtime state holding a single shared preference observer. */
+    private class NetSpeedRuntimeState {
+        /** B1 text-style substate, present only when [NetSpeedStyleHook] is installed. */
+        var styleState: NetSpeedStyleRuntimeState? = null
+
+        /** B2 detailed-format substate, present only when [DetailedNetSpeedHook] is installed. */
+        var detailedState: DetailedNetSpeedRuntimeState? = null
+
+        /** Shared preference observer for B1/B2. Only active while the holder exists. */
+        val observer = object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) {
+                if (key != null) {
+                    styleState?.takeIf { key in it.relevantKeys }?.let {
+                        it.currentSnapshot.set(buildNetSpeedTextStyleSnapshot(MainModule.mPrefs, it.idGenerator))
+                    }
+                    detailedState?.takeIf { key in it.relevantKeys }?.let {
+                        it.currentSnapshot.set(null)
+                    }
+                } else {
+                    styleState?.let { it.currentSnapshot.set(buildNetSpeedTextStyleSnapshot(MainModule.mPrefs, it.idGenerator)) }
+                    detailedState?.currentSnapshot?.set(null)
+                }
             }
         }
     }
 
-    /** Process-scoped, atomically published snapshot for the detailed network-speed text hot path. */
-    private val currentDetailedNetSpeedFormatSnapshot = AtomicReference<DetailedNetSpeedFormatSnapshot?>(null)
+    /** Runtime state for B3 status-bar icon-visibility features. */
+    private class StatusBarIconVisibilityRuntimeState {
+        /** Process-scoped, atomically published snapshot for the status-bar icon visibility hot path. */
+        val currentSnapshot = AtomicReference<StatusBarIconVisibilitySnapshot?>(null)
 
-    /** Monotonic id generator for [DetailedNetSpeedFormatSnapshot]. */
-    private val detailedNetSpeedFormatSnapshotIdGenerator = AtomicLong(0L)
+        /** Monotonic id generator for [StatusBarIconVisibilitySnapshot]. */
+        val idGenerator = AtomicLong(0L)
 
-    /** Keys whose changes require the detailed network-speed format snapshot to be rebuilt. */
-    private val detailedNetSpeedFormatRelevantKeys = setOf(
-        "system_detailednetspeed_low",
-        "system_detailednetspeed_lowlevel",
-        "system_detailednetspeed_style",
-        "system_detailednetspeed_icon",
-        "system_detailednetspeed_secunit",
-    )
+        /** Keys whose changes require the status-bar icon visibility snapshot to be rebuilt. */
+        val relevantKeys = setOf(
+            "system_statusbaricons_headset",
+            "system_statusbaricons_sound",
+            "system_statusbaricons_dnd",
+            "system_statusbaricons_alarm",
+            "system_statusbaricons_profile",
+            "system_statusbaricons_vpn",
+            "system_statusbaricons_airplane",
+            "system_statusbaricons_nfc",
+            "system_statusbaricons_secondspace",
+            "system_statusbaricons_gps",
+            "system_statusbaricons_wifi",
+            "system_statusbaricons_hotspot",
+            "system_statusbaricons_nosims",
+            "system_statusbaricons_btbattery",
+            "system_statusbaricons_ble_unlock",
+            "system_statusbaricons_bluetoothicn",
+            "system_statusbaricons_volte",
+            "system_statusbaricons_signal",
+            "system_statusbaricons_signal_wificonnected",
+            "system_statusbaricons_sim1",
+            "system_statusbaricons_sim2",
+            "system_statusbaricons_sim_nodata",
+            "system_statusbaricons_roaming",
+            "system_statusbaricons_privacy",
+            "system_statusbaricons_mute",
+            "system_statusbaricons_speaker",
+            "system_statusbaricons_record",
+            "system_statusbaricons_wireless_headset",
+        )
 
-    /** Process-scoped, atomically published snapshot for the status-bar icon visibility hot path. */
-    private val currentStatusBarIconVisibilitySnapshot = AtomicReference<StatusBarIconVisibilitySnapshot?>(null)
+        /** Preference observer that rebuilds the snapshot when a B3 icon-visibility key changes. */
+        val observer = object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) {
+                val state = this@StatusBarIconVisibilityRuntimeState
+                if (key != null && key !in state.relevantKeys) return
+                val built = buildStatusBarIconVisibilitySnapshot(MainModule.mPrefs, state.idGenerator)
+                state.currentSnapshot.set(built)
+            }
+        }
+    }
 
-    /** Monotonic id generator for [StatusBarIconVisibilitySnapshot]. */
-    private val statusBarIconVisibilitySnapshotIdGenerator = AtomicLong(0L)
+    /** Ensures the B1/B2 runtime-state holder exists, creating it and registering a shared observer on first use. */
+    private fun ensureNetSpeedRuntimeState(): NetSpeedRuntimeState {
+        return netSpeedRuntimeState ?: NetSpeedRuntimeState().also { created ->
+            netSpeedRuntimeState = created
+            ModuleHelper.observePreferenceChange(created.observer, SystemUIStatusBarHooks)
+        }
+    }
 
-    /** Dedicated, non-Android owner token for the B3 preference observer. */
-    private object StatusBarIconVisibilityObserverOwner
+    /** Ensures the B1 text-style substate exists. */
+    private fun NetSpeedRuntimeState.ensureStyleState(): NetSpeedStyleRuntimeState {
+        return styleState ?: NetSpeedStyleRuntimeState().also { styleState = it }
+    }
 
-    /** Keys whose changes require the status-bar icon visibility snapshot to be rebuilt. */
-    private val statusBarIconVisibilityRelevantKeys = setOf(
-        "system_statusbaricons_headset",
-        "system_statusbaricons_sound",
-        "system_statusbaricons_dnd",
-        "system_statusbaricons_alarm",
-        "system_statusbaricons_profile",
-        "system_statusbaricons_vpn",
-        "system_statusbaricons_airplane",
-        "system_statusbaricons_nfc",
-        "system_statusbaricons_secondspace",
-        "system_statusbaricons_gps",
-        "system_statusbaricons_wifi",
-        "system_statusbaricons_hotspot",
-        "system_statusbaricons_nosims",
-        "system_statusbaricons_btbattery",
-        "system_statusbaricons_ble_unlock",
-        "system_statusbaricons_bluetoothicn",
-        "system_statusbaricons_volte",
-        "system_statusbaricons_signal",
-        "system_statusbaricons_signal_wificonnected",
-        "system_statusbaricons_sim1",
-        "system_statusbaricons_sim2",
-        "system_statusbaricons_sim_nodata",
-        "system_statusbaricons_roaming",
-        "system_statusbaricons_privacy",
-        "system_statusbaricons_mute",
-        "system_statusbaricons_speaker",
-        "system_statusbaricons_record",
-        "system_statusbaricons_wireless_headset",
-    )
+    /** Ensures the B2 detailed-format substate exists. */
+    private fun NetSpeedRuntimeState.ensureDetailedState(): DetailedNetSpeedRuntimeState {
+        return detailedState ?: DetailedNetSpeedRuntimeState().also { detailedState = it }
+    }
 
-    /** Preference observer that rebuilds the snapshot when a B3 icon-visibility key changes. */
-    private val statusBarIconVisibilityObserver = object : ModuleHelper.PreferenceObserver {
-        override fun onChange(key: String?) {
-            if (key != null && key !in statusBarIconVisibilityRelevantKeys) return
-            val built = buildStatusBarIconVisibilitySnapshot(MainModule.mPrefs)
-            currentStatusBarIconVisibilitySnapshot.set(built)
+    /** Ensures the B3 runtime-state holder exists, creating it and registering its observer on first use. */
+    private fun ensureStatusBarIconVisibilityRuntimeState(): StatusBarIconVisibilityRuntimeState {
+        return iconVisibilityRuntimeState ?: StatusBarIconVisibilityRuntimeState().also { created ->
+            iconVisibilityRuntimeState = created
+            ModuleHelper.observePreferenceChange(created.observer, created)
         }
     }
 
@@ -1700,15 +1748,15 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun DetailedNetSpeedHook(lpparam: PackageReadyParam) {
+        // Ensure the shared B1/B2 runtime-state holder exists. B2 only adds the detailed-format
+        // substate; if B1 is installed later the same observer and owner are reused.
+        ensureNetSpeedRuntimeState().ensureDetailedState()
+
         val NetworkSpeedController = XposedHelpers.findClassIfExists("com.android.systemui.statusbar.policy.NetworkSpeedController", lpparam.classLoader)
         if (NetworkSpeedController == null) {
             XposedHelpers.log("DetailedNetSpeedHook", "No NetworkSpeed view or controller")
             return
         }
-
-        // Ensure the shared, owner-bound preference observer is registered. NetSpeedStyleHook also
-        // registers it; PreferenceObserverRegistry deduplicates by owner (SystemUIStatusBarHooks).
-        ModuleHelper.observePreferenceChange(netSpeedTextStyleObserver, SystemUIStatusBarHooks)
 
         val mBgHandlerField = XposedHelpers.findField(NetworkSpeedController, "mBgHandler")
         ModuleHelper.findAndHookMethod(mBgHandlerField.type, "handleMessage", Message::class.java, object : MethodHook() {
@@ -1833,39 +1881,41 @@ object SystemUIStatusBarHooks {
         }
     }
 
-    private val netspeedOriginalStyleStateTag = ResourceHooks.getFakeResId("netspeed_original_style_state")
-
     private fun getNetSpeedOriginalStyleState(
         speedView: LinearLayout,
         numberText: TextView,
         unitText: TextView?,
     ): NetSpeedOriginalStyleState {
-        val existing = speedView.getTag(netspeedOriginalStyleStateTag) as? NetSpeedOriginalStyleState
+        val styleState = netSpeedRuntimeState?.styleState ?: error("Net speed style state not installed")
+        val existing = speedView.getTag(styleState.originalStyleStateTag) as? NetSpeedOriginalStyleState
         if (existing != null) return existing
         val state = NetSpeedOriginalStyleState.capture(speedView, numberText, unitText)
-        speedView.setTag(netspeedOriginalStyleStateTag, state)
+        speedView.setTag(styleState.originalStyleStateTag, state)
         return state
     }
 
     private fun getNetSpeedNumberView(speedView: LinearLayout): TextView? {
-        val cached = speedView.getTag(netspeedNumberViewTag) as? TextView
+        val styleState = netSpeedRuntimeState?.styleState ?: return null
+        val cached = speedView.getTag(styleState.numberViewTag) as? TextView
         if (cached != null) return cached
         val numberText = XposedHelpers.getObjectField(speedView, "mNetworkSpeedNumberText") as? TextView ?: return null
-        speedView.setTag(netspeedNumberViewTag, numberText)
+        speedView.setTag(styleState.numberViewTag, numberText)
         return numberText
     }
 
     private fun getNetSpeedUnitView(speedView: LinearLayout): TextView? {
-        val cached = speedView.getTag(netspeedUnitViewTag) as? TextView
+        val styleState = netSpeedRuntimeState?.styleState ?: return null
+        val cached = speedView.getTag(styleState.unitViewTag) as? TextView
         if (cached != null) return cached
         val unitText = XposedHelpers.getObjectField(speedView, "mNetworkSpeedUnitText") as? TextView ?: return null
-        speedView.setTag(netspeedUnitViewTag, unitText)
+        speedView.setTag(styleState.unitViewTag, unitText)
         return unitText
     }
 
     private fun ensureNetSpeedTypeface(textView: TextView, bold: Boolean) {
-        val state = textView.getTag(netspeedTypefaceStateTag) as? NetSpeedTypefaceState
-            ?: NetSpeedTypefaceState().also { textView.setTag(netspeedTypefaceStateTag, it) }
+        val styleState = netSpeedRuntimeState?.styleState ?: return
+        val state = textView.getTag(styleState.typefaceStateTag) as? NetSpeedTypefaceState
+            ?: NetSpeedTypefaceState().also { textView.setTag(styleState.typefaceStateTag, it) }
 
         val current = textView.typeface
         if (state.target != null && current === state.target && textView.paint.isFakeBoldText == bold) return
@@ -1894,8 +1944,13 @@ object SystemUIStatusBarHooks {
      */
     @VisibleForTesting
     internal fun buildNetSpeedTextStyleSnapshot(prefs: PrefMap): NetSpeedTextStyleSnapshot {
+        val state = netSpeedRuntimeState?.styleState ?: error("Net speed style state not installed")
+        return buildNetSpeedTextStyleSnapshot(prefs, state.idGenerator)
+    }
+
+    private fun buildNetSpeedTextStyleSnapshot(prefs: PrefMap, idGenerator: AtomicLong): NetSpeedTextStyleSnapshot {
         return NetSpeedTextStyleSnapshot(
-            id = netSpeedSnapshotIdGenerator.incrementAndGet(),
+            id = idGenerator.incrementAndGet(),
             speedStyle = prefs.getStringAsInt("system_detailednetspeed_style", 1),
             bold = prefs.getBoolean("system_netspeed_boldfont"),
             fontSize = prefs.getInt("system_netspeed_fontsize", 13),
@@ -1910,11 +1965,12 @@ object SystemUIStatusBarHooks {
 
     /** Returns the current snapshot, building it from [MainModule.mPrefs] if it does not yet exist. */
     private fun currentOrBuildNetSpeedTextStyleSnapshot(): NetSpeedTextStyleSnapshot {
-        val existing = currentNetSpeedTextStyleSnapshot.get()
+        val state = netSpeedRuntimeState?.styleState ?: error("Net speed style state not installed")
+        val existing = state.currentSnapshot.get()
         if (existing != null) return existing
 
-        val built = buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
-        currentNetSpeedTextStyleSnapshot.set(built)
+        val built = buildNetSpeedTextStyleSnapshot(MainModule.mPrefs, state.idGenerator)
+        state.currentSnapshot.set(built)
         return built
     }
 
@@ -1927,8 +1983,13 @@ object SystemUIStatusBarHooks {
      */
     @VisibleForTesting
     internal fun buildDetailedNetSpeedFormatSnapshot(prefs: PrefMap): DetailedNetSpeedFormatSnapshot {
+        val state = netSpeedRuntimeState?.detailedState ?: error("Detailed net speed state not installed")
+        return buildDetailedNetSpeedFormatSnapshot(prefs, state.idGenerator)
+    }
+
+    private fun buildDetailedNetSpeedFormatSnapshot(prefs: PrefMap, idGenerator: AtomicLong): DetailedNetSpeedFormatSnapshot {
         return DetailedNetSpeedFormatSnapshot(
-            id = detailedNetSpeedFormatSnapshotIdGenerator.incrementAndGet(),
+            id = idGenerator.incrementAndGet(),
             hideLow = prefs.getBoolean("system_detailednetspeed_low"),
             lowLevelBytes = prefs.getInt("system_detailednetspeed_lowlevel", 1) * 1024,
             speedStyle = prefs.getStringAsInt("system_detailednetspeed_style", 1),
@@ -1939,11 +2000,12 @@ object SystemUIStatusBarHooks {
 
     /** Returns the current snapshot, building it from [MainModule.mPrefs] if it does not yet exist. */
     private fun currentOrBuildDetailedNetSpeedFormatSnapshot(): DetailedNetSpeedFormatSnapshot {
-        val existing = currentDetailedNetSpeedFormatSnapshot.get()
+        val state = netSpeedRuntimeState?.detailedState ?: error("Detailed net speed state not installed")
+        val existing = state.currentSnapshot.get()
         if (existing != null) return existing
 
-        val built = buildDetailedNetSpeedFormatSnapshot(MainModule.mPrefs)
-        currentDetailedNetSpeedFormatSnapshot.set(built)
+        val built = buildDetailedNetSpeedFormatSnapshot(MainModule.mPrefs, state.idGenerator)
+        state.currentSnapshot.set(built)
         return built
     }
 
@@ -1955,8 +2017,13 @@ object SystemUIStatusBarHooks {
      */
     @VisibleForTesting
     internal fun buildStatusBarIconVisibilitySnapshot(prefs: PrefMap): StatusBarIconVisibilitySnapshot {
+        val state = iconVisibilityRuntimeState ?: error("Status bar icon visibility state not installed")
+        return buildStatusBarIconVisibilitySnapshot(prefs, state.idGenerator)
+    }
+
+    private fun buildStatusBarIconVisibilitySnapshot(prefs: PrefMap, idGenerator: AtomicLong): StatusBarIconVisibilitySnapshot {
         return StatusBarIconVisibilitySnapshot(
-            id = statusBarIconVisibilitySnapshotIdGenerator.incrementAndGet(),
+            id = idGenerator.incrementAndGet(),
             hideHeadset = prefs.getBoolean("system_statusbaricons_headset"),
             hideSound = prefs.getBoolean("system_statusbaricons_sound"),
             hideDnd = prefs.getBoolean("system_statusbaricons_dnd"),
@@ -1990,11 +2057,12 @@ object SystemUIStatusBarHooks {
 
     /** Returns the current snapshot, building it from [MainModule.mPrefs] if it does not yet exist. */
     private fun currentOrBuildStatusBarIconVisibilitySnapshot(): StatusBarIconVisibilitySnapshot {
-        val existing = currentStatusBarIconVisibilitySnapshot.get()
+        val state = iconVisibilityRuntimeState ?: error("Status bar icon visibility state not installed")
+        val existing = state.currentSnapshot.get()
         if (existing != null) return existing
 
-        val built = buildStatusBarIconVisibilitySnapshot(MainModule.mPrefs)
-        currentStatusBarIconVisibilitySnapshot.set(built)
+        val built = buildStatusBarIconVisibilitySnapshot(MainModule.mPrefs, state.idGenerator)
+        state.currentSnapshot.set(built)
         return built
     }
 
@@ -2054,7 +2122,6 @@ object SystemUIStatusBarHooks {
         // Guard: the original baseline cannot be captured before the framework has attached a real
         // LinearLayout.LayoutParams to the number view.  Creating a guessed LP here would poison
         // the per-view baseline and prevent correct custom->default reversibility.
-        // TEST
         if (numberText.layoutParams == null) return
 
         val resources = speedView.resources
@@ -2210,7 +2277,8 @@ object SystemUIStatusBarHooks {
         textView: TextView,
         parentLayout: LinearLayout? = textView.parent as? LinearLayout,
     ) {
-        val state = textView.getTag(netspeedTypefaceStateTag) as? NetSpeedTypefaceState ?: return
+        val styleState = netSpeedRuntimeState?.styleState ?: return
+        val state = textView.getTag(styleState.typefaceStateTag) as? NetSpeedTypefaceState ?: return
         val parent = parentLayout ?: return
 
         state.base = textView.typeface
@@ -2233,14 +2301,15 @@ object SystemUIStatusBarHooks {
         if (speedView.tag as? String == "slot_text_icon") return
         if (speedView.getTag(viewInitedTag) != null) return
 
+        val styleState = netSpeedRuntimeState?.styleState ?: return
         val numberText = getNetSpeedNumberView(speedView) ?: return
         val unitText = getNetSpeedUnitView(speedView)
 
-        numberText.getTag(netspeedTypefaceStateTag) as? NetSpeedTypefaceState
-            ?: NetSpeedTypefaceState().also { numberText.setTag(netspeedTypefaceStateTag, it) }
+        numberText.getTag(styleState.typefaceStateTag) as? NetSpeedTypefaceState
+            ?: NetSpeedTypefaceState().also { numberText.setTag(styleState.typefaceStateTag, it) }
         unitText?.let { view ->
-            view.getTag(netspeedTypefaceStateTag) as? NetSpeedTypefaceState
-                ?: NetSpeedTypefaceState().also { view.setTag(netspeedTypefaceStateTag, it) }
+            view.getTag(styleState.typefaceStateTag) as? NetSpeedTypefaceState
+                ?: NetSpeedTypefaceState().also { view.setTag(styleState.typefaceStateTag, it) }
         }
 
         val snapshot = currentOrBuildNetSpeedTextStyleSnapshot()
@@ -2258,10 +2327,9 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun NetSpeedStyleHook(lpparam: PackageReadyParam) {
-        // One process-scoped, owner-bound observer. The owner is this module singleton, which lives
-        // for the SystemUI process; the registry drops the weak reference and the additional instance
-        // field if it ever goes away. The observer holds no View, Context or controller.
-        ModuleHelper.observePreferenceChange(netSpeedTextStyleObserver, SystemUIStatusBarHooks)
+        // Ensure the shared B1/B2 runtime-state holder and the B1 text-style substate exist. The
+        // observer is bound to the module singleton and is registered only on first use.
+        ensureNetSpeedRuntimeState().ensureStyleState()
 
         ModuleHelper.hookAllMethods("android.widget.TextView", lpparam.classLoader, "setTextAppearance", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
@@ -2510,7 +2578,7 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun HideIconsSignalHook(lpparam: PackageReadyParam) {
-        ModuleHelper.observePreferenceChange(statusBarIconVisibilityObserver, StatusBarIconVisibilityObserverOwner)
+        ensureStatusBarIconVisibilityRuntimeState()
 
         val stateHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
@@ -2548,7 +2616,7 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun HideIconsHook(lpparam: PackageReadyParam) {
-        ModuleHelper.observePreferenceChange(statusBarIconVisibilityObserver, StatusBarIconVisibilityObserverOwner)
+        ensureStatusBarIconVisibilityRuntimeState()
 
         val iconHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
@@ -2564,7 +2632,7 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun HideIconsFromSystemManager(lpparam: PackageReadyParam) {
-        ModuleHelper.observePreferenceChange(statusBarIconVisibilityObserver, StatusBarIconVisibilityObserverOwner)
+        ensureStatusBarIconVisibilityRuntimeState()
 
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.CommandQueue", lpparam.classLoader, "setIcon", String::class.java, "com.android.internal.statusbar.StatusBarIcon", object : MethodHook() {
             override fun before(param: BeforeHookCallback) {

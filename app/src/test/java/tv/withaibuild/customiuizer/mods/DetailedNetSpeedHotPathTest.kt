@@ -3,6 +3,7 @@ package tv.withaibuild.customiuizer.mods
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.util.DisplayMetrics
+import io.github.libxposed.api.XposedModuleInterface
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -66,20 +67,61 @@ class DetailedNetSpeedHotPathTest {
 
     @Before
     fun setUp() {
+        SystemUIStatusBarHooks.DetailedNetSpeedHook(fakePackageReadyParam())
         resetDetailedNetSpeedFormatSnapshotState()
     }
 
     @After
     fun tearDown() {
         resetDetailedNetSpeedFormatSnapshotState()
+        resetNetSpeedState()
         MainModule.mPrefs.clear()
     }
 
+    private fun fakePackageReadyParam(): XposedModuleInterface.PackageReadyParam {
+        return java.lang.reflect.Proxy.newProxyInstance(
+            XposedModuleInterface.PackageReadyParam::class.java.classLoader,
+            arrayOf(XposedModuleInterface.PackageReadyParam::class.java)
+        ) { _, method, _ ->
+            when (method.name) {
+                "getPackageName" -> "com.android.systemui"
+                "getClassLoader" -> ClassLoader.getSystemClassLoader()
+                "isFirstPackage" -> true
+                "toString" -> "FakePackageReadyParam"
+                "equals" -> false
+                "hashCode" -> 0
+                else -> null
+            }
+        } as XposedModuleInterface.PackageReadyParam
+    }
+
+    private fun getNetSpeedRuntimeState(): Any? {
+        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("netSpeedRuntimeState").apply { isAccessible = true }
+        return field.get(SystemUIStatusBarHooks)
+    }
+
+    private fun getDetailedState(): Any? {
+        val runtimeState = getNetSpeedRuntimeState() ?: return null
+        val field = runtimeState::class.java.getDeclaredField("detailedState").apply { isAccessible = true }
+        return field.get(runtimeState)
+    }
+
     private fun resetDetailedNetSpeedFormatSnapshotState() {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("currentDetailedNetSpeedFormatSnapshot")
-        field.isAccessible = true
-        val ref = field.get(SystemUIStatusBarHooks) as? AtomicReference<DetailedNetSpeedFormatSnapshot?>
-        ref?.set(null)
+        val detailedState = getDetailedState() ?: return
+        val snapshotField = detailedState::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        (snapshotField.get(detailedState) as? AtomicReference<DetailedNetSpeedFormatSnapshot?>)?.set(null)
+        val idField = detailedState::class.java.getDeclaredField("idGenerator").apply { isAccessible = true }
+        (idField.get(detailedState) as? java.util.concurrent.atomic.AtomicLong)?.set(0)
+    }
+
+    private fun resetNetSpeedState() {
+        try {
+            tv.withaibuild.customiuizer.mods.utils.PreferenceObserverRegistry.unregisterPreferenceObserver(SystemUIStatusBarHooks)
+        } catch (_: Throwable) {
+            // ignore if not registered
+        }
+        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("netSpeedRuntimeState").apply { isAccessible = true }
+        field.set(SystemUIStatusBarHooks, null)
     }
 
     private fun buildSnapshot(values: Map<String, Any>): DetailedNetSpeedFormatSnapshot {
@@ -330,20 +372,20 @@ class DetailedNetSpeedHotPathTest {
     }
 
     private fun getNetSpeedTextStyleObserver(): ModuleHelper.PreferenceObserver {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("netSpeedTextStyleObserver")
-        field.isAccessible = true
-        return field.get(SystemUIStatusBarHooks) as ModuleHelper.PreferenceObserver
+        val runtimeState = getNetSpeedRuntimeState() ?: error("net speed runtime state not installed")
+        val field = runtimeState::class.java.getDeclaredField("observer").apply { isAccessible = true }
+        return field.get(runtimeState) as ModuleHelper.PreferenceObserver
     }
 
     private fun getCurrentDetailedSnapshot(): DetailedNetSpeedFormatSnapshot? {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("currentDetailedNetSpeedFormatSnapshot")
-        field.isAccessible = true
-        return (field.get(SystemUIStatusBarHooks) as? AtomicReference<DetailedNetSpeedFormatSnapshot?>)?.get()
+        val detailedState = getDetailedState() ?: return null
+        val field = detailedState::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        return (field.get(detailedState) as? AtomicReference<DetailedNetSpeedFormatSnapshot?>)?.get()
     }
 
     private fun setCurrentDetailedSnapshot(snapshot: DetailedNetSpeedFormatSnapshot?) {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("currentDetailedNetSpeedFormatSnapshot")
-        field.isAccessible = true
-        (field.get(SystemUIStatusBarHooks) as? AtomicReference<DetailedNetSpeedFormatSnapshot?>)?.set(snapshot)
+        val detailedState = getDetailedState() ?: return
+        val field = detailedState::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        (field.get(detailedState) as? AtomicReference<DetailedNetSpeedFormatSnapshot?>)?.set(snapshot)
     }
 }

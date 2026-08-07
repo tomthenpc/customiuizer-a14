@@ -1,5 +1,6 @@
 package tv.withaibuild.customiuizer.mods
 
+import io.github.libxposed.api.XposedModuleInterface
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -12,6 +13,7 @@ import org.junit.Before
 import org.junit.Test
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
+import tv.withaibuild.customiuizer.mods.utils.PreferenceObserverRegistry
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -47,6 +49,7 @@ class StatusBarIconVisibilityHotPathTest {
 
     @Before
     fun setUp() {
+        SystemUIStatusBarHooks.HideIconsSignalHook(fakePackageReadyParam())
         resetStatusBarIconVisibilitySnapshot()
         statusBarIconVisibilitySnapshotIdGenerator().set(0)
     }
@@ -55,31 +58,72 @@ class StatusBarIconVisibilityHotPathTest {
     fun tearDown() {
         resetStatusBarIconVisibilitySnapshot()
         statusBarIconVisibilitySnapshotIdGenerator().set(0)
+        resetStatusBarIconVisibilityState()
         MainModule.mPrefs.clear()
     }
 
+    private fun fakePackageReadyParam(): XposedModuleInterface.PackageReadyParam {
+        return java.lang.reflect.Proxy.newProxyInstance(
+            XposedModuleInterface.PackageReadyParam::class.java.classLoader,
+            arrayOf(XposedModuleInterface.PackageReadyParam::class.java)
+        ) { _, method, _ ->
+            when (method.name) {
+                "getPackageName" -> "com.android.systemui"
+                "getClassLoader" -> ClassLoader.getSystemClassLoader()
+                "isFirstPackage" -> true
+                "toString" -> "FakePackageReadyParam"
+                "equals" -> false
+                "hashCode" -> 0
+                else -> null
+            }
+        } as XposedModuleInterface.PackageReadyParam
+    }
+
+    private fun getIconVisibilityRuntimeState(): Any? {
+        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("iconVisibilityRuntimeState").apply { isAccessible = true }
+        return field.get(SystemUIStatusBarHooks)
+    }
+
     private fun resetStatusBarIconVisibilitySnapshot() {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("currentStatusBarIconVisibilitySnapshot")
-        field.isAccessible = true
-        (field.get(SystemUIStatusBarHooks) as? AtomicReference<StatusBarIconVisibilitySnapshot?>)?.set(null)
+        val state = getIconVisibilityRuntimeState() ?: return
+        val field = state::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        (field.get(state) as? AtomicReference<StatusBarIconVisibilitySnapshot?>)?.set(null)
     }
 
     private fun statusBarIconVisibilitySnapshotIdGenerator(): AtomicLong {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("statusBarIconVisibilitySnapshotIdGenerator")
-        field.isAccessible = true
-        return field.get(SystemUIStatusBarHooks) as AtomicLong
+        val state = getIconVisibilityRuntimeState() ?: error("icon visibility runtime state not installed")
+        val field = state::class.java.getDeclaredField("idGenerator").apply { isAccessible = true }
+        return field.get(state) as AtomicLong
     }
 
     private fun getCurrentSnapshot(): StatusBarIconVisibilitySnapshot? {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("currentStatusBarIconVisibilitySnapshot")
-        field.isAccessible = true
-        return (field.get(SystemUIStatusBarHooks) as? AtomicReference<StatusBarIconVisibilitySnapshot?>)?.get()
+        val state = getIconVisibilityRuntimeState() ?: return null
+        val field = state::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        return (field.get(state) as? AtomicReference<StatusBarIconVisibilitySnapshot?>)?.get()
     }
 
     private fun setCurrentSnapshot(snapshot: StatusBarIconVisibilitySnapshot?) {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("currentStatusBarIconVisibilitySnapshot")
-        field.isAccessible = true
-        (field.get(SystemUIStatusBarHooks) as? AtomicReference<StatusBarIconVisibilitySnapshot?>)?.set(snapshot)
+        val state = getIconVisibilityRuntimeState() ?: return
+        val field = state::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        (field.get(state) as? AtomicReference<StatusBarIconVisibilitySnapshot?>)?.set(snapshot)
+    }
+
+    private fun resetStatusBarIconVisibilityState() {
+        val state = getIconVisibilityRuntimeState()
+        if (state != null) {
+            try {
+                PreferenceObserverRegistry.unregisterPreferenceObserver(state)
+            } catch (_: Throwable) {
+                // ignore if not registered
+            }
+        }
+        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("iconVisibilityRuntimeState").apply { isAccessible = true }
+        field.set(SystemUIStatusBarHooks, null)
+    }
+
+    private fun getNetSpeedRuntimeState(): Any? {
+        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("netSpeedRuntimeState").apply { isAccessible = true }
+        return field.get(SystemUIStatusBarHooks)
     }
 
     private fun defaultSnapshot(): StatusBarIconVisibilitySnapshot {
@@ -571,21 +615,21 @@ class StatusBarIconVisibilityHotPathTest {
     }
 
     private fun getStatusBarIconVisibilityObserver(): ModuleHelper.PreferenceObserver {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("statusBarIconVisibilityObserver")
-        field.isAccessible = true
-        return field.get(SystemUIStatusBarHooks) as ModuleHelper.PreferenceObserver
+        val state = getIconVisibilityRuntimeState() ?: error("icon visibility runtime state not installed")
+        val field = state::class.java.getDeclaredField("observer").apply { isAccessible = true }
+        return field.get(state) as ModuleHelper.PreferenceObserver
     }
 
     private fun getNetSpeedTextStyleObserver(): ModuleHelper.PreferenceObserver {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("netSpeedTextStyleObserver")
-        field.isAccessible = true
-        return field.get(SystemUIStatusBarHooks) as ModuleHelper.PreferenceObserver
+        if (getNetSpeedRuntimeState() == null) {
+            SystemUIStatusBarHooks.NetSpeedStyleHook(fakePackageReadyParam())
+        }
+        val runtimeState = getNetSpeedRuntimeState() ?: error("net speed runtime state not installed")
+        val field = runtimeState::class.java.getDeclaredField("observer").apply { isAccessible = true }
+        return field.get(runtimeState) as ModuleHelper.PreferenceObserver
     }
 
     private fun getStatusBarIconVisibilityObserverOwner(): Any {
-        val nestedClass = Class.forName("tv.withaibuild.customiuizer.mods.SystemUIStatusBarHooks\$StatusBarIconVisibilityObserverOwner")
-        val instanceField = nestedClass.getDeclaredField("INSTANCE")
-        instanceField.isAccessible = true
-        return instanceField.get(null)
+        return getIconVisibilityRuntimeState() ?: error("icon visibility runtime state not installed")
     }
 }

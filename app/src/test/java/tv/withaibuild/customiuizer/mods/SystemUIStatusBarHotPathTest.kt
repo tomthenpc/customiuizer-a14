@@ -366,20 +366,59 @@ class SystemUIStatusBarHotPathTest {
 
     @Before
     fun setUp() {
+        SystemUIStatusBarHooks.NetSpeedStyleHook(fakePackageReadyParam())
         resetNetSpeedSnapshotState()
     }
 
     @After
     fun tearDown() {
         resetNetSpeedSnapshotState()
+        resetNetSpeedRuntimeState()
         MainModule.mPrefs.clear()
     }
 
+    private fun fakePackageReadyParam(): io.github.libxposed.api.XposedModuleInterface.PackageReadyParam {
+        return java.lang.reflect.Proxy.newProxyInstance(
+            io.github.libxposed.api.XposedModuleInterface.PackageReadyParam::class.java.classLoader,
+            arrayOf(io.github.libxposed.api.XposedModuleInterface.PackageReadyParam::class.java)
+        ) { _, method, _ ->
+            when (method.name) {
+                "getPackageName" -> "com.android.systemui"
+                "getClassLoader" -> ClassLoader.getSystemClassLoader()
+                "isFirstPackage" -> true
+                "toString" -> "FakePackageReadyParam"
+                "equals" -> false
+                "hashCode" -> 0
+                else -> null
+            }
+        } as io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
+    }
+
+    private fun getNetSpeedRuntimeState(): Any? {
+        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("netSpeedRuntimeState").apply { isAccessible = true }
+        return field.get(SystemUIStatusBarHooks)
+    }
+
+    private fun getStyleState(): Any? {
+        val runtimeState = getNetSpeedRuntimeState() ?: return null
+        val field = runtimeState::class.java.getDeclaredField("styleState").apply { isAccessible = true }
+        return field.get(runtimeState)
+    }
+
     private fun resetNetSpeedSnapshotState() {
-        val currentSnapshot = SystemUIStatusBarHooks::class.java.getDeclaredField("currentNetSpeedTextStyleSnapshot")
-        currentSnapshot.isAccessible = true
-        val ref = currentSnapshot.get(SystemUIStatusBarHooks) as? AtomicReference<NetSpeedTextStyleSnapshot?>
-        ref?.set(null)
+        val styleState = getStyleState() ?: return
+        val field = styleState::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        (field.get(styleState) as? AtomicReference<NetSpeedTextStyleSnapshot?>)?.set(null)
+    }
+
+    private fun resetNetSpeedRuntimeState() {
+        try {
+            tv.withaibuild.customiuizer.mods.utils.PreferenceObserverRegistry.unregisterPreferenceObserver(SystemUIStatusBarHooks)
+        } catch (_: Throwable) {
+            // ignore if not registered
+        }
+        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("netSpeedRuntimeState").apply { isAccessible = true }
+        field.set(SystemUIStatusBarHooks, null)
     }
 
     private fun speedViewWith(
@@ -582,9 +621,9 @@ class SystemUIStatusBarHotPathTest {
         val countingMap = countingMainPrefs(mapOf("system_netspeed_fontsize" to 15))
         val first = SystemUIStatusBarHooks.buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
 
-        val currentSnapshot = SystemUIStatusBarHooks::class.java.getDeclaredField("currentNetSpeedTextStyleSnapshot")
-        currentSnapshot.isAccessible = true
-        val ref = currentSnapshot.get(SystemUIStatusBarHooks) as AtomicReference<NetSpeedTextStyleSnapshot?>
+        val styleState = getStyleState() ?: error("style state not installed")
+        val snapshotField = styleState::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        val ref = snapshotField.get(styleState) as AtomicReference<NetSpeedTextStyleSnapshot?>
         ref.set(first)
 
         val observer = getNetSpeedTextStyleObserver()
@@ -603,9 +642,9 @@ class SystemUIStatusBarHotPathTest {
         val countingMap = countingMainPrefs(mapOf())
         val first = SystemUIStatusBarHooks.buildNetSpeedTextStyleSnapshot(MainModule.mPrefs)
 
-        val currentSnapshot = SystemUIStatusBarHooks::class.java.getDeclaredField("currentNetSpeedTextStyleSnapshot")
-        currentSnapshot.isAccessible = true
-        val ref = currentSnapshot.get(SystemUIStatusBarHooks) as AtomicReference<NetSpeedTextStyleSnapshot?>
+        val styleState = getStyleState() ?: error("style state not installed")
+        val snapshotField = styleState::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        val ref = snapshotField.get(styleState) as AtomicReference<NetSpeedTextStyleSnapshot?>
         ref.set(first)
 
         val observer = getNetSpeedTextStyleObserver()
@@ -703,12 +742,12 @@ class SystemUIStatusBarHotPathTest {
         assertTrue(number.setTypefaceCalls.size >= 1)
     }
 
-    // 12. 功能关闭时不创建 snapshot、observer 或 View 附加状态
+    // 12. 重置后 styleState snapshot 为空
     @Test
     fun netSpeedTextStyle_initialState_noSnapshotOrObserverSideEffects() {
-        val current = SystemUIStatusBarHooks::class.java.getDeclaredField("currentNetSpeedTextStyleSnapshot")
-        current.isAccessible = true
-        val ref = current.get(SystemUIStatusBarHooks) as AtomicReference<*>
+        val styleState = getStyleState() ?: error("style state not installed")
+        val field = styleState::class.java.getDeclaredField("currentSnapshot").apply { isAccessible = true }
+        val ref = field.get(styleState) as AtomicReference<*>
         assertNull(ref.get())
     }
 
@@ -1587,8 +1626,8 @@ class SystemUIStatusBarHotPathTest {
     }
 
     private fun getNetSpeedTextStyleObserver(): ModuleHelper.PreferenceObserver {
-        val field = SystemUIStatusBarHooks::class.java.getDeclaredField("netSpeedTextStyleObserver")
-        field.isAccessible = true
-        return field.get(SystemUIStatusBarHooks) as ModuleHelper.PreferenceObserver
+        val runtimeState = getNetSpeedRuntimeState() ?: error("net speed runtime state not installed")
+        val field = runtimeState::class.java.getDeclaredField("observer").apply { isAccessible = true }
+        return field.get(runtimeState) as ModuleHelper.PreferenceObserver
     }
 }
