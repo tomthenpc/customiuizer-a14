@@ -393,7 +393,6 @@
     "621360f50b5431a55cfe",
     "6241fff91089a78cbc82",
     "62612508124722426035",
-    "62dcd41b178b9595b80d",
     "62e765910e0a7aee1f98",
     "6395ee2f3bd44b28699e",
     "63a444743e806bf01b5e",
@@ -414,6 +413,7 @@
     "66da7b59e0bcdacfc943",
     "67243fd7b4e0cb5efaf4",
     "67bae15d40d2c3669947",
+    "67c48a8499cd99e8c212",
     "67c56f45d6c6fbe56a4c",
     "681a73490887f9a110f9",
     "685350c7b08106558af2",
@@ -422,7 +422,6 @@
     "69db7ff90296c524eb7a",
     "6a038e81cc2bc57a7821",
     "6a318cd69bf174184ce0",
-    "6a683b558c420bd4a1b0",
     "6a868b51702f121d85ac",
     "6b2653b378c3aec7af72",
     "6b2d7db0300724fd7f48",
@@ -772,7 +771,6 @@
     "c77660a94a30c1fe7445",
     "c7d59921d5809ee04b38",
     "c7f63b2181a8d5d3bb27",
-    "c82b9671d413a95ad6e5",
     "c83b220cba4d4a201cc8",
     "c85ff950f2ebfd45a077",
     "c8749a2326c62102fc2d",
@@ -4289,14 +4287,6 @@
       "fingerprint": "276ae511b044788610b8"
     },
     {
-      "rule": "EMPTY_CATCH",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1632,
-      "snippet": "catch (ignore: Throwable) {}",
-      "disposition": "accepted",
-      "fingerprint": "6a683b558c420bd4a1b0"
-    },
-    {
       "rule": "STATIC_STRONG_ANDROID_OWNER",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
       "line": 191,
@@ -4891,18 +4881,10 @@
     {
       "rule": "CATCH_THROWABLE_NO_FATAL",
       "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1632,
-      "snippet": "catch (ignore: Throwable) {",
-      "disposition": "accepted",
-      "fingerprint": "c82b9671d413a95ad6e5"
-    },
-    {
-      "rule": "CATCH_THROWABLE_NO_FATAL",
-      "path": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemLockScreenHooks.kt",
-      "line": 1700,
+      "line": 1699,
       "snippet": "catch (t: Throwable) { XposedHelpers.log(t)",
       "disposition": "accepted",
-      "fingerprint": "62dcd41b178b9595b80d"
+      "fingerprint": "67c48a8499cd99e8c212"
     },
     {
       "rule": "STATIC_STRONG_ANDROID_OWNER",

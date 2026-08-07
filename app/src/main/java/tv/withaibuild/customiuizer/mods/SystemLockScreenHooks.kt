@@ -1626,10 +1626,9 @@ object SystemLockScreenHooks {
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
                     if (mContext == null) { return XposedHelpers.throwOrReturn(throwable, result) }
 
-                    var handleIncomingUser = 0
-                    try {
-                        handleIncomingUser = XposedHelpers.callStaticMethod(ActivityManager::class.java, "handleIncomingUser", Binder.getCallingPid(), Binder.getCallingUid(), args[7], false, true, "changing wallpaper", null) as Int
-                    } catch (ignore: Throwable) {}
+                    val handleIncomingUser = resolveWallpaperUserId {
+                        XposedHelpers.callStaticMethod(ActivityManager::class.java, "handleIncomingUser", Binder.getCallingPid(), Binder.getCallingUid(), args[7], false, true, "changing wallpaper", null) as Int
+                    } ?: return XposedHelpers.throwOrReturn(throwable, result)
                     val wallpaperData = XposedHelpers.callMethod(thisObject, "getWallpaperSafeLocked", handleIncomingUser, args[5])
                     val wallpaper = XposedHelpers.getObjectField(wallpaperData, "wallpaperFile") as File
 
@@ -1708,6 +1707,23 @@ object SystemLockScreenHooks {
     @JvmStatic
     fun Disable72hStrongAuthHook(lpparam: SystemServerStartingParam) {
         ModuleHelper.findAndHookMethod("com.android.server.locksettings.LockSettingsStrongAuth", lpparam.classLoader, "rescheduleStrongAuthTimeoutAlarm", Long::class.javaPrimitiveType!!, Int::class.javaPrimitiveType!!, HookerClassHelper.DO_NOTHING)
+    }
+
+    /**
+     * Resolves the incoming user for lock-screen wallpaper post-processing.
+     *
+     * Fatal errors are unwrapped and re-thrown.  Non-fatal resolution failures
+     * are logged and returned as `null` so the hook returns the original result
+     * instead of falling back to user 0.
+     */
+    internal fun resolveWallpaperUserId(resolver: () -> Int): Int? {
+        return try {
+            resolver()
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log(t)
+            null
+        }
     }
 
 }
