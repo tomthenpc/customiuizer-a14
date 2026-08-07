@@ -2,6 +2,30 @@
 
 [简体中文](CHANGELOG.md) | English
 
+## r14.18.1 — 2026-08-07
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+
+### Core Changes
+
+- Build toolchain upgrade: JDK 25, Gradle 9.6.1, AGP 9.3.1; Gradle Daemon JVM criteria pinned to Java 25.
+- Java source/target remain 17; Android Java compiler output remains 17 while Gradle and the compiler toolchain run on 25.
+- `.idea` metadata hygiene: moved local/generated IDE state (Gradle IDE model, deployment targets, repository mirrors, migration state, inspection profile) out of Git tracking, preserving shared code styles, compiler target hint, encoding, and VCS mapping.
+- Fixed a fail-open in `SystemLockScreenHooks` where a failed `handleIncomingUser` resolution fell back to user 0; the hook now returns the original method result instead of continuing CustoMIUIzer wallpaper post-processing.
+
+### Verification Boundary
+
+- Passed `python tools/verify.py full`, feature-semantics validation, source-hazard scanning, invariant checks, and `git diff --check`.
+- Unit tests and `lintVitalRelease` pass; Release APK is R8-minified, resource-shrunk, and officially signed.
+- This release is not claimed as fully `DEVICE_VERIFIED`; the no-reboot status-bar-height sequence awaits device verification.
+
+### Known Major
+
+- `SystemNotificationHooks` notification menu falls back to user 0 when `UserHandle.getUserId` resolution fails, which may open app info or force stop the wrong user.
+- `Various.kt` AppInfo app launch falls back to user 0 when `UserHandle.getUserId` resolution fails, which may launch the app for the wrong user.
+
+---
+
 ## r14.18.0 — 2026-08-06
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.

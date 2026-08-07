@@ -2,6 +2,30 @@
 
 简体中文 | [English](CHANGELOG_EN.md)
 
+## r14.18.1 — 2026-08-07
+
+面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a` 与 libxposed API 101/102。
+
+### 核心变化
+
+- 构建工具链升级：JDK 25、Gradle 9.6.1、AGP 9.3.1；Gradle Daemon 固定使用 Java 25 作为 JVM criteria。
+- Java source/target 保持 17；Android Java 编译输出仍为 17，Gradle 与 compiler toolchain 使用 25。
+- 整理 `.idea` 元数据归属：将 Gradle IDE 模型、部署目标、仓库镜像、迁移状态、inspection profile 等本地/生成文件移出 Git tracking，保持共享 code styles、compiler target hint、编码和 VCS 映射。
+- 修复 `SystemLockScreenHooks` 中壁纸 `handleIncomingUser` 解析失败时错误回退到 user 0 的 fail-open 行为；失败后直接返回原方法结果，不再继续 CustoMIUIzer 壁纸后处理。
+
+### 验证边界
+
+- 通过 `python tools/verify.py full`、功能语义校验、源码风险扫描、不变量检查和 `git diff --check`。
+- 单元测试与 `lintVitalRelease` 通过；Release APK 完成 R8 压缩、资源收缩和正式签名。
+- 本版本不标记为全面 `DEVICE_VERIFIED`；状态栏高度无重启序列等待实机验证。
+
+### 已知 Major
+
+- `SystemNotificationHooks` 通知菜单中 `UserHandle.getUserId` 解析失败时回退 user 0，可能错 user 打开应用详情或 force stop。
+- `Various.kt` AppInfo 启动应用时 `UserHandle.getUserId` 解析失败时回退 user 0，可能错 user 启动应用。
+
+---
+
 ## r14.18.0 — 2026-08-06
 
 面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a` 与 libxposed API 101/102。
