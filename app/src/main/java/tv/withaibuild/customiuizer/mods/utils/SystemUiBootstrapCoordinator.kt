@@ -5,7 +5,6 @@ import android.provider.Settings
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks
-import tv.withaibuild.customiuizer.mods.SystemUIStatusBarHooks
 import tv.withaibuild.customiuizer.installers.SystemUiInstaller
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.util.function.Supplier
@@ -77,7 +76,7 @@ object SystemUiBootstrapCoordinator {
                         fastRebootReceiverReady[0] = GlobalActionSystemServerHooks.setupFastRebootReceiver(context)
                     }
                     if (!statusBarSetupDone[0]) {
-                        SystemUIStatusBarHooks.setupStatusBar(context)
+                        setupSystemUiResources(context)
                         statusBarSetupDone[0] = true
                     }
                     if (!preferenceWatchDone[0]) {
