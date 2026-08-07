@@ -288,6 +288,24 @@ object SystemClockHooks {
     }
 
     /**
+     * Decides whether a preference refresh should call [initClockStyle] for a
+     * given clock. The status-bar clock is only styled when
+     * [statusbarClockTweak] is enabled; the control-center clock is only styled
+     * when [ccClockTweak] is enabled. This matches the install-time feature
+     * gating so disabled features do not mutate views at runtime.
+     */
+    @VisibleForTesting
+    internal fun shouldRefreshClockStyle(
+        clockName: String?,
+        statusbarClockTweak: Boolean,
+        ccClockTweak: Boolean,
+    ): Boolean = when (clockName) {
+        "clock" -> statusbarClockTweak
+        "ccClock" -> ccClockTweak
+        else -> false
+    }
+
+    /**
      * Ensures a snapshot exists and matches the current `Configuration`.
      *
      * This is not called from the per-tick path. It is used from
@@ -363,6 +381,13 @@ object SystemClockHooks {
     internal fun initClockStyle(mClock: TextView, clockName: String, snapshot: ClockStyleSnapshot) {
         val lastId = XposedHelpers.getAdditionalInstanceField(mClock, CLOCK_STYLE_SNAPSHOT_ID_FIELD) as? Long
         if (lastId == snapshot.id) return
+
+        // The status-bar clock's layout style (margins, width, height, gravity)
+        // cannot be captured or restored without a real LayoutParams instance.
+        // Returning here without writing the snapshot id leaves the style
+        // incomplete; the next call with the same id will retry once LayoutParams
+        // are available. No guessed LayoutParams are stored.
+        if (clockName == "clock" && mClock.layoutParams == null) return
 
         try {
             val originalState = getOrCaptureOriginalStyle(mClock)
@@ -629,17 +654,29 @@ object SystemClockHooks {
      * Starts or stops the one-second ticker and refreshes the `showSeconds`
      * tags on every view in `mClockListeners`.
      *
-     * A new ticker is only created when the seconds flags actually change, or
-     * when there is no previous ticker. This avoids re-posting the same
-     * runnable and re-registering the same screen-state listener on repeated
-     * preference notifications. The `SecondTicker` holds a `WeakReference` to
-     * the controller so that a garbage-collected controller does not keep the
-     * ticker (and its associated screen-state listener) alive.
+     * The effective seconds flags are `statusbarClockTweak && snapshot.showStatusBarSeconds`
+     * and `ccClockTweak && snapshot.showCCSeconds`. A disabled feature's stale
+     * preference value must therefore never create a ticker or set `showSeconds`
+     * on its views.
+     *
+     * A new ticker is only created when the effective seconds flags actually
+     * change, or when there is no previous ticker. This avoids re-posting the
+     * same runnable and re-registering the same screen-state listener on
+     * repeated preference notifications. The `SecondTicker` holds a
+     * [WeakReference] to the controller so that a garbage-collected controller
+     * does not keep the ticker (and its associated screen-state listener) alive.
      */
     @VisibleForTesting
-    internal fun initSecondTicker(clockController: Any) {
+    internal fun initSecondTicker(
+        clockController: Any,
+        statusbarClockTweak: Boolean,
+        ccClockTweak: Boolean,
+    ) {
         val mContext = XposedHelpers.getObjectField(clockController, "mContext") as Context
         val snapshot = currentClockStyleSnapshot() ?: ensureClockStyleSnapshot(mContext.resources)
+
+        val effectiveStatusBarSeconds = statusbarClockTweak && snapshot.showStatusBarSeconds
+        val effectiveCcSeconds = ccClockTweak && snapshot.showCCSeconds
 
         @Suppress("UNCHECKED_CAST")
         val clockListeners = XposedHelpers.getObjectField(clockController, "mClockListeners") as? ArrayList<Any>
@@ -648,8 +685,8 @@ object SystemClockHooks {
                 val clock = listener as? View ?: continue
                 val clockName = ModuleHelper.getViewInfo(clock, "clockName") as? String ?: continue
                 val showSeconds = when (clockName) {
-                    "clock" -> snapshot.showStatusBarSeconds
-                    "ccClock" -> snapshot.showCCSeconds
+                    "clock" -> effectiveStatusBarSeconds
+                    "ccClock" -> effectiveCcSeconds
                     else -> false
                 }
                 if (showSeconds) {
@@ -662,19 +699,19 @@ object SystemClockHooks {
 
         @Suppress("UNCHECKED_CAST")
         val previousTicker = XposedHelpers.getAdditionalInstanceField(clockController, "secondTicker") as SecondTicker?
-        val needsTicker = snapshot.showCCSeconds || snapshot.showStatusBarSeconds
+        val needsTicker = effectiveStatusBarSeconds || effectiveCcSeconds
 
         if (needsTicker) {
             if (previousTicker != null
-                && previousTicker.showStatusBarSeconds == snapshot.showStatusBarSeconds
-                && previousTicker.showCCSeconds == snapshot.showCCSeconds
+                && previousTicker.showStatusBarSeconds == effectiveStatusBarSeconds
+                && previousTicker.showCCSeconds == effectiveCcSeconds
             ) {
-                // Same seconds configuration: keep the existing ticker to avoid
-                // restarting the timer and re-registering listeners.
+                // Same effective seconds configuration: keep the existing ticker
+                // to avoid restarting the timer and re-registering listeners.
                 return
             }
             previousTicker?.dispose()
-            val ticker = SecondTicker(clockController, mContext, snapshot.showStatusBarSeconds, snapshot.showCCSeconds)
+            val ticker = SecondTicker(clockController, mContext, effectiveStatusBarSeconds, effectiveCcSeconds)
             XposedHelpers.setAdditionalInstanceField(clockController, "secondTicker", ticker)
             ticker.start()
         } else {
@@ -826,12 +863,11 @@ object SystemClockHooks {
                     val thisObject = chain.thisObject
 
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
-                    ensureClockStyleSnapshot(mContext.resources)
-                    initSecondTicker(thisObject)
+                    val snapshot = ensureClockStyleSnapshot(mContext.resources)
 
-                    if (currentClockStyleSnapshot()?.showStatusBarSeconds == true ||
-                        currentClockStyleSnapshot()?.showCCSeconds == true
-                    ) {
+                    val effectiveStatusBarSeconds = statusbarClockTweak && snapshot.showStatusBarSeconds
+                    val effectiveCcSeconds = ccClockTweak && snapshot.showCCSeconds
+                    if (effectiveStatusBarSeconds || effectiveCcSeconds) {
                         val timeSetIntent = IntentFilter()
                         timeSetIntent.addAction("android.intent.action.TIME_SET")
                         ModuleHelper.registerOwnedReceiver(
@@ -841,9 +877,10 @@ object SystemClockHooks {
                             timeSetIntent,
                             Context.RECEIVER_NOT_EXPORTED,
                         ) { _, owner, _, _ ->
-                            ModuleHelper.guarded { initSecondTicker(owner) }
+                            ModuleHelper.guarded { initSecondTicker(owner, statusbarClockTweak, ccClockTweak) }
                         }
                     }
+                    initSecondTicker(thisObject, statusbarClockTweak, ccClockTweak)
 
                     val controllerRef = WeakReference(thisObject)
                     val handler = Handler(mContext.mainLooper)
@@ -864,14 +901,14 @@ object SystemClockHooks {
                                         for (i in 0 until count) {
                                             val listener = clockListeners[i] as? View ?: continue
                                             val clockName = ModuleHelper.getViewInfo(listener, "clockName") as? String ?: continue
-                                            if (clockName == "clock" || clockName == "ccClock") {
+                                            if (shouldRefreshClockStyle(clockName, statusbarClockTweak, ccClockTweak)) {
                                                 initClockStyle(listener as TextView, clockName, freshSnapshot)
                                             }
                                             XposedHelpers.callMethod(listener, "updateTime")
                                         }
                                     }
 
-                                    initSecondTicker(controller)
+                                    initSecondTicker(controller, statusbarClockTweak, ccClockTweak)
                                 } catch (oom: OutOfMemoryError) {
                                     throw oom
                                 } catch (t: Throwable) {

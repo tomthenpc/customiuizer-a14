@@ -35,7 +35,9 @@ import org.junit.Before
 import org.junit.Test
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
+import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
 import tv.withaibuild.customiuizer.mods.utils.ScreenStateController
+import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.PrefMap
 
 private fun source(relativePath: String): String {
@@ -146,6 +148,31 @@ class SystemClockHotPathTest {
         return controller
     }
 
+    private fun makeControllerWithCcClock(clock: View = RecordingClockView()): FakeController {
+        val controller = FakeController()
+        controller.mContext = FakeContext()
+        ModuleHelper.setViewInfo(clock, "clockName", "ccClock")
+        controller.mClockListeners.add(clock)
+        return controller
+    }
+
+    private fun makeControllerWithClocks(statusClock: View = RecordingClockView(), ccClock: View = RecordingClockView()): FakeController {
+        val controller = FakeController()
+        controller.mContext = FakeContext()
+        ModuleHelper.setViewInfo(statusClock, "clockName", "clock")
+        ModuleHelper.setViewInfo(ccClock, "clockName", "ccClock")
+        controller.mClockListeners.add(statusClock)
+        controller.mClockListeners.add(ccClock)
+        return controller
+    }
+
+    private fun secondTickerFlags(ticker: Any): Pair<Boolean, Boolean> {
+        val cls = ticker.javaClass
+        val sb = cls.getDeclaredField("showStatusBarSeconds").apply { isAccessible = true }.get(ticker) as Boolean
+        val cc = cls.getDeclaredField("showCCSeconds").apply { isAccessible = true }.get(ticker) as Boolean
+        return sb to cc
+    }
+
     private fun makeSnapshotWithSeconds(statusBar: Boolean, cc: Boolean): SystemClockHooks.ClockStyleSnapshot {
         val prefs = PrefMap().apply {
             put("system_statusbar_clock_show_seconds", statusBar)
@@ -176,6 +203,9 @@ class SystemClockHotPathTest {
         val setLayoutParamsCalls = mutableListOf<ViewGroup.LayoutParams?>()
         val setLineSpacingCalls = mutableListOf<Pair<Float, Float>>()
         val setTextAlignmentCalls = mutableListOf<Int>()
+        val setTranslationYCalls = mutableListOf<Float>()
+        val setSingleLineCalls = mutableListOf<Boolean>()
+        val setMaxLinesCalls = mutableListOf<Int>()
         var singleLineValue: Boolean? = null
         var maxLinesValue: Int? = null
         var translationYValue: Float? = null
@@ -277,16 +307,19 @@ class SystemClockHotPathTest {
         override fun getTranslationY(): Float = translationYValue ?: 0f
 
         override fun setTranslationY(translationY: Float) {
+            setTranslationYCalls.add(translationY)
             translationYValue = translationY
             super.setTranslationY(translationY)
         }
 
         override fun setSingleLine(singleLine: Boolean) {
+            setSingleLineCalls.add(singleLine)
             singleLineValue = singleLine
             super.setSingleLine(singleLine)
         }
 
         override fun setMaxLines(maxLines: Int) {
+            setMaxLinesCalls.add(maxLines)
             maxLinesValue = maxLines
             super.setMaxLines(maxLines)
         }
@@ -920,22 +953,43 @@ class SystemClockHotPathTest {
         clock.setLayoutParams(null)
 
         val widthOn = statusbarSnapshotWith(fixedWidth = 50)
+        val originalStyleTagId = ResourceHooks.getFakeResId("clock_original_style_state")
 
-        // First attempt: no LayoutParams, but a fixed width is requested. The
-        // snapshot must not be marked as complete.
+        // First attempt: no LayoutParams, but a fixed width is requested.
+        // No original state may be captured, no snapshot id may be written, and
+        // no style setters may be applied (the application stays incomplete).
         SystemClockHooks.initClockStyle(clock, "clock", widthOn)
 
-        // Even though layout failed, the text properties are still applied.
+        assertNull("null LayoutParams must not create original state tag", clock.getTag(originalStyleTagId))
+        assertNull("null LayoutParams must not write snapshot id", XposedHelpers.getAdditionalInstanceField(clock, "clockStyleSnapshotId"))
         val lpNull = clock.layoutParams
         assertNull(lpNull)
-        assertEquals(1, clock.setTextSizeCalls.size)
+        assertEquals("null LayoutParams must not apply text style", 0, clock.setTextSizeCalls.size)
 
-        // Now give the view a LayoutParams and retry with the same snapshot.
-        clock.setLayoutParams(LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        // Now give the view a real LayoutParams and retry with the same snapshot.
+        val realLp = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            width = 137
+            height = 43
+            leftMargin = 7
+            rightMargin = 9
+            topMargin = 3
+            bottomMargin = 4
+            gravity = Gravity.CENTER
+        }
+        clock.setLayoutParams(realLp)
         SystemClockHooks.initClockStyle(clock, "clock", widthOn)
 
         val lp = clock.layoutParams as LinearLayout.LayoutParams
         assertEquals("retry must apply fixed width once LayoutParams exist", 100, lp.width)
+        assertEquals("retry must preserve original height", 43, lp.height)
+        assertEquals("retry must preserve original left margin", 7, lp.leftMargin)
+        assertEquals("retry must preserve original right margin", 9, lp.rightMargin)
+        assertEquals("retry must preserve original gravity", Gravity.CENTER, lp.gravity)
+
+        val originalState = clock.getTag(originalStyleTagId) as SystemClockHooks.ClockOriginalStyleState
+        assertNotNull(originalState)
+        assertEquals("original state must capture real width", 137, originalState.layoutParamsWidth)
+        assertEquals("original state must capture real height", 43, originalState.layoutParamsHeight)
     }
 
     @Test
@@ -998,6 +1052,9 @@ class SystemClockHotPathTest {
             "background" to clock.setBackgroundCalls.size,
             "typeface" to clock.setTypefaceCalls.size,
             "textAlignment" to clock.setTextAlignmentCalls.size,
+            "translationY" to clock.setTranslationYCalls.size,
+            "singleLine" to clock.setSingleLineCalls.size,
+            "maxLines" to clock.setMaxLinesCalls.size,
             "lineSpacing" to clock.setLineSpacingCalls.size,
             "layoutParams" to clock.setLayoutParamsCalls.size,
         )
@@ -1011,6 +1068,9 @@ class SystemClockHotPathTest {
         assertEquals("background no-op", countsAfterFirst["background"], clock.setBackgroundCalls.size)
         assertEquals("typeface no-op", countsAfterFirst["typeface"], clock.setTypefaceCalls.size)
         assertEquals("textAlignment no-op", countsAfterFirst["textAlignment"], clock.setTextAlignmentCalls.size)
+        assertEquals("translationY no-op", countsAfterFirst["translationY"], clock.setTranslationYCalls.size)
+        assertEquals("singleLine no-op", countsAfterFirst["singleLine"], clock.setSingleLineCalls.size)
+        assertEquals("maxLines no-op", countsAfterFirst["maxLines"], clock.setMaxLinesCalls.size)
         assertEquals("lineSpacing no-op", countsAfterFirst["lineSpacing"], clock.setLineSpacingCalls.size)
         assertEquals("layoutParams no-op", countsAfterFirst["layoutParams"], clock.setLayoutParamsCalls.size)
     }
@@ -1118,7 +1178,7 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(snapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
 
         val ticker = SystemClockHooks.activeSecondTicker(controller)
         assertNotNull("one active ticker must be stored on the controller", ticker)
@@ -1133,10 +1193,10 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(snapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
         val first = SystemClockHooks.activeSecondTicker(controller)
 
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
         val second = SystemClockHooks.activeSecondTicker(controller)
 
         assertSame("same seconds flags must keep the same ticker instance", first, second)
@@ -1151,13 +1211,13 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(onSnapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
         val ticker = SystemClockHooks.activeSecondTicker(controller)
         assertNotNull(ticker)
 
         val offSnapshot = makeSnapshotWithSeconds(statusBar = false, cc = false)
         setCurrentSnapshot(offSnapshot)
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
 
         assertNull("ticker must be removed when seconds are off", SystemClockHooks.activeSecondTicker(controller))
         assertTrue("ScreenStateController listeners must be empty", screenStateListeners().isEmpty())
@@ -1169,18 +1229,18 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(onSnapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
         val first = SystemClockHooks.activeSecondTicker(controller)!!
 
         val offSnapshot = makeSnapshotWithSeconds(statusBar = false, cc = false)
         setCurrentSnapshot(offSnapshot)
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
 
         val second = SystemClockHooks.activeSecondTicker(controller)
         assertNull(second)
 
         setCurrentSnapshot(onSnapshot)
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
         val third = SystemClockHooks.activeSecondTicker(controller)!!
 
         assertTrue("new ticker must not be the disposed old one", first !== third)
@@ -1196,7 +1256,7 @@ class SystemClockHotPathTest {
 
         fun createAndDrop(): Pair<Any, WeakReference<Any>> {
             val controller = makeControllerWithClock() as Any
-            SystemClockHooks.initSecondTicker(controller)
+            SystemClockHooks.initSecondTicker(controller, true, true)
             val ticker = SystemClockHooks.activeSecondTicker(controller)!!
             @Suppress("UNCHECKED_CAST")
             val ref = WeakReference(controller)
@@ -1231,13 +1291,190 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(onSnapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
 
         val offSnapshot = makeSnapshotWithSeconds(statusBar = false, cc = false)
         setCurrentSnapshot(offSnapshot)
-        SystemClockHooks.initSecondTicker(controller)
+        SystemClockHooks.initSecondTicker(controller, true, true)
 
         val ticker = SystemClockHooks.activeSecondTicker(controller)
         assertNull(ticker)
+    }
+
+    @Test
+    fun secondTicker_statusbarTweakOnly_ignoresCcSeconds() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = true)
+        setCurrentSnapshot(snapshot)
+
+        val statusClock = RecordingClockView()
+        val ccClock = RecordingClockView()
+        val controller = makeControllerWithClocks(statusClock, ccClock)
+
+        // statusbarClockTweak=true, ccClockTweak=false.
+        SystemClockHooks.initSecondTicker(controller, true, false)
+
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        val (sb, cc) = secondTickerFlags(ticker)
+        assertTrue("status-bar seconds effective", sb)
+        assertFalse("cc seconds must not be effective", cc)
+
+        assertNotNull("status-bar clock must have showSeconds tag", ModuleHelper.getViewInfo(statusClock, "showSeconds"))
+        assertNull("ccClock must not have showSeconds tag", ModuleHelper.getViewInfo(ccClock, "showSeconds"))
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTicker_ccTweakOnly_ignoresStatusbarSeconds() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = true)
+        setCurrentSnapshot(snapshot)
+
+        val statusClock = RecordingClockView()
+        val ccClock = RecordingClockView()
+        val controller = makeControllerWithClocks(statusClock, ccClock)
+
+        // statusbarClockTweak=false, ccClockTweak=true.
+        SystemClockHooks.initSecondTicker(controller, false, true)
+
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        val (sb, cc) = secondTickerFlags(ticker)
+        assertFalse("status-bar seconds must not be effective", sb)
+        assertTrue("cc seconds effective", cc)
+
+        assertNull("status-bar clock must not have showSeconds tag", ModuleHelper.getViewInfo(statusClock, "showSeconds"))
+        assertNotNull("ccClock must have showSeconds tag", ModuleHelper.getViewInfo(ccClock, "showSeconds"))
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTicker_disabledTweaks_noTickerAndClearsTags() {
+        val onSnapshot = makeSnapshotWithSeconds(statusBar = true, cc = true)
+        setCurrentSnapshot(onSnapshot)
+
+        val statusClock = RecordingClockView()
+        val ccClock = RecordingClockView()
+        val controller = makeControllerWithClocks(statusClock, ccClock)
+
+        // Start with both features enabled and a ticker running.
+        SystemClockHooks.initSecondTicker(controller, true, true)
+        assertNotNull(SystemClockHooks.activeSecondTicker(controller))
+
+        // Now both features are disabled; stale seconds preferences must not keep
+        // the ticker alive or leave showSeconds tags set.
+        SystemClockHooks.initSecondTicker(controller, false, false)
+
+        assertNull("ticker must be removed when both features are disabled", SystemClockHooks.activeSecondTicker(controller))
+        assertTrue("ScreenStateController listeners must be empty", screenStateListeners().isEmpty())
+        assertNull("status-bar showSeconds tag must be cleared", ModuleHelper.getViewInfo(statusClock, "showSeconds"))
+        assertNull("ccClock showSeconds tag must be cleared", ModuleHelper.getViewInfo(ccClock, "showSeconds"))
+    }
+
+    @Test
+    fun secondTicker_neitherTweakEnabled_noTickerEvenIfSecondsOn() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = true)
+        setCurrentSnapshot(snapshot)
+
+        val controller = makeControllerWithClock()
+
+        SystemClockHooks.initSecondTicker(controller, false, false)
+
+        assertNull("no ticker must be created when neither feature is enabled", SystemClockHooks.activeSecondTicker(controller))
+        assertTrue("ScreenStateController listeners must be empty", screenStateListeners().isEmpty())
+    }
+
+    @Test
+    fun shouldRefreshClockStyle_matrix() {
+        assertTrue("clock + statusbar", SystemClockHooks.shouldRefreshClockStyle("clock", true, false))
+        assertFalse("clock + !statusbar", SystemClockHooks.shouldRefreshClockStyle("clock", false, true))
+        assertTrue("ccClock + cc", SystemClockHooks.shouldRefreshClockStyle("ccClock", false, true))
+        assertFalse("ccClock + !cc", SystemClockHooks.shouldRefreshClockStyle("ccClock", true, false))
+        assertTrue("both enabled", SystemClockHooks.shouldRefreshClockStyle("clock", true, true))
+        assertTrue("both enabled for ccClock", SystemClockHooks.shouldRefreshClockStyle("ccClock", true, true))
+        assertFalse("both disabled for clock", SystemClockHooks.shouldRefreshClockStyle("clock", false, false))
+        assertFalse("both disabled for ccClock", SystemClockHooks.shouldRefreshClockStyle("ccClock", false, false))
+        assertFalse("unknown clockName", SystemClockHooks.shouldRefreshClockStyle("drawerDate", true, true))
+    }
+
+    @Test
+    fun shouldRefreshClockStyle_disabledCcTweak_blocksCcClockDualRowRefresh() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, singleLine = true, maxLines = 1)
+        val lineSpacingCallsBefore = clock.setLineSpacingCalls.size
+        val singleLineCallsBefore = clock.setSingleLineCalls.size
+
+        // A stale ccCustomFormat with a newline must not apply if ccClockTweak is
+        // disabled.
+        val prefs = PrefMap().apply {
+            put("system_cc_clock_customformat", "HH\nmm")
+        }
+        val snapshot = buildSnapshot(prefs)
+
+        if (SystemClockHooks.shouldRefreshClockStyle("ccClock", statusbarClockTweak = true, ccClockTweak = false)) {
+            SystemClockHooks.initClockStyle(clock, "ccClock", snapshot)
+        }
+
+        assertEquals("ccClock must not be styled when cc tweak is disabled", lineSpacingCallsBefore, clock.setLineSpacingCalls.size)
+        assertEquals("ccClock singleLine must not be touched", singleLineCallsBefore, clock.setSingleLineCalls.size)
+    }
+
+    @Test
+    fun shouldRefreshClockStyle_disabledStatusbarTweak_blocksStatusbarStyleRefresh() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, textSizePx = 40f)
+        val textSizeCallsBefore = clock.setTextSizeCalls.size
+        val typefaceCallsBefore = clock.setTypefaceCalls.size
+
+        val snapshot = statusbarSnapshotWith(fontSize = 20, bold = true)
+
+        if (SystemClockHooks.shouldRefreshClockStyle("clock", statusbarClockTweak = false, ccClockTweak = true)) {
+            SystemClockHooks.initClockStyle(clock, "clock", snapshot)
+        }
+
+        assertEquals("status-bar clock must not be styled when statusbar tweak is disabled", textSizeCallsBefore, clock.setTextSizeCalls.size)
+        assertEquals("status-bar clock typeface must not be touched", typefaceCallsBefore, clock.setTypefaceCalls.size)
+        assertEquals("original text size must be unchanged", 40f, clock.textSizeValue, 0.001f)
+    }
+
+    @Test
+    fun clockOriginalStyleState_hasOnlyAllowedFieldTypes() {
+        val fieldTypes = SystemClockHooks.ClockOriginalStyleState::class.java.declaredFields.map { it.type }
+        val forbidden = listOf(
+            View::class.java,
+            Context::class.java,
+            Resources::class.java,
+            android.app.Activity::class.java,
+            ViewGroup.LayoutParams::class.java,
+        )
+        for (fieldType in fieldTypes) {
+            for (forbiddenType in forbidden) {
+                assertFalse(
+                    "ClockOriginalStyleState must not hold a ${forbiddenType.simpleName} reference; found $fieldType",
+                    forbiddenType.isAssignableFrom(fieldType)
+                )
+            }
+        }
+    }
+
+    @Test
+    fun getOrCaptureOriginalStyle_capturesOnlyOnce() {
+        val clock = RecordingTextView()
+        setOriginalStyle(clock, textSizePx = 55f, textColor = Color.BLACK, background = ColorDrawable(Color.RED))
+
+        val snapshot1 = statusbarSnapshotWith(fontSize = 20, bold = true)
+        val snapshot2 = statusbarSnapshotWith(fontSize = 24, bold = false)
+
+        val originalStyleTagId = ResourceHooks.getFakeResId("clock_original_style_state")
+        SystemClockHooks.initClockStyle(clock, "clock", snapshot1)
+        val firstOriginal = clock.getTag(originalStyleTagId)
+        assertNotNull(firstOriginal)
+        assertEquals(55f, (firstOriginal as SystemClockHooks.ClockOriginalStyleState).textSizePx, 0.001f)
+
+        // Apply a different snapshot: the original state object must remain the
+        // same and continue to reflect the first capture.
+        SystemClockHooks.initClockStyle(clock, "clock", snapshot2)
+        val secondOriginal = clock.getTag(originalStyleTagId)
+        assertSame("original state must be captured only once", firstOriginal, secondOriginal)
+        assertEquals("original state text size must not change", 55f, (secondOriginal as SystemClockHooks.ClockOriginalStyleState).textSizePx, 0.001f)
     }
 }

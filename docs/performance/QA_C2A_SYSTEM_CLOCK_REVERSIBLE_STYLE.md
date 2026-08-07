@@ -21,9 +21,11 @@ MiuiPhoneStatusBarView.onAttachedToWindow hook
 PreferenceObserver.onChange (relevant clock key)
   -> refreshClockStyleSnapshot(res)
   -> for each clock / ccClock listener:
-       initClockStyle(listener, clockName, freshSnapshot)
+       if (shouldRefreshClockStyle(clockName, statusbarClockTweak, ccClockTweak)) {
+           initClockStyle(listener, clockName, freshSnapshot)
+       }
        XposedHelpers.callMethod(listener, "updateTime")
-  -> initSecondTicker(controller)
+  -> initSecondTicker(controller, statusbarClockTweak, ccClockTweak)
 ```
 
 ### Control-center clock
@@ -58,7 +60,8 @@ The dark callback **must not** read `PrefMap`. It uses the cached
 ## Original style capture
 
 `getOrCaptureOriginalStyle(view)` is called once per view, on the first
-`initClockStyle` call that reaches `applyClockStyle`.
+status-bar `initClockStyle` call that has a non-null `LayoutParams` and reaches
+`applyClockStyle`.
 
 - The original state is stored as a view tag keyed by
   `ResourceHooks.getFakeResId("clock_original_style_state")`.
@@ -143,6 +146,51 @@ When the status-bar clock has a chip with Monet or a custom text color,
 from overriding the chip text color. When the chip is off or the snapshot is
 not ready, `onDarkChanged` proceeds normally.
 
+## Feature-boundary gating
+
+Runtime style refresh is gated by the install-time feature switches:
+
+```
+shouldRefreshClockStyle("clock",  statusbarClockTweak, ccClockTweak) = statusbarClockTweak
+shouldRefreshClockStyle("ccClock", statusbarClockTweak, ccClockTweak) = ccClockTweak
+shouldRefreshClockStyle(else, ...)                                  = false
+```
+
+The `PreferenceObserver` uses `shouldRefreshClockStyle` before calling
+`initClockStyle`. `updateTime()` is still called for every listener so the
+framework's normal time update path is preserved. The master tweak toggle still
+requires a SystemUI restart to take effect.
+
+## Effective seconds flags
+
+`initSecondTicker` receives `statusbarClockTweak` and `ccClockTweak`. The
+effective seconds flags are:
+
+```
+effectiveStatusBarSeconds = statusbarClockTweak && snapshot.showStatusBarSeconds
+effectiveCcSeconds        = ccClockTweak        && snapshot.showCCSeconds
+```
+
+`initSecondTicker` sets `showSeconds` view tags and creates/removes the
+`SecondTicker` only from these effective flags. A disabled feature's stale
+seconds preference can therefore never create a ticker or mark a view as needing
+one-second updates. `SecondTicker` stores the effective flags, not the raw
+snapshot values.
+
+## Status-bar null LayoutParams defence
+
+For the status-bar clock (`clockName == "clock"`):
+
+- If `mClock.layoutParams == null`, `initClockStyle` returns immediately.
+- No `ClockOriginalStyleState` is captured.
+- No snapshot id is written.
+- No text or layout setters are applied.
+- Once a real `LayoutParams` instance is present, the same snapshot id retries,
+  captures the real original layout, and applies the style fully.
+
+This prevents the framework's later `LayoutParams` from being overwritten by a
+guessed `WRAP_CONTENT / 0` original state.
+
 ## Device verification pending
 
 The following items can only be confirmed on a real HyperOS 1 / Android 14
@@ -157,3 +205,7 @@ device:
 4. Preference changes at runtime refresh the style without a SystemUI restart.
 5. View attachment and re-attachment after rotation re-apply the correct
    snapshot.
+6. `statusbarClockTweak` or `ccClockTweak` disabled at startup prevents stale
+   seconds preferences from creating CPU work.
+7. Status-bar clock `LayoutParams` null on first `onAttachedToWindow` and
+   correct after retry.
