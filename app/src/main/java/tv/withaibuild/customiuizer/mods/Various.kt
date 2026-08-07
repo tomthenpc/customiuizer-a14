@@ -52,6 +52,7 @@ import org.luckypray.dexkit.result.MethodData
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
@@ -196,23 +197,24 @@ object Various {
                                             if (launchIntent == null) {
                                                 Toast.makeText(act, modRes.getString(R.string.appdetails_nolaunch), Toast.LENGTH_SHORT).show()
                                             } else {
-                                                var user = 0
-                                                try {
-                                                    val uid = act.intent.getIntExtra("am_app_uid", -1)
-                                                    user = XposedHelpers.callStaticMethod(UserHandle::class.java, "getUserId", uid) as Int
-                                                } catch (t: Throwable) {
-                                                    XposedHelpers.log(t)
+                                                val uid = act.intent.getIntExtra("am_app_uid", -1)
+                                                val user = resolveAppInfoLaunchUserId(uid) { appUid ->
+                                                    XposedHelpers.callStaticMethod(UserHandle::class.java, "getUserId", appUid) as Int
                                                 }
-
-                                                launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-                                                if (user != 0) {
-                                                    try {
-                                                        XposedHelpers.callMethod(act, "startActivityAsUser", launchIntent, XposedHelpers.newInstance(UserHandle::class.java, user))
-                                                    } catch (t: Throwable) {
-                                                        XposedHelpers.log(t)
-                                                    }
+                                                if (user == null) {
+                                                    XposedHelpers.log("AppInfoHook", "launch_app: invalid or missing am_app_uid=$uid; aborting launch")
                                                 } else {
-                                                    act.startActivity(launchIntent)
+                                                    launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                                                    if (user != 0) {
+                                                        try {
+                                                            XposedHelpers.callMethod(act, "startActivityAsUser", launchIntent, XposedHelpers.newInstance(UserHandle::class.java, user))
+                                                        } catch (t: Throwable) {
+                                                            FatalErrors.unwrapAndRethrowIfFatal(t)
+                                                            XposedHelpers.log(t)
+                                                        }
+                                                    } else {
+                                                        act.startActivity(launchIntent)
+                                                    }
                                                 }
                                             }
                                             skipped = true; result = true; throwable = null
@@ -235,6 +237,24 @@ object Various {
                 return XposedHelpers.throwOrReturn(throwable, result)
             }
         })
+    }
+
+    /**
+     * Resolves the user id for the AppInfo "launch_app" action.
+     *
+     * A UID below 0 means the extra is missing or invalid and the launch action
+     * must fail closed. A UID >= 0 is passed to [resolver]; non-fatal failures are
+     * logged and returned as `null`. Fatal errors are propagated.
+     */
+    internal fun resolveAppInfoLaunchUserId(uid: Int, resolver: (Int) -> Int): Int? {
+        if (uid < 0) return null
+        return try {
+            resolver(uid)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log(t)
+            null
+        }
     }
 
     @JvmStatic
