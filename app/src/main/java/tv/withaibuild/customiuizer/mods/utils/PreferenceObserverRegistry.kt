@@ -109,7 +109,10 @@ object PreferenceObserverRegistry {
                 prefObserver.onChange(canonicalKey)
             } catch (oom: OutOfMemoryError) {
                 throw oom
+            } catch (le: LinkageError) {
+                throw le
             } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
                 XposedHelpers.log(t)
             }
         }
@@ -125,7 +128,10 @@ object PreferenceObserverRegistry {
                 prefObserver.onChange(canonicalKey)
             } catch (oom: OutOfMemoryError) {
                 throw oom
+            } catch (le: LinkageError) {
+                throw le
             } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
                 XposedHelpers.log(t)
             }
         }
