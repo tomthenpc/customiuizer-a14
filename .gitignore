@@ -10,6 +10,25 @@ app/standalone/*
 /.idea/workspace.xml
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
+# IntelliJ IDEA / Android Studio — local/generated IDE state
+*.iml
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/usage.statistics.xml
+/.idea/shelf/
+/.idea/dictionaries/
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/copilot/
+/.idea/.name
+/.idea/gradle.xml
+/.idea/deploymentTargetDropDown.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/jarRepositories.xml
+/.idea/migrations.xml
+
 .DS_Store
 /build
 /captures
