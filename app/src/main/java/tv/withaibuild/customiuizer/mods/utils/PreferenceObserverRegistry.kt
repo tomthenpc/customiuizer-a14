@@ -3,8 +3,10 @@ package tv.withaibuild.customiuizer.mods.utils
 import android.os.Process
 import tv.withaibuild.customiuizer.utils.canonicalPreferenceKey
 import java.lang.ref.WeakReference
+import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
+import java.util.concurrent.ExecutionException
 
 /**
  * Registry for preference observers.
@@ -96,11 +98,35 @@ object PreferenceObserverRegistry {
     }
 
     /**
+     * Rethrows fatal observer errors and unwraps common reflection/concurrent wrappers.
+     *
+     * Keeps [OutOfMemoryError], [ThreadDeath], [VirtualMachineError] and [LinkageError]
+     * as fatal for this registry; ordinary [Exception]s and non-fatal [Error]s are logged.
+     */
+    private fun rethrowFatalObserverError(t: Throwable) {
+        FatalErrors.unwrapAndRethrowIfFatal(t)
+
+        var current: Throwable? = t
+        var depth = 0
+        while (current != null && depth < 4) {
+            if (current is LinkageError) throw current
+
+            current = when (current) {
+                is InvocationTargetException -> current.cause
+                is ExecutionException -> current.cause
+                is XposedHelpers.InvocationTargetError -> current.cause
+                else -> null
+            }
+            depth++
+        }
+    }
+
+    /**
      * Fans a preference change out to every observer.
      *
      * Runs on the remote-preferences listener thread of system_server, SystemUI and Launcher.
-     * A throwing observer must neither kill that process nor stop the remaining observers from
-     * seeing the change, so each callback is isolated.
+     * Ordinary observer failures are isolated so later observers still receive the change.
+     * Fatal VM/runtime failures and [LinkageError] are propagated.
      */
     fun handlePreferenceChanged(key: String?) {
         val canonicalKey = canonicalPreferenceKey(key)
@@ -109,10 +135,8 @@ object PreferenceObserverRegistry {
                 prefObserver.onChange(canonicalKey)
             } catch (oom: OutOfMemoryError) {
                 throw oom
-            } catch (le: LinkageError) {
-                throw le
             } catch (t: Throwable) {
-                FatalErrors.unwrapAndRethrowIfFatal(t)
+                rethrowFatalObserverError(t)
                 XposedHelpers.log(t)
             }
         }
@@ -128,10 +152,8 @@ object PreferenceObserverRegistry {
                 prefObserver.onChange(canonicalKey)
             } catch (oom: OutOfMemoryError) {
                 throw oom
-            } catch (le: LinkageError) {
-                throw le
             } catch (t: Throwable) {
-                FatalErrors.unwrapAndRethrowIfFatal(t)
+                rethrowFatalObserverError(t)
                 XposedHelpers.log(t)
             }
         }

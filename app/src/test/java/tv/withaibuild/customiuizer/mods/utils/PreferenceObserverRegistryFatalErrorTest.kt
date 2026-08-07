@@ -6,6 +6,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.lang.reflect.InvocationTargetException
+import java.util.concurrent.ExecutionException
 
 /**
  * Fatal-throwable boundary for [PreferenceObserverRegistry.handlePreferenceChanged].
@@ -288,6 +290,210 @@ class PreferenceObserverRegistryFatalErrorTest {
 
             assertEquals(listOf("owner_normal"), first.received)
             assertEquals(listOf("owner_normal"), last.received)
+        } finally {
+            ModuleHelper.unregisterPreferenceObserver(owner1)
+            ModuleHelper.unregisterPreferenceObserver(owner2)
+            ModuleHelper.unregisterPreferenceObserver(owner3)
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Wrapped fatal errors (Xposed / reflection / concurrent wrappers)
+    // ---------------------------------------------------------------------------
+
+    @Test
+    fun processObserver_xposedInvocationTargetWrappedLinkage_isRethrown() {
+        val fatal = TestLinkageError()
+        val wrapped = XposedHelpers.InvocationTargetError(fatal)
+        val first = RecordingObserver()
+        val throwing = ThrowingObserver(wrapped)
+        val last = RecordingObserver()
+
+        ModuleHelper.observePreferenceChange(first)
+        ModuleHelper.observePreferenceChange(throwing)
+        ModuleHelper.observePreferenceChange(last)
+
+        try {
+            ModuleHelper.handlePreferenceChanged("wrapped_xposed")
+            org.junit.Assert.fail("expected LinkageError")
+        } catch (le: LinkageError) {
+            assertSame(fatal, le)
+            assertEquals(listOf("wrapped_xposed"), first.received)
+            assertTrue(last.received.isEmpty())
+        }
+    }
+
+    @Test
+    fun processObserver_javaInvocationTargetWrappedLinkage_isRethrown() {
+        val fatal = TestLinkageError()
+        val wrapped = InvocationTargetException(fatal)
+        val first = RecordingObserver()
+        val throwing = ThrowingObserver(wrapped)
+        val last = RecordingObserver()
+
+        ModuleHelper.observePreferenceChange(first)
+        ModuleHelper.observePreferenceChange(throwing)
+        ModuleHelper.observePreferenceChange(last)
+
+        try {
+            ModuleHelper.handlePreferenceChanged("wrapped_java")
+            org.junit.Assert.fail("expected LinkageError")
+        } catch (le: LinkageError) {
+            assertSame(fatal, le)
+            assertEquals(listOf("wrapped_java"), first.received)
+            assertTrue(last.received.isEmpty())
+        }
+    }
+
+    @Test
+    fun processObserver_executionExceptionWrappedLinkage_isRethrown() {
+        val fatal = TestLinkageError()
+        val wrapped = ExecutionException(fatal)
+        val first = RecordingObserver()
+        val throwing = ThrowingObserver(wrapped)
+        val last = RecordingObserver()
+
+        ModuleHelper.observePreferenceChange(first)
+        ModuleHelper.observePreferenceChange(throwing)
+        ModuleHelper.observePreferenceChange(last)
+
+        try {
+            ModuleHelper.handlePreferenceChanged("wrapped_exec")
+            org.junit.Assert.fail("expected LinkageError")
+        } catch (le: LinkageError) {
+            assertSame(fatal, le)
+            assertEquals(listOf("wrapped_exec"), first.received)
+            assertTrue(last.received.isEmpty())
+        }
+    }
+
+    @Test
+    fun processObserver_ordinaryRuntimeExceptionWrappedInInvocationTarget_isSwallowed() {
+        val wrapped = InvocationTargetException(IllegalStateException("ordinary"))
+        val first = RecordingObserver()
+        val throwing = ThrowingObserver(wrapped)
+        val last = RecordingObserver()
+
+        ModuleHelper.observePreferenceChange(first)
+        ModuleHelper.observePreferenceChange(throwing)
+        ModuleHelper.observePreferenceChange(last)
+
+        ModuleHelper.handlePreferenceChanged("wrapped_ordinary")
+
+        assertEquals(listOf("wrapped_ordinary"), first.received)
+        assertEquals(listOf("wrapped_ordinary"), last.received)
+    }
+
+    @Test
+    fun ownerBoundObserver_xposedInvocationTargetWrappedLinkage_isRethrown() {
+        val owner1 = Any()
+        val owner2 = Any()
+        val owner3 = Any()
+
+        val fatal = TestLinkageError()
+        val wrapped = XposedHelpers.InvocationTargetError(fatal)
+        val first = RecordingObserver()
+        val throwing = ThrowingObserver(wrapped)
+        val last = RecordingObserver()
+
+        try {
+            ModuleHelper.observePreferenceChange(first, owner1)
+            ModuleHelper.observePreferenceChange(throwing, owner2)
+            ModuleHelper.observePreferenceChange(last, owner3)
+
+            ModuleHelper.handlePreferenceChanged("owner_wrapped_xposed")
+            org.junit.Assert.fail("expected LinkageError")
+        } catch (le: LinkageError) {
+            assertSame(fatal, le)
+            assertEquals(listOf("owner_wrapped_xposed"), first.received)
+            assertTrue(last.received.isEmpty())
+        } finally {
+            ModuleHelper.unregisterPreferenceObserver(owner1)
+            ModuleHelper.unregisterPreferenceObserver(owner2)
+            ModuleHelper.unregisterPreferenceObserver(owner3)
+        }
+    }
+
+    @Test
+    fun ownerBoundObserver_javaInvocationTargetWrappedLinkage_isRethrown() {
+        val owner1 = Any()
+        val owner2 = Any()
+        val owner3 = Any()
+
+        val fatal = TestLinkageError()
+        val wrapped = InvocationTargetException(fatal)
+        val first = RecordingObserver()
+        val throwing = ThrowingObserver(wrapped)
+        val last = RecordingObserver()
+
+        try {
+            ModuleHelper.observePreferenceChange(first, owner1)
+            ModuleHelper.observePreferenceChange(throwing, owner2)
+            ModuleHelper.observePreferenceChange(last, owner3)
+
+            ModuleHelper.handlePreferenceChanged("owner_wrapped_java")
+            org.junit.Assert.fail("expected LinkageError")
+        } catch (le: LinkageError) {
+            assertSame(fatal, le)
+            assertEquals(listOf("owner_wrapped_java"), first.received)
+            assertTrue(last.received.isEmpty())
+        } finally {
+            ModuleHelper.unregisterPreferenceObserver(owner1)
+            ModuleHelper.unregisterPreferenceObserver(owner2)
+            ModuleHelper.unregisterPreferenceObserver(owner3)
+        }
+    }
+
+    @Test
+    fun ownerBoundObserver_executionExceptionWrappedLinkage_isRethrown() {
+        val owner1 = Any()
+        val owner2 = Any()
+        val owner3 = Any()
+
+        val fatal = TestLinkageError()
+        val wrapped = ExecutionException(fatal)
+        val first = RecordingObserver()
+        val throwing = ThrowingObserver(wrapped)
+        val last = RecordingObserver()
+
+        try {
+            ModuleHelper.observePreferenceChange(first, owner1)
+            ModuleHelper.observePreferenceChange(throwing, owner2)
+            ModuleHelper.observePreferenceChange(last, owner3)
+
+            ModuleHelper.handlePreferenceChanged("owner_wrapped_exec")
+            org.junit.Assert.fail("expected LinkageError")
+        } catch (le: LinkageError) {
+            assertSame(fatal, le)
+            assertEquals(listOf("owner_wrapped_exec"), first.received)
+            assertTrue(last.received.isEmpty())
+        } finally {
+            ModuleHelper.unregisterPreferenceObserver(owner1)
+            ModuleHelper.unregisterPreferenceObserver(owner2)
+            ModuleHelper.unregisterPreferenceObserver(owner3)
+        }
+    }
+
+    @Test
+    fun ownerBoundObserver_ordinaryRuntimeExceptionWrappedInInvocationTarget_isSwallowed() {
+        val owner1 = Any()
+        val owner2 = Any()
+        val owner3 = Any()
+
+        val wrapped = InvocationTargetException(IllegalStateException("ordinary"))
+        val first = RecordingObserver()
+        val throwing = ThrowingObserver(wrapped)
+        val last = RecordingObserver()
+
+        try {
+            ModuleHelper.observePreferenceChange(first, owner1)
+            ModuleHelper.observePreferenceChange(throwing, owner2)
+            ModuleHelper.observePreferenceChange(last, owner3)
+
+            ModuleHelper.handlePreferenceChanged("owner_wrapped_ordinary")
+
+            assertEquals(listOf("owner_wrapped_ordinary"), first.received)
+            assertEquals(listOf("owner_wrapped_ordinary"), last.received)
         } finally {
             ModuleHelper.unregisterPreferenceObserver(owner1)
             ModuleHelper.unregisterPreferenceObserver(owner2)
