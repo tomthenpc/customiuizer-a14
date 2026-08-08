@@ -62,9 +62,8 @@ object HookInstallerFacade {
                 XposedHelpers.log("Failed to hook " + methodName + " method in " + className + " (unhooker is null)")
             }
             unhooker
-        } catch (oom: OutOfMemoryError) {
-            throw oom
         } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             XposedHelpers.log("Failed to hook " + methodName + " method in " + className)
             val status = when {
                 HookDiagnostics.isMemberMissingException(t) -> HookDiagnostics.Status.TARGET_MEMBER_MISSING
@@ -110,9 +109,8 @@ object HookInstallerFacade {
                 XposedHelpers.log("Failed to hook " + methodName + " method in " + className + " (unhooker is null)")
             }
             unhooker
-        } catch (oom: OutOfMemoryError) {
-            throw oom
         } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             XposedHelpers.log("Failed to hook " + methodName + " method in " + className)
             val status = when {
                 HookDiagnostics.isMemberMissingException(t) -> HookDiagnostics.Status.TARGET_MEMBER_MISSING
@@ -160,9 +158,8 @@ object HookInstallerFacade {
                 if (ok) "" else "unhooker-null",
             )
             ok
-        } catch (oom: OutOfMemoryError) {
-            throw oom
         } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             HookDiagnostics.record(
                 PreferenceObserverRegistry.processName(),
                 HookDiagnostics.Kind.METHOD,
@@ -193,9 +190,8 @@ object HookInstallerFacade {
                 if (ok) "" else "unhooker-null",
             )
             ok
-        } catch (oom: OutOfMemoryError) {
-            throw oom
         } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             HookDiagnostics.record(
                 PreferenceObserverRegistry.processName(),
                 HookDiagnostics.Kind.METHOD,
