@@ -184,6 +184,32 @@ class ChargingInfoFontSizeContractTest(unittest.TestCase):
         features = self.features_text + "\n" + "        SystemLockScreenHooks.ChargingInfoHook(lpparam)"
         self._mutated(self.xml_text, self.kt_text, features)
 
+    def test_11_setnextindication_reapply_hook_exists(self) -> None:
+        """A secondary hook on setNextIndication must re-apply the style after the ROM resets it.
+
+        This is a static source contract check only; it does not prove HyperOS runtime
+        behavior. It protects the corrective route from accidental removal.
+        """
+        # The hook must target setNextIndication on KeyguardIndicationTextView.
+        self.assertIn('"setNextIndication"', self.kt_text,
+                      "ChargingInfoHook must hook setNextIndication")
+        # It must call applyChargingInfoStyle inside that hook's after path.
+        # Locate the setNextIndication hook block and verify applyChargingInfoStyle is called
+        # after chain.proceed() within it.
+        idx = self.kt_text.index('"setNextIndication"')
+        block = self.kt_text[idx:idx + 800]
+        self.assertIn("chain.proceed()", block,
+                      "setNextIndication hook must call chain.proceed() before re-applying style")
+        self.assertIn("applyChargingInfoStyle", block,
+                      "setNextIndication hook must call applyChargingInfoStyle after proceed")
+        # The hook must be inside ChargingInfoHook (before the return INSTALLED).
+        hook_idx = self.kt_text.index("fun ChargingInfoHook(")
+        self.assertGreater(idx, hook_idx,
+                           "setNextIndication hook must be inside ChargingInfoHook")
+        return_idx = self.kt_text.index("return FeatureInstallResult.INSTALLED", idx)
+        self.assertLess(idx, return_idx,
+                        "setNextIndication hook must precede the INSTALLED return")
+
 
 if __name__ == "__main__":
     unittest.main()
