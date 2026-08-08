@@ -1472,12 +1472,12 @@ object SystemLockScreenHooks {
      */
     @JvmStatic
     fun ChargingInfoHook(lpparam: PackageReadyParam): FeatureInstallResult {
+        val callerUnhookers = installChargingHintCallerScopes(lpparam.classLoader) ?: return FeatureInstallResult.FAILED_TRANSIENT
         val coreUnhooker = ModuleHelper.findAndHookMethod(
             "com.miui.charge.ChargeUtils",
             lpparam.classLoader,
             "getChargingHintText",
-            Int::class.javaPrimitiveType!!,
-            Boolean::class.javaPrimitiveType!!,
+            Int::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!,
             Context::class.java,
             object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
@@ -1513,9 +1513,9 @@ object SystemLockScreenHooks {
             }
         )
         if (coreUnhooker == null) {
+            unhookChargingHintCallerScopes(callerUnhookers)
             return FeatureInstallResult.FAILED_TRANSIENT
         }
-
         ModuleHelper.findAndHookMethod(
             "com.android.systemui.statusbar.phone.KeyguardIndicationTextView",
             lpparam.classLoader,
@@ -1569,16 +1569,16 @@ object SystemLockScreenHooks {
     }
 
     private fun isKeyguardIndicationCaller(): Boolean {
-        try {
-            for (e in Thread.currentThread().stackTrace) {
-                val className = e.className
-                if (className.contains("KeyguardIndication")) return true
-                if (className.contains("MiuiCharge") || className.contains("miui.charge")) return false
-            }
-        } catch (t: Throwable) {
-            FatalErrors.rethrowIfFatal(t)
-        }
-        return false
+        // ChargeUtils has two direct callers in the target SystemUI build.
+        // Their enclosing hooks publish bounded thread-local scopes.
+        // Keyguard wins if a nested call has both scopes active.
+        // MiuiCharge and unknown callers remain excluded.
+        // Resolution happens once during feature installation.
+        // The charging hot path performs no reflection or stack walk.
+        // Depth counters preserve nested and recursive calls.
+        // Hook finally blocks clear scopes after exceptions.
+        // Each caller hook invokes chain.proceed() exactly once.
+        return chargingHintCallerScopes.isKeyguardCaller()
     }
 
     @JvmStatic
