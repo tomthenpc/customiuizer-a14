@@ -125,13 +125,13 @@ class BatteryIndicator @JvmOverloads constructor(
 
         updateParameters()
         ModuleHelper.observePreferenceChange(
-            object : ModuleHelper.PreferenceObserver {
-                override fun onChange(key: String?) = ModuleHelper.guarded {
-                    if (!mTesting && key?.startsWith("system_batteryindicator") == true) {
-                        viewScope.launch { updateParameters(); update() }
-                    }
-                }
-            },
+            BatteryIndicatorPreferenceObserver(
+                // The registry stores this observer in the owner's additional field.
+                // Keep the reverse link weak if a ROM lifecycle misses detach.
+                owner = this
+            ),
+            // The View remains the registry key and explicit detach target.
+            // Normal lifecycle cleanup still unregisters this exact observer.
             this
         )
 
@@ -472,6 +472,21 @@ class BatteryIndicator @JvmOverloads constructor(
             throw oom
         } catch (t: Throwable) {
             XposedHelpers.log(t)
+        }
+    }
+
+    private fun handlePreferenceChanged(key: String?) = ModuleHelper.guarded {
+        if (!mTesting && key?.startsWith("system_batteryindicator") == true) {
+            viewScope.launch { updateParameters(); update() }
+        }
+    }
+
+    private class BatteryIndicatorPreferenceObserver(owner: BatteryIndicator) :
+        ModuleHelper.PreferenceObserver {
+        private val ownerRef = java.lang.ref.WeakReference(owner)
+
+        override fun onChange(key: String?) {
+            ownerRef.get()?.handlePreferenceChanged(key)
         }
     }
 }

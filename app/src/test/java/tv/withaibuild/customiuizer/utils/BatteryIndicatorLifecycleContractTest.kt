@@ -1,9 +1,11 @@
 package tv.withaibuild.customiuizer.utils
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.lang.ref.WeakReference
 
 class BatteryIndicatorLifecycleContractTest {
 
@@ -31,6 +33,23 @@ class BatteryIndicatorLifecycleContractTest {
         assertTrue(source.contains("ModuleHelper.unregisterOwnedReceiver(this, RECEIVER_KEY, broadcastReceiver)"))
         assertTrue(source.contains("mStatusBar = null"))
         assertFalse(source.contains("context.registerReceiver(broadcastReceiver"))
+    }
+
+    @Test
+    fun preferenceObserverDoesNotStronglyRetainViewOwner() {
+        val ownerClassName = "tv.withaibuild.customiuizer.utils.BatteryIndicator"
+        val observerClass = Class.forName(
+            "$ownerClassName\$BatteryIndicatorPreferenceObserver"
+        )
+        val ownerFields = observerClass.declaredFields.filter { field ->
+            field.type.name == ownerClassName
+        }
+        val weakOwnerFields = observerClass.declaredFields.filter { field ->
+            field.type == WeakReference::class.java
+        }
+
+        assertTrue("observer must not contain a strong BatteryIndicator field", ownerFields.isEmpty())
+        assertEquals("observer must contain exactly one weak owner field", 1, weakOwnerFields.size)
     }
 
     @Test

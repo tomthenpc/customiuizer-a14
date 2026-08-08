@@ -58,14 +58,17 @@ Kotlin + 少量 Java 的现状保持不变；不以迁移到 Java、Rust、Compo
 
 ### M1：关闭 SystemUI View 的反向持有链
 
-#### M1.1 AudioVisualizer observer
+#### M1.1 AudioVisualizer observer（由 owner 暂缓）
+
+Owner 于 2026-08-08 明确暂缓此项，因为该功能很少使用。本分支不修改
+`AudioVisualizer`；以下约束留作未来重新启用任务时使用：
 
 - 将 observer 与 `AudioVisualizer` 的关系改为弱 owner；
 - 保留现有 `dispose()`、`onDetachedFromWindow()`、协程取消和精确解绑顺序；
 - observer 找不到 owner 时直接返回，不创建替代全局所有者；
 - 增加正常 detach、重复 dispose、漏掉 detach 后可回收、preference 更新行为等测试。
 
-#### M1.2 BatteryIndicator observer
+#### M1.2 BatteryIndicator observer（工程已完成）
 
 - 使用同样的弱 owner 模式处理 preference observer；
 - 不改已使用 owner 参数的 `ReceiverRegistry` 回调；
@@ -175,6 +178,5 @@ ROM 类或广泛 fallback 换取静态扫描通过。
 
 ## 推荐的首个实现任务
 
-先执行 **M1.1 AudioVisualizer observer**。它的所有权风险最明确、改动边界最小，且
-已有 `dispose()` 正常解绑路径可复用。M1.1 完成并通过完整门禁后，再单独执行 M1.2；
-随后按 M2.1、M2.2、M2.3 逐个移除调用栈扫描。
+M1.1 已由 owner 暂缓，M1.2 已完成工程修复和本地完整门禁。下一项按 M2.1、M2.2、
+M2.3 的顺序逐个移除调用栈扫描。
