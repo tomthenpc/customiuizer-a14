@@ -347,41 +347,28 @@ object GlobalActionSystemServerHooks {
         }
         if (hasConfiguredToggle(6)) {
             ModuleHelper.hookAllConstructors("com.android.systemui.controlcenter.policy.AutoBrightnessController", lpparam.classLoader, object : MethodHook() {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    var result: Any?
-                    var throwable: Throwable? = null
-                    try {
-                        result = chain.proceed()
-                    } catch (t: Throwable) {
-                        throwable = t
-                        result = null
-                    }
-                    try {
-                        val thisObject = chain.getThisObject()
-                        val mContext = XposedHelpers.getObjectField(thisObject, "context") as Context
-                        val intentfilter = IntentFilter()
-                        intentfilter.addAction(GlobalActions.ACTION_PREFIX + "ToggleAutoBrightness")
-                        val mFreeFormReceiver = object : BroadcastReceiver() {
-                            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
-                                if (intent.action == null) return@guarded
-                                val action = intent.action
-                                if (action == GlobalActions.ACTION_PREFIX + "ToggleAutoBrightness") {
-                                    val modRes = ModuleHelper.getModuleRes(mContext)
-                                    val enabled = XposedHelpers.getBooleanField(thisObject, "enabled")
-                                    XposedHelpers.callMethod(thisObject, "toggleAutoBrightness")
-                                    if (enabled) {
-                                        Toast.makeText(context, modRes.getString(R.string.toggle_autobright_off), Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, modRes.getString(R.string.toggle_autobright_on), Toast.LENGTH_SHORT).show()
-                                    }
+                override fun after(callback: AfterHookCallback) {
+                    val thisObject = callback.getThisObject()!!
+                    val mContext = XposedHelpers.getObjectField(thisObject, "context") as Context
+                    val intentfilter = IntentFilter()
+                    intentfilter.addAction(GlobalActions.ACTION_PREFIX + "ToggleAutoBrightness")
+                    val mFreeFormReceiver = object : BroadcastReceiver() {
+                        override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                            if (intent.action == null) return@guarded
+                            val action = intent.action
+                            if (action == GlobalActions.ACTION_PREFIX + "ToggleAutoBrightness") {
+                                val modRes = ModuleHelper.getModuleRes(mContext)
+                                val enabled = XposedHelpers.getBooleanField(thisObject, "enabled")
+                                XposedHelpers.callMethod(thisObject, "toggleAutoBrightness")
+                                if (enabled) {
+                                    Toast.makeText(context, modRes.getString(R.string.toggle_autobright_off), Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, modRes.getString(R.string.toggle_autobright_on), Toast.LENGTH_SHORT).show()
                                 }
                             }
                         }
-                        ModuleHelper.registerModuleReceiver(mContext, "autoBrightnessReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
-                    } catch (t: Throwable) {
-                        XposedHelpers.log(t)
                     }
-                    return XposedHelpers.throwOrReturn(throwable, result)
+                    ModuleHelper.registerModuleReceiver(mContext, "autoBrightnessReceiver", mFreeFormReceiver, intentfilter, Context.RECEIVER_EXPORTED)
                 }
             })
         }
