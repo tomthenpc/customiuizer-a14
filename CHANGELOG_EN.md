@@ -2,6 +2,33 @@
 
 [简体中文](CHANGELOG.md) | English
 
+## r14.18.2 — 2026-08-08
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+
+### Core Changes
+
+- Improved fail-closed compatibility for heads-up notification and lockscreen hooks on HyperOS / Android 14.
+- Fixed charging-info font size being reset after lockscreen indication updates.
+- Simplified SystemUI / system_server lifecycle hooks by using native after callbacks and removing redundant state handling.
+- Strengthened fatal-error propagation during hook installation so fatal failures are not treated as ordinary install failures.
+
+### Verification Status
+
+- Feature-semantics validation, source-hazard scanning, invariant checks, `git diff --check`, Python tool tests, and Android JVM unit tests pass.
+- Source hazard baseline remains 991 reviewed findings, 0 new.
+- The Release APK uses the A14 certificate, and v2 signing, zip alignment, `debuggable=false`, SDK, and Xposed metadata checks pass.
+- Device behavior verification has not been run, so this release is not claimed as fully `DEVICE_VERIFIED`.
+
+### Artifact Information
+
+- APK: `CustoMIUIzer-A14-r14.18.2.apk`
+- Size: `3468849` bytes
+- SHA-256: `77F868590C631271251991EDEBF066919460E2F1DA955EFDC10271207EAF3E77`
+- versionCode / versionName: `195 / r14.18.2`
+
+---
+
 ## r14.18.1 — 2026-08-07
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
