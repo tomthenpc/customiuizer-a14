@@ -36,6 +36,7 @@ import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
+import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
@@ -1551,39 +1552,15 @@ object SystemLockScreenHooks {
             }
         )
 
-        // Secondary live-style route: re-apply the custom charging style after the ROM updates
-        // the indication. AOSP KeyguardIndicationTextView.setNextIndication() calls
-        // setTextAppearance(sStyleId) which resets textSize to the style default, overwriting
-        // the custom size applied by the observer or onFinishInflate. Hooking after
-        // setNextIndication ensures applyChargingInfoStyle runs last, so the custom font size
-        // survives the ROM style reset. This hook is optional: if the method is absent or
-        // renamed on a given ROM build, the feature still works through the core
-        // ChargeUtils hook and the onFinishInflate path; failure here does not affect the
-        // FeatureInstallResult.
+        // ROM setNextIndication reapplies text appearance; restore the user's charging style afterwards.
         ModuleHelper.findAndHookMethod(
             "com.android.systemui.statusbar.phone.KeyguardIndicationTextView",
             lpparam.classLoader,
             "setNextIndication",
             object : MethodHook() {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    var result: Any?
-                    var throwable: Throwable? = null
-                    try {
-                        result = chain.proceed()
-                    } catch (t: Throwable) {
-                        FatalErrors.unwrapAndRethrowIfFatal(t)
-                        throwable = t
-                        result = null
-                    }
-                    try {
-                        val indicator = chain.thisObject as? TextView
-                            ?: return XposedHelpers.throwOrReturn(throwable, result)
-                        applyChargingInfoStyle(indicator)
-                    } catch (t: Throwable) {
-                        FatalErrors.unwrapAndRethrowIfFatal(t)
-                        XposedHelpers.log(t)
-                    }
-                    return XposedHelpers.throwOrReturn(throwable, result)
+                override fun after(callback: AfterHookCallback) {
+                    val indicator = callback.getThisObject() as? TextView ?: return
+                    applyChargingInfoStyle(indicator)
                 }
             }
         )
