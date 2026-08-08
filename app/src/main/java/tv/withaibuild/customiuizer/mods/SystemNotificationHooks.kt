@@ -729,7 +729,7 @@ object SystemNotificationHooks {
 
     @JvmStatic
     fun BetterPopupsCenteredHook(lpparam: PackageReadyParam) {
-        ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.policy.HeadsUpManagerInjector", lpparam.classLoader, "miuiHeadsUpInset", Context::class.java, object : MethodHook() {
+        val coreUnhooker = ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.policy.HeadsUpManagerInjector", lpparam.classLoader, "miuiHeadsUpInset", Context::class.java, object : MethodHook() {
             private var mHeadsUpPaddingTop = 0
             private var mHeadsUpHeight = 0
             override fun intercept(chain: XposedInterface.Chain): Any? {
@@ -763,6 +763,9 @@ object SystemNotificationHooks {
                 return XposedHelpers.throwOrReturn(throwable, result)
             }
         })
+        checkNotNull(coreUnhooker) {
+            "Required BetterPopupsCentered hook was not installed: HeadsUpManagerInjector.miuiHeadsUpInset"
+        }
     }
 
 }
