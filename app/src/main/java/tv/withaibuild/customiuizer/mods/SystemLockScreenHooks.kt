@@ -417,33 +417,62 @@ object SystemLockScreenHooks {
 
         ModuleHelper.findAndHookMethod("com.android.systemui.keyguard.KeyguardViewMediator", lpparam.classLoader, "doKeyguardLocked", Bundle::class.java, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
-                var skipped = false
-                var result: Any? = null
-                var throwable: Throwable? = null
                 val thisObject = chain.thisObject
-                try {
 
-                    if (forcedOption == 0) { return XposedHelpers.proceedOrThrow(chain, throwable) }
-                    val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
-                    if (!isUnlocked(mContext, lpparam.classLoader)) { return XposedHelpers.proceedOrThrow(chain, throwable) }
+                if (forcedOption == 0) { return chain.proceed() }
 
-                    val skip = MainModule.mPrefs.getBoolean("system_noscreenlock_skip")
-                    if (skip) {
+                val mContext = try {
+                    XposedHelpers.getObjectField(thisObject, "mContext") as Context
+                } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
+                    XposedHelpers.log(t)
+                    return chain.proceed()
+                }
+
+                val unlocked = try {
+                    isUnlocked(mContext, lpparam.classLoader)
+                } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
+                    XposedHelpers.log(t)
+                    return chain.proceed()
+                }
+
+                if (!unlocked) { return chain.proceed() }
+
+                val skip = try {
+                    MainModule.mPrefs.getBoolean("system_noscreenlock_skip")
+                } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
+                    XposedHelpers.log(t)
+                    return chain.proceed()
+                }
+
+                if (skip) {
+                    try {
                         XposedHelpers.callMethod(thisObject, "keyguardDone")
-                        skipped = true; result = null; throwable = null
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        if (t is XposedHelpers.InvocationTargetError) {
+                            throw t
+                        }
+                        XposedHelpers.log(t)
+                        return chain.proceed()
                     }
-                    isUnlockedInnerCall = true
+                }
+
+                isUnlockedInnerCall = true
+                try {
                     val unlockIntent = Intent(GlobalActions.ACTION_PREFIX + "UnlockStrongAuth")
                     unlockIntent.setPackage("com.android.systemui")
                     mContext.sendBroadcast(unlockIntent)
-
-                    if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed()
                 } catch (t: Throwable) {
-                    throwable = t
-                    result = null
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
+                    XposedHelpers.log(t)
                 }
-                return XposedHelpers.throwOrReturn(throwable, result)
+
+                if (skip) { return null }
+
+                return chain.proceed()
             }
         })
 
