@@ -1386,6 +1386,10 @@ object SystemLockScreenHooks {
      *   so the registry can retry, but only after the previous failed attempt.
      * - The font/single-line hook on [KeyguardIndicationTextView#onFinishInflate] is optional.
      *   Its failure is recorded by [HookInstallerFacade] but does not fail the feature.
+     * - A secondary hook on [KeyguardIndicationTextView#setNextIndication] re-applies the
+     *   custom style after the ROM calls [TextView.setTextAppearance] inside
+     *   [setNextIndication], which would otherwise reset the custom font size on every
+     *   indication update. This hook is optional; its failure does not fail the feature.
      * - An owner-bound preference observer is attached to each inflated view so the style is
      *   re-applied when the user changes the setting while SystemUI is running.
      *
@@ -1470,6 +1474,43 @@ object SystemLockScreenHooks {
                         // inflation. Any cold-boot gap must be reproduced and fixed with a device.
                         val observer = createChargingInfoPreferenceObserver(indicator)
                         ModuleHelper.observePreferenceChange(observer, indicator)
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log(t)
+                    }
+                    return XposedHelpers.throwOrReturn(throwable, result)
+                }
+            }
+        )
+
+        // Secondary live-style route: re-apply the custom charging style after the ROM updates
+        // the indication. AOSP KeyguardIndicationTextView.setNextIndication() calls
+        // setTextAppearance(sStyleId) which resets textSize to the style default, overwriting
+        // the custom size applied by the observer or onFinishInflate. Hooking after
+        // setNextIndication ensures applyChargingInfoStyle runs last, so the custom font size
+        // survives the ROM style reset. This hook is optional: if the method is absent or
+        // renamed on a given ROM build, the feature still works through the core
+        // ChargeUtils hook and the onFinishInflate path; failure here does not affect the
+        // FeatureInstallResult.
+        ModuleHelper.findAndHookMethod(
+            "com.android.systemui.statusbar.phone.KeyguardIndicationTextView",
+            lpparam.classLoader,
+            "setNextIndication",
+            object : MethodHook() {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    var result: Any?
+                    var throwable: Throwable? = null
+                    try {
+                        result = chain.proceed()
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        throwable = t
+                        result = null
+                    }
+                    try {
+                        val indicator = chain.thisObject as? TextView
+                            ?: return XposedHelpers.throwOrReturn(throwable, result)
+                        applyChargingInfoStyle(indicator)
                     } catch (t: Throwable) {
                         FatalErrors.unwrapAndRethrowIfFatal(t)
                         XposedHelpers.log(t)
