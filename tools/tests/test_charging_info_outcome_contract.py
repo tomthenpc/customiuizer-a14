@@ -25,21 +25,45 @@ def _find_block_end(text: str, open_offset: int) -> int:
     """Mirror of source_hazard_scan.find_block_end using simple brace counting."""
     depth = 0
     in_string: str | None = None
+    in_line_comment = False
+    in_block_comment = False
     i = open_offset
     while i < len(text):
         ch = text[i]
+        if in_line_comment:
+            if ch == "\n":
+                in_line_comment = False
+            i += 1
+            continue
+        if in_block_comment:
+            if ch == "*" and i + 1 < len(text) and text[i + 1] == "/":
+                in_block_comment = False
+                i += 2
+                continue
+            i += 1
+            continue
         if in_string:
             if ch == in_string and text[i - 1] != "\\":
                 in_string = None
             i += 1
             continue
-        if ch in ('"', "'", "`"):
+        # Start of line comment
+        if ch == "/" and i + 1 < len(text) and text[i + 1] == "/":
+            in_line_comment = True
+            i += 2
+            continue
+        # Start of block comment
+        if ch == "/" and i + 1 < len(text) and text[i + 1] == "*":
+            in_block_comment = True
+            i += 2
+            continue
+        if ch in ('"', "'", '`'):
             in_string = ch
             i += 1
             continue
-        if ch == "{":
+        if ch == '{':
             depth += 1
-        elif ch == "}":
+        elif ch == '}':
             depth -= 1
             if depth == 0:
                 return i
