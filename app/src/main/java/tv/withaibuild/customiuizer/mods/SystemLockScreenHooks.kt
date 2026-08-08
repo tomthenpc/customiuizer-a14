@@ -295,6 +295,45 @@ object SystemLockScreenHooks {
 
     @JvmStatic
     fun NoScreenLockHook(lpparam: PackageReadyParam) {
+        // Preflight: resolve all required ROM methods before installing any hook.
+        // Each findMethodExact also verifies its declaring class. If any core class
+        // or method is missing, throw so FeatureInstallRegistry catches and marks
+        // the feature FAILED_TRANSIENT instead of silently installing a partial set.
+        XposedHelpers.findMethodExact(
+            "com.android.systemui.keyguard.KeyguardViewMediator",
+            lpparam.classLoader,
+            "handleKeyguardDone"
+        )
+        XposedHelpers.findMethodExact(
+            "com.android.keyguard.KeyguardUpdateMonitor",
+            lpparam.classLoader,
+            "onFingerprintAuthenticated",
+            Int::class.javaPrimitiveType!!,
+            Boolean::class.javaPrimitiveType!!
+        )
+        XposedHelpers.findMethodExact(
+            "com.android.keyguard.KeyguardSecurityContainerController",
+            lpparam.classLoader,
+            "onInit"
+        )
+        XposedHelpers.findMethodExact(
+            "com.android.systemui.keyguard.KeyguardViewMediator",
+            lpparam.classLoader,
+            "doKeyguardLocked",
+            Bundle::class.java
+        )
+        XposedHelpers.findMethodExact(
+            "com.android.systemui.keyguard.KeyguardViewMediator",
+            lpparam.classLoader,
+            "setupLocked"
+        )
+        XposedHelpers.findMethodExact(
+            "com.android.keyguard.KeyguardSecurityModel",
+            lpparam.classLoader,
+            "getSecurityMode",
+            Int::class.javaPrimitiveType!!
+        )
+
         ModuleHelper.findAndHookMethod("com.android.systemui.keyguard.KeyguardViewMediator", lpparam.classLoader, "handleKeyguardDone", object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any?
