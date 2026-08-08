@@ -378,16 +378,16 @@ object LauncherGestureHooks {
 
     @JvmStatic
     fun FSGesturesHook(lpparam: PackageReadyParam) {
+        val baseRecentsClass = installForceFsgNavBarCallerScope(lpparam.classLoader)
         ModuleHelper.findAndHookMethod("com.miui.home.launcher.DeviceConfig", lpparam.classLoader, "usingFsGesture", HookerClassHelper.returnConstant(true))
-
-        ModuleHelper.findAndHookMethodSilently("com.miui.home.recents.BaseRecentsImpl", lpparam.classLoader, "createAndAddNavStubView", object : MethodHook() {
+        ModuleHelper.findAndHookMethodSilently(baseRecentsClass, "createAndAddNavStubView", object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var skipped = false
                 var result: Any? = null
                 var throwable: Throwable? = null
                 try {
                     val fsg = XposedHelpers.getAdditionalStaticField(
-                        XposedHelpers.findClass("com.miui.home.recents.BaseRecentsImpl", lpparam.classLoader),
+                        baseRecentsClass,
                         "REAL_FORCE_FSG_NAV_BAR"
                     ) as Boolean
                     if (!fsg) { skipped = true; result = null; throwable = null }
@@ -401,7 +401,7 @@ object LauncherGestureHooks {
             }
         })
 
-        ModuleHelper.findAndHookMethodSilently("com.miui.home.recents.BaseRecentsImpl", lpparam.classLoader, "updateFsgWindowState", object : MethodHook() {
+        ModuleHelper.findAndHookMethodSilently(baseRecentsClass, "updateFsgWindowState", object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
                 var throwable: Throwable? = null
@@ -415,7 +415,7 @@ object LauncherGestureHooks {
                     val thisObject = chain.getThisObject()
 
                     val fsg = XposedHelpers.getAdditionalStaticField(
-                        XposedHelpers.findClass("com.miui.home.recents.BaseRecentsImpl", lpparam.classLoader),
+                        baseRecentsClass,
                         "REAL_FORCE_FSG_NAV_BAR"
                     ) as Boolean
                     if (fsg) { return XposedHelpers.throwOrReturn(throwable, result) }
@@ -448,18 +448,18 @@ object LauncherGestureHooks {
 
                     if (chain.getArg(1) != "force_fsg_nav_bar") { return XposedHelpers.throwOrReturn(throwable, result) }
 
-                    for (el in Thread.currentThread().stackTrace) {
-                        if ("com.miui.home.recents.BaseRecentsImpl" == el.className) {
-                            XposedHelpers.setAdditionalStaticField(
-                                XposedHelpers.findClass("com.miui.home.recents.BaseRecentsImpl", lpparam.classLoader),
-                                "REAL_FORCE_FSG_NAV_BAR",
-                                result
-                            )
-                            result = true
-                            throwable = null
-                            return XposedHelpers.throwOrReturn(throwable, result)
-                        }
+                    if (forceFsgNavBarCallerScope.isActive()) {
+                        XposedHelpers.setAdditionalStaticField(
+                            baseRecentsClass,
+                            "REAL_FORCE_FSG_NAV_BAR",
+                            result
+                        )
+                        result = true
+                        throwable = null
+                        return XposedHelpers.throwOrReturn(throwable, result)
                     }
+                    // The caller wrappers restore depth in finally, including nested failures.
+                    // Non-caller queries keep the ROM result and throwable unchanged.
 
                 } catch (t: Throwable) {
                     XposedHelpers.log(t)

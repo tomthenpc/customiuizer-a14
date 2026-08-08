@@ -85,6 +85,20 @@ M1 不修改 `XposedHelpers.java`、全局注册表或其他 View。验收重点
 
 #### M2.1 Launcher `force_fsg_nav_bar`
 
+工程已于 2026-08-09 完成：
+
+- 目标设备为 `fuxi`，HyperOS `V816.0.7.0.UMCTWXM`，Android 14 / SDK 34；
+- 设备 Launcher 为 `RELEASE-4.39.30.8604-08262248`（versionCode `439308604`），
+  `/product/priv-app/MiuiHome/MiuiHome.apk` 的 SHA-256 为
+  `A6546D51D9220039ED7AC143DE249E9014202CFAFEAFD715237EB49F8F5A3F7B`；
+- 设备 APK 字节码中的 `BaseRecentsImpl` 有 109 个声明方法，只有
+  `updateFsgWindowState()`、`lambda$showBackStubWindow$...` 和
+  `lambda$updateFsgWindowVisibilityState$...` 三种精确签名直接读取该键；
+- 安装冷路径按方法前缀、返回类型和参数签名要求三类目标各且仅有一个，避免写死
+  synthetic lambda 编号；热路径改为带 `finally` 清理的 `ThreadLocal<Int>` 重入标记；
+- 本次设备只用于提取和核对 ROM 字节码，尚未安装本分支 APK 或执行手势实机回归，
+  因此运行状态仍为 `DEVICE_RUNTIME_PENDING`。
+
 - 仅替换 `MiuiSettingsUtils.getGlobalBoolean(..., "force_fsg_nav_bar")` 对
   `BaseRecentsImpl` 调用来源的识别；
 - 保留原始值缓存、强制返回 `true` 的条件、异常传播和 `chain.proceed()` 次数；
