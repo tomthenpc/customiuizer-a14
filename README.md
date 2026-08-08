@@ -56,6 +56,6 @@ python tools/verify.py full
 - 高频 Hook 避免临时数组、集合、Regex、格式化、重复反射和远程偏好读取；
 - Java 到 Kotlin 采用行为等价迁移，并配套测试和静态门禁；
 - 保留 `MainModule.java`、`XposedHelpers.java`、`MemberUtilsX.java` 的 JVM / 框架边界；
-- 细粒度历史见 Git commits 和 tags，发布变化见 [CHANGELOG.md](CHANGELOG.md)。
+- 细粒度历史见 Git commits 和 tags，发布变化见 [CHANGELOG_CN.md](CHANGELOG_CN.md)。
 
 项目依据 GPL-3.0 分发，派生自 Mikanoshi/CustoMIUIzer，并参考 MonwF/customiuizer 的 Android 14 工作。

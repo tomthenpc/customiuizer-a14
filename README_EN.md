@@ -56,6 +56,6 @@ See [BUILD_AND_VERIFICATION.md](docs/BUILD_AND_VERIFICATION.md) for the complete
 - Frequent Hooks avoid temporary arrays, collections, Regex, formatting, repeated reflection, and remote preference reads.
 - Java-to-Kotlin migration remains behavior-equivalent and is paired with tests and static gates.
 - `MainModule.java`, `XposedHelpers.java`, and `MemberUtilsX.java` remain as JVM/framework boundaries.
-- Fine-grained history is available in Git commits and tags; release changes are in [CHANGELOG_EN.md](CHANGELOG_EN.md).
+- Fine-grained history is available in Git commits and tags; release changes are in [CHANGELOG.md](CHANGELOG.md).
 
 Distributed under GPL-3.0. Derived from Mikanoshi/CustoMIUIzer with Android 14 work referenced from MonwF/customiuizer.
