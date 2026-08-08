@@ -155,6 +155,18 @@ object SystemNotificationHooks {
 
     @JvmStatic
     fun BetterPopupsNoHideHook(lpparam: PackageReadyParam) {
+        // Preflight: resolve all required ROM classes and methods before installing
+        // any hook. If the ROM contract is missing, throw so FeatureInstallRegistry
+        // catches and marks the feature FAILED_TRANSIENT instead of silently
+        // installing zero hooks (false success).
+        XposedHelpers.findClass("com.android.systemui.statusbar.policy.HeadsUpManager", lpparam.classLoader)
+        XposedHelpers.findClass("com.android.systemui.statusbar.policy.HeadsUpManager\$HeadsUpEntry", lpparam.classLoader)
+
+        XposedHelpers.findMethodExact("com.android.systemui.statusbar.policy.HeadsUpManager", lpparam.classLoader, "removeHeadsUpNotification")
+        XposedHelpers.findMethodExact("com.android.systemui.statusbar.policy.HeadsUpManager", lpparam.classLoader, "removeOldHeadsUpNotification")
+        XposedHelpers.findMethodExact("com.android.systemui.statusbar.policy.HeadsUpManager", lpparam.classLoader, "onExpandingFinished")
+        XposedHelpers.findMethodExact("com.android.systemui.statusbar.policy.HeadsUpManager\$HeadsUpEntry", lpparam.classLoader, "updateEntry", Boolean::class.javaPrimitiveType!!)
+
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.policy.HeadsUpManager", lpparam.classLoader, "removeHeadsUpNotification", HookerClassHelper.DO_NOTHING)
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.policy.HeadsUpManager", lpparam.classLoader, "removeOldHeadsUpNotification", HookerClassHelper.DO_NOTHING)
 
