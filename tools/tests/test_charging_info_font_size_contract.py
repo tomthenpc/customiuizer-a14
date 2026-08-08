@@ -188,20 +188,28 @@ class ChargingInfoFontSizeContractTest(unittest.TestCase):
         """A secondary hook on setNextIndication must re-apply the style after the ROM resets it.
 
         This is a static source contract check only; it does not prove HyperOS runtime
-        behavior. It protects the corrective route from accidental removal.
+        behavior. It protects the corrective route from accidental removal or regression
+        to a custom intercept state machine.
         """
         # The hook must target setNextIndication on KeyguardIndicationTextView.
         self.assertIn('"setNextIndication"', self.kt_text,
                       "ChargingInfoHook must hook setNextIndication")
-        # It must call applyChargingInfoStyle inside that hook's after path.
-        # Locate the setNextIndication hook block and verify applyChargingInfoStyle is called
-        # after chain.proceed() within it.
         idx = self.kt_text.index('"setNextIndication"')
-        block = self.kt_text[idx:idx + 800]
-        self.assertIn("chain.proceed()", block,
-                      "setNextIndication hook must call chain.proceed() before re-applying style")
+        block = self.kt_text[idx:idx + 400]
+        # Must use the native after callback, not a custom intercept state machine.
+        self.assertIn("override fun after", block,
+                      "setNextIndication hook must use override fun after")
+        self.assertIn("AfterHookCallback", block,
+                      "setNextIndication hook must use AfterHookCallback")
+        self.assertIn("getThisObject", block,
+                      "setNextIndication hook must read thisObject via getThisObject")
         self.assertIn("applyChargingInfoStyle", block,
-                      "setNextIndication hook must call applyChargingInfoStyle after proceed")
+                      "setNextIndication hook must call applyChargingInfoStyle")
+        # Must not regress to a custom intercept/chain.proceed state machine.
+        self.assertNotIn("override fun intercept", block,
+                         "setNextIndication hook must not use custom intercept")
+        self.assertNotIn("chain.proceed", block,
+                         "setNextIndication hook must not call chain.proceed directly")
         # The hook must be inside ChargingInfoHook (before the return INSTALLED).
         hook_idx = self.kt_text.index("fun ChargingInfoHook(")
         self.assertGreater(idx, hook_idx,
