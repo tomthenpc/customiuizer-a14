@@ -116,8 +116,16 @@ object SystemNotificationHooks {
 
     @JvmStatic
     fun BetterPopupsHideDelayHook(lpparam: PackageReadyParam) {
+        // Preflight: resolve required ROM class and fields before installing
+        // any hook. If the ROM contract is missing, throw so FeatureInstallRegistry
+        // catches and marks the feature FAILED_TRANSIENT instead of silently
+        // installing zero hooks (false success).
+        val headsUpManagerClass = XposedHelpers.findClass("com.android.systemui.statusbar.policy.HeadsUpManager", lpparam.classLoader)
+        XposedHelpers.findField(headsUpManagerClass, "mMinimumDisplayTime")
+        XposedHelpers.findField(headsUpManagerClass, "mHeadsUpNotificationDecay")
+
         ModuleHelper.findAndHookMethodSilently(MiuiNotification::class.java, "getFloatTime", HookerClassHelper.returnConstant(0))
-        ModuleHelper.hookAllConstructors("com.android.systemui.statusbar.policy.HeadsUpManager", lpparam.classLoader, object : MethodHook() {
+        ModuleHelper.hookAllConstructors(headsUpManagerClass, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any?
                 var throwable: Throwable? = null

@@ -94,6 +94,45 @@ class SystemNotificationHooksTest {
         )
     }
 
+    @Test
+    fun betterPopupsHideDelayHook_preflightsRequiredClassAndFieldsBeforeAnyHookInstallation() {
+        val source = sourceFile(
+            "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemNotificationHooks.kt"
+        ).readText()
+        val fnStart = source.indexOf("fun BetterPopupsHideDelayHook(")
+        assertTrue("BetterPopupsHideDelayHook must exist", fnStart >= 0)
+
+        val fnBody = source.substring(fnStart)
+
+        val findClassPos = fnBody.indexOf("findClass(\"com.android.systemui.statusbar.policy.HeadsUpManager\", lpparam.classLoader)")
+        assertTrue("Preflight must resolve HeadsUpManager class", findClassPos >= 0)
+
+        val findMinDisplayTime = fnBody.indexOf("findField(headsUpManagerClass, \"mMinimumDisplayTime\")")
+        val findDecay = fnBody.indexOf("findField(headsUpManagerClass, \"mHeadsUpNotificationDecay\")")
+        assertTrue("Preflight must resolve mMinimumDisplayTime field", findMinDisplayTime >= 0)
+        assertTrue("Preflight must resolve mHeadsUpNotificationDecay field", findDecay >= 0)
+
+        val firstSilentHook = fnBody.indexOf("ModuleHelper.findAndHookMethodSilently(")
+        val firstConstructorHook = fnBody.indexOf("ModuleHelper.hookAllConstructors(")
+        assertTrue("At least one hook installation must exist", firstSilentHook >= 0)
+        assertTrue("Constructor hook must exist", firstConstructorHook >= 0)
+
+        val firstHookInstall = minOf(firstSilentHook, firstConstructorHook)
+
+        val preflightMax = maxOf(findClassPos, findMinDisplayTime, findDecay)
+        assertTrue(
+            "All preflight class/field resolutions must happen before the first hook installation",
+            preflightMax < firstHookInstall
+        )
+
+        // Verify hookAllConstructors uses the resolved Class, not a string re-resolution.
+        val constructorCall = fnBody.substring(firstConstructorHook, firstConstructorHook + 80)
+        assertTrue(
+            "hookAllConstructors must use the resolved headsUpManagerClass, not a string class name",
+            constructorCall.contains("hookAllConstructors(headsUpManagerClass,")
+        )
+    }
+
     private fun sourceFile(relativePath: String): File {
         var directory = File(requireNotNull(java.lang.System.getProperty("user.dir"))).absoluteFile
         while (true) {
