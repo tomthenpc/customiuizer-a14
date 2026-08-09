@@ -205,52 +205,57 @@ class AudioVisualizer @JvmOverloads constructor(
         AUTO, LINES, PATH
     }
 
-    private val preferenceObserver = object : ModuleHelper.PreferenceObserver {
-        override fun onChange(key: String?) {
-            if (detached) return
-            try {
-                when (key) {
-                    "system_visualizer_animdur" ->
-                        animDur = MainModule.mPrefs.getInt("system_visualizer_animdur", 65)
-                    "system_visualizer_transp" -> {
-                        transparency = (255f - 255f * MainModule.mPrefs.getInt("system_visualizer_transp", 40) / 100f).roundToInt()
-                        setColor(mOpaqueColor)
-                        updateRainbowColors()
-                    }
-                    "system_visualizer_color" -> {
-                        colorMode = ColorMode.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_color", 1)]
-                        updateBarStyle()
-                        updateColorMode()
-                    }
-                    "system_visualizer_style" -> {
-                        barStyle = BarStyle.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_style", 1)]
-                        updateBarStyle()
-                    }
-                    "system_visualizer_render" -> {
-                        renderType = RenderType.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_render", 0)]
-                        updateBarStyle()
-                    }
-                    "system_visualizer_glowlevel" -> {
-                        glowLevel = MainModule.mPrefs.getInt("system_visualizer_glowlevel", 50)
-                        updateGlowPaint()
-                    }
-                    "system_visualizer_colorval" -> {
-                        customColor = MainModule.mPrefs.getInt("system_visualizer_colorval", Color.WHITE)
-                        setColor(customColor)
-                    }
-                    "system_visualizer_dyntime" -> {
-                        randomizeInterval = MainModule.mPrefs.getInt("system_visualizer_dyntime", 10) * 1000
-                        randomizeColorJob?.cancel()
-                        randomizeColorJob = viewScope.launch { runRandomizeColor() }
-                    }
-                    "system_visualizer_drawer" ->
-                        showInDrawer = MainModule.mPrefs.getBoolean("system_visualizer_drawer", false)
-                    "system_visualizer_controller" ->
-                        showWithControllerOnly = MainModule.mPrefs.getBoolean("system_visualizer_controller", false)
-                }
-            } catch (t: Throwable) {
-                XposedHelpers.log(t)
+    private val preferenceObserver = AudioVisualizerPreferenceObserver(this)
+
+    private fun handlePreferenceChanged(key: String?) = ModuleHelper.guarded {
+        if (detached) return@guarded
+        when (key) {
+            "system_visualizer_animdur" ->
+                animDur = MainModule.mPrefs.getInt("system_visualizer_animdur", 65)
+            "system_visualizer_transp" -> {
+                transparency = (255f - 255f * MainModule.mPrefs.getInt("system_visualizer_transp", 40) / 100f).roundToInt()
+                setColor(mOpaqueColor)
+                updateRainbowColors()
             }
+            "system_visualizer_color" -> {
+                colorMode = ColorMode.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_color", 1)]
+                updateBarStyle()
+                updateColorMode()
+            }
+            "system_visualizer_style" -> {
+                barStyle = BarStyle.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_style", 1)]
+                updateBarStyle()
+            }
+            "system_visualizer_render" -> {
+                renderType = RenderType.values()[MainModule.mPrefs.getStringAsInt("system_visualizer_render", 0)]
+                updateBarStyle()
+            }
+            "system_visualizer_glowlevel" -> {
+                glowLevel = MainModule.mPrefs.getInt("system_visualizer_glowlevel", 50)
+                updateGlowPaint()
+            }
+            "system_visualizer_colorval" -> {
+                customColor = MainModule.mPrefs.getInt("system_visualizer_colorval", Color.WHITE)
+                setColor(customColor)
+            }
+            "system_visualizer_dyntime" -> {
+                randomizeInterval = MainModule.mPrefs.getInt("system_visualizer_dyntime", 10) * 1000
+                randomizeColorJob?.cancel()
+                randomizeColorJob = viewScope.launch { runRandomizeColor() }
+            }
+            "system_visualizer_drawer" ->
+                showInDrawer = MainModule.mPrefs.getBoolean("system_visualizer_drawer", false)
+            "system_visualizer_controller" ->
+                showWithControllerOnly = MainModule.mPrefs.getBoolean("system_visualizer_controller", false)
+        }
+    }
+
+    private class AudioVisualizerPreferenceObserver(owner: AudioVisualizer) :
+        ModuleHelper.PreferenceObserver {
+        private val ownerRef = java.lang.ref.WeakReference(owner)
+
+        override fun onChange(key: String?) {
+            ownerRef.get()?.handlePreferenceChanged(key)
         }
     }
 
