@@ -56,9 +56,15 @@ object SystemUILockScreenHooks {
     @Volatile
     private var swipeSuppressionObserverRegistered = false
 
-    private fun refreshSwipeSuppression() {
+    internal fun refreshSwipeSuppression() {
         swipeRightOff = MainModule.mPrefs.getBoolean(PREF_SWIPE_RIGHT_OFF)
         swipeLeftOff = MainModule.mPrefs.getBoolean(PREF_SWIPE_LEFT_OFF)
+    }
+
+    internal fun onSwipeSuppressionPreferenceChanged(key: String?) {
+        if (key == null || key == PREF_SWIPE_RIGHT_OFF || key == PREF_SWIPE_LEFT_OFF) {
+            refreshSwipeSuppression()
+        }
     }
 
     @JvmStatic
@@ -68,12 +74,19 @@ object SystemUILockScreenHooks {
         swipeSuppressionObserverRegistered = true
         ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
             override fun onChange(key: String?) = ModuleHelper.guarded {
-                if (key == null || key == PREF_SWIPE_RIGHT_OFF || key == PREF_SWIPE_LEFT_OFF) {
-                    refreshSwipeSuppression()
-                }
+                onSwipeSuppressionPreferenceChanged(key)
             }
         })
     }
+
+    /** Test-only accessors for the volatile swipe suppression snapshots. */
+    internal fun setSwipeSuppressionForTest(right: Boolean, left: Boolean) {
+        swipeRightOff = right
+        swipeLeftOff = left
+    }
+
+    internal fun getSwipeRightOffForTest() = swipeRightOff
+    internal fun getSwipeLeftOffForTest() = swipeLeftOff
 
     @JvmStatic
     fun LockScreenTopMarginHook(lpparam: PackageReadyParam) {
@@ -347,49 +360,74 @@ object SystemUILockScreenHooks {
         }
 
         installSwipeSuppressionSnapshot()
+
         ModuleHelper.findAndHookMethod("com.android.keyguard.KeyguardMoveHelper", lpparam.classLoader, "setTranslation", Float::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val rightOff = swipeRightOff
-                val leftOff = swipeLeftOff
-                if (!rightOff && !leftOff) return
-                val mCurrentScreen = XposedHelpers.getIntField(param.getThisObject(), "mCurrentScreen")
-                if (mCurrentScreen != 1) return
-                val translation = param.getArgs()[0] as Float
-                if ((translation < 0 && rightOff) || (translation > 0 && leftOff)) {
-                    param.getArgs()[0] = 0.0f
-                }
+                onKeyguardMoveHelperSetTranslationBefore(param)
             }
         })
 
-        if (swipeRightOff) {
-            ModuleHelper.findAndHookMethod("com.android.keyguard.KeyguardMoveHelper", lpparam.classLoader, "endMotion", Float::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
-                override fun before(param: BeforeHookCallback) {
-                    val mCurrentScreen = XposedHelpers.getIntField(param.getThisObject(), "mCurrentScreen")
-                    if (mCurrentScreen != 1) return
-                    val mTranslation = XposedHelpers.getFloatField(param.getThisObject(), "mTranslation")
-                    val velocityTracker = XposedHelpers.getObjectField(param.getThisObject(), "mVelocityTracker") as VelocityTracker?
-                    val xVelocity: Float = if (velocityTracker == null) {
-                        0.0f
-                    } else {
-                        velocityTracker.computeCurrentVelocity(1000)
-                        velocityTracker.xVelocity
-                    }
-                    if (xVelocity * mTranslation < 0.01f) {
-                        param.returnAndSkip(null)
-                    }
-                }
-            })
-            ModuleHelper.hookAllMethods("com.android.keyguard.KeyguardMoveRightController", lpparam.classLoader, "onTouchDown", object : MethodHook() {
-                override fun before(param: BeforeHookCallback) {
-                    param.returnAndSkip(null)
-                }
-            })
-            ModuleHelper.hookAllMethods("com.android.keyguard.KeyguardMoveRightController", lpparam.classLoader, "onTouchMove", object : MethodHook() {
-                override fun before(param: BeforeHookCallback) {
-                    param.returnAndSkip(true)
-                }
-            })
+        ModuleHelper.findAndHookMethod("com.android.keyguard.KeyguardMoveHelper", lpparam.classLoader, "endMotion", Float::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
+            override fun before(param: BeforeHookCallback) {
+                onKeyguardMoveHelperEndMotionBefore(param)
+            }
+        })
+
+        ModuleHelper.hookAllMethods("com.android.keyguard.KeyguardMoveRightController", lpparam.classLoader, "onTouchDown", object : MethodHook() {
+            override fun before(param: BeforeHookCallback) {
+                onKeyguardMoveRightControllerOnTouchDownBefore(param)
+            }
+        })
+
+        ModuleHelper.hookAllMethods("com.android.keyguard.KeyguardMoveRightController", lpparam.classLoader, "onTouchMove", object : MethodHook() {
+            override fun before(param: BeforeHookCallback) {
+                onKeyguardMoveRightControllerOnTouchMoveBefore(param)
+            }
+        })
+    }
+
+    /**
+     * Swipe suppression callbacks. These are installed once and remain permanent;
+     * live preference changes are gated by the volatile [swipeRightOff]/[swipeLeftOff]
+     * snapshots instead of dynamic hook install/uninstall.
+     */
+    internal fun onKeyguardMoveHelperSetTranslationBefore(param: BeforeHookCallback) {
+        val rightOff = swipeRightOff
+        val leftOff = swipeLeftOff
+        if (!rightOff && !leftOff) return
+        val mCurrentScreen = XposedHelpers.getIntField(param.getThisObject(), "mCurrentScreen")
+        if (mCurrentScreen != 1) return
+        val translation = param.getArgs()[0] as Float
+        if ((translation < 0 && rightOff) || (translation > 0 && leftOff)) {
+            param.getArgs()[0] = 0.0f
         }
+    }
+
+    internal fun onKeyguardMoveHelperEndMotionBefore(param: BeforeHookCallback) {
+        if (!swipeRightOff) return
+        val mCurrentScreen = XposedHelpers.getIntField(param.getThisObject(), "mCurrentScreen")
+        if (mCurrentScreen != 1) return
+        val mTranslation = XposedHelpers.getFloatField(param.getThisObject(), "mTranslation")
+        val velocityTracker = XposedHelpers.getObjectField(param.getThisObject(), "mVelocityTracker") as VelocityTracker?
+        val xVelocity: Float = if (velocityTracker == null) {
+            0.0f
+        } else {
+            velocityTracker.computeCurrentVelocity(1000)
+            velocityTracker.xVelocity
+        }
+        if (xVelocity * mTranslation < 0.01f) {
+            param.returnAndSkip(null)
+        }
+    }
+
+    internal fun onKeyguardMoveRightControllerOnTouchDownBefore(param: BeforeHookCallback) {
+        if (!swipeRightOff) return
+        param.returnAndSkip(null)
+    }
+
+    internal fun onKeyguardMoveRightControllerOnTouchMoveBefore(param: BeforeHookCallback) {
+        if (!swipeRightOff) return
+        param.returnAndSkip(true)
     }
 
     @JvmStatic
