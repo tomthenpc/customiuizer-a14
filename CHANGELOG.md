@@ -10,14 +10,15 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/10
 
 - Rebuilt settings navigation around lazily generated category pages and a generated search index, reducing initial Preference creation while removing transition residue and reorganizing the Various section.
 - Removed repeated caller stack scans from Launcher gestures, charging hints, and Security Center dock handling; added bounded process-local routing and setup metrics without moving work into hot paths.
-- Fixed AudioVisualizer and battery-indicator observer ownership, startup activation-state races, status-bar inset/window geometry propagation, and stale app selections restored from backups.
+- Fixed AudioVisualizer and battery-indicator observer ownership, startup activation-state races, and stale app selections restored from backups.
+- Fixed custom status-bar height in apps where only the icons moved while the actual status-bar/content area kept the stock height; WindowInsets and app-window geometry now follow the configured height.
 - Clarified input-method naming: the category is generic while Gboard-only padding controls remain explicitly labeled.
-- Added HyperOS charging/silent/DND status-capsule controls as an **in-development** feature. A real charging capsule was triggered, but height matching did not pass device acceptance and is not claimed as verified.
+- Added **in-development** HyperOS status-capsule controls for charging, silent mode, and Do Not Disturb; status-bar height matching remains under compatibility work.
 
 ### Verification Boundary
 
 - Unified static rules, invariants, Python tests, Android JVM tests, compilation, and lint passed; the official APK is additionally checked during release publication.
-- Device testing confirmed the real HyperOS StrongToast path and preserved battery state after simulation; status-capsule height matching remains pending.
+- Charging-scenario integration is complete; status-capsule height matching remains under compatibility work.
 
 ### Artifact Information
 
