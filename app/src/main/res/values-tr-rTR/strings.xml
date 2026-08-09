@@ -542,8 +542,8 @@ ss - iki basamaklı saniye(09)</string>
     <string name="various_installappinfo_vercode">Sürüm kodu</string>
     <string name="various_installappinfo_sdk">Desteklenen SDK</string>
     <string name="various_alarmcompat_title">Çalar saat uyumluluğu</string>
-    <string name="various_gboardpadding_port_title">Dikey olarak alt dolgu</string>
-    <string name="various_gboardpadding_land_title">Yatayda alt dolgu</string>
+    <string name="various_gboardpadding_port_title">Gboard dikey alt dolgusu</string>
+    <string name="various_gboardpadding_land_title">Gboard yatay alt dolgusu</string>
     <string name="various_answerinheadup_title">Bir aramayı yanıtlarken aramaları bildirimde tutun</string>
     <string name="various_showcallui_title">Çağrı kullanıcı arayüzünü göster</string>
     <string name="various_showcallui_summ">Açılır bildirim yerine gelen arama için kullanıcı arayüzünün ne zaman görüntülenmesi gerektiğini tanımlayın</string>

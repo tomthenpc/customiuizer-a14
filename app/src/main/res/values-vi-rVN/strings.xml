@@ -605,8 +605,8 @@
     <string name="various_installappinfo_sdk">SDK hỗ trợ</string>
     <string name="various_alarmcompat_title">Khả năng tương thích báo thức</string>
     <string name="various_alarmcompat_summ">Làm cho các ứng dụng đã chọn hiển thị chính xác thời gian báo thức tiếp theo được đặt theo kho ứng dụng HyperOS Đồng hồ</string>
-    <string name="various_gboardpadding_port_title">Khoảng dưới cùng màn hình dọc</string>
-    <string name="various_gboardpadding_land_title">Khoảng dưới cùng màn hình ngang</string>
+    <string name="various_gboardpadding_port_title">Khoảng đệm dưới Gboard ở chế độ dọc</string>
+    <string name="various_gboardpadding_land_title">Khoảng đệm dưới Gboard ở chế độ ngang</string>
     <string name="various_answerinheadup_title">Giữ cuộc gọi trong thông báo khi trả lời cuộc gọi</string>
     <string name="various_showcallui_title">Hiển thị giao diện cuộc gọi</string>
     <string name="various_showcallui_summ">Xác định giao diện sẽ hiển thị khi có cuộc gọi đến</string>

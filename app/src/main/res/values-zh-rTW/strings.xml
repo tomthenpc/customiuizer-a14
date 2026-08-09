@@ -806,8 +806,8 @@
     <string name="system_cc_tile_roundedrect_title">圓角矩形磁貼</string>
     <string name="system_cc_enable_style_switch_title">強制開啟控制中心樣式切換</string>
     <string name="system_cc_collapse_after_clicked_title">單擊開關後自動收起</string>
-    <string name="system_statusbar_focus_notification_title">狀態列焦點通知</string>
-    <string name="system_statusbar_focus_notification_summ">控制 HyperOS 1/2 的狀態列焦點通知（俗稱靈動額頭）；不修改 HyperOS 3 小米超級島。</string>
-    <string name="system_statusbar_focus_notification_mode_match_height">符合狀態列高度</string>
-    <string name="system_statusbar_focus_notification_mode_hide">隱藏狀態列提示</string>
+    <string name="system_strong_toast_title">靈動額頭</string>
+    <string name="system_strong_toast_summ">控制充電、靜音、勿擾等狀態觸發的頂部黑色膠囊；不影響應用程式通知。</string>
+    <string name="system_strong_toast_mode_match_height">符合狀態列高度</string>
+    <string name="system_strong_toast_mode_hide">隱藏靈動額頭</string>
 </resources>

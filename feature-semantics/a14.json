@@ -22336,6 +22336,28 @@
       "notes": ""
     },
     {
+      "featureId": "theme_com_android_systemui_dimen_strong_toast_height",
+      "featureName": "strong_toast_height",
+      "preferenceKeys": [
+        "theme:com.android.systemui:dimen:strong_toast_height"
+      ],
+      "xmlSource": "",
+      "defaultValue": "48dp",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt",
+      "installer": "SystemUIStrongToastHooks.installHeightMatch",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "RESOURCE_REPLACEMENT",
+      "enableEffect": "Matches the StrongToast content height to the configured status bar height",
+      "disableEffect": "Keeps the ROM StrongToast content height",
+      "valueChangeEffect": "Applies after SystemUI restarts",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "setThemeValueReplacement in SystemUIStrongToastHooks.installHeightMatch",
+      "notes": "Paired with the StrongToastView window LayoutParams height hook"
+    },
+    {
       "featureId": "theme_com_android_systemui_dimen_strong_toast_width",
       "featureName": "strong_toast_width",
       "preferenceKeys": [
@@ -23216,10 +23238,10 @@
       "notes": ""
     },
     {
-      "featureId": "pref_key_system_statusbar_focus_notification",
-      "featureName": "pref_key_system_statusbar_focus_notification",
+      "featureId": "pref_key_system_strong_toast_mode",
+      "featureName": "pref_key_system_strong_toast_mode",
       "preferenceKeys": [
-        "pref_key_system_statusbar_focus_notification"
+        "pref_key_system_strong_toast_mode"
       ],
       "xmlSource": "app/src/main/res/xml/prefs_system.xml",
       "defaultValue": "0",
@@ -23228,7 +23250,7 @@
       "targetPackage": "UNKNOWN",
       "installPhase": "APP_UI_ONLY",
       "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "Selects focus-notification presentation mode",
+      "enableEffect": "Selects StrongToast capsule presentation mode",
       "disableEffect": "Keeps the HyperOS system default",
       "valueChangeEffect": "Persists the mode for the next SystemUI start",
       "restartTarget": "SYSTEMUI",
@@ -23238,26 +23260,26 @@
       "notes": ""
     },
     {
-      "featureId": "system_statusbar_focus_notification",
-      "featureName": "system_statusbar_focus_notification",
+      "featureId": "system_strong_toast_mode",
+      "featureName": "system_strong_toast_mode",
       "preferenceKeys": [
-        "system_statusbar_focus_notification"
+        "system_strong_toast_mode"
       ],
       "xmlSource": "app/src/main/res/xml/prefs_system.xml",
       "defaultValue": "0",
       "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt",
-      "installer": "StatusBarFocusNotificationFeature.installHook",
+      "installer": "StrongToastPresentationFeature.installHook",
       "targetPackage": "com.android.systemui",
       "installPhase": "PACKAGE_READY",
       "runtimeReadMode": "CAPTURED_AT_INSTALL",
-      "enableEffect": "Matches the prompt height to the status bar or hides the prompt",
-      "disableEffect": "Leaves the HyperOS focus-notification prompt unchanged",
+      "enableEffect": "Matches the StrongToast overlay height to the status bar or hides it",
+      "disableEffect": "Leaves the HyperOS StrongToast overlay unchanged",
       "valueChangeEffect": "Applies after SystemUI restarts",
       "restartTarget": "SYSTEMUI",
       "hotReloadable": false,
       "confidence": "CODE_VERIFIED",
-      "evidence": "StatusBarFocusNotificationFeature routes the preference to SystemUIFocusNotificationHooks",
-      "notes": "HyperOS 1/2 focus notification only; HyperOS 3 Super Island is outside this hook"
+      "evidence": "StrongToastPresentationFeature routes the preference to SystemUIStrongToastHooks",
+      "notes": "HyperOS 1 MIUIStrongToast used by charging and system-state capsules; app notifications are outside this hook"
     }
   ]
 }

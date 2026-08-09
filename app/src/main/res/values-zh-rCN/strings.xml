@@ -153,8 +153,8 @@
     <string name="system_statusbarcontrols_dt_right_title">双击右上角动作</string>
     <string name="system_notifimportance_title">开放通知的重要程度</string>
     <string name="system_notif_disable_fold_title">禁止通知折叠为历史通知</string>
-    <string name="system_notif_disable_strong_toast_title">禁用设备通知</string>
-    <string name="system_notif_disable_strong_toast_summ">在以下场景禁用</string>
+    <string name="system_notif_disable_strong_toast_title">按场景屏蔽灵动额头</string>
+    <string name="system_notif_disable_strong_toast_summ">始终屏蔽，或仅在勿扰模式下屏蔽</string>
     <string name="system_morenotif_title">移除每个应用只显示10条通知的限制</string>
     <string name="system_colorizenotiftitle_title">着色通知卡片</string>
     <string name="system_colorizenotiftitle_summ">将图标颜色应用到通知卡片</string>
@@ -959,8 +959,8 @@
     <string name="system_cc_collapse_after_clicked_title">点击磁贴后自动收起</string>
     <string name="system_cc_freeform_when_longclick_title">长按磁贴时以小窗打开</string>
     <string name="system_show_step_count_title">显示步数</string>
-    <string name="system_statusbar_focus_notification_title">状态栏焦点通知</string>
-    <string name="system_statusbar_focus_notification_summ">控制 HyperOS 1/2 的状态栏焦点通知（俗称灵动额头）；不修改 HyperOS 3 小米超级岛。</string>
-    <string name="system_statusbar_focus_notification_mode_match_height">匹配状态栏高度</string>
-    <string name="system_statusbar_focus_notification_mode_hide">隐藏状态栏提示</string>
+    <string name="system_strong_toast_title">灵动额头</string>
+    <string name="system_strong_toast_summ">控制充电、静音、勿扰等状态触发的顶部黑色胶囊；不影响应用通知。</string>
+    <string name="system_strong_toast_mode_match_height">匹配状态栏高度</string>
+    <string name="system_strong_toast_mode_hide">隐藏灵动额头</string>
 </resources>

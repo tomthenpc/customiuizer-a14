@@ -1025,8 +1025,8 @@ data object StatusBarHeightInsetsFeatureId : FeatureId {
     override val name = "status_bar_height_insets"
 }
 
-// SystemUI status-bar focus notification
-data object StatusBarFocusNotificationFeatureId : FeatureId {
+// SystemUI HyperOS 1 StrongToast presentation
+data object StrongToastPresentationFeatureId : FeatureId {
     override val id = 246
-    override val name = "status_bar_focus_notification"
+    override val name = "strong_toast_presentation"
 }

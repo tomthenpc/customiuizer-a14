@@ -596,8 +596,8 @@
     <string name="various_installappinfo_sdk">Podporavné SDK</string>
     <string name="various_alarmcompat_title">Kompatibilita budíku</string>
     <string name="various_alarmcompat_summ">Umožnit, aby vybrané aplikace zobrazovaly správný čas příštího budíku nastavený výchozí aplikací HyperOS Hodiny</string>
-    <string name="various_gboardpadding_port_title">Spodní výplň na výšku</string>
-    <string name="various_gboardpadding_land_title">Spodní výplň na šířku</string>
+    <string name="various_gboardpadding_port_title">Spodní odsazení Gboard na výšku</string>
+    <string name="various_gboardpadding_land_title">Spodní odsazení Gboard na šířku</string>
     <string name="various_answerinheadup_title">Udržet hovory v oznámení při odpovědi na hovor</string>
     <string name="various_showcallui_title">Zobrazit uživatelské rozhraní pro volání</string>
     <string name="various_showcallui_summ">Definovat, kdy se má zobrazit uživatelské rozhraní příchozího hovoru místo vyskakovacího oznámení</string>

@@ -605,8 +605,8 @@
     <string name="various_installappinfo_sdk">対応しているSDK</string>
     <string name="various_alarmcompat_title">アラーム時刻の互換性</string>
     <string name="various_alarmcompat_summ">HyperOSの時計アプリで設定した次のアラーム時刻を選択したアプリで正しく表示させます</string>
-    <string name="various_gboardpadding_port_title">縦方向の下部のパディング</string>
-    <string name="various_gboardpadding_land_title">横方向の下部のパディング</string>
+    <string name="various_gboardpadding_port_title">Gboard の縦画面下部の余白</string>
+    <string name="various_gboardpadding_land_title">Gboard の横画面下部の余白</string>
     <string name="various_answerinheadup_title">着信時に着信の通知を維持する</string>
     <string name="various_showcallui_title">通話UIを表示する</string>
     <string name="various_showcallui_summ">ポップアップ通知ではなく、着信のUIで表示する設定を定義します</string>

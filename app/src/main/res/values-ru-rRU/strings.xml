@@ -591,8 +591,8 @@
     <string name="various_installappinfo_sdk">Поддержка SDK</string>
     <string name="various_alarmcompat_title">Совместимость будильника</string>
     <string name="various_alarmcompat_summ">Сделать выбранные приложения отображать корректное время следующего будильника установленным приложением HyperOS часов</string>
-    <string name="various_gboardpadding_port_title">Нижний отступ в портретном режиме</string>
-    <string name="various_gboardpadding_land_title">Нижний отступ в ландшафтном режиме</string>
+    <string name="various_gboardpadding_port_title">Нижний отступ Gboard в портретном режиме</string>
+    <string name="various_gboardpadding_land_title">Нижний отступ Gboard в альбомном режиме</string>
     <string name="various_answerinheadup_title">Оставлять звонки в уведомлении при ответе на звонок</string>
     <string name="various_showcallui_title">Показывать интерфейс звонка</string>
     <string name="various_showcallui_summ">Задаёт когда показывать интерфейс входящего звонка вместо всплывающего уведомления</string>

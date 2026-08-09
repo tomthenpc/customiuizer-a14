@@ -568,8 +568,8 @@
     <string name="various_installappinfo_vercode">Código de versión</string>
     <string name="various_installappinfo_sdk">SDK soportado</string>
     <string name="various_alarmcompat_title">Compatibilidad de alarma de reloj</string>
-    <string name="various_gboardpadding_port_title">Espacio inferior en vertical</string>
-    <string name="various_gboardpadding_land_title">Espacio inferior en horizontal</string>
+    <string name="various_gboardpadding_port_title">Relleno inferior de Gboard en vertical</string>
+    <string name="various_gboardpadding_land_title">Relleno inferior de Gboard en horizontal</string>
     <string name="various_answerinheadup_title">Mantener las llamadas en notificación cuando se responda una llamada</string>
     <string name="various_showcallui_title">Mostrar la interfaz de llamada</string>
     <string name="various_showcallui_summ">Defina cuando se debe de mostrar la interfaz de llamada entrante envés de notificación emergente</string>

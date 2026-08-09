@@ -8,7 +8,7 @@ import tv.withaibuild.customiuizer.mods.SystemAudioHooks
 import tv.withaibuild.customiuizer.mods.SystemClockHooks
 import tv.withaibuild.customiuizer.mods.SystemColorizeNotificationHooks
 import tv.withaibuild.customiuizer.mods.SystemDisplayHooks
-import tv.withaibuild.customiuizer.mods.SystemUIFocusNotificationHooks
+import tv.withaibuild.customiuizer.mods.SystemUIStrongToastHooks
 import tv.withaibuild.customiuizer.mods.SystemLockScreenHooks
 import tv.withaibuild.customiuizer.mods.SystemNotificationHooks
 import tv.withaibuild.customiuizer.mods.SystemStatusBarIconHooks
@@ -26,7 +26,8 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
-import tv.withaibuild.customiuizer.mods.utils.StatusBarFocusNotificationMode
+import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
+import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.utils.PrefMap
 
 /**
@@ -734,29 +735,30 @@ internal class StatusBarIconsPositionAdjustFeature(
 
 }
 
-internal class StatusBarFocusNotificationFeature(
+internal class StrongToastPresentationFeature(
     lpparam: PackageReadyParam,
     mPrefs: PrefMap
 ) : BaseSystemUiFeature(
     lpparam,
     mPrefs,
-    StatusBarFocusNotificationFeatureId,
-    "Status Bar Focus Notification",
-    "system_statusbar_focus_notification"
+    StrongToastPresentationFeatureId,
+    "Strong Toast Presentation",
+    "system_strong_toast_mode"
 ) {
     companion object {
         @JvmStatic
-        fun resolveMode(prefs: PrefMap): StatusBarFocusNotificationMode =
-            StatusBarFocusNotificationMode.fromPreference(
-                prefs.getStringAsInt("system_statusbar_focus_notification", 0)
+        fun resolveMode(prefs: PrefMap): StrongToastPresentationMode =
+            StrongToastPresentationMode.fromPreference(
+                prefs.getStringAsInt("system_strong_toast_mode", 0)
             )
 
         @JvmStatic
-        fun evaluateEnabled(prefs: PrefMap): Boolean = resolveMode(prefs) != StatusBarFocusNotificationMode.SYSTEM_DEFAULT
+        fun evaluateEnabled(prefs: PrefMap): Boolean =
+            resolveMode(prefs) != StrongToastPresentationMode.SYSTEM_DEFAULT
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
-    override fun installHook() = SystemUIFocusNotificationHooks.install(lpparam, resolveMode(mPrefs))
+    override fun installHook() = SystemUIStrongToastHooks.install(lpparam, resolveMode(mPrefs), StatusBarHeightConfig.resolveHeightDp(mPrefs))
 }
 
 internal class MonitorDeviceInfoFeature(
@@ -2289,13 +2291,13 @@ object SystemUiFeatures {
             factory = { StatusBarIconsPositionAdjustFeature(lpparam, mPrefs) },
         ),
         LazyFeatureSpec(
-            id = StatusBarFocusNotificationFeatureId,
-            name = "Status Bar Focus Notification",
-            preferenceKey = "system_statusbar_focus_notification",
+            id = StrongToastPresentationFeatureId,
+            name = "Strong Toast Presentation",
+            preferenceKey = "system_strong_toast_mode",
             target = FeatureTarget.SYSTEM_UI,
             phase = InstallPhase.PACKAGE_READY,
-            enabled = { prefs -> StatusBarFocusNotificationFeature.evaluateEnabled(prefs) },
-            factory = { StatusBarFocusNotificationFeature(lpparam, mPrefs) },
+            enabled = { prefs -> StrongToastPresentationFeature.evaluateEnabled(prefs) },
+            factory = { StrongToastPresentationFeature(lpparam, mPrefs) },
         ),
         LazyFeatureSpec(
             id = MonitorDeviceInfoFeatureId,

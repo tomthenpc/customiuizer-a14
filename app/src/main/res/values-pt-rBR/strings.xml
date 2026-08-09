@@ -605,8 +605,8 @@
     <string name="various_installappinfo_sdk">SDK compatível</string>
     <string name="various_alarmcompat_title">Compatibilidade do relógio</string>
     <string name="various_alarmcompat_summ">Faça com que os apps selecionados exibam o próximo horário de alarme correto definido pelo app Relógio do HyperOS padrão</string>
-    <string name="various_gboardpadding_port_title">Preenchimento inferior em retrato</string>
-    <string name="various_gboardpadding_land_title">Preenchimento inferior em paisagem</string>
+    <string name="various_gboardpadding_port_title">Espaçamento inferior do Gboard em retrato</string>
+    <string name="various_gboardpadding_land_title">Espaçamento inferior do Gboard em paisagem</string>
     <string name="various_answerinheadup_title">Manter chamadas na notificação ao atender uma ligação</string>
     <string name="various_showcallui_title">Mostrar IU de chamada</string>
     <string name="various_showcallui_summ">Defina quando a interface do usuário para chamada recebida deve ser exibida ao invés da notificação pop-up</string>
