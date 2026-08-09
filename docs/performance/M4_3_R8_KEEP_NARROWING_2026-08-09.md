@@ -66,13 +66,18 @@ Xposed 模块入口、Hooker 回调、Android Manifest 组件和 `META-INF/xpose
 
 ## 实机状态和剩余风险
 
-记录本证据时 `adb devices -l` 没有在线设备，因此当前只声明
-`STATIC_R8_PASS / DEVICE_CHECKPOINT_BLOCKED_NO_DEVICE`。签名候选安装后仍需至少验证：
+初始记录本证据时 `adb devices -l` 没有在线设备，因此当时只声明
+`STATIC_R8_PASS / DEVICE_CHECKPOINT_BLOCKED_NO_DEVICE`。后续已在 fuxi / Android 14 设备上
+安装并核对签名 Develop revision `5d4878fe`，完成以下收口：
 
-1. Settings 进程打开四域分类与搜索直达；
-2. SystemUI、Launcher 和 system_server 重新加载模块；
-3. LSPosed HookSummary 无新增缺类、缺成员和安装失败；
-4. 代表性状态栏、控制中心、桌面手势保持可用。
+1. Launcher PID `5790 -> 32297`，`onPackageReady installed=4`、`post-attach installed=12`；
+2. SystemUI PID `5756 -> 808`，`onPackageReady installed=51`、`post-init installed=52`；
+3. system_server PID `2875 -> 2899`，`onSystemServerStarting installed=43`；
+4. 上述 HookSummary 的缺类、缺成员、安装失败、DexKit 与 preference 错误均为 `0`；
+5. 控制中心可展开并实际渲染，桌面基础滑动可用，烟测前后 SystemUI 与 Launcher PID 不变；
+6. Settings 进程以同一 revision 加载，`onPackageReady installed=8` 且错误计数为 `0`。
+
+因此 M4.3 最终状态更新为 `STATIC_R8_PASS / DEVICE_RUNTIME_PASS`。
 
 Hooker 的全类 keep 仍然较宽，但它同时承担 libxposed 回调 ABI 和类合并隔离；没有新的
 独立运行时证据前不继续收窄。Manifest 组件 `-keepnames` 也不并入本原子任务。

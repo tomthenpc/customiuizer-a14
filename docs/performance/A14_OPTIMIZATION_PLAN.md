@@ -179,6 +179,12 @@ Owner 于 2026-08-09 明确要求一次完成 M3，当前工程结果为：
 如果 M0 未证明启动成本，保持现有 `LazyFeatureSpec`，不为理论上的少量 Map 查询增加
 代码生成复杂度。
 
+实机测量已完成：SystemUI 96 个 Spec 的 catalog 创建与 registry 注册中位数合计
+`1.732 ms`，system_server 51 个 Spec 为 `1.284 ms`，Launcher 两阶段合计为
+`0.980 ms`；一次性分配处于几十 KiB 量级。触发条件未满足，保持现有结构。Develop-only
+测量点在 Release/R8 DEX 中已确认完全移除。完整证据见
+[M4_1_FEATURE_CATALOG_RUNTIME_EVIDENCE_2026-08-09.md](M4_1_FEATURE_CATALOG_RUNTIME_EVIDENCE_2026-08-09.md)。
+
 #### M4.2 FeatureInstallState 数据结构
 
 只有 profile 证明装箱 `HashMap` 有可见成本时，才评估 `ByteArray` 或 JVM/Android
@@ -228,6 +234,7 @@ M0 A/B 结果见
 设置页冷启动和帧数据没有证明 M3 的复杂重构有收益，PSS 也缺乏可重复归因性。
 
 M3 没有引入新的 UI 框架，也不把静态元素下降冒充设备性能收益；实机页面、搜索直达和
-返回路径为 `DEVICE_RUNTIME_PASS`。AudioVisualizer 当前设备配置为关闭，本轮未改用户配置或
-重启 SystemUI。M4.3 已完成第一处 R8 keep 收窄和静态 A/B，当前为
-`STATIC_R8_PASS / DEVICE_CHECKPOINT_BLOCKED_NO_DEVICE`；M4.1、M4.2、M4.4 继续保持证据门槛。
+返回路径为 `DEVICE_RUNTIME_PASS`。AudioVisualizer 当前设备配置为关闭，ownership 修复保持
+`CONFIGURATION_DISABLED_NOT_EXERCISED`。M4.3 的 SystemUI、Launcher、system_server 与控制中心
+回归已完成，状态为 `STATIC_R8_PASS / DEVICE_RUNTIME_PASS`。M4.1 已完成 Develop-only 实机测量，
+数据不支持 Feature 表结构重构；M4.2、M4.4 继续保持证据门槛。
