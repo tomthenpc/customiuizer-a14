@@ -357,6 +357,7 @@
 		<tv.withaibuild.customiuizer.prefs.SeekBarPreference
 			android:key="pref_key_system_statusbarheight"
 			android:title="@string/system_statusbarheight_title"
+			android:summary="@string/system_statusbarheight_summ"
 			android:defaultValue="11"
 			miuizer:offtext="@string/array_default"
 			miuizer:minValue="11"

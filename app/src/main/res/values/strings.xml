@@ -77,6 +77,7 @@
     <string name="system_batteryindicator_test_title">Test</string>
     <string name="system_batteryindicator_test_summ" formatted="false">Animate bar from 100% to 0% in discharging state</string>
     <string name="system_statusbarheight_title">Status bar height</string>
+    <string name="system_statusbarheight_summ">A full reboot is required after changing the fixed height.</string>
     <string name="system_statusbar_iconsize_title">Status bar icon size</string>
     <string name="system_statusbarcolor_title">Status bar background color</string>
     <string name="system_statusbarcolor_summ">Make status bar and app\'s action bar background colors the same where possible</string>
@@ -988,8 +989,8 @@
     <string name="system_cc_freeform_when_longclick_title">Open in freeform when longclick on tile</string>
     <string name="system_show_step_count_title">Show step count</string>
     <string name="system_cc_switch_ccandnotification_title">Switch control center and notification drawer</string>
-    <string name="system_strong_toast_title">HyperOS status capsule (in development)</string>
-    <string name="system_strong_toast_summ">Controls the top black capsule used for charging, silent mode and Do Not Disturb. Device acceptance is still pending; app notifications are not modified.</string>
+    <string name="system_strong_toast_title">HyperOS status capsule</string>
+    <string name="system_strong_toast_summ">A full reboot is required. Hide mode is device-verified; match-height mode applies after reboot, while corner-radius matching is still under development.</string>
     <string name="system_strong_toast_mode_match_height">Match status bar height</string>
     <string name="system_strong_toast_mode_hide">Hide status capsule</string>
 

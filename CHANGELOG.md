@@ -6,19 +6,30 @@ English | [简体中文](CHANGELOG_CN.md)
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
 
-### Core Changes
+### Settings and Interaction
 
-- Rebuilt settings navigation around lazily generated category pages and a generated search index, reducing initial Preference creation while removing transition residue and reorganizing the Various section.
-- Removed repeated caller stack scans from Launcher gestures, charging hints, and Security Center dock handling; added bounded process-local routing and setup metrics without moving work into hot paths.
-- Fixed AudioVisualizer and battery-indicator observer ownership, startup activation-state races, and stale app selections restored from backups.
-- Fixed custom status-bar height in apps where only the icons moved while the actual status-bar/content area kept the stock height; WindowInsets and app-window geometry now follow the configured height.
-- Clarified input-method naming: the category is generic while Gboard-only padding controls remain explicitly labeled.
-- Added **in-development** HyperOS status-capsule controls for charging, silent mode, and Do Not Disturb; status-bar height matching remains under compatibility work.
+- Settings no longer create the complete Preference tree at once. Category pages are generated and loaded on demand, while a build-generated search index preserves global search without initializing unrelated pages.
+- Click-animation residue from the parent page is removed when opening a subpage. The Various section is also reorganized into clearer categories and entry points with less duplicated hierarchy.
+- A race that could briefly report the module as inactive during rapid app close/restart is fixed. The UI now remains in a waiting state while the LSPosed service connection is still in progress.
+- Input-method entry points use ROM-neutral wording, while portrait and landscape bottom-padding options that only affect Gboard remain explicitly labeled.
 
-### Verification Boundary
+### Performance and Lifecycle
 
-- Unified static rules, invariants, Python tests, Android JVM tests, compilation, and lint passed; the official APK is additionally checked during release publication.
-- Charging-scenario integration is complete; status-capsule height matching remains under compatibility work.
+- Full-screen Launcher gestures, lock-screen charging hints, and Security Center dock callbacks no longer rescan caller stacks on frequent paths. Bounded process-local caller state replaces repeated stack, string, and allocation work.
+- AudioVisualizer and battery-indicator observers now have explicit owner, replacement, stale-state, and release paths, preventing duplicate registration, callbacks from obsolete instances, and retention of short-lived Views or controllers.
+- Feature setup timing and installation counts are restricted to development builds for cold-start diagnosis; release hot paths do not carry the metrics overhead.
+- Overbroad R8 keep rules are narrowed while preserving Xposed entry points, reflection, and resource contracts, reducing unnecessary retained code and APK size.
+
+### Compatibility and Fixes
+
+- Imported app-selection settings now discard packages that are uninstalled, disabled, or no longer resolvable. Invalid apps are neither selected nor counted, so summary counts match the actual selector contents.
+- Custom status-bar height now updates WindowInsets and app-window geometry instead of moving icons alone. A full reboot is required after changing the fixed height.
+- HyperOS status-capsule controls cover charging, silent mode, and Do Not Disturb. Hide mode is device-verified; match-height mode applies after a full reboot, with corner-radius synchronization reserved for a later update.
+
+### Verification
+
+- Static rules, invariants, Python tests, Android JVM tests, compilation, lint, and official Release artifact checks passed.
+- Testing on fuxi / HyperOS 1 confirms hide mode and post-reboot height matching; the remaining known limitation is the unmatched corner radius in match-height mode.
 
 ### Artifact Information
 

@@ -55,6 +55,7 @@
     <string name="system_batteryindicator_test_title">測試</string>
     <string name="system_batteryindicator_test_summ" formatted="false">未充電時顯示電量條</string>
     <string name="system_statusbarheight_title">狀態欄高度</string>
+    <string name="system_statusbarheight_summ">修改固定高度後需完整重啟生效。</string>
     <string name="system_statusbarcolor_title">狀態欄背景顏色</string>
     <string name="system_statusbarcolor_summ">盡量將狀態欄和應用操作欄的背景顏色保持一致</string>
     <string name="system_statusbarcolor_apps_title">黑名單</string>
@@ -806,8 +807,8 @@
     <string name="system_cc_tile_roundedrect_title">圓角矩形磁貼</string>
     <string name="system_cc_enable_style_switch_title">強制開啟控制中心樣式切換</string>
     <string name="system_cc_collapse_after_clicked_title">單擊開關後自動收起</string>
-    <string name="system_strong_toast_title">靈動額頭（開發中）</string>
-    <string name="system_strong_toast_summ">控制充電、靜音、勿擾等狀態觸發的頂部黑色膠囊；實機驗收尚未通過，不影響應用程式通知。</string>
+    <string name="system_strong_toast_title">靈動額頭</string>
+    <string name="system_strong_toast_summ">修改後需完整重啟；隱藏模式已通過實機驗證，符合高度模式可生效但圓角尺寸仍在適配。</string>
     <string name="system_strong_toast_mode_match_height">符合狀態列高度</string>
     <string name="system_strong_toast_mode_hide">隱藏靈動額頭</string>
 </resources>
