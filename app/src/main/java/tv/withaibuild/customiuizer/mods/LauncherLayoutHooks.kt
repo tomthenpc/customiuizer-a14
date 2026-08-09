@@ -253,34 +253,18 @@ object LauncherLayoutHooks {
             }
         })
 
-        ModuleHelper.hookAllMethods("com.miui.home.launcher.DeviceConfig", lpparam.classLoader, "isCellSizeChangedByTheme", object : MethodHook() {
-            var nowordHook: HookerClassHelper.CustomMethodUnhooker? = null
+        // isNoWordModel() is overridden permanently and only answers false for the thread that
+        // is currently inside isCellSizeChangedByTheme, so the hook topology never changes at
+        // runtime and concurrent callers cannot unhook each other.
+        installUnlockGridsNoWordScope(lpparam.classLoader)
+        ModuleHelper.hookAllMethods(DeviceConfigClass, "isCellSizeChangedByTheme", object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any? = null
-                var throwable: Throwable? = null
-                try {
-
-                    nowordHook = ModuleHelper.findAndHookMethod("com.miui.home.launcher.common.Utilities", lpparam.classLoader, "isNoWordModel", HookerClassHelper.returnConstant(false))
-
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
+                unlockGridsNoWordScope.enter()
+                return try {
+                    chain.proceed()
+                } finally {
+                    unlockGridsNoWordScope.exit()
                 }
-
-                try {
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
-                }
-                try {
-
-                    nowordHook?.unhook()
-                    nowordHook = null
-
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
             }
         })
     }
