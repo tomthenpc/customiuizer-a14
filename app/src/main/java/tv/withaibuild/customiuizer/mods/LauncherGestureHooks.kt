@@ -59,8 +59,50 @@ object LauncherGestureHooks {
         return detector
     }
 
+    private const val PREF_LAUNCHER_SWIPE_DOWN_ACTION = "launcher_swipedown_action"
+    private const val PREF_LAUNCHER_SWIPE_UP_ACTION = "launcher_swipeup_action"
+
+    @Volatile
+    private var swipeDownCustom = false
+
+    @Volatile
+    private var swipeUpCustom = false
+
+    private var homescreenSwipeSnapshotInstalled = false
+
+    internal fun refreshHomescreenSwipeSnapshots() {
+        swipeDownCustom = MainModule.mPrefs.getInt(PREF_LAUNCHER_SWIPE_DOWN_ACTION, 1) > 1
+        swipeUpCustom = MainModule.mPrefs.getInt(PREF_LAUNCHER_SWIPE_UP_ACTION, 1) > 1
+    }
+
+    internal fun onHomescreenSwipePreferenceChanged(key: String?) {
+        if (key == null || key == PREF_LAUNCHER_SWIPE_DOWN_ACTION || key == PREF_LAUNCHER_SWIPE_UP_ACTION) {
+            refreshHomescreenSwipeSnapshots()
+        }
+    }
+
+    private fun installHomescreenSwipeSnapshot() {
+        if (homescreenSwipeSnapshotInstalled) return
+        homescreenSwipeSnapshotInstalled = true
+        refreshHomescreenSwipeSnapshots()
+        ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) = ModuleHelper.guarded {
+                onHomescreenSwipePreferenceChanged(key)
+            }
+        })
+    }
+
+    internal fun onStatusBarSwipeCanInterceptTouch(chain: XposedInterface.Chain): Any? {
+        return if (swipeDownCustom) false else chain.proceed()
+    }
+
+    internal fun onAllAppsSwipeCanInterceptTouch(chain: XposedInterface.Chain): Any? {
+        return if (swipeUpCustom) false else chain.proceed()
+    }
+
     @JvmStatic
     fun HomescreenSwipesHook(lpparam: PackageReadyParam) {
+        installHomescreenSwipeSnapshot()
         ModuleHelper.findAndHookMethod("com.miui.home.launcher.Workspace", lpparam.classLoader, "onVerticalGesture", Int::class.javaPrimitiveType!!, MotionEvent::class.java, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var skipped = false
@@ -99,35 +141,13 @@ object LauncherGestureHooks {
 
         ModuleHelper.findAndHookMethodSilently("com.miui.home.launcher.uioverrides.StatusBarSwipeController", lpparam.classLoader, "canInterceptTouch", MotionEvent::class.java, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
-                var skipped = false
-                var result: Any? = null
-                var throwable: Throwable? = null
-                try {
-                    if (MainModule.mPrefs.getInt("launcher_swipedown_action", 1) > 1) { skipped = true; result = false; throwable = null }
-                    if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
+                return onStatusBarSwipeCanInterceptTouch(chain)
             }
         })
 
         ModuleHelper.findAndHookMethodSilently("com.miui.home.launcher.uioverrides.AllAppsSwipeController", lpparam.classLoader, "canInterceptTouch", MotionEvent::class.java, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
-                var skipped = false
-                var result: Any? = null
-                var throwable: Throwable? = null
-                try {
-                    if (MainModule.mPrefs.getInt("launcher_swipeup_action", 1) > 1) { skipped = true; result = false; throwable = null }
-                    if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
+                return onAllAppsSwipeCanInterceptTouch(chain)
             }
         })
 
