@@ -959,8 +959,8 @@
     <string name="system_cc_collapse_after_clicked_title">点击磁贴后自动收起</string>
     <string name="system_cc_freeform_when_longclick_title">长按磁贴时以小窗打开</string>
     <string name="system_show_step_count_title">显示步数</string>
-    <string name="system_strong_toast_title">灵动额头</string>
-    <string name="system_strong_toast_summ">控制充电、静音、勿扰等状态触发的顶部黑色胶囊；不影响应用通知。</string>
+    <string name="system_strong_toast_title">灵动额头（开发中）</string>
+    <string name="system_strong_toast_summ">控制充电、静音、勿扰等状态触发的顶部黑色胶囊；实机验收尚未通过，不影响应用通知。</string>
     <string name="system_strong_toast_mode_match_height">匹配状态栏高度</string>
     <string name="system_strong_toast_mode_hide">隐藏灵动额头</string>
 </resources>

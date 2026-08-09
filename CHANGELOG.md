@@ -2,6 +2,30 @@
 
 English | [简体中文](CHANGELOG_CN.md)
 
+## r14.18.6 — 2026-08-09
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+
+### Core Changes
+
+- Rebuilt settings navigation around lazily generated category pages and a generated search index, reducing initial Preference creation while removing transition residue and reorganizing the Various section.
+- Removed repeated caller stack scans from Launcher gestures, charging hints, and Security Center dock handling; added bounded process-local routing and setup metrics without moving work into hot paths.
+- Fixed AudioVisualizer and battery-indicator observer ownership, startup activation-state races, status-bar inset/window geometry propagation, and stale app selections restored from backups.
+- Clarified input-method naming: the category is generic while Gboard-only padding controls remain explicitly labeled.
+- Added HyperOS charging/silent/DND status-capsule controls as an **in-development** feature. A real charging capsule was triggered, but height matching did not pass device acceptance and is not claimed as verified.
+
+### Verification Boundary
+
+- Unified static rules, invariants, Python tests, Android JVM tests, compilation, and lint passed; the official APK is additionally checked during release publication.
+- Device testing confirmed the real HyperOS StrongToast path and preserved battery state after simulation; status-capsule height matching remains pending.
+
+### Artifact Information
+
+- APK: `CustoMIUIzer-A14-r14.18.6.apk`
+- versionCode / versionName: `196 / r14.18.6`
+
+---
+
 ## r14.18.2 — 2026-08-08
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.

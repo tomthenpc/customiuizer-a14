@@ -988,8 +988,8 @@
     <string name="system_cc_freeform_when_longclick_title">Open in freeform when longclick on tile</string>
     <string name="system_show_step_count_title">Show step count</string>
     <string name="system_cc_switch_ccandnotification_title">Switch control center and notification drawer</string>
-    <string name="system_strong_toast_title">HyperOS status capsule</string>
-    <string name="system_strong_toast_summ">Controls the top black capsule used for charging, silent mode and Do Not Disturb. App notifications are not modified.</string>
+    <string name="system_strong_toast_title">HyperOS status capsule (in development)</string>
+    <string name="system_strong_toast_summ">Controls the top black capsule used for charging, silent mode and Do Not Disturb. Device acceptance is still pending; app notifications are not modified.</string>
     <string name="system_strong_toast_mode_match_height">Match status bar height</string>
     <string name="system_strong_toast_mode_hide">Hide status capsule</string>
 
