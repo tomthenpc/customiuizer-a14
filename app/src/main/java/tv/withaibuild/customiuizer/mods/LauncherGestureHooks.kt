@@ -32,7 +32,32 @@ import tv.withaibuild.customiuizer.utils.HookUtils
  */
 object LauncherGestureHooks {
 
-    private var mDetectorHorizontal: GestureDetector? = null
+    private const val HOTSEAT_HORIZONTAL_DETECTOR_KEY = "customiuizer_hotseat_horizontal_detector"
+
+    /**
+     * Factory for the HotSeats horizontal swipe detector.
+     *
+     * In production this builds a [GestureDetector] bound to a specific HotSeats owner. Tests
+     * can replace the factory to avoid real Android object construction.
+     */
+    @JvmField
+    internal var hotSeatDetectorFactory: (Any, Context?) -> Any = { owner, context ->
+        GestureDetector(context, SwipeListenerHorizontal(owner))
+    }
+
+    internal fun obtainHotSeatDetector(hotSeat: Any): Any {
+        val existing = XposedHelpers.getAdditionalInstanceField(hotSeat, HOTSEAT_HORIZONTAL_DETECTOR_KEY)
+        if (existing != null) return existing
+
+        val context = try {
+            XposedHelpers.callMethod(hotSeat, "getContext") as Context?
+        } catch (t: Throwable) {
+            null
+        }
+        val detector = hotSeatDetectorFactory(hotSeat, context)
+        XposedHelpers.setAdditionalInstanceField(hotSeat, HOTSEAT_HORIZONTAL_DETECTOR_KEY, detector)
+        return detector
+    }
 
     @JvmStatic
     fun HomescreenSwipesHook(lpparam: PackageReadyParam) {
@@ -273,10 +298,8 @@ object LauncherGestureHooks {
                     val ev = chain.getArg(0) as MotionEvent?
                     if (ev == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
 
-                    val hotSeat = thisObject as ViewGroup
-                    val helperContext = hotSeat.context
-                    if (mDetectorHorizontal == null) mDetectorHorizontal = GestureDetector(helperContext, SwipeListenerHorizontal(hotSeat))
-                    mDetectorHorizontal?.onTouchEvent(ev)
+                    val detector = obtainHotSeatDetector(thisObject) as GestureDetector
+                    detector.onTouchEvent(ev)
 
                     result = chain.proceed()
                 } catch (t: Throwable) {
