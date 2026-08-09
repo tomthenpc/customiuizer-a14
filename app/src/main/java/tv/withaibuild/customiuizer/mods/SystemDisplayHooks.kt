@@ -103,111 +103,109 @@ object SystemDisplayHooks {
         })
     }
 
-    @JvmStatic
-    fun DrawerBlurRatioHook(lpparam: PackageReadyParam) {
-        val mCustomBlurModifier = intArrayOf(0)
-        ModuleHelper.hookAllConstructors("com.android.systemui.shade.MiuiNotificationPanelViewController", lpparam.classLoader, object : MethodHook() {
-            override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any?
-                var throwable: Throwable? = null
-                try {
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
-                }
-                try {
+    /**
+     * Per-thread bounded scope for the drawer blur ratio adjustment.
+     *
+     * [doFrame] enters the scope with the current modifier percentage; [applyBlur] reads it.
+     * Nested and cross-thread calls are isolated, and [exit] is always called in a `finally`
+     * block so the scope cannot leak after an exception.
+     */
+    internal object DrawerBlurScope {
+        private val depth = ThreadLocal.withInitial { 0 }
+        private val activeModifier = ThreadLocal<Int>()
 
-                    val thisObject = chain.thisObject
-                    mCustomBlurModifier[0] = MainModule.mPrefs.getInt("system_drawer_blur", 100)
-                    ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
-                        override fun onChange(key: String?) = ModuleHelper.guarded {
-                            if (key == "system_drawer_blur") {
-                                mCustomBlurModifier[0] = MainModule.mPrefs.getInt("system_drawer_blur", 100)
-                            }
-                        }
-                    }, thisObject)
+        fun enter(modifierPct: Int) {
+            val d = depth.get() ?: 0
+            depth.set(d + 1)
+            if (d == 0) activeModifier.set(modifierPct)
+        }
 
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
+        fun exit() {
+            val d = depth.get() ?: 0
+            if (d <= 1) {
+                depth.set(0)
+                activeModifier.remove()
+            } else {
+                depth.set(d - 1)
+            }
+        }
+
+        fun isActive(): Boolean = (depth.get() ?: 0) > 0
+        fun getModifier(): Int = activeModifier.get() ?: 100
+    }
+
+    private const val PREF_SYSTEM_DRAWER_BLUR = "system_drawer_blur"
+
+    @Volatile
+    private var drawerBlurModifierPct = 100
+
+    private var drawerBlurSnapshotInstalled = false
+
+    internal fun refreshDrawerBlurSnapshot() {
+        drawerBlurModifierPct = MainModule.mPrefs.getInt(PREF_SYSTEM_DRAWER_BLUR, 100)
+    }
+
+    internal fun onDrawerBlurPreferenceChanged(key: String?) {
+        if (key == null || key == PREF_SYSTEM_DRAWER_BLUR) {
+            refreshDrawerBlurSnapshot()
+        }
+    }
+
+    private fun installDrawerBlurSnapshot() {
+        if (drawerBlurSnapshotInstalled) return
+        drawerBlurSnapshotInstalled = true
+        refreshDrawerBlurSnapshot()
+        ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) = ModuleHelper.guarded {
+                onDrawerBlurPreferenceChanged(key)
             }
         })
+    }
+
+    internal fun onDoFrame(chain: XposedInterface.Chain): Any? {
+        DrawerBlurScope.enter(drawerBlurModifierPct)
+        return try {
+            chain.proceed()
+        } finally {
+            DrawerBlurScope.exit()
+        }
+    }
+
+    internal fun onApplyBlur(chain: XposedInterface.Chain): Any? {
+        val args = XposedHelpers.getArgsArray(chain)
+        if (DrawerBlurScope.isActive()) {
+            val ratio = args[1] as Float
+            args[1] = ratio * DrawerBlurScope.getModifier() / 100f
+        }
+        return chain.proceed(args)
+    }
+
+    internal fun onControlPanelSetBlurRatio(chain: XposedInterface.Chain): Any? {
+        val args = XposedHelpers.getArgsArray(chain)
+        val ratio = args[0] as Float
+        args[0] = ratio * drawerBlurModifierPct / 100f
+        return chain.proceed(args)
+    }
+
+    @JvmStatic
+    fun DrawerBlurRatioHook(lpparam: PackageReadyParam) {
+        installDrawerBlurSnapshot()
 
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.NotificationShadeDepthController\$updateBlurCallback\$1", lpparam.classLoader, "doFrame", Long::class.javaPrimitiveType!!, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any? = null
-                var throwable: Throwable? = null
-                val thisObject = chain.thisObject
-                try {
-
-                    val parentCtrl = XposedHelpers.getSurroundingThis(thisObject)
-                    val mBlurUtils = XposedHelpers.getObjectField(parentCtrl, "blurUtilsExt")
-                    XposedHelpers.setAdditionalInstanceField(mBlurUtils, "mCustomBlurModifier", mCustomBlurModifier[0])
-
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
-                }
-
-                try {
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
-                }
-                try {
-
-                    val parentCtrl = XposedHelpers.getSurroundingThis(thisObject)
-                    val mBlurUtils = XposedHelpers.getObjectField(parentCtrl, "blurUtilsExt")
-                    XposedHelpers.removeAdditionalInstanceField(mBlurUtils, "mCustomBlurModifier")
-
-                } catch (t: Throwable) {
-                    XposedHelpers.log(t)
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
+                return onDoFrame(chain)
             }
         })
 
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.policy.BlurUtilsExt", lpparam.classLoader, "applyBlur", View::class.java, Float::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any? = null
-                var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
-                val thisObject = chain.thisObject
-                try {
-
-                    val multiplier = XposedHelpers.getAdditionalInstanceField(thisObject, "mCustomBlurModifier")
-                    if (multiplier != null) {
-                        val ratio = args[1] as Float
-                        val newRatio = ratio * (multiplier as Int) / 100f
-                        args[1] = newRatio
-                    }
-
-                    result = chain.proceed(args)
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
+                return onApplyBlur(chain)
             }
         })
 
         ModuleHelper.findAndHookMethod("com.android.systemui.controlcenter.phone.ControlPanelWindowManager", lpparam.classLoader, "setBlurRatio", Float::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any? = null
-                var throwable: Throwable? = null
-                val args = XposedHelpers.getArgsArray(chain)
-                try {
-
-                    args[0] = (args[0] as Float) * mCustomBlurModifier[0] / 100f
-
-                    result = chain.proceed(args)
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
+                return onControlPanelSetBlurRatio(chain)
             }
         })
     }
