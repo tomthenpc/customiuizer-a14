@@ -96,8 +96,9 @@ M1 不修改 `XposedHelpers.java`、全局注册表或其他 View。验收重点
   `lambda$updateFsgWindowVisibilityState$...` 三种精确签名直接读取该键；
 - 安装冷路径按方法前缀、返回类型和参数签名要求三类目标各且仅有一个，避免写死
   synthetic lambda 编号；热路径改为带 `finally` 清理的 `ThreadLocal<Int>` 重入标记；
-- 本次设备只用于提取和核对 ROM 字节码，尚未安装本分支 APK 或执行手势实机回归，
-  因此运行状态仍为 `DEVICE_RUNTIME_PENDING`。
+- 本分支 APK 已在同一设备执行 Launcher 重启、最近任务、横向滑动和 Home 连续回归；
+  HookSummary 零失败、PID 未变化，状态更新为 `DEVICE_RUNTIME_PASS`。完整证据见
+  [M0_M2_DEVICE_RUNTIME_EVIDENCE_2026-08-09.md](M0_M2_DEVICE_RUNTIME_EVIDENCE_2026-08-09.md)。
 
 - 仅替换 `MiuiSettingsUtils.getGlobalBoolean(..., "force_fsg_nav_bar")` 对
   `BaseRecentsImpl` 调用来源的识别；
@@ -109,6 +110,8 @@ M1 不修改 `XposedHelpers.java`、全局注册表或其他 View。验收重点
 - 仅替换 `ChargeUtils.getChargingHintText()` 中 Keyguard 与 MiuiCharge 调用来源的识别；
 - 保持 Keyguard 优先、MiuiCharge 排除、未知来源不替换的现有语义；
 - 不改变电池属性读取、文本组合和已存在的 View observer 生命周期。
+- 实机 AC 充电锁屏已显示模块附加的电流、电压、功率和温度；SystemUI PID 保持，
+  无崩溃，状态为 `DEVICE_RUNTIME_PASS`。
 
 #### M2.3 SecurityCenter Dock 建议
 
@@ -117,6 +120,9 @@ M1 不修改 `XposedHelpers.java`、全局注册表或其他 View。验收重点
 - 两个白名单调用方继续拿到 ROM 原结果，其他调用方继续拿到清空结果；
 - 单元素 `ArrayList` 的数据结构调整不并入本任务；只有另一个有收益证据的任务证明
   返回类型与可变性合同后才实施。
+- 实机 HookSummary 零失败且全局侧边栏可正常展开、滚动；由于固定应用已满，ROM
+  禁用了内部编辑入口，外层为 `DEVICE_RUNTIME_PASS`，`DockAppEditActivity` worker
+  为 `DEVICE_RUNTIME_PARTIAL`。
 
 M2 完成后，这三个功能路径不得再出现 `Thread.currentThread().stackTrace`；不以猜测的
 ROM 类或广泛 fallback 换取静态扫描通过。
@@ -190,7 +196,12 @@ ROM 类或广泛 fallback 换取静态扫描通过。
 - 工具目录改动时补 `python -m compileall tools` 和 Python 单元测试；
 - 静态、构建、lint 与实机证据分级报告，不把前者写成 ROM 实测结论。
 
-## 推荐的首个实现任务
+## 当前状态与下一步
 
-M1.1 已由 owner 暂缓，M1.2 已完成工程修复和本地完整门禁。下一项按 M2.1、M2.2、
-M2.3 的顺序逐个移除调用栈扫描。
+M1.1 继续由 owner 暂缓；M1.2 与 M2.1-M2.3 已完成工程修复、完整门禁和设备回归。
+M0 A/B 结果见
+[M0_M2_DEVICE_RUNTIME_EVIDENCE_2026-08-09.md](M0_M2_DEVICE_RUNTIME_EVIDENCE_2026-08-09.md)：
+设置页冷启动和帧数据没有证明 M3 的复杂重构有收益，PSS 也缺乏可重复归因性。
+
+因此当前不自动进入 M3/M4，也不实施用户已明确跳过的 AudioVisualizer 优化。下一项
+生产改动必须由新的 trace、稳定可复现的设备症状或用户明确优先级触发。
