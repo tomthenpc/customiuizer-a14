@@ -34,8 +34,8 @@ class XposedBindStateTest {
 
     @Test
     fun disconnectedIsTheOnlyProvenNegative() {
-        // init() is never called in a unit test, so the budget has not elapsed: this is
-        // the "nothing has been observed yet" situation every caller starts in.
+        // init() is never called in this test, so the budget has not elapsed: this is the
+        // "nothing has been observed yet" situation every caller starts in.
         assertFalse(XposedServiceManager.decisionBudgetElapsed())
 
         assertTrue(XposedServiceManager.shouldReportInactive(State.DISCONNECTED))
@@ -45,10 +45,24 @@ class XposedBindStateTest {
     }
 
     @Test
-    fun timedOutIsNotReportableUntilTheBudgetElapses() {
-        // The regression guard for the soft-reboot menu item, which used to assert the
-        // budget was spent from a plain state read and so reported on TIMED_OUT at once.
-        assertFalse(XposedServiceManager.shouldReportInactive(State.TIMED_OUT))
+    fun timedOutNeverBecomesAProvenNegative() {
+        val initElapsedRealtime = XposedServiceManager::class.java
+            .getDeclaredField("initElapsedRealtime")
+            .apply { isAccessible = true }
+        val original = initElapsedRealtime.getLong(null)
+        try {
+            // JVM Android stubs return zero here. Starting one full budget before zero
+            // makes the manager's own elapsed-time check deterministically true without
+            // sleeping, and reproduces the false dialog shown after a rapid restart.
+            initElapsedRealtime.setLong(
+                null,
+                -XposedServiceManager.FULL_DECISION_BUDGET_MS
+            )
+            assertTrue(XposedServiceManager.decisionBudgetElapsed())
+            assertFalse(XposedServiceManager.shouldReportInactive(State.TIMED_OUT))
+        } finally {
+            initElapsedRealtime.setLong(null, original)
+        }
     }
 
     @Test

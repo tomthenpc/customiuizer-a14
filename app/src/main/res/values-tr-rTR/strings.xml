@@ -524,6 +524,8 @@ ss - iki basamaklı saniye(09)</string>
     <string name="controls_fsg_swipeandstop_title">Kenardan başlayarak ekranı kaydırın ve eylemi durdurun</string>
     <string name="controls_fsg_swipeandstop_disablevibrate_title">Titretme</string>
     <string name="various_mods">Çeşitli</string>
+    <string name="various_general_cat_title">Sistem ve uyumluluk</string>
+    <string name="various_app_management_cat_title">Uygulama yönetimi</string>
     <string name="various_hiddenfeatures_title">Gizli özellikler</string>
     <string name="various_hiddenfeatures_summ">Her zaman kolayca erişilemeyen etkinlikler</string>
     <string name="various_hiddenfeatures_not_found">Bu cihazda mevcut değil</string>

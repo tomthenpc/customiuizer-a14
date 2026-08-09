@@ -40,6 +40,7 @@ class VariousGroup:
     key: str
     title: str
     output_name: str
+    source_title: str | None = None
 
 
 CATEGORY_SOURCES = (
@@ -50,7 +51,11 @@ CATEGORY_SOURCES = (
 )
 
 VARIOUS_GROUPS = (
-    VariousGroup("pref_key_various_cat_general", "@string/various_mods", "prefs_various_general.xml"),
+    VariousGroup(
+        "pref_key_various_cat_general",
+        "@string/various_general_cat_title",
+        "prefs_various_general.xml",
+    ),
     VariousGroup(
         "pref_key_various_cat_package_installer",
         "@string/various_package_installer_cat_title",
@@ -62,7 +67,12 @@ VARIOUS_GROUPS = (
         "prefs_various_security_center.xml",
     ),
     VariousGroup("pref_key_various_cat_calls", "@string/calls", "prefs_various_calls.xml"),
-    VariousGroup("pref_key_various_cat_settings", "@string/settings", "prefs_various_settings.xml"),
+    VariousGroup(
+        "pref_key_various_cat_settings",
+        "@string/various_app_management_cat_title",
+        "prefs_various_settings.xml",
+        "@string/settings",
+    ),
     VariousGroup("pref_key_various_cat_gboard", "@string/gboard", "prefs_various_gboard.xml"),
 )
 
@@ -133,7 +143,8 @@ def _partition_various(source_root: ET.Element) -> list[list[ET.Element]]:
             group_index += 1
             if group_index >= len(VARIOUS_GROUPS):
                 raise ValueError("prefs_various.xml contains more category headers than expected")
-            expected_title = VARIOUS_GROUPS[group_index].title
+            spec = VARIOUS_GROUPS[group_index]
+            expected_title = spec.source_title or spec.title
             actual_title = child.get(ANDROID_TITLE, "")
             if actual_title != expected_title:
                 raise ValueError(

@@ -608,6 +608,8 @@
     <string name="controls_fsg_swipeandstop_disablevibrate_title">Do not vibrate</string>
 
     <string name="various_mods">Various</string>
+    <string name="various_general_cat_title">System &amp; compatibility</string>
+    <string name="various_app_management_cat_title">App management</string>
     <string name="various_hiddenfeatures_title">Hidden features</string>
     <string name="various_hiddenfeatures_summ">Activities that are not always easily accessible</string>
     <string name="various_hiddenfeatures_not_found">Not available on this device</string>

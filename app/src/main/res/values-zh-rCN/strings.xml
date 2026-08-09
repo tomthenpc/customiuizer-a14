@@ -577,6 +577,8 @@
     <string name="controls_fsg_swipeandstop_title">屏幕两侧向内滑动并停顿</string>
     <string name="controls_fsg_swipeandstop_disablevibrate_title">禁止振动</string>
     <string name="various_mods">杂项</string>
+    <string name="various_general_cat_title">系统与兼容性</string>
+    <string name="various_app_management_cat_title">应用管理</string>
     <string name="various_miuiinstaller_summ">允许其更新系统应用</string>
     <string name="various_miuiinstaller_error">请求的应用未安装或被禁用</string>
     <string name="various_installappinfo_title">显示安装包信息</string>

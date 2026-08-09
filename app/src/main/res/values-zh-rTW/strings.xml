@@ -520,6 +520,8 @@
     <string name="controls_fsg_horiz_summ">啟用水平手勢和導航欄</string>
     <string name="controls_fsg_swipeandstop_title">螢幕兩側向內滑動並停頓</string>
     <string name="various_mods">雜項</string>
+    <string name="various_general_cat_title">系統與相容性</string>
+    <string name="various_app_management_cat_title">應用程式管理</string>
     <string name="various_hiddenfeatures_title">隱藏特性</string>
     <string name="various_hiddenfeatures_summ">不易找到的界面</string>
     <string name="various_hiddenfeatures_not_found">該設備不支援</string>

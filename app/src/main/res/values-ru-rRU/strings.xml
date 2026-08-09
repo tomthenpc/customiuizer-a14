@@ -570,6 +570,8 @@
     <string name="controls_fsg_swipeandstop_title">Проведите по экрану, начиная от края и заканчивая действием</string>
     <string name="controls_fsg_swipeandstop_disablevibrate_title">Не вибрировать</string>
     <string name="various_mods">Различное</string>
+    <string name="various_general_cat_title">Система и совместимость</string>
+    <string name="various_app_management_cat_title">Управление приложениями</string>
     <string name="various_hiddenfeatures_title">Скрытые функции</string>
     <string name="various_hiddenfeatures_summ">Запуск активностей, которые не всегда легко доступны</string>
     <string name="various_hiddenfeatures_not_found">Недоступно на данном устройстве</string>

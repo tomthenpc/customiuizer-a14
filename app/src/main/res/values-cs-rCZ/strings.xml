@@ -575,6 +575,8 @@
     <string name="controls_fsg_swipeandstop_title">Potáhnutím prstu z jednoho okraje displeje na druhý pro návrat k předchozí aplikaci</string>
     <string name="controls_fsg_swipeandstop_disablevibrate_title">Nevibrovat</string>
     <string name="various_mods">Různé</string>
+    <string name="various_general_cat_title">Systém a kompatibilita</string>
+    <string name="various_app_management_cat_title">Správa aplikací</string>
     <string name="various_hiddenfeatures_title">Skryté funkce</string>
     <string name="various_hiddenfeatures_summ">Činnosti, které nejsou vždy snadno dostupné</string>
     <string name="various_hiddenfeatures_not_found">V tomto zařízení není k dispozici</string>

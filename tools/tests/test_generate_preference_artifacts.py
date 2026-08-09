@@ -63,11 +63,11 @@ EXPECTED_SPLITS = {
 }
 
 VARIOUS_GROUPS = (
-    ("pref_key_various_cat_general", "@string/various_mods"),
+    ("pref_key_various_cat_general", "@string/various_general_cat_title"),
     ("pref_key_various_cat_package_installer", "@string/various_package_installer_cat_title"),
     ("pref_key_various_cat_security_center", "@string/various_securitycenter_unlock_title"),
     ("pref_key_various_cat_calls", "@string/calls"),
-    ("pref_key_various_cat_settings", "@string/settings"),
+    ("pref_key_various_cat_settings", "@string/various_app_management_cat_title"),
     ("pref_key_various_cat_gboard", "@string/gboard"),
 )
 

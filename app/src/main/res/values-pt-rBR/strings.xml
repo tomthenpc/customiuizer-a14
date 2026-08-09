@@ -584,6 +584,8 @@
     <string name="controls_fsg_swipeandstop_title">Deslize pela tela a partir da borda e pare a ação</string>
     <string name="controls_fsg_swipeandstop_disablevibrate_title">Não vibrar</string>
     <string name="various_mods">Vários</string>
+    <string name="various_general_cat_title">Sistema e compatibilidade</string>
+    <string name="various_app_management_cat_title">Gerenciamento de apps</string>
     <string name="various_hiddenfeatures_title">Recursos ocultos</string>
     <string name="various_hiddenfeatures_summ">Atividades que nem sempre são facilmente acessíveis</string>
     <string name="various_hiddenfeatures_not_found">Não disponível neste dispositivo</string>

@@ -52,32 +52,21 @@ object XposedServiceManager {
     /**
      * Whether the module may be reported as not connected to the user.
      *
-     * Only [State.DISCONNECTED] is a proven negative. [State.TIMED_OUT] qualifies only once
-     * [FULL_DECISION_BUDGET_MS] has elapsed since [init], because at that point a caller
-     * that keeps silent would never report a module that really is inactive.
-     *
-     * That elapsed check is deliberately owned here rather than passed in by callers. It
-     * used to be a `bindStillPending` flag, and the very first caller added after the
-     * flag - the soft-reboot menu item - passed `true` without waiting for anything,
-     * reintroducing the misjudgement the flag existed to prevent.
+     * Only [State.DISCONNECTED] is a proven negative. Time passing does not add evidence:
+     * [State.TIMED_OUT] can still become [State.BOUND], especially while this process is
+     * being killed and relaunched quickly.
      */
     @JvmStatic
     @JvmOverloads
-    fun shouldReportInactive(current: State = state): Boolean =
-        when (current) {
-            State.DISCONNECTED -> true
-            State.TIMED_OUT -> decisionBudgetElapsed()
-            // UNKNOWN means the timeout has not even fired yet, so nothing has been
-            // observed and there is nothing to report.
-            State.UNKNOWN, State.BOUND -> false
-        }
+    fun shouldReportInactive(current: State = state): Boolean = current == State.DISCONNECTED
 
     /**
-     * Whether the bind state can still change the answer [shouldReportInactive] gives.
+     * Whether a startup caller should stop waiting for [shouldReportInactive].
      *
      * A caller that is about to act on the state should wait for this, not for the state
      * to stop being [State.isProvisional] - a bind that never arrives leaves the state
-     * provisional forever, and this is what puts a bound on the wait.
+     * provisional forever. Expiring the wait budget ends UI polling but deliberately does
+     * not turn a timeout into evidence that the module is inactive.
      */
     @JvmStatic
     fun isDecided(): Boolean = !state.isProvisional || decisionBudgetElapsed()
@@ -170,13 +159,13 @@ object XposedServiceManager {
     const val BIND_DECISION_TIMEOUT_MS = 3500L
 
     /**
-     * Total time from [init] before a still-pending bind is allowed to count against the
-     * module. Two bind windows plus a margin: the first covers an ordinary start, the
+     * Total time from [init] before a startup caller stops waiting for a still-pending bind.
+     * Two bind windows plus a margin: the first covers an ordinary start, the
      * second covers a bind still in flight after a process restart - which is what a
      * language change forces, and when binding is slowest.
      *
-     * This lives here, not in a screen, so that every caller answers the question the same
-     * way regardless of when it happened to open.
+     * This lives here, not in a screen, so every caller has the same bounded wait regardless
+     * of when it happened to open. It never changes the meaning of [State.TIMED_OUT].
      */
     const val FULL_DECISION_BUDGET_MS = BIND_DECISION_TIMEOUT_MS * 2 + 500L
 

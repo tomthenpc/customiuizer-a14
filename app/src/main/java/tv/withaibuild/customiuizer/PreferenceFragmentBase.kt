@@ -246,10 +246,9 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
     /**
      * Reports that the LSPosed service is not reachable.
      *
-     * The wording deliberately stops short of "the module is not active". The state that
-     * gets here is usually [XposedServiceManager.State.TIMED_OUT], which is a bind that
-     * has not arrived yet, not a bind that failed - an unusually slow one still binds
-     * afterwards, and a dialog asserting the module is inactive would then be simply wrong.
+     * The wording deliberately stops short of "the module is not active". Only an observed
+     * disconnect or a registration failure reaches this path; a bind timeout remains
+     * unknown and must not be upgraded into a negative conclusion.
      *
      * When settings have been changed since the mirror last reached the module, that is added
      * to the message: it is the one consequence of an unbound service the user can see for
@@ -410,6 +409,10 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         title: String?,
         contentResId: Int
     ) {
+        if (!isAdded) return
+        val fragmentManager = parentFragmentManager
+        if (fragmentManager.isStateSaved) return
+
         val fragmentArgs = args ?: Bundle()
         fragmentArgs.putInt("settingsType", settingsType.ordinal)
         fragmentArgs.putInt("abType", abType.ordinal)
@@ -431,7 +434,8 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
             existingArgs.putAll(fragmentArgs)
         }
 
-        parentFragmentManager.beginTransaction()
+        finishNavigationFeedback()
+        fragmentManager.beginTransaction()
             .setReorderingAllowed(true)
             .setCustomAnimations(
                 R.animator.fragment_open_enter,
@@ -441,7 +445,28 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
             )
             .replace(R.id.fragment_container, fragment)
             .addToBackStack(null)
-            .commitAllowingStateLoss()
+            .commit()
+    }
+
+    /**
+     * Finishes the source row's ripple before both fragments are translated side by side.
+     * Only currently attached rows are touched, so the work is bounded by the viewport and
+     * allocates no animator or long-lived state.
+     */
+    private fun finishNavigationFeedback() {
+        val fragmentView = view ?: return
+        fragmentView.isPressed = false
+        fragmentView.jumpDrawablesToCurrentState()
+
+        val preferenceList = getListView()
+        preferenceList.stopScroll()
+        preferenceList.isPressed = false
+        preferenceList.jumpDrawablesToCurrentState()
+        for (index in 0 until preferenceList.childCount) {
+            val row = preferenceList.getChildAt(index)
+            row.isPressed = false
+            row.jumpDrawablesToCurrentState()
+        }
     }
 
     override fun onCreateAnimator(transit: Int, enter: Boolean, nextAnim: Int): Animator? {

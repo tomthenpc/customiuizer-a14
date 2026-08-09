@@ -550,6 +550,8 @@
     <string name="controls_fsg_swipeandstop_title">Deslizar a través de la pantalla empezando de la esquina y detenerse</string>
     <string name="controls_fsg_swipeandstop_disablevibrate_title">No vibrar</string>
     <string name="various_mods">Varios</string>
+    <string name="various_general_cat_title">Sistema y compatibilidad</string>
+    <string name="various_app_management_cat_title">Gestión de aplicaciones</string>
     <string name="various_hiddenfeatures_title">Características ocultas</string>
     <string name="various_hiddenfeatures_summ">Actividades que no siempre son fácil de acceder</string>
     <string name="various_hiddenfeatures_not_found">No disponible para este dispositivo</string>
