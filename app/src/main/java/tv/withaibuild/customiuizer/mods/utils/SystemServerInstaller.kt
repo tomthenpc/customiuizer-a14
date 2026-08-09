@@ -23,12 +23,35 @@ object SystemServerInstaller {
 
         // Base system_server hook: not preference-controlled, always installed.
         val registry = FeatureInstallRegistry()
-        registry.register(PackagePermissionsFeature(lpparam, mPrefs))
+        val catalogStartNanos = FeatureInstallMetrics.nowNanos()
+        val catalogStartBytes = FeatureInstallMetrics.allocatedBytes()
+        val packagePermissionsFeature = PackagePermissionsFeature(lpparam, mPrefs)
+        val features = SystemServerFeatures.all(lpparam)
+        val catalogEndNanos = FeatureInstallMetrics.nowNanos()
+        val catalogEndBytes = FeatureInstallMetrics.allocatedBytes()
+        val registerStartNanos = FeatureInstallMetrics.nowNanos()
+        val registerStartBytes = FeatureInstallMetrics.allocatedBytes()
+        registry.register(packagePermissionsFeature)
 
         // All preference-guarded system_server features.
-        for (feature in SystemServerFeatures.all(lpparam)) {
+        for (feature in features) {
             registry.register(feature)
         }
+
+        val registerEndNanos = FeatureInstallMetrics.nowNanos()
+        val registerEndBytes = FeatureInstallMetrics.allocatedBytes()
+        FeatureInstallMetrics.recordCatalog(
+            label = "system-server/starting",
+            specCount = features.size + 1,
+            catalogStartNanos = catalogStartNanos,
+            catalogEndNanos = catalogEndNanos,
+            catalogStartBytes = catalogStartBytes,
+            catalogEndBytes = catalogEndBytes,
+            registerStartNanos = registerStartNanos,
+            registerEndNanos = registerEndNanos,
+            registerStartBytes = registerStartBytes,
+            registerEndBytes = registerEndBytes,
+        )
 
         // Global actions are still checked eagerly because they depend on a cached map that must
         // not be built before preferences are ready.

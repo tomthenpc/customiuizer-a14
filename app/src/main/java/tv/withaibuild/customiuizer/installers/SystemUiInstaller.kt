@@ -2,6 +2,7 @@ package tv.withaibuild.customiuizer.installers
 
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallMetrics
 import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
@@ -21,10 +22,32 @@ object SystemUiInstaller {
     @JvmStatic
     fun install(lpparam: PackageReadyParam, mPrefs: PrefMap) {
         val registry = FeatureInstallRegistry()
+        val catalogStartNanos = FeatureInstallMetrics.nowNanos()
+        val catalogStartBytes = FeatureInstallMetrics.allocatedBytes()
+        val features = SystemUiFeatures.all(lpparam, mPrefs)
+        val catalogEndNanos = FeatureInstallMetrics.nowNanos()
+        val catalogEndBytes = FeatureInstallMetrics.allocatedBytes()
+        val registerStartNanos = FeatureInstallMetrics.nowNanos()
+        val registerStartBytes = FeatureInstallMetrics.allocatedBytes()
 
-        for (feature: FeatureSpec in SystemUiFeatures.all(lpparam, mPrefs)) {
+        for (feature: FeatureSpec in features) {
             registry.register(feature)
         }
+
+        val registerEndNanos = FeatureInstallMetrics.nowNanos()
+        val registerEndBytes = FeatureInstallMetrics.allocatedBytes()
+        FeatureInstallMetrics.recordCatalog(
+            label = "systemui/package-ready",
+            specCount = features.size,
+            catalogStartNanos = catalogStartNanos,
+            catalogEndNanos = catalogEndNanos,
+            catalogStartBytes = catalogStartBytes,
+            catalogEndBytes = catalogEndBytes,
+            registerStartNanos = registerStartNanos,
+            registerEndNanos = registerEndNanos,
+            registerStartBytes = registerStartBytes,
+            registerEndBytes = registerEndBytes,
+        )
 
         registry.installAll(FeatureTarget.SYSTEM_UI, InstallPhase.PACKAGE_READY, mPrefs)
     }
