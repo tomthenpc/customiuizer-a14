@@ -435,8 +435,8 @@
       "coverage_status": "BLOCKED_NO_INDEPENDENT_GATE"
     },
     {
-      "name": "r8_strips_installer",
-      "mutator": "r8_strips_installer",
+      "name": "r8_broad_mods_keep",
+      "mutator": "r8_broad_mods_keep",
       "apply_check": "a14_contract",
       "kill_gate": null,
       "required_independent": false,
@@ -927,9 +927,9 @@
       "requiredFollowUp": null
     },
     {
-      "id": "r8_strips_installer",
+      "id": "r8_broad_mods_keep",
       "status": "BLOCKED_NO_INDEPENDENT_GATE",
-      "mutator": "r8_strips_installer",
+      "mutator": "r8_broad_mods_keep",
       "reason": "Executable mutation in current configuration",
       "requiredFollowUp": null
     },

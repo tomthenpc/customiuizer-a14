@@ -34,7 +34,7 @@ Kotlin + 少量 Java 的现状保持不变；不以迁移到 Java、Rust、Compo
 | 搜索 | 303 条可搜索项在构建期生成紧凑索引，运行时不再解析四份功能 XML | M3.2 工程实现完成 |
 | Feature 安装 | 关闭功能已经没有业务对象成本，但 SystemUI 启动仍遍历约 96 个 Spec 并检查 preference | 当前是可接受冷路径，需实机证据后再改 |
 | 安装状态 | `FeatureInstallState` 使用 `HashMap<Int, FeatureState>` | 可替换，但尚无收益证据 |
-| R8 | Hooker 与 `mods.**` 公共成员 keep 边界较宽 | 先做 why-kept 证据，禁止直接删规则 |
+| R8 | `mods.**` 公共成员宽泛 keep 已删除；Hooker/Manifest/Xposed 入口规则保持 | M4.3 工程实现完成，等待实机类加载回归 |
 | 实机性能 | 现有 P2 checkpoint 因无设备未采集 PSS、CPU、启动和帧数据 | 大改前必须补齐 |
 
 ## 执行顺序
@@ -192,6 +192,13 @@ Owner 于 2026-08-09 明确要求一次完成 M3，当前工程结果为：
 - 每次只收窄一类入口，验证 settings 进程与目标进程类加载边界；
 - 未获正式 Release 授权时，不创建、不签名、不发布 Release APK。
 
+工程实现已完成第一处有独立收益证据的收窄：删除 `mods.**` 公共静态方法与公共字段的
+全局 `-keepclassmembers`，保留 XposedModule、Hooker、Manifest 和 Xposed 资源入口规则。
+Develop/R8 A/B 中 APK 减少 163,840 bytes（4.67%），DEX 减少 173,924 bytes（9.17%），
+`mods.*` seed 行从 3,806 降至 1,909。why-kept 证明代表性 Hooker 仍由专用入口规则保留，
+可内联的 `SystemUiFeatures` 容器则不再被错误保留。完整证据见
+[M4_3_R8_KEEP_NARROWING_2026-08-09.md](M4_3_R8_KEEP_NARROWING_2026-08-09.md)。
+
 #### M4.4 巨型 Hook 单例
 
 只在 `<clinit>`、retained heap 或 disabled baseline 证明确有成本时，按进程、生命周期和
@@ -222,4 +229,5 @@ M0 A/B 结果见
 
 M3 没有引入新的 UI 框架，也不把静态元素下降冒充设备性能收益；实机页面、搜索直达和
 返回路径为 `DEVICE_RUNTIME_PASS`。AudioVisualizer 当前设备配置为关闭，本轮未改用户配置或
-重启 SystemUI。M4 继续保持证据门槛。
+重启 SystemUI。M4.3 已完成第一处 R8 keep 收窄和静态 A/B，当前为
+`STATIC_R8_PASS / DEVICE_CHECKPOINT_BLOCKED_NO_DEVICE`；M4.1、M4.2、M4.4 继续保持证据门槛。

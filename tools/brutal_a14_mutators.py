@@ -234,13 +234,17 @@ def remove_consumer_rule(root: Path, cfg: dict) -> None:
     )
 
 
-def r8_strips_installer(root: Path, cfg: dict) -> None:
-    """Remove the broad keepclassmembers rule for the mods package."""
+def r8_broad_mods_keep(root: Path, cfg: dict) -> None:
+    """Reintroduce the broad mods keep rule removed by the R8 optimization."""
     _replace_first(
         root,
         "app/proguard-rules.pro",
-        r"-keepclassmembers class tv\.withaibuild\.customiuizer\.mods\.\*\* \{\n    public static <methods>;\n    public <fields>;\n\}\n",
-        "",
+        r"# Obfuscation\n",
+        "-keepclassmembers class tv.withaibuild.customiuizer.mods.** {\n"
+        "    public static <methods>;\n"
+        "    public <fields>;\n"
+        "}\n\n"
+        "# Obfuscation (broad mods keep mutation)\n",
     )
 
 
@@ -648,7 +652,7 @@ MUTATORS: dict[str, Callable[[Path, dict], None]] = {
     # R8
     "remove_keep_rule": remove_keep_rule,
     "remove_consumer_rule": remove_consumer_rule,
-    "r8_strips_installer": r8_strips_installer,
+    "r8_broad_mods_keep": r8_broad_mods_keep,
     # Installer / Process / ClassLoader
     "duplicate_install_all": duplicate_install_all,
     "installer_order_swap": installer_order_swap,

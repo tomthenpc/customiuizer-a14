@@ -21,13 +21,6 @@
 -keepnames class tv.withaibuild.customiuizer.tasker.UnlockReceiver
 -keepnames class tv.withaibuild.customiuizer.qs.AutoRotateService
 
-# Keep public static entry points and fields of hook classes so R8 does not inline/remove
-# methods that are only reached from the settings app or invoked by class-name strings.
--keepclassmembers class tv.withaibuild.customiuizer.mods.** {
-    public static <methods>;
-    public <fields>;
-}
-
 # Obfuscation
 -repackageclasses
 -allowaccessmodification
