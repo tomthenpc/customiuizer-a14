@@ -36,9 +36,9 @@ object SystemUIFocusNotificationHooks {
             lpparam.classLoader,
             "onFinishInflate",
             object : MethodHook() {
-                override fun after(param: AfterHookCallback) {
+                override fun after(callback: AfterHookCallback) {
                     try {
-                        val view = param.getThisObject() as? View ?: return
+                        val view = callback.getThisObject() as? View ?: return
                         if (view.id > 0) focusedPromptViewId = view.id
                         when (mode) {
                             StatusBarFocusNotificationMode.MATCH_STATUS_BAR_HEIGHT -> {
@@ -67,10 +67,10 @@ object SystemUIFocusNotificationHooks {
             "updateStatusBarVisibilities",
             Boolean::class.javaPrimitiveType!!,
             object : MethodHook() {
-                override fun after(param: AfterHookCallback) {
+                override fun after(callback: AfterHookCallback) {
                     try {
                         val statusBar = XposedHelpers.getObjectField(
-                            param.getThisObject(),
+                            callback.getThisObject(),
                             "mStatusBar"
                         ) as? ViewGroup ?: return
                         if (focusedPromptViewId <= 0) {
