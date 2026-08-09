@@ -15,12 +15,82 @@ import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import java.lang.reflect.Field
 
 /**
  * Folder and app drawer hooks.
  * Column count and width, blur, the privacy folder, and closing on launch.
  */
 object LauncherFolderHooks {
+
+    private const val PREF_FOLDER_WIDTH = "launcher_folderwidth"
+    private const val PREF_FOLDER_BLUR = "launcher_folderblur_opacity"
+
+    /**
+     * Folder state read from layout and blur callbacks.
+     *
+     * `Folder.onLayout` and `BlurUtils.getLauncherBlur` run per frame during folder animations,
+     * so they read these primitives instead of the preference map. Both are refreshed only when
+     * the corresponding preference changes.
+     */
+    @Volatile
+    private var folderWidthEnabled = false
+
+    @Volatile
+    private var folderBlurRatio = 0f
+
+    @Volatile
+    private var folderPreferenceObserverRegistered = false
+
+    /** `Folder.mContent` / `Folder.mFakeIcon`, resolved once instead of per layout pass. */
+    @Volatile
+    private var folderContentField: Field? = null
+
+    @Volatile
+    private var folderFakeIconField: Field? = null
+
+    /** Set when the Folder ABI could not be resolved, so layout stops probing every frame. */
+    @Volatile
+    private var folderLayoutAbiUnavailable = false
+
+    private fun refreshFolderPreferences() {
+        folderWidthEnabled = MainModule.mPrefs.getBoolean(PREF_FOLDER_WIDTH)
+        folderBlurRatio = MainModule.mPrefs.getInt(PREF_FOLDER_BLUR, 0) / 100f
+    }
+
+    private fun installFolderPreferenceSnapshot() {
+        refreshFolderPreferences()
+        if (folderPreferenceObserverRegistered) return
+        folderPreferenceObserverRegistered = true
+        ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) = ModuleHelper.guarded {
+                if (key == PREF_FOLDER_WIDTH || key == PREF_FOLDER_BLUR) {
+                    refreshFolderPreferences()
+                }
+            }
+        })
+    }
+
+    /**
+     * Resolves the two Folder fields the layout pass needs. A ROM without them disables the
+     * layout adjustment instead of throwing from every `onLayout`.
+     */
+    private fun resolveFolderLayoutFields(folder: Any): Boolean {
+        if (folderLayoutAbiUnavailable) return false
+        val content = folderContentField
+        if (content != null && content.declaringClass.isInstance(folder)) return true
+
+        val resolvedContent = XposedHelpers.findFieldIfExists(folder.javaClass, "mContent")
+        val resolvedFakeIcon = XposedHelpers.findFieldIfExists(folder.javaClass, "mFakeIcon")
+        if (resolvedContent == null || resolvedFakeIcon == null) {
+            folderLayoutAbiUnavailable = true
+            XposedHelpers.log("[FolderWidth] Folder.mContent/mFakeIcon unavailable, layout adjustment disabled")
+            return false
+        }
+        folderContentField = resolvedContent
+        folderFakeIconField = resolvedFakeIcon
+        return true
+    }
 
     @JvmStatic
     fun CloseFolderOnLaunchHook(lpparam: PackageReadyParam) {
@@ -55,7 +125,7 @@ object LauncherFolderHooks {
     }
 
     private fun setFolderWidth(thisObject: Any) {
-        if (MainModule.mPrefs.getBoolean("launcher_folderwidth")) {
+        if (folderWidthEnabled) {
             val mContent = XposedHelpers.getObjectField(thisObject, "mContent") as GridView
             val lp = mContent.layoutParams
             lp.width = ViewGroup.LayoutParams.MATCH_PARENT
@@ -65,6 +135,7 @@ object LauncherFolderHooks {
 
     @JvmStatic
     fun FolderColumnsHook(lpparam: PackageReadyParam) {
+        installFolderPreferenceSnapshot()
         ModuleHelper.findAndHookMethod("com.miui.home.launcher.Folder", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
@@ -129,12 +200,13 @@ object LauncherFolderHooks {
                     throwable = t
                     result = null
                 }
+                if (!folderWidthEnabled) { return XposedHelpers.throwOrReturn(throwable, result) }
                 try {
                     val thisObject = chain.getThisObject()
 
-                    if (!MainModule.mPrefs.getBoolean("launcher_folderwidth")) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    val mContent = XposedHelpers.getObjectField(thisObject, "mContent") as GridView
-                    val mFakeIcon = XposedHelpers.getObjectField(thisObject, "mFakeIcon") as ImageView
+                    if (!resolveFolderLayoutFields(thisObject)) { return XposedHelpers.throwOrReturn(throwable, result) }
+                    val mContent = folderContentField!!.get(thisObject) as GridView
+                    val mFakeIcon = folderFakeIconField!!.get(thisObject) as ImageView
                     mFakeIcon.layout(mContent.left, mContent.top, mContent.right, mContent.top + mContent.width)
 
                 } catch (t: Throwable) {
@@ -239,6 +311,7 @@ object LauncherFolderHooks {
     fun FolderBlurHook(lpparam: PackageReadyParam) {
         val BlurUtils = XposedHelpers.findClassIfExists("com.miui.home.launcher.common.BlurUtils", lpparam.classLoader)
         if (BlurUtils != null) {
+            installFolderPreferenceSnapshot()
             ModuleHelper.hookAllMethods(BlurUtils, "getLauncherBlur", object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var skipped = false
@@ -248,10 +321,8 @@ object LauncherFolderHooks {
 
                         val isFolderShowing = XposedHelpers.callMethod(chain.getArg(0), "isFolderShowing") as Boolean
                         if (isFolderShowing) {
-                            val blurPct = MainModule.mPrefs.getInt("launcher_folderblur_opacity", 0)
-                            val blurRatio = blurPct / 100f
                             skipped = true
-                            result = blurRatio
+                            result = folderBlurRatio
                             throwable = null
                         }
 
@@ -280,9 +351,7 @@ object LauncherFolderHooks {
 
                         val launcher = XposedHelpers.getObjectField(thisObject, "mLauncher") as Activity
 
-                        val blurPct = MainModule.mPrefs.getInt("launcher_folderblur_opacity", 0)
-                        val blurRatio = blurPct / 100f
-                        XposedHelpers.callStaticMethod(BlurUtils, "fastBlur", blurRatio, launcher.window, true)
+                        XposedHelpers.callStaticMethod(BlurUtils, "fastBlur", folderBlurRatio, launcher.window, true)
 
                     } catch (t: Throwable) {
                         XposedHelpers.log(t)

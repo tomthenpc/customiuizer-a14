@@ -37,6 +37,43 @@ import java.util.ArrayList
  */
 object SystemUILockScreenHooks {
 
+    private const val PREF_SWIPE_RIGHT_OFF = "system_lockscreenshortcuts_right_off"
+    private const val PREF_SWIPE_LEFT_OFF = "system_lockscreenshortcuts_left_off"
+
+    /**
+     * Swipe suppression flags for `KeyguardMoveHelper.setTranslation`.
+     *
+     * setTranslation runs for every touch sample of a keyguard swipe, so it must not reach the
+     * preference map. These flags are published on the cold install path and refreshed only when
+     * the preference actually changes.
+     */
+    @Volatile
+    private var swipeRightOff = false
+
+    @Volatile
+    private var swipeLeftOff = false
+
+    @Volatile
+    private var swipeSuppressionObserverRegistered = false
+
+    private fun refreshSwipeSuppression() {
+        swipeRightOff = MainModule.mPrefs.getBoolean(PREF_SWIPE_RIGHT_OFF)
+        swipeLeftOff = MainModule.mPrefs.getBoolean(PREF_SWIPE_LEFT_OFF)
+    }
+
+    private fun installSwipeSuppressionSnapshot() {
+        refreshSwipeSuppression()
+        if (swipeSuppressionObserverRegistered) return
+        swipeSuppressionObserverRegistered = true
+        ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) = ModuleHelper.guarded {
+                if (key == PREF_SWIPE_RIGHT_OFF || key == PREF_SWIPE_LEFT_OFF) {
+                    refreshSwipeSuppression()
+                }
+            }
+        })
+    }
+
     @JvmStatic
     fun LockScreenTopMarginHook(lpparam: PackageReadyParam) {
         val statusBarPaddingTop = IntArray(1)
@@ -308,18 +345,22 @@ object SystemUILockScreenHooks {
             })
         }
 
+        installSwipeSuppressionSnapshot()
         ModuleHelper.findAndHookMethod("com.android.keyguard.KeyguardMoveHelper", lpparam.classLoader, "setTranslation", Float::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
+                val rightOff = swipeRightOff
+                val leftOff = swipeLeftOff
+                if (!rightOff && !leftOff) return
                 val mCurrentScreen = XposedHelpers.getIntField(param.getThisObject(), "mCurrentScreen")
                 if (mCurrentScreen != 1) return
-                if ((param.getArgs()[0] as Float) < 0 && MainModule.mPrefs.getBoolean("system_lockscreenshortcuts_right_off"))
+                val translation = param.getArgs()[0] as Float
+                if ((translation < 0 && rightOff) || (translation > 0 && leftOff)) {
                     param.getArgs()[0] = 0.0f
-                else if ((param.getArgs()[0] as Float) > 0 && MainModule.mPrefs.getBoolean("system_lockscreenshortcuts_left_off"))
-                    param.getArgs()[0] = 0.0f
+                }
             }
         })
 
-        if (MainModule.mPrefs.getBoolean("system_lockscreenshortcuts_right_off")) {
+        if (swipeRightOff) {
             ModuleHelper.findAndHookMethod("com.android.keyguard.KeyguardMoveHelper", lpparam.classLoader, "endMotion", Float::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
                 override fun before(param: BeforeHookCallback) {
                     val mCurrentScreen = XposedHelpers.getIntField(param.getThisObject(), "mCurrentScreen")
