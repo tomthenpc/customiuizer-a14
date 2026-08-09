@@ -1165,34 +1165,34 @@ object Various {
 
     @JvmStatic
     fun DisableDockSuggestHook(lpparam: PackageReadyParam) {
+        val callerUnhooker = installDockSuggestionCallerScope(lpparam.classLoader) ?: return
         val clearHook = object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
-                var skipped = false
-                var result: Any? = null
-                var throwable: Throwable? = null
-                try {
-                    val blackList = ArrayList<String>()
-                    blackList.add("xx.yy.zz")
-                    val stackTrace = Thread.currentThread().stackTrace
-                    val length = minOf(stackTrace.size - 1, 15)
-                    for (i in 8 until length) {
-                        val el = stackTrace[i]
-                        if (el.className.contains("DockAppEditActivity") || el.className.contains("BubblesSettings")) {
-                            return XposedHelpers.proceedOrThrow(chain, throwable)
-                        }
-                    }
-                    skipped = true; result = blackList; throwable = null
-
-                    if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
+                return dockSuggestionResult(
+                    dockSuggestionCallerScope.isActive()
+                ) {
+                    chain.proceed()
                 }
-                return XposedHelpers.throwOrReturn(throwable, result)
             }
         }
-        ModuleHelper.hookAllMethodsSilently("android.util.MiuiMultiWindowUtils", lpparam.classLoader, "getFreeformSuggestionList", clearHook)
+        // Device bytecode calls the framework getter reflectively through n6.b#p/#q.
+        // Only DockAppEditActivity's verified loader worker reaches q from the old whitelist.
+        // BubblesSettings has no path to p or q in SecurityCenter 8.9.5-240801.1.1.
+        // Other q callers and every p caller must continue receiving the cleared result.
+        // Scoping n6.b#q itself would therefore broaden the old whitelist incorrectly.
+        // The verified Dock loader worker is the narrowest behavior-equivalent boundary.
+        // Unknown or future callers fail closed without a stack-scanning fallback.
+        // Caller resolution and reflection stay on the feature-install cold path.
+        // The callback hot path performs only a bounded ThreadLocal depth read.
+        // The exact Context overload is verified in the target miui-framework.jar.
+        // The existing mutable single-element ArrayList contract remains unchanged.
+        val coreUnhooker = ModuleHelper.findAndHookMethod(
+            "android.util.MiuiMultiWindowUtils", lpparam.classLoader,
+            "getFreeformSuggestionList", Context::class.java, clearHook
+        )
+        if (coreUnhooker == null) {
+            unhookDockSuggestionCallerScope(callerUnhooker)
+        }
     }
 
     @JvmStatic
