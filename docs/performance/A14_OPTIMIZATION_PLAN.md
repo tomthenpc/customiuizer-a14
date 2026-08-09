@@ -28,10 +28,10 @@ Kotlin + 少量 Java 的现状保持不变；不以迁移到 Java、Rust、Compo
 
 | 方向 | 当前静态证据 | 判断 |
 |---|---|---|
-| View 生命周期 | `AudioVisualizer` 与 `BatteryIndicator` 的 preference observer 回调会访问外部 View；正常 detach 会解绑，但漏掉 detach 时存在 value 反向持有 owner 的风险 | 优先、可小步修复 |
+| View 生命周期 | `AudioVisualizer` 与 `BatteryIndicator` 的 preference observer 已改为弱 owner，正常 detach 仍显式解绑 | 工程修复已完成，继续保留实机生命周期观察 |
 | 调用栈扫描 | Launcher、锁屏充电信息、SecurityCenter Dock 建议三处仍调用 `Thread.currentThread().stackTrace` | 分成三个独立任务 |
-| 设置 UI | `prefs_system.xml` 有 210 个 XML 元素；仓库已有 15 元素的 `prefs_system_cat.xml` 分类壳和大量子页面 | 复用现有分类能力，不整体重写 UI |
-| 搜索 | `Helpers.parsePrefXml()` 在运行时解析 system、launcher、controls、various 四份 XML | 先冻结等价性，再生成索引 |
+| 设置 UI | 四份 canonical XML 在构建期生成 31 个分类页和 4 个分类壳；单页最多 34 个 XML 元素 | M3.1 工程实现完成 |
+| 搜索 | 303 条可搜索项在构建期生成紧凑索引，运行时不再解析四份功能 XML | M3.2 工程实现完成 |
 | Feature 安装 | 关闭功能已经没有业务对象成本，但 SystemUI 启动仍遍历约 96 个 Spec 并检查 preference | 当前是可接受冷路径，需实机证据后再改 |
 | 安装状态 | `FeatureInstallState` 使用 `HashMap<Int, FeatureState>` | 可替换，但尚无收益证据 |
 | R8 | Hooker 与 `mods.**` 公共成员 keep 边界较宽 | 先做 why-kept 证据，禁止直接删规则 |
@@ -58,15 +58,15 @@ Kotlin + 少量 Java 的现状保持不变；不以迁移到 Java、Rust、Compo
 
 ### M1：关闭 SystemUI View 的反向持有链
 
-#### M1.1 AudioVisualizer observer（由 owner 暂缓）
+#### M1.1 AudioVisualizer observer（工程已完成）
 
-Owner 于 2026-08-08 明确暂缓此项，因为该功能很少使用。本分支不修改
-`AudioVisualizer`；以下约束留作未来重新启用任务时使用：
+Owner 于 2026-08-09 重新启用此项；工程实现已完成：
 
 - 将 observer 与 `AudioVisualizer` 的关系改为弱 owner；
 - 保留现有 `dispose()`、`onDetachedFromWindow()`、协程取消和精确解绑顺序；
 - observer 找不到 owner 时直接返回，不创建替代全局所有者；
-- 增加正常 detach、重复 dispose、漏掉 detach 后可回收、preference 更新行为等测试。
+- 回调继续由 owner-bound registry 管理，异常边界改用 `ModuleHelper.guarded`，不吞掉 OOM；
+- 反射合同测试证明 observer 不含强 `AudioVisualizer` 字段且只含一个 `WeakReference`。
 
 #### M1.2 BatteryIndicator observer（工程已完成）
 
@@ -131,26 +131,23 @@ ROM 类或广泛 fallback 换取静态扫描通过。
 
 #### M3.1 分类入口
 
-- 复用现有 `prefs_system_cat.xml` 与子页面路由，把系统设置默认入口变为小型分类壳；
+- 从四份 canonical XML 构建期生成小型分类壳和懒加载子页面；
 - 打开一个分类时只创建该分类及其直接子页面所需的 Preference；
 - 保持所有 preference key、默认值、依赖关系、导入导出和搜索跳转兼容；
-- 先迁移一个代表性分类并测量，再逐分类迁移，禁止一次重写全部 210 个元素；
 - 不引入 Compose，也不先造一套自定义 Cell 框架。
 
 目标不是删除 XML，而是让进入系统设置页时不再一次实例化完整 Preference 树。
 
-首个原子切片于 2026-08-09 进入验证：
+Owner 于 2026-08-09 明确要求一次完成 M3，当前工程结果为：
 
-- “状态栏”普通分类点击和搜索结果直达统一通过
-  `SystemPreferenceResourceResolver` 选择独立的 `prefs_system_statusbar.xml`；
-- 其他系统分类仍使用原 `prefs_system.xml`，不在本切片顺带迁移；
-- 原总表继续作为搜索索引的规范来源，独立资源与其中的状态栏分类由合同测试逐节点核对
-  标签、属性、顺序、依赖和 preference key；
-- 静态元素数从完整资源的 `210` 降为状态栏资源的 `33`。这只证明少创建对象的结构边界，
-  不冒充设备页面耗时或帧收益；
-- JVM 针对性测试、全部工具测试、`fast --changed` 和完整门禁已通过；同机覆盖安装、
-  普通入口、搜索直达、锁屏回退及两轮页面往返回归也已通过。完整证据见
-  [M3_1_STATUSBAR_LAZY_PREFERENCES_2026-08-09.md](M3_1_STATUSBAR_LAZY_PREFERENCES_2026-08-09.md)。
+- `PreferenceResourceResolver` 覆盖系统 14、桌面 6、控制 5、“其他”6，共 31 个懒加载页；
+- 系统完整资源有 210 个 XML 元素，生成分类页为 5–34 个元素；四域全部分类页为
+  4–34 个元素，平均 12.2 个；
+- “其他”原文件没有一级 key，生成器只为“通用 + 5 个原分组”生成导航 key，不改变任何
+  实际设置 key 或持久化数据；
+- 构建合同逐节点核对标签、属性、顺序和依赖，且验证每个 `android:dependency` 目标仍在
+  同一懒加载页；
+- 原四份 XML 继续作为唯一规范来源，手写 selector 和状态栏副本已删除，避免后续漂移。
 
 #### M3.2 构建期搜索索引
 
@@ -158,6 +155,12 @@ ROM 类或广泛 fallback 换取静态扫描通过。
 - 构建阶段生成紧凑索引，运行时只解析生成结果和当前语言资源；
 - 搜索结果、禁用项过滤、直接跳转和高亮行为必须与现状等价；
 - 生成器改动必须补 Python/Gradle 工具测试，生成结果必须可重复。
+
+工程实现已完成：生成索引包含 303 条可搜索项、31 个路由分组和 16 个面包屑段；标题仍在
+运行时从当前语言资源读取。生成文件为 37,567 bytes，是四份 canonical XML 合计体积的
+41.9%。等价性测试逐项核对标题资源、key、分类、面包屑、原显示序号和直达子页，并验证
+重复生成字节完全一致。完整证据见
+[M1_1_M3_COMPLETE_EVIDENCE_2026-08-09.md](M1_1_M3_COMPLETE_EVIDENCE_2026-08-09.md)。
 
 只有 M0 表明设置页仍有明显帧或启动问题时，才评估 RecyclerView 自定义 Cell。
 
@@ -211,11 +214,12 @@ ROM 类或广泛 fallback 换取静态扫描通过。
 
 ## 当前状态与下一步
 
-M1.1 继续由 owner 暂缓；M1.2 与 M2.1-M2.3 已完成工程修复、完整门禁和设备回归。
-M3.1 首个“状态栏”原子切片已完成实现、完整门禁与设备 A/B，不自动迁移其他分类。
+M1.1、M1.2 与 M2.1-M2.3 已完成工程修复；M2 已完成设备回归。M3.1 全分类懒加载与
+M3.2 构建期搜索索引已按 owner 的最新要求一次完成工程实现、完整门禁与设备导航回归。
 M0 A/B 结果见
 [M0_M2_DEVICE_RUNTIME_EVIDENCE_2026-08-09.md](M0_M2_DEVICE_RUNTIME_EVIDENCE_2026-08-09.md)：
 设置页冷启动和帧数据没有证明 M3 的复杂重构有收益，PSS 也缺乏可重复归因性。
 
-因此 M3.1 只按用户明确优先级和单分类 A/B 证据逐项推进，不扩大为整体 UI 重构；M4
-仍保持证据门槛，也不实施用户已明确跳过的 AudioVisualizer 优化。
+M3 没有引入新的 UI 框架，也不把静态元素下降冒充设备性能收益；实机页面、搜索直达和
+返回路径为 `DEVICE_RUNTIME_PASS`。AudioVisualizer 当前设备配置为关闭，本轮未改用户配置或
+重启 SystemUI。M4 继续保持证据门槛。
