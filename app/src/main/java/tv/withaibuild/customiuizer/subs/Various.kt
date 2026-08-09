@@ -10,6 +10,11 @@ import tv.withaibuild.customiuizer.utils.AppHelper
 
 class Various : SubFragment() {
 
+    override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        super.onCreatePreferences(savedInstanceState, rootKey)
+        selectSub()
+    }
+
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
 

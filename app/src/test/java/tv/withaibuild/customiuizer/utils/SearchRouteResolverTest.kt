@@ -1,7 +1,6 @@
 package tv.withaibuild.customiuizer.utils
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -66,16 +65,16 @@ class SearchRouteResolverTest {
     }
 
     @Test
-    fun variousWithNullSubIsNotCategorySelector() {
+    fun variousWithNullSubIsCategorySelector() {
         val route = SearchRouteResolver.resolve("pref_key_various", null, "pref_key_various_hiddenfeatures_cat")!!
-        assertFalse(route.isCategorySelector())
+        assertTrue(route.isCategorySelector())
         assertNull(route.sub)
     }
 
     @Test
-    fun variousWithBlankSubNormalizesAndIsNotCategorySelector() {
+    fun variousWithBlankSubNormalizesAndIsCategorySelector() {
         val route = SearchRouteResolver.resolve("pref_key_various", "", "pref_key_various_hiddenfeatures_cat")!!
-        assertFalse(route.isCategorySelector())
+        assertTrue(route.isCategorySelector())
         assertNull(route.sub)
     }
 

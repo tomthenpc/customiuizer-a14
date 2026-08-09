@@ -8,7 +8,7 @@ import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.SubFragment
 import tv.withaibuild.customiuizer.prefs.PreferenceEx
 import tv.withaibuild.customiuizer.utils.AppHelper
-import tv.withaibuild.customiuizer.utils.SystemPreferenceResourceResolver
+import tv.withaibuild.customiuizer.utils.PreferenceResourceResolver
 
 class CategorySelector : SubFragment() {
 
@@ -40,10 +40,13 @@ class CategorySelector : SubFragment() {
                 if (preference !is PreferenceEx) return@setOnPreferenceClickListener false
                 val bundle = Bundle().apply { putString("sub", preference.key) }
                 val mainFrag = targetFragment as? MainFragment ?: return@setOnPreferenceClickListener false
+                val category = cat ?: return@setOnPreferenceClickListener false
+                val resource = PreferenceResourceResolver.resolve(category, preference.key)
                 when (cat) {
-                    "pref_key_system" -> openSubFragment(mainFrag.prefSystem, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, SystemPreferenceResourceResolver.resolve(preference.key))
-                    "pref_key_launcher" -> openSubFragment(mainFrag.prefLauncher, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.launcher_title, R.xml.prefs_launcher)
-                    "pref_key_controls" -> openSubFragment(mainFrag.prefControls, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.controls_mods, R.xml.prefs_controls)
+                    "pref_key_system" -> openSubFragment(mainFrag.prefSystem, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, resource)
+                    "pref_key_launcher" -> openSubFragment(mainFrag.prefLauncher, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.launcher_title, resource)
+                    "pref_key_controls" -> openSubFragment(mainFrag.prefControls, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.controls_mods, resource)
+                    "pref_key_various" -> openSubFragment(mainFrag.prefVarious, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.various_mods, resource)
                 }
                 true
             }

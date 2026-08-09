@@ -1573,9 +1573,9 @@
       "preferenceKeys": [
         "pref_key_cat"
       ],
-      "xmlSource": "app/src/main/res/xml/prefs_controls_cat.xml",
+      "xmlSource": "app/build/generated/res/preference-artifacts/main/xml/prefs_controls_cat.xml",
       "defaultValue": "",
-      "sourceFile": "app/src/main/res/xml/prefs_controls_cat.xml",
+      "sourceFile": "tools/generate_preference_artifacts.py",
       "installer": "UNKNOWN",
       "targetPackage": "UNKNOWN",
       "installPhase": "APP_UI_ONLY",
@@ -1586,8 +1586,8 @@
       "restartTarget": "UNKNOWN",
       "hotReloadable": false,
       "confidence": "INFERRED",
-      "evidence": "android:key in app/src/main/res/xml/prefs_controls_cat.xml",
-      "notes": ""
+      "evidence": "pref_key_cat is emitted by tools/generate_preference_artifacts.py",
+      "notes": "Build-time category selector key; not a persisted preference"
     },
     {
       "featureId": "pref_key_controls",

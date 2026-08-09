@@ -21,7 +21,6 @@ import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
 import android.content.res.Configuration
 import android.content.res.Resources
-import android.content.res.XmlResourceParser
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -53,14 +52,13 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.preference.PreferenceScreen
 import miui.util.HapticFeedbackUtil
 import org.xmlpull.v1.XmlPullParser
 import tv.withaibuild.customiuizer.BuildConfig
 import tv.withaibuild.customiuizer.PrefsProvider
 import tv.withaibuild.customiuizer.R
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
 import java.io.File
 import java.lang.reflect.Method
 import java.nio.file.Files
@@ -392,13 +390,6 @@ object Helpers {
         }
     }
 
-    private fun getModTitle(res: Resources, title: String?): String? {
-        if (title == null) return null
-        val titleResId = title.substring(1).toIntOrNull() ?: return null
-        if (titleResId <= 0) return null
-        return res.getString(titleResId)
-    }
-
     private fun checkMultiUserPermission(context: Context): Boolean {
         return context.packageManager.checkPermission("android.permission.INTERACT_ACROSS_USERS", modulePkg) == PackageManager.PERMISSION_GRANTED
     }
@@ -703,78 +694,76 @@ object Helpers {
         }
     }
 
-    private fun parsePrefXml(context: Context, xmlResId: Int) {
+    private fun parseModSearchIndex(context: Context) {
         val res = context.resources
-        var lastPrefSub: String? = null
-        var lastPrefSubTitle: String? = null
-        var lastPrefSubSubTitle: String? = null
-        var catResId = 0
-        var catPrefKey: ModData.ModCat? = null
-
-        when (xmlResId) {
-            R.xml.prefs_system -> {
-                catResId = R.string.system_mods
-                catPrefKey = ModData.ModCat.pref_key_system
-            }
-            R.xml.prefs_launcher -> {
-                catResId = R.string.launcher_title
-                catPrefKey = ModData.ModCat.pref_key_launcher
-            }
-            R.xml.prefs_controls -> {
-                catResId = R.string.controls_mods
-                catPrefKey = ModData.ModCat.pref_key_controls
-            }
-            R.xml.prefs_various -> {
-                catResId = R.string.various_mods
-                catPrefKey = ModData.ModCat.pref_key_various
-            }
-        }
-
         try {
-            res.getXml(xmlResId).use { xml ->
+            res.getXml(R.xml.mod_search_index).use { xml ->
                 var eventType = xml.eventType
-                var order = 0
-                val prefCatExName = PreferenceCategoryEx::class.java.canonicalName
+                var category: ModData.ModCat? = null
+                var categoryTitleResId = 0
+                var routeSub: String? = null
+                var breadcrumbSubTitleResId = 0
+                var breadcrumbSubSubTitleResId = 0
                 while (eventType != XmlPullParser.END_DOCUMENT) {
-                    if (eventType == XmlPullParser.START_TAG && PreferenceScreen::class.java.simpleName != xml.name) try {
-                        if (xml.name == prefCatExName) {
-                            if (xml.getAttributeValue(ANDROID_NS, "key") != null) {
-                                lastPrefSub = xml.getAttributeValue(ANDROID_NS, "key")
-                                lastPrefSubTitle = getModTitle(res, xml.getAttributeValue(ANDROID_NS, "title"))
-                                lastPrefSubSubTitle = null
-                                order = 1
-                            } else {
-                                lastPrefSubSubTitle = getModTitle(res, xml.getAttributeValue(ANDROID_NS, "title"))
-                                order++
+                    if (eventType == XmlPullParser.START_TAG) {
+                        try {
+                            when (xml.name) {
+                                "category" -> {
+                                    category = ModData.ModCat.valueOf(
+                                        xml.getAttributeValue(null, "key")
+                                    )
+                                    categoryTitleResId =
+                                        xml.getAttributeResourceValue(null, "title", 0)
+                                    routeSub = null
+                                    breadcrumbSubTitleResId = 0
+                                    breadcrumbSubSubTitleResId = 0
+                                }
+                                "group" -> {
+                                    routeSub = xml.getAttributeValue(null, "routeSub")
+                                    breadcrumbSubTitleResId =
+                                        xml.getAttributeResourceValue(null, "breadcrumbTitle", 0)
+                                    breadcrumbSubSubTitleResId = 0
+                                }
+                                "section" -> {
+                                    breadcrumbSubSubTitleResId =
+                                        xml.getAttributeResourceValue(null, "title", 0)
+                                }
+                                "mod" -> {
+                                    val titleResId =
+                                        xml.getAttributeResourceValue(null, "title", 0)
+                                    val currentCategory = category
+                                    if (titleResId > 0 && categoryTitleResId > 0 && currentCategory != null) {
+                                        val modData = ModData()
+                                        modData.title = res.getString(titleResId)
+                                        modData.breadcrumbs = buildString {
+                                            append(res.getString(categoryTitleResId))
+                                            if (breadcrumbSubTitleResId > 0) {
+                                                append('/')
+                                                append(res.getString(breadcrumbSubTitleResId))
+                                            }
+                                            if (breadcrumbSubSubTitleResId > 0) {
+                                                append('/')
+                                                append(res.getString(breadcrumbSubSubTitleResId))
+                                            }
+                                        }
+                                        modData.key = xml.getAttributeValue(null, "key") ?: ""
+                                        modData.cat = currentCategory
+                                        modData.sub = routeSub
+                                        modData.order = xml.getAttributeIntValue(null, "order", 0)
+                                        allModsList.add(modData)
+                                    }
+                                }
                             }
-                            eventType = xml.next()
-                            continue
+                        } catch (t: Throwable) {
+                            FatalErrors.rethrowIfFatal(t)
+                            t.printStackTrace()
                         }
-
-                        val isChild = xml.getAttributeBooleanValue(MIUIZER_NS, "child", false)
-                        if (!isChild) {
-                            val titleStr = getModTitle(res, xml.getAttributeValue(ANDROID_NS, "title"))
-                            if (titleStr != null) {
-                                val modData = ModData()
-                                modData.title = titleStr
-                                modData.breadcrumbs = res.getString(catResId) +
-                                    (if (lastPrefSubTitle == null) "" else "/$lastPrefSubTitle" +
-                                    (if (lastPrefSubSubTitle == null) "" else "/$lastPrefSubSubTitle"))
-                                modData.key = xml.getAttributeValue(ANDROID_NS, "key") ?: ""
-                                modData.cat = catPrefKey!!
-                                modData.sub = lastPrefSub
-                                modData.order = order
-                                allModsList.add(modData)
-                            }
-                        }
-                        order++
-                    } catch (t: Throwable) {
-                        t.printStackTrace()
                     }
                     eventType = xml.next()
                 }
             }
         } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
             t.printStackTrace()
         }
     }
@@ -791,10 +780,7 @@ object Helpers {
     fun getAllMods(context: Context, force: Boolean) {
         if (force) allModsList.clear()
         else if (allModsList.size > 0) return
-        parsePrefXml(context, R.xml.prefs_system)
-        parsePrefXml(context, R.xml.prefs_launcher)
-        parsePrefXml(context, R.xml.prefs_controls)
-        parsePrefXml(context, R.xml.prefs_various)
+        parseModSearchIndex(context)
         allModsList.sortWith(MOD_DISPLAY_ORDER)
     }
 

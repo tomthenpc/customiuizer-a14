@@ -37,9 +37,9 @@ import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.ModData
 import tv.withaibuild.customiuizer.utils.ModSearchAdapter
+import tv.withaibuild.customiuizer.utils.PreferenceResourceResolver
 import tv.withaibuild.customiuizer.utils.SearchRouteResolver
 import tv.withaibuild.customiuizer.utils.SearchStateMachine
-import tv.withaibuild.customiuizer.utils.SystemPreferenceResourceResolver
 import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
 class MainFragment : PreferenceFragmentBase() {
@@ -294,32 +294,37 @@ class MainFragment : PreferenceFragmentBase() {
             "pref_key_system" -> {
                 if (route.isCategorySelector()) {
                     catSelector.setTargetFragment(this, 0)
-                    openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, R.xml.prefs_system_cat)
+                    openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, PreferenceResourceResolver.categorySelector(route.category) ?: return false)
                 } else {
-                    openSubFragment(prefSystem, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, SystemPreferenceResourceResolver.resolve(route.sub))
+                    openSubFragment(prefSystem, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, PreferenceResourceResolver.resolve(route.category, route.sub))
                 }
                 true
             }
             "pref_key_launcher" -> {
                 if (route.isCategorySelector()) {
                     catSelector.setTargetFragment(this, 0)
-                    openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.launcher_title, R.xml.prefs_launcher_cat)
+                    openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.launcher_title, PreferenceResourceResolver.categorySelector(route.category) ?: return false)
                 } else {
-                    openSubFragment(prefLauncher, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.launcher_title, R.xml.prefs_launcher)
+                    openSubFragment(prefLauncher, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.launcher_title, PreferenceResourceResolver.resolve(route.category, route.sub))
                 }
                 true
             }
             "pref_key_controls" -> {
                 if (route.isCategorySelector()) {
                     catSelector.setTargetFragment(this, 0)
-                    openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.controls_mods, R.xml.prefs_controls_cat)
+                    openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.controls_mods, PreferenceResourceResolver.categorySelector(route.category) ?: return false)
                 } else {
-                    openSubFragment(prefControls, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.controls_mods, R.xml.prefs_controls)
+                    openSubFragment(prefControls, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.controls_mods, PreferenceResourceResolver.resolve(route.category, route.sub))
                 }
                 true
             }
             "pref_key_various" -> {
-                openSubFragment(prefVarious, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.various_mods, R.xml.prefs_various)
+                if (route.isCategorySelector()) {
+                    catSelector.setTargetFragment(this, 0)
+                    openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.various_mods, PreferenceResourceResolver.categorySelector(route.category) ?: return false)
+                } else {
+                    openSubFragment(prefVarious, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.various_mods, PreferenceResourceResolver.resolve(route.category, route.sub))
+                }
                 true
             }
             else -> false

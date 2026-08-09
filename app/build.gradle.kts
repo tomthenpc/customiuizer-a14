@@ -1,4 +1,5 @@
 import java.util.Properties
+import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.WriteProperties
 
 plugins {
@@ -76,6 +77,32 @@ val supportedLocales = setOf(
     "tr-rTR",
     "es-rES",
 )
+
+val preferenceSourceDir = layout.projectDirectory.dir("src/main/res/xml")
+val preferenceArtifactGenerator = rootProject.layout.projectDirectory.file("tools/generate_preference_artifacts.py")
+val generatedPreferenceResourcesDir = layout.buildDirectory.dir("generated/res/preference-artifacts/main")
+val preferenceSourceFiles = listOf(
+    "prefs_system.xml",
+    "prefs_launcher.xml",
+    "prefs_controls.xml",
+    "prefs_various.xml",
+).map(preferenceSourceDir::file)
+
+val generatePreferenceArtifacts = tasks.register<Exec>("generatePreferenceArtifacts") {
+    description = "Generates lazy preference pages and the compact settings search index"
+    group = "build"
+    inputs.file(preferenceArtifactGenerator)
+    inputs.files(preferenceSourceFiles)
+    outputs.dir(generatedPreferenceResourcesDir)
+    commandLine(
+        providers.environmentVariable("PYTHON").orElse("python").get(),
+        preferenceArtifactGenerator.asFile.absolutePath,
+        "--source-dir",
+        preferenceSourceDir.asFile.absolutePath,
+        "--output-dir",
+        generatedPreferenceResourcesDir.get().asFile.absolutePath,
+    )
+}
 
 android {
     namespace = "tv.withaibuild.customiuizer"
@@ -176,6 +203,9 @@ android {
         // Disables dependency metadata when building Android App Bundles.
         includeInBundle = false
     }
+    sourceSets.getByName("main").res.directories.add(
+        generatedPreferenceResourcesDir.get().asFile.absolutePath
+    )
 }
 
 val buildProvenanceDir = layout.buildDirectory.dir("generated/assets/build-provenance")
@@ -233,6 +263,9 @@ android.sourceSets.getByName("release").assets.directories.add(
 )
 
 afterEvaluate {
+    tasks.named("preBuild").configure {
+        dependsOn(generatePreferenceArtifacts)
+    }
     tasks.named("mergeDebugAssets").configure {
         dependsOn(writeDebugBuildProvenance)
     }

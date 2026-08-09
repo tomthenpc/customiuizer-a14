@@ -16,7 +16,8 @@ data class SearchRoute(
         private val CATEGORY_SELECTOR_CATEGORIES = setOf(
             "pref_key_system",
             "pref_key_launcher",
-            "pref_key_controls"
+            "pref_key_controls",
+            "pref_key_various"
         )
     }
 }
