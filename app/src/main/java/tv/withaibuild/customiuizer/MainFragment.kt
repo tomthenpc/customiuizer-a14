@@ -39,6 +39,7 @@ import tv.withaibuild.customiuizer.utils.ModData
 import tv.withaibuild.customiuizer.utils.ModSearchAdapter
 import tv.withaibuild.customiuizer.utils.SearchRouteResolver
 import tv.withaibuild.customiuizer.utils.SearchStateMachine
+import tv.withaibuild.customiuizer.utils.SystemPreferenceResourceResolver
 import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
 class MainFragment : PreferenceFragmentBase() {
@@ -295,7 +296,7 @@ class MainFragment : PreferenceFragmentBase() {
                     catSelector.setTargetFragment(this, 0)
                     openSubFragment(catSelector, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, R.xml.prefs_system_cat)
                 } else {
-                    openSubFragment(prefSystem, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, R.xml.prefs_system)
+                    openSubFragment(prefSystem, bundle, AppHelper.SettingsType.Preference, AppHelper.ActionBarType.HomeUp, R.string.system_mods, SystemPreferenceResourceResolver.resolve(route.sub))
                 }
                 true
             }
