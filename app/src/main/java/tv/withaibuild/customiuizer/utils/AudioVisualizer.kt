@@ -139,11 +139,21 @@ class AudioVisualizer @JvmOverloads constructor(
                 }
             }
             if (needsInvalidate) postInvalidateOnAnimation()
-            if (mDisplaying) {
-                Choreographer.getInstance().postFrameCallback(this)
-            } else {
+            if (!mDisplaying) {
                 mFrameCallbackScheduled = false
+                return
             }
+            if (fraction >= 1f && !needsInvalidate) {
+                // Every target has been reached and nothing new arrived: park the scheduler
+                // instead of waking up at the refresh rate on a static picture. The capture
+                // thread publishes mNewDataPending before reading mFrameCallbackScheduled and
+                // this thread clears mFrameCallbackScheduled before reading mNewDataPending,
+                // so one of the two always observes the other and no wake-up is lost.
+                mFrameCallbackScheduled = false
+                if (!mNewDataPending) return
+                mFrameCallbackScheduled = true
+            }
+            Choreographer.getInstance().postFrameCallback(this)
         }
     }
 
@@ -316,6 +326,9 @@ class AudioVisualizer @JvmOverloads constructor(
         private var dbValue = 0
         private var magnitude = 0f
 
+        /** Capture-thread scratch buffer, published to [mPendingTargets] with a single lock. */
+        private val scratchTargets = FloatArray(mBandsNum)
+
         override fun onWaveFormDataCapture(visualizer: Visualizer, bytes: ByteArray, samplingRate: Int) {}
 
         override fun onFftDataCapture(visualizer: Visualizer, fft: ByteArray, samplingRate: Int) {
@@ -326,7 +339,8 @@ class AudioVisualizer @JvmOverloads constructor(
                     computeBandBinLimits(fft.size)
                 }
 
-                val silentFrame = allZeros(fft)
+                // A silent frame needs no separate pass: every bin is zero, so the band loop
+                // produces magnitude 0 and dbValue 0 on its own.
                 var band = 0
                 var i = 1
                 val maxHeight = min(0.85f * maxDp * mDensity, mHeight / 2.0f)
@@ -334,25 +348,25 @@ class AudioVisualizer @JvmOverloads constructor(
                 while (band < mBandsNum && i < mFftSize / 2) {
                     magnitude = 0f
 
-                    if (!silentFrame) {
-                        while (i < mBandBinLimits[band]) {
-                            real = fft[i * 2]
-                            imaginary = fft[i * 2 + 1]
-                            magnitude = max(magnitude, (real * real + imaginary * imaginary).toFloat())
-                            i++
-                        }
+                    while (i < mBandBinLimits[band]) {
+                        real = fft[i * 2]
+                        imaginary = fft[i * 2 + 1]
+                        magnitude = max(magnitude, (real * real + imaginary * imaginary).toFloat())
+                        i++
                     }
 
                     dbValue = if (magnitude > 0) (10 * log10(magnitude)).toInt() else 0
                     maxDb = max(maxDb, dbValue.toFloat())
-                    val newVal = mFFTPoints[band * 4 + 1] - maxHeight * dbValue / maxDb
-
-                    synchronized(mFrameLock) {
-                        mPendingTargets[band] = newVal
-                        mNewDataPending = true
-                    }
+                    scratchTargets[band] = mFFTPoints[band * 4 + 1] - maxHeight * dbValue / maxDb
 
                     band++
+                }
+
+                if (band > 0) {
+                    synchronized(mFrameLock) {
+                        System.arraycopy(scratchTargets, 0, mPendingTargets, 0, band)
+                        mNewDataPending = true
+                    }
                 }
 
                 // Make sure the frame scheduler is running. Choreographer must be used
@@ -377,8 +391,6 @@ class AudioVisualizer @JvmOverloads constructor(
             mBandBinLimits[band] = if (limit > 0) limit else 1
         }
     }
-
-    private fun allZeros(array: ByteArray): Boolean = array.all { it == 0.toByte() }
 
     private fun getRandomColor(): Int {
         mHsv[0] = (Math.random() * 360f).toFloat()
