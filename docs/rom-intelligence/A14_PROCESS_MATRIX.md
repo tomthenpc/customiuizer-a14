@@ -294,3 +294,4 @@ This matrix is generated from source (`tools/extract_process_matrix.py`). It rec
 | 243 | Generic App No Overscroll | `system_nooverscroll` | ANY | APPLICATION_ATTACHED | GenericAppFeatures | `SystemWindowHooks.NoOverscrollAppHook(lpparam)` | com.miui.home + selected packages |  |
 | 244 | Generic App Volume Media Player | `controls_volumemedia_up` | ANY | APPLICATION_ATTACHED | GenericAppFeatures | `Controls.VolumeMediaPlayerHook(lpparam)` | com.miui.home + selected packages |  |
 | 245 | Status Bar Height Insets | `system_statusbarheight` | SYSTEM_SERVER | SYSTEM_SERVER_STARTING | SystemServerFeatures | `SystemStatusBarInsetsHooks.StatusBarInsetsHeightHook(lp...` | system_server |  |
+| 246 | Status Bar Focus Notification | `system_statusbar_focus_notification` | SYSTEM_UI | PACKAGE_READY | SystemUiFeatures | `SystemUIFocusNotificationHooks.install(lpparam, resolve...` | com.android.systemui | miui.systemui.plugin (ClassLoader extracted at runtime) |

@@ -23214,6 +23214,50 @@
       "confidence": "UNKNOWN",
       "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/Various.kt:606",
       "notes": ""
+    },
+    {
+      "featureId": "pref_key_system_statusbar_focus_notification",
+      "featureName": "pref_key_system_statusbar_focus_notification",
+      "preferenceKeys": [
+        "pref_key_system_statusbar_focus_notification"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "0",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "Selects focus-notification presentation mode",
+      "disableEffect": "Keeps the HyperOS system default",
+      "valueChangeEffect": "Persists the mode for the next SystemUI start",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": ""
+    },
+    {
+      "featureId": "system_statusbar_focus_notification",
+      "featureName": "system_statusbar_focus_notification",
+      "preferenceKeys": [
+        "system_statusbar_focus_notification"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "0",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt",
+      "installer": "StatusBarFocusNotificationFeature.installHook",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "CAPTURED_AT_INSTALL",
+      "enableEffect": "Matches the prompt height to the status bar or hides the prompt",
+      "disableEffect": "Leaves the HyperOS focus-notification prompt unchanged",
+      "valueChangeEffect": "Applies after SystemUI restarts",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "StatusBarFocusNotificationFeature routes the preference to SystemUIFocusNotificationHooks",
+      "notes": "HyperOS 1/2 focus notification only; HyperOS 3 Super Island is outside this hook"
     }
   ]
 }

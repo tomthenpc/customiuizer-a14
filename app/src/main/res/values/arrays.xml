@@ -687,4 +687,15 @@
 		<item>@string/various_calluibright_day_title</item>
 		<item>@string/various_calluibright_night_title</item>
 	</string-array>
+
+	<string-array name="status_bar_focus_notification_modes">
+		<item>@string/array_system_default</item>
+		<item>@string/system_statusbar_focus_notification_mode_match_height</item>
+		<item>@string/system_statusbar_focus_notification_mode_hide</item>
+	</string-array>
+	<string-array name="status_bar_focus_notification_modes_val">
+		<item>0</item>
+		<item>1</item>
+		<item>2</item>
+	</string-array>
 </resources>

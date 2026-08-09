@@ -74,8 +74,8 @@ class SystemUiFeaturesWiringTest {
         val features = SystemUiFeatures.all(fakePackageReadyParam(), PrefMap())
 
         assertEquals(
-            "All 96 preference-guarded SystemUI features should be present",
-            96,
+            "All 97 preference-guarded SystemUI features should be present",
+            97,
             features.size
         )
         val uniqueIds = features.map { it.id }.toSet()

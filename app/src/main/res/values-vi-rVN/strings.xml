@@ -645,7 +645,7 @@
     <string name="appsort_frequency">Tần suất sử dụng</string>
     <string name="appsort_storage">Lưu trữ đã dùng</string>
     <string name="appsort_install">Thời gian cài đặt</string>
-    <string name="gboard">Bàn phím Google</string>
+    <string name="gboard">Cài đặt phương thức nhập</string>
     <string name="calls">Cuộc gọi</string>
     <string name="settings">Cài đặt</string>
     <string name="array_default">Mặc định</string>

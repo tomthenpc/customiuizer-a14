@@ -645,7 +645,7 @@
     <string name="appsort_frequency">使用頻度</string>
     <string name="appsort_storage">使用済みのストレージ</string>
     <string name="appsort_install">インストール日時</string>
-    <string name="gboard">Gboard</string>
+    <string name="gboard">入力方法設定</string>
     <string name="calls">通話</string>
     <string name="settings">設定</string>
     <string name="array_default">デフォルト</string>

@@ -364,6 +364,15 @@
 			miuizer:stepValue="1"
 			miuizer:format="%d dip" />
 
+		<tv.withaibuild.customiuizer.prefs.ListPreferenceEx
+			android:key="pref_key_system_statusbar_focus_notification"
+			android:title="@string/system_statusbar_focus_notification_title"
+			android:summary="@string/system_statusbar_focus_notification_summ"
+			android:entries="@array/status_bar_focus_notification_modes"
+			android:entryValues="@array/status_bar_focus_notification_modes_val"
+			android:defaultValue="0"
+			miuizer:valueAsSummary="true" />
+
 		<tv.withaibuild.customiuizer.prefs.SeekBarPreference
 			android:key="pref_key_system_statusbar_iconsize"
 			android:title="@string/system_statusbar_iconsize_title"

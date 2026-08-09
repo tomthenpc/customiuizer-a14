@@ -645,7 +645,7 @@
     <string name="appsort_frequency">Recentemente usado</string>
     <string name="appsort_storage">Armazenamento usado</string>
     <string name="appsort_install">Data de instalação</string>
-    <string name="gboard">Gboard</string>
+    <string name="gboard">Configurações do método de entrada</string>
     <string name="calls">Chamadas</string>
     <string name="settings">Configurações</string>
     <string name="array_default">Padrão</string>

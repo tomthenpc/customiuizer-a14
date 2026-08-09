@@ -585,7 +585,7 @@ ss - iki basamaklı saniye(09)</string>
     <string name="appsort_frequency">Kullanım sıklığı</string>
     <string name="appsort_storage">Kullanılan depolama</string>
     <string name="appsort_install">Kurulum süresi</string>
-    <string name="gboard">Google Klavye</string>
+    <string name="gboard">Giriş yöntemi ayarları</string>
     <string name="calls">Aramalar</string>
     <string name="settings">Ayarlar</string>
     <string name="array_default">Varsayılan</string>

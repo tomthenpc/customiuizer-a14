@@ -171,6 +171,7 @@
 	<tv.withaibuild.customiuizer.prefs.SeekBarPreference
 		android:key="pref_key_various_gboardpadding_port"
 		android:title="@string/various_gboardpadding_port_title"
+		android:summary="@string/various_gboardpadding_summ"
 		android:defaultValue="0"
 		miuizer:minValue="0"
 		miuizer:maxValue="100"
@@ -181,6 +182,7 @@
 	<tv.withaibuild.customiuizer.prefs.SeekBarPreference
 		android:key="pref_key_various_gboardpadding_land"
 		android:title="@string/various_gboardpadding_land_title"
+		android:summary="@string/various_gboardpadding_summ"
 		android:defaultValue="0"
 		miuizer:minValue="0"
 		miuizer:maxValue="100"

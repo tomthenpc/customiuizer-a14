@@ -1024,3 +1024,9 @@ data object StatusBarHeightInsetsFeatureId : FeatureId {
     override val id = 245
     override val name = "status_bar_height_insets"
 }
+
+// SystemUI status-bar focus notification
+data object StatusBarFocusNotificationFeatureId : FeatureId {
+    override val id = 246
+    override val name = "status_bar_focus_notification"
+}

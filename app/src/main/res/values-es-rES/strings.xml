@@ -605,7 +605,7 @@
     <string name="appsort_frequency">Frecuencia de uso</string>
     <string name="appsort_storage">Uso de almacenamiento</string>
     <string name="appsort_install">Hora de instalación</string>
-    <string name="gboard">Teclado de Google</string>
+    <string name="gboard">Ajustes del método de entrada</string>
     <string name="calls">Llamadas</string>
     <string name="settings">Configuración</string>
     <string name="array_default">Predeterminado</string>

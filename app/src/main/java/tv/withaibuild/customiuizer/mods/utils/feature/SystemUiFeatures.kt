@@ -8,6 +8,7 @@ import tv.withaibuild.customiuizer.mods.SystemAudioHooks
 import tv.withaibuild.customiuizer.mods.SystemClockHooks
 import tv.withaibuild.customiuizer.mods.SystemColorizeNotificationHooks
 import tv.withaibuild.customiuizer.mods.SystemDisplayHooks
+import tv.withaibuild.customiuizer.mods.SystemUIFocusNotificationHooks
 import tv.withaibuild.customiuizer.mods.SystemLockScreenHooks
 import tv.withaibuild.customiuizer.mods.SystemNotificationHooks
 import tv.withaibuild.customiuizer.mods.SystemStatusBarIconHooks
@@ -25,6 +26,7 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
+import tv.withaibuild.customiuizer.mods.utils.StatusBarFocusNotificationMode
 import tv.withaibuild.customiuizer.utils.PrefMap
 
 /**
@@ -730,6 +732,31 @@ internal class StatusBarIconsPositionAdjustFeature(
         SystemUIStatusBarHooks.StatusBarIconsPositionAdjustHook(lpparam, computeStatusBarIconsAdjust(mPrefs).second)
 
 
+}
+
+internal class StatusBarFocusNotificationFeature(
+    lpparam: PackageReadyParam,
+    mPrefs: PrefMap
+) : BaseSystemUiFeature(
+    lpparam,
+    mPrefs,
+    StatusBarFocusNotificationFeatureId,
+    "Status Bar Focus Notification",
+    "system_statusbar_focus_notification"
+) {
+    companion object {
+        @JvmStatic
+        fun resolveMode(prefs: PrefMap): StatusBarFocusNotificationMode =
+            StatusBarFocusNotificationMode.fromPreference(
+                prefs.getStringAsInt("system_statusbar_focus_notification", 0)
+            )
+
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = resolveMode(prefs) != StatusBarFocusNotificationMode.SYSTEM_DEFAULT
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
+    override fun installHook() = SystemUIFocusNotificationHooks.install(lpparam, resolveMode(mPrefs))
 }
 
 internal class MonitorDeviceInfoFeature(
@@ -2260,6 +2287,15 @@ object SystemUiFeatures {
             phase = InstallPhase.PACKAGE_READY,
             enabled = { prefs -> StatusBarIconsPositionAdjustFeature.evaluateEnabled(prefs) },
             factory = { StatusBarIconsPositionAdjustFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = StatusBarFocusNotificationFeatureId,
+            name = "Status Bar Focus Notification",
+            preferenceKey = "system_statusbar_focus_notification",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> StatusBarFocusNotificationFeature.evaluateEnabled(prefs) },
+            factory = { StatusBarFocusNotificationFeature(lpparam, mPrefs) },
         ),
         LazyFeatureSpec(
             id = MonitorDeviceInfoFeatureId,

@@ -589,8 +589,9 @@
     <string name="various_installappinfo_sdk">支持SDK</string>
     <string name="various_alarmcompat_title">闹钟兼容性</string>
     <string name="various_alarmcompat_summ">令所选应用正确显示系统时钟应用设置的下一次闹钟时间</string>
-    <string name="various_gboardpadding_port_title">竖屏时底部填充</string>
-    <string name="various_gboardpadding_land_title">横屏时底部填充</string>
+    <string name="various_gboardpadding_port_title">Gboard 竖屏底部填充</string>
+    <string name="various_gboardpadding_land_title">Gboard 横屏底部填充</string>
+    <string name="various_gboardpadding_summ">仅适用于 Gboard；其他输入法使用各自的布局实现。</string>
     <string name="various_answerinheadup_title">从浮动通知接听电话时不进入全屏(除桌面)</string>
     <string name="various_showcallui_title">显示通话界面</string>
     <string name="various_showcallui_summ">定义来电时应该显示的界面</string>
@@ -627,7 +628,7 @@
     <string name="appsort_frequency">使用频率</string>
     <string name="appsort_storage">存储占用</string>
     <string name="appsort_install">安装时间</string>
-    <string name="gboard">Google键盘</string>
+    <string name="gboard">输入法设置</string>
     <string name="calls">通话</string>
     <string name="settings">设置</string>
     <string name="array_default">默认</string>
@@ -958,4 +959,8 @@
     <string name="system_cc_collapse_after_clicked_title">点击磁贴后自动收起</string>
     <string name="system_cc_freeform_when_longclick_title">长按磁贴时以小窗打开</string>
     <string name="system_show_step_count_title">显示步数</string>
+    <string name="system_statusbar_focus_notification_title">状态栏焦点通知</string>
+    <string name="system_statusbar_focus_notification_summ">控制 HyperOS 1/2 的状态栏焦点通知（俗称灵动额头）；不修改 HyperOS 3 小米超级岛。</string>
+    <string name="system_statusbar_focus_notification_mode_match_height">匹配状态栏高度</string>
+    <string name="system_statusbar_focus_notification_mode_hide">隐藏状态栏提示</string>
 </resources>

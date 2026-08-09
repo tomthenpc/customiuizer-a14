@@ -630,7 +630,7 @@
     <string name="appsort_frequency">Частота использования</string>
     <string name="appsort_storage">Занимаемое место</string>
     <string name="appsort_install">Время установки</string>
-    <string name="gboard">Google Клавиатура</string>
+    <string name="gboard">Настройки методов ввода</string>
     <string name="calls">Звонки</string>
     <string name="settings">Настройки</string>
     <string name="array_default">Стандарт</string>

@@ -3184,6 +3184,19 @@
       "enableCondition": "StatusBarHeightConfig.isEnabled(prefs)",
       "allowedProcess": "system_server",
       "deniedProcess": ""
+    },
+    {
+      "featureIdInt": 246,
+      "featureIdName": "status_bar_focus_notification",
+      "name": "Status Bar Focus Notification",
+      "preferenceKey": "system_statusbar_focus_notification",
+      "target": "SYSTEM_UI",
+      "phase": "PACKAGE_READY",
+      "installer": "SystemUiFeatures",
+      "installHook": "SystemUIFocusNotificationHooks.install(lpparam, resolveMode(mPrefs))",
+      "enableCondition": "resolveMode(prefs) != StatusBarFocusNotificationMode.SYSTEM_DEFAULT",
+      "allowedProcess": "com.android.systemui",
+      "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     }
   ],
   "scope": [

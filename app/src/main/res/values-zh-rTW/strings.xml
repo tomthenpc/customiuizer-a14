@@ -538,8 +538,9 @@
     <string name="various_installappinfo_vercode">版本代碼</string>
     <string name="various_installappinfo_sdk">支持SDK</string>
     <string name="various_alarmcompat_title">鬧鐘兼容性</string>
-    <string name="various_gboardpadding_port_title">豎屏時底部補充</string>
-    <string name="various_gboardpadding_land_title">橫屏時底部補充</string>
+    <string name="various_gboardpadding_port_title">Gboard 豎屏底部間距</string>
+    <string name="various_gboardpadding_land_title">Gboard 橫屏底部間距</string>
+    <string name="various_gboardpadding_summ">僅適用於 Gboard；其他輸入法使用各自的版面配置實作。</string>
     <string name="various_answerinheadup_title">從浮動通知接聽電話時不進入全屏(除桌面)</string>
     <string name="various_showcallui_title">顯示通話界面</string>
     <string name="various_showcallui_summ">定義來電時應該顯示的界面</string>
@@ -573,7 +574,7 @@
     <string name="appsort_frequency">使用頻率</string>
     <string name="appsort_storage">儲存佔用</string>
     <string name="appsort_install">安裝時間</string>
-    <string name="gboard">Google鍵盤</string>
+    <string name="gboard">輸入法設定</string>
     <string name="calls">通話</string>
     <string name="settings">設置</string>
     <string name="array_default">預設</string>
@@ -805,4 +806,8 @@
     <string name="system_cc_tile_roundedrect_title">圓角矩形磁貼</string>
     <string name="system_cc_enable_style_switch_title">強制開啟控制中心樣式切換</string>
     <string name="system_cc_collapse_after_clicked_title">單擊開關後自動收起</string>
+    <string name="system_statusbar_focus_notification_title">狀態列焦點通知</string>
+    <string name="system_statusbar_focus_notification_summ">控制 HyperOS 1/2 的狀態列焦點通知（俗稱靈動額頭）；不修改 HyperOS 3 小米超級島。</string>
+    <string name="system_statusbar_focus_notification_mode_match_height">符合狀態列高度</string>
+    <string name="system_statusbar_focus_notification_mode_hide">隱藏狀態列提示</string>
 </resources>
