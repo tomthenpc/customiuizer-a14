@@ -61,13 +61,14 @@ object SystemUILockScreenHooks {
         swipeLeftOff = MainModule.mPrefs.getBoolean(PREF_SWIPE_LEFT_OFF)
     }
 
-    private fun installSwipeSuppressionSnapshot() {
+    @JvmStatic
+    internal fun installSwipeSuppressionSnapshot() {
         refreshSwipeSuppression()
         if (swipeSuppressionObserverRegistered) return
         swipeSuppressionObserverRegistered = true
         ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
             override fun onChange(key: String?) = ModuleHelper.guarded {
-                if (key == PREF_SWIPE_RIGHT_OFF || key == PREF_SWIPE_LEFT_OFF) {
+                if (key == null || key == PREF_SWIPE_RIGHT_OFF || key == PREF_SWIPE_LEFT_OFF) {
                     refreshSwipeSuppression()
                 }
             }

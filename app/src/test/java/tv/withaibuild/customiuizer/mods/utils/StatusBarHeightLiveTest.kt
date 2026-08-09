@@ -36,6 +36,8 @@ class StatusBarHeightLiveTest {
         )
 
         val win = newStatusBarWindow()
+        discoverStatusBarWindow(win)
+
         val clientFrames = ClientWindowFrames()
         setRect(clientFrames.frame, 0, 0, 1080, 150)
         setRect(clientFrames.displayFrame, 0, 0, 1080, 2400)
@@ -64,6 +66,8 @@ class StatusBarHeightLiveTest {
         )
 
         val win = newStatusBarWindow()
+        discoverStatusBarWindow(win)
+
         val clientFrames = ClientWindowFrames()
         setRect(clientFrames.frame, 0, 20, 1080, 150)
 
@@ -238,6 +242,8 @@ class StatusBarHeightLiveTest {
         )
 
         val win = newStatusBarWindow()
+        discoverStatusBarWindow(win)
+
         val clientFrames = ClientWindowFrames()
         setRect(clientFrames.frame, 0, 0, 1080, 150)
 
@@ -402,6 +408,12 @@ class StatusBarHeightLiveTest {
             mAttrs.packageName = "com.android.systemui"
             mAttrs.height = WindowManager.LayoutParams.WRAP_CONTENT
         }
+    }
+
+    private fun discoverStatusBarWindow(win: FakeWindowState) {
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+        assertEquals(1, chain.proceedCount)
     }
 
     private fun fakeResources(densityDpi: Int): Resources {

@@ -3,6 +3,7 @@ package tv.withaibuild.customiuizer.mods
 import android.content.Context
 import android.graphics.Typeface
 import android.util.TypedValue
+import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -47,7 +48,7 @@ object SystemUIBatteryHooks {
      * update, so it reads this snapshot instead of nine preference lookups and only writes a
      * view property when the current value actually differs.
      */
-    private class BatteryStyle(
+    internal class BatteryStyle(
         val swap: Boolean,
         val fontSizeDp: Float,
         val markFontSizeDp: Float,
@@ -60,7 +61,7 @@ object SystemUIBatteryHooks {
     )
 
     @Volatile
-    private var batteryStyle: BatteryStyle? = null
+    internal var batteryStyle: BatteryStyle? = null
 
     @Volatile
     private var batteryStyleObserverRegistered = false
@@ -80,7 +81,8 @@ object SystemUIBatteryHooks {
         )
     }
 
-    private fun installBatteryStyleSnapshot() {
+    @JvmStatic
+    internal fun installBatteryStyleSnapshot() {
         batteryStyle = readBatteryStyle()
         if (batteryStyleObserverRegistered) return
         batteryStyleObserverRegistered = true
@@ -93,8 +95,20 @@ object SystemUIBatteryHooks {
         })
     }
 
+    /**
+     * Reorders the battery percentage and mark views to [percent, mark] at the front of
+     * [parent]. The operation is idempotent: when the views are already in the target order,
+     * neither removeView nor addView is called, so repeated updateAll invocations are no-ops.
+     */
+    @JvmStatic
+    internal fun applyBatteryChildSwapIfNeeded(parent: ViewGroup, percentView: View, markView: View) {
+        moveChildTo(parent, percentView, 0)
+        moveChildTo(parent, markView, 1)
+    }
+
     /** Moves [view] to [index] only when it is not already there, avoiding a needless relayout. */
-    private fun moveChildTo(parent: LinearLayout, view: TextView, index: Int) {
+    @JvmStatic
+    internal fun moveChildTo(parent: ViewGroup, view: View, index: Int) {
         if (parent.indexOfChild(view) == index) return
         parent.removeView(view)
         parent.addView(view, index)
@@ -190,10 +204,7 @@ object SystemUIBatteryHooks {
                 val mBatteryPercentView = XposedHelpers.getObjectField(param.getThisObject(), "mBatteryPercentView") as TextView
                 val mBatteryPercentMarkView = XposedHelpers.getObjectField(param.getThisObject(), "mBatteryPercentMarkView") as TextView
                 if (style.swap) {
-                    // Same result as remove/remove/add/add, but without touching the hierarchy
-                    // when the percentage is already in front.
-                    moveChildTo(batteryView, mBatteryPercentMarkView, 0)
-                    moveChildTo(batteryView, mBatteryPercentView, 0)
+                    applyBatteryChildSwapIfNeeded(batteryView, mBatteryPercentView, mBatteryPercentMarkView)
                 }
                 if (style.fontSizeDp > 7.5) {
                     setTextSizeIfChanged(mBatteryTextDigitView, style.fontSizeDp)
@@ -221,10 +232,14 @@ object SystemUIBatteryHooks {
                     ).toInt()
                 }
                 val rightMargin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, style.rightMarginDp, metrics).toInt()
-                val (digitRightMargin, markRightMargin) = if (style.battery4) {
-                    rightMargin to 0
+                val digitRightMargin: Int
+                val markRightMargin: Int
+                if (style.battery4) {
+                    digitRightMargin = rightMargin
+                    markRightMargin = 0
                 } else {
-                    0 to rightMargin
+                    digitRightMargin = 0
+                    markRightMargin = rightMargin
                 }
                 if (leftMargin > 0 || topMargin != 8 || digitRightMargin > 0) {
                     setPaddingRelativeIfChanged(mBatteryPercentView, leftMargin, topMargin, digitRightMargin, 0)

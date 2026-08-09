@@ -6,8 +6,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Touch, layout and per-update callbacks must read published primitives, never the preference
- * map, and must not rewrite view state that already has the requested value.
+ * Structural regression guards for the P1-B hot paths.
+ *
+ * These tests scan source files to verify that the identified callbacks do not reach the
+ * preference map directly and that the expected snapshot/cached helpers are present. They do
+ * not exercise runtime behavior; behavioral coverage lives in the dedicated behavior test files.
  */
 class UiHotPathPreferenceSnapshotTest {
 
@@ -49,7 +52,7 @@ class UiHotPathPreferenceSnapshotTest {
     }
 
     @Test
-    fun batteryUpdateAllReadsOneSnapshotAndIsIdempotent() {
+    fun batteryUpdateAllReadsOneSnapshotAndAvoidsHotPathAllocation() {
         val body = hookBody(
             "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt",
             "\"updateAll\"",
@@ -58,7 +61,7 @@ class UiHotPathPreferenceSnapshotTest {
         assertFalse("updateAll must not read nine preferences per call", body.contains("MainModule.mPrefs"))
         assertTrue(body.contains("val style = batteryStyle ?: return"))
         assertFalse("child order must be checked before mutating the hierarchy", body.contains("removeView"))
-        assertTrue(body.contains("moveChildTo("))
+        assertTrue(body.contains("applyBatteryChildSwapIfNeeded("))
         assertTrue(body.contains("setTextSizeIfChanged("))
         assertTrue(body.contains("setPaddingRelativeIfChanged("))
     }

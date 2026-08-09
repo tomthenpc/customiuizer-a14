@@ -194,6 +194,18 @@ object SystemStatusBarInsetsHooks {
         typeMatchObserved = false
         fallbackProbeBudget.set(MAX_FALLBACK_PROBES)
         lastRefreshGeneration.set(-1L)
+        windowStateClass = null
+        windowStateAttrsField = null
+        layoutParamsTypeField = null
+        clientWindowFramesClass = null
+        clientWindowFramesFrameField = null
+        clientWindowFramesDisplayFrameField = null
+        clientWindowFramesParentFrameField = null
+        windowStateGetFrameMethod = null
+        windowStateGetDisplayMetricsMethod = null
+        windowStateGetDisplayIdMethod = null
+        decorInfoNonDecorInsetsField = null
+        decorInfoNonDecorFrameField = null
     }
 
     @JvmStatic
@@ -482,14 +494,20 @@ object SystemStatusBarInsetsHooks {
     internal fun onLayoutWindowLw(chain: XposedInterface.Chain): Any? {
         val win = chain.getArg(0) ?: return chain.proceed()
         if (!isWindowState(win)) return chain.proceed()
+
+        if (!StatusBarHeightConfig.enabled) {
+            // Disabled path must not perform status-bar discovery on unknown WindowStates.
+            // Only a previously identified status bar gets its original height restored.
+            if (isKnownStatusBarWindow(win)) {
+                if (statusBarWindowRef?.get() !== win) statusBarWindowRef = WeakReference(win)
+                restoreStatusBarWindowHeight(win)
+            }
+            return chain.proceed()
+        }
+
         if (!isStatusBarWindow(win)) return chain.proceed()
 
         if (statusBarWindowRef?.get() !== win) statusBarWindowRef = WeakReference(win)
-
-        if (!StatusBarHeightConfig.enabled) {
-            restoreStatusBarWindowHeight(win)
-            return chain.proceed()
-        }
 
         val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
         val displayId = getDisplayId(win)
@@ -546,7 +564,9 @@ object SystemStatusBarInsetsHooks {
         if (!StatusBarHeightConfig.enabled) return chain.proceed()
 
         val win = chain.thisObject ?: return chain.proceed()
-        if (!isStatusBarWindow(win)) return chain.proceed()
+        // setFrames is a global WindowState method. Discovery already happened in
+        // layoutWindowLw, so the hot path only accepts known status bars by identity.
+        if (!isKnownStatusBarWindow(win)) return chain.proceed()
 
         val clientFrames = chain.getArg(0) ?: return chain.proceed()
         if (clientFramesClassMismatch(clientFrames)) return chain.proceed()

@@ -58,13 +58,14 @@ object LauncherFolderHooks {
         folderBlurRatio = MainModule.mPrefs.getInt(PREF_FOLDER_BLUR, 0) / 100f
     }
 
-    private fun installFolderPreferenceSnapshot() {
+    @JvmStatic
+    internal fun installFolderPreferenceSnapshot() {
         refreshFolderPreferences()
         if (folderPreferenceObserverRegistered) return
         folderPreferenceObserverRegistered = true
         ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
             override fun onChange(key: String?) = ModuleHelper.guarded {
-                if (key == PREF_FOLDER_WIDTH || key == PREF_FOLDER_BLUR) {
+                if (key == null || key == PREF_FOLDER_WIDTH || key == PREF_FOLDER_BLUR) {
                     refreshFolderPreferences()
                 }
             }
