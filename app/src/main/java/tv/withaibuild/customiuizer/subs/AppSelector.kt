@@ -27,6 +27,7 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.utils.AppData
 import tv.withaibuild.customiuizer.utils.AppDataAdapter
 import tv.withaibuild.customiuizer.utils.AppHelper
+import tv.withaibuild.customiuizer.utils.AppSelectionSanitizer
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.LockedAppAdapter
 import tv.withaibuild.customiuizer.utils.PrivacyAppAdapter
@@ -136,16 +137,35 @@ class AppSelector : SubFragmentWithSearch() {
 
         val currentKey = key ?: ""
         if (multi && currentKey != "") {
-            if (openwith) {
-                val apps = Helpers.openWithAppsList ?: return
-                listView?.adapter = AppDataAdapter(context, apps, AppHelper.AppAdapterType.Mutli, currentKey, bwlist)
-            } else if (share) {
-                val apps = Helpers.shareAppsList ?: return
-                listView?.adapter = AppDataAdapter(context, apps, AppHelper.AppAdapterType.Mutli, currentKey, bwlist)
-            } else {
-                val apps = AppHelper.installedAppsList ?: return
-                listView?.adapter = AppDataAdapter(context, apps, AppHelper.AppAdapterType.Mutli, currentKey, bwlist)
+            val apps = when {
+                openwith -> Helpers.openWithAppsList ?: return
+                share -> Helpers.shareAppsList ?: return
+                else -> AppHelper.installedAppsList ?: return
             }
+            val multiUser = openwith || share
+            val availableIdentifiers = HashSet<String>(apps.size * 4 / 3 + 1)
+            for (app in apps) {
+                availableIdentifiers.add(
+                    if (multiUser) "${app.pkgName}|${app.user}" else app.pkgName,
+                )
+            }
+            AppHelper.appPrefs?.let { prefs ->
+                AppSelectionSanitizer.sanitizeOpenSelector(
+                    prefs,
+                    currentKey,
+                    availableIdentifiers,
+                    multiUser,
+                    bwlist,
+                )
+            }
+
+            listView?.adapter = AppDataAdapter(
+                context,
+                apps,
+                AppHelper.AppAdapterType.Mutli,
+                currentKey,
+                bwlist,
+            )
         } else if (privacy) {
             val apps = AppHelper.installedAppsList ?: return
             listView?.adapter = PrivacyAppAdapter(context, apps, mPrivacyAppsMap ?: HashMap())

@@ -40,9 +40,11 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.mods.GlobalActions
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.AppLocaleController
+import tv.withaibuild.customiuizer.utils.AppSelectionSanitizer
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
@@ -614,34 +616,54 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
 
     @Suppress("UNCHECKED_CAST")
     open fun doRestoreSettings(uri: Uri?) {
-        val act = activity as AppCompatActivity?
-        try {
-            val validAct = act!!
-            val inputStream = validAct.contentResolver.openInputStream(uri!!)
-            val entries = ObjectInputStream(inputStream!!).use { input ->
-                input.readObject() as Map<String, Any?>
-            }
-            AppHelper.syncPrefsToAnother(entries, AppHelper.appPrefs!!, 1, null, false)
-            // The restored file describes another device; its language marker says nothing
-            // about the framework locale in force here.
-            AppLocaleController.invalidateFastPath(AppHelper.appPrefs)
-
-            AlertDialog.Builder(validAct)
-                .setTitle(R.string.do_restore)
-                .setMessage(R.string.restore_ok)
-                .setCancelable(false)
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    validAct.finish()
-                    validAct.startActivity(validAct.intent)
+        val validAct = activity as? AppCompatActivity ?: return
+        val validUri = uri ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val inputStream = validAct.contentResolver.openInputStream(validUri)
+                    ?: throw IllegalStateException("Backup input stream unavailable")
+                val entries = ObjectInputStream(inputStream).use { input ->
+                    input.readObject() as Map<String, Any?>
                 }
-                .show()
-        } catch (t: Throwable) {
-            t.printStackTrace()
-            AlertDialog.Builder(act!!)
-                .setTitle(R.string.warning)
-                .setMessage(R.string.storage_cannot_restore)
-                .setPositiveButton(android.R.string.ok) { _, _ -> }
-                .show()
+                val installedPackages = AppSelectionSanitizer.queryInstalledPackageNames(
+                    validAct.packageManager,
+                )
+                val sanitizedEntries = AppSelectionSanitizer.sanitizeRestoredEntries(
+                    entries,
+                    installedPackages,
+                )
+                val prefs = AppHelper.appPrefs
+                    ?: throw IllegalStateException("Preferences unavailable")
+                // Commit on the IO dispatcher so the success dialog cannot race a restart.
+                AppHelper.syncPrefsToAnother(sanitizedEntries, prefs, 1, null, true)
+                // The restored file describes another device; its language marker says nothing
+                // about the framework locale in force here.
+                AppLocaleController.invalidateFastPath(prefs)
+
+                withContext(Dispatchers.Main) {
+                    if (validAct.isFinishing || validAct.isDestroyed || !isAdded) return@withContext
+                    AlertDialog.Builder(validAct)
+                        .setTitle(R.string.do_restore)
+                        .setMessage(R.string.restore_ok)
+                        .setCancelable(false)
+                        .setPositiveButton(android.R.string.ok) { _, _ ->
+                            validAct.finish()
+                            validAct.startActivity(validAct.intent)
+                        }
+                        .show()
+                }
+            } catch (t: Throwable) {
+                FatalErrors.rethrowIfFatal(t)
+                t.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    if (validAct.isFinishing || validAct.isDestroyed || !isAdded) return@withContext
+                    AlertDialog.Builder(validAct)
+                        .setTitle(R.string.warning)
+                        .setMessage(R.string.storage_cannot_restore)
+                        .setPositiveButton(android.R.string.ok) { _, _ -> }
+                        .show()
+                }
+            }
         }
     }
 

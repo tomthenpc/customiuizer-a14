@@ -132,6 +132,26 @@ class StatusBarInsetsGeometryTest {
         assertEquals(116, SystemStatusBarInsetsHooks.computeStatusBarFrameBottom(20, 124, 96, true))
     }
 
+    @Test
+    fun computeNonDecorTop_growsToConfiguredStatusBarHeight() {
+        assertEquals(129, SystemStatusBarInsetsHooks.computeNonDecorTop(104, 129, true))
+    }
+
+    @Test
+    fun computeNonDecorTop_neverShrinksBelowCutoutSafeInset() {
+        assertEquals(104, SystemStatusBarInsetsHooks.computeNonDecorTop(104, 74, true))
+    }
+
+    @Test
+    fun computeNonDecorTop_disabledKeepsFrameworkInset() {
+        assertEquals(104, SystemStatusBarInsetsHooks.computeNonDecorTop(104, 129, false))
+    }
+
+    @Test
+    fun computeNonDecorFrameTop_appliesOnlyTheInsetDelta() {
+        assertEquals(149, SystemStatusBarInsetsHooks.computeNonDecorFrameTop(124, 104, 129, true))
+    }
+
     private companion object {
         fun assertTrue(condition: Boolean) {
             org.junit.Assert.assertTrue(condition)

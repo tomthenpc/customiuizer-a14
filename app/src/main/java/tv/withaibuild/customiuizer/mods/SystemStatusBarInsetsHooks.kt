@@ -59,6 +59,8 @@ object SystemStatusBarInsetsHooks {
 
     private const val WINDOW_STATE_CLASS = "com.android.server.wm.WindowState"
     private const val DISPLAY_POLICY_CLASS = "com.android.server.wm.DisplayPolicy"
+    private const val DECOR_INSETS_INFO_CLASS = "com.android.server.wm.DisplayPolicy\$DecorInsets\$Info"
+    private const val DECOR_INSETS_UPDATE_METHOD = "update"
     private const val LAYOUT_WINDOW_LW_METHOD = "layoutWindowLw"
     private const val SET_FRAMES_METHOD = "setFrames"
     private const val STATUS_BAR_WINDOW_TAG = "StatusBar"
@@ -79,6 +81,10 @@ object SystemStatusBarInsetsHooks {
     private var clientWindowFramesFrameField: Field? = null
     private var clientWindowFramesDisplayFrameField: Field? = null
     private var clientWindowFramesParentFrameField: Field? = null
+
+    /** A14 DisplayPolicy.DecorInsets.Info fields used on the cold configuration path. */
+    private var decorInfoNonDecorInsetsField: Field? = null
+    private var decorInfoNonDecorFrameField: Field? = null
 
     /** Cached `WindowState.getFrame()`/`getDisplayMetrics()`/`getDisplayId()` methods. */
     private var windowStateGetFrameMethod: Method? = null
@@ -197,6 +203,7 @@ object SystemStatusBarInsetsHooks {
 
         resolveWindowManagerAbi(classLoader)
         installDisplayPolicyHook(classLoader)
+        installDecorInsetsInfoHook(classLoader)
         installWindowStateHook(classLoader)
 
         ModuleHelper.observePreferenceChange(statusBarHeightObserver, StatusBarHeightConfig)
@@ -281,6 +288,62 @@ object SystemStatusBarInsetsHooks {
         ModuleHelper.hookAllMethods(windowStateClass, SET_FRAMES_METHOD, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 return onSetFrames(chain)
+            }
+        })
+    }
+
+    /**
+     * Android 14 intentionally excludes status bars from DisplayPolicy's DECOR_TYPES and
+     * adds them only to mConfigInsets. On a cutout device that leaves app bounds at the
+     * cutout safe top (104 px on fuxi) even after the statusBars source grows (129 px), so
+     * third-party apps look as if only the icons moved. Expand the cached non-decor top on
+     * the same cold configuration calculation; no Activity/View hook or per-frame work is
+     * needed.
+     */
+    private fun installDecorInsetsInfoHook(classLoader: ClassLoader) {
+        val infoClass = XposedHelpers.findClassIfExists(DECOR_INSETS_INFO_CLASS, classLoader)
+        if (infoClass == null) {
+            logInstall("DisplayPolicy.DecorInsets.Info class not found")
+            return
+        }
+
+        val updateMethod = try {
+            infoClass.declaredMethods.singleOrNull { method ->
+                val parameterTypes = method.parameterTypes
+                method.name == DECOR_INSETS_UPDATE_METHOD &&
+                    parameterTypes.size == 4 &&
+                    parameterTypes[0].name == "com.android.server.wm.DisplayContent" &&
+                    parameterTypes[1] == Int::class.javaPrimitiveType &&
+                    parameterTypes[2] == Int::class.javaPrimitiveType &&
+                    parameterTypes[3] == Int::class.javaPrimitiveType
+            }?.also { it.isAccessible = true }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+        if (updateMethod == null) {
+            logInstall("DisplayPolicy.DecorInsets.Info.update ABI unavailable")
+            return
+        }
+
+        try {
+            decorInfoNonDecorInsetsField = infoClass.getDeclaredField("mNonDecorInsets").also {
+                it.isAccessible = true
+            }
+            decorInfoNonDecorFrameField = infoClass.getDeclaredField("mNonDecorFrame").also {
+                it.isAccessible = true
+            }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            decorInfoNonDecorInsetsField = null
+            decorInfoNonDecorFrameField = null
+            logInstall("DisplayPolicy.DecorInsets.Info fields unavailable: ${t.javaClass.simpleName}")
+            return
+        }
+
+        ModuleHelper.hookMethod(updateMethod, object : MethodHook() {
+            override fun intercept(chain: XposedInterface.Chain): Any? {
+                return onDecorInsetsInfoUpdate(chain)
             }
         })
     }
@@ -431,6 +494,61 @@ object SystemStatusBarInsetsHooks {
         return chain.proceed()
     }
 
+    @JvmStatic
+    internal fun onDecorInsetsInfoUpdate(chain: XposedInterface.Chain): Any? {
+        // The original calculation must run exactly once and its exception must propagate.
+        val result = chain.proceed()
+        if (!StatusBarHeightConfig.enabled) return result
+
+        try {
+            val args = chain.args
+            if (args.size != 4 || args[0] == null || args[1] !is Int) return result
+            val info = chain.thisObject ?: return result
+            val nonDecorInsets = decorInfoNonDecorInsetsField?.get(info) as? Rect ?: return result
+            val nonDecorFrame = decorInfoNonDecorFrameField?.get(info) as? Rect ?: return result
+            val originalInsetTop = nonDecorInsets.top
+            val originalFrameTop = nonDecorFrame.top
+            val configuredPx = configuredPxForDecorInfo(args[0])
+            val newInsetTop = computeNonDecorTop(originalInsetTop, configuredPx, true)
+            if (newInsetTop == originalInsetTop) return result
+
+            nonDecorInsets.top = newInsetTop
+            nonDecorFrame.top = computeNonDecorFrameTop(
+                originalFrameTop,
+                originalInsetTop,
+                configuredPx,
+                true,
+            )
+
+            val rotation = args[1] as Int
+            logLive(
+                "decor rotation=$rotation " +
+                    "oldTop=$originalInsetTop newTop=$newInsetTop " +
+                    "oldFrameTop=$originalFrameTop newFrameTop=${nonDecorFrame.top} " +
+                    "configuredPx=$configuredPx",
+                "decor:$rotation",
+            )
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG decor update failed: ${t.javaClass.simpleName}")
+        }
+
+        return result
+    }
+
+    private fun configuredPxForDecorInfo(displayContent: Any?): Int {
+        val state = StatusBarHeightConfig.currentState()
+        if (displayContent == null) return state.configuredPx
+        return try {
+            val metrics = XposedHelpers.callMethod(displayContent, "getDisplayMetrics") as? DisplayMetrics
+            if (metrics == null) state.configuredPx
+            else StatusBarHeightConfig.configuredPxFor(state.configuredDp, metrics)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            state.configuredPx
+        }
+    }
+
     private fun clientFramesClassMismatch(clientFrames: Any): Boolean {
         val resolvedClass = clientWindowFramesClass
         return if (resolvedClass != null) {
@@ -545,6 +663,7 @@ object SystemStatusBarInsetsHooks {
     internal fun requestStatusBarTraversal() {
         val win = statusBarWindowRef?.get() ?: return
         try {
+            invalidateDecorInsets(win)
             val wmService = XposedHelpers.getObjectField(win, "mWmService") ?: return
             val windowPlacer = XposedHelpers.getObjectField(wmService, "mWindowPlacerLocked") ?: return
 
@@ -566,6 +685,20 @@ object SystemStatusBarInsetsHooks {
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG refresh failed: ${t.javaClass.simpleName}")
+        }
+    }
+
+    /** Invalidates the four rotation caches before a live height change is traversed. */
+    private fun invalidateDecorInsets(win: Any) {
+        try {
+            val displayContent = XposedHelpers.getObjectField(win, "mDisplayContent") ?: return
+            val displayPolicy = XposedHelpers.callMethod(displayContent, "getDisplayPolicy") ?: return
+            val decorInsets = XposedHelpers.getObjectField(displayPolicy, "mDecorInsets") ?: return
+            XposedHelpers.callMethod(decorInsets, "invalidate")
+            logLive("decor invalidate", "decor-invalidate")
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG decor invalidate failed: ${t.javaClass.simpleName}")
         }
     }
 
@@ -773,6 +906,29 @@ object SystemStatusBarInsetsHooks {
     @JvmStatic
     fun computeStatusBarFrameBottom(originalTop: Int, originalBottom: Int): Int {
         return computeStatusBarFrameBottom(originalTop, originalBottom, StatusBarHeightConfig.configuredPx, StatusBarHeightConfig.enabled)
+    }
+
+    /**
+     * Keeps the framework/cutout safe inset as a floor and expands it only when the chosen
+     * status bar is taller. Shrinking below a physical cutout would place app content under
+     * the camera even though the status bar source itself is allowed to shrink.
+     */
+    @JvmStatic
+    fun computeNonDecorTop(originalTop: Int, configuredPx: Int, enabled: Boolean): Int {
+        if (!enabled || configuredPx <= 0) return originalTop
+        return maxOf(originalTop, configuredPx)
+    }
+
+    /** Applies the same top-inset delta to the already-computed non-decor frame. */
+    @JvmStatic
+    fun computeNonDecorFrameTop(
+        originalFrameTop: Int,
+        originalInsetTop: Int,
+        configuredPx: Int,
+        enabled: Boolean,
+    ): Int {
+        val newInsetTop = computeNonDecorTop(originalInsetTop, configuredPx, enabled)
+        return originalFrameTop + (newInsetTop - originalInsetTop)
     }
 
     private fun copyRect(source: Rect): Rect {

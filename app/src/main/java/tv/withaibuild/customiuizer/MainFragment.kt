@@ -28,12 +28,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.subs.CategorySelector
 import tv.withaibuild.customiuizer.subs.Controls
 import tv.withaibuild.customiuizer.subs.Launcher
 import tv.withaibuild.customiuizer.subs.System as SubSystem
 import tv.withaibuild.customiuizer.subs.Various
 import tv.withaibuild.customiuizer.utils.AppHelper
+import tv.withaibuild.customiuizer.utils.AppSelectionSanitizer
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.ModData
 import tv.withaibuild.customiuizer.utils.ModSearchAdapter
@@ -82,6 +84,16 @@ class MainFragment : PreferenceFragmentBase() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             if (act.isFinishing) return@launch
+            val prefs = AppHelper.appPrefs
+            if (prefs != null) {
+                try {
+                    val installedPackages = AppSelectionSanitizer.queryInstalledPackageNames(act.packageManager)
+                    AppSelectionSanitizer.sanitizeStoredSelections(prefs, installedPackages)
+                } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
+                    AppHelper.log("AppSelection", t)
+                }
+            }
             Helpers.getAllMods(act, savedInstanceState != null)
         }
 
