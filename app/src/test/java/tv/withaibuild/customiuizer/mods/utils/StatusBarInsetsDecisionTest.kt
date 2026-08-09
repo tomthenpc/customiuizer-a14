@@ -27,122 +27,130 @@ class StatusBarInsetsDecisionTest {
 
     @Test
     fun modernPublicStatusTypeHits() {
+        configureHeight(110, 160) // -> 110 px
         val chain = fakeChain(source(type = 1), fakeRect(bottom = 104))
 
-        val decision = Insets.makeSetFrameDecision(
-            chain,
-            modernPublicInfo(),
-            configuredPx = 110,
-            enabled = true,
-        )
+        callback(modernPublicInfo()).intercept(chain)
 
-        assertTrue(decision is Insets.ProceedWithArgs)
-        val args = (decision as Insets.ProceedWithArgs).args
-        assertEquals(1, args.size)
-        val adjusted = args[0] as Rect
-        assertEquals(110, adjusted.bottom)
+        assertEquals(1, chain.proceedCount)
+        assertTrue(chain.calledWithArgs)
+        assertEquals(1, chain.lastArgs!!.size)
+        assertEquals(110, (chain.lastArgs!![0] as Rect).bottom)
     }
 
     @Test
     fun modernNavigationDoesNotHit() {
+        configureHeight(110, 160)
         val chain = fakeChain(source(type = 2), fakeRect(bottom = 104))
 
-        val decision = Insets.makeSetFrameDecision(
-            chain,
-            modernPublicInfo(),
-            configuredPx = 110,
-            enabled = true,
-        )
+        callback(modernPublicInfo()).intercept(chain)
 
-        assertTrue(decision is Insets.ProceedOriginal)
+        assertEquals(1, chain.proceedCount)
+        assertFalse(chain.calledWithArgs)
     }
 
     @Test
     fun modernDisplayCutoutDoesNotHit() {
+        configureHeight(110, 160)
         val chain = fakeChain(source(type = 128), fakeRect(bottom = 104))
 
-        val decision = Insets.makeSetFrameDecision(
-            chain,
-            modernPublicInfo(),
-            configuredPx = 110,
-            enabled = true,
-        )
+        callback(modernPublicInfo()).intercept(chain)
 
-        assertTrue(decision is Insets.ProceedOriginal)
+        assertEquals(1, chain.proceedCount)
+        assertFalse(chain.calledWithArgs)
     }
 
     @Test
     fun legacyInternalStatusType0Hits() {
+        configureHeight(110, 160)
         val chain = fakeChain(source(type = 0), fakeRect(bottom = 104))
 
-        val decision = Insets.makeSetFrameDecision(
-            chain,
-            legacyInternalInfo(),
-            configuredPx = 110,
-            enabled = true,
-        )
+        callback(legacyInternalInfo()).intercept(chain)
 
-        assertTrue(decision is Insets.ProceedWithArgs)
+        assertTrue(chain.calledWithArgs)
     }
 
     @Test
     fun legacyInternalNavigationType1DoesNotHit() {
+        configureHeight(110, 160)
         val chain = fakeChain(source(type = 1), fakeRect(bottom = 104))
 
-        val decision = Insets.makeSetFrameDecision(
-            chain,
-            legacyInternalInfo(),
-            configuredPx = 110,
-            enabled = true,
-        )
+        callback(legacyInternalInfo()).intercept(chain)
 
-        assertTrue(decision is Insets.ProceedOriginal)
+        assertFalse(chain.calledWithArgs)
     }
 
     @Test
     fun legacyNavigationOldFrameEmptyTop0StillNotMisclassified() {
         // A navigation source with an empty old frame whose top==0 must not be treated as
         // a status bar. Type encoding is the single source of truth.
+        configureHeight(110, 160)
         val chain = fakeChain(source(type = 1, frame = Rect()), fakeRect(bottom = 104))
 
-        val decision = Insets.makeSetFrameDecision(
-            chain,
-            legacyInternalInfo(),
-            configuredPx = 110,
-            enabled = true,
-        )
+        callback(legacyInternalInfo()).intercept(chain)
 
-        assertTrue(decision is Insets.ProceedOriginal)
+        assertFalse(chain.calledWithArgs)
     }
 
     @Test
-    fun unsupportedEncodingReturnsProceedOriginal() {
-        val chain = fakeChain(source(type = 0), fakeRect(bottom = 104))
+    fun unsupportedEncodingProceedsWithoutReadingType() {
+        configureHeight(110, 160)
+        val src = source(type = 0)
+        val chain = fakeChain(src, fakeRect(bottom = 104))
 
-        val decision = Insets.makeSetFrameDecision(
-            chain,
-            unsupportedInfo(),
-            configuredPx = 110,
-            enabled = true,
-        )
+        callback(unsupportedInfo()).intercept(chain)
 
-        assertTrue(decision is Insets.ProceedOriginal)
+        assertEquals(1, chain.proceedCount)
+        assertFalse(chain.calledWithArgs)
+        assertEquals("unsupported encoding must not reflect at all", 0, src.getTypeCalls)
+    }
+
+    @Test
+    fun disabledDoesNotReadSourceType() {
+        configureHeight(11, 160) // disabled
+        val src = source(type = 1)
+        val chain = fakeChain(src, fakeRect(bottom = 104))
+
+        callback(modernPublicInfo()).intercept(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertFalse(chain.calledWithArgs)
+        assertEquals("disabled must be checked before any reflection", 0, src.getTypeCalls)
+    }
+
+    @Test
+    fun nonStatusSourceReadsTypeExactlyOnce() {
+        configureHeight(110, 160)
+        val src = source(type = 2)
+        val chain = fakeChain(src, fakeRect(bottom = 104))
+
+        callback(modernPublicInfo()).intercept(chain)
+
+        assertEquals(1, src.getTypeCalls)
+    }
+
+    @Test
+    fun cachedTypeFieldRemovesReflection() {
+        configureHeight(110, 160)
+        val src = FieldBackedSource(1)
+        val chain = fakeChain(src, fakeRect(bottom = 104))
+        val typeField = FieldBackedSource::class.java.getDeclaredField("mType").also { it.isAccessible = true }
+
+        Insets.SetFrameCallback(modernPublicInfo(), hasGetId = false, typeField = typeField).intercept(chain)
+
+        assertTrue(chain.calledWithArgs)
+        assertEquals(0, src.getTypeCalls)
     }
 
     @Test
     fun rectInputIsNotModified() {
+        configureHeight(110, 160)
         val original = fakeRect(bottom = 104)
         val chain = fakeChain(source(type = 1), original)
 
-        val decision = Insets.makeSetFrameDecision(
-            chain,
-            modernPublicInfo(),
-            configuredPx = 110,
-            enabled = true,
-        )
+        callback(modernPublicInfo()).intercept(chain)
 
-        val args = (decision as Insets.ProceedWithArgs).args
-        val adjusted = args[0] as Rect
+        val adjusted = chain.lastArgs!![0] as Rect
         assertNotSame(original, adjusted)
         assertEquals(104, original.bottom)
         assertEquals(110, adjusted.bottom)
@@ -153,16 +161,12 @@ class StatusBarInsetsDecisionTest {
 
     @Test
     fun fourArgOrderIsCorrect() {
+        configureHeight(110, 160)
         val chain = fakeChain(source(type = 0), 0, 0, 1080, 104)
 
-        val decision = Insets.makeSetFrameDecision(
-            chain,
-            legacyInternalInfo(),
-            configuredPx = 110,
-            enabled = true,
-        )
+        callback(legacyInternalInfo()).intercept(chain)
 
-        val args = (decision as Insets.ProceedWithArgs).args
+        val args = chain.lastArgs!!
         assertEquals(4, args.size)
         assertEquals(0, args[0])
         assertEquals(0, args[1])
@@ -172,37 +176,36 @@ class StatusBarInsetsDecisionTest {
 
     @Test
     fun preprocessingReflectionFailureProceedsOnce() {
+        configureHeight(110, 160)
         val chain = fakeChain(throwingSource(), fakeRect(bottom = 104))
-        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = false, hasGetFrame = false)
 
-        callback.intercept(chain)
+        callback(modernPublicInfo()).intercept(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertFalse(chain.calledWithArgs)
+        assertEquals(1, Insets.rejectionKeyCountForTest())
+    }
+
+    @Test
+    fun argumentAccessFailureProceedsOnce() {
+        // getArg(0) succeeds, the following argument access throws. The original method must
+        // still run exactly once with the untouched arguments.
+        configureHeight(40, 440) // -> 110 px
+        val chain = fakeChain(source(type = 0), 0, 0, 1080, 0, throwFromSecondArg = true)
+
+        callback(legacyInternalInfo()).intercept(chain)
 
         assertEquals(1, chain.proceedCount)
         assertFalse(chain.calledWithArgs)
     }
 
     @Test
-    fun logExceptionProceedsOnce() {
-        // getArg(0) succeeds once for decision computation, then throws on the second
-        // access inside maybeLogFirstHit. The real decision must still execute once.
-        configureHeight(40, 440) // -> 110 px
-        val chain = fakeChain(source(type = 1), fakeRect(bottom = 0), throwOnSecondArg = true)
-        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = false, hasGetFrame = false)
-
-        callback.intercept(chain)
-
-        assertEquals(1, chain.proceedCount)
-        assertTrue(chain.calledWithArgs)
-    }
-
-    @Test
     fun originalMethodNormalExceptionPropagatesAndProceedsOnce() {
         configureHeight(40, 440) // -> 110 px
         val chain = fakeChain(source(type = 1), fakeRect(bottom = 0), proceedThrow = RuntimeException("setFrame failed"))
-        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = false, hasGetFrame = false)
 
         try {
-            callback.intercept(chain)
+            callback(modernPublicInfo()).intercept(chain)
             assertFalse("Expected proceed exception to propagate", true)
         } catch (t: Throwable) {
             assertTrue(t is RuntimeException)
@@ -216,10 +219,9 @@ class StatusBarInsetsDecisionTest {
         configureHeight(40, 440) // -> 110 px
         val error = OutOfMemoryError("setFrame OOM")
         val chain = fakeChain(source(type = 1), fakeRect(bottom = 0), proceedThrow = error)
-        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = false, hasGetFrame = false)
 
         try {
-            callback.intercept(chain)
+            callback(modernPublicInfo()).intercept(chain)
             assertFalse("Expected OutOfMemoryError to propagate", true)
         } catch (t: Throwable) {
             assertSame(error, t)
@@ -233,75 +235,47 @@ class StatusBarInsetsDecisionTest {
         // originalTop=0, originalBottom=104, configuredPx=104 -> newBottom=104, no change
         configureHeight(104, 160) // -> 104 px
         val chain = fakeChain(source(type = 1), fakeRect(bottom = 104))
-        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = false, hasGetFrame = false)
 
-        callback.intercept(chain)
-
-        assertEquals(1, chain.proceedCount)
-        assertFalse(chain.calledWithArgs)
-    }
-
-    @Test
-    fun disabledProceedsOnce() {
-        configureHeight(11, 160) // disabled
-
-        val chain = fakeChain(source(type = 1), fakeRect(bottom = 104))
-        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = false, hasGetFrame = false)
-
-        callback.intercept(chain)
+        callback(modernPublicInfo()).intercept(chain)
 
         assertEquals(1, chain.proceedCount)
         assertFalse(chain.calledWithArgs)
     }
 
     @Test
-    fun criticalKeyCapStopsAtMax() {
+    fun statusSourceLogsOncePerGeneration() {
         configureHeight(40, 160) // -> 40 px
 
-        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, hasGetFrame = false)
+        val hook = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, typeField = null)
 
         repeat(40) { index ->
-            val chain = fakeChain(source(type = 1, id = index), fakeRect(bottom = 104))
-            callback.intercept(chain)
+            hook.intercept(fakeChain(source(type = 1, id = index), fakeRect(bottom = 104)))
         }
 
-        assertEquals(16, Insets.criticalKeyCountForTest())
-    }
-
-    @Test
-    fun rejectionKeyCapStopsAtMax() {
-        // 40 distinct non-status sourceIds, all with the same navigation type, should
-        // collapse into a single aggregated rejection key.
-        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, hasGetFrame = false)
-
-        repeat(40) { index ->
-            val chain = fakeChain(source(type = 2, id = index), fakeRect(bottom = 104))
-            callback.intercept(chain)
-        }
-
-        assertEquals(1, Insets.rejectionKeyCountForTest())
-    }
-
-    @Test
-    fun rejectionDoesNotStarveCritical() {
-        // 40 unique non-status sourceIds first, then one status source. The critical
-        // status-source-changed log must still be recorded.
-        configureHeight(40, 160) // -> 40 px
-
-        val callback = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, hasGetFrame = false)
-
-        repeat(40) { index ->
-            val chain = fakeChain(source(type = 2, id = index), fakeRect(bottom = 104))
-            callback.intercept(chain)
-        }
-
-        val statusChain = fakeChain(source(type = 1, id = 1000), fakeRect(bottom = 104))
-        callback.intercept(statusChain)
-
-        assertTrue(statusChain.calledWithArgs)
         assertEquals(1, Insets.criticalKeyCountForTest())
-        assertEquals(1, Insets.rejectionKeyCountForTest())
+
+        StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
+        hook.intercept(fakeChain(source(type = 1, id = 0), fakeRect(bottom = 104)))
+
+        assertEquals(2, Insets.criticalKeyCountForTest())
     }
+
+    @Test
+    fun nonStatusSourcesProduceNoDiagnostics() {
+        configureHeight(40, 160)
+
+        val hook = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, typeField = null)
+
+        repeat(40) { index ->
+            hook.intercept(fakeChain(source(type = 2, id = index), fakeRect(bottom = 104)))
+        }
+
+        assertEquals(0, Insets.rejectionKeyCountForTest())
+        assertEquals(0, Insets.criticalKeyCountForTest())
+    }
+
+    private fun callback(info: Insets.InsetsTypeInfo) =
+        Insets.SetFrameCallback(info, hasGetId = false, typeField = null)
 
     private fun modernPublicInfo() = Insets.InsetsTypeInfo(
         Insets.InsetsTypeEncoding.MODERN_PUBLIC,
@@ -344,19 +318,27 @@ class StatusBarInsetsDecisionTest {
         StatusBarHeightConfig.configure(PrefMap().apply { put("system_statusbarheight", rawDp) }, fakeResources(densityDpi))
     }
 
-    private fun fakeChain(source: Any, firstArg: Rect, throwOnSecondArg: Boolean = false, proceedThrow: Throwable? = null): FakeChain {
+    private fun fakeChain(source: Any, firstArg: Rect, proceedThrow: Throwable? = null): FakeChain {
         return FakeChain(
             source = source,
             args = arrayOf<Any?>(firstArg),
-            throwOnSecondArg = throwOnSecondArg,
             proceedThrow = proceedThrow,
         )
     }
 
-    private fun fakeChain(source: Any, left: Int, top: Int, right: Int, bottom: Int, proceedThrow: Throwable? = null): FakeChain {
+    private fun fakeChain(
+        source: Any,
+        left: Int,
+        top: Int,
+        right: Int,
+        bottom: Int,
+        throwFromSecondArg: Boolean = false,
+        proceedThrow: Throwable? = null,
+    ): FakeChain {
         return FakeChain(
             source = source,
             args = arrayOf<Any?>(left, top, right, bottom),
+            throwFromSecondArg = throwFromSecondArg,
             proceedThrow = proceedThrow,
         )
     }
@@ -375,9 +357,27 @@ class StatusBarInsetsDecisionTest {
     }
 
     class FakeSource(private val _type: Int, private val _id: Int, private val _frame: Rect) {
-        fun getType(): Int = _type
+        var getTypeCalls = 0
+            private set
+
+        fun getType(): Int {
+            getTypeCalls++
+            return _type
+        }
+
         fun getId(): Int = _id
         fun getFrame(): Rect = _frame
+    }
+
+    /** Source whose type is readable through a cached `mType` field, like the real `InsetsSource`. */
+    class FieldBackedSource(@JvmField val mType: Int) {
+        var getTypeCalls = 0
+            private set
+
+        fun getType(): Int {
+            getTypeCalls++
+            return mType
+        }
     }
 
     class ThrowingFakeSource {
@@ -387,7 +387,7 @@ class StatusBarInsetsDecisionTest {
     class FakeChain(
         val source: Any,
         val args: Array<Any?>,
-        val throwOnSecondArg: Boolean = false,
+        val throwFromSecondArg: Boolean = false,
         val proceedThrow: Throwable? = null,
     ) : XposedInterface.Chain {
 
@@ -397,6 +397,9 @@ class StatusBarInsetsDecisionTest {
         var calledWithArgs = false
             private set
 
+        var lastArgs: Array<Any>? = null
+            private set
+
         private var argAccessCount = 0
 
         override fun getExecutable(): Executable = error("not used in test")
@@ -404,9 +407,9 @@ class StatusBarInsetsDecisionTest {
         override fun getArgs(): List<Any?> = args.toList()
 
         override fun getArg(index: Int): Any? {
-            if (throwOnSecondArg) {
+            if (throwFromSecondArg) {
                 argAccessCount++
-                if (argAccessCount >= 2) throw RuntimeException("getArg log failure")
+                if (argAccessCount >= 2) throw RuntimeException("getArg failure")
             }
             return args[index]
         }
@@ -421,6 +424,7 @@ class StatusBarInsetsDecisionTest {
         override fun proceed(p0: Array<Any>): Any? {
             proceedCount++
             calledWithArgs = true
+            lastArgs = p0
             proceedThrow?.let { throw it }
             return null
         }

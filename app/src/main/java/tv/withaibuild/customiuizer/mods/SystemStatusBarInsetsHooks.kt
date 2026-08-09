@@ -16,7 +16,9 @@ import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.lang.ref.WeakReference
 import java.lang.reflect.Field
 import java.lang.reflect.Method
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicLongArray
 
 /**
  * system_server Insets boundary for status bar height.
@@ -41,9 +43,18 @@ import java.util.concurrent.atomic.AtomicLong
  * configuration and request a single `WindowSurfacePlacer.requestTraversal()` on the WMS
  * animation handler, which coalesces duplicate requests.
  *
+ * Hot path contract (`InsetsSource.setFrame`, `DisplayPolicy.layoutWindowLw`,
+ * `WindowState.setFrames` are global system_server methods):
+ * - The `enabled` flag is read before any reflection.
+ * - `InsetsSource` type is read once, through a cached `mType` field when available.
+ * - WindowStates that were already proven to be status bars are matched by identity.
+ * - `dp -> px` is recomputed only when the display density actually changed.
+ * - Nothing is allocated unless a frame really changes or a first-hit log is emitted.
+ *
  * Diagnostics are generation-keyed and bounded: `preference-change:<gen>`,
  * `layout:<displayId>:<gen>`, `frame:<displayId>:<gen>`, `insets:<sourceId>:<gen>`,
- * `refresh:<gen>`.
+ * `refresh:<gen>`. Generation stamps gate the whole diagnostic prelude so a suppressed log
+ * costs one atomic read instead of a key string.
  */
 object SystemStatusBarInsetsHooks {
 
@@ -67,11 +78,44 @@ object SystemStatusBarInsetsHooks {
     private const val STATUS_BAR_HEIGHT_LIVE_TAG = "[StatusBarHeightLive]"
     private const val ORIGINAL_STATUS_BAR_HEIGHT_KEY = "customiuizer_originalStatusBarHeight"
 
+    /** Upper bound for the identity fast path and for the per-display diagnostic stamps. */
+    internal const val MAX_TRACKED_DISPLAYS = 4
+
+    /** Upper bound for the expensive packageName/toString status bar probe. */
+    internal const val MAX_FALLBACK_PROBES = 4096
+
     private var typeInfo: InsetsTypeInfo? = null
     private var hookInstalled: Boolean = false
 
     /** Weak reference to the most recently laid-out status bar WindowState for refresh. */
+    @Volatile
     private var statusBarWindowRef: WeakReference<Any>? = null
+
+    /**
+     * Identity fast path: WindowStates already proven to be status bars. The hot path only
+     * compares references against this snapshot; the array is rebuilt on the rare discovery
+     * path so readers never allocate and never lock.
+     */
+    @Volatile
+    private var statusBarWindows: Array<WeakReference<Any>> = emptyArray()
+
+    /** True once `mAttrs.type == TYPE_STATUS_BAR` has identified a status bar on this ROM. */
+    @Volatile
+    private var typeMatchObserved = false
+
+    /** Remaining budget for the packageName/toString fallback probe. */
+    private val fallbackProbeBudget = AtomicInteger(MAX_FALLBACK_PROBES)
+
+    /** Resolved `WindowState.mAttrs` / `WindowManager.LayoutParams.type` for the WMS hot path. */
+    @Volatile
+    private var windowStateAttrsField: Field? = null
+
+    @Volatile
+    private var layoutParamsTypeField: Field? = null
+
+    /** Resolved `com.android.server.wm.WindowState` class, used for an allocation-free type test. */
+    @Volatile
+    private var windowStateClass: Class<*>? = null
 
     /** Last generation for which a refresh was requested, to coalesce duplicates. */
     private val lastRefreshGeneration = AtomicLong(-1L)
@@ -100,17 +144,55 @@ object SystemStatusBarInsetsHooks {
     /** Bounded log keys for [STATUS_BAR_HEIGHT_LIVE_TAG] lifecycle events. */
     private val loggedLiveKeys = LinkedHashSet<String>()
 
+    /** True once [loggedRejection] is full, so the hot path can skip key construction entirely. */
+    @Volatile
+    private var rejectionLoggingExhausted = false
+
+    /**
+     * Per-display "already logged for this generation" stamps. They let the hot path skip the
+     * whole diagnostic prelude (string keys, Rect copies, extra reflection) without a lock.
+     */
+    private val layoutLogStamps = AtomicLongArray(MAX_TRACKED_DISPLAYS)
+    private val windowFrameLogStamps = AtomicLongArray(MAX_TRACKED_DISPLAYS)
+    private val clientFrameLogStamps = AtomicLongArray(MAX_TRACKED_DISPLAYS)
+
+    /**
+     * Returns true at most once per (display, generation) pair. The stamp is `generation + 1`
+     * so the zero-initialised array never suppresses generation 0.
+     */
+    private fun claimLiveLogStamp(stamps: AtomicLongArray, displayId: Int): Boolean {
+        val slot = if (displayId in 0 until MAX_TRACKED_DISPLAYS) displayId else MAX_TRACKED_DISPLAYS - 1
+        val stamp = StatusBarHeightConfig.generation.get() + 1
+        return stamps.getAndSet(slot, stamp) != stamp
+    }
+
+    private fun clearLiveLogStamps(stamps: AtomicLongArray) {
+        for (i in 0 until stamps.length()) stamps.set(i, 0L)
+    }
+
     @JvmStatic
     internal fun resetDiagnosticsForTest() {
         synchronized(loggedCritical) { loggedCritical.clear() }
-        synchronized(loggedRejection) { loggedRejection.clear() }
+        synchronized(loggedRejection) {
+            loggedRejection.clear()
+            rejectionLoggingExhausted = false
+        }
         synchronized(loggedLiveKeys) { loggedLiveKeys.clear() }
+        clearLiveLogStamps(layoutLogStamps)
+        clearLiveLogStamps(windowFrameLogStamps)
+        clearLiveLogStamps(clientFrameLogStamps)
+        statusSourceLogStamp.set(0L)
+        reflectionFailureLogStamp.set(0L)
+        invalidShapeLogStamp.set(0L)
     }
 
     @JvmStatic
     internal fun resetForTest() {
         resetDiagnosticsForTest()
         statusBarWindowRef = null
+        statusBarWindows = emptyArray()
+        typeMatchObserved = false
+        fallbackProbeBudget.set(MAX_FALLBACK_PROBES)
         lastRefreshGeneration.set(-1L)
     }
 
@@ -198,7 +280,7 @@ object SystemStatusBarInsetsHooks {
                 "abi=$sourceAbi"
         )
 
-        val callback = SetFrameCallback(resolvedTypeInfo, hasGetId, hasGetFrame)
+        val callback = SetFrameCallback(resolvedTypeInfo, hasGetId, resolveIntField(insetsSourceClass, "mType"))
         ModuleHelper.hookAllMethods(insetsSourceClass, SET_FRAME_METHOD, callback)
 
         resolveWindowManagerAbi(classLoader)
@@ -350,6 +432,8 @@ object SystemStatusBarInsetsHooks {
 
     private fun resolveWindowManagerAbi(classLoader: ClassLoader) {
         val windowStateClass = XposedHelpers.findClassIfExists(WINDOW_STATE_CLASS, classLoader) ?: return
+        this.windowStateClass = windowStateClass
+        windowStateAttrsField = resolveDeclaredField(windowStateClass, "mAttrs")
 
         windowStateGetFrameMethod = try {
             windowStateClass.getMethod("getFrame")?.also { it.isAccessible = true }
@@ -397,13 +481,12 @@ object SystemStatusBarInsetsHooks {
     @JvmStatic
     internal fun onLayoutWindowLw(chain: XposedInterface.Chain): Any? {
         val win = chain.getArg(0) ?: return chain.proceed()
-        if (win.javaClass.name != WINDOW_STATE_CLASS) return chain.proceed()
+        if (!isWindowState(win)) return chain.proceed()
         if (!isStatusBarWindow(win)) return chain.proceed()
 
-        statusBarWindowRef = WeakReference(win)
+        if (statusBarWindowRef?.get() !== win) statusBarWindowRef = WeakReference(win)
 
-        val state = StatusBarHeightConfig.currentState()
-        if (!state.enabled) {
+        if (!StatusBarHeightConfig.enabled) {
             restoreStatusBarWindowHeight(win)
             return chain.proceed()
         }
@@ -412,41 +495,47 @@ object SystemStatusBarInsetsHooks {
         val displayId = getDisplayId(win)
 
         val configuredPx = if (displayId == 0) {
-            StatusBarHeightConfig.recomputePx(metrics)
+            // Only a real density change may re-enter the synchronized recompute.
+            if (metrics.densityDpi != StatusBarHeightConfig.densityDpi) {
+                StatusBarHeightConfig.recomputePx(metrics)
+            }
             StatusBarHeightConfig.configuredPx
         } else {
-            StatusBarHeightConfig.configuredPxFor(state.configuredDp, metrics)
+            StatusBarHeightConfig.configuredPxFor(StatusBarHeightConfig.configuredDp, metrics)
         }
 
         if (configuredPx <= 0) return chain.proceed()
 
-        val densityForLog = if (displayId == 0) StatusBarHeightConfig.density else metrics.density
-        val densityDpiForLog = if (displayId == 0) StatusBarHeightConfig.densityDpi else metrics.densityDpi
-
-        logLive(
-            "layout displayId=$displayId " +
-                "rawDp=${state.rawPreferenceDp} " +
-                "resolvedDp=${state.configuredDp} " +
-                "density=$densityForLog " +
-                "densityDpi=$densityDpiForLog " +
-                "configuredPx=$configuredPx",
-            "layout:$displayId"
-        )
+        if (claimLiveLogStamp(layoutLogStamps, displayId)) {
+            val densityForLog = if (displayId == 0) StatusBarHeightConfig.density else metrics.density
+            val densityDpiForLog = if (displayId == 0) StatusBarHeightConfig.densityDpi else metrics.densityDpi
+            logLive(
+                "layout displayId=$displayId " +
+                    "rawDp=${StatusBarHeightConfig.rawPreferenceDp} " +
+                    "resolvedDp=${StatusBarHeightConfig.configuredDp} " +
+                    "density=$densityForLog " +
+                    "densityDpi=$densityDpiForLog " +
+                    "configuredPx=$configuredPx",
+                "layout:$displayId"
+            )
+        }
 
         applyStatusBarWindowHeight(win, configuredPx)
 
         val result = chain.proceed()
 
-        val frame = readWindowFrame(win)
-        if (frame != null) {
-            logLive(
-                "window-frame displayId=$displayId " +
-                    "left=${frame.left} " +
-                    "top=${frame.top} " +
-                    "right=${frame.right} " +
-                    "bottom=${frame.bottom}",
-                "frame:$displayId"
-            )
+        if (claimLiveLogStamp(windowFrameLogStamps, displayId)) {
+            val frame = readWindowFrame(win)
+            if (frame != null) {
+                logLive(
+                    "window-frame displayId=$displayId " +
+                        "left=${frame.left} " +
+                        "top=${frame.top} " +
+                        "right=${frame.right} " +
+                        "bottom=${frame.bottom}",
+                    "frame:$displayId"
+                )
+            }
         }
 
         return result
@@ -462,33 +551,33 @@ object SystemStatusBarInsetsHooks {
         val clientFrames = chain.getArg(0) ?: return chain.proceed()
         if (clientFramesClassMismatch(clientFrames)) return chain.proceed()
 
-        val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
         val displayId = getDisplayId(win)
 
         val configuredPx = if (displayId == 0) {
             StatusBarHeightConfig.configuredPx
         } else {
+            val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
             StatusBarHeightConfig.configuredPxFor(StatusBarHeightConfig.configuredDp, metrics)
         }
         if (configuredPx <= 0) return chain.proceed()
 
         val frame = readClientWindowFrame(clientFrames) ?: return chain.proceed()
 
-        val oldLeft = frame.left
         val oldTop = frame.top
-        val oldRight = frame.right
         val oldBottom = frame.bottom
         val newBottom = oldTop + configuredPx
 
         if (newBottom != oldBottom) {
             frame.bottom = newBottom
-            logLive(
-                "frame displayId=$displayId " +
-                    "left=$oldLeft top=$oldTop right=$oldRight " +
-                    "oldBottom=$oldBottom newBottom=$newBottom " +
-                    "configuredPx=$configuredPx",
-                "frame:$displayId"
-            )
+            if (claimLiveLogStamp(clientFrameLogStamps, displayId)) {
+                logLive(
+                    "frame displayId=$displayId " +
+                        "left=${frame.left} top=$oldTop right=${frame.right} " +
+                        "oldBottom=$oldBottom newBottom=$newBottom " +
+                        "configuredPx=$configuredPx",
+                    "frame:$displayId"
+                )
+            }
         }
 
         return chain.proceed()
@@ -568,23 +657,105 @@ object SystemStatusBarInsetsHooks {
         }
     }
 
+    /** Allocation-free `WindowState` test; falls back to the class name before the ABI is resolved. */
+    private fun isWindowState(win: Any): Boolean {
+        val resolved = windowStateClass
+        return if (resolved != null) resolved.isInstance(win) else win.javaClass.name == WINDOW_STATE_CLASS
+    }
+
+    private fun isKnownStatusBarWindow(win: Any): Boolean {
+        val known = statusBarWindows
+        for (i in known.indices) {
+            if (known[i].get() === win) return true
+        }
+        return false
+    }
+
+    private fun rememberStatusBarWindow(win: Any) {
+        synchronized(this) {
+            if (isKnownStatusBarWindow(win)) return
+            val known = statusBarWindows
+            val live = ArrayList<WeakReference<Any>>(known.size + 1)
+            for (ref in known) if (ref.get() != null) live.add(ref)
+            while (live.size >= MAX_TRACKED_DISPLAYS) live.removeAt(0)
+            live.add(WeakReference(win))
+            statusBarWindows = live.toTypedArray()
+        }
+    }
+
+    /**
+     * Identity fast path first: a WindowState that has already been proven to be a status bar
+     * costs one reference comparison. Only unknown windows pay the `mAttrs.type` read, and the
+     * expensive `packageName`/`toString()` fallback runs only while the type check has never
+     * succeeded on this ROM and only for a bounded number of probes.
+     */
     @JvmStatic
     internal fun isStatusBarWindow(win: Any): Boolean {
+        if (isKnownStatusBarWindow(win)) return true
         return try {
-            val attrs = XposedHelpers.getObjectField(win, "mAttrs") ?: return false
-            val type = XposedHelpers.getIntField(attrs, "type")
-            if (type == TYPE_STATUS_BAR) return true
+            val attrs = readWindowAttrs(win) ?: return false
+            if (readAttrsType(attrs) == TYPE_STATUS_BAR) {
+                typeMatchObserved = true
+                rememberStatusBarWindow(win)
+                return true
+            }
+
+            if (typeMatchObserved) return false
+            if (fallbackProbeBudget.decrementAndGet() < 0) return false
 
             val packageName = XposedHelpers.getObjectField(attrs, "packageName") as? String
-            if (packageName?.contains("com.android.systemui") == true) {
-                win.toString().contains(STATUS_BAR_WINDOW_TAG)
-            } else {
-                false
-            }
+            if (packageName?.contains("com.android.systemui") != true) return false
+            if (!win.toString().contains(STATUS_BAR_WINDOW_TAG)) return false
+
+            rememberStatusBarWindow(win)
+            true
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             false
         }
+    }
+
+    /** Reads `WindowState.mAttrs` through a cached [Field]; the lookup self-installs on first use. */
+    private fun readWindowAttrs(win: Any): Any? {
+        var field = windowStateAttrsField
+        if (field == null || !field.declaringClass.isInstance(win)) {
+            field = resolveDeclaredField(win.javaClass, "mAttrs")
+                ?: return XposedHelpers.getObjectField(win, "mAttrs")
+            windowStateAttrsField = field
+        }
+        return field.get(win)
+    }
+
+    /** Reads `WindowManager.LayoutParams.type` without boxing; returns -1 when unavailable. */
+    private fun readAttrsType(attrs: Any): Int {
+        var field = layoutParamsTypeField
+        if (field == null || !field.declaringClass.isInstance(attrs)) {
+            field = resolveDeclaredField(attrs.javaClass, "type")
+                ?: return XposedHelpers.getIntField(attrs, "type")
+            layoutParamsTypeField = field
+        }
+        return field.getInt(attrs)
+    }
+
+    private fun resolveDeclaredField(clazz: Class<*>, name: String): Field? {
+        var current: Class<*>? = clazz
+        while (current != null) {
+            try {
+                return current.getDeclaredField(name).also { it.isAccessible = true }
+            } catch (t: NoSuchFieldException) {
+                current = current.superclass
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                return null
+            }
+        }
+        return null
+    }
+
+    /** Resolves a declared `int` field, used to read `InsetsSource.mType` without reflection boxing. */
+    private fun resolveIntField(clazz: Class<*>, name: String): Field? {
+        val field = resolveDeclaredField(clazz, name) ?: return null
+        return field.takeIf { it.type == Int::class.javaPrimitiveType }
     }
 
     @JvmStatic
@@ -632,7 +803,7 @@ object SystemStatusBarInsetsHooks {
         if (configuredPx <= 0) return
 
         try {
-            val attrs = XposedHelpers.getObjectField(win, "mAttrs") ?: return
+            val attrs = readWindowAttrs(win) ?: return
             val currentHeight = XposedHelpers.getIntField(attrs, "height")
             if (XposedHelpers.getAdditionalInstanceField(win, ORIGINAL_STATUS_BAR_HEIGHT_KEY) == null) {
                 XposedHelpers.setAdditionalInstanceField(win, ORIGINAL_STATUS_BAR_HEIGHT_KEY, currentHeight)
@@ -648,7 +819,7 @@ object SystemStatusBarInsetsHooks {
     @JvmStatic
     internal fun restoreStatusBarWindowHeight(win: Any) {
         try {
-            val attrs = XposedHelpers.getObjectField(win, "mAttrs") ?: return
+            val attrs = readWindowAttrs(win) ?: return
             val originalHeight = XposedHelpers.getAdditionalInstanceField(win, ORIGINAL_STATUS_BAR_HEIGHT_KEY) as? Int ?: return
             val currentHeight = XposedHelpers.getIntField(attrs, "height")
             if (currentHeight != originalHeight) {
@@ -940,164 +1111,143 @@ object SystemStatusBarInsetsHooks {
         }
     }
 
+    /** Sentinel returned when `InsetsSource` type resolution failed. */
+    internal const val TYPE_UNRESOLVED = Int.MIN_VALUE
+
+    private const val OVERLOAD_RECT = "setFrame(Rect)"
+    private const val OVERLOAD_INTS = "setFrame(int,int,int,int)"
+
+    private const val REASON_REFLECTION_FAILED = "preprocessing-reflection-failed"
+    private const val REASON_INVALID_SHAPE = "invalid-argument-shape"
+
     /**
-     * Decision produced by the framework-light prelude. The actual `chain.proceed()` call
-     * happens exactly once, after this decision has been computed and only outside any
-     * catch block that could retry.
+     * Generation stamps that gate the `setFrame` diagnostics. They are the only thing the hot
+     * path touches before deciding not to log, so no key string, no `Rect` copy and no extra
+     * reflection are produced once a generation has been reported.
      */
-    internal sealed interface SetFrameDecision {
-        val reason: String
+    private val statusSourceLogStamp = AtomicLong(0L)
+    private val reflectionFailureLogStamp = AtomicLong(0L)
+    private val invalidShapeLogStamp = AtomicLong(0L)
+
+    private fun claimGenerationStamp(stamp: AtomicLong): Boolean {
+        val value = StatusBarHeightConfig.generation.get() + 1
+        return stamp.getAndSet(value) != value
     }
 
-    internal data class ProceedOriginal(override val reason: String) : SetFrameDecision
-    internal data class ProceedWithArgs(val args: Array<Any>, override val reason: String) : SetFrameDecision
-
     /**
-     * Compute the decision for a single `InsetsSource.setFrame` interception.
+     * `InsetsSource.setFrame` boundary.
      *
-     * This function must never call [XposedInterface.Chain.proceed]. All reflection and
-     * logging exceptions are either fatal (rethrown) or non-fatal (produce a safe
-     * `ProceedOriginal` decision). The returned decision is then executed exactly once
-     * by [SetFrameCallback.intercept].
+     * `setFrame` is a global framework method: every source of every window passes through it,
+     * so the release path is deliberately stupid. A volatile boolean, two primitive compares
+     * and one `mType` read reject everything that is not the status bar source, and the single
+     * `Rect` allocation only happens when the frame really changes. There is no decision
+     * object, no `Pair`, no diagnostic frame copy and no log key construction unless a
+     * first-hit log is actually going to be emitted.
      */
-    internal fun makeSetFrameDecision(
-        chain: XposedInterface.Chain,
-        typeInfo: InsetsTypeInfo,
-        configuredPx: Int,
-        enabled: Boolean,
-    ): SetFrameDecision {
-        val source = chain.thisObject
-            ?: return ProceedOriginal("source-null")
+    internal class SetFrameCallback(
+        private val typeInfo: InsetsTypeInfo,
+        private val hasGetId: Boolean,
+        private val typeField: Field?,
+    ) : MethodHook() {
 
-        val type = try {
-            XposedHelpers.callMethod(source, GET_TYPE_METHOD) as? Int
-                ?: return ProceedOriginal("preprocessing-reflection-failed")
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            return ProceedOriginal("preprocessing-reflection-failed")
+        private val statusBarType: Int =
+            if (typeInfo.encoding == InsetsTypeEncoding.UNSUPPORTED) TYPE_UNRESOLVED else typeInfo.statusBarType
+
+        override fun intercept(chain: XposedInterface.Chain): Any? {
+            if (!StatusBarHeightConfig.enabled) return chain.proceed()
+            if (statusBarType == TYPE_UNRESOLVED) return chain.proceed()
+            val configuredPx = StatusBarHeightConfig.configuredPx
+            if (configuredPx <= 0) return chain.proceed()
+
+            val source = chain.thisObject ?: return chain.proceed()
+            val type = readSourceType(source)
+            if (type == TYPE_UNRESOLVED) {
+                logRejection(REASON_REFLECTION_FAILED, reflectionFailureLogStamp)
+                return chain.proceed()
+            }
+            if (type != statusBarType) return chain.proceed()
+
+            // Status bar source only: rare compared to the global call rate.
+            val adjusted = try {
+                adjustArgs(chain, source, type, configuredPx)
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                logRejection(REASON_REFLECTION_FAILED, reflectionFailureLogStamp)
+                null
+            }
+
+            // Exactly one proceed. Exceptions from the original method propagate.
+            return if (adjusted == null) chain.proceed() else chain.proceed(adjusted)
         }
 
-        if (!isStatusBarType(type, typeInfo)) {
-            return ProceedOriginal("non-status-type")
-        }
-
-        if (!enabled || configuredPx <= 0) {
-            return ProceedOriginal("disabled")
-        }
-
-        return try {
-            val firstArg = chain.getArg(0)
-            when {
-                firstArg is Rect -> {
-                    val newBottom = computeStatusBarFrameBottom(firstArg.top, firstArg.bottom, configuredPx, enabled)
-                    val changed = newBottom != firstArg.bottom
-                    if (changed) {
-                        val adjusted = copyRect(firstArg)
-                        adjusted.bottom = newBottom
-                        ProceedWithArgs(arrayOf<Any>(adjusted), "status-source-changed")
-                    } else {
-                        ProceedOriginal("status-source-no-change")
-                    }
+        /** Returns the rewritten argument array, or null when the original arguments must be used. */
+        private fun adjustArgs(
+            chain: XposedInterface.Chain,
+            source: Any,
+            type: Int,
+            configuredPx: Int,
+        ): Array<Any>? {
+            when (val firstArg = chain.getArg(0)) {
+                is Rect -> {
+                    val newBottom = computeStatusBarFrameBottom(firstArg.top, firstArg.bottom, configuredPx, true)
+                    logStatusSource(source, type, OVERLOAD_RECT, firstArg.top, firstArg.bottom, newBottom)
+                    if (newBottom == firstArg.bottom) return null
+                    val adjusted = copyRect(firstArg)
+                    adjusted.bottom = newBottom
+                    return arrayOf(adjusted)
                 }
-                firstArg is Int -> {
+                is Int -> {
                     val top = chain.getArg(1) as? Int
                     val right = chain.getArg(2) as? Int
                     val bottom = chain.getArg(3) as? Int
                     if (top == null || right == null || bottom == null) {
-                        return ProceedOriginal("invalid-argument-shape")
+                        logRejection(REASON_INVALID_SHAPE, invalidShapeLogStamp)
+                        return null
                     }
-                    val newBottom = computeStatusBarFrameBottom(top, bottom, configuredPx, enabled)
-                    val changed = newBottom != bottom
-                    if (changed) {
-                        ProceedWithArgs(arrayOf<Any>(firstArg, top, right, newBottom), "status-source-changed")
-                    } else {
-                        ProceedOriginal("status-source-no-change")
-                    }
+                    val newBottom = computeStatusBarFrameBottom(top, bottom, configuredPx, true)
+                    logStatusSource(source, type, OVERLOAD_INTS, top, bottom, newBottom)
+                    if (newBottom == bottom) return null
+                    return arrayOf(firstArg, top, right, newBottom)
                 }
-                else -> ProceedOriginal("invalid-argument-shape")
+                else -> {
+                    logRejection(REASON_INVALID_SHAPE, invalidShapeLogStamp)
+                    return null
+                }
             }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            ProceedOriginal("preprocessing-reflection-failed")
         }
-    }
 
-    internal class SetFrameCallback(
-        private val typeInfo: InsetsTypeInfo,
-        private val hasGetId: Boolean,
-        private val hasGetFrame: Boolean,
-    ) : MethodHook() {
-
-        override fun intercept(chain: XposedInterface.Chain): Any? {
-            val decision = makeSetFrameDecision(
-                chain,
-                typeInfo,
-                StatusBarHeightConfig.configuredPx,
-                StatusBarHeightConfig.enabled,
-            )
-
-            // Log is best-effort and must never trigger a second proceed or swallow
-            // the real decision. It uses a bounded set to avoid unbounded growth.
-            try {
-                maybeLogFirstHit(chain, decision, typeInfo)
+        /** Reads `InsetsSource.mType` through the cached field, or falls back to `getType()`. */
+        private fun readSourceType(source: Any): Int {
+            val field = typeField
+            return try {
+                if (field != null && field.declaringClass.isInstance(source)) {
+                    field.getInt(source)
+                } else {
+                    XposedHelpers.callMethod(source, GET_TYPE_METHOD) as? Int ?: TYPE_UNRESOLVED
+                }
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
-            }
-
-            // Exactly one proceed. Exceptions from the original method propagate.
-            return when (decision) {
-                is ProceedOriginal -> chain.proceed()
-                is ProceedWithArgs -> chain.proceed(decision.args)
+                TYPE_UNRESOLVED
             }
         }
 
-        private fun maybeLogFirstHit(
-            chain: XposedInterface.Chain,
-            decision: SetFrameDecision,
-            typeInfo: InsetsTypeInfo,
+        /** First hit of the status bar source for the current configuration generation. */
+        private fun logStatusSource(
+            source: Any,
+            type: Int,
+            overload: String,
+            oldTop: Int,
+            oldBottom: Int,
+            newBottom: Int,
         ) {
-            val source = chain.thisObject ?: return
+            if (!claimGenerationStamp(statusSourceLogStamp)) return
 
-            val type = try {
-                XposedHelpers.callMethod(source, GET_TYPE_METHOD) as? Int ?: return
-            } catch (t: Throwable) {
-                FatalErrors.unwrapAndRethrowIfFatal(t)
-                return
-            }
-
-            val overload = when (chain.getArg(0)) {
-                is Rect -> "setFrame(Rect)"
-                is Int -> "setFrame(int,int,int,int)"
-                else -> "unknown"
-            }
-
-            val (oldFrame, newBottom) = readIncomingFrame(chain, decision)
-
-            val sourceId = if (hasGetId) {
-                try {
-                    XposedHelpers.callMethod(source, GET_ID_METHOD) as? Int
-                } catch (t: Throwable) {
-                    FatalErrors.unwrapAndRethrowIfFatal(t)
-                    null
-                }
-            } else null
-
-            val reason = decision.reason
-            val isCritical = reason in CRITICAL_REASONS
             val generation = StatusBarHeightConfig.generation.get()
-
-            if (isCritical) {
-                val key = criticalKey(typeInfo.encoding, sourceId, type, overload, reason, generation)
-                synchronized(loggedCritical) {
-                    if (loggedCritical.size >= MAX_CRITICAL_KEYS) return
-                    if (!loggedCritical.add(key)) return
-                }
-            } else {
-                val key = rejectionKey(typeInfo.encoding, type, overload, reason, generation)
-                synchronized(loggedRejection) {
-                    if (loggedRejection.size >= MAX_REJECTION_KEYS) return
-                    if (!loggedRejection.add(key)) return
-                }
+            val sourceId = if (hasGetId) readSourceId(source) else null
+            val key = "insets:${sourceId ?: "n/a"}:$generation"
+            synchronized(loggedCritical) {
+                if (loggedCritical.size >= MAX_CRITICAL_KEYS) return
+                if (!loggedCritical.add(key)) return
             }
 
             XposedHelpers.log(
@@ -1106,80 +1256,47 @@ object SystemStatusBarInsetsHooks {
                     "sourceId=${sourceId ?: "n/a"} " +
                     "type=$type " +
                     "overload=$overload " +
-                    "oldFrame=${oldFrame?.toShortString()} " +
+                    "oldTop=$oldTop oldBottom=$oldBottom " +
                     "newBottom=$newBottom " +
                     "rawDp=${StatusBarHeightConfig.rawPreferenceDp} " +
                     "resolvedDp=${StatusBarHeightConfig.configuredDp} " +
                     "configuredPx=${StatusBarHeightConfig.configuredPx} " +
-                    "changed=${decision is ProceedWithArgs} " +
-                    "reason=$reason " +
+                    "changed=${newBottom != oldBottom} " +
                     "gen=$generation"
             )
         }
 
-        private fun readIncomingFrame(
-            chain: XposedInterface.Chain,
-            decision: SetFrameDecision,
-        ): Pair<Rect?, Int> {
-            val firstArg = chain.getArg(0)
-            return when (firstArg) {
-                is Rect -> {
-                    val newBottom = if (decision is ProceedWithArgs) {
-                        val adjusted = decision.args[0]
-                        if (adjusted is Rect) adjusted.bottom else firstArg.bottom
-                    } else {
-                        firstArg.bottom
-                    }
-                    copyRect(firstArg) to newBottom
-                }
-                is Int -> {
-                    val top = chain.getArg(1) as? Int ?: 0
-                    val right = chain.getArg(2) as? Int ?: 0
-                    val bottom = chain.getArg(3) as? Int ?: 0
-                    val newBottom = if (decision is ProceedWithArgs) {
-                        val args = decision.args
-                        if (args.size >= 4) args[3] as? Int ?: bottom else bottom
-                    } else {
-                        bottom
-                    }
-                    val rect = Rect()
-                    rect.left = firstArg
-                    rect.top = top
-                    rect.right = right
-                    rect.bottom = bottom
-                    rect to (newBottom ?: bottom)
-                }
-                else -> null to -1
+        private fun readSourceId(source: Any): Int? {
+            return try {
+                XposedHelpers.callMethod(source, GET_ID_METHOD) as? Int
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                null
             }
         }
-    }
 
-    private val CRITICAL_REASONS = setOf(
-        "status-source-changed",
-        "status-source-no-change",
-        "preprocessing-reflection-failed",
-        "invalid-argument-shape",
-    )
+        /** Bounded, generation-gated anomaly log. Never runs for ordinary non-status sources. */
+        private fun logRejection(reason: String, stamp: AtomicLong) {
+            if (rejectionLoggingExhausted) return
+            if (!claimGenerationStamp(stamp)) return
 
-    private fun criticalKey(
-        encoding: InsetsTypeEncoding,
-        sourceId: Int?,
-        type: Int,
-        overload: String,
-        reason: String,
-        generation: Long,
-    ): String {
-        return "insets:${sourceId ?: "n/a"}:$generation"
-    }
+            val generation = StatusBarHeightConfig.generation.get()
+            val key = "insets-reject:$reason:$generation"
+            synchronized(loggedRejection) {
+                if (loggedRejection.size >= MAX_REJECTION_KEYS) {
+                    rejectionLoggingExhausted = true
+                    return
+                }
+                if (!loggedRejection.add(key)) return
+                if (loggedRejection.size >= MAX_REJECTION_KEYS) rejectionLoggingExhausted = true
+            }
 
-    /** Rejection keys deliberately omit sourceId so many non-status sources cannot starve critical logs. */
-    private fun rejectionKey(
-        encoding: InsetsTypeEncoding,
-        type: Int,
-        overload: String,
-        reason: String,
-        generation: Long,
-    ): String {
-        return "insets-reject:$type:$overload:$reason:$generation"
+            XposedHelpers.log(
+                "[StatusBarInsets] insets-reject " +
+                    "encoding=${typeInfo.encoding} " +
+                    "reason=$reason " +
+                    "gen=$generation"
+            )
+        }
     }
 }
