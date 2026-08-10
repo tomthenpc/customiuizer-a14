@@ -7,6 +7,8 @@ import android.util.DisplayMetrics
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.utils.PrefMap
@@ -264,6 +266,108 @@ class StatusBarHeightConfigTest {
 
         assertEquals(cachedBefore, StatusBarHeightConfig.configuredPx)
         assertEquals(160, StatusBarHeightConfig.densityDpi)
+    }
+
+    @Test
+    fun currentState_unchanged_returnsSameReference() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 40) },
+            fakeResources(160),
+        )
+
+        val a = StatusBarHeightConfig.currentState()
+        val b = StatusBarHeightConfig.currentState()
+
+        assertSame(a, b)
+    }
+
+    @Test
+    fun reconfigure_sameValue_doesNotRepublishSnapshot() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+        val before = StatusBarHeightConfig.currentState()
+        val generationBefore = StatusBarHeightConfig.generation.get()
+
+        val change = StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
+        val after = StatusBarHeightConfig.currentState()
+
+        assertFalse(change.changed)
+        assertSame(before, after)
+        assertSame(before, change.previous)
+        assertSame(after, change.current)
+        assertEquals(generationBefore, StatusBarHeightConfig.generation.get())
+    }
+
+    @Test
+    fun reconfigure_changedValue_publishesNewConsistentSnapshot() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 40) },
+            fakeResources(469),
+        )
+        val before = StatusBarHeightConfig.currentState()
+        val generationBefore = StatusBarHeightConfig.generation.get()
+
+        val change = StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
+        val after = StatusBarHeightConfig.currentState()
+
+        assertTrue(change.changed)
+        assertNotSame(before, after)
+        assertSame(before, change.previous)
+        assertSame(after, change.current)
+        assertEquals(generationBefore + 1, StatusBarHeightConfig.generation.get())
+
+        assertEquals(44, after.rawPreferenceDp)
+        assertEquals(true, after.enabled)
+        assertEquals(44, after.configuredDp)
+        assertEquals(129, after.configuredPx) // 44 * 469 / 160 ≈ 129
+        assertEquals(469, after.densityDpi)
+    }
+
+    @Test
+    fun recomputePx_sameMetrics_doesNotRepublishSnapshot() {
+        val metrics = DisplayMetrics().apply { densityDpi = 469; density = 2.93125f }
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            metrics = metrics,
+        )
+        val before = StatusBarHeightConfig.currentState()
+        val generationBefore = StatusBarHeightConfig.generation.get()
+
+        StatusBarHeightConfig.recomputePx(metrics)
+        val after = StatusBarHeightConfig.currentState()
+
+        assertSame(before, after)
+        assertEquals(generationBefore, StatusBarHeightConfig.generation.get())
+    }
+
+    @Test
+    fun recomputePx_changedDensity_publishesOneNewConsistentSnapshot() {
+        val initialMetrics = DisplayMetrics().apply { densityDpi = 440; density = 2.75f }
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            metrics = initialMetrics,
+        )
+        val before = StatusBarHeightConfig.currentState()
+        val generationBefore = StatusBarHeightConfig.generation.get()
+
+        val newMetrics = DisplayMetrics().apply { densityDpi = 469; density = 2.93125f }
+        StatusBarHeightConfig.recomputePx(newMetrics)
+        val after = StatusBarHeightConfig.currentState()
+
+        assertNotSame(before, after)
+        assertEquals(generationBefore + 1, StatusBarHeightConfig.generation.get())
+        assertEquals(44, after.configuredDp)
+        assertEquals(129, after.configuredPx)
+        assertEquals(469, after.densityDpi)
+        assertEquals(2.93125f, after.density, 0.0001f)
+
+        // Recompute with the same density again must not publish yet another snapshot.
+        StatusBarHeightConfig.recomputePx(newMetrics)
+        val again = StatusBarHeightConfig.currentState()
+        assertSame(after, again)
+        assertEquals(generationBefore + 1, StatusBarHeightConfig.generation.get())
     }
 
     private fun fakeResources(densityDpi: Int): Resources {

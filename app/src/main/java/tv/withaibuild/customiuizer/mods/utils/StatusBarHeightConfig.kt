@@ -9,9 +9,9 @@ import java.util.concurrent.atomic.AtomicLong
  * Process-scoped, immutable configuration snapshot for the status bar height feature.
  *
  * The current configuration is published as a single immutable [State] behind a `@Volatile`
- * reference.  Hot paths read the snapshot once per callback and then observe a consistent set of
- * values; they never re-read individual volatile fields, never touch [PrefMap], never re-reflect
- * and never re-compute dp->px.
+ * reference.  The immutable snapshot allows Architecture C hot paths to read one consistent State
+ * per callback.  Compatibility getters remain during the C1 migration and each reads the currently
+ * published snapshot.
  *
  * Enabled semantics:
  * - `system_statusbarheight == 11` (DEFAULT_SENTINEL) → disabled, behaves like stock.
@@ -172,7 +172,7 @@ object StatusBarHeightConfig {
             densityDpi = effectiveDensityDpi,
             density = effectiveDensity,
         )
-        publishState(newState)
+        synchronized(this) { applyStateUnderLock(newState) }
     }
 
     /**
@@ -239,13 +239,6 @@ object StatusBarHeightConfig {
         return Math.round(dp * metrics.densityDpi / 160f)
     }
 
-    /** Cold-path publication.  Safe to call from cold paths; the compare avoids useless writes. */
-    @JvmStatic
-    @Synchronized
-    fun publishState(newState: State): ReconfigureResult {
-        return applyStateUnderLock(newState)
-    }
-
     /**
      * Apply [newState] if it differs from the current state and bump the generation.
      * Callers must hold the monitor of this object.
@@ -253,7 +246,7 @@ object StatusBarHeightConfig {
     private fun applyStateUnderLock(newState: State): ReconfigureResult {
         val previous = state
         if (newState == previous) {
-            return ReconfigureResult(false, previous, newState)
+            return ReconfigureResult(false, previous, previous)
         }
 
         state = newState
