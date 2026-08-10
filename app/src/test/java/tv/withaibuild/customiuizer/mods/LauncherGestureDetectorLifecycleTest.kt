@@ -1,14 +1,20 @@
 package tv.withaibuild.customiuizer.mods
 
+import android.content.Context
+import android.view.View
+import android.view.ViewGroup
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -80,9 +86,9 @@ class LauncherGestureDetectorLifecycleTest {
     }
 
     @Test
-    fun factoryReceivesOwnersContext() {
+    fun factoryReceivesApplicationContext() {
         val owner = FakeOwner("with-context")
-        val capturedContext = mutableListOf<android.content.Context?>()
+        val capturedContext = mutableListOf<Context?>()
 
         LauncherGestureHooks.hotSeatDetectorFactory = { _, context ->
             capturedContext.add(context)
@@ -93,6 +99,71 @@ class LauncherGestureDetectorLifecycleTest {
 
         assertEquals(1, capturedContext.size)
         assertSame(owner.context, capturedContext[0])
+    }
+
+    @Test
+    fun swipeListenerDoesNotStronglyRetainOwnerContextOrView() {
+        val owner = FakeOwner("retention-check")
+        val listener = createSwipeListener(owner)
+
+        val fields = listener.javaClass.declaredFields
+        for (field in fields) {
+            field.isAccessible = true
+            val type = field.type
+            assertFalse("listener must not have strong Context/View/Activity field: ${field.name}",
+                Context::class.java.isAssignableFrom(type) &&
+                !WeakReference::class.java.isAssignableFrom(type) ||
+                View::class.java.isAssignableFrom(type) ||
+                android.app.Activity::class.java.isAssignableFrom(type))
+        }
+
+        val ownerRefField = listener.javaClass.getDeclaredField("ownerRef")
+        ownerRefField.isAccessible = true
+        val ownerRef = ownerRefField.get(listener) as WeakReference<*>
+        assertSame(owner, ownerRef.get())
+    }
+
+    @Test
+    fun swipeListenerFallsBackWhenOwnerGone() {
+        val owner = FakeOwner("gone")
+        val listener = createSwipeListener(owner)
+
+        val ownerRefField = listener.javaClass.getDeclaredField("ownerRef")
+        ownerRefField.isAccessible = true
+        val ownerRef = ownerRefField.get(listener) as WeakReference<*>
+        assertSame(owner, ownerRef.get())
+
+        // Simulate owner collection
+        ownerRef.clear()
+        assertNull("listener must not retain owner after collection", ownerRef.get())
+    }
+
+    @Test
+    fun obtainHotSeatDetectorDoesNotSwallowFatalErrors() {
+        val owner = object {
+            override fun toString(): String = "bad-owner"
+        }
+
+        var propagated = false
+        val originalFactory = LauncherGestureHooks.hotSeatDetectorFactory
+        LauncherGestureHooks.hotSeatDetectorFactory = { _, _ -> throw OutOfMemoryError("test oom") }
+
+        try {
+            LauncherGestureHooks.obtainHotSeatDetector(owner)
+        } catch (t: Throwable) {
+            if (t is OutOfMemoryError) propagated = true
+        } finally {
+            LauncherGestureHooks.hotSeatDetectorFactory = originalFactory
+        }
+
+        assertTrue("fatal OutOfMemoryError must propagate", propagated)
+    }
+
+    private fun createSwipeListener(owner: Any): Any {
+        val constructor = Class.forName("tv.withaibuild.customiuizer.mods.LauncherGestureHooks\$SwipeListenerHorizontal")
+            .getDeclaredConstructor(Any::class.java)
+        constructor.isAccessible = true
+        return constructor.newInstance(owner)
     }
 
     @Test
@@ -110,18 +181,17 @@ class LauncherGestureDetectorLifecycleTest {
         assertTrue((secondDetector as String).contains("recreated-2"))
     }
 
-    class FakeOwner(val id: String) {
+    class FakeOwner(val id: String) : android.widget.FrameLayout(FakeOwner.fakeContext) {
 
-        val context: android.content.Context? = android.app.Application()
+        companion object {
+            val fakeContext: android.content.Context = android.app.Application()
+            val detached = Any()
+        }
 
         override fun toString(): String = id
 
         override fun equals(other: Any?): Boolean = other is FakeOwner && other.id == id
 
         override fun hashCode(): Int = id.hashCode()
-
-        companion object {
-            val detached = Any()
-        }
     }
 }

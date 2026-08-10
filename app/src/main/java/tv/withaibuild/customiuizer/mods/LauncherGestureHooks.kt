@@ -18,11 +18,13 @@ import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.libxposed.api.XposedInterface
 import miui.process.ProcessManager
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ShakeManager
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import java.lang.ref.WeakReference
 import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
@@ -49,11 +51,7 @@ object LauncherGestureHooks {
         val existing = XposedHelpers.getAdditionalInstanceField(hotSeat, HOTSEAT_HORIZONTAL_DETECTOR_KEY)
         if (existing != null) return existing
 
-        val context = try {
-            XposedHelpers.callMethod(hotSeat, "getContext") as Context?
-        } catch (t: Throwable) {
-            null
-        }
+        val context = (hotSeat as? View)?.context?.applicationContext
         val detector = hotSeatDetectorFactory(hotSeat, context)
         XposedHelpers.setAdditionalInstanceField(hotSeat, HOTSEAT_HORIZONTAL_DETECTOR_KEY, detector)
         return detector
@@ -334,10 +332,11 @@ object LauncherGestureHooks {
     private class SwipeListenerHorizontal(cellLayout: Any) : GestureDetector.SimpleOnGestureListener() {
         private val SWIPE_MIN_DISTANCE_HORIZ: Int
         private val SWIPE_THRESHOLD_VELOCITY: Int
-        val helperContext: Context = (cellLayout as ViewGroup).context
+        private val ownerRef: WeakReference<ViewGroup> = WeakReference(cellLayout as? ViewGroup)
 
         init {
-            val density = helperContext.resources.displayMetrics.density
+            val context = ownerRef.get()?.context
+            val density = context?.resources?.displayMetrics?.density ?: 1.0f
             SWIPE_MIN_DISTANCE_HORIZ = Math.round(75 * density)
             SWIPE_THRESHOLD_VELOCITY = Math.round(33 * density)
         }
@@ -348,12 +347,14 @@ object LauncherGestureHooks {
 
         override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
             if (e1 == null) return false
+            val owner = ownerRef.get() ?: return false
+            val context = owner.context
 
             if (e2.x - e1.x > SWIPE_MIN_DISTANCE_HORIZ && Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY)
-                return GlobalActions.handleAction(helperContext, "launcher_swiperight")
+                return GlobalActions.handleAction(context, "launcher_swiperight")
 
             if (e1.x - e2.x > SWIPE_MIN_DISTANCE_HORIZ && Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY)
-                return GlobalActions.handleAction(helperContext, "launcher_swipeleft")
+                return GlobalActions.handleAction(context, "launcher_swipeleft")
 
             return false
         }
