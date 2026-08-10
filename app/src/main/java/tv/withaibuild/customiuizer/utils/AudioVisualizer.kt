@@ -37,6 +37,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.coroutineContext
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.io.File
@@ -617,6 +618,7 @@ class AudioVisualizer @JvmOverloads constructor(
         try {
             if (mVisualizer?.enabled != true) return
         } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
             return
         }
 
@@ -693,7 +695,8 @@ class AudioVisualizer @JvmOverloads constructor(
                 if (!isConfigActive(config)) continue
                 val usage = try {
                     config.audioAttributes.usage
-                } catch (_: Throwable) {
+                } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     continue
                 }
                 if (usage == AudioAttributes.USAGE_MEDIA || usage == AudioAttributes.USAGE_GAME) {
@@ -724,10 +727,12 @@ class AudioVisualizer @JvmOverloads constructor(
                 visualizer.enabled = true
                 return visualizer
             } catch (t: Throwable) {
+                FatalErrors.rethrowIfFatal(t)
                 XposedHelpers.log("AudioVisualizer create session=$session failed: ${t.message}")
                 try {
                     visualizer?.release()
-                } catch (_: Throwable) {
+                } catch (inner: Throwable) {
+                    FatalErrors.rethrowIfFatal(inner)
                 }
             }
         }
@@ -737,12 +742,14 @@ class AudioVisualizer @JvmOverloads constructor(
     private fun isConfigActive(config: AudioPlaybackConfiguration): Boolean = try {
         config.javaClass.getDeclaredMethod("isActive").apply { isAccessible = true }.invoke(config) as Boolean
     } catch (t: Throwable) {
+        FatalErrors.rethrowIfFatal(t)
         true
     }
 
     private fun getConfigSessionId(config: AudioPlaybackConfiguration): Int = try {
         config.javaClass.getDeclaredMethod("getSessionId").apply { isAccessible = true }.invoke(config) as Int
     } catch (t: Throwable) {
+        FatalErrors.rethrowIfFatal(t)
         0
     }
 
