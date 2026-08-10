@@ -37,7 +37,8 @@ internal object StatusBarHeightResolver {
         val insets = resolveInsetsSourceCapability(classLoader)
         val windowManager = resolveWindowManagerCapability(classLoader)
         val decorInsets = resolveDecorInsetsCapability(classLoader)
-        return StatusBarHeightAbi(insets, windowManager, decorInsets)
+        val refresh = resolveRefreshCapability(windowManager, decorInsets, classLoader)
+        return StatusBarHeightAbi(insets, windowManager, decorInsets, refresh)
     }
 
     private fun resolveInsetsSourceCapability(classLoader: ClassLoader): InsetsSourceCapability {
@@ -344,64 +345,48 @@ internal object StatusBarHeightResolver {
     }
 
     // ----------------------------------------------------------------------------
-    // Late ABI slot.
+    // Refresh capability.
     // ----------------------------------------------------------------------------
 
-    class LateAbiSlot {
-        @Volatile
-        private var state: LateAbiState = LateAbiState.Unresolved
-
-        fun getOrResolve(resolve: () -> LateAbi): LateAbi {
-            val current = state
-            if (current is LateAbiState.Resolved) return current.abi
-
-            synchronized(this) {
-                val doubleCheck = state
-                if (doubleCheck is LateAbiState.Resolved) return doubleCheck.abi
-
-                val resolved = resolve()
-                state = LateAbiState.Resolved(resolved)
-                return resolved
-            }
-        }
-
-        fun stateForTest(): LateAbiState = state
-        fun resolvedForTest(): LateAbi? = (state as? LateAbiState.Resolved)?.abi
-    }
-
     /**
-     * Resolve late ABI once a real framework object is available.
+     * Resolve the refresh/traversal cold ABI.
+     *
+     * Sources are best-effort: existing resolved classes, then string-based class lookup,
+     * then field types.  Each member is resolved independently so partial refresh paths are
+     * available even when the other half is missing.
      */
-    fun resolveLate(
-        displayContentClass: Class<*>,
-        windowManagerServiceClass: Class<*>?,
-        displayPolicyClass: Class<*>?,
-    ): LateAbi {
-        val decorInsetsClass = if (displayPolicyClass != null) {
-            try {
-                displayPolicyClass.declaredClasses.firstOrNull { it.simpleName == "DecorInsets" }
-            } catch (t: Throwable) {
-                FatalErrors.unwrapAndRethrowIfFatal(t)
-                null
-            }
+    fun resolveRefreshCapability(
+        windowManager: WindowManagerCapability,
+        decorInsets: DecorInsetsCapability,
+        classLoader: ClassLoader,
+    ): StatusBarHeightRefreshCapability {
+        val displayContentClass = decorInsets.displayContentClass
+            ?: windowManager.windowStateDisplayContentField?.type
+
+        val displayPolicyClass = windowManager.displayPolicyClass
+
+        val windowManagerServiceClass = XposedHelpers.findClassIfExists(WINDOW_MANAGER_SERVICE_CLASS, classLoader)
+            ?: windowManager.windowStateWindowManagerServiceField?.type
+
+        val decorInsetsField = if (displayPolicyClass != null) {
+            resolveDeclaredField(displayPolicyClass, "mDecorInsets")
         } else null
 
-        val windowSurfacePlacerClass = if (windowManagerServiceClass != null) {
-            resolvePlacerClass(windowManagerServiceClass)
+        val decorInsetsClass = decorInsetsField?.type
+
+        val placerField = if (windowManagerServiceClass != null) {
+            resolveDeclaredField(windowManagerServiceClass, "mWindowPlacerLocked")
         } else null
 
-        return LateAbi(
-            windowManagerServicePlacerField = if (windowManagerServiceClass != null) resolveDeclaredField(windowManagerServiceClass, "mWindowPlacerLocked") else null,
-            windowSurfacePlacerRequestTraversalMethod = if (windowSurfacePlacerClass != null) resolveNoArgMethod(windowSurfacePlacerClass, "requestTraversal") else null,
+        val placerClass = placerField?.type
+
+        return StatusBarHeightRefreshCapability(
+            windowManagerServicePlacerField = placerField,
+            windowSurfacePlacerRequestTraversalMethod = if (placerClass != null) resolveNoArgMethod(placerClass, "requestTraversal") else null,
             displayContentGetDisplayPolicyMethod = if (displayContentClass != null) resolveNoArgMethod(displayContentClass, "getDisplayPolicy") else null,
-            displayPolicyDecorInsetsField = if (displayPolicyClass != null) resolveDeclaredField(displayPolicyClass, "mDecorInsets") else null,
+            displayPolicyDecorInsetsField = decorInsetsField,
             decorInsetsInvalidateMethod = if (decorInsetsClass != null) resolveNoArgMethod(decorInsetsClass, "invalidate") else null,
         )
-    }
-
-    private fun resolvePlacerClass(windowManagerServiceClass: Class<*>): Class<*>? {
-        val field = resolveDeclaredField(windowManagerServiceClass, "mWindowPlacerLocked") ?: return null
-        return field.type
     }
 
     // ----------------------------------------------------------------------------

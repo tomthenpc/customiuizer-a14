@@ -94,7 +94,7 @@ class StatusBarHeightArchitectureCH3Test {
             getIdMethod = null,
             getFrameMethod = null,
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor))
+        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor, StatusBarHeightRefreshCapability(null, null, null, null, null)))
     }
 
     private fun effectWithoutClientFrame(): StatusBarHeightEffect {
@@ -123,7 +123,7 @@ class StatusBarHeightArchitectureCH3Test {
             getIdMethod = null,
             getFrameMethod = null,
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor))
+        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor, StatusBarHeightRefreshCapability(null, null, null, null, null)))
     }
 
     class ClientWindowFrames {

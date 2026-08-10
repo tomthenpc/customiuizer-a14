@@ -176,7 +176,7 @@ class StatusBarHeightArchitectureCH2Test {
             getIdMethod = null,
             getFrameMethod = null,
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor))
+        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor, StatusBarHeightRefreshCapability(null, null, null, null, null)))
     }
 
     private fun effectWithDisplayContentFallback(): StatusBarHeightEffect {
@@ -192,7 +192,7 @@ class StatusBarHeightArchitectureCH2Test {
             nonDecorInsetsField = null,
             nonDecorFrameField = null,
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(emptyInsets(), wm, decor))
+        return StatusBarHeightEffect(StatusBarHeightAbi(emptyInsets(), wm, decor, StatusBarHeightRefreshCapability(null, null, null, null, null)))
     }
 
     private fun effectWithWindowFramesFallback(): StatusBarHeightEffect {
@@ -208,7 +208,7 @@ class StatusBarHeightArchitectureCH2Test {
             nonDecorInsetsField = null,
             nonDecorFrameField = null,
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(emptyInsets(), wm, decor))
+        return StatusBarHeightEffect(StatusBarHeightAbi(emptyInsets(), wm, decor, StatusBarHeightRefreshCapability(null, null, null, null, null)))
     }
 
     private fun effectWithoutType(): StatusBarHeightEffect {
@@ -230,7 +230,7 @@ class StatusBarHeightArchitectureCH2Test {
             layoutParamsHeightField = FakeLayoutParams::class.java.getDeclaredField("height").also { it.isAccessible = true },
             layoutParamsPackageNameField = FakeLayoutParams::class.java.getDeclaredField("packageName").also { it.isAccessible = true },
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(emptyInsets(), wm, emptyDecor()))
+        return StatusBarHeightEffect(StatusBarHeightAbi(emptyInsets(), wm, emptyDecor(), StatusBarHeightRefreshCapability(null, null, null, null, null)))
     }
 
     private fun effectWithoutClass(): StatusBarHeightEffect {
@@ -252,7 +252,7 @@ class StatusBarHeightArchitectureCH2Test {
             layoutParamsHeightField = FakeLayoutParams::class.java.getDeclaredField("height").also { it.isAccessible = true },
             layoutParamsPackageNameField = FakeLayoutParams::class.java.getDeclaredField("packageName").also { it.isAccessible = true },
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(emptyInsets(), wm, emptyDecor()))
+        return StatusBarHeightEffect(StatusBarHeightAbi(emptyInsets(), wm, emptyDecor(), StatusBarHeightRefreshCapability(null, null, null, null, null)))
     }
 
     private fun emptyInsets() = InsetsSourceCapability(

@@ -115,22 +115,26 @@ internal data class DecorInsetsCapability(
 )
 
 /**
- * Late ABI resolved on first real framework object.
+ * Immutable capability for the preference-change refresh / traversal path.
  *
  * Each member is nullable.  `null` means resolved-unavailable or not provided by this ROM.
+ * Partial capability is intentional: traversal and decor-invalidation are independent.
  */
-internal data class LateAbi(
+internal data class StatusBarHeightRefreshCapability(
     val windowManagerServicePlacerField: Field?,
     val windowSurfacePlacerRequestTraversalMethod: Method?,
     val displayContentGetDisplayPolicyMethod: Method?,
     val displayPolicyDecorInsetsField: Field?,
     val decorInsetsInvalidateMethod: Method?,
-)
+) {
+    val canRequestTraversal: Boolean
+        get() = windowManagerServicePlacerField != null &&
+            windowSurfacePlacerRequestTraversalMethod != null
 
-/** Publication state for late ABI. */
-internal sealed interface LateAbiState {
-    data object Unresolved : LateAbiState
-    data class Resolved(val abi: LateAbi) : LateAbiState
+    val canInvalidateDecorInsets: Boolean
+        get() = displayContentGetDisplayPolicyMethod != null &&
+            displayPolicyDecorInsetsField != null &&
+            decorInsetsInvalidateMethod != null
 }
 
 /**
@@ -140,4 +144,5 @@ internal data class StatusBarHeightAbi(
     val insets: InsetsSourceCapability,
     val windowManager: WindowManagerCapability,
     val decorInsets: DecorInsetsCapability,
+    val refresh: StatusBarHeightRefreshCapability,
 )

@@ -143,7 +143,14 @@ class StatusBarHeightArchitectureCH4Test {
             getIdMethod = null,
             getFrameMethod = null,
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor))
+        val refresh = StatusBarHeightRefreshCapability(
+            windowManagerServicePlacerField = null,
+            windowSurfacePlacerRequestTraversalMethod = null,
+            displayContentGetDisplayPolicyMethod = null,
+            displayPolicyDecorInsetsField = null,
+            decorInsetsInvalidateMethod = null,
+        )
+        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor, refresh))
     }
 
     class FakeDecorInsetsInfo {

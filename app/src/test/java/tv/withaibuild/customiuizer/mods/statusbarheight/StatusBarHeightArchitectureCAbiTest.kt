@@ -307,29 +307,92 @@ class StatusBarHeightArchitectureCAbiTest {
         assertNull(cap.updateMethod)
     }
 
-    @Test
-    fun lateAbiSlot_resolvesExactlyOnce() {
-        val slot = StatusBarHeightResolver.LateAbiSlot()
-        var callCount = 0
-
-        val first = slot.getOrResolve {
-            callCount++
-            LateAbi(null, null, null, null, null)
-        }
-        val second = slot.getOrResolve {
-            callCount++
-            LateAbi(null, null, null, null, null)
-        }
-
-        assertSame(first, second)
-        assertEquals(1, callCount)
-        assertTrue(slot.stateForTest() is LateAbiState.Resolved)
+    private fun wmWithPolicy(windowStateClass: Class<*>): WindowManagerCapability {
+        return StatusBarHeightResolver.resolveWindowManagerClass(
+            windowStateClass,
+            FakeLayoutParams::class.java,
+        ).copy(displayPolicyClass = FakeDisplayPolicy::class.java)
     }
 
     @Test
-    fun lateAbiSlot_unresolvedStateFirst() {
-        val slot = StatusBarHeightResolver.LateAbiSlot()
-        assertTrue(slot.stateForTest() is LateAbiState.Unresolved)
+    fun refreshCapability_fullFakes_resolvesAllMembers() {
+        val wm = wmWithPolicy(FakeWindowStateBase::class.java)
+        val decor = StatusBarHeightResolver.resolveDecorInsetsInfoClass(
+            FakeDecorInsetsInfo::class.java,
+            FakeDisplayContent::class.java,
+        )
+
+        val refresh = StatusBarHeightResolver.resolveRefreshCapability(
+            wm,
+            decor,
+            javaClass.classLoader!!,
+        )
+
+        assertNotNull(refresh.windowManagerServicePlacerField)
+        assertNotNull(refresh.windowSurfacePlacerRequestTraversalMethod)
+        assertNotNull(refresh.displayContentGetDisplayPolicyMethod)
+        assertNotNull(refresh.displayPolicyDecorInsetsField)
+        assertNotNull(refresh.decorInsetsInvalidateMethod)
+    }
+
+    @Test
+    fun refreshCapability_windowManagerServiceMissing_traversalUnavailableOthersIntact() {
+        val wm = wmWithPolicy(FakeWindowStateNoWmService::class.java)
+        val decor = StatusBarHeightResolver.resolveDecorInsetsInfoClass(
+            FakeDecorInsetsInfo::class.java,
+            FakeDisplayContent::class.java,
+        )
+
+        val refresh = StatusBarHeightResolver.resolveRefreshCapability(
+            wm,
+            decor,
+            javaClass.classLoader!!,
+        )
+
+        assertNull(refresh.windowManagerServicePlacerField)
+        assertNull(refresh.windowSurfacePlacerRequestTraversalMethod)
+        assertNotNull(refresh.displayContentGetDisplayPolicyMethod)
+        assertNotNull(refresh.displayPolicyDecorInsetsField)
+        assertNotNull(refresh.decorInsetsInvalidateMethod)
+    }
+
+    @Test
+    fun refreshCapability_displayContentMissing_invalidationUnavailableOthersIntact() {
+        val wm = wmWithPolicy(FakeWindowStateNoDisplayContent::class.java)
+        val decor = StatusBarHeightResolver.resolveDecorInsetsInfoClass(
+            FakeDecorInsetsInfo::class.java,
+            null,
+        )
+
+        val refresh = StatusBarHeightResolver.resolveRefreshCapability(
+            wm,
+            decor,
+            javaClass.classLoader!!,
+        )
+
+        assertNotNull(refresh.windowManagerServicePlacerField)
+        assertNotNull(refresh.windowSurfacePlacerRequestTraversalMethod)
+        assertNull(refresh.displayContentGetDisplayPolicyMethod)
+        assertFalse(refresh.canInvalidateDecorInsets)
+    }
+
+    @Test
+    fun refreshCapability_mDecorInsetsFieldType_isInvalidateClassAuthority() {
+        val wm = wmWithPolicy(FakeWindowStateBase::class.java)
+        val decor = StatusBarHeightResolver.resolveDecorInsetsInfoClass(
+            FakeDecorInsetsInfo::class.java,
+            FakeDisplayContent::class.java,
+        )
+
+        val refresh = StatusBarHeightResolver.resolveRefreshCapability(
+            wm,
+            decor,
+            javaClass.classLoader!!,
+        )
+
+        val decorInsetsField = refresh.displayPolicyDecorInsetsField
+        assertNotNull(decorInsetsField)
+        assertSame(FakeDecorInsets::class.java, decorInsetsField?.type)
     }
 
     // ------------------------------------------------------------------------
@@ -388,6 +451,24 @@ class StatusBarHeightArchitectureCAbiTest {
 
     class FakeWindowStateNoClientFrames : FakeWindowStateBase()
 
+    class FakeWindowStateNoWmService {
+        var mAttrs: FakeLayoutParams = FakeLayoutParams()
+        var mDisplayContent: FakeDisplayContent = FakeDisplayContent()
+        var mWindowFrames: WindowFrames = WindowFrames()
+        fun getFrame(): Rect = Rect()
+        fun getDisplayMetrics(): Any = Any()
+        fun getDisplayId(): Int = 0
+    }
+
+    class FakeWindowStateNoDisplayContent {
+        var mAttrs: FakeLayoutParams = FakeLayoutParams()
+        var mWmService: FakeWindowManagerService = FakeWindowManagerService()
+        var mWindowFrames: WindowFrames = WindowFrames()
+        fun getFrame(): Rect = Rect()
+        fun getDisplayMetrics(): Any = Any()
+        fun getDisplayId(): Int = 0
+    }
+
     class FakeLayoutParams {
         @JvmField
         var type: Int = 0
@@ -400,7 +481,11 @@ class StatusBarHeightArchitectureCAbiTest {
     }
 
     class FakeDisplayContent {
+        private val policy: FakeDisplayPolicy = FakeDisplayPolicy()
+
         fun getDisplayMetrics(): Any = Any()
+
+        fun getDisplayPolicy(): FakeDisplayPolicy = policy
     }
 
     class FakeDecorInsetsInfo {
@@ -455,5 +540,21 @@ class StatusBarHeightArchitectureCAbiTest {
         fun update(content: String, rotation: Int, displayW: Int, displayH: Int) {}
     }
 
-    class FakeWindowManagerService
+    class FakeWindowManagerService {
+        @JvmField
+        var mWindowPlacerLocked: FakeWindowSurfacePlacer = FakeWindowSurfacePlacer()
+    }
+
+    class FakeWindowSurfacePlacer {
+        fun requestTraversal() {}
+    }
+
+    class FakeDisplayPolicy {
+        @JvmField
+        var mDecorInsets: FakeDecorInsets = FakeDecorInsets()
+    }
+
+    class FakeDecorInsets {
+        fun invalidate() {}
+    }
 }

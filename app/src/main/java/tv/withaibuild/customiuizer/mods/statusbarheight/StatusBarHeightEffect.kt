@@ -15,7 +15,7 @@ import java.lang.reflect.Method
  * retained as strong references; they only pass through method/field invocations.
  */
 internal class StatusBarHeightEffect(
-    private val abi: StatusBarHeightAbi,
+    internal val abi: StatusBarHeightAbi,
 ) {
 
     private companion object {
@@ -25,6 +25,7 @@ internal class StatusBarHeightEffect(
 
     private val windowManager get() = abi.windowManager
     private val decorInsets get() = abi.decorInsets
+    private val refresh get() = abi.refresh
 
     /** Allocation-free `WindowState` test; falls back to the class name before the ABI is resolved. */
     fun isWindowState(win: Any): Boolean {
@@ -242,6 +243,77 @@ internal class StatusBarHeightEffect(
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             TYPE_UNRESOLVED
+        }
+    }
+
+    // ----------------------------------------------------------------------------
+    // Refresh / traversal helpers (preference-change warm path).
+    // ----------------------------------------------------------------------------
+
+    /** Reads `WindowState.mDisplayContent` through the frozen field. */
+    fun readWindowDisplayContent(win: Any): Any? {
+        val field = windowManager.windowStateDisplayContentField ?: return null
+        if (!field.declaringClass.isInstance(win)) return null
+        return readField(field, win)
+    }
+
+    /** Reads `WindowState.mWmService` through the frozen field. */
+    fun readWindowManagerService(win: Any): Any? {
+        val field = windowManager.windowStateWindowManagerServiceField ?: return null
+        if (!field.declaringClass.isInstance(win)) return null
+        return readField(field, win)
+    }
+
+    /** Reads `WindowManagerService.mWindowPlacerLocked` through the frozen field. */
+    fun readWindowPlacer(wmService: Any): Any? {
+        val field = refresh.windowManagerServicePlacerField ?: return null
+        if (!field.declaringClass.isInstance(wmService)) return null
+        return readField(field, wmService)
+    }
+
+    /** Calls `DisplayContent.getDisplayPolicy()` through the frozen method. */
+    fun readDisplayPolicy(displayContent: Any): Any? {
+        val method = refresh.displayContentGetDisplayPolicyMethod ?: return null
+        if (!method.declaringClass.isInstance(displayContent)) return null
+        val result = try {
+            method.invoke(displayContent)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            return null
+        }
+        return result
+    }
+
+    /** Reads `DisplayPolicy.mDecorInsets` through the frozen field. */
+    fun readDecorInsets(displayPolicy: Any): Any? {
+        val field = refresh.displayPolicyDecorInsetsField ?: return null
+        if (!field.declaringClass.isInstance(displayPolicy)) return null
+        return readField(field, displayPolicy)
+    }
+
+    /** Calls `WindowSurfacePlacer.requestTraversal()` through the frozen method. */
+    fun requestTraversal(windowPlacer: Any): Boolean {
+        val method = refresh.windowSurfacePlacerRequestTraversalMethod ?: return false
+        if (!method.declaringClass.isInstance(windowPlacer)) return false
+        return try {
+            method.invoke(windowPlacer)
+            true
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            false
+        }
+    }
+
+    /** Calls `DecorInsets.invalidate()` through the frozen method. */
+    fun invalidateDecorInsets(decorInsets: Any): Boolean {
+        val method = refresh.decorInsetsInvalidateMethod ?: return false
+        if (!method.declaringClass.isInstance(decorInsets)) return false
+        return try {
+            method.invoke(decorInsets)
+            true
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            false
         }
     }
 }

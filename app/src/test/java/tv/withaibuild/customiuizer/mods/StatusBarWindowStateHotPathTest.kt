@@ -16,6 +16,7 @@ import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeEncoding
 import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeInfo
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightAbi
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightEffect
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightRefreshCapability
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightResolver
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightRuntime
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
@@ -457,7 +458,7 @@ class StatusBarWindowStateHotPathTest {
             getIdMethod = null,
             getFrameMethod = null,
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor))
+        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor, StatusBarHeightRefreshCapability(null, null, null, null, null)))
     }
 
     private fun statusBarHeightRuntime(): StatusBarHeightRuntime {

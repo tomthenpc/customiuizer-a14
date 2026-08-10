@@ -20,7 +20,7 @@ class WindowState {
     var mDisplayContent: Any = FakeDisplayContent()
 
     @JvmField
-    var mWmService: Any = FakeWindowManagerService()
+    var mWmService: FakeWindowManagerService = FakeWindowManagerService()
 
     @JvmField
     var mFrame: Rect = Rect()
@@ -42,9 +42,29 @@ class WindowState {
     ) {
         var onGetDisplayMetrics: (() -> Unit)? = null
 
+        private val policy: FakeDisplayPolicy = FakeDisplayPolicy()
+
         fun getDisplayMetrics(): DisplayMetrics {
             onGetDisplayMetrics?.invoke()
             return metrics
+        }
+
+        fun getDisplayPolicy(): FakeDisplayPolicy = policy
+    }
+
+    class FakeDisplayPolicy {
+        @JvmField
+        var mDecorInsets: FakeDecorInsets = FakeDecorInsets()
+    }
+
+    class FakeDecorInsets {
+        var onInvalidate: (() -> Unit)? = null
+        var invalidateCount = 0
+            private set
+
+        fun invalidate() {
+            onInvalidate?.invoke()
+            invalidateCount++
         }
     }
 
@@ -64,8 +84,10 @@ class WindowState {
             private set
         var performSurfacePlacementCount = 0
             private set
+        var onRequestTraversal: (() -> Unit)? = null
 
         fun requestTraversal() {
+            onRequestTraversal?.invoke()
             requestTraversalCount++
         }
 
