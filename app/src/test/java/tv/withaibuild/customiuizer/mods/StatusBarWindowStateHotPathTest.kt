@@ -162,6 +162,33 @@ class StatusBarWindowStateHotPathTest {
     }
 
     @Test
+    fun knownEnabledStatusBarUpdatesLatestWithoutRebuildingWeakRef() {
+        configureHeight(44)
+        val a = FakeWindowState(statusType = true)
+        val b = FakeWindowState(statusType = true)
+        val runtime = statusBarHeightRuntime()
+
+        runtime.rememberStatusBar(a)
+        val refA = runtime.rememberStatusBar(a)
+        runtime.rememberStatusBar(b)
+
+        // Establish latest = b, then layout a again.
+        runtime.markLatestIfKnown(b)
+        assertSame(b, runtime.latestRefForTest()?.get())
+
+        val snapshotBefore = runtime.knownSnapshotForTest()
+        val refAIndex = snapshotBefore.indexOfFirst { it === refA }
+        assertTrue(refAIndex >= 0)
+
+        val chain = FakeChain(argList = listOf(a))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        assertSame(a, runtime.latestRefForTest()?.get())
+        assertSame(refA, runtime.latestRefForTest())
+        assertSame(refA, snapshotBefore[refAIndex])
+    }
+
+    @Test
     fun setFramesFatalPropagatesAndProceedsOnce() {
         configureHeight(44)
         val error = OutOfMemoryError("setFrames OOM")

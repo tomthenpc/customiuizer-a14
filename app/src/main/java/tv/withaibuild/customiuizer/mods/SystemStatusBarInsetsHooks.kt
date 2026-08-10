@@ -462,9 +462,9 @@ object SystemStatusBarInsetsHooks {
             return chain.proceed()
         }
 
-        if (!isStatusBarWindow(win)) return chain.proceed()
-
-        markLatestIfKnownStatusBar(win)
+        // Known status bars are recognized and marked as latest in a single bounded scan.
+        // Unknown WindowStates fall through to the type/fallback discovery path.
+        if (!markLatestIfKnownStatusBar(win) && !isStatusBarWindow(win)) return chain.proceed()
 
         val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
         val displayId = getDisplayId(win)
