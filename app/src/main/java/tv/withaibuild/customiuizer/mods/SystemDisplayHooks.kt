@@ -430,6 +430,48 @@ object SystemDisplayHooks {
         return XposedHelpers.throwOrReturn(throwable, result)
     }
 
+    internal fun interceptGetDarkModeAppList(chain: XposedInterface.Chain): Any? {
+        return withTemporaryStaticBoolean(Build::class.java, "IS_INTERNATIONAL_BUILD", true, chain)
+    }
+
+    internal fun withTemporaryStaticBoolean(
+        clazz: Class<*>,
+        fieldName: String,
+        temporaryValue: Boolean,
+        chain: XposedInterface.Chain
+    ): Any? {
+        var result: Any? = null
+        var throwable: Throwable? = null
+
+        try {
+            XposedHelpers.setStaticBooleanField(clazz, fieldName, temporaryValue)
+        } catch (t: Throwable) {
+            throwable = t
+        }
+
+        if (throwable == null) {
+            try {
+                result = chain.proceed()
+            } catch (t: Throwable) {
+                throwable = t
+                result = null
+            }
+        }
+
+        try {
+            XposedHelpers.setStaticBooleanField(clazz, fieldName, !temporaryValue)
+        } catch (t: Throwable) {
+            if (throwable == null) {
+                throwable = t
+                result = null
+            } else {
+                throwable.addSuppressed(t)
+            }
+        }
+
+        return XposedHelpers.throwOrReturn(throwable, result)
+    }
+
     @JvmStatic
     fun AutoBrightnessRangeHook(lpparam: SystemServerStartingParam) {
         installAutoBrightnessRangeSnapshot()
@@ -602,35 +644,7 @@ object SystemDisplayHooks {
         })
         if (!Build.IS_INTERNATIONAL_BUILD) {
             ModuleHelper.findAndHookMethod("com.android.server.ForceDarkAppListManager", lpparam.classLoader, "getDarkModeAppList", Long::class.javaPrimitiveType!!, Int::class.javaPrimitiveType!!, object : MethodHook() {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    var result: Any? = null
-                    var throwable: Throwable? = null
-                    try {
-
-                        XposedHelpers.setStaticBooleanField(Build::class.java, "IS_INTERNATIONAL_BUILD", true)
-
-                    } catch (t: Throwable) {
-                        FatalErrors.rethrowIfFatal(t)
-                        XposedHelpers.log(t)
-                    }
-
-                    try {
-                        result = chain.proceed()
-                    } catch (t: Throwable) {
-                        FatalErrors.rethrowIfFatal(t)
-                        throwable = t
-                        result = null
-                    }
-                    try {
-
-                        XposedHelpers.setStaticBooleanField(Build::class.java, "IS_INTERNATIONAL_BUILD", false)
-
-                    } catch (t: Throwable) {
-                        FatalErrors.rethrowIfFatal(t)
-                        XposedHelpers.log(t)
-                    }
-                    return XposedHelpers.throwOrReturn(throwable, result)
-                }
+                override fun intercept(chain: XposedInterface.Chain): Any? = interceptGetDarkModeAppList(chain)
             })
         }
         ModuleHelper.findAndHookMethod("com.android.server.ForceDarkAppListManager", lpparam.classLoader, "shouldShowInSettings", ApplicationInfo::class.java, object : MethodHook() {
