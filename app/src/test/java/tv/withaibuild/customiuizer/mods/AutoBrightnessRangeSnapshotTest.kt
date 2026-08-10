@@ -34,6 +34,7 @@ class AutoBrightnessRangeSnapshotTest {
         SystemDisplayHooks.backlightMaxLevel = 0
         SystemDisplayHooks.mMinimumBacklight = 0f
         SystemDisplayHooks.mMaximumBacklight = 0f
+        SystemDisplayHooks.refreshAutoBrightnessRangeSnapshot()
     }
 
     @After
@@ -137,6 +138,92 @@ class AutoBrightnessRangeSnapshotTest {
 
         val min25 = computeExpected(25)
         assertEquals(min25, SystemDisplayHooks.constrainValue(0.0f), 0.0001f)
+    }
+
+    @Test
+    fun nullKeyRefreshesSnapshot() {
+        setBacklightBounds()
+        setRangePrefs(limitMin = true, limitMax = true, minPct = 25, maxPct = 75)
+
+        MainModule.mPrefs.put(minKey, 40)
+        MainModule.mPrefs.put(maxKey, 80)
+        SystemDisplayHooks.onAutoBrightnessRangePreferenceChanged(null)
+
+        assertEquals(computeExpected(40), SystemDisplayHooks.constrainValue(0.0f), 0.0001f)
+        assertEquals(computeExpected(80), SystemDisplayHooks.constrainValue(1.0f), 0.0001f)
+    }
+
+    @Test
+    fun rawMinBelowZeroIsCoercedToZero() {
+        setBacklightBounds()
+        setRangePrefs(limitMin = true, limitMax = true, minPct = -10, maxPct = 75)
+
+        assertEquals(0.0f, SystemDisplayHooks.constrainValue(0.0f), 0.0001f)
+    }
+
+    @Test
+    fun rawMaxAbove100IsCoercedTo100() {
+        setBacklightBounds()
+        setRangePrefs(limitMin = false, limitMax = true, minPct = 25, maxPct = 150)
+
+        assertEquals(1.0f, SystemDisplayHooks.constrainValue(1.0f), 0.0001f)
+    }
+
+    @Test
+    fun equalMinMaxIsFailClosed() {
+        setBacklightBounds()
+        setRangePrefs(limitMin = true, limitMax = true, minPct = 50, maxPct = 50)
+
+        assertEquals(0.3f, SystemDisplayHooks.constrainValue(0.3f), 0.0001f)
+    }
+
+    @Test
+    fun minGreaterThanMaxIsFailClosed() {
+        setBacklightBounds()
+        setRangePrefs(limitMin = true, limitMax = true, minPct = 80, maxPct = 20)
+
+        assertEquals(0.3f, SystemDisplayHooks.constrainValue(0.3f), 0.0001f)
+    }
+
+    @Test
+    fun validMinOnlyStillClamps() {
+        setBacklightBounds()
+        setRangePrefs(limitMin = true, limitMax = false, minPct = 30, maxPct = 75)
+
+        assertEquals(computeExpected(30), SystemDisplayHooks.constrainValue(0.0f), 0.0001f)
+        assertEquals(1.0f, SystemDisplayHooks.constrainValue(1.0f), 0.0001f)
+    }
+
+    @Test
+    fun validMaxOnlyStillClamps() {
+        setBacklightBounds()
+        setRangePrefs(limitMin = false, limitMax = true, minPct = 25, maxPct = 60)
+
+        assertEquals(0.0f, SystemDisplayHooks.constrainValue(0.0f), 0.0001f)
+        assertEquals(computeExpected(60), SystemDisplayHooks.constrainValue(1.0f), 0.0001f)
+    }
+
+    @Test
+    fun invalidDualRangeReturnsOriginal() {
+        setBacklightBounds()
+        MainModule.mPrefs.put(limitMinKey, true)
+        MainModule.mPrefs.put(limitMaxKey, true)
+        MainModule.mPrefs.put(minKey, 80)
+        MainModule.mPrefs.put(maxKey, 20)
+        SystemDisplayHooks.refreshAutoBrightnessRangeSnapshot()
+
+        assertEquals(0.3f, SystemDisplayHooks.constrainValue(0.3f), 0.0001f)
+    }
+
+    @Test
+    fun unavailableCalibrationReturnsOriginal() {
+        setBacklightBounds()
+        setRangePrefs(limitMin = true, limitMax = true, minPct = 25, maxPct = 75)
+
+        SystemDisplayHooks.backlightMaxLevel = 0
+        SystemDisplayHooks.refreshAutoBrightnessRangeSnapshot()
+
+        assertEquals(0.3f, SystemDisplayHooks.constrainValue(0.3f), 0.0001f)
     }
 
     private fun setBacklightBounds() {

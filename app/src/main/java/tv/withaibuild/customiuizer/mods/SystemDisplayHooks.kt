@@ -340,10 +340,10 @@ object SystemDisplayHooks {
     internal fun refreshAutoBrightnessRangeSnapshot() {
         val limitMin = MainModule.mPrefs.getBoolean("system_autobrightness_limitmin")
         val limitMax = MainModule.mPrefs.getBoolean("system_autobrightness_limitmax")
-        val minPct = MainModule.mPrefs.getInt("system_autobrightness_min", 25)
-        val maxPct = MainModule.mPrefs.getInt("system_autobrightness_max", 75)
+        val minPct = MainModule.mPrefs.getInt("system_autobrightness_min", 25).coerceIn(0, 100)
+        val maxPct = MainModule.mPrefs.getInt("system_autobrightness_max", 75).coerceIn(0, 100)
 
-        if (backlightMaxLevel <= 0 || mMaximumBacklight <= mMinimumBacklight) {
+        if (backlightMaxLevel <= 0 || mMaximumBacklight <= mMinimumBacklight || (limitMin && limitMax && minPct >= maxPct)) {
             autoBrightnessRangeSnapshot = AutoBrightnessRangeSnapshot(
                 limitMin = limitMin,
                 limitMax = limitMax,
@@ -354,6 +354,15 @@ object SystemDisplayHooks {
 
         val min = HookUtils.convertGammaToLinearFloat(minPct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
         val max = HookUtils.convertGammaToLinearFloat(maxPct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
+
+        if (!min.isFinite() || !max.isFinite() || (limitMin && limitMax && min >= max)) {
+            autoBrightnessRangeSnapshot = AutoBrightnessRangeSnapshot(
+                limitMin = limitMin,
+                limitMax = limitMax,
+                initialized = false
+            )
+            return
+        }
 
         autoBrightnessRangeSnapshot = AutoBrightnessRangeSnapshot(
             limitMin = limitMin,
@@ -398,35 +407,35 @@ object SystemDisplayHooks {
         return newVal
     }
 
+    internal fun interceptClampScreenBrightness(chain: XposedInterface.Chain): Any? {
+        var result: Any? = null
+        var throwable: Throwable? = null
+        try {
+            result = chain.proceed()
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            throwable = t
+            result = null
+        }
+        try {
+            val value = result as Float
+            if (value >= 0) {
+                result = constrainValue(value)
+                throwable = null
+            }
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            XposedHelpers.log(t)
+        }
+        return XposedHelpers.throwOrReturn(throwable, result)
+    }
+
     @JvmStatic
     fun AutoBrightnessRangeHook(lpparam: SystemServerStartingParam) {
         installAutoBrightnessRangeSnapshot()
 
         ModuleHelper.findAndHookMethod("com.android.server.display.AutomaticBrightnessController", lpparam.classLoader, "clampScreenBrightness", Float::class.javaPrimitiveType!!, object : MethodHook() {
-            override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any?
-                var throwable: Throwable? = null
-                try {
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    FatalErrors.rethrowIfFatal(t)
-                    throwable = t
-                    result = null
-                }
-                try {
-
-                    val value = result as Float
-                    if (value >= 0) {
-                        val res = constrainValue(value)
-                        result = res; throwable = null
-                    }
-
-                } catch (t: Throwable) {
-                    FatalErrors.rethrowIfFatal(t)
-                    XposedHelpers.log(t)
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
-            }
+            override fun intercept(chain: XposedInterface.Chain): Any? = interceptClampScreenBrightness(chain)
         })
 
         ModuleHelper.hookAllConstructors("com.android.server.display.AutomaticBrightnessController", lpparam.classLoader, object : MethodHook() {
@@ -455,30 +464,7 @@ object SystemDisplayHooks {
         })
 
         ModuleHelper.findAndHookMethod("com.android.server.display.DisplayPowerController", lpparam.classLoader, "clampScreenBrightness", Float::class.javaPrimitiveType!!, object : MethodHook() {
-            override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any?
-                var throwable: Throwable? = null
-                try {
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    FatalErrors.rethrowIfFatal(t)
-                    throwable = t
-                    result = null
-                }
-                try {
-
-                    val value = result as Float
-                    if (value >= 0) {
-                        val res = constrainValue(value)
-                        result = res; throwable = null
-                    }
-
-                } catch (t: Throwable) {
-                    FatalErrors.rethrowIfFatal(t)
-                    XposedHelpers.log(t)
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
-            }
+            override fun intercept(chain: XposedInterface.Chain): Any? = interceptClampScreenBrightness(chain)
         })
 
         ModuleHelper.hookAllConstructors("com.android.server.display.DisplayPowerController", lpparam.classLoader, object : MethodHook() {
