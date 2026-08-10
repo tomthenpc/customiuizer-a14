@@ -146,6 +146,49 @@ internal class StatusBarHeightEffect(
         return readField(frameField, frames) as? Rect
     }
 
+    /** Allocation-free `DecorInsets.Info` test. */
+    fun isDecorInsetsInfo(value: Any): Boolean {
+        val clazz = decorInsets.infoClass ?: return false
+        return clazz.isInstance(value)
+    }
+
+    /** Reads `DecorInsets.Info.mNonDecorInsets` through the frozen field. */
+    fun readNonDecorInsets(info: Any): Rect? {
+        val field = decorInsets.nonDecorInsetsField ?: return null
+        if (!field.declaringClass.isInstance(info)) return null
+        return try {
+            field.get(info) as? Rect
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+    }
+
+    /** Reads `DecorInsets.Info.mNonDecorFrame` through the frozen field. */
+    fun readNonDecorFrame(info: Any): Rect? {
+        val field = decorInsets.nonDecorFrameField ?: return null
+        if (!field.declaringClass.isInstance(info)) return null
+        return try {
+            field.get(info) as? Rect
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+    }
+
+    /** Reads `DisplayContent.getDisplayMetrics()` through the frozen method. */
+    fun readDisplayContentMetrics(displayContent: Any): DisplayMetrics? {
+        val method = decorInsets.displayContentGetDisplayMetricsMethod ?: return null
+        if (!method.declaringClass.isInstance(displayContent)) return null
+        val result = try {
+            method.invoke(displayContent)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            return null
+        }
+        return result as? DisplayMetrics
+    }
+
     /** Writes the configured pixel height into `WindowManager.LayoutParams.height`. */
     fun applyStatusBarHeight(win: Any, configuredPx: Int): Boolean {
         val attrs = readWindowAttrs(win) ?: return false
