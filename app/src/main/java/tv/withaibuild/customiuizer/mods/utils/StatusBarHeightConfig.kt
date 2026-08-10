@@ -6,11 +6,12 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Process-scoped, immutable-ish configuration for the status bar height feature.
+ * Process-scoped, immutable configuration snapshot for the status bar height feature.
  *
- * The values are read once on the cold installation path and then published as plain
- * primitives so the hot InsetsSource path only reads fields, never the preference map,
- * never re-reflects and never re-computes dp->px.
+ * The current configuration is published as a single immutable [State] behind a `@Volatile`
+ * reference.  Hot paths read the snapshot once per callback and then observe a consistent set of
+ * values; they never re-read individual volatile fields, never touch [PrefMap], never re-reflect
+ * and never re-compute dp->px.
  *
  * Enabled semantics:
  * - `system_statusbarheight == 11` (DEFAULT_SENTINEL) → disabled, behaves like stock.
@@ -36,34 +37,7 @@ object StatusBarHeightConfig {
     const val DEFAULT_SENTINEL = 11
     const val DEFAULT_DP = 27
 
-    @Volatile
-    var enabled = false
-        private set
-
-    @Volatile
-    var rawPreferenceDp = DEFAULT_SENTINEL
-        private set
-
-    @Volatile
-    var configuredDp = DEFAULT_DP
-        private set
-
-    @Volatile
-    var configuredPx = -1
-        private set
-
-    @Volatile
-    var densityDpi = -1
-        private set
-
-    @Volatile
-    var density = -1.0f
-        private set
-
-    /** Monotonically increasing generation, bumped only on effective changes. */
-    val generation = AtomicLong(0L)
-
-    /** Snapshot of the current configuration state. */
+    /** Immutable configuration snapshot.  Replaced, never mutated. */
     data class State(
         val rawPreferenceDp: Int,
         val enabled: Boolean,
@@ -80,11 +54,42 @@ object StatusBarHeightConfig {
         val current: State,
     )
 
-    /** Current state snapshot. */
+    /** Monotonically increasing generation, bumped only on effective changes. */
+    val generation = AtomicLong(0L)
+
+    /** Current published configuration.  A single volatile reference to an immutable [State]. */
+    @Volatile
+    private var state = State(
+        rawPreferenceDp = DEFAULT_SENTINEL,
+        enabled = false,
+        configuredDp = DEFAULT_DP,
+        configuredPx = -1,
+        densityDpi = -1,
+        density = -1.0f,
+    )
+
+    /** Backward-compatible hot-path getters.  They read the single snapshot, not separate volatiles. */
     @JvmStatic
-    fun currentState(): State {
-        return State(rawPreferenceDp, enabled, configuredDp, configuredPx, densityDpi, density)
-    }
+    val enabled: Boolean get() = state.enabled
+
+    @JvmStatic
+    val rawPreferenceDp: Int get() = state.rawPreferenceDp
+
+    @JvmStatic
+    val configuredDp: Int get() = state.configuredDp
+
+    @JvmStatic
+    val configuredPx: Int get() = state.configuredPx
+
+    @JvmStatic
+    val densityDpi: Int get() = state.densityDpi
+
+    @JvmStatic
+    val density: Float get() = state.density
+
+    /** Returns the current immutable configuration snapshot.  Same reference while unchanged. */
+    @JvmStatic
+    fun currentState(): State = state
 
     /**
      * Pure dp to px conversion for the supplied [Resources].
@@ -98,8 +103,6 @@ object StatusBarHeightConfig {
 
     /**
      * Pure dp to px conversion for the supplied [DisplayMetrics].
-     *
-     * Uses rounding to match `TypedValue.complexToDimensionPixelSize`.
      */
     @JvmStatic
     fun dpToPx(dp: Int, metrics: DisplayMetrics?): Int {
@@ -108,8 +111,6 @@ object StatusBarHeightConfig {
 
     /**
      * Pure dp to px conversion for the supplied density.
-     *
-     * Uses rounding to match `TypedValue.complexToDimensionPixelSize`.
      */
     @JvmStatic
     fun dpToPx(dp: Int, densityDpi: Int): Int {
@@ -118,12 +119,10 @@ object StatusBarHeightConfig {
 
     /**
      * Pure dp to px conversion using the cached display density.
-     *
-     * Uses rounding to match `TypedValue.complexToDimensionPixelSize`.
      */
     @JvmStatic
     fun dpToPx(dp: Int): Int {
-        return dpToPx(dp, densityDpi)
+        return dpToPx(dp, state.densityDpi)
     }
 
     /**
@@ -148,8 +147,7 @@ object StatusBarHeightConfig {
     /**
      * Configure this process's cache from preferences and the supplied display metrics.
      *
-     * This is the single cold-path call; the Insets hook reads only [enabled],
-     * [configuredDp] and [configuredPx] afterwards.
+     * This is the single cold-path call; the Insets hook reads [currentState] afterwards.
      */
     @JvmStatic
     @JvmOverloads
@@ -174,7 +172,7 @@ object StatusBarHeightConfig {
             densityDpi = effectiveDensityDpi,
             density = effectiveDensity,
         )
-        synchronized(this) { applyStateUnderLock(newState) }
+        publishState(newState)
     }
 
     /**
@@ -188,15 +186,15 @@ object StatusBarHeightConfig {
         val raw = prefs.getInt(PREF_KEY, DEFAULT_SENTINEL)
         val dp = if (raw == DEFAULT_SENTINEL) DEFAULT_DP else raw
 
-        synchronized(this) {
-            val previous = currentState()
+        return synchronized(this) {
+            val previous = state
             val newState = previous.copy(
                 rawPreferenceDp = raw,
                 enabled = raw > DEFAULT_SENTINEL,
                 configuredDp = dp,
                 configuredPx = dpToPx(dp, previous.densityDpi),
             )
-            return applyStateUnderLock(newState)
+            applyStateUnderLock(newState)
         }
     }
 
@@ -210,7 +208,7 @@ object StatusBarHeightConfig {
         val effectiveDensity = metrics.density.takeIf { it > 0 } ?: (metrics.densityDpi / 160f)
 
         synchronized(this) {
-            val previous = currentState()
+            val previous = state
             val newPx = if (previous.enabled) {
                 dpToPx(previous.configuredDp, metrics.densityDpi)
             } else {
@@ -241,22 +239,24 @@ object StatusBarHeightConfig {
         return Math.round(dp * metrics.densityDpi / 160f)
     }
 
+    /** Cold-path publication.  Safe to call from cold paths; the compare avoids useless writes. */
+    @JvmStatic
+    @Synchronized
+    fun publishState(newState: State): ReconfigureResult {
+        return applyStateUnderLock(newState)
+    }
+
     /**
      * Apply [newState] if it differs from the current state and bump the generation.
      * Callers must hold the monitor of this object.
      */
     private fun applyStateUnderLock(newState: State): ReconfigureResult {
-        val previous = currentState()
+        val previous = state
         if (newState == previous) {
             return ReconfigureResult(false, previous, newState)
         }
 
-        rawPreferenceDp = newState.rawPreferenceDp
-        enabled = newState.enabled
-        configuredDp = newState.configuredDp
-        configuredPx = newState.configuredPx
-        densityDpi = newState.densityDpi
-        density = newState.density
+        state = newState
         generation.incrementAndGet()
 
         return ReconfigureResult(true, previous, newState)
@@ -268,12 +268,14 @@ object StatusBarHeightConfig {
     @JvmStatic
     internal fun resetForTest() {
         synchronized(this) {
-            enabled = false
-            rawPreferenceDp = DEFAULT_SENTINEL
-            configuredDp = DEFAULT_DP
-            configuredPx = -1
-            densityDpi = -1
-            density = -1.0f
+            state = State(
+                rawPreferenceDp = DEFAULT_SENTINEL,
+                enabled = false,
+                configuredDp = DEFAULT_DP,
+                configuredPx = -1,
+                densityDpi = -1,
+                density = -1.0f,
+            )
             generation.set(0L)
         }
     }
