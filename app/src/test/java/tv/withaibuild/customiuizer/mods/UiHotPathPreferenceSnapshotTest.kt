@@ -53,6 +53,7 @@ class UiHotPathPreferenceSnapshotTest {
 
     @Test
     fun batteryUpdateAllReadsOneSnapshotAndAvoidsHotPathAllocation() {
+        val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt")
         val body = hookBody(
             "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt",
             "\"updateAll\"",
@@ -61,9 +62,11 @@ class UiHotPathPreferenceSnapshotTest {
         assertFalse("updateAll must not read nine preferences per call", body.contains("MainModule.mPrefs"))
         assertTrue(body.contains("val style = batteryStyle ?: return"))
         assertFalse("child order must be checked before mutating the hierarchy", body.contains("removeView"))
-        assertTrue(body.contains("applyBatteryChildSwapIfNeeded("))
-        assertTrue(body.contains("setTextSizeIfChanged("))
-        assertTrue(body.contains("setPaddingRelativeIfChanged("))
+        assertTrue("snapshot-driven style is applied from the hook", body.contains("applyBatteryStyle("))
+        assertTrue("baseline is restored when style returns to default", body.contains("restoreBatteryBaseline("))
+        assertTrue("swap helper is still used", source.contains("applyBatteryChildSwapIfNeeded("))
+        assertTrue("text size changes are idempotent", source.contains("setTextSizeIfChanged("))
+        assertTrue("padding changes are idempotent", source.contains("setPaddingRelativeIfChanged("))
     }
 
     /** Returns the brace-balanced hook body that follows the first occurrence of [marker]. */
