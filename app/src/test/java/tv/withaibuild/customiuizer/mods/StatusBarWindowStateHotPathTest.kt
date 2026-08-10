@@ -140,6 +140,41 @@ class StatusBarWindowStateHotPathTest {
     }
 
     @Test
+    fun layoutWindowLw_usesSingleConfigSnapshotEvenIfHelperMutatesConfig() {
+        configureHeight(40)
+        val win = FakeWindowState(statusType = true, onGetDisplayMetrics = {
+            StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
+        })
+
+        val chain = FakeChain(argList = listOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(40, win.mAttrs.height)
+        assertEquals(44, StatusBarHeightConfig.configuredDp)
+        assertEquals(44, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun layoutWindowLw_densityChange_recomputesAndUsesNewPxInSameCallback() {
+        configureHeight(40)
+        val metrics = DisplayMetrics().apply {
+            densityDpi = 320
+            density = 2.0f
+        }
+        val win = FakeWindowState(statusType = true).apply { mDisplayMetrics = metrics }
+
+        val chain = FakeChain(argList = listOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(80, win.mAttrs.height) // 40dp @ 320dpi
+        assertEquals(320, StatusBarHeightConfig.densityDpi)
+        assertEquals(80, StatusBarHeightConfig.configuredPx)
+        assertEquals(40, StatusBarHeightConfig.configuredDp)
+    }
+
+    @Test
     fun setFramesProceedsExactlyOnce() {
         configureHeight(44)
         val win = FakeWindowState(statusType = true)
@@ -315,7 +350,10 @@ class StatusBarWindowStateHotPathTest {
         return statusBarHeightRuntime().isKnownStatusBar(win)
     }
 
-    class FakeWindowState(statusType: Boolean = true) {
+    class FakeWindowState(
+        statusType: Boolean = true,
+        private val onGetDisplayMetrics: (() -> Unit)? = null,
+    ) {
         val mAttrs: FakeLayoutParams = FakeLayoutParams(
             type = if (statusType) TYPE_STATUS_BAR else 1,
             packageName = if (statusType) "com.android.systemui" else "com.example",
@@ -328,7 +366,10 @@ class StatusBarWindowStateHotPathTest {
         var mDisplayContent = FakeDisplayContent(mDisplayMetrics)
 
         fun getDisplayId(): Int = mDisplayId
-        fun getDisplayMetrics(): DisplayMetrics = mDisplayMetrics
+        fun getDisplayMetrics(): DisplayMetrics {
+            onGetDisplayMetrics?.invoke()
+            return mDisplayMetrics
+        }
 
         override fun toString(): String = if (mAttrs.type == TYPE_STATUS_BAR) {
             "FakeWindowState{...StatusBar...}"
