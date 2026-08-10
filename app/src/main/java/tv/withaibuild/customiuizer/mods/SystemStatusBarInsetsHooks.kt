@@ -94,9 +94,6 @@ object SystemStatusBarInsetsHooks {
     @Volatile
     private var windowStateClass: Class<*>? = null
 
-    /** Last generation for which a refresh was requested, to coalesce duplicates. */
-    private val lastRefreshGeneration = AtomicLong(-1L)
-
     /** Resolved `ClientWindowFrames` class and fields; null if the ABI could not be resolved. */
     private var clientWindowFramesClass: Class<*>? = null
     private var clientWindowFramesFrameField: Field? = null
