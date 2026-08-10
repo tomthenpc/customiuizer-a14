@@ -112,47 +112,49 @@ object SystemDisplayHooks {
     /**
      * Per-thread bounded scope for the drawer blur ratio adjustment.
      *
-     * [doFrame] enters the scope with the current modifier percentage and the
+     * [doFrame] enters the scope with the current modifier percentage and the cached
      * [WeakReference] of the target [BlurUtilsExt]; [applyBlur] only adjusts the ratio when
      * it is called on exactly that target instance.  Nested and cross-thread calls are
      * isolated, and [exit] is always called in a `finally` block so the scope (including the
      * target reference) cannot leak after an exception.
+     *
+     * The State is reused per-thread: exit only resets fields, it does not remove the
+     * ThreadLocal entry.  This keeps steady-state doFrame calls allocation-free.
      */
     internal object DrawerBlurScope {
-        internal data class State(
+        internal class State(
             var depth: Int = 0,
             var modifier: Int = 100,
             var targetRef: WeakReference<Any>? = null
         )
 
-        private val scope = ThreadLocal<State>()
+        private val scope = ThreadLocal.withInitial { State() }
+
+        private inline val current: State
+            get() = scope.get()!!
 
         fun enter(modifierPct: Int, targetRef: WeakReference<Any>?) {
-            val s = scope.get() ?: State()
+            val s = current
             if (s.depth == 0) {
                 s.modifier = modifierPct
                 s.targetRef = targetRef
             }
             s.depth++
-            scope.set(s)
         }
 
         fun exit() {
-            val s = scope.get() ?: return
+            val s = current
             s.depth--
             if (s.depth <= 0) {
                 s.depth = 0
                 s.modifier = 100
                 s.targetRef = null
-                scope.remove()
-            } else {
-                scope.set(s)
             }
         }
 
-        fun isActive(): Boolean = (scope.get()?.depth ?: 0) > 0
-        fun getModifier(): Int = scope.get()?.modifier ?: 100
-        fun getTargetRef(): WeakReference<Any>? = scope.get()?.targetRef
+        fun isActive(): Boolean = current.depth > 0
+        fun getModifier(): Int = current.modifier
+        fun getTargetRef(): WeakReference<Any>? = current.targetRef
     }
 
     internal const val DRAWER_BLUR_TARGET_KEY = "customiuizer_drawer_blur_target"
@@ -186,8 +188,8 @@ object SystemDisplayHooks {
     }
 
     internal fun onDoFrame(chain: XposedInterface.Chain): Any? {
-        val target = resolveDrawerBlurTarget(chain.getThisObject())
-        DrawerBlurScope.enter(drawerBlurModifierPct, target?.let { WeakReference(it) })
+        val targetRef = resolveDrawerBlurTargetRef(chain.getThisObject())
+        DrawerBlurScope.enter(drawerBlurModifierPct, targetRef)
         return try {
             chain.proceed()
         } finally {
@@ -204,19 +206,25 @@ object SystemDisplayHooks {
         return chain.proceed(args)
     }
 
-    private fun resolveDrawerBlurTarget(callback: Any?): Any? {
+    private fun resolveDrawerBlurTargetRef(callback: Any?): WeakReference<Any>? {
         if (callback == null) return null
 
         val cached = XposedHelpers.getAdditionalInstanceField(callback, DRAWER_BLUR_TARGET_KEY) as? WeakReference<*>
-        cached?.get()?.let { return it }
+        if (cached != null) {
+            @Suppress("UNCHECKED_CAST")
+            return if (cached.get() != null) cached as WeakReference<Any> else null
+        }
 
         return try {
             val controller = XposedHelpers.getSurroundingThis(callback)
             val target = findBlurUtilsExt(controller)
             if (target != null) {
-                XposedHelpers.setAdditionalInstanceField(callback, DRAWER_BLUR_TARGET_KEY, WeakReference(target))
+                val ref = WeakReference<Any>(target)
+                XposedHelpers.setAdditionalInstanceField(callback, DRAWER_BLUR_TARGET_KEY, ref)
+                ref
+            } else {
+                null
             }
-            target
         } catch (t: Throwable) {
             FatalErrors.rethrowIfFatal(t)
             XposedHelpers.log(t)
