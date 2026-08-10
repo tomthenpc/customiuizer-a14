@@ -610,12 +610,14 @@ object SystemDisplayHooks {
                         XposedHelpers.setStaticBooleanField(Build::class.java, "IS_INTERNATIONAL_BUILD", true)
 
                     } catch (t: Throwable) {
+                        FatalErrors.rethrowIfFatal(t)
                         XposedHelpers.log(t)
                     }
 
                     try {
                         result = chain.proceed()
                     } catch (t: Throwable) {
+                        FatalErrors.rethrowIfFatal(t)
                         throwable = t
                         result = null
                     }
@@ -624,6 +626,7 @@ object SystemDisplayHooks {
                         XposedHelpers.setStaticBooleanField(Build::class.java, "IS_INTERNATIONAL_BUILD", false)
 
                     } catch (t: Throwable) {
+                        FatalErrors.rethrowIfFatal(t)
                         XposedHelpers.log(t)
                     }
                     return XposedHelpers.throwOrReturn(throwable, result)
