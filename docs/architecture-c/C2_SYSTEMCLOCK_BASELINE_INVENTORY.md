@@ -35,7 +35,7 @@ C2 must **preserve** the existing clock optimizations and **remove the remaining
 
 Existing good properties that C2 must not destroy:
 
-- `ClockStyleSnapshot` is immutable and `@Volatile`.
+- `ClockStyleSnapshot` is an immutable data class.
 - `buildClockText` and `initClockStyle` public overloads read **no** `mPrefs`.
 - `ThreadLocal<StringBuilder>` (`clockFormatBuilder`, `clockTextBuilder`) removes string churn.
 - `SecondTicker` uses a `WeakReference<controller>` and `MAX_CLOCK_LISTENERS` in the style-refresh path.
@@ -257,7 +257,7 @@ Current classification: **UNBOUNDED** in H2. A C2 implementation should consider
 | H1-O1 | `ModuleHelper.getViewInfo(clock, "clockName")` | `View` tag map | D  - lifecycle state / view tag | Logical clock identity is already stored per view. |
 | H1-O2 | `XposedHelpers.getObjectField(clock, "mMiuiStatusBarClockController")` | `MiuiClock` / `MiuiStatusBarClock` | A  - cold-resolvable field | Controller is an object field on the clock. |
 | H1-O3 | `XposedHelpers.getObjectField(controller, "mCalendar")` | `MiuiStatusBarClockController` | A  - cold-resolvable field | Calendar is an object field on the controller. |
-| H1-O4 | `XposedHelpers.callMethod(calendar, "format", ctx, sb, sb)` | calendar class (authoritative type from `mCalendar` field) | B  - cold-resolvable method | The only formatting call. |
+| H1-O4 | `XposedHelpers.callMethod(calendar, "format", ctx, sb, sb)` | calendar class (declared type from `mCalendar` field; runtime `javaClass` fallback documented) | B  - cold-resolvable method | The only formatting call. |
 
 ### H2 `SecondTicker.run`
 
@@ -283,18 +283,33 @@ All operations are A, B, or D. There are **no E** (must remain dynamic) operatio
 | `com.android.systemui.statusbar.policy.MiuiStatusBarClockController` | Constructor hook; owner of `mContext`, `mCalendar`, `mClockListeners`, `mIs24` | `ModuleHelper.hookAllConstructors(...)` at install |
 | `com.android.systemui.statusbar.views.MiuiClock` | `updateTime` hook target; has `mMiuiStatusBarClockController` | `ModuleHelper.findAndHookMethod(...)` at install |
 | `com.android.systemui.statusbar.views.MiuiStatusBarClock` | `updateTime` hook target (possibly a subclass) | `ModuleHelper.findAndHookMethod(...)` at install |
-| calendar class | `setTimeInMillis` / `format` target | **authoritative: `mCalendar` field type**, not a hard-coded `Calendar` subclass |
+| calendar class | `setTimeInMillis` / `format` target | **primary: `mCalendar` declared field type**; runtime `calendarObject.javaClass` fallback only for constructor-time calibration |
 
-### Authoritative `mCalendar` type
+### Primary and fallback `mCalendar` type authority
 
 Do **not** hardcode `java.util.Calendar` or a guessed Xiaomi calendar class.
 
+**Primary cold declared-type authority:**
+
 ```text
 calendarField = MiuiStatusBarClockController.getDeclaredField("mCalendar")
-calendarClass = calendarField.type
+calendarDeclaredClass = calendarField.type
 ```
 
-The `format` and `setTimeInMillis` methods must be resolved on `calendarClass` (or its superclasses).
+The `format` and `setTimeInMillis` methods are first resolved deterministically on `calendarDeclaredClass` (and its superclasses).
+
+**Constructor-time / first-real-calendar fallback:**
+
+The legacy oracle resolves `XposedHelpers.callMethod` on the **runtime class** of the calendar object (`obj.getClass()`). If deterministic cold resolution against `calendarDeclaredClass` is incomplete, a narrowly scoped, one-time fallback may use:
+
+```text
+calendarObject = calendarField.get(controller)
+resolvedClass = calendarObject.javaClass
+```
+
+The result must be published as an immutable, final method reference. No per-tick lookup is allowed.
+
+This fallback is allowed **only** for calendar capability resolution. Do not build a generic late-ABI system.
 
 ### Superclass relationships
 
@@ -308,28 +323,29 @@ The `format` and `setTimeInMillis` methods must be resolved on `calendarClass` (
 
 A C2 Architecture C implementation would resolve the following members once at install time and store them in an ABI object.
 
-### Clock ABI
+### Clock target capabilities
 
 ```text
-clockClasses: Set<Class<*>>
-  - MiuiClock class
-  - MiuiStatusBarClock class
-clockControllerField: Field
-  owner: clock class
-  name: "mMiuiStatusBarClockController"
-clockUpdateTimeMethod: Method
-  name: "updateTime"
-  parameter count: 0
-  declared on: one of the clock classes
+ClockTargetCapability (one per resolved hook target):
+  targetClass: Class<*>
+    - MiuiClock class
+    - MiuiStatusBarClock class
+  controllerField: Field
+    owner: targetClass
+    name: "mMiuiStatusBarClockController"
+  updateTimeMethod: Method
+    owner: targetClass
+    name: "updateTime"
+    parameter count: 0
 ```
 
-### Controller ABI
+Do **not** assume `MiuiStatusBarClock` inherits the same `mMiuiStatusBarClockController` or `updateTime` declaration from `MiuiClock`. Shared members may point to the same `Field` / `Method` only when inheritance proves that safe. The resolver validates per target.
+
+### Core periodic controller ABI
 
 ```text
 controllerClass: Class<*>
   name: "com.android.systemui.statusbar.policy.MiuiStatusBarClockController"
-contextField: Field
-  name: "mContext"
 calendarField: Field
   name: "mCalendar"
 clockListenersField: Field
@@ -338,25 +354,31 @@ is24Field: Field
   name: "mIs24"
 ```
 
+`mContext` is **not** part of the H1/H2 core periodic ABI. It is read on the lifecycle/cold path (`initSecondTicker`) and stored inside `SecondTicker`; it is not required by the per-tick `ClockEffect` graph.
+
 ### Calendar ABI
 
 ```text
 calendarClass: Class<*>
-  authoritative source: controller.calendarField.type
+  primary source: controller.calendarField.type
+  fallback: calendarObject.javaClass at constructor time (immutable result)
 setTimeInMillisMethod: Method
   name: "setTimeInMillis"
-  signature: one parameter, long primitive
-  return: void (or self; choose void if both exist)
+  arity: 1
+  parameter: long primitive (preferred)
+  return type: not an oracle matching condition; documented compatibility
 formatMethod: Method
   name: "format"
-  signature: (Context, StringBuilder, StringBuilder) or closest structural match
-  return: void or String (current code discards return; prefer void/append variant)
+  arity: 3
+  actual arguments: Context, StringBuilder, StringBuilder
+  formal parameters: must be assignable from the actual argument types
+  selection: deterministic best fit; ambiguity is fail-closed
 ```
 
 ### Notes
 
 - `mClockListeners` is currently cast to `ArrayList<Any>`. A frozen resolver should read it as `List<*>` and iterate by index to avoid `Iterator` allocation, unless evidence proves it is always `ArrayList` and index iteration is safe.
-- `mContext` is only needed to build `SecondTicker`; it can be read as the field type or as `Context`.
+- `mContext` is only used on the lifecycle/cold `initSecondTicker` path; it is deliberately excluded from the core periodic ABI.
 - Only members used by H1/H2 are retained; no `mBigTime`, no `fakeStatusBarClock`, no `useLeft`.
 
 ---
@@ -369,11 +391,11 @@ Requirements:
 
 - Method name: `setTimeInMillis`.
 - Parameter count: 1.
-- Parameter type: `long` (primitive).
-- Return type: prefer `void`.
-- Selection: exact match first; if multiple overloads, prefer primitive `long` over `Long`.
+- Parameter type: primitive `long` (preferred semantic target).
+- Return type: **not** an oracle matching condition; `XposedHelpers.findMethodBestMatch` does not use return type.
+- Selection: exact primitive-`long` match first; deterministic compatible resolution if multiple overloads exist; ambiguity is fail-closed.
 
-Reason: the current call is `XposedHelpers.callMethod(calendar, "setTimeInMillis", System.currentTimeMillis())`, which boxes the `long` and matches by type. A frozen resolver must be explicit about which overload it expects.
+Compatibility note: the current call passes a boxed `Long` via `XposedHelpers.callMethod(calendar, "setTimeInMillis", System.currentTimeMillis())`. The frozen method should resolve the `setTimeInMillis(long)` overload; `Method.invoke` will still box the `long` at the invocation boundary.
 
 ### `calendar.format`
 
@@ -381,9 +403,13 @@ Requirements:
 
 - Method name: `format`.
 - Parameter count: 3.
-- Parameter types: `Context`, `StringBuilder` (or `StringBuffer` / `CharSequence` fallback), `StringBuilder`.
-- Return type: current code discards the return; the method is expected to write the formatted string into the first `StringBuilder` and use the second as the pattern. Prefer a `void` return if available; otherwise `String`.
-- Selection rule: exact `(Context, StringBuilder, StringBuilder)` first; then `(Context, StringBuffer, StringBuffer)`; then `(Context, Appendable, Appendable)`. Do **not** select by reflection iteration order.
+- Actual argument types: `Context`, `StringBuilder`, `StringBuilder`.
+- Formal parameter types: must accept the actual argument types; for `StringBuilder` arguments, formal types assignable **from** `StringBuilder` are valid (e.g. `StringBuilder`, `Appendable`, `CharSequence`, `Object`).
+- The first argument: `Context` is the cold-known lower-information type. If the ROM declares a more-specific `Context` subtype (or overloads), the constructor-time real-object fallback may use the actual context class.
+- Return type: **not** an oracle matching condition; `XposedHelpers.findMethodBestMatch` does not use return type. The current code discards the return; the method is expected to write the formatted string into the first `StringBuilder` and use the second as the pattern.
+- Selection rule: deterministic best fit against the actual argument types; no reflection-iteration `firstOrNull`; ambiguity is fail-closed.
+
+Incompatible formal types (e.g. a `StringBuffer` parameter) must be rejected because a `StringBuilder` argument cannot be passed to a `StringBuffer` formal parameter.
 
 ### `clock.updateTime`
 
@@ -391,8 +417,16 @@ Requirements:
 
 - Method name: `updateTime`.
 - Parameter count: 0.
-- Return type: `void`.
-- Resolve separately on `MiuiClock` and `MiuiStatusBarClock`.
+- Return type: **not** an oracle matching condition.
+- Resolve per `ClockTargetCapability`; produce one `updateTimeMethod` for each resolved hook target.
+
+### Resolution authority summary
+
+| Capability | Primary authority | Constructor-time fallback |
+|------------|-------------------|---------------------------|
+| Calendar `setTimeInMillis` / `format` | `calendarField.type` | `calendarObject.javaClass` |
+| Clock `updateTime` / `mMiuiStatusBarClockController` | target class | none required |
+
 
 ---
 
@@ -412,9 +446,22 @@ Freezing a `Method` removes runtime lookup/discovery, but `Method.invoke` still 
 - **H2**: `setTimeInMillis`  - `Object[1]` + `Long` per tick; `format` (transitively via `callMethod(updateTime)`)  - `Object[0]` if no-arg invocation is used; `mClockListeners` iteration  - `Iterator` per tick (Kotlin `for` over `List`/`ArrayList`).
 - Reflection lookup is cached after the first call, so it is not part of the steady-state allocation.
 
-### Possible Java reflection bridge (recorded, not implemented)
+### What frozen `Method` does and does not remove
 
-A tiny Java helper with explicit-arity native or `MethodAccessor` invocation could avoid the `Object[]` and `Long` boxing for `setTimeInMillis`. This is **not** implemented in C2-A0; it is recorded as an option for later evaluation. A0 does not introduce Java.
+Freezing a `Method` removes:
+
+- runtime method lookup,
+- `MemberCacheKey` construction,
+- best-match discovery and class hierarchy scanning.
+
+It does **not** prove:
+
+- zero `Object[]` allocation at `Method.invoke` (Kotlin/Java varargs create the array),
+- zero primitive boxing at `Method.invoke` (`setTimeInMillis(long)` still boxes `Long`).
+
+A Java arity helper that simply calls `Method.invoke(receiver, arg1, ...)` internally does **not** eliminate these allocations; it only moves them into the helper.
+
+Truly different invocation mechanisms (`MethodHandle.invokeExact`, a generated/direct bridge, or ART-internal accessors) are separate compatibility-sensitive options. They are recorded but not implemented in C2-A0.
 
 ---
 
@@ -447,11 +494,20 @@ private fun refreshClockStyleSnapshot(res: Resources): ClockStyleSnapshot {
 
 ### Facts
 
+- The publication is the volatile reference, not the snapshot object itself:
+
+```kotlin
+@Volatile
+private var clockStyleSnapshot: ClockStyleSnapshot? = null
+```
+
+  `ClockStyleSnapshot` is an **immutable data class**; the `@Volatile` annotation applies to the `clockStyleSnapshot` reference.
+
 - `configuration` is stored as a `Configuration(res.configuration)` **copy**.
 - `current.configuration == res.configuration` is structural equality (`Configuration` overrides `equals`).
 - A new snapshot always gets a new `id` from `clockSnapshotId.incrementAndGet()`.
 - Identical preferences and configuration still create a new `id` if `refreshClockStyleSnapshot` is called.
-- The `current ?: ensure(...)` pattern in H1 and H2 means `mPrefs` is only read when `clockStyleSnapshot` is `null`.
+- The `current ?: ensure(...)` pattern in H1 `updateTime` and the `initSecondTicker` lifecycle/setup path means `mPrefs` is only read when `clockStyleSnapshot` is `null`.
 - The private `initClockStyle(mClock, clockName)` overload always calls `ensureClockStyleSnapshot`; because `ensure` short-circuits via structural equality, this does **not** necessarily rebuild in steady state.
 
 ### H1 `current ?: ensure(...)` question
@@ -468,7 +524,7 @@ Options for C2:
 1. **Retain `current ?: ensure(...)`**: safe because `ensure` is only reached when `current` is `null`. It protects the first `updateTime` if the snapshot was not yet built.
 2. **Change to `current ?: chain.proceed()`**: eliminates any `mPrefs` read fallback from the hot path, but means the first `updateTime` call before the controller/clock constructor runs will not apply a custom format. This could diverge from oracle behavior if `updateTime` is invoked before the constructor cold path builds the snapshot.
 
-**A0 safe migration choice**: retain `current ?: ensure(...)` and ensure the cold constructor path (`MiuiStatusBarClockController` constructor, `MiuiClock` constructor, `MiuiPhoneStatusBarView.onAttachedToWindow`) builds the snapshot before any H1/H2 tick. This matches the current design intent.
+**A0 safe migration choice**: retain `current ?: ensure(...)` and ensure the cold constructor path (`MiuiStatusBarClockController` constructor, `MiuiClock` constructor, `MiuiPhoneStatusBarView.onAttachedToWindow`) builds the snapshot before any H1 `updateTime` or H2 ticker starts. This matches the current design intent.
 
 ---
 
@@ -488,7 +544,7 @@ Options for C2:
 
 ### Verdict
 
-The **steady per-tick H1/H2 path does not read `mPrefs`** as long as `clockStyleSnapshot` is non-null. The only theoretical hot read is `currentClockStyleSnapshot() ?: ensureClockStyleSnapshot(...)`. C2 must preserve the invariant that the snapshot is always built before the first tick.
+The **steady per-tick H1 path does not read `mPrefs`** as long as `clockStyleSnapshot` is non-null, and the **H2 `SecondTicker.run` path reads neither `mPrefs` nor `ClockStyleSnapshot`**. The only theoretical hot `mPrefs` read is the H1 `updateTime` fallback `currentClockStyleSnapshot() ?: ensureClockStyleSnapshot(...)` (and the lifecycle `initSecondTicker` setup). C2 must preserve the invariant that the snapshot is always built before the first tick.
 
 ---
 
@@ -525,8 +581,8 @@ PreferenceObserverRegistry
 - It is used for:
   - `DateFormat.is24HourFormat(context)` every second.
   - `context.mainLooper` to build the `Handler`.
-- Converting it to `context.applicationContext` would preserve `DateFormat.is24HourFormat` semantics for the user setting, but it may change the `Configuration`/`Locale` used by the formatter if `mContext` is a wrapped/themed context.
-- **A0 does not change it.** A C2 implementation should only change this if evidence shows the current `mContext` is not the application context and that the switch is safe.
+- `SecondTicker.context` is used for `DateFormat.is24HourFormat(context)` and `context.mainLooper` during `Handler` creation. H1 formatting separately uses `clock.context`; converting `SecondTicker.context` to `applicationContext` would not directly change the formatter's `clock.context` `Resources` / `Locale`.
+- **A0 does not change Context ownership.** A C2 implementation should only change it if a concrete lifecycle problem is demonstrated.
 
 ### Screen-off / start / stop
 
@@ -574,13 +630,13 @@ fun setViewInfo(view: View?, key: String, value: Any?) {
 
 ### Typed `View.setTag` alternative
 
-Switching to two dedicated `View.setTag(fakeResId, value)` calls would be:
+Switching to dedicated `View.setTag(fakeResId, value)` / `View.getTag(fakeResId)` keyed-tag calls would remove:
 
-- **Lifecycle-safe**: `View` tags are cleared with the view; values are scoped to the view lifecycle.
-- **Allocation-neutral**: `Boolean.TRUE` / `Boolean.FALSE` are cached; the `clockName` strings are constants.
-- **Faster hot path**: a direct `View.mTag` lookup, no `HashMap`.
+- the module-level `HashMap<String, Any?>`,
+- the string-key lookup,
+- the per-view `HashMap` entries for `clockName` / `showSeconds`.
 
-This is recorded as a C2 option but **not** implemented in A0.
+It is not an unkeyed `View.mTag` access; Android keyed-tag storage is still a backing store that may be created/reused. This is recorded as a C2 option but **not** implemented in A0; no measured-performance claim is made.
 
 ---
 
@@ -620,17 +676,29 @@ C2 design note: any bound in `SecondTicker.run` must define an explicit fallback
 
 | Failure | Outcome | Original `chain.proceed()` called? | `clock.text` set? | Logged? |
 |---------|---------|------------------------------------|-------------------|---------|
-| `getViewInfo` returns null / hidden name | hidden short-circuit returns; `clock.text = ""` | NO | `""` if hidden | no |
+| `getViewInfo` returns null (`clockName == null`) | `buildClockText` returns `null`; falls through to `chain.proceed()` | YES | by original | no |
+| `clockName` is one of the hidden names with matching hide flag | `clock.text = ""`; returns `null` | NO | `""` | no |
 | `snapshot == null` then `ensure` builds OK | normal custom format path | NO if timeFmt non-null | formatted text | no |
 | `getObjectField(clock, "mMiuiStatusBarClockController")` fails | outer `catch`; `throwOrReturn` rethrows | NO | not set | no (XposedHelpers may log some reflection errors internally) |
 | `getObjectField(controller, "mCalendar")` fails | outer `catch`; rethrows | NO | not set | no |
 | `callMethod(calendar, "format", ...)` throws `InvocationTargetError` | outer `catch`; rethrows | NO | not set | no |
 | `buildClockText` returns null | `chain.proceed()` | YES | by original | n/a |
 | `timeFmt` non-null, format succeeds | return null | NO | formatted text | no |
-| `OutOfMemoryError` / `ThreadDeath` / `VirtualMachineError` | outer `catch`; `throwOrReturn` rethrows | NO | not set | no |
+| `OutOfMemoryError` / `ThreadDeath` / `VirtualMachineError` thrown directly in hook body | outer `catch`; `throwOrReturn` rethrows the same direct object | NO | not set | no |
 | Any other `RuntimeException` / `Error` in the try block | outer `catch`; rethrows | NO | not set | no |
 
 H1 does **not** swallow exceptions. It is a strict pass-through hook.
+
+#### Wrapped fatal identity in H1
+
+If `calendar.format` internally throws a fatal `OutOfMemoryError`, `ThreadDeath`, or `VirtualMachineError`:
+
+1. `Method.invoke` wraps it as `InvocationTargetException`.
+2. `XposedHelpers.callMethod` converts it to `XposedHelpers.InvocationTargetError(cause)`.
+3. The H1 outer `catch (t: Throwable)` stores the **wrapper**.
+4. `throwOrReturn` rethrows the `InvocationTargetError` wrapper, not the original fatal cause.
+
+This is a **latent fatal-boundary issue**: the current H1 oracle does **not** restore wrapped fatal identity. C2 may choose to correct it by unwrapping via `FatalErrors.unwrapAndRethrowIfFatal`; if corrected, this must be reported as an intentional correctness change with exact-identity tests.
 
 ### H2 `SecondTicker.run` fatal matrix
 
@@ -646,9 +714,19 @@ The entire body is wrapped in `ModuleHelper.guarded { ... }`. `guarded` is **not
 | `listener as View` fails (`ClassCastException`) inside the for-loop | `guarded` logs, returns | YES | NO | yes |
 | `callMethod(clock, "updateTime")` fails | `guarded` logs, returns | YES | NO | yes |
 | `OutOfMemoryError` / `ThreadDeath` / `VirtualMachineError` inside guarded | `guarded` rethrows | NO (run() throws, scheduleNextTick not reached) | NO | no (rethrown) |
-| `OutOfMemoryError` / `ThreadDeath` / `VirtualMachineError` wrapped in `InvocationTargetError` (cause) | `guarded` sees `InvocationTargetError` as a non-fatal `Error`; logs and returns | YES | NO | yes (latent bug: wrapped fatal may not propagate) |
+| `OutOfMemoryError` / `ThreadDeath` / `VirtualMachineError` wrapped in `InvocationTargetError` (cause) | `guarded` sees `InvocationTargetError` as a non-fatal `Error`; logs and returns | YES | NO | yes (`LEGACY_WRAPPED_FATAL_BUG`) |
 
 Important: because the **entire** `guarded` block is one try/catch, a failure for one clock aborts the rest of the listener list for that tick. The ticker itself is rescheduled for non-fatal errors.
+
+#### `LEGACY_WRAPPED_FATAL_BUG`
+
+`CallbackGuard.guarded` only recognizes direct `OutOfMemoryError`, `ThreadDeath`, and `VirtualMachineError`. It does **not** unwrap `InvocationTargetError`. Therefore, a fatal thrown by `calendar.setTimeInMillis` or `clock.updateTime` and wrapped by `XposedHelpers.callMethod` is currently:
+
+- logged and swallowed,
+- aborting the rest of that tick,
+- rescheduling the ticker.
+
+C2 may intentionally correct this later by wrapping frozen `Method.invoke` calls with `FatalErrors.unwrapAndRethrowIfFatal`. If corrected, it must be reported as an intentional correctness change from the oracle, with exact-identity tests.
 
 ---
 
@@ -669,7 +747,7 @@ No `ClockRuntime.kt` unless evidence shows a runtime object is useful beyond `Se
 | File | Responsibility |
 |------|----------------|
 | `ClockAbi.kt` | Immutable data class holding the frozen `Class` / `Field` / `Method` references resolved once per process. |
-| `ClockResolver.kt` | Cold resolution: uses `lpparam.classLoader` and the `mCalendar` field type to resolve `MiuiStatusBarClockController`, `MiuiClock`, `MiuiStatusBarClock`, and the calendar class members. Returns `ClockAbi`. |
+| `ClockResolver.kt` | Cold resolution: uses `lpparam.classLoader` and the `mCalendar` declared field type (with a constructor-time `calendarObject.javaClass` fallback) to resolve `MiuiStatusBarClockController`, `MiuiClock`, `MiuiStatusBarClock`, and the calendar class members. Returns `ClockAbi`. |
 | `ClockEffect.kt` | Typed effect execution: uses `ClockAbi` to read `mCalendar`, call `setTimeInMillis` / `format` / `updateTime`, update `mIs24`, and iterate `mClockListeners`. Hides `XposedHelpers` from the hot path. |
 | `SystemClockHooks.kt` (existing) | Remains the thin facade. Installs hooks, handles preference observer, calls `ClockResolver` to build `ClockAbi`, and passes it to `ClockEffect`. Keeps `SecondTicker`, `ClockStyleSnapshot`, and `ThreadLocal` builders. |
 
@@ -710,12 +788,9 @@ The following are **not** part of C2 H1/H2 and are **not** refactored in C2:
 A0 records but does not implement:
 
 - `ClockEffect` in Kotlin calling `Method.invoke` will still allocate the `Object[]` and the `Long` box for `setTimeInMillis`.
-- A Java-arity bridge could avoid the varargs array by declaring `native` or `MethodAccessor`-style helpers:
-  - `void callSetTimeInMillis(Method m, Object calendar, long time)`
-  - `void callFormat(Method m, Object calendar, Context ctx, StringBuilder out, StringBuilder pattern)`
-  - `void callUpdateTime(Method m, Object clock)`
-- These would still call `Method.invoke` internally, but the **Kotlin call site** would not create the varargs array.
-- This is optional and evaluated after C2-A1 implementation if profiling shows it matters.
+- A Java-arity bridge that calls `Method.invoke` internally does **not** eliminate these allocations; it only moves the varargs array / boxing into the helper.
+- To truly avoid invocation allocation, use `MethodHandle.invokeExact`, a generated/direct bridge, or an ART-internal accessor. These are separate compatibility-sensitive options.
+- This is recorded but not implemented in C2 B1; default strategy is freeze `Method` first, then measure/inspect.
 
 ---
 
@@ -734,7 +809,7 @@ C1 device A/B is **DEFERRED / BLOCKED_BY_ENVIRONMENT**. It does not block C2-A0.
 - [x] H1 `updateTime` graph recorded.
 - [x] H2 `SecondTicker.run` graph recorded.
 - [x] Periodic generic operations table built (A/B/D, no E).
-- [x] Cold class/member inventory recorded (calendar class from `Field.type`).
+- [x] Cold class/member inventory recorded (calendar class from `Field.type`; runtime `javaClass` fallback documented).
 - [x] Candidate frozen ABI designed.
 - [x] Deterministic method-resolution requirements recorded.
 - [x] `Method.invoke` allocation concern analyzed.
