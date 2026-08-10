@@ -12,6 +12,7 @@ import android.widget.TextView
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -230,7 +231,7 @@ class BatteryViewStateTest {
         SystemUIBatteryHooks.applyBatteryStyle(view, baseline, custom)
 
         val metrics = view.resources.displayMetrics
-        val rightMarginPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6f, metrics).toInt()
+        val rightMarginPx = (6f * metrics.density).toInt()
 
         val percentPad = capturedPadding(view.mBatteryPercentView)
         val markPad = capturedPadding(view.mBatteryPercentMarkView)
@@ -258,13 +259,69 @@ class BatteryViewStateTest {
         SystemUIBatteryHooks.applyBatteryStyle(view, baseline, custom)
 
         val metrics = view.resources.displayMetrics
-        val rightMarginPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6f, metrics).toInt()
+        val rightMarginPx = (6f * metrics.density).toInt()
 
         val percentPad = capturedPadding(view.mBatteryPercentView)
         val markPad = capturedPadding(view.mBatteryPercentMarkView)
 
         assertEquals("percent view should not carry the right margin", 0, percentPad.end)
         assertEquals("mark view should carry the right margin", rightMarginPx, markPad.end)
+    }
+
+    @Test
+    fun moduleReorderDoesNotInvalidateBaseline() {
+        val view = createBatteryView()
+        val baseline = SystemUIBatteryHooks.captureBatteryBaseline(view)!!
+        val state = SystemUIBatteryHooks.BatteryViewState()
+        state.baseline = baseline
+
+        val swapStyle = customStyle()
+        SystemUIBatteryHooks.reconcileBatteryView(view, swapStyle, state)
+
+        // After swap: [percent, mark, digit]
+        assertEquals(0, view.indexOfChild(view.mBatteryPercentView))
+        assertEquals(1, view.indexOfChild(view.mBatteryPercentMarkView))
+        assertEquals(2, view.indexOfChild(view.mBatteryTextDigitView))
+
+        // The same children are still present; only order changed.
+        assertFalse("module reorder must not be treated as child replacement", SystemUIBatteryHooks.childIdentitiesChanged(view, baseline.childIds))
+        assertSame("baseline must not be recaptured on module reorder", baseline, state.baseline)
+        assertTrue("swapped state must still match target style", SystemUIBatteryHooks.matchesTarget(view, baseline, swapStyle))
+
+        val defaultStyle = defaultStyle()
+        SystemUIBatteryHooks.reconcileBatteryView(view, defaultStyle, state)
+
+        // Restore brings back the original OEM order.
+        assertEquals(baseline.percentIndex, view.indexOfChild(view.mBatteryPercentView))
+        assertEquals(baseline.markIndex, view.indexOfChild(view.mBatteryPercentMarkView))
+        assertSame("baseline must stay the same after restore", baseline, state.baseline)
+    }
+
+    @Test
+    fun swapAcrossRepeatedUpdateKeepsOriginalBaseline() {
+        val view = createBatteryView()
+        val baseline = SystemUIBatteryHooks.captureBatteryBaseline(view)!!
+        val state = SystemUIBatteryHooks.BatteryViewState()
+        state.baseline = baseline
+
+        val swapStyle = customStyle()
+
+        // First updateAll
+        SystemUIBatteryHooks.reconcileBatteryView(view, swapStyle, state)
+        assertSame(baseline, state.baseline)
+
+        view.resetMutationCount()
+
+        // Second updateAll with the same style
+        SystemUIBatteryHooks.reconcileBatteryView(view, swapStyle, state)
+        assertSame("repeated update must not recapture baseline", baseline, state.baseline)
+        assertTrue("repeated update must keep matching target", SystemUIBatteryHooks.matchesTarget(view, baseline, swapStyle))
+        assertEquals(0, view.mutationCount)
+
+        // Back to default
+        SystemUIBatteryHooks.reconcileBatteryView(view, defaultStyle(), state)
+        assertEquals(baseline.percentIndex, view.indexOfChild(view.mBatteryPercentView))
+        assertEquals(baseline.markIndex, view.indexOfChild(view.mBatteryPercentMarkView))
     }
 
     @Test
@@ -320,6 +377,18 @@ class BatteryViewStateTest {
         rightMarginDp = 4f,
         verticalOffset = 12,
         markVerticalOffset = 20,
+        battery4 = false
+    )
+
+    private fun defaultStyle(): SystemUIBatteryHooks.BatteryStyle = SystemUIBatteryHooks.BatteryStyle(
+        swap = false,
+        fontSizeDp = 7.5f,
+        markFontSizeDp = 7.5f,
+        bold = false,
+        leftMarginDp = 0f,
+        rightMarginDp = 0f,
+        verticalOffset = 8,
+        markVerticalOffset = 17,
         battery4 = false
     )
 

@@ -58,6 +58,10 @@ class UiHotPathPreferenceSnapshotTest {
             "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt",
             "\"updateAll\"",
         )
+        val reconcileBody = methodBody(
+            "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt",
+            "internal fun reconcileBatteryView"
+        )
         val matchBody = methodBody(
             "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt",
             "internal fun matchesTarget"
@@ -66,8 +70,9 @@ class UiHotPathPreferenceSnapshotTest {
         assertFalse("updateAll must not read nine preferences per call", body.contains("MainModule.mPrefs"))
         assertTrue(body.contains("val style = batteryStyle ?: return"))
         assertFalse("child order must be checked before mutating the hierarchy", body.contains("removeView"))
-        assertTrue("snapshot-driven style is applied from the hook", body.contains("applyBatteryStyle("))
-        assertTrue("baseline is restored when style returns to default", body.contains("restoreBatteryBaseline("))
+        assertTrue("updateAll delegates to reconcile helper", body.contains("reconcileBatteryView("))
+        assertTrue("snapshot-driven style is applied from the helper", reconcileBody.contains("applyBatteryStyle("))
+        assertTrue("baseline is restored when style returns to default", reconcileBody.contains("restoreBatteryBaseline("))
         assertTrue("swap helper is still used", source.contains("applyBatteryChildSwapIfNeeded("))
         assertTrue("text size changes are idempotent", source.contains("setTextSizeIfChanged("))
         assertTrue("padding changes are idempotent", source.contains("setPaddingRelativeIfChanged("))

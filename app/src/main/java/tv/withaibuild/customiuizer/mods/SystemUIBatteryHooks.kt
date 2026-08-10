@@ -116,7 +116,7 @@ object SystemUIBatteryHooks {
     }
 
     private fun setTextSizeIfChanged(view: TextView, sizeDp: Float) {
-        val target = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, sizeDp, view.resources.displayMetrics)
+        val target = sizeDp * view.resources.displayMetrics.density
         if (view.textSize != target) view.setTextSize(TypedValue.COMPLEX_UNIT_DIP, sizeDp)
     }
 
@@ -203,33 +203,37 @@ object SystemUIBatteryHooks {
                 val owner = param.getThisObject() ?: return
                 val batteryView = owner as? ViewGroup ?: return
                 val state = getOrCreateBatteryViewState(owner)
-                val baseline = state.baseline
-
-                val childrenChanged = baseline == null || childIdentitiesChanged(batteryView, baseline.childIds)
-                val newBaseline = when {
-                    baseline == null -> captureBatteryBaseline(batteryView)
-                    childrenChanged -> captureBatteryBaseline(batteryView)
-                    state.appliedStyle == null && !matchesBaseline(batteryView, baseline) -> captureBatteryBaseline(batteryView)
-                    else -> baseline
-                }
-                if (newBaseline == null) return
-                state.baseline = newBaseline
-
-                val defaultStyle = isBatteryStyleDefault(style)
-                when {
-                    defaultStyle -> {
-                        if (state.appliedStyle != null || !matchesBaseline(batteryView, newBaseline)) {
-                            restoreBatteryBaseline(batteryView, newBaseline)
-                        }
-                        state.appliedStyle = null
-                    }
-                    state.appliedStyle != style || !matchesTarget(batteryView, newBaseline, style) -> {
-                        applyBatteryStyle(batteryView, newBaseline, style)
-                        state.appliedStyle = style
-                    }
-                }
+                reconcileBatteryView(batteryView, style, state)
             }
         })
+    }
+
+    internal fun reconcileBatteryView(parent: ViewGroup, style: BatteryStyle, state: BatteryViewState) {
+        val baseline = state.baseline
+
+        val childrenChanged = baseline == null || childIdentitiesChanged(parent, baseline.childIds)
+        val newBaseline = when {
+            baseline == null -> captureBatteryBaseline(parent)
+            childrenChanged -> captureBatteryBaseline(parent)
+            state.appliedStyle == null && !matchesBaseline(parent, baseline) -> captureBatteryBaseline(parent)
+            else -> baseline
+        }
+        if (newBaseline == null) return
+        state.baseline = newBaseline
+
+        val defaultStyle = isBatteryStyleDefault(style)
+        when {
+            defaultStyle -> {
+                if (state.appliedStyle != null || !matchesBaseline(parent, newBaseline)) {
+                    restoreBatteryBaseline(parent, newBaseline)
+                }
+                state.appliedStyle = null
+            }
+            state.appliedStyle != style || !matchesTarget(parent, newBaseline, style) -> {
+                applyBatteryStyle(parent, newBaseline, style)
+                state.appliedStyle = style
+            }
+        }
     }
 
     private fun isBatteryStyleDefault(style: BatteryStyle): Boolean {
@@ -279,8 +283,12 @@ object SystemUIBatteryHooks {
 
     internal fun childIdentitiesChanged(parent: ViewGroup, childIds: List<Int>): Boolean {
         if (parent.childCount != childIds.size) return true
-        for (i in 0 until parent.childCount) {
-            if (System.identityHashCode(parent.getChildAt(i)) != childIds[i]) return true
+        outer@ for (i in 0 until parent.childCount) {
+            val currentId = System.identityHashCode(parent.getChildAt(i))
+            for (baselineId in childIds) {
+                if (currentId == baselineId) continue@outer
+            }
+            return true
         }
         return false
     }
@@ -394,12 +402,12 @@ object SystemUIBatteryHooks {
         return true
     }
 
-    private fun expectedTextSize(view: TextView, sizeDp: Float, baselineSize: Float): Float {
-        return if (sizeDp == 7.5f) baselineSize else TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, sizeDp, view.resources.displayMetrics)
+    internal fun expectedTextSize(view: TextView, sizeDp: Float, baselineSize: Float): Float {
+        return if (sizeDp == 7.5f) baselineSize else sizeDp * view.resources.displayMetrics.density
     }
 
     private fun dipToPx(dp: Float, metrics: android.util.DisplayMetrics): Int {
-        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, metrics).toInt()
+        return (dp * metrics.density).toInt()
     }
 
     internal fun restoreBatteryBaseline(parent: ViewGroup, baseline: BatteryBaseline) {
