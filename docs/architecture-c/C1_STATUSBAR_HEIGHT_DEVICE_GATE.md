@@ -2,7 +2,7 @@
 
 Branch: `devin/a14-architecture-c-r14.20.0`
 
-Base SHA: `bebbd4b6213dc7d19f83132cef2d2ada536eed71`
+Base SHA / final audited code: `6dcd00e8f7a367d8706242fe345b0114f7fb3481`
 
 Candidate SHA: `6dcd00e8f7a367d8706242fe345b0114f7fb3481`
 
@@ -34,7 +34,7 @@ The script documents the real preference path and attempts UI fallback with
 
 Command-side mutation possible: **NO** (no exported broadcast/service/activity or writable provider for a single preference).
 
-Requires root for reliable, notification-preserving direct mutation: **YES**.
+Root alone is **NOT sufficient**: even with root/app_process preference mutation, the Xposed hooks in `system_server` and `com.android.systemui` cannot execute `InsetsSource.setFrame`, `DisplayPolicy.layoutWindowLw`, `WindowState.setFrames`, or `DecorInsets.Info.update` unless an active Xposed/libxposed framework is actually loading CustoMIUIzer into those processes.
 
 UI fallback possible: **PARTIAL** — `uiautomator dump` on this device does not expose the `PreferenceFragmentCompat` `RecyclerView` children, so text-based navigation cannot locate `状态栏高度`.
 
@@ -93,25 +93,46 @@ Signer parity: **PASS** (same certificate).
 
 ## 5. Gate status
 
-The C1 device A/B gate is **blocked before the behavior matrix can be executed**.
+`C1_DEVICE_GATE`: **BLOCKED_BY_ENVIRONMENT**
+
+The C1 device A/B gate is **blocked before the behavior matrix can be executed**. This is a **device environment precondition failure**, not a test harness coordinate-guessing failure and not an Architecture C product regression.
 
 - The target feature is an Xposed module that must run in `system_server` and `com.android.systemui`.
-- The connected device does not have a reachable LSPosed/libxposed framework and is not rooted.
-- Without a framework, the module cannot be loaded into `system_server` / `SystemUI`, so no status-bar height behavior can be observed.
-- Without root or an exposed app API, the host-side preference mutation cannot use the real mirror/notification path; the UI fallback is also unavailable because `uiautomator dump` does not expose the `PreferenceFragment` children on this device.
+- There is **no verified active Xposed/libxposed framework environment** on the connected device capable of loading CustoMIUIzer into those processes.
+- Without such a framework, no status-bar height behavior can be observed regardless of how the preference is set.
 
-This is a **device environment precondition failure**, not a test harness coordinate-guessing failure and not an Architecture C product regression.
+`C2_STARTED`: **false**
 
-## 6. Next step required
+No production source modified.
 
-The A/B cannot proceed until one of the following is true:
+## 6. Unblock paths
 
-1. LSPosed/libxposed is installed and active on the device and the module is enabled in its scope for `system_server` and `com.android.systemui`.
-2. The device is rooted and the host-side harness is allowed to run an app_process helper with the app's context so it can write `SharedPreferences` through the normal `XposedServiceManager` mirror path.
-3. A different test device that already meets the A/B variable-control environment is provided.
+A. Use this device after a **verified active compatible Xposed framework** is installed/configured and CustoMIUIzer is actually loaded in the required scope (`system_server`, `com.android.systemui` at minimum).
 
-Until then:
+B. Use **another device** that already has a verified working Xposed framework + CustoMIUIzer environment.
 
-- `C1_DEVICE_GATE`: **HOLD** (environment)
-- `C2_STARTED`: **false**
-- No production source modified.
+Prefer B if such a device already exists.
+
+Rooting/modifying this device merely to make the test harness convenient is not requested.
+
+## 7. Framework verification requirements
+
+Before starting CASE 1, positive evidence is required. Package name greps and the absence of `su` are not authoritative.
+
+At least one framework-level signal **and** one CustoMIUIzer-level signal are required, such as:
+
+- Framework manager reports active.
+- Framework/module logs show CustoMIUIzer load.
+- libxposed service binds successfully.
+- CustoMIUIzer reports Xposed service/framework attached.
+- `system_server` logs contain expected one-time StatusBarHeight install diagnostics.
+
+Only after framework activity is proven should preference mutation be solved. Manual UI preference changes are acceptable for the Device Gate if the normal UI is usable.
+
+## 8. Stop condition
+
+Until a verified framework-capable device is available:
+
+- Stop Device Gate work.
+- Preserve candidate and oracle APKs and signer parity evidence.
+- Do not start C2.
