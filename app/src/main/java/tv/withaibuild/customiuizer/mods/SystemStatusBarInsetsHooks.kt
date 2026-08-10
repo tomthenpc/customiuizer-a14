@@ -678,11 +678,12 @@ object SystemStatusBarInsetsHooks {
 
     @JvmStatic
     internal fun requestStatusBarTraversal() {
+        val effect = statusBarHeightEffect ?: return
         val win = statusBarHeightRuntime.latestKnownStatusBar?.get() ?: return
         try {
-            invalidateDecorInsets(win)
-            val wmService = XposedHelpers.getObjectField(win, "mWmService") ?: return
-            val windowPlacer = XposedHelpers.getObjectField(wmService, "mWindowPlacerLocked") ?: return
+            invalidateDecorInsets(win, effect)
+            val wmService = effect.readWindowManagerService(win) ?: return
+            val windowPlacer = effect.readWindowPlacer(wmService) ?: return
 
             val newGen = StatusBarHeightConfig.generation.get()
             val lastGen = statusBarHeightRuntime.lastRefreshGeneration.getAndSet(newGen)
@@ -692,8 +693,12 @@ object SystemStatusBarInsetsHooks {
             }
 
             try {
-                XposedHelpers.callMethod(windowPlacer, "requestTraversal")
-                logLive("refresh requestTraversal gen=$newGen", "refresh")
+                if (effect.requestTraversal(windowPlacer)) {
+                    logLive("refresh requestTraversal gen=$newGen", "refresh")
+                } else {
+                    logLive("refresh requestTraversal-unavailable gen=$newGen", "refresh")
+                    XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG requestTraversal unavailable, waiting for natural layout")
+                }
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
                 logLive("refresh requestTraversal-unavailable gen=$newGen", "refresh")
@@ -706,13 +711,14 @@ object SystemStatusBarInsetsHooks {
     }
 
     /** Invalidates the four rotation caches before a live height change is traversed. */
-    private fun invalidateDecorInsets(win: Any) {
+    private fun invalidateDecorInsets(win: Any, effect: StatusBarHeightEffect) {
         try {
-            val displayContent = XposedHelpers.getObjectField(win, "mDisplayContent") ?: return
-            val displayPolicy = XposedHelpers.callMethod(displayContent, "getDisplayPolicy") ?: return
-            val decorInsets = XposedHelpers.getObjectField(displayPolicy, "mDecorInsets") ?: return
-            XposedHelpers.callMethod(decorInsets, "invalidate")
-            logLive("decor invalidate", "decor-invalidate")
+            val displayContent = effect.readWindowDisplayContent(win) ?: return
+            val displayPolicy = effect.readDisplayPolicy(displayContent) ?: return
+            val decorInsets = effect.readDecorInsets(displayPolicy) ?: return
+            if (effect.invalidateDecorInsets(decorInsets)) {
+                logLive("decor invalidate", "decor-invalidate")
+            }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG decor invalidate failed: ${t.javaClass.simpleName}")

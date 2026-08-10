@@ -25,6 +25,7 @@ import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeEncoding
 import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeInfo
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightAbi
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightEffect
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightRefreshCapability
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightResolver
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.lang.reflect.Executable
@@ -390,6 +391,156 @@ class StatusBarHeightLiveTest {
     }
 
     @Test
+    fun requestStatusBarTraversal_invalidatesDecorInsetsBeforeRequestingTraversal() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        val wmService = win.mWmService as FakeWindowState.FakeWindowManagerService
+        val placer = wmService.mWindowPlacerLocked as FakeWindowState.FakeWindowSurfacePlacer
+        val displayContent = win.mDisplayContent as FakeWindowState.FakeDisplayContent
+        val decor = displayContent.getDisplayPolicy().mDecorInsets
+
+        val eventOrder = mutableListOf<String>()
+        placer.onRequestTraversal = { eventOrder.add("requestTraversal") }
+        decor.onInvalidate = { eventOrder.add("invalidate") }
+
+        SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+
+        assertEquals(listOf("invalidate", "requestTraversal"), eventOrder)
+    }
+
+    @Test
+    fun requestStatusBarTraversal_sameGeneration_secondCallInvalidatesButDoesNotReRequestTraversal() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        val wmService = win.mWmService as FakeWindowState.FakeWindowManagerService
+        val placer = wmService.mWindowPlacerLocked as FakeWindowState.FakeWindowSurfacePlacer
+        val displayContent = win.mDisplayContent as FakeWindowState.FakeDisplayContent
+        val decor = displayContent.getDisplayPolicy().mDecorInsets
+
+        SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+        assertEquals(1, placer.requestTraversalCount)
+        assertEquals(1, decor.invalidateCount)
+
+        SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+        assertEquals(1, placer.requestTraversalCount)
+        assertEquals(2, decor.invalidateCount)
+    }
+
+    @Test
+    fun requestStatusBarTraversal_invalidateRuntimeException_stillRequestsTraversal() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        val wmService = win.mWmService as FakeWindowState.FakeWindowManagerService
+        val placer = wmService.mWindowPlacerLocked as FakeWindowState.FakeWindowSurfacePlacer
+        val displayContent = win.mDisplayContent as FakeWindowState.FakeDisplayContent
+        val decor = displayContent.getDisplayPolicy().mDecorInsets
+
+        decor.onInvalidate = { throw RuntimeException("invalidate failed") }
+
+        SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+
+        assertEquals(1, placer.requestTraversalCount)
+    }
+
+    @Test
+    fun requestStatusBarTraversal_invalidateOom_propagatesSameIdentityAndDoesNotRequestTraversal() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        val wmService = win.mWmService as FakeWindowState.FakeWindowManagerService
+        val placer = wmService.mWindowPlacerLocked as FakeWindowState.FakeWindowSurfacePlacer
+        val displayContent = win.mDisplayContent as FakeWindowState.FakeDisplayContent
+        val decor = displayContent.getDisplayPolicy().mDecorInsets
+
+        val oom = OutOfMemoryError("oom")
+        decor.onInvalidate = { throw oom }
+
+        val thrown = try {
+            SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+            null
+        } catch (t: Throwable) {
+            t
+        }
+
+        assertSame(oom, thrown)
+        assertEquals(0, placer.requestTraversalCount)
+    }
+
+    @Test
+    fun requestStatusBarTraversal_requestTraversalRuntimeException_doesNotCallPerformSurfacePlacement() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        setStatusBarHeightEffect(makeLiveEffect(ThrowingRuntimePlacer::class.java))
+        val placer = ThrowingRuntimePlacer()
+        val wmService = win.mWmService as FakeWindowState.FakeWindowManagerService
+        wmService.mWindowPlacerLocked = placer
+
+        SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+
+        assertEquals(0, placer.performSurfacePlacementCount)
+    }
+
+    @Test
+    fun requestStatusBarTraversal_requestTraversalOom_propagatesSameIdentity() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val win = newStatusBarWindow()
+        val chain = FakeChain(target = Any(), args = arrayOf(win))
+        SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        val oom = OutOfMemoryError("oom")
+        setStatusBarHeightEffect(makeLiveEffect(ThrowingOomPlacer::class.java))
+        val wmService = win.mWmService as FakeWindowState.FakeWindowManagerService
+        wmService.mWindowPlacerLocked = ThrowingOomPlacer(oom)
+
+        val thrown = try {
+            SystemStatusBarInsetsHooks.requestStatusBarTraversal()
+            null
+        } catch (t: Throwable) {
+            t
+        }
+
+        assertSame(oom, thrown)
+    }
+
+    @Test
     fun layoutWindowLw_secondaryDisplay_usesLocalPxAndDoesNotPolluteGlobal() {
         StatusBarHeightConfig.configure(
             PrefMap().apply { put("system_statusbarheight", 44) },
@@ -638,7 +789,7 @@ class StatusBarHeightLiveTest {
         field.set(null, effect)
     }
 
-    private fun makeLiveEffect(): StatusBarHeightEffect {
+    private fun makeLiveEffect(placerClass: Class<*>? = null): StatusBarHeightEffect {
         val wm = StatusBarHeightResolver.resolveWindowManagerClass(
             FakeWindowState::class.java,
             WindowManager.LayoutParams::class.java,
@@ -671,7 +822,15 @@ class StatusBarHeightLiveTest {
             getIdMethod = null,
             getFrameMethod = null,
         )
-        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor))
+        val resolvedPlacerClass = placerClass ?: FakeWindowState.FakeWindowSurfacePlacer::class.java
+        val refresh = StatusBarHeightRefreshCapability(
+            windowManagerServicePlacerField = FakeWindowState.FakeWindowManagerService::class.java.getDeclaredField("mWindowPlacerLocked").also { it.isAccessible = true },
+            windowSurfacePlacerRequestTraversalMethod = resolvedPlacerClass.getDeclaredMethod("requestTraversal").also { it.isAccessible = true },
+            displayContentGetDisplayPolicyMethod = FakeWindowState.FakeDisplayContent::class.java.getDeclaredMethod("getDisplayPolicy").also { it.isAccessible = true },
+            displayPolicyDecorInsetsField = FakeWindowState.FakeDisplayPolicy::class.java.getDeclaredField("mDecorInsets").also { it.isAccessible = true },
+            decorInsetsInvalidateMethod = FakeWindowState.FakeDecorInsets::class.java.getDeclaredMethod("invalidate").also { it.isAccessible = true },
+        )
+        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor, refresh))
     }
 
     private fun newStatusBarWindow(): FakeWindowState {
@@ -776,5 +935,24 @@ private class NoRequestTraversalPlacer {
 
     fun performSurfacePlacement() {
         performSurfacePlacementCount++
+    }
+}
+
+private class ThrowingRuntimePlacer {
+    var performSurfacePlacementCount = 0
+        private set
+
+    fun requestTraversal() {
+        throw RuntimeException("requestTraversal failed")
+    }
+
+    fun performSurfacePlacement() {
+        performSurfacePlacementCount++
+    }
+}
+
+private class ThrowingOomPlacer(private val oom: OutOfMemoryError) {
+    fun requestTraversal() {
+        throw oom
     }
 }
