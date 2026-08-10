@@ -40,7 +40,12 @@ class WindowState {
             density = 2.93125f
         },
     ) {
-        fun getDisplayMetrics(): DisplayMetrics = metrics
+        var onGetDisplayMetrics: (() -> Unit)? = null
+
+        fun getDisplayMetrics(): DisplayMetrics {
+            onGetDisplayMetrics?.invoke()
+            return metrics
+        }
     }
 
     class FakeWindowManagerService {

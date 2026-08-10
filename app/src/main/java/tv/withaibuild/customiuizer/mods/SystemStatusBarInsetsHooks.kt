@@ -68,8 +68,6 @@ object SystemStatusBarInsetsHooks {
 
     private const val WINDOW_STATE_CLASS = "com.android.server.wm.WindowState"
     private const val DISPLAY_POLICY_CLASS = "com.android.server.wm.DisplayPolicy"
-    private const val DECOR_INSETS_INFO_CLASS = "com.android.server.wm.DisplayPolicy\$DecorInsets\$Info"
-    private const val DECOR_INSETS_UPDATE_METHOD = "update"
     private const val LAYOUT_WINDOW_LW_METHOD = "layoutWindowLw"
     private const val SET_FRAMES_METHOD = "setFrames"
     private const val STATUS_BAR_WINDOW_TAG = "StatusBar"
@@ -88,10 +86,6 @@ object SystemStatusBarInsetsHooks {
 
     /** Process-scoped runtime state: identity, weak owner refs, fallback budget and refresh. */
     private val statusBarHeightRuntime = StatusBarHeightRuntime()
-
-    /** A14 DisplayPolicy.DecorInsets.Info fields used on the cold configuration path. */
-    private var decorInfoNonDecorInsetsField: Field? = null
-    private var decorInfoNonDecorFrameField: Field? = null
 
     /** Bounded set of critical diagnostic keys whose first hit has already been logged. */
     private val loggedCritical = LinkedHashSet<String>()
@@ -151,8 +145,6 @@ object SystemStatusBarInsetsHooks {
         statusBarHeightEffect = null
         hookInstalled = false
         statusBarHeightRuntime.resetKnownStatusBars()
-        decorInfoNonDecorInsetsField = null
-        decorInfoNonDecorFrameField = null
     }
 
     @JvmStatic
@@ -230,7 +222,7 @@ object SystemStatusBarInsetsHooks {
         ModuleHelper.hookAllMethods(insetsSourceClass, SET_FRAME_METHOD, callback)
 
         installDisplayPolicyHook()
-        installDecorInsetsInfoHook(classLoader)
+        installDecorInsetsInfoHook()
         installWindowStateHook()
 
         ModuleHelper.observePreferenceChange(statusBarHeightObserver, StatusBarHeightConfig)
@@ -385,52 +377,36 @@ object SystemStatusBarInsetsHooks {
      * the same cold configuration calculation; no Activity/View hook or per-frame work is
      * needed.
      */
-    private fun installDecorInsetsInfoHook(classLoader: ClassLoader) {
-        val infoClass = XposedHelpers.findClassIfExists(DECOR_INSETS_INFO_CLASS, classLoader)
-        if (infoClass == null) {
-            logInstall("DisplayPolicy.DecorInsets.Info class not found")
+    private fun installDecorInsetsInfoHook() {
+        val abi = statusBarHeightAbi ?: run {
+            logInstall("ABI not resolved before DecorInsets hook install")
+            return
+        }
+        val effect = statusBarHeightEffect ?: run {
+            logInstall("Effect not ready before DecorInsets hook install")
+            return
+        }
+        val decor = abi.decorInsets
+
+        val infoClass = decor.infoClass
+        val updateMethod = decor.updateMethod
+        val nonDecorInsetsField = decor.nonDecorInsetsField
+        val nonDecorFrameField = decor.nonDecorFrameField
+
+        if (infoClass == null || updateMethod == null || nonDecorInsetsField == null || nonDecorFrameField == null) {
+            logInstall("DecorInsets.Info capability incomplete, skipping decor insets hot path")
             return
         }
 
-        val updateMethod = try {
-            infoClass.declaredMethods.singleOrNull { method ->
-                val parameterTypes = method.parameterTypes
-                method.name == DECOR_INSETS_UPDATE_METHOD &&
-                    parameterTypes.size == 4 &&
-                    parameterTypes[0].name == "com.android.server.wm.DisplayContent" &&
-                    parameterTypes[1] == Int::class.javaPrimitiveType &&
-                    parameterTypes[2] == Int::class.javaPrimitiveType &&
-                    parameterTypes[3] == Int::class.javaPrimitiveType
-            }?.also { it.isAccessible = true }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            null
-        }
-        if (updateMethod == null) {
-            logInstall("DisplayPolicy.DecorInsets.Info.update ABI unavailable")
-            return
-        }
+        ModuleHelper.hookMethod(updateMethod, DecorInsetsUpdateCallback(effect))
+    }
 
-        try {
-            decorInfoNonDecorInsetsField = infoClass.getDeclaredField("mNonDecorInsets").also {
-                it.isAccessible = true
-            }
-            decorInfoNonDecorFrameField = infoClass.getDeclaredField("mNonDecorFrame").also {
-                it.isAccessible = true
-            }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            decorInfoNonDecorInsetsField = null
-            decorInfoNonDecorFrameField = null
-            logInstall("DisplayPolicy.DecorInsets.Info fields unavailable: ${t.javaClass.simpleName}")
-            return
+    private class DecorInsetsUpdateCallback(
+        private val effect: StatusBarHeightEffect,
+    ) : MethodHook() {
+        override fun intercept(chain: XposedInterface.Chain): Any? {
+            return onDecorInsetsInfoUpdate(chain, effect)
         }
-
-        ModuleHelper.hookMethod(updateMethod, object : MethodHook() {
-            override fun intercept(chain: XposedInterface.Chain): Any? {
-                return onDecorInsetsInfoUpdate(chain)
-            }
-        })
     }
 
     @JvmStatic
@@ -564,19 +540,36 @@ object SystemStatusBarInsetsHooks {
 
     @JvmStatic
     internal fun onDecorInsetsInfoUpdate(chain: XposedInterface.Chain): Any? {
+        val effect = statusBarHeightEffect ?: return chain.proceed()
+        return onDecorInsetsInfoUpdate(chain, effect)
+    }
+
+    private fun onDecorInsetsInfoUpdate(chain: XposedInterface.Chain, effect: StatusBarHeightEffect): Any? {
         // The original calculation must run exactly once and its exception must propagate.
         val result = chain.proceed()
-        if (!StatusBarHeightConfig.enabled) return result
+
+        // One snapshot for the entire post-proceed callback.
+        val config = StatusBarHeightConfig.currentState()
+        if (!config.enabled) return result
 
         try {
             val args = chain.args
             if (args.size != 4 || args[0] == null || args[1] !is Int) return result
             val info = chain.thisObject ?: return result
-            val nonDecorInsets = decorInfoNonDecorInsetsField?.get(info) as? Rect ?: return result
-            val nonDecorFrame = decorInfoNonDecorFrameField?.get(info) as? Rect ?: return result
+            if (!effect.isDecorInsetsInfo(info)) return result
+
+            val nonDecorInsets = effect.readNonDecorInsets(info) ?: return result
+            val nonDecorFrame = effect.readNonDecorFrame(info) ?: return result
+
             val originalInsetTop = nonDecorInsets.top
             val originalFrameTop = nonDecorFrame.top
-            val configuredPx = configuredPxForDecorInfo(args[0])
+
+            val configuredPx = args[0]?.let { displayContent ->
+                val metrics = effect.readDisplayContentMetrics(displayContent)
+                if (metrics == null) config.configuredPx
+                else StatusBarHeightConfig.configuredPxFor(config.configuredDp, metrics)
+            } ?: config.configuredPx
+
             val newInsetTop = computeNonDecorTop(originalInsetTop, configuredPx, true)
             if (newInsetTop == originalInsetTop) return result
 
@@ -602,19 +595,6 @@ object SystemStatusBarInsetsHooks {
         }
 
         return result
-    }
-
-    private fun configuredPxForDecorInfo(displayContent: Any?): Int {
-        val state = StatusBarHeightConfig.currentState()
-        if (displayContent == null) return state.configuredPx
-        return try {
-            val metrics = XposedHelpers.callMethod(displayContent, "getDisplayMetrics") as? DisplayMetrics
-            if (metrics == null) state.configuredPx
-            else StatusBarHeightConfig.configuredPxFor(state.configuredDp, metrics)
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            state.configuredPx
-        }
     }
 
     private fun isKnownStatusBarWindow(win: Any): Boolean =

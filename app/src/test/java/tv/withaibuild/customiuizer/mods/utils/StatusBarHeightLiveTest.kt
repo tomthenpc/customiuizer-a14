@@ -15,6 +15,7 @@ import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.SystemStatusBarInsetsHooks
@@ -410,6 +411,220 @@ class StatusBarHeightLiveTest {
         assertEquals(129, StatusBarHeightConfig.configuredPx)
     }
 
+    @Test
+    fun onDecorInsetsInfoUpdate_growsNonDecorTopAndFrame() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val info = FakeDecorInsetsInfo()
+        setRect(info.mNonDecorInsets, 0, 80, 1080, 2400)
+        setRect(info.mNonDecorFrame, 0, 80, 1080, 2400)
+
+        val chain = FakeChain(
+            target = info,
+            args = arrayOf(FakeWindowState.FakeDisplayContent(), 0, 1080, 2400),
+        )
+
+        SystemStatusBarInsetsHooks.onDecorInsetsInfoUpdate(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(129, info.mNonDecorInsets.top)
+        assertEquals(129, info.mNonDecorFrame.top)
+    }
+
+    @Test
+    fun onDecorInsetsInfoUpdate_disabled_doesNotModify() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 11) },
+            fakeResources(469),
+        )
+
+        val info = FakeDecorInsetsInfo()
+        setRect(info.mNonDecorInsets, 0, 80, 1080, 2400)
+
+        val chain = FakeChain(
+            target = info,
+            args = arrayOf(FakeWindowState.FakeDisplayContent(), 0, 1080, 2400),
+        )
+
+        SystemStatusBarInsetsHooks.onDecorInsetsInfoUpdate(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(80, info.mNonDecorInsets.top)
+    }
+
+    @Test
+    fun onDecorInsetsInfoUpdate_cutoutSafeTopFloor_untouched() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val info = FakeDecorInsetsInfo()
+        setRect(info.mNonDecorInsets, 0, 200, 1080, 2400)
+        setRect(info.mNonDecorFrame, 0, 200, 1080, 2400)
+
+        val chain = FakeChain(
+            target = info,
+            args = arrayOf(FakeWindowState.FakeDisplayContent(), 0, 1080, 2400),
+        )
+
+        SystemStatusBarInsetsHooks.onDecorInsetsInfoUpdate(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(200, info.mNonDecorInsets.top)
+        assertEquals(200, info.mNonDecorFrame.top)
+    }
+
+    @Test
+    fun onDecorInsetsInfoUpdate_secondaryDisplay_usesLocalPxAndDoesNotPolluteGlobal() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val display = FakeWindowState.FakeDisplayContent(
+            metrics = DisplayMetrics().apply {
+                densityDpi = 200
+                density = 1.25f
+            },
+        )
+
+        val info = FakeDecorInsetsInfo()
+        setRect(info.mNonDecorInsets, 0, 0, 1080, 2400)
+
+        val chain = FakeChain(
+            target = info,
+            args = arrayOf(display, 0, 1080, 2400),
+        )
+
+        SystemStatusBarInsetsHooks.onDecorInsetsInfoUpdate(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(55, info.mNonDecorInsets.top)
+        assertEquals(469, StatusBarHeightConfig.densityDpi)
+        assertEquals(129, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun onDecorInsetsInfoUpdate_singleConfigSnapshotEvenIfMetricsMutatesConfig() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 40) },
+            fakeResources(160),
+        )
+
+        val display = FakeWindowState.FakeDisplayContent(
+            metrics = DisplayMetrics().apply {
+                densityDpi = 160
+                density = 1.0f
+            },
+        )
+        display.onGetDisplayMetrics = {
+            StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
+        }
+
+        val info = FakeDecorInsetsInfo()
+        setRect(info.mNonDecorInsets, 0, 0, 1080, 2400)
+
+        val chain = FakeChain(
+            target = info,
+            args = arrayOf(display, 0, 1080, 2400),
+        )
+
+        SystemStatusBarInsetsHooks.onDecorInsetsInfoUpdate(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(40, info.mNonDecorInsets.top) // 40dp * 160 / 160
+        assertEquals(44, StatusBarHeightConfig.configuredDp)
+    }
+
+    @Test
+    fun onDecorInsetsInfoUpdate_postProceedMetricsRuntimeException_failClosed() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val display = FakeWindowState.FakeDisplayContent().apply {
+            onGetDisplayMetrics = { throw RuntimeException("metrics failed") }
+        }
+
+        val info = FakeDecorInsetsInfo()
+        // Use a top above the global configured px so the fail-closed fallback is still a no-op.
+        setRect(info.mNonDecorInsets, 0, 200, 1080, 2400)
+
+        val chain = FakeChain(
+            target = info,
+            args = arrayOf(display, 0, 1080, 2400),
+        )
+
+        SystemStatusBarInsetsHooks.onDecorInsetsInfoUpdate(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(200, info.mNonDecorInsets.top)
+    }
+
+    @Test
+    fun onDecorInsetsInfoUpdate_postProceedMetricsOom_propagatesSameIdentity() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val oom = OutOfMemoryError("oom")
+        val display = FakeWindowState.FakeDisplayContent().apply {
+            onGetDisplayMetrics = { throw oom }
+        }
+
+        val info = FakeDecorInsetsInfo()
+        setRect(info.mNonDecorInsets, 0, 80, 1080, 2400)
+
+        val chain = FakeChain(
+            target = info,
+            args = arrayOf(display, 0, 1080, 2400),
+        )
+
+        val thrown = try {
+            SystemStatusBarInsetsHooks.onDecorInsetsInfoUpdate(chain)
+            null
+        } catch (t: Throwable) {
+            t
+        }
+
+        assertSame(oom, thrown)
+        assertEquals(1, chain.proceedCount)
+        assertEquals(80, info.mNonDecorInsets.top)
+    }
+
+    @Test
+    fun onDecorInsetsInfoUpdate_originalProceedFatal_propagatesSameIdentity() {
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            fakeResources(469),
+        )
+
+        val oom = OutOfMemoryError("original failed")
+        val info = FakeDecorInsetsInfo()
+
+        val chain = FakeChain(
+            target = info,
+            args = arrayOf(FakeWindowState.FakeDisplayContent(), 0, 1080, 2400),
+            proceedThrow = oom,
+        )
+
+        val thrown = try {
+            SystemStatusBarInsetsHooks.onDecorInsetsInfoUpdate(chain)
+            null
+        } catch (t: Throwable) {
+            t
+        }
+
+        assertSame(oom, thrown)
+        assertEquals(1, chain.proceedCount)
+    }
+
     private fun setRect(rect: Rect, left: Int, top: Int, right: Int, bottom: Int) {
         rect.left = left
         rect.top = top
@@ -431,13 +646,20 @@ class StatusBarHeightLiveTest {
             clientWindowFramesClass = ClientWindowFrames::class.java,
             clientWindowFramesFrameField = ClientWindowFrames::class.java.getDeclaredField("frame").also { it.isAccessible = true },
         )
+        val infoClass = FakeDecorInsetsInfo::class.java
         val decor = DecorInsetsCapability(
-            infoClass = null,
-            updateMethod = null,
+            infoClass = infoClass,
+            updateMethod = infoClass.getDeclaredMethod(
+                "update",
+                FakeWindowState.FakeDisplayContent::class.java,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+                Int::class.javaPrimitiveType,
+            ).also { it.isAccessible = true },
             displayContentClass = FakeWindowState.FakeDisplayContent::class.java,
             displayContentGetDisplayMetricsMethod = FakeWindowState.FakeDisplayContent::class.java.getDeclaredMethod("getDisplayMetrics").also { it.isAccessible = true },
-            nonDecorInsetsField = null,
-            nonDecorFrameField = null,
+            nonDecorInsetsField = infoClass.getDeclaredField("mNonDecorInsets").also { it.isAccessible = true },
+            nonDecorFrameField = infoClass.getDeclaredField("mNonDecorFrame").also { it.isAccessible = true },
         )
         val insets = InsetsSourceCapability(
             sourceClass = null,
@@ -479,6 +701,7 @@ class StatusBarHeightLiveTest {
     private class FakeChain(
         private val target: Any?,
         val args: Array<Any?>,
+        private val proceedThrow: Throwable? = null,
     ) : XposedInterface.Chain {
 
         var proceedCount = 0
@@ -495,17 +718,29 @@ class StatusBarHeightLiveTest {
         override fun proceed(): Any? {
             proceedCount++
             calledWithArgs = false
+            proceedThrow?.let { throw it }
             return null
         }
 
         override fun proceed(p0: Array<Any>): Any? {
             proceedCount++
             calledWithArgs = true
+            proceedThrow?.let { throw it }
             return null
         }
 
         override fun proceedWith(p0: Any): Any? = error("not used in test")
         override fun proceedWith(p0: Any, p1: Array<Any>): Any? = error("not used in test")
+    }
+
+    class FakeDecorInsetsInfo {
+        @JvmField
+        var mNonDecorInsets: Rect = Rect()
+
+        @JvmField
+        var mNonDecorFrame: Rect = Rect()
+
+        fun update(displayContent: FakeWindowState.FakeDisplayContent, rotation: Int, w: Int, h: Int) {}
     }
 }
 
