@@ -4,7 +4,6 @@ import android.content.res.Resources
 import android.graphics.Rect
 import android.os.Handler
 import android.util.DisplayMetrics
-import android.view.WindowInsets
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
 import tv.withaibuild.customiuizer.MainModule
@@ -62,12 +61,7 @@ import java.util.concurrent.atomic.AtomicLongArray
  */
 object SystemStatusBarInsetsHooks {
 
-    private const val INSETS_SOURCE_CLASS = "android.view.InsetsSource"
-    private const val INSETS_STATE_CLASS = "android.view.InsetsState"
     private const val SET_FRAME_METHOD = "setFrame"
-    private const val GET_TYPE_METHOD = "getType"
-    private const val GET_FRAME_METHOD = "getFrame"
-    private const val GET_ID_METHOD = "getId"
 
     internal const val MAX_CRITICAL_KEYS = 16
     internal const val MAX_REJECTION_KEYS = 16
@@ -240,35 +234,18 @@ object SystemStatusBarInsetsHooks {
             return
         }
 
-        val insetsSourceClass = XposedHelpers.findClassIfExists(INSETS_SOURCE_CLASS, classLoader)
-        if (insetsSourceClass == null) {
-            logInstall("InsetsSource class not found")
-            return
-        }
-
-        val setFrameMethods = try {
-            insetsSourceClass.getDeclaredMethods().filter { it.name == SET_FRAME_METHOD }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            logInstall("setFrame methods not accessible: ${t.javaClass.simpleName}")
-            return
-        }
-
-        val setFrameOneArg = setFrameMethods.any { it.parameterTypes.contentEquals(arrayOf(Rect::class.java)) }
-        val setFrameFourArg = setFrameMethods.any { it.parameterTypes.contentEquals(arrayOf(Int::class.java, Int::class.java, Int::class.java, Int::class.java)) }
-
-        if (!setFrameOneArg && !setFrameFourArg) {
-            logInstall("setFrame(Rect) and setFrame(int,int,int,int) both missing")
-            return
-        }
-
-        // Resolve the full cold ABI and publish it before hooking the InsetsSource callback.
+        // Resolve the full cold ABI once through the Architecture C resolver.
         val abi = StatusBarHeightResolver.resolveCore(classLoader)
-        if (!abi.insets.coreSupported) {
+        val insets = abi.insets
+        if (!insets.coreSupported) {
             logInstall("status bar Insets core capability not supported")
             return
         }
-        statusBarHeightAbi = abi
+
+        val insetsSourceClass = insets.sourceClass ?: run {
+            logInstall("InsetsSource class not found")
+            return
+        }
 
         val resources = try {
             Resources.getSystem()
@@ -280,6 +257,10 @@ object SystemStatusBarInsetsHooks {
 
         StatusBarHeightConfig.configure(MainModule.mPrefs, resources)
 
+        // Publish the frozen ABI and install the H1 callback.  This must not happen unless both
+        // ABI resolution and configuration succeeded.
+        statusBarHeightAbi = abi
+
         val state = StatusBarHeightConfig.currentState()
         logInstall(
             "enabled=${state.enabled} " +
@@ -288,18 +269,18 @@ object SystemStatusBarInsetsHooks {
                 "configuredPx=${state.configuredPx} " +
                 "density=${state.density} " +
                 "densityDpi=${state.densityDpi} " +
-                "encoding=${abi.insets.typeInfo.encoding} " +
-                "statusType=${abi.insets.typeInfo.statusBarType} " +
-                "navType=${abi.insets.typeInfo.navigationType} " +
-                "cutoutType=${abi.insets.typeInfo.displayCutoutType} " +
-                "setFrame1=${abi.insets.setFrameOneArg} " +
-                "setFrame4=${abi.insets.setFrameFourArg} " +
-                "typeReader=${if (abi.insets.typeField != null) "FIELD" else "METHOD"} " +
-                "getId=${abi.insets.getIdMethod != null} " +
-                "getFrame=${abi.insets.getFrameMethod != null}"
+                "encoding=${insets.typeInfo.encoding} " +
+                "statusType=${insets.typeInfo.statusBarType} " +
+                "navType=${insets.typeInfo.navigationType} " +
+                "cutoutType=${insets.typeInfo.displayCutoutType} " +
+                "setFrame1=${insets.setFrameOneArg} " +
+                "setFrame4=${insets.setFrameFourArg} " +
+                "typeReader=${if (insets.typeField != null) "FIELD" else "METHOD"} " +
+                "getId=${insets.getIdMethod != null} " +
+                "getFrame=${insets.getFrameMethod != null}"
         )
 
-        val callback = SetFrameCallback(abi.insets)
+        val callback = SetFrameCallback(insets)
         ModuleHelper.hookAllMethods(insetsSourceClass, SET_FRAME_METHOD, callback)
 
         resolveWindowManagerAbi(classLoader)
