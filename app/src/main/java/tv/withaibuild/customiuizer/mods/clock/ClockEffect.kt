@@ -130,21 +130,44 @@ internal class ClockEffect(
     /**
      * Select the most-specific target capability for a real clock object.
      *
-     * Among matching target classes, choose the one that has no other matching target as a strict
-     * subclass.  If two matching classes are incomparable, fail closed and return `null`.
+     * Bounded direct [Array] scan with zero temporary collections.  The algorithm is independent of
+     * the target array order: if two matching target classes are comparable, the more specific one
+     * wins; if they are incomparable, or if a duplicate target class is present, fail closed.
      */
     private fun selectTarget(clock: Any): ClockTargetCapability? {
-        val matching = abi.targets.filter { it.targetClass.isInstance(clock) }
-        if (matching.isEmpty()) return null
-        if (matching.size == 1) return matching[0]
+        var selected: ClockTargetCapability? = null
 
-        val mostSpecific = matching.filter { candidate ->
-            matching.none { other ->
-                other !== candidate && candidate.targetClass.isAssignableFrom(other.targetClass)
+        for (i in abi.targets.indices) {
+            val candidate = abi.targets[i]
+            if (!candidate.targetClass.isInstance(clock)) continue
+
+            val current = selected
+            if (current == null) {
+                selected = candidate
+                continue
+            }
+
+            if (current.targetClass == candidate.targetClass) {
+                // duplicate target class is a malformed ABI
+                return null
+            }
+
+            when {
+                current.targetClass.isAssignableFrom(candidate.targetClass) -> {
+                    // candidate is a strict subclass of current; it is more specific.
+                    selected = candidate
+                }
+                candidate.targetClass.isAssignableFrom(current.targetClass) -> {
+                    // current remains the more specific class.
+                }
+                else -> {
+                    // incomparable matching classes
+                    return null
+                }
             }
         }
 
-        return if (mostSpecific.size == 1) mostSpecific[0] else null
+        return selected
     }
 
     private fun readField(field: Field, target: Any): Any? {

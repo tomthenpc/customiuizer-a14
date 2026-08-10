@@ -5,6 +5,7 @@ import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.lang.reflect.Field
 import java.lang.reflect.Method
+import java.lang.reflect.Modifier
 
 /**
  * Cold resolver for the Architecture C SystemClock core.
@@ -205,46 +206,74 @@ internal object ClockResolver {
     /**
      * Resolve `format` with three parameters compatible with [contextClass] and [StringBuilder].
      *
-     * A formal parameter type is compatible when it is assignable from the corresponding known
-     * argument lower bound (e.g. `StringBuilder` is assignable to `Appendable` and `CharSequence`,
-     * but not to `StringBuffer`).  Return type is not an oracle.
+     * Walks the full usable hierarchy, collecting compatible candidates from every level.  Methods
+     * with the same effective parameter signature at multiple levels are normalized: the nearest
+     * declaration wins.  Synthetic/bridge artifacts at the same level are only used when no
+     * non-synthetic method with the same signature exists.  Superclass private methods are not
+     * treated as inherited candidates.  Return type is not an oracle.
      *
-     * When multiple compatible methods exist at the same hierarchy level, the most-specific
-     * candidate is selected only if it strictly dominates every other candidate for all three
-     * parameters.  Incomparable candidates are fail-closed.
+     * After normalization, the single most-specific candidate is selected using parameter-specific
+     * dominance (A dominates B when every parameter of A is assignable to the corresponding
+     * parameter of B and at least one parameter is strictly narrower).  Incomparable candidates are
+     * fail-closed.
      */
     private fun resolveFormat(startClass: Class<*>, contextClass: Class<*>): Method? {
         val stringBuilderClass = StringBuilder::class.java
-        var current: Class<*>? = startClass
+        val collected = ArrayList<Method>()
 
+        var current: Class<*>? = startClass
         while (current != null) {
-            val candidates = try {
-                current.declaredMethods.filter {
-                    it.name == METHOD_FORMAT && it.parameterCount == 3
-                }
+            val declared = try {
+                current.declaredMethods
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
                 return null
             }
 
-            val compatible = candidates.filter { method ->
-                val pt = method.parameterTypes
-                pt[0].isAssignableFrom(contextClass) &&
-                    pt[1].isAssignableFrom(stringBuilderClass) &&
-                    pt[2].isAssignableFrom(stringBuilderClass)
-            }
+            // Two passes: non-synthetic first, then synthetic/bridge.  This prefers the real method
+            // over a bridge at the same level without depending on reflection iteration order.
+            for (syntheticPass in 0..1) {
+                for (method in declared) {
+                    val isSynthetic = method.isSynthetic || method.isBridge
+                    if (syntheticPass == 0 && isSynthetic) continue
+                    if (syntheticPass == 1 && !isSynthetic) continue
+                    if (method.name != METHOD_FORMAT || method.parameterCount != 3) continue
 
-            if (compatible.isNotEmpty()) {
-                return selectMostSpecificFormat(compatible) ?: return null
+                    val pt = method.parameterTypes
+                    val compatible = pt[0].isAssignableFrom(contextClass) &&
+                        pt[1].isAssignableFrom(stringBuilderClass) &&
+                        pt[2].isAssignableFrom(stringBuilderClass)
+                    if (!compatible) continue
+
+                    if (current !== startClass && java.lang.reflect.Modifier.isPrivate(method.modifiers)) continue
+
+                    collected.add(method)
+                }
             }
 
             current = current.superclass
         }
-        return null
+
+        if (collected.isEmpty()) return null
+
+        // Normalize same parameter signatures: nearest (already in collected order) wins.
+        val distinct = ArrayList<Method>()
+        val seenSignatures = HashSet<List<Class<*>>>()
+        for (method in collected) {
+            val signature = method.parameterTypes.toList()
+            if (seenSignatures.add(signature)) {
+                distinct.add(method)
+            }
+        }
+
+        return selectMostSpecificFormat(distinct)
     }
 
     private fun selectSingleNoArgCandidate(candidates: List<Method>): Method? {
-        val nonSynthetic = candidates.filter { !it.isSynthetic && !it.isBridge }
+        val nonSynthetic = ArrayList<Method>()
+        for (method in candidates) {
+            if (!method.isSynthetic && !method.isBridge) nonSynthetic.add(method)
+        }
         return when {
             nonSynthetic.size == 1 -> nonSynthetic[0]
             nonSynthetic.isEmpty() && candidates.size == 1 -> candidates[0]
@@ -255,13 +284,21 @@ internal object ClockResolver {
     private fun selectMostSpecificFormat(candidates: List<Method>): Method? {
         if (candidates.size == 1) return setAccessible(candidates[0])
 
-        val mostSpecific = candidates.filter { candidate ->
-            candidates.none { other ->
-                other !== candidate && other.dominates(candidate)
+        var chosen: Method? = null
+        for (method in candidates) {
+            if (chosen == null) {
+                chosen = method
+                continue
+            }
+
+            when {
+                method.dominates(chosen) -> chosen = method
+                chosen.dominates(method) -> { /* keep chosen */ }
+                else -> return null
             }
         }
 
-        return if (mostSpecific.size == 1) setAccessible(mostSpecific[0]) else null
+        return setAccessible(chosen)
     }
 
     private fun Method.dominates(other: Method): Boolean {
@@ -275,7 +312,8 @@ internal object ClockResolver {
         return strictlyNarrower
     }
 
-    private fun setAccessible(method: Method): Method? {
+    private fun setAccessible(method: Method?): Method? {
+        if (method == null) return null
         return try {
             method.isAccessible = true
             method

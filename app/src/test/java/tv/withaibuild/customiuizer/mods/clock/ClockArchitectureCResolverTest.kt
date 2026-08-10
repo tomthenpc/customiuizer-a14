@@ -5,6 +5,7 @@ import android.content.ContextWrapper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -217,6 +218,67 @@ class ClockArchitectureCResolverTest {
     }
 
     // ------------------------------------------------------------------------
+    // Cross-hierarchy format resolution.
+    // ------------------------------------------------------------------------
+
+    @Test
+    fun format_crossHierarchy_broadChildNarrowParent_selectsParentNarrow() {
+        val cap = ClockResolver.resolveCalendarFromDeclaredType(
+            FakeCalendarChildBroad::class.java,
+            Context::class.java,
+        )
+
+        assertNotNull(cap)
+        assertEquals(FakeCalendarParentNarrow::class.java, cap!!.formatMethod.declaringClass)
+        assertEquals(StringBuilder::class.java, cap.formatMethod.parameterTypes[1])
+    }
+
+    @Test
+    fun format_crossHierarchy_childExactOverride_selectsChild() {
+        val cap = ClockResolver.resolveCalendarFromDeclaredType(
+            FakeCalendarChildExact::class.java,
+            Context::class.java,
+        )
+
+        assertNotNull(cap)
+        assertEquals(FakeCalendarChildExact::class.java, cap!!.formatMethod.declaringClass)
+    }
+
+    @Test
+    fun format_crossHierarchy_narrowChildBroadParent_selectsChildNarrow() {
+        val cap = ClockResolver.resolveCalendarFromDeclaredType(
+            FakeCalendarChildNarrow::class.java,
+            Context::class.java,
+        )
+
+        assertNotNull(cap)
+        assertEquals(FakeCalendarChildNarrow::class.java, cap!!.formatMethod.declaringClass)
+        assertEquals(StringBuilder::class.java, cap.formatMethod.parameterTypes[1])
+    }
+
+    @Test
+    fun format_crossHierarchy_incomparableAcrossLevels_failClosed() {
+        val cap = ClockResolver.resolveCalendarFromDeclaredType(
+            FakeCalendarChildIncomparable::class.java,
+            Context::class.java,
+        )
+
+        assertNull(cap)
+    }
+
+    @Test
+    fun format_crossHierarchy_privateSuperclass_ignored() {
+        val cap = ClockResolver.resolveCalendarFromDeclaredType(
+            FakeCalendarChildPrivateParent::class.java,
+            Context::class.java,
+        )
+
+        assertNotNull(cap)
+        assertEquals(FakeCalendarChildPrivateParent::class.java, cap!!.formatMethod.declaringClass)
+        assertEquals(Any::class.java, cap.formatMethod.parameterTypes[1])
+    }
+
+    // ------------------------------------------------------------------------
     // Runtime fallback.
     // ------------------------------------------------------------------------
 
@@ -234,7 +296,7 @@ class ClockArchitectureCResolverTest {
     }
 
     @Test
-    fun resolveCalendarFromRuntime_doesNotRetainInstance() {
+    fun resolveCalendarFromRuntime_returnsClassAndMethodsNoInstanceRetained() {
         val instance = FakeCalendarBase()
         val cap = ClockResolver.resolveCalendarFromRuntime(
             instance,
@@ -242,7 +304,10 @@ class ClockArchitectureCResolverTest {
         )
 
         assertNotNull(cap)
-        assertFalse(cap!!.calendarClass.isInstance(Any()))
+        assertEquals(FakeCalendarBase::class.java, cap!!.calendarClass)
+        assertEquals(Method::class.java, cap.setTimeInMillisMethod::class.java)
+        assertEquals(Method::class.java, cap.formatMethod::class.java)
+        assertNotSame(instance, cap.calendarClass)
     }
 
     // ------------------------------------------------------------------------
@@ -361,6 +426,55 @@ class ClockArchitectureCResolverTest {
 
     class FakeCalendarChildWithFormat : FakeCalendarNoFormatBase() {
         fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {}
+    }
+
+    // ------------------------------------------------------------------------
+    // Cross-hierarchy fakes.
+    // ------------------------------------------------------------------------
+
+    open class FakeCalendarParentNarrow {
+        fun setTimeInMillis(millis: Long) {}
+        open fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {}
+    }
+
+    class FakeCalendarChildBroad : FakeCalendarParentNarrow() {
+        fun format(ctx: Context, out: Any, pattern: Any) {}
+    }
+
+    open class FakeCalendarParentExact {
+        fun setTimeInMillis(millis: Long) {}
+        open fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {}
+    }
+
+    class FakeCalendarChildExact : FakeCalendarParentExact() {
+        override fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {}
+    }
+
+    open class FakeCalendarParentBroad {
+        fun setTimeInMillis(millis: Long) {}
+        open fun format(ctx: Context, out: Any, pattern: Any) {}
+    }
+
+    class FakeCalendarChildNarrow : FakeCalendarParentBroad() {
+        fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {}
+    }
+
+    open class FakeCalendarParentIncomparable {
+        fun setTimeInMillis(millis: Long) {}
+        open fun format(ctx: Context, out: CharSequence, pattern: StringBuilder) {}
+    }
+
+    class FakeCalendarChildIncomparable : FakeCalendarParentIncomparable() {
+        fun format(ctx: Context, out: Appendable, pattern: StringBuilder) {}
+    }
+
+    open class FakeCalendarParentPrivate {
+        fun setTimeInMillis(millis: Long) {}
+        private fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {}
+    }
+
+    class FakeCalendarChildPrivateParent : FakeCalendarParentPrivate() {
+        fun format(ctx: Context, out: Any, pattern: Any) {}
     }
 
     class FakeContextForResolver : ContextWrapper(null)

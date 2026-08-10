@@ -166,7 +166,7 @@ class ClockArchitectureCEffectTest {
     }
 
     @Test
-    fun invokeUpdateTime_mostSpecificCallsSubclassMethod() {
+    fun invokeUpdateTime_mostSpecificCallsSubclassMethod_baseFirst() {
         val clock = FakeEffectStatusBarClock()
         val effect = effectWith(
             controller = controllerFor(FakeEffectController::class.java),
@@ -180,6 +180,77 @@ class ClockArchitectureCEffectTest {
         assertTrue(effect.invokeUpdateTime(clock))
         assertEquals(1, clock.updateTimeCalls)
         assertFalse(clock.parentCalled)
+    }
+
+    @Test
+    fun invokeUpdateTime_mostSpecificCallsSubclassMethod_childFirst() {
+        val clock = FakeEffectStatusBarClock()
+        val effect = effectWith(
+            controller = controllerFor(FakeEffectController::class.java),
+            targets = arrayOf(
+                targetFor(FakeEffectStatusBarClock::class.java),
+                targetFor(FakeEffectMiuiClock::class.java),
+            ),
+            calendar = calendarFor(FakeEffectCalendar::class.java),
+        )
+
+        assertTrue(effect.invokeUpdateTime(clock))
+        assertEquals(1, clock.updateTimeCalls)
+        assertFalse(clock.parentCalled)
+    }
+
+    @Test
+    fun invokeUpdateTime_duplicateTargetClassFailsClosed() {
+        val clock = FakeEffectMiuiClock()
+        val effect = effectWith(
+            controller = controllerFor(FakeEffectController::class.java),
+            targets = arrayOf(
+                targetFor(FakeEffectMiuiClock::class.java),
+                targetFor(FakeEffectMiuiClock::class.java),
+            ),
+            calendar = calendarFor(FakeEffectCalendar::class.java),
+        )
+
+        assertFalse(effect.invokeUpdateTime(clock))
+    }
+
+    @Test
+    fun readController_orderIndependentAndDuplicateFailsClosed() {
+        val clock = FakeEffectStatusBarClock().apply {
+            mMiuiStatusBarClockController = Any()
+        }
+
+        val baseFirst = effectWith(
+            controller = controllerFor(FakeEffectController::class.java),
+            targets = arrayOf(
+                targetFor(FakeEffectClock::class.java),
+                targetFor(FakeEffectStatusBarClock::class.java),
+            ),
+            calendar = calendarFor(FakeEffectCalendar::class.java),
+        )
+
+        val childFirst = effectWith(
+            controller = controllerFor(FakeEffectController::class.java),
+            targets = arrayOf(
+                targetFor(FakeEffectStatusBarClock::class.java),
+                targetFor(FakeEffectClock::class.java),
+            ),
+            calendar = calendarFor(FakeEffectCalendar::class.java),
+        )
+
+        assertSame(clock.mMiuiStatusBarClockController, baseFirst.readController(clock))
+        assertSame(clock.mMiuiStatusBarClockController, childFirst.readController(clock))
+
+        val duplicate = effectWith(
+            controller = controllerFor(FakeEffectController::class.java),
+            targets = arrayOf(
+                targetFor(FakeEffectMiuiClock::class.java),
+                targetFor(FakeEffectMiuiClock::class.java),
+            ),
+            calendar = calendarFor(FakeEffectCalendar::class.java),
+        )
+
+        assertNull(duplicate.readController(clock))
     }
 
     @Test
