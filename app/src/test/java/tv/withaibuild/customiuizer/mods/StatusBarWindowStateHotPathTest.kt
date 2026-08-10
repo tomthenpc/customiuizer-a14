@@ -34,8 +34,6 @@ class StatusBarWindowStateHotPathTest {
     fun setUp() {
         SystemStatusBarInsetsHooks.resetForTest()
         StatusBarHeightConfig.resetForTest()
-        setWindowStateClass(FakeWindowState::class.java)
-        setClientWindowFramesClass(FakeClientWindowFrames::class.java)
         setStatusBarHeightEffect(makeTestEffect())
     }
 
@@ -43,8 +41,6 @@ class StatusBarWindowStateHotPathTest {
     fun tearDown() {
         SystemStatusBarInsetsHooks.resetForTest()
         StatusBarHeightConfig.resetForTest()
-        setWindowStateClass(null)
-        setClientWindowFramesClass(null)
     }
 
     @Test
@@ -316,6 +312,104 @@ class StatusBarWindowStateHotPathTest {
         assertEquals(1, chain.proceedCount)
     }
 
+    @Test
+    fun setFrames_usesSingleConfigSnapshotEvenIfHelperMutatesConfig() {
+        configureHeight(40)
+        val win = FakeWindowState(statusType = true, onGetDisplayId = {
+            StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
+        })
+        rememberStatusBarWindow(win)
+
+        val clientFrames = FakeClientWindowFrames()
+        setRect(clientFrames.frame, 0, 0, 1080, 80)
+
+        val chain = FakeChain(target = win, argList = listOf(clientFrames))
+        SystemStatusBarInsetsHooks.onSetFrames(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(40, clientFrames.frame.bottom) // 40dp @ 160dpi, not 44
+        assertEquals(44, StatusBarHeightConfig.configuredDp)
+        assertEquals(44, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun setFrames_secondaryDisplay_usesLocalPxAndDoesNotPolluteGlobal() {
+        val globalMetrics = DisplayMetrics().apply {
+            densityDpi = 469
+            density = 2.93125f
+        }
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            metrics = globalMetrics,
+        )
+        val win = FakeWindowState(statusType = true).apply {
+            mDisplayId = 1
+            mDisplayMetrics = DisplayMetrics().apply {
+                densityDpi = 200
+                density = 1.25f
+            }
+        }
+        rememberStatusBarWindow(win)
+
+        val clientFrames = FakeClientWindowFrames()
+        setRect(clientFrames.frame, 0, 0, 1080, 80)
+
+        val chain = FakeChain(target = win, argList = listOf(clientFrames))
+        SystemStatusBarInsetsHooks.onSetFrames(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(55, clientFrames.frame.bottom) // 44dp @ 200dpi
+        assertEquals(469, StatusBarHeightConfig.densityDpi)
+        assertEquals(129, StatusBarHeightConfig.configuredPx)
+    }
+
+    @Test
+    fun setFrames_preProceedMetricsRuntimeException_proceedsOriginalOnce() {
+        configureHeight(44)
+        val win = FakeWindowState(statusType = true).apply {
+            mDisplayId = 1
+            onGetDisplayMetrics = { throw RuntimeException("metrics failed") }
+        }
+        rememberStatusBarWindow(win)
+
+        val clientFrames = FakeClientWindowFrames()
+        setRect(clientFrames.frame, 0, 0, 1080, 80)
+
+        val chain = FakeChain(target = win, argList = listOf(clientFrames))
+        val result = SystemStatusBarInsetsHooks.onSetFrames(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(80, clientFrames.frame.bottom)
+        assertTrue(result == null || result == Unit)
+    }
+
+    @Test
+    fun setFrames_preProceedMetricsOom_propagatesSameIdentityWithoutProceed() {
+        configureHeight(44)
+        val oom = OutOfMemoryError("metrics OOM")
+        val win = FakeWindowState(statusType = true).apply {
+            mDisplayId = 1
+            onGetDisplayMetrics = { throw oom }
+        }
+        rememberStatusBarWindow(win)
+
+        val clientFrames = FakeClientWindowFrames()
+        setRect(clientFrames.frame, 0, 0, 1080, 80)
+
+        val chain = FakeChain(target = win, argList = listOf(clientFrames))
+
+        val thrown = try {
+            SystemStatusBarInsetsHooks.onSetFrames(chain)
+            null
+        } catch (t: Throwable) {
+            t
+        }
+
+        assertSame(oom, thrown)
+        assertEquals(0, chain.proceedCount)
+        assertEquals(80, clientFrames.frame.bottom)
+    }
+
     private fun configureHeight(dp: Int) {
         StatusBarHeightConfig.configure(PrefMap().apply { put("system_statusbarheight", dp) })
     }
@@ -341,6 +435,9 @@ class StatusBarWindowStateHotPathTest {
         val wm = StatusBarHeightResolver.resolveWindowManagerClass(
             FakeWindowState::class.java,
             FakeLayoutParams::class.java,
+        ).copy(
+            clientWindowFramesClass = FakeClientWindowFrames::class.java,
+            clientWindowFramesFrameField = FakeClientWindowFrames::class.java.getDeclaredField("frame").also { it.isAccessible = true },
         )
         val decor = DecorInsetsCapability(
             infoClass = null,
@@ -363,18 +460,6 @@ class StatusBarWindowStateHotPathTest {
         return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor))
     }
 
-    private fun setWindowStateClass(clazz: Class<*>?) {
-        val field = SystemStatusBarInsetsHooks::class.java.getDeclaredField("windowStateClass")
-        field.isAccessible = true
-        field.set(null, clazz)
-    }
-
-    private fun setClientWindowFramesClass(clazz: Class<*>?) {
-        val field = SystemStatusBarInsetsHooks::class.java.getDeclaredField("clientWindowFramesClass")
-        field.isAccessible = true
-        field.set(null, clazz)
-    }
-
     private fun statusBarHeightRuntime(): StatusBarHeightRuntime {
         val field = SystemStatusBarInsetsHooks::class.java.getDeclaredField("statusBarHeightRuntime")
         field.isAccessible = true
@@ -392,6 +477,7 @@ class StatusBarWindowStateHotPathTest {
     class FakeWindowState(
         statusType: Boolean = true,
         var onGetDisplayMetrics: (() -> Unit)? = null,
+        var onGetDisplayId: (() -> Unit)? = null,
     ) {
         val mAttrs: FakeLayoutParams = FakeLayoutParams(
             type = if (statusType) TYPE_STATUS_BAR else 1,
@@ -404,7 +490,10 @@ class StatusBarWindowStateHotPathTest {
         }
         var mDisplayContent = FakeDisplayContent(mDisplayMetrics)
 
-        fun getDisplayId(): Int = mDisplayId
+        fun getDisplayId(): Int {
+            onGetDisplayId?.invoke()
+            return mDisplayId
+        }
         fun getDisplayMetrics(): DisplayMetrics {
             onGetDisplayMetrics?.invoke()
             return mDisplayMetrics

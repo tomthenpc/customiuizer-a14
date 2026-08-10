@@ -89,24 +89,9 @@ object SystemStatusBarInsetsHooks {
     /** Process-scoped runtime state: identity, weak owner refs, fallback budget and refresh. */
     private val statusBarHeightRuntime = StatusBarHeightRuntime()
 
-    /** Resolved `com.android.server.wm.WindowState` class, used for an allocation-free type test. */
-    @Volatile
-    private var windowStateClass: Class<*>? = null
-
-    /** Resolved `ClientWindowFrames` class and fields; null if the ABI could not be resolved. */
-    private var clientWindowFramesClass: Class<*>? = null
-    private var clientWindowFramesFrameField: Field? = null
-    private var clientWindowFramesDisplayFrameField: Field? = null
-    private var clientWindowFramesParentFrameField: Field? = null
-
     /** A14 DisplayPolicy.DecorInsets.Info fields used on the cold configuration path. */
     private var decorInfoNonDecorInsetsField: Field? = null
     private var decorInfoNonDecorFrameField: Field? = null
-
-    /** Cached `WindowState.getFrame()`/`getDisplayMetrics()`/`getDisplayId()` methods. */
-    private var windowStateGetFrameMethod: Method? = null
-    private var windowStateGetDisplayMetricsMethod: Method? = null
-    private var windowStateGetDisplayIdMethod: Method? = null
 
     /** Bounded set of critical diagnostic keys whose first hit has already been logged. */
     private val loggedCritical = LinkedHashSet<String>()
@@ -166,14 +151,6 @@ object SystemStatusBarInsetsHooks {
         statusBarHeightEffect = null
         hookInstalled = false
         statusBarHeightRuntime.resetKnownStatusBars()
-        windowStateClass = null
-        clientWindowFramesClass = null
-        clientWindowFramesFrameField = null
-        clientWindowFramesDisplayFrameField = null
-        clientWindowFramesParentFrameField = null
-        windowStateGetFrameMethod = null
-        windowStateGetDisplayMetricsMethod = null
-        windowStateGetDisplayIdMethod = null
         decorInfoNonDecorInsetsField = null
         decorInfoNonDecorFrameField = null
     }
@@ -229,7 +206,6 @@ object SystemStatusBarInsetsHooks {
         // ABI resolution and configuration succeeded.
         statusBarHeightAbi = abi
         statusBarHeightEffect = StatusBarHeightEffect(abi)
-        publishH3LegacyAbi(abi.windowManager)
 
         val state = StatusBarHeightConfig.currentState()
         logInstall(
@@ -255,7 +231,7 @@ object SystemStatusBarInsetsHooks {
 
         installDisplayPolicyHook()
         installDecorInsetsInfoHook(classLoader)
-        installWindowStateHook(classLoader)
+        installWindowStateHook()
 
         ModuleHelper.observePreferenceChange(statusBarHeightObserver, StatusBarHeightConfig)
 
@@ -363,24 +339,42 @@ object SystemStatusBarInsetsHooks {
         return hasCore && hasMetrics && hasIdentification
     }
 
-    private fun installWindowStateHook(classLoader: ClassLoader) {
+    private fun installWindowStateHook() {
         val abi = statusBarHeightAbi ?: run {
             logInstall("ABI not resolved before WindowState hook install")
             return
         }
-        val windowStateClass = abi.windowManager.windowStateClass
-        if (windowStateClass == null) {
+        val effect = statusBarHeightEffect ?: run {
+            logInstall("Effect not ready before WindowState hook install")
+            return
+        }
+        val wm = abi.windowManager
+
+        if (wm.windowStateClass == null) {
             logInstall("WindowState class not found")
             return
         }
 
-        resolveClientWindowFramesClass(windowStateClass)
+        // H3 core capability: WindowState, ClientWindowFrames.frame, getDisplayId.
+        // Metrics capability may be partial; fail closed per-callback when actually needed.
+        val hasH3Core = wm.clientWindowFramesClass != null
+            && wm.clientWindowFramesFrameField != null
+            && wm.windowStateGetDisplayIdMethod != null
 
-        ModuleHelper.hookAllMethods(windowStateClass, SET_FRAMES_METHOD, object : MethodHook() {
-            override fun intercept(chain: XposedInterface.Chain): Any? {
-                return onSetFrames(chain)
-            }
-        })
+        if (!hasH3Core) {
+            logInstall("H3 capability incomplete, skipping setFrames hot path")
+            return
+        }
+
+        ModuleHelper.hookAllMethods(wm.windowStateClass, SET_FRAMES_METHOD, SetFramesCallback(effect))
+    }
+
+    private class SetFramesCallback(
+        private val effect: StatusBarHeightEffect,
+    ) : MethodHook() {
+        override fun intercept(chain: XposedInterface.Chain): Any? {
+            return onSetFrames(chain, effect)
+        }
     }
 
     /**
@@ -437,36 +431,6 @@ object SystemStatusBarInsetsHooks {
                 return onDecorInsetsInfoUpdate(chain)
             }
         })
-    }
-
-    private fun publishH3LegacyAbi(wm: tv.withaibuild.customiuizer.mods.statusbarheight.WindowManagerCapability) {
-        windowStateClass = wm.windowStateClass
-        windowStateGetFrameMethod = wm.windowStateGetFrameMethod
-        windowStateGetDisplayMetricsMethod = wm.windowStateGetDisplayMetricsMethod
-        windowStateGetDisplayIdMethod = wm.windowStateGetDisplayIdMethod
-    }
-
-    private fun resolveClientWindowFramesClass(windowStateClass: Class<*>) {
-        val setFramesMethods = try {
-            windowStateClass.getDeclaredMethods().filter { it.name == SET_FRAMES_METHOD }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            emptyList<Method>()
-        }
-
-        val matched = setFramesMethods.firstOrNull { method ->
-            method.parameterTypes.isNotEmpty() && method.parameterTypes[0].simpleName == "ClientWindowFrames"
-        } ?: return
-
-        val clazz: Class<*> = matched.parameterTypes[0]
-        clientWindowFramesClass = clazz
-        try {
-            clientWindowFramesFrameField = clazz.getField("frame").also { it.isAccessible = true }
-            clientWindowFramesDisplayFrameField = clazz.getField("displayFrame").also { it.isAccessible = true }
-            clientWindowFramesParentFrameField = clazz.getField("parentFrame").also { it.isAccessible = true }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-        }
     }
 
     @JvmStatic
@@ -548,7 +512,15 @@ object SystemStatusBarInsetsHooks {
 
     @JvmStatic
     internal fun onSetFrames(chain: XposedInterface.Chain): Any? {
-        if (!StatusBarHeightConfig.enabled) return chain.proceed()
+        val effect = statusBarHeightEffect ?: return chain.proceed()
+        return onSetFrames(chain, effect)
+    }
+
+    private fun onSetFrames(chain: XposedInterface.Chain, effect: StatusBarHeightEffect): Any? {
+        // One snapshot per callback; all further decisions use this local state.
+        val config = StatusBarHeightConfig.currentState()
+
+        if (!config.enabled) return chain.proceed()
 
         val win = chain.thisObject ?: return chain.proceed()
         // setFrames is a global WindowState method. Discovery already happened in
@@ -556,19 +528,19 @@ object SystemStatusBarInsetsHooks {
         if (!isKnownStatusBarWindow(win)) return chain.proceed()
 
         val clientFrames = chain.getArg(0) ?: return chain.proceed()
-        if (clientFramesClassMismatch(clientFrames)) return chain.proceed()
+        if (!effect.isClientWindowFrames(clientFrames)) return chain.proceed()
 
-        val displayId = getDisplayId(win)
+        val displayId = effect.readDisplayId(win)
 
         val configuredPx = if (displayId == 0) {
-            StatusBarHeightConfig.configuredPx
+            config.configuredPx
         } else {
-            val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
-            StatusBarHeightConfig.configuredPxFor(StatusBarHeightConfig.configuredDp, metrics)
+            val metrics = effect.readWindowDisplayMetrics(win) ?: return chain.proceed()
+            StatusBarHeightConfig.configuredPxFor(config.configuredDp, metrics)
         }
         if (configuredPx <= 0) return chain.proceed()
 
-        val frame = readClientWindowFrame(clientFrames) ?: return chain.proceed()
+        val frame = effect.readClientWindowFrame(clientFrames) ?: return chain.proceed()
 
         val oldTop = frame.top
         val oldBottom = frame.bottom
@@ -645,25 +617,6 @@ object SystemStatusBarInsetsHooks {
         }
     }
 
-    private fun clientFramesClassMismatch(clientFrames: Any): Boolean {
-        val resolvedClass = clientWindowFramesClass
-        return if (resolvedClass != null) {
-            !resolvedClass.isInstance(clientFrames)
-        } else {
-            clientFrames.javaClass.simpleName != "ClientWindowFrames"
-        }
-    }
-
-    private fun readClientWindowFrame(clientFrames: Any): Rect? {
-        return try {
-            clientWindowFramesFrameField?.get(clientFrames) as? Rect
-                ?: XposedHelpers.getObjectField(clientFrames, "frame") as? Rect
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            null
-        }
-    }
-
     private fun isKnownStatusBarWindow(win: Any): Boolean =
         statusBarHeightRuntime.isKnownStatusBar(win)
 
@@ -710,32 +663,6 @@ object SystemStatusBarInsetsHooks {
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             false
-        }
-    }
-
-    @JvmStatic
-    internal fun tryGetWindowDisplayMetrics(win: Any): DisplayMetrics? {
-        return try {
-            val direct = windowStateGetDisplayMetricsMethod?.invoke(win) as? DisplayMetrics
-            if (direct != null) return direct
-
-            val displayContent = XposedHelpers.getObjectField(win, "mDisplayContent") ?: return null
-            XposedHelpers.callMethod(displayContent, "getDisplayMetrics") as? DisplayMetrics
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            null
-        }
-    }
-
-    @JvmStatic
-    internal fun getDisplayId(win: Any): Int {
-        return try {
-            windowStateGetDisplayIdMethod?.invoke(win) as? Int
-                ?: XposedHelpers.callMethod(win, "getDisplayId") as? Int
-                ?: -1
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            -1
         }
     }
 

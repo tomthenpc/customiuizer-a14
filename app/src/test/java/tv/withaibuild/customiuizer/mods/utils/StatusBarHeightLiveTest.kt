@@ -427,6 +427,9 @@ class StatusBarHeightLiveTest {
         val wm = StatusBarHeightResolver.resolveWindowManagerClass(
             FakeWindowState::class.java,
             WindowManager.LayoutParams::class.java,
+        ).copy(
+            clientWindowFramesClass = ClientWindowFrames::class.java,
+            clientWindowFramesFrameField = ClientWindowFrames::class.java.getDeclaredField("frame").also { it.isAccessible = true },
         )
         val decor = DecorInsetsCapability(
             infoClass = null,
