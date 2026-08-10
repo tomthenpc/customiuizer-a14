@@ -316,11 +316,19 @@ internal object StatusBarHeightResolver {
             emptyList()
         }
 
-        val matched = setFramesMethods.firstOrNull { method ->
-            method.parameterTypes.isNotEmpty() && method.parameterTypes[0].simpleName == "ClientWindowFrames"
-        } ?: return null
+        // Collect all overloads whose first parameter is named ClientWindowFrames,
+        // then use the single distinct class. Fail closed on zero or multiple types.
+        val candidateClasses = setFramesMethods
+            .mapNotNull { method ->
+                if (method.parameterTypes.isEmpty()) null
+                else if (method.parameterTypes[0].simpleName != "ClientWindowFrames") null
+                else method.parameterTypes[0]
+            }
+            .distinct()
 
-        val clazz = matched.parameterTypes[0]
+        if (candidateClasses.size != 1) return null
+
+        val clazz = candidateClasses[0]
         val frameField = resolveDeclaredField(clazz, "frame")
         return clazz to frameField
     }

@@ -103,6 +103,24 @@ internal class StatusBarHeightEffect(
         return result as? Int ?: -1
     }
 
+    /** Allocation-free `ClientWindowFrames` test. */
+    fun isClientWindowFrames(value: Any): Boolean {
+        val clazz = windowManager.clientWindowFramesClass ?: return false
+        return clazz.isInstance(value)
+    }
+
+    /** Reads `ClientWindowFrames.frame` through the frozen field. */
+    fun readClientWindowFrame(clientFrames: Any): Rect? {
+        val field = windowManager.clientWindowFramesFrameField ?: return null
+        if (!field.declaringClass.isInstance(clientFrames)) return null
+        return try {
+            field.get(clientFrames) as? Rect
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+    }
+
     /**
      * Reads the `WindowState` frame for first-hit diagnostics.
      *
