@@ -21,26 +21,17 @@ internal object StatusBarHeightResolver {
     private const val WINDOW_STATE_CLASS = "com.android.server.wm.WindowState"
     private const val DISPLAY_POLICY_CLASS = "com.android.server.wm.DisplayPolicy"
     private const val DECOR_INSETS_INFO_CLASS = "com.android.server.wm.DisplayPolicy\$DecorInsets\$Info"
+    private const val WINDOW_MANAGER_SERVICE_CLASS = "com.android.server.wm.WindowManagerService"
 
     private const val SET_FRAME_METHOD = "setFrame"
     private const val GET_TYPE_METHOD = "getType"
     private const val GET_FRAME_METHOD = "getFrame"
     private const val GET_ID_METHOD = "getId"
     private const val SET_FRAMES_METHOD = "setFrames"
-    private const val LAYOUT_WINDOW_LW_METHOD = "layoutWindowLw"
     private const val DECOR_INSETS_UPDATE_METHOD = "update"
-
-    /** Public `WindowInsets.Type.statusBars()` bit. */
-    private const val STATUS_BARS_TYPE = 1
-
-    /** `WindowManager.LayoutParams.TYPE_STATUS_BAR` = 2000. */
-    private const val TYPE_STATUS_BAR = 2000
 
     /**
      * Resolve the cold core ABI.
-     *
-     * @return an immutable capability description.  Individual capabilities may be unavailable while
-     *         others are present.
      */
     fun resolveCore(classLoader: ClassLoader): StatusBarHeightAbi {
         val insets = resolveInsetsSourceCapability(classLoader)
@@ -55,8 +46,7 @@ internal object StatusBarHeightResolver {
     }
 
     /**
-     * Resolve InsetsSource capability from an already-loaded class.  Used by tests and by
-     * [resolveCore].
+     * Resolve InsetsSource capability from an already-loaded class.  Used by tests and by [resolveCore].
      */
     fun resolveInsetsSourceClass(sourceClass: Class<*>?, classLoader: ClassLoader): InsetsSourceCapability {
         val setFrameMethods = if (sourceClass != null) {
@@ -89,21 +79,20 @@ internal object StatusBarHeightResolver {
 
         val typeInfo = selectTypeEncoding(sourceAbi)
 
-        val hasGetId = sourceClass != null && hasMethod(sourceClass, GET_ID_METHOD)
-        val hasGetFrame = sourceClass != null && hasMethod(sourceClass, GET_FRAME_METHOD)
-
         val typeField = if (sourceClass != null) resolveIntField(sourceClass, "mType") else null
-        val getTypeMethod = if (sourceClass != null) accessibleMethodOrNull(sourceClass, GET_TYPE_METHOD) else null
+        val getTypeMethod = if (sourceClass != null && typeField == null) resolveNoArgMethod(sourceClass, GET_TYPE_METHOD) else null
+        val getIdMethod = if (sourceClass != null) resolveNoArgMethod(sourceClass, GET_ID_METHOD) else null
+        val getFrameMethod = if (sourceClass != null) resolveNoArgMethod(sourceClass, GET_FRAME_METHOD) else null
 
         return InsetsSourceCapability(
             sourceClass = sourceClass,
             setFrameOneArg = setFrameOneArg,
             setFrameFourArg = setFrameFourArg,
             typeInfo = typeInfo,
-            hasGetId = hasGetId,
-            hasGetFrame = hasGetFrame,
             typeField = typeField,
             getTypeMethod = getTypeMethod,
+            getIdMethod = getIdMethod,
+            getFrameMethod = getFrameMethod,
         )
     }
 
@@ -120,8 +109,8 @@ internal object StatusBarHeightResolver {
             it.parameterTypes.contentEquals(arrayOf(Int::class.javaPrimitiveType, Int::class.javaPrimitiveType))
         }
 
-        val hasGetType = hasMethod(sourceClass, GET_TYPE_METHOD)
-        val hasGetId = hasMethod(sourceClass, GET_ID_METHOD)
+        val hasGetType = resolveNoArgMethod(sourceClass, GET_TYPE_METHOD) != null
+        val hasGetId = resolveNoArgMethod(sourceClass, GET_ID_METHOD) != null
 
         val publicTypes = if (hasIdTypeConstructor) resolvePublicTypes() else RawTypeInfo(null, null, null)
         val legacyTypes = if (hasOneIntConstructor && !hasIdTypeConstructor) resolveLegacyTypes(classLoader) else RawTypeInfo(null, null, null)
@@ -140,13 +129,10 @@ internal object StatusBarHeightResolver {
     }
 
     /**
-     * Select the type encoding from the cold-resolved ABI.
-     *
-     * This is the single source of truth for type encoding selection.
+     * Select the type encoding.  Parity-locked to the existing oracle until B2 integration.
      */
     fun selectTypeEncoding(abi: InsetsSourceAbi): InsetsTypeInfo {
-        // Modern public encoding: (int id, int type) constructor exists and public masks resolve.
-        if (abi.hasIdTypeConstructor && !abi.hasOneIntConstructor && abi.hasGetType) {
+        if (abi.hasIdTypeConstructor && abi.hasGetId && abi.hasGetType) {
             val status = abi.publicStatusType
             if (status != null && status >= 0) {
                 return InsetsTypeInfo(
@@ -158,18 +144,15 @@ internal object StatusBarHeightResolver {
             }
         }
 
-        // Legacy internal encoding: (int type) constructor, no modern constructor, getType, and
-        // both legacy status/nav constants resolvable.
         if (abi.hasOneIntConstructor && !abi.hasIdTypeConstructor && abi.hasGetType) {
             val status = abi.legacyStatusType
             val nav = abi.legacyNavigationType
             if (status != null && status >= 0 && nav != null && nav >= 0) {
-                val cutout = resolveLegacyDisplayCutout(classLoader = null)
                 return InsetsTypeInfo(
                     encoding = InsetsTypeEncoding.LEGACY_INTERNAL,
                     statusBarType = status,
                     navigationType = nav,
-                    displayCutoutType = cutout?.takeIf { it >= 0 } ?: -1,
+                    displayCutoutType = -1,
                 )
             }
         }
@@ -180,12 +163,6 @@ internal object StatusBarHeightResolver {
             navigationType = -1,
             displayCutoutType = -1,
         )
-    }
-
-    private fun resolveLegacyDisplayCutout(classLoader: ClassLoader?): Int? {
-        if (classLoader == null) return null
-        val clazz = XposedHelpers.findClassIfExists(INSETS_STATE_CLASS, classLoader) ?: return null
-        return getStaticInt(clazz, "ITYPE_DISPLAY_CUTOUT")
     }
 
     private fun resolvePublicTypes(): RawTypeInfo {
@@ -208,27 +185,64 @@ internal object StatusBarHeightResolver {
 
     private fun resolveWindowManagerCapability(classLoader: ClassLoader): WindowManagerCapability {
         val windowStateClass = XposedHelpers.findClassIfExists(WINDOW_STATE_CLASS, classLoader)
+        val displayPolicyClass = XposedHelpers.findClassIfExists(DISPLAY_POLICY_CLASS, classLoader)
         val lpClass = findLayoutParamsClass(classLoader)
-        return resolveWindowManagerClass(windowStateClass, lpClass)
+
+        val clientFrames = if (windowStateClass != null) resolveClientWindowFrames(windowStateClass) else null
+
+        val windowFramesClass = if (windowStateClass != null) {
+            resolveDeclaredField(windowStateClass, "mWindowFrames")?.type
+        } else null
+        val windowFramesFrameField = if (windowFramesClass != null) resolveDeclaredField(windowFramesClass, "mFrame") else null
+
+        return WindowManagerCapability(
+            windowStateClass = windowStateClass,
+            displayPolicyClass = displayPolicyClass,
+            windowStateAttrsField = if (windowStateClass != null) resolveDeclaredField(windowStateClass, "mAttrs") else null,
+            windowStateDisplayContentField = if (windowStateClass != null) resolveDeclaredField(windowStateClass, "mDisplayContent") else null,
+            windowStateWindowManagerServiceField = if (windowStateClass != null) resolveDeclaredField(windowStateClass, "mWmService") else null,
+            windowStateGetFrameMethod = if (windowStateClass != null) resolveNoArgMethod(windowStateClass, GET_FRAME_METHOD) else null,
+            windowStateGetDisplayMetricsMethod = if (windowStateClass != null) resolveNoArgMethod(windowStateClass, "getDisplayMetrics") else null,
+            windowStateGetDisplayIdMethod = if (windowStateClass != null) resolveNoArgMethod(windowStateClass, "getDisplayId") else null,
+            windowStateWindowFramesField = if (windowStateClass != null) resolveDeclaredField(windowStateClass, "mWindowFrames") else null,
+            windowFramesFrameField = windowFramesFrameField,
+            clientWindowFramesClass = clientFrames?.first,
+            clientWindowFramesFrameField = clientFrames?.second,
+            layoutParamsClass = lpClass,
+            layoutParamsTypeField = if (lpClass != null) resolveDeclaredField(lpClass, "type") else null,
+            layoutParamsHeightField = if (lpClass != null) resolveDeclaredField(lpClass, "height") else null,
+            layoutParamsPackageNameField = if (lpClass != null) resolveDeclaredField(lpClass, "packageName") else null,
+        )
     }
 
     /**
      * Resolve WindowManager capability from already-loaded classes.  Used by tests and by [resolveCore].
      */
     fun resolveWindowManagerClass(windowStateClass: Class<*>?, lpClass: Class<*>?): WindowManagerCapability {
+        val displayPolicyClass: Class<*>? = null
         val clientFrames = if (windowStateClass != null) resolveClientWindowFrames(windowStateClass) else null
+        val windowFramesClass = if (windowStateClass != null) {
+            resolveDeclaredField(windowStateClass, "mWindowFrames")?.type
+        } else null
+        val windowFramesFrameField = if (windowFramesClass != null) resolveDeclaredField(windowFramesClass, "mFrame") else null
 
         return WindowManagerCapability(
             windowStateClass = windowStateClass,
+            displayPolicyClass = displayPolicyClass,
             windowStateAttrsField = if (windowStateClass != null) resolveDeclaredField(windowStateClass, "mAttrs") else null,
+            windowStateDisplayContentField = if (windowStateClass != null) resolveDeclaredField(windowStateClass, "mDisplayContent") else null,
+            windowStateWindowManagerServiceField = if (windowStateClass != null) resolveDeclaredField(windowStateClass, "mWmService") else null,
+            windowStateGetFrameMethod = if (windowStateClass != null) resolveNoArgMethod(windowStateClass, GET_FRAME_METHOD) else null,
+            windowStateGetDisplayMetricsMethod = if (windowStateClass != null) resolveNoArgMethod(windowStateClass, "getDisplayMetrics") else null,
+            windowStateGetDisplayIdMethod = if (windowStateClass != null) resolveNoArgMethod(windowStateClass, "getDisplayId") else null,
+            windowStateWindowFramesField = if (windowStateClass != null) resolveDeclaredField(windowStateClass, "mWindowFrames") else null,
+            windowFramesFrameField = windowFramesFrameField,
+            clientWindowFramesClass = clientFrames?.first,
+            clientWindowFramesFrameField = clientFrames?.second,
+            layoutParamsClass = lpClass,
             layoutParamsTypeField = if (lpClass != null) resolveDeclaredField(lpClass, "type") else null,
             layoutParamsHeightField = if (lpClass != null) resolveDeclaredField(lpClass, "height") else null,
             layoutParamsPackageNameField = if (lpClass != null) resolveDeclaredField(lpClass, "packageName") else null,
-            windowStateGetFrameMethod = if (windowStateClass != null) accessibleMethodOrNull(windowStateClass, GET_FRAME_METHOD) else null,
-            windowStateGetDisplayMetricsMethod = if (windowStateClass != null) accessibleMethodOrNull(windowStateClass, "getDisplayMetrics") else null,
-            windowStateGetDisplayIdMethod = if (windowStateClass != null) accessibleMethodOrNull(windowStateClass, "getDisplayId") else null,
-            clientWindowFramesClass = clientFrames?.first,
-            clientWindowFramesFrameField = clientFrames?.second,
         )
     }
 
@@ -240,28 +254,49 @@ internal object StatusBarHeightResolver {
 
     /**
      * Resolve DecorInsets.Info capability from already-loaded classes.  Used by tests and by [resolveCore].
+     *
+     * @param infoClass the DecorInsets.Info class, or null if not found.
+     * @param displayContentClass the DisplayContent class to use for exact update method matching,
+     *                            or null if not found.
      */
     fun resolveDecorInsetsInfoClass(infoClass: Class<*>?, displayContentClass: Class<*>?): DecorInsetsCapability {
-        val updateMethod = if (infoClass != null) {
-            try {
-                infoClass.declaredMethods.singleOrNull { it.name == DECOR_INSETS_UPDATE_METHOD }?.also { it.isAccessible = true }
-            } catch (t: Throwable) {
-                FatalErrors.unwrapAndRethrowIfFatal(t)
-                null
-            }
+        val updateMethod = if (infoClass != null && displayContentClass != null) {
+            resolveDecorUpdateMethod(infoClass, displayContentClass)
         } else null
 
         val displayContentGetDisplayMetricsMethod = if (displayContentClass != null) {
-            accessibleMethodOrNull(displayContentClass, "getDisplayMetrics")
+            resolveNoArgMethod(displayContentClass, "getDisplayMetrics")
         } else null
 
         return DecorInsetsCapability(
             infoClass = infoClass,
             updateMethod = updateMethod,
+            displayContentClass = displayContentClass,
+            displayContentGetDisplayMetricsMethod = displayContentGetDisplayMetricsMethod,
             nonDecorInsetsField = if (infoClass != null) resolveDeclaredField(infoClass, "mNonDecorInsets") else null,
             nonDecorFrameField = if (infoClass != null) resolveDeclaredField(infoClass, "mNonDecorFrame") else null,
-            displayContentGetDisplayMetricsMethod = displayContentGetDisplayMetricsMethod,
         )
+    }
+
+    private fun resolveDecorUpdateMethod(infoClass: Class<*>, displayContentClass: Class<*>): Method? {
+        val candidates = try {
+            infoClass.declaredMethods.filter { it.name == DECOR_INSETS_UPDATE_METHOD }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            emptyList()
+        }
+
+        val exact = candidates.filter { method ->
+            val pt = method.parameterTypes
+            pt.size == 4 &&
+                pt[0] == displayContentClass &&
+                pt[1] == Int::class.javaPrimitiveType &&
+                pt[2] == Int::class.javaPrimitiveType &&
+                pt[3] == Int::class.javaPrimitiveType
+        }
+
+        // Deterministic: require exactly one matching overload.
+        return if (exact.size == 1) exact[0].also { it.isAccessible = true } else null
     }
 
     private fun resolveClientWindowFrames(windowStateClass: Class<*>): Pair<Class<*>?, Field?>? {
@@ -277,12 +312,7 @@ internal object StatusBarHeightResolver {
         } ?: return null
 
         val clazz = matched.parameterTypes[0]
-        val frameField = try {
-            clazz.getField("frame").also { it.isAccessible = true }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            null
-        }
+        val frameField = resolveDeclaredField(clazz, "frame")
         return clazz to frameField
     }
 
@@ -296,10 +326,40 @@ internal object StatusBarHeightResolver {
         }
     }
 
-    /** Resolve a late ABI once a real framework object is available. */
-    fun resolveLate(classLoader: ClassLoader, displayContentClass: Class<*>, windowManagerServiceClass: Class<*>): LateAbi {
-        val windowStateClass = XposedHelpers.findClassIfExists(WINDOW_STATE_CLASS, classLoader)
-        val displayPolicyClass = XposedHelpers.findClassIfExists(DISPLAY_POLICY_CLASS, classLoader)
+    // ----------------------------------------------------------------------------
+    // Late ABI slot.
+    // ----------------------------------------------------------------------------
+
+    class LateAbiSlot {
+        @Volatile
+        private var state: LateAbiState = LateAbiState.Unresolved
+
+        fun getOrResolve(resolve: () -> LateAbi): LateAbi {
+            val current = state
+            if (current is LateAbiState.Resolved) return current.abi
+
+            synchronized(this) {
+                val doubleCheck = state
+                if (doubleCheck is LateAbiState.Resolved) return doubleCheck.abi
+
+                val resolved = resolve()
+                state = LateAbiState.Resolved(resolved)
+                return resolved
+            }
+        }
+
+        fun stateForTest(): LateAbiState = state
+        fun resolvedForTest(): LateAbi? = (state as? LateAbiState.Resolved)?.abi
+    }
+
+    /**
+     * Resolve late ABI once a real framework object is available.
+     */
+    fun resolveLate(
+        displayContentClass: Class<*>,
+        windowManagerServiceClass: Class<*>?,
+        displayPolicyClass: Class<*>?,
+    ): LateAbi {
         val decorInsetsClass = if (displayPolicyClass != null) {
             try {
                 displayPolicyClass.declaredClasses.firstOrNull { it.simpleName == "DecorInsets" }
@@ -314,14 +374,11 @@ internal object StatusBarHeightResolver {
         } else null
 
         return LateAbi(
-            windowStateGetDisplayMetricsMethod = if (windowStateClass != null) accessibleMethodOrNull(windowStateClass, "getDisplayMetrics") else null,
-            windowStateGetDisplayIdMethod = if (windowStateClass != null) accessibleMethodOrNull(windowStateClass, "getDisplayId") else null,
-            displayContentGetDisplayMetricsMethod = accessibleMethodOrNull(displayContentClass, "getDisplayMetrics"),
-            displayContentGetDisplayPolicyMethod = accessibleMethodOrNull(displayContentClass, "getDisplayPolicy"),
-            displayPolicyDecorInsetsField = if (displayPolicyClass != null) resolveDeclaredField(displayPolicyClass, "mDecorInsets") else null,
-            decorInsetsInvalidateMethod = if (decorInsetsClass != null) accessibleMethodOrNull(decorInsetsClass, "invalidate") else null,
             windowManagerServicePlacerField = if (windowManagerServiceClass != null) resolveDeclaredField(windowManagerServiceClass, "mWindowPlacerLocked") else null,
-            windowSurfacePlacerRequestTraversalMethod = if (windowSurfacePlacerClass != null) accessibleMethodOrNull(windowSurfacePlacerClass, "requestTraversal") else null,
+            windowSurfacePlacerRequestTraversalMethod = if (windowSurfacePlacerClass != null) resolveNoArgMethod(windowSurfacePlacerClass, "requestTraversal") else null,
+            displayContentGetDisplayPolicyMethod = if (displayContentClass != null) resolveNoArgMethod(displayContentClass, "getDisplayPolicy") else null,
+            displayPolicyDecorInsetsField = if (displayPolicyClass != null) resolveDeclaredField(displayPolicyClass, "mDecorInsets") else null,
+            decorInsetsInvalidateMethod = if (decorInsetsClass != null) resolveNoArgMethod(decorInsetsClass, "invalidate") else null,
         )
     }
 
@@ -333,6 +390,32 @@ internal object StatusBarHeightResolver {
     // ----------------------------------------------------------------------------
     // Low-level reflection helpers (cold only).
     // ----------------------------------------------------------------------------
+
+    /**
+     * Resolve a public no-arg method on [clazz] or its superclasses.
+     * Deterministic: returns the first exact match found from the class upward.
+     */
+    fun resolveNoArgMethod(clazz: Class<*>, methodName: String): Method? {
+        var current: Class<*>? = clazz
+        while (current != null) {
+            val candidate = try {
+                current.declaredMethods.filter { it.name == methodName && it.parameterTypes.isEmpty() }
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                emptyList()
+            }
+
+            if (candidate.isNotEmpty()) {
+                // Deterministic: if multiple no-arg methods exist (e.g. bridge), prefer non-synthetic.
+                val nonSynthetic = candidate.firstOrNull { !it.isSynthetic && !it.isBridge }
+                val chosen = nonSynthetic ?: candidate[0]
+                chosen.isAccessible = true
+                return chosen
+            }
+            current = current.superclass
+        }
+        return null
+    }
 
     fun resolveDeclaredField(clazz: Class<*>, name: String): Field? {
         var current: Class<*>? = clazz
@@ -357,24 +440,6 @@ internal object StatusBarHeightResolver {
         return if (field.type == Int::class.javaPrimitiveType || field.type == Int::class.java) field else null
     }
 
-    private fun accessibleMethodOrNull(clazz: Class<*>, methodName: String): Method? {
-        return try {
-            clazz.getMethod(methodName)?.also { it.isAccessible = true }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            null
-        }
-    }
-
-    private fun hasMethod(clazz: Class<*>, methodName: String): Boolean {
-        return try {
-            clazz.declaredMethods.any { it.name == methodName }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            false
-        }
-    }
-
     private fun getStaticInt(clazz: Class<*>, fieldName: String): Int? {
         return try {
             val field = clazz.getDeclaredField(fieldName)
@@ -394,29 +459,5 @@ internal object StatusBarHeightResolver {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             null
         }
-    }
-
-    // ----------------------------------------------------------------------------
-    // Pure geometry helpers.
-    // ----------------------------------------------------------------------------
-
-    fun computeStatusBarFrameBottom(originalTop: Int, originalBottom: Int, configuredPx: Int, enabled: Boolean): Int {
-        if (!enabled || configuredPx <= 0) return originalBottom
-        return originalTop + configuredPx
-    }
-
-    fun computeNonDecorTop(originalTop: Int, configuredPx: Int, enabled: Boolean): Int {
-        if (!enabled || configuredPx <= 0) return originalTop
-        return configuredPx
-    }
-
-    fun computeNonDecorFrameTop(originalFrameTop: Int, originalInsetTop: Int, configuredPx: Int, enabled: Boolean): Int {
-        if (!enabled || configuredPx <= 0) return originalFrameTop
-        if (originalInsetTop == 0) return originalFrameTop
-        return originalFrameTop + configuredPx - originalInsetTop
-    }
-
-    fun isStatusBarType(type: Int, typeInfo: InsetsTypeInfo): Boolean {
-        return type == typeInfo.statusBarType
     }
 }

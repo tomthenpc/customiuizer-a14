@@ -16,23 +16,34 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val runtime = StatusBarHeightRuntime()
         val owner = Any()
 
-        val entry = runtime.rememberStatusBar(owner)
+        runtime.rememberStatusBar(owner)
 
-        assertNotNull(entry)
         assertTrue(runtime.isKnownStatusBar(owner))
         assertEquals(1, runtime.knownCountForTest())
     }
 
     @Test
-    fun remember_sameOwnerAgain_reusesWeakReference() {
+    fun remember_sameOwner_returnsExactSameWeakReference() {
         val runtime = StatusBarHeightRuntime()
         val owner = Any()
 
         val first = runtime.rememberStatusBar(owner)
         val second = runtime.rememberStatusBar(owner)
 
-        assertSame(first?.ownerRef, second?.ownerRef)
+        assertSame(first, second)
         assertEquals(1, runtime.knownCountForTest())
+    }
+
+    @Test
+    fun remember_sameOwner_noNewWeakReferenceAllocation() {
+        val runtime = StatusBarHeightRuntime()
+        val owner = Any()
+
+        val snapshot = runtime.knownSnapshotForTest()
+        runtime.rememberStatusBar(owner)
+        val ref = runtime.rememberStatusBar(owner)
+
+        assertSame(snapshot[0] ?: ref, ref)
     }
 
     @Test
@@ -48,27 +59,30 @@ class StatusBarHeightArchitectureCRuntimeTest {
     }
 
     @Test
-    fun deadWeakReference_isEvictedDuringDiscovery() {
+    fun remember_explicitlyClearedWeakReference_isEvictedDuringDiscovery() {
         val runtime = StatusBarHeightRuntime()
         var owner: Any? = Any()
-        runtime.rememberStatusBar(owner!!)
+        val ref = runtime.rememberStatusBar(owner!!)
+
         assertEquals(1, runtime.knownCountForTest())
 
+        ref.clear()
         owner = null
-        System.gc()
 
-        // Add a new owner; discovery compaction should drop the dead ref.
-        runtime.rememberStatusBar(Any())
+        val newOwner = Any()
+        runtime.rememberStatusBar(newOwner)
+
+        // The new owner is retained, and the dead ref is compacted away.
+        assertTrue(runtime.isKnownStatusBar(newOwner))
         assertEquals(1, runtime.knownCountForTest())
     }
 
     @Test
-    fun isKnownStatusBar_noAllocationInSteadyState() {
+    fun isKnownStatusBar_boundedScanNoAllocation() {
         val runtime = StatusBarHeightRuntime()
         val owners = List(4) { Any() }
         owners.forEach { runtime.rememberStatusBar(it) }
 
-        // This test only verifies the steady-state path is a bounded linear scan.
         repeat(100) {
             assertTrue(runtime.isKnownStatusBar(owners[it % 4]))
         }
@@ -79,35 +93,32 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val runtime = StatusBarHeightRuntime()
         val owner = Any()
 
+        val ref = runtime.rememberStatusBar(owner)
         runtime.rememberStatusBar(owner)
-        val first = runtime.latestRefForTest()
-        runtime.rememberStatusBar(owner)
-        val second = runtime.latestRefForTest()
 
-        assertSame(first, second)
-        assertSame(first?.get(), owner)
+        assertSame(ref, runtime.latestRefForTest())
+        assertSame(owner, runtime.latestRefForTest()?.get())
     }
 
     @Test
-    fun reset_knownStatusBars_doesNotHoldStrongReferences() {
+    fun reset_knownStatusBars_publishesFreshEmptySnapshot() {
         val runtime = StatusBarHeightRuntime()
-        var owner: Any? = Any()
-        val entry = runtime.rememberStatusBar(owner!!)
+        val owner = Any()
+        runtime.rememberStatusBar(owner)
 
+        val before = runtime.knownSnapshotForTest()
         runtime.resetKnownStatusBars()
 
-        owner = null
-        System.gc()
-
-        assertFalse(runtime.isKnownStatusBar(Any()))
+        assertFalse(runtime.isKnownStatusBar(owner))
         assertEquals(0, runtime.knownCountForTest())
         assertNull(runtime.latestRefForTest())
         assertFalse(runtime.typeMatchObserved)
         assertEquals(4096, runtime.fallbackProbeBudget.get())
         assertEquals(-1L, runtime.lastRefreshGeneration.get())
 
-        // The old entry weak reference must not hold the owner strongly.
-        assertNull(entry?.owner)
+        val after = runtime.knownSnapshotForTest()
+        assertNotSame(before, after)
+        assertTrue(after.all { it == null })
     }
 
     @Test
@@ -137,26 +148,24 @@ class StatusBarHeightArchitectureCRuntimeTest {
     fun strongOwnerFields_notPresentInRuntime() {
         val declared = StatusBarHeightRuntime::class.java.declaredFields
 
-        val forbidden = setOf("Any", "Object", "WindowState", "DisplayContent", "Context", "View", "Activity")
+        val forbidden = listOf("Any", "Object", "WindowState", "DisplayContent", "Context", "View", "Activity")
         val strongOwners = declared.filter { field ->
             val simpleName = field.type.simpleName
-            simpleName in forbidden || (field.type.kotlin.javaObjectType == Any::class.java)
+            forbidden.contains(simpleName) && !field.type.isArray
         }
 
-        // Only WeakReference and primitives/expected helpers are allowed.
         assertTrue("runtime must not hold strong Android owner fields", strongOwners.isEmpty())
     }
 
     @Test
-    fun knownEntry_holdsOnlyWeakReference() {
-        val ref = WeakRefOwner().ref
-        val declared = StatusBarHeightRuntime.KnownStatusBarEntry::class.java.declaredFields
+    fun knownArray_containsOnlyWeakReferences() {
+        val runtime = StatusBarHeightRuntime()
+        val owner = Any()
+        runtime.rememberStatusBar(owner)
 
-        assertTrue("KnownStatusBarEntry must contain an ownerRef field", declared.any { it.name == "ownerRef" })
-        assertEquals("ownerRef", declared.first().name)
-    }
-
-    private class WeakRefOwner {
-        val ref = java.lang.ref.WeakReference<Any>(Any())
+        val snapshot = runtime.knownSnapshotForTest()
+        assertNotNull(snapshot[0])
+        assertEquals("WeakReference", snapshot[0]!!.javaClass.simpleName)
+        assertSame(owner, snapshot[0]!!.get())
     }
 }

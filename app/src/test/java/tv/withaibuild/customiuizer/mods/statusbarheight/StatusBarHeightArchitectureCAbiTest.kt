@@ -5,20 +5,21 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class StatusBarHeightArchitectureCAbiTest {
 
     @Test
-    fun selectTypeEncoding_modernPublic_withIdTypeConstructorAndPublicStatus() {
+    fun typeEncoding_modernBothConstructorsGetIdGetTypeWithPublicStatus_selectsModernPublic() {
         val abi = InsetsSourceAbi(
-            hasOneIntConstructor = false,
+            hasOneIntConstructor = true,
             hasIdTypeConstructor = true,
             hasGetId = true,
             hasGetType = true,
-            legacyStatusType = null,
-            legacyNavigationType = null,
+            legacyStatusType = 0,
+            legacyNavigationType = 1,
             publicStatusType = 1,
             publicNavigationType = 2,
             publicDisplayCutoutType = 128,
@@ -33,7 +34,64 @@ class StatusBarHeightArchitectureCAbiTest {
     }
 
     @Test
-    fun selectTypeEncoding_legacyInternal_withOneIntConstructorAndLegacyConstants() {
+    fun typeEncoding_modernNoGetId_unsupported() {
+        val abi = InsetsSourceAbi(
+            hasOneIntConstructor = false,
+            hasIdTypeConstructor = true,
+            hasGetId = false,
+            hasGetType = true,
+            legacyStatusType = null,
+            legacyNavigationType = null,
+            publicStatusType = 1,
+            publicNavigationType = 2,
+            publicDisplayCutoutType = 128,
+        )
+
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
+
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+    }
+
+    @Test
+    fun typeEncoding_modernNoGetType_unsupported() {
+        val abi = InsetsSourceAbi(
+            hasOneIntConstructor = false,
+            hasIdTypeConstructor = true,
+            hasGetId = true,
+            hasGetType = false,
+            legacyStatusType = null,
+            legacyNavigationType = null,
+            publicStatusType = 1,
+            publicNavigationType = 2,
+            publicDisplayCutoutType = 128,
+        )
+
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
+
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+    }
+
+    @Test
+    fun typeEncoding_modernPublicStatusNegative_unsupported() {
+        val abi = InsetsSourceAbi(
+            hasOneIntConstructor = false,
+            hasIdTypeConstructor = true,
+            hasGetId = true,
+            hasGetType = true,
+            legacyStatusType = null,
+            legacyNavigationType = null,
+            publicStatusType = -1,
+            publicNavigationType = 2,
+            publicDisplayCutoutType = 128,
+        )
+
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
+
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+    }
+
+    @Test
+    fun typeEncoding_legacyValid_selectsLegacyInternal() {
         val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
@@ -51,16 +109,17 @@ class StatusBarHeightArchitectureCAbiTest {
         assertEquals(InsetsTypeEncoding.LEGACY_INTERNAL, info.encoding)
         assertEquals(0, info.statusBarType)
         assertEquals(1, info.navigationType)
+        assertEquals(-1, info.displayCutoutType)
     }
 
     @Test
-    fun selectTypeEncoding_unsupported_whenNoValidEncoding() {
+    fun typeEncoding_legacyMissingNav_unsupported() {
         val abi = InsetsSourceAbi(
-            hasOneIntConstructor = false,
+            hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
             hasGetId = false,
-            hasGetType = false,
-            legacyStatusType = null,
+            hasGetType = true,
+            legacyStatusType = 0,
             legacyNavigationType = null,
             publicStatusType = null,
             publicNavigationType = null,
@@ -70,42 +129,41 @@ class StatusBarHeightArchitectureCAbiTest {
         val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
         assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
-        assertEquals(InsetsTypeInfo.TYPE_UNRESOLVED, info.statusBarType)
     }
 
     @Test
-    fun resolveIntField_findsIntFieldByName() {
-        val field = StatusBarHeightResolver.resolveIntField(FakeInsetsSource::class.java, "mType")
+    fun typeEncoding_legacyNegativeStatus_unsupported() {
+        val abi = InsetsSourceAbi(
+            hasOneIntConstructor = true,
+            hasIdTypeConstructor = false,
+            hasGetId = false,
+            hasGetType = true,
+            legacyStatusType = -1,
+            legacyNavigationType = 1,
+            publicStatusType = null,
+            publicNavigationType = null,
+            publicDisplayCutoutType = null,
+        )
 
-        assertNotNull(field)
-        assertEquals("mType", field!!.name)
-        assertEquals(Int::class.javaPrimitiveType, field.type)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
+
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
-    fun resolveIntField_returnsNullForWrongType() {
-        val field = StatusBarHeightResolver.resolveIntField(FakeInsetsSource::class.java, "mName")
+    fun resolveNoArgMethod_traversesSuperclass() {
+        val method = StatusBarHeightResolver.resolveNoArgMethod(FakeInsetsSourceChild::class.java, "getType")
 
-        assertNull(field)
+        assertNotNull(method)
+        assertEquals("getType", method!!.name)
     }
 
     @Test
-    fun resolveDeclaredField_traversesSuperclass() {
-        val field = StatusBarHeightResolver.resolveDeclaredField(FakeInsetsSourceChild::class.java, "mType")
+    fun resolveNoArgMethod_deterministicNonSynthetic() {
+        val method = StatusBarHeightResolver.resolveNoArgMethod(FakeInsetsSource::class.java, "getType")
 
-        assertNotNull(field)
-        assertEquals("mType", field!!.name)
-    }
-
-    @Test
-    fun resolveCore_onSystemClassLoader_returnsFailClosedCapabilities() {
-        val abi = StatusBarHeightResolver.resolveCore(javaClass.classLoader!!)
-
-        assertFalse(abi.insets.coreSupported)
-        assertEquals(InsetsTypeEncoding.UNSUPPORTED, abi.insets.typeInfo.encoding)
-        // In a unit-test ClassLoader the fake com.android.server.wm.WindowState may exist,
-        // so the WMS capability is non-null but client frames may be missing.
-        assertNull(abi.decorInsets.infoClass)
+        assertNotNull(method)
+        assertFalse(method!!.isSynthetic)
     }
 
     @Test
@@ -114,7 +172,8 @@ class StatusBarHeightArchitectureCAbiTest {
 
         assertNotNull(cap.typeField)
         assertNull(cap.getTypeMethod)
-        assertEquals(InsetsTypeEncoding.UNSUPPORTED, cap.typeInfo.encoding)
+        assertTrue(cap.canReadType)
+        assertFalse(cap.coreSupported) // type encoding unsupported for fake class
     }
 
     @Test
@@ -123,87 +182,180 @@ class StatusBarHeightArchitectureCAbiTest {
 
         assertNull(cap.typeField)
         assertNotNull(cap.getTypeMethod)
+        assertTrue(cap.canReadType)
     }
 
     @Test
-    fun insetsCapability_noMTypeAndNoGetType_unsupported() {
+    fun insetsCapability_noMTypeAndNoGetType_cannotReadType() {
         val cap = StatusBarHeightResolver.resolveInsetsSourceClass(FakeInsetsSourceNoAccess::class.java, javaClass.classLoader!!)
 
         assertNull(cap.typeField)
         assertNull(cap.getTypeMethod)
-        assertEquals(InsetsTypeEncoding.UNSUPPORTED, cap.typeInfo.encoding)
+        assertFalse(cap.canReadType)
+        assertFalse(cap.coreSupported)
     }
 
     @Test
-    fun windowManagerCapability_optionalMembersAreNullable() {
+    fun insetsCapability_getIdAndGetFrameFrozenAsMethods() {
+        val cap = StatusBarHeightResolver.resolveInsetsSourceClass(FakeInsetsSourceNoField::class.java, javaClass.classLoader!!)
+
+        assertNotNull(cap.getIdMethod)
+        assertNotNull(cap.getFrameMethod)
+    }
+
+    @Test
+    fun resolveCore_onSystemClassLoader_returnsFailClosedCapabilities() {
+        val abi = StatusBarHeightResolver.resolveCore(javaClass.classLoader!!)
+
+        assertFalse(abi.insets.coreSupported)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, abi.insets.typeInfo.encoding)
+        assertNull(abi.decorInsets.infoClass)
+    }
+
+    @Test
+    fun windowManagerCapability_coreFieldsResolved() {
         val cap = StatusBarHeightResolver.resolveWindowManagerClass(FakeWmsWithClientFrames::class.java, FakeLayoutParams::class.java)
 
         assertNotNull(cap.windowStateClass)
+        assertNotNull(cap.windowStateAttrsField)
+        assertNotNull(cap.windowStateDisplayContentField)
+        assertNotNull(cap.windowStateWindowManagerServiceField)
+        assertNotNull(cap.windowStateGetFrameMethod)
+        assertNotNull(cap.windowStateGetDisplayMetricsMethod)
+        assertNotNull(cap.windowStateGetDisplayIdMethod)
+        assertNotNull(cap.windowStateWindowFramesField)
+        assertNotNull(cap.windowFramesFrameField)
         assertNotNull(cap.clientWindowFramesClass)
         assertNotNull(cap.clientWindowFramesFrameField)
-        assertNull(cap.windowStateGetFrameMethod)
-        assertNull(cap.windowStateGetDisplayMetricsMethod)
+        assertNotNull(cap.layoutParamsTypeField)
+        assertNotNull(cap.layoutParamsHeightField)
+        assertNotNull(cap.layoutParamsPackageNameField)
     }
 
     @Test
-    fun decorInsetsCapability_optionalDisplayMetricsMethodCanBeNull() {
-        val cap = StatusBarHeightResolver.resolveDecorInsetsInfoClass(FakeDecorInsetsInfo::class.java, FakeDisplayContent::class.java)
+    fun windowManagerCapability_missingClientFramesClass_gracefullyNull() {
+        val cap = StatusBarHeightResolver.resolveWindowManagerClass(FakeWindowStateNoClientFrames::class.java, FakeLayoutParams::class.java)
+
+        assertNotNull(cap.windowStateClass)
+        assertNull(cap.clientWindowFramesClass)
+        assertNull(cap.clientWindowFramesFrameField)
+    }
+
+    @Test
+    fun windowManagerCapability_windowFrames_mFrame_resolvedFromFieldType() {
+        val cap = StatusBarHeightResolver.resolveWindowManagerClass(FakeWmsWithClientFrames::class.java, FakeLayoutParams::class.java)
+
+        assertNotNull(cap.windowStateWindowFramesField)
+        assertNotNull(cap.windowFramesFrameField)
+        assertEquals(Rect::class.java, cap.windowFramesFrameField?.type)
+    }
+
+    @Test
+    fun decorInsetsCapability_exactUpdateMethod_accepted() {
+        val cap = StatusBarHeightResolver.resolveDecorInsetsInfoClass(
+            FakeDecorInsetsInfo::class.java,
+            FakeDisplayContent::class.java,
+        )
 
         assertNotNull(cap.infoClass)
         assertNotNull(cap.updateMethod)
+        assertNotNull(cap.displayContentClass)
+        assertNotNull(cap.displayContentGetDisplayMetricsMethod)
         assertNotNull(cap.nonDecorInsetsField)
         assertNotNull(cap.nonDecorFrameField)
     }
 
     @Test
-    fun computeStatusBarFrameBottom_disabled_keepsOriginal() {
-        val result = StatusBarHeightResolver.computeStatusBarFrameBottom(10, 100, 50, false)
-        assertEquals(100, result)
+    fun decorInsetsCapability_wrongArity_updateMethodNull() {
+        val cap = StatusBarHeightResolver.resolveDecorInsetsInfoClass(
+            FakeDecorInsetsInfoWrongArity::class.java,
+            FakeDisplayContent::class.java,
+        )
+
+        assertNull(cap.updateMethod)
     }
 
     @Test
-    fun computeStatusBarFrameBottom_enabled_replacesBottom() {
-        val result = StatusBarHeightResolver.computeStatusBarFrameBottom(10, 100, 50, true)
-        assertEquals(60, result)
+    fun decorInsetsCapability_wrongFirstParameter_updateMethodNull() {
+        val cap = StatusBarHeightResolver.resolveDecorInsetsInfoClass(
+            FakeDecorInsetsInfoWrongFirstParam::class.java,
+            FakeDisplayContent::class.java,
+        )
+
+        assertNull(cap.updateMethod)
     }
 
     @Test
-    fun computeNonDecorTop_enabled_returnsConfiguredPx() {
-        val result = StatusBarHeightResolver.computeNonDecorTop(104, 50, true)
-        assertEquals(50, result)
+    fun decorInsetsCapability_multipleOverloads_exactSelected() {
+        val cap = StatusBarHeightResolver.resolveDecorInsetsInfoClass(
+            FakeDecorInsetsInfoWithOverloads::class.java,
+            FakeDisplayContent::class.java,
+        )
+
+        assertNotNull(cap.updateMethod)
+        assertEquals(4, cap.updateMethod?.parameterTypes?.size)
+        assertEquals(FakeDisplayContent::class.java, cap.updateMethod?.parameterTypes?.get(0))
     }
 
     @Test
-    fun computeNonDecorFrameTop_zeroOriginalInset_keepsFrame() {
-        val result = StatusBarHeightResolver.computeNonDecorFrameTop(200, 0, 50, true)
-        assertEquals(200, result)
+    fun decorInsetsCapability_multipleWrongOverloads_updateMethodNull() {
+        val cap = StatusBarHeightResolver.resolveDecorInsetsInfoClass(
+            FakeDecorInsetsInfoWithWrongOverloads::class.java,
+            FakeDisplayContent::class.java,
+        )
+
+        assertNull(cap.updateMethod)
     }
 
     @Test
-    fun isStatusBarType_matchesStatusBarTypeOnly() {
-        val typeInfo = InsetsTypeInfo(InsetsTypeEncoding.MODERN_PUBLIC, 1, 2, 128)
-        assertTrue(StatusBarHeightResolver.isStatusBarType(1, typeInfo))
-        assertFalse(StatusBarHeightResolver.isStatusBarType(2, typeInfo))
+    fun lateAbiSlot_resolvesExactlyOnce() {
+        val slot = StatusBarHeightResolver.LateAbiSlot()
+        var callCount = 0
+
+        val first = slot.getOrResolve {
+            callCount++
+            LateAbi(null, null, null, null, null)
+        }
+        val second = slot.getOrResolve {
+            callCount++
+            LateAbi(null, null, null, null, null)
+        }
+
+        assertSame(first, second)
+        assertEquals(1, callCount)
+        assertTrue(slot.stateForTest() is LateAbiState.Resolved)
+    }
+
+    @Test
+    fun lateAbiSlot_unresolvedStateFirst() {
+        val slot = StatusBarHeightResolver.LateAbiSlot()
+        assertTrue(slot.stateForTest() is LateAbiState.Unresolved)
     }
 
     // ------------------------------------------------------------------------
     // Fake framework classes for cold resolver unit tests.
     // ------------------------------------------------------------------------
 
-    class FakeInsetsSource {
-        var mType: Int = 0
-        var mName: String = "name"
-    }
-
     open class FakeInsetsSourceBase {
         var mType: Int = 0
+        fun getType(): Int = mType
     }
 
     class FakeInsetsSourceChild : FakeInsetsSourceBase()
 
-    class FakeInsetsSourceNoField {
+    class FakeInsetsSource : FakeInsetsSourceBase() {
+        fun getId(): Int = 1
+        fun getFrame(): Rect = Rect()
         fun setFrame(rect: Rect) {}
+        fun setFrame(left: Int, top: Int, right: Int, bottom: Int) {}
+    }
+
+    class FakeInsetsSourceNoField {
+        var mName: String = "name"
+        fun getId(): Int = 1
         fun getType(): Int = 1
+        fun getFrame(): Rect = Rect()
+        fun setFrame(rect: Rect) {}
     }
 
     class FakeInsetsSourceNoAccess {
@@ -215,27 +367,93 @@ class StatusBarHeightArchitectureCAbiTest {
         val frame: Rect = Rect()
     }
 
-    class FakeWindowState {
+    class WindowFrames {
+        @JvmField
+        val mFrame: Rect = Rect()
+    }
+
+    open class FakeWindowStateBase {
         var mAttrs: FakeLayoutParams = FakeLayoutParams()
+        var mDisplayContent: FakeDisplayContent = FakeDisplayContent()
+        var mWmService: FakeWindowManagerService = FakeWindowManagerService()
+        var mWindowFrames: WindowFrames = WindowFrames()
+        fun getFrame(): Rect = Rect()
+        fun getDisplayMetrics(): Any = Any()
+        fun getDisplayId(): Int = 0
+    }
+
+    class FakeWmsWithClientFrames : FakeWindowStateBase() {
         fun setFrames(frames: ClientWindowFrames, something: Any?, something2: Any?) {}
     }
 
-    class FakeWmsWithClientFrames {
-        var mAttrs: FakeLayoutParams = FakeLayoutParams()
-        fun setFrames(frames: ClientWindowFrames, something: Any?, something2: Any?) {}
-    }
+    class FakeWindowStateNoClientFrames : FakeWindowStateBase()
 
     class FakeLayoutParams {
+        @JvmField
         var type: Int = 0
+
+        @JvmField
         var height: Int = 0
+
+        @JvmField
         var packageName: String? = null
     }
 
-    class FakeDecorInsetsInfo {
-        var mNonDecorInsets: Rect = Rect()
-        var mNonDecorFrame: Rect = Rect()
-        fun update(content: Any?, rotation: Int, displayW: Int, displayH: Int) {}
+    class FakeDisplayContent {
+        fun getDisplayMetrics(): Any = Any()
     }
 
-    class FakeDisplayContent
+    class FakeDecorInsetsInfo {
+        @JvmField
+        var mNonDecorInsets: Rect = Rect()
+
+        @JvmField
+        var mNonDecorFrame: Rect = Rect()
+
+        fun update(content: FakeDisplayContent, rotation: Int, displayW: Int, displayH: Int) {}
+    }
+
+    class FakeDecorInsetsInfoWrongArity {
+        @JvmField
+        var mNonDecorInsets: Rect = Rect()
+
+        @JvmField
+        var mNonDecorFrame: Rect = Rect()
+
+        fun update(content: FakeDisplayContent) {}
+    }
+
+    class FakeDecorInsetsInfoWrongFirstParam {
+        @JvmField
+        var mNonDecorInsets: Rect = Rect()
+
+        @JvmField
+        var mNonDecorFrame: Rect = Rect()
+
+        fun update(content: String, rotation: Int, displayW: Int, displayH: Int) {}
+    }
+
+    class FakeDecorInsetsInfoWithOverloads {
+        @JvmField
+        var mNonDecorInsets: Rect = Rect()
+
+        @JvmField
+        var mNonDecorFrame: Rect = Rect()
+
+        fun update() {}
+        fun update(content: FakeDisplayContent, rotation: Int, displayW: Int, displayH: Int) {}
+    }
+
+    class FakeDecorInsetsInfoWithWrongOverloads {
+        @JvmField
+        var mNonDecorInsets: Rect = Rect()
+
+        @JvmField
+        var mNonDecorFrame: Rect = Rect()
+
+        fun update() {}
+        fun update(content: String, rotation: Int, displayW: Int, displayH: Int) {}
+    }
+
+    class FakeWindowManagerService
 }

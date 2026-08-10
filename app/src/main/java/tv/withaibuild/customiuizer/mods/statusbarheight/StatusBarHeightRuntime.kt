@@ -7,15 +7,15 @@ import java.util.concurrent.atomic.AtomicLong
 /**
  * Process-scoped runtime state for the status bar height feature.
  *
- * The class is explicit about ownership: [SystemStatusBarInsetsHooks] (or equivalent facade) will
- * hold the process instance.  No strong Android owner references are retained here.  All
- * per-WindowState identity uses [WeakReference] inside a bounded array.
+ * The class is explicit about ownership: the facade (e.g. [SystemStatusBarInsetsHooks]) holds the
+ * process instance.  No strong Android owner references are retained here.  Identity matching uses
+ * a bounded `@Volatile` array of [WeakReference]s.
  */
 internal class StatusBarHeightRuntime {
 
-    /** Bounded identity fast path: known status bar WindowStates. */
+    /** Bounded identity snapshot.  Always a fixed-length array of length [MAX_TRACKED]. */
+    @Volatile
     private var knownOwners = arrayOfNulls<WeakReference<Any>>(MAX_TRACKED)
-    private var knownCount: Int = 0
 
     /** Weak reference to the most recently laid-out status bar WindowState for traversal. */
     @Volatile
@@ -31,32 +31,28 @@ internal class StatusBarHeightRuntime {
     /** Last generation for which a traversal was requested, to coalesce duplicates. */
     val lastRefreshGeneration: AtomicLong = AtomicLong(-1L)
 
-    /** Number of currently known non-null entries.  For tests and diagnostics only. */
-    @Synchronized
-    fun knownCountForTest(): Int = knownCount
+    /** Test-only: return a defensive copy of the current identity snapshot. */
+    fun knownSnapshotForTest(): Array<WeakReference<Any>?> = knownOwners.copyOf()
 
-    /** Test-only accessor for the identity snapshot. */
-    @Synchronized
-    fun knownSnapshotForTest(): Array<WeakReference<Any>?> = knownOwners.copyOf(knownCount)
+    /** Test-only: return the count of non-null entries in the current snapshot. */
+    fun knownCountForTest(): Int = knownOwners.count { it != null && it.get() != null }
 
-    /** Test-only accessor for the latest ref. */
-    @Synchronized
+    /** Test-only: return the latest ref. */
     fun latestRefForTest(): WeakReference<Any>? = latestKnownStatusBar
 
     /**
      * Check whether [owner] is already known as a status bar.
      *
-     * This is the steady-state identity fast path:
-     * - bounded linear scan
+     * Steady-state fast path:
+     * - single volatile acquire
+     * - bounded linear scan (at most [MAX_TRACKED] iterations)
      * - no lock
      * - no allocation
      */
     fun isKnownStatusBar(owner: Any): Boolean {
         val snapshot = knownOwners
-        val count = knownCount
-        for (i in 0 until count) {
-            val ref = snapshot[i]
-            if (ref?.get() === owner) return true
+        for (i in 0 until MAX_TRACKED) {
+            if (snapshot[i]?.get() === owner) return true
         }
         return false
     }
@@ -64,49 +60,49 @@ internal class StatusBarHeightRuntime {
     /**
      * Remember that [owner] is a status bar.
      *
-     * This is the rare discovery path.  It may allocate one [WeakReference] and rebuild the small
-     * bounded array.  The operation is synchronized so readers can read the array without a lock.
+     * Rare discovery path.  It allocates a new [WeakReference] only for a genuinely new owner and
+     * publishes the new snapshot with a single volatile assignment.  The operation is synchronized
+     * so readers can read the array without a lock.
+     *
+     * @return the [WeakReference] for this owner (existing or newly created).
      */
     @Synchronized
-    fun rememberStatusBar(owner: Any): KnownStatusBarEntry? {
-        val snapshot = knownOwners
-        val count = knownCount
+    fun rememberStatusBar(owner: Any): WeakReference<Any> {
+        val current = knownOwners
 
-        // Try to reuse an existing entry/ref and update latest.
-        for (i in 0 until count) {
-            val ref = snapshot[i]
+        // Reuse an existing live entry.
+        for (i in 0 until MAX_TRACKED) {
+            val ref = current[i]
             if (ref?.get() === owner) {
                 latestKnownStatusBar = ref
-                return KnownStatusBarEntry(ref)
+                return ref
             }
         }
 
-        // Evict dead / null refs to make room before growing.
-        val compacted = arrayOfNulls<WeakReference<Any>>(MAX_TRACKED)
+        // Compact dead/null refs and find insertion slot.
+        val next = arrayOfNulls<WeakReference<Any>>(MAX_TRACKED)
         var j = 0
-        for (i in 0 until count) {
-            val ref = snapshot[i]
+        for (i in 0 until MAX_TRACKED) {
+            val ref = current[i]
             if (ref != null && ref.get() != null) {
-                compacted[j++] = ref
+                next[j++] = ref
             }
         }
 
-        // If still at capacity, drop the oldest entry.
+        // If at capacity, evict the oldest (slot 0) and shift.
         if (j >= MAX_TRACKED) {
             for (i in 1 until MAX_TRACKED) {
-                compacted[i - 1] = compacted[i]
+                next[i - 1] = next[i]
             }
             j = MAX_TRACKED - 1
-            compacted[j] = null
+            next[j] = null
         }
 
         val newRef = WeakReference(owner)
-        compacted[j++] = newRef
-        knownOwners = compacted
-        knownCount = j
+        next[j] = newRef
+        knownOwners = next
         latestKnownStatusBar = newRef
-
-        return KnownStatusBarEntry(newRef)
+        return newRef
     }
 
     /**
@@ -114,26 +110,11 @@ internal class StatusBarHeightRuntime {
      */
     @Synchronized
     fun resetKnownStatusBars() {
-        for (i in 0 until knownCount) {
-            knownOwners[i] = null
-        }
-        knownCount = 0
+        knownOwners = arrayOfNulls(MAX_TRACKED)
         latestKnownStatusBar = null
         typeMatchObserved = false
         fallbackProbeBudget.set(MAX_FALLBACK_PROBES)
         lastRefreshGeneration.set(-1L)
-    }
-
-    /**
-     * Bounded per-status-bar metadata entry.
-     *
-     * B1 keeps this minimal: only the owner identity.  Original height and display id are captured
-     * on-demand by the Effect layer in B2.
-     */
-    data class KnownStatusBarEntry(
-        val ownerRef: WeakReference<Any>,
-    ) {
-        val owner: Any? get() = ownerRef.get()
     }
 
     companion object {

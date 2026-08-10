@@ -3,14 +3,6 @@ package tv.withaibuild.customiuizer.mods.statusbarheight
 import java.lang.reflect.Field
 import java.lang.reflect.Method
 
-/**
- * Immutable typed capability description for the status bar height feature.
- *
- * Each member is either a resolved [Field]/[Method]/[Class] or null, expressing capability rather
- * than an all-or-nothing result.  Optional capabilities may be unavailable while the core feature
- * continues with the remaining capabilities.
- */
-
 /** Which type encoding the ROM uses for `android.view.InsetsSource.getType()`. */
 enum class InsetsTypeEncoding {
     MODERN_PUBLIC,
@@ -20,10 +12,6 @@ enum class InsetsTypeEncoding {
 
 /**
  * Resolved type encoding constants.
- *
- * @property statusBarType the value that identifies the status bar InsetsSource.
- * @property navigationType the value for navigation bar; `-1` if not resolvable.
- * @property displayCutoutType the value for display cutout; `-1` if not resolvable.
  */
 internal data class InsetsTypeInfo(
     val encoding: InsetsTypeEncoding,
@@ -34,7 +22,6 @@ internal data class InsetsTypeInfo(
     val isSupported: Boolean get() = encoding != InsetsTypeEncoding.UNSUPPORTED
 
     companion object {
-        /** Sentinel value meaning the type could not be resolved. */
         const val TYPE_UNRESOLVED = Int.MIN_VALUE
     }
 }
@@ -69,23 +56,28 @@ internal data class RawTypeInfo(
  * @property setFrameOneArg true if `setFrame(Rect)` exists.
  * @property setFrameFourArg true if `setFrame(int,int,int,int)` exists.
  * @property typeInfo resolved type encoding.
- * @property hasGetId true if `getId()` exists.
- * @property hasGetFrame true if `getFrame()` exists.
  * @property typeField preferred `mType` field; null if unavailable.
  * @property getTypeMethod fallback `getType()` method; null if unavailable.
+ * @property getIdMethod resolved `getId()` method; null if unavailable.
+ * @property getFrameMethod resolved `getFrame()` method; null if unavailable.
  */
 internal data class InsetsSourceCapability(
     val sourceClass: Class<*>?,
     val setFrameOneArg: Boolean,
     val setFrameFourArg: Boolean,
     val typeInfo: InsetsTypeInfo,
-    val hasGetId: Boolean,
-    val hasGetFrame: Boolean,
     val typeField: Field?,
     val getTypeMethod: Method?,
+    val getIdMethod: Method?,
+    val getFrameMethod: Method?,
 ) {
+    val canReadType: Boolean get() = typeField != null || getTypeMethod != null
+
     val coreSupported: Boolean
-        get() = sourceClass != null && typeInfo.isSupported && (setFrameOneArg || setFrameFourArg)
+        get() = sourceClass != null &&
+            typeInfo.isSupported &&
+            (setFrameOneArg || setFrameFourArg) &&
+            canReadType
 }
 
 /**
@@ -93,19 +85,22 @@ internal data class InsetsSourceCapability(
  */
 internal data class WindowManagerCapability(
     val windowStateClass: Class<*>?,
+    val displayPolicyClass: Class<*>?,
     val windowStateAttrsField: Field?,
-    val layoutParamsTypeField: Field?,
-    val layoutParamsHeightField: Field?,
-    val layoutParamsPackageNameField: Field?,
+    val windowStateDisplayContentField: Field?,
+    val windowStateWindowManagerServiceField: Field?,
     val windowStateGetFrameMethod: Method?,
     val windowStateGetDisplayMetricsMethod: Method?,
     val windowStateGetDisplayIdMethod: Method?,
+    val windowStateWindowFramesField: Field?,
+    val windowFramesFrameField: Field?,
     val clientWindowFramesClass: Class<*>?,
     val clientWindowFramesFrameField: Field?,
-) {
-    val hasWindowStateClass: Boolean get() = windowStateClass != null
-    val hasClientWindowFrames: Boolean get() = clientWindowFramesClass != null && clientWindowFramesFrameField != null
-}
+    val layoutParamsClass: Class<*>?,
+    val layoutParamsTypeField: Field?,
+    val layoutParamsHeightField: Field?,
+    val layoutParamsPackageNameField: Field?,
+)
 
 /**
  * Immutable capability for DisplayPolicy.DecorInsets.Info.
@@ -113,30 +108,30 @@ internal data class WindowManagerCapability(
 internal data class DecorInsetsCapability(
     val infoClass: Class<*>?,
     val updateMethod: Method?,
+    val displayContentClass: Class<*>?,
+    val displayContentGetDisplayMetricsMethod: Method?,
     val nonDecorInsetsField: Field?,
     val nonDecorFrameField: Field?,
-    val displayContentGetDisplayMetricsMethod: Method?,
-) {
-    val hasInfo: Boolean get() = infoClass != null && updateMethod != null
-    val canAdjustNonDecor: Boolean
-        get() = nonDecorInsetsField != null && nonDecorFrameField != null
-}
+)
 
 /**
  * Late ABI resolved on first real framework object.
  *
- * Each member is nullable.  `null` means resolved-unavailable or not yet resolved.
+ * Each member is nullable.  `null` means resolved-unavailable or not provided by this ROM.
  */
 internal data class LateAbi(
-    val windowStateGetDisplayMetricsMethod: Method?,
-    val windowStateGetDisplayIdMethod: Method?,
-    val displayContentGetDisplayMetricsMethod: Method?,
+    val windowManagerServicePlacerField: Field?,
+    val windowSurfacePlacerRequestTraversalMethod: Method?,
     val displayContentGetDisplayPolicyMethod: Method?,
     val displayPolicyDecorInsetsField: Field?,
     val decorInsetsInvalidateMethod: Method?,
-    val windowManagerServicePlacerField: Field?,
-    val windowSurfacePlacerRequestTraversalMethod: Method?,
 )
+
+/** Publication state for late ABI. */
+internal sealed interface LateAbiState {
+    data object Unresolved : LateAbiState
+    data class Resolved(val abi: LateAbi) : LateAbiState
+}
 
 /**
  * Aggregate cold-resolved ABI for the status bar height feature.
