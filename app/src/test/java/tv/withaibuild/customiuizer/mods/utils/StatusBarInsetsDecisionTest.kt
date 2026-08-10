@@ -14,6 +14,9 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.SystemStatusBarInsetsHooks as Insets
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsSourceCapability
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeEncoding
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeInfo
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.lang.reflect.Executable
 
@@ -136,7 +139,18 @@ class StatusBarInsetsDecisionTest {
         val chain = fakeChain(src, fakeRect(bottom = 104))
         val typeField = FieldBackedSource::class.java.getDeclaredField("mType").also { it.isAccessible = true }
 
-        Insets.SetFrameCallback(modernPublicInfo(), hasGetId = false, typeField = typeField).intercept(chain)
+        Insets.SetFrameCallback(
+            InsetsSourceCapability(
+                sourceClass = null,
+                setFrameOneArg = true,
+                setFrameFourArg = true,
+                typeInfo = modernPublicInfo(),
+                typeField = typeField,
+                getTypeMethod = null,
+                getIdMethod = null,
+                getFrameMethod = null,
+            )
+        ).intercept(chain)
 
         assertTrue(chain.calledWithArgs)
         assertEquals(0, src.getTypeCalls)
@@ -246,7 +260,7 @@ class StatusBarInsetsDecisionTest {
     fun statusSourceLogsOncePerGeneration() {
         configureHeight(40, 160) // -> 40 px
 
-        val hook = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, typeField = null)
+        val hook = Insets.SetFrameCallback(callbackCaps(modernPublicInfo(), getId = true))
 
         repeat(40) { index ->
             hook.intercept(fakeChain(source(type = 1, id = index), fakeRect(bottom = 104)))
@@ -264,7 +278,7 @@ class StatusBarInsetsDecisionTest {
     fun nonStatusSourcesProduceNoDiagnostics() {
         configureHeight(40, 160)
 
-        val hook = Insets.SetFrameCallback(modernPublicInfo(), hasGetId = true, typeField = null)
+        val hook = Insets.SetFrameCallback(callbackCaps(modernPublicInfo(), getId = true))
 
         repeat(40) { index ->
             hook.intercept(fakeChain(source(type = 2, id = index), fakeRect(bottom = 104)))
@@ -274,25 +288,38 @@ class StatusBarInsetsDecisionTest {
         assertEquals(0, Insets.criticalKeyCountForTest())
     }
 
-    private fun callback(info: Insets.InsetsTypeInfo) =
-        Insets.SetFrameCallback(info, hasGetId = false, typeField = null)
+    private fun callback(info: InsetsTypeInfo) =
+        Insets.SetFrameCallback(callbackCaps(info, getId = false))
 
-    private fun modernPublicInfo() = Insets.InsetsTypeInfo(
-        Insets.InsetsTypeEncoding.MODERN_PUBLIC,
+    private fun callbackCaps(info: InsetsTypeInfo, getId: Boolean): InsetsSourceCapability {
+        return InsetsSourceCapability(
+            sourceClass = null,
+            setFrameOneArg = true,
+            setFrameFourArg = true,
+            typeInfo = info,
+            typeField = null,
+            getTypeMethod = FakeSource::class.java.getDeclaredMethod("getType").also { it.isAccessible = true },
+            getIdMethod = if (getId) FakeSource::class.java.getDeclaredMethod("getId").also { it.isAccessible = true } else null,
+            getFrameMethod = null,
+        )
+    }
+
+    private fun modernPublicInfo() = InsetsTypeInfo(
+        InsetsTypeEncoding.MODERN_PUBLIC,
         statusBarType = 1,
         navigationType = 2,
         displayCutoutType = 128,
     )
 
-    private fun legacyInternalInfo() = Insets.InsetsTypeInfo(
-        Insets.InsetsTypeEncoding.LEGACY_INTERNAL,
+    private fun legacyInternalInfo() = InsetsTypeInfo(
+        InsetsTypeEncoding.LEGACY_INTERNAL,
         statusBarType = 0,
         navigationType = 1,
         displayCutoutType = -1,
     )
 
-    private fun unsupportedInfo() = Insets.InsetsTypeInfo(
-        Insets.InsetsTypeEncoding.UNSUPPORTED,
+    private fun unsupportedInfo() = InsetsTypeInfo(
+        InsetsTypeEncoding.UNSUPPORTED,
         statusBarType = -1,
         navigationType = -1,
         displayCutoutType = -1,

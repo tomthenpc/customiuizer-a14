@@ -8,6 +8,10 @@ import android.view.WindowInsets
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsSourceCapability
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeEncoding
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightAbi
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightResolver
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
@@ -84,7 +88,9 @@ object SystemStatusBarInsetsHooks {
     /** Upper bound for the expensive packageName/toString status bar probe. */
     internal const val MAX_FALLBACK_PROBES = 4096
 
-    private var typeInfo: InsetsTypeInfo? = null
+    /** Process-scoped frozen ABI for the status bar height feature. */
+    @Volatile
+    private var statusBarHeightAbi: StatusBarHeightAbi? = null
     private var hookInstalled: Boolean = false
 
     /** Weak reference to the most recently laid-out status bar WindowState for refresh. */
@@ -189,6 +195,8 @@ object SystemStatusBarInsetsHooks {
     @JvmStatic
     internal fun resetForTest() {
         resetDiagnosticsForTest()
+        statusBarHeightAbi = null
+        hookInstalled = false
         statusBarWindowRef = null
         statusBarWindows = emptyArray()
         typeMatchObserved = false
@@ -254,16 +262,13 @@ object SystemStatusBarInsetsHooks {
             return
         }
 
-        val sourceAbi = resolveInsetsSourceAbi(insetsSourceClass, classLoader)
-        val resolvedTypeInfo = selectTypeEncoding(sourceAbi)
-        if (resolvedTypeInfo.encoding == InsetsTypeEncoding.UNSUPPORTED) {
-            logInstall("status bar Insets type encoding not resolvable")
+        // Resolve the full cold ABI and publish it before hooking the InsetsSource callback.
+        val abi = StatusBarHeightResolver.resolveCore(classLoader)
+        if (!abi.insets.coreSupported) {
+            logInstall("status bar Insets core capability not supported")
             return
         }
-        typeInfo = resolvedTypeInfo
-
-        val hasGetId = hasMethod(insetsSourceClass, GET_ID_METHOD)
-        val hasGetFrame = hasMethod(insetsSourceClass, GET_FRAME_METHOD)
+        statusBarHeightAbi = abi
 
         val resources = try {
             Resources.getSystem()
@@ -283,16 +288,18 @@ object SystemStatusBarInsetsHooks {
                 "configuredPx=${state.configuredPx} " +
                 "density=${state.density} " +
                 "densityDpi=${state.densityDpi} " +
-                "encoding=${resolvedTypeInfo.encoding} " +
-                "statusType=${resolvedTypeInfo.statusBarType} " +
-                "navType=${resolvedTypeInfo.navigationType} " +
-                "cutoutType=${resolvedTypeInfo.displayCutoutType} " +
-                "setFrame1=$setFrameOneArg setFrame4=$setFrameFourArg " +
-                "getId=$hasGetId getFrame=$hasGetFrame " +
-                "abi=$sourceAbi"
+                "encoding=${abi.insets.typeInfo.encoding} " +
+                "statusType=${abi.insets.typeInfo.statusBarType} " +
+                "navType=${abi.insets.typeInfo.navigationType} " +
+                "cutoutType=${abi.insets.typeInfo.displayCutoutType} " +
+                "setFrame1=${abi.insets.setFrameOneArg} " +
+                "setFrame4=${abi.insets.setFrameFourArg} " +
+                "typeReader=${if (abi.insets.typeField != null) "FIELD" else "METHOD"} " +
+                "getId=${abi.insets.getIdMethod != null} " +
+                "getFrame=${abi.insets.getFrameMethod != null}"
         )
 
-        val callback = SetFrameCallback(resolvedTypeInfo, hasGetId, resolveIntField(insetsSourceClass, "mType"))
+        val callback = SetFrameCallback(abi.insets)
         ModuleHelper.hookAllMethods(insetsSourceClass, SET_FRAME_METHOD, callback)
 
         resolveWindowManagerAbi(classLoader)
@@ -893,186 +900,7 @@ object SystemStatusBarInsetsHooks {
         }
     }
 
-    /**
-     * Which type encoding the ROM uses for `InsetsSource.getType()`.
-     *
-     * - `MODERN_PUBLIC`: `getType()` returns public `WindowInsets.Type` masks.
-     * - `LEGACY_INTERNAL`: `getType()` returns `InsetsState.ITYPE_*` indices.
-     * - `UNSUPPORTED`: neither could be resolved.
-     */
-    internal enum class InsetsTypeEncoding {
-        MODERN_PUBLIC,
-        LEGACY_INTERNAL,
-        UNSUPPORTED,
-    }
 
-    internal data class InsetsTypeInfo(
-        val encoding: InsetsTypeEncoding,
-        val statusBarType: Int,
-        val navigationType: Int,
-        val displayCutoutType: Int,
-    )
-
-    /**
-     * Cold-path description of the `InsetsSource` ABI. All fields are filled by
-     * reflection on the install ClassLoader; `selectTypeEncoding` uses only this
-     * snapshot to freeze the unique type encoding.
-     */
-    internal data class InsetsSourceAbi(
-        val hasOneIntConstructor: Boolean,
-        val hasIdTypeConstructor: Boolean,
-        val hasGetId: Boolean,
-        val hasGetType: Boolean,
-        val legacyStatusType: Int?,
-        val legacyNavigationType: Int?,
-        val publicStatusType: Int?,
-        val publicNavigationType: Int?,
-        val publicDisplayCutoutType: Int?,
-    )
-
-    /**
-     * Select the unique type encoding from the observed ABI.
-     *
-     * Rules:
-     * - MODERN_PUBLIC: modern `(int id, int type)` constructor, `getId()`,
-     *   `getType()` and `WindowInsets.Type.statusBars()` are all resolvable.
-     * - LEGACY_INTERNAL: legacy `(int type)` constructor, no modern constructor,
-     *   `getType()` and both `ITYPE_STATUS_BAR` / `ITYPE_NAVIGATION_BAR` resolvable.
-     * - UNSUPPORTED: anything else, including ambiguous ABI where both constructors
-     *   exist but the modern contract is not fully satisfied.
-     */
-    private fun Int?.isResolvedType(): Boolean = this != null && this >= 0
-
-    @JvmStatic
-    internal fun selectTypeEncoding(abi: InsetsSourceAbi): InsetsTypeInfo {
-        val isModern = abi.hasIdTypeConstructor &&
-            abi.hasGetId &&
-            abi.hasGetType &&
-            abi.publicStatusType.isResolvedType()
-
-        val isLegacy = abi.hasOneIntConstructor &&
-            !abi.hasIdTypeConstructor &&
-            abi.hasGetType &&
-            abi.legacyStatusType.isResolvedType() &&
-            abi.legacyNavigationType.isResolvedType()
-
-        return when {
-            isModern -> InsetsTypeInfo(
-                InsetsTypeEncoding.MODERN_PUBLIC,
-                abi.publicStatusType!!,
-                abi.publicNavigationType.takeIf { it.isResolvedType() } ?: -1,
-                abi.publicDisplayCutoutType.takeIf { it.isResolvedType() } ?: -1,
-            )
-            isLegacy -> InsetsTypeInfo(
-                InsetsTypeEncoding.LEGACY_INTERNAL,
-                abi.legacyStatusType!!,
-                abi.legacyNavigationType!!,
-                -1,
-            )
-            else -> InsetsTypeInfo(
-                InsetsTypeEncoding.UNSUPPORTED,
-                -1,
-                -1,
-                -1,
-            )
-        }
-    }
-
-    private fun resolveInsetsSourceAbi(insetsSourceClass: Class<*>, classLoader: ClassLoader?): InsetsSourceAbi {
-        val constructors = try {
-            insetsSourceClass.declaredConstructors
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            emptyArray()
-        }
-
-        val hasOneIntConstructor = constructors.any { it.parameterTypes.contentEquals(arrayOf(Int::class.java)) }
-        val hasIdTypeConstructor = constructors.any { it.parameterTypes.contentEquals(arrayOf(Int::class.java, Int::class.java)) }
-
-        val hasGetId = hasMethod(insetsSourceClass, GET_ID_METHOD)
-        val hasGetType = hasMethod(insetsSourceClass, GET_TYPE_METHOD)
-
-        val public = resolvePublicTypes()
-        val legacy = resolveLegacyTypes(classLoader)
-
-        return InsetsSourceAbi(
-            hasOneIntConstructor = hasOneIntConstructor,
-            hasIdTypeConstructor = hasIdTypeConstructor,
-            hasGetId = hasGetId,
-            hasGetType = hasGetType,
-            legacyStatusType = legacy.statusBarType,
-            legacyNavigationType = legacy.navigationType,
-            publicStatusType = public.statusBarType,
-            publicNavigationType = public.navigationType,
-            publicDisplayCutoutType = public.displayCutoutType,
-        )
-    }
-
-    private fun resolvePublicTypes(): RawTypeInfo {
-        val status = safePublicType { WindowInsets.Type.statusBars() }
-        val nav = safePublicType { WindowInsets.Type.navigationBars() }
-        val cutout = safePublicType { WindowInsets.Type.displayCutout() }
-        return RawTypeInfo(status, nav, cutout)
-    }
-
-    /**
-     * Resolves a public `WindowInsets.Type` method. Returns `null` on failure so that
-     * `-1` is never mistaken for a valid type mask.
-     */
-    private fun safePublicType(block: () -> Int): Int? {
-        return try {
-            normalizeResolvedType(block())
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            null
-        }
-    }
-
-    @JvmStatic
-    internal fun normalizeResolvedType(value: Int): Int? = value.takeIf { it >= 0 }
-
-    private fun resolveLegacyTypes(classLoader: ClassLoader?): RawTypeInfo {
-        val insetsStateClass = XposedHelpers.findClassIfExists(INSETS_STATE_CLASS, classLoader)
-            ?: return RawTypeInfo(null, null, null)
-        return RawTypeInfo(
-            getStaticInt(insetsStateClass, "ITYPE_STATUS_BAR"),
-            getStaticInt(insetsStateClass, "ITYPE_NAVIGATION_BAR"),
-            getStaticInt(insetsStateClass, "ITYPE_DISPLAY_CUTOUT"),
-        )
-    }
-
-    /**
-     * Resolves a static int field. Returns `null` when the field is missing or negative,
-     * so that `-1` is never treated as a resolved legacy type.
-     */
-    private fun getStaticInt(clazz: Class<*>, fieldName: String): Int? {
-        return try {
-            normalizeResolvedType(XposedHelpers.getStaticIntField(clazz, fieldName))
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            null
-        }
-    }
-
-    private fun hasMethod(clazz: Class<*>, methodName: String): Boolean {
-        return try {
-            clazz.getDeclaredMethods().any { it.name == methodName }
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
-            false
-        }
-    }
-
-    /** Small helper used for both public and legacy type resolution. */
-    internal data class RawTypeInfo(
-        val statusBarType: Int?,
-        val navigationType: Int?,
-        val displayCutoutType: Int?,
-    )
-
-    internal fun isStatusBarType(type: Int, typeInfo: InsetsTypeInfo): Boolean {
-        return type == typeInfo.statusBarType
-    }
 
     /**
      * Pure geometry logic: given the original frame and the configured height in pixels,
@@ -1165,34 +993,33 @@ object SystemStatusBarInsetsHooks {
      * first-hit log is actually going to be emitted.
      */
     internal class SetFrameCallback(
-        private val typeInfo: InsetsTypeInfo,
-        private val hasGetId: Boolean,
-        private val typeField: Field?,
+        private val insets: InsetsSourceCapability,
     ) : MethodHook() {
 
         private val statusBarType: Int =
-            if (typeInfo.encoding == InsetsTypeEncoding.UNSUPPORTED) TYPE_UNRESOLVED else typeInfo.statusBarType
+            if (insets.typeInfo.encoding == InsetsTypeEncoding.UNSUPPORTED) TYPE_UNRESOLVED else insets.typeInfo.statusBarType
 
         override fun intercept(chain: XposedInterface.Chain): Any? {
-            if (!StatusBarHeightConfig.enabled) return chain.proceed()
+            val config = StatusBarHeightConfig.currentState()
+            if (!config.enabled) return chain.proceed()
             if (statusBarType == TYPE_UNRESOLVED) return chain.proceed()
-            val configuredPx = StatusBarHeightConfig.configuredPx
+            val configuredPx = config.configuredPx
             if (configuredPx <= 0) return chain.proceed()
 
             val source = chain.thisObject ?: return chain.proceed()
             val type = readSourceType(source)
             if (type == TYPE_UNRESOLVED) {
-                logRejection(REASON_REFLECTION_FAILED, reflectionFailureLogStamp)
+                logRejection(REASON_REFLECTION_FAILED, reflectionFailureLogStamp, config)
                 return chain.proceed()
             }
             if (type != statusBarType) return chain.proceed()
 
             // Status bar source only: rare compared to the global call rate.
             val adjusted = try {
-                adjustArgs(chain, source, type, configuredPx)
+                adjustArgs(chain, source, type, configuredPx, config)
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
-                logRejection(REASON_REFLECTION_FAILED, reflectionFailureLogStamp)
+                logRejection(REASON_REFLECTION_FAILED, reflectionFailureLogStamp, config)
                 null
             }
 
@@ -1206,11 +1033,12 @@ object SystemStatusBarInsetsHooks {
             source: Any,
             type: Int,
             configuredPx: Int,
+            config: StatusBarHeightConfig.State,
         ): Array<Any>? {
             when (val firstArg = chain.getArg(0)) {
                 is Rect -> {
                     val newBottom = computeStatusBarFrameBottom(firstArg.top, firstArg.bottom, configuredPx, true)
-                    logStatusSource(source, type, OVERLOAD_RECT, firstArg.top, firstArg.bottom, newBottom)
+                    logStatusSource(source, type, OVERLOAD_RECT, firstArg.top, firstArg.bottom, newBottom, config)
                     if (newBottom == firstArg.bottom) return null
                     val adjusted = copyRect(firstArg)
                     adjusted.bottom = newBottom
@@ -1221,29 +1049,44 @@ object SystemStatusBarInsetsHooks {
                     val right = chain.getArg(2) as? Int
                     val bottom = chain.getArg(3) as? Int
                     if (top == null || right == null || bottom == null) {
-                        logRejection(REASON_INVALID_SHAPE, invalidShapeLogStamp)
+                        logRejection(REASON_INVALID_SHAPE, invalidShapeLogStamp, config)
                         return null
                     }
                     val newBottom = computeStatusBarFrameBottom(top, bottom, configuredPx, true)
-                    logStatusSource(source, type, OVERLOAD_INTS, top, bottom, newBottom)
+                    logStatusSource(source, type, OVERLOAD_INTS, top, bottom, newBottom, config)
                     if (newBottom == bottom) return null
                     return arrayOf(firstArg, top, right, newBottom)
                 }
                 else -> {
-                    logRejection(REASON_INVALID_SHAPE, invalidShapeLogStamp)
+                    logRejection(REASON_INVALID_SHAPE, invalidShapeLogStamp, config)
                     return null
                 }
             }
         }
 
-        /** Reads `InsetsSource.mType` through the cached field, or falls back to `getType()`. */
+        /** Reads `InsetsSource.mType` through the frozen field, or falls back to the frozen `getType()` method. */
         private fun readSourceType(source: Any): Int {
-            val field = typeField
+            val field = insets.typeField
+            if (field != null) {
+                return try {
+                    if (!field.declaringClass.isInstance(source)) {
+                        TYPE_UNRESOLVED
+                    } else {
+                        field.getInt(source)
+                    }
+                } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
+                    TYPE_UNRESOLVED
+                }
+            }
+
+            val method = insets.getTypeMethod ?: return TYPE_UNRESOLVED
+
             return try {
-                if (field != null && field.declaringClass.isInstance(source)) {
-                    field.getInt(source)
+                if (!method.declaringClass.isInstance(source)) {
+                    TYPE_UNRESOLVED
                 } else {
-                    XposedHelpers.callMethod(source, GET_TYPE_METHOD) as? Int ?: TYPE_UNRESOLVED
+                    method.invoke(source) as? Int ?: TYPE_UNRESOLVED
                 }
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
@@ -1259,11 +1102,12 @@ object SystemStatusBarInsetsHooks {
             oldTop: Int,
             oldBottom: Int,
             newBottom: Int,
+            config: StatusBarHeightConfig.State,
         ) {
             if (!claimGenerationStamp(statusSourceLogStamp)) return
 
             val generation = StatusBarHeightConfig.generation.get()
-            val sourceId = if (hasGetId) readSourceId(source) else null
+            val sourceId = if (insets.getIdMethod != null) readSourceId(source) else null
             val key = "insets:${sourceId ?: "n/a"}:$generation"
             synchronized(loggedCritical) {
                 if (loggedCritical.size >= MAX_CRITICAL_KEYS) return
@@ -1272,23 +1116,24 @@ object SystemStatusBarInsetsHooks {
 
             XposedHelpers.log(
                 "[StatusBarInsets] insets " +
-                    "encoding=${typeInfo.encoding} " +
+                    "encoding=${insets.typeInfo.encoding} " +
                     "sourceId=${sourceId ?: "n/a"} " +
                     "type=$type " +
                     "overload=$overload " +
                     "oldTop=$oldTop oldBottom=$oldBottom " +
                     "newBottom=$newBottom " +
-                    "rawDp=${StatusBarHeightConfig.rawPreferenceDp} " +
-                    "resolvedDp=${StatusBarHeightConfig.configuredDp} " +
-                    "configuredPx=${StatusBarHeightConfig.configuredPx} " +
+                    "rawDp=${config.rawPreferenceDp} " +
+                    "resolvedDp=${config.configuredDp} " +
+                    "configuredPx=${config.configuredPx} " +
                     "changed=${newBottom != oldBottom} " +
                     "gen=$generation"
             )
         }
 
         private fun readSourceId(source: Any): Int? {
+            val method = insets.getIdMethod ?: return null
             return try {
-                XposedHelpers.callMethod(source, GET_ID_METHOD) as? Int
+                method.invoke(source) as? Int
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
                 null
@@ -1296,7 +1141,7 @@ object SystemStatusBarInsetsHooks {
         }
 
         /** Bounded, generation-gated anomaly log. Never runs for ordinary non-status sources. */
-        private fun logRejection(reason: String, stamp: AtomicLong) {
+        private fun logRejection(reason: String, stamp: AtomicLong, config: StatusBarHeightConfig.State) {
             if (rejectionLoggingExhausted) return
             if (!claimGenerationStamp(stamp)) return
 
@@ -1313,7 +1158,7 @@ object SystemStatusBarInsetsHooks {
 
             XposedHelpers.log(
                 "[StatusBarInsets] insets-reject " +
-                    "encoding=${typeInfo.encoding} " +
+                    "encoding=${insets.typeInfo.encoding} " +
                     "reason=$reason " +
                     "gen=$generation"
             )

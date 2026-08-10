@@ -2,13 +2,15 @@ package tv.withaibuild.customiuizer.mods.utils
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import tv.withaibuild.customiuizer.mods.SystemStatusBarInsetsHooks as Insets
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsSourceAbi
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeEncoding
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightResolver
 
 class StatusBarInsetsResolverTest {
 
     @Test
     fun modernAbiSelectsModernPublic() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = false,
             hasIdTypeConstructor = true,
             hasGetId = true,
@@ -20,9 +22,9 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = 128,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.MODERN_PUBLIC, info.encoding)
+        assertEquals(InsetsTypeEncoding.MODERN_PUBLIC, info.encoding)
         assertEquals(1, info.statusBarType)
         assertEquals(2, info.navigationType)
         assertEquals(128, info.displayCutoutType)
@@ -30,7 +32,7 @@ class StatusBarInsetsResolverTest {
 
     @Test
     fun modernAbiWithLegacyFieldsStillSelectsModernPublic() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = true,
             hasGetId = true,
@@ -42,9 +44,9 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = 128,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.MODERN_PUBLIC, info.encoding)
+        assertEquals(InsetsTypeEncoding.MODERN_PUBLIC, info.encoding)
         assertEquals(1, info.statusBarType)
         assertEquals(2, info.navigationType)
         assertEquals(128, info.displayCutoutType)
@@ -52,7 +54,7 @@ class StatusBarInsetsResolverTest {
 
     @Test
     fun legacyAbiSelectsLegacyInternal() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
             hasGetId = false,
@@ -64,9 +66,9 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = null,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.LEGACY_INTERNAL, info.encoding)
+        assertEquals(InsetsTypeEncoding.LEGACY_INTERNAL, info.encoding)
         assertEquals(0, info.statusBarType)
         assertEquals(1, info.navigationType)
         assertEquals(-1, info.displayCutoutType)
@@ -74,7 +76,7 @@ class StatusBarInsetsResolverTest {
 
     @Test
     fun legacyFieldsWithModernConstructorSelectsModernPublic() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = true,
             hasGetId = true,
@@ -86,9 +88,9 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = null,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.MODERN_PUBLIC, info.encoding)
+        assertEquals(InsetsTypeEncoding.MODERN_PUBLIC, info.encoding)
         assertEquals(1, info.statusBarType)
         assertEquals(-1, info.navigationType)
         assertEquals(-1, info.displayCutoutType)
@@ -96,7 +98,7 @@ class StatusBarInsetsResolverTest {
 
     @Test
     fun onlyStatusBarLegacyConstantIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
             hasGetId = false,
@@ -108,14 +110,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = null,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun bothConstructorsWithoutGetIdIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = true,
             hasGetId = false,
@@ -127,14 +129,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = 128,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun noAvailableTypesIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = false,
             hasIdTypeConstructor = false,
             hasGetId = false,
@@ -146,14 +148,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = null,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun modernAbiMissingGetTypeIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = false,
             hasIdTypeConstructor = true,
             hasGetId = true,
@@ -165,14 +167,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = 128,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun modernAbiMissingPublicStatusTypeFallsBackToUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = false,
             hasIdTypeConstructor = true,
             hasGetId = true,
@@ -184,14 +186,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = 128,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun legacyAbiMissingGetTypeIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
             hasGetId = false,
@@ -203,14 +205,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = null,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun publicAndLegacyValuesAreNotMixed() {
-        val legacyOnly = Insets.InsetsSourceAbi(
+        val legacyOnly = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
             hasGetId = false,
@@ -222,19 +224,17 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = 128,
         )
 
-        val info = Insets.selectTypeEncoding(legacyOnly)
+        val info = StatusBarHeightResolver.selectTypeEncoding(legacyOnly)
 
-        assertEquals(Insets.InsetsTypeEncoding.LEGACY_INTERNAL, info.encoding)
+        assertEquals(InsetsTypeEncoding.LEGACY_INTERNAL, info.encoding)
         assertEquals(0, info.statusBarType)
         assertEquals(1, info.navigationType)
         assertEquals(-1, info.displayCutoutType)
     }
 
-    // --- R4 sentinel normalization ---
-
     @Test
     fun modernAbiWithPublicStatusTypeMinusOneIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = false,
             hasIdTypeConstructor = true,
             hasGetId = true,
@@ -246,14 +246,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = 128,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun legacyAbiWithLegacyStatusTypeMinusOneIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
             hasGetId = false,
@@ -265,14 +265,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = null,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun legacyAbiWithLegacyNavigationTypeMinusOneIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
             hasGetId = false,
@@ -284,14 +284,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = null,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun modernAbiWithNullPublicStatusTypeIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = false,
             hasIdTypeConstructor = true,
             hasGetId = true,
@@ -303,14 +303,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = 128,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun legacyAbiWithNullStatusAndNavIsUnsupported() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
             hasGetId = false,
@@ -322,14 +322,14 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = null,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.UNSUPPORTED, info.encoding)
+        assertEquals(InsetsTypeEncoding.UNSUPPORTED, info.encoding)
     }
 
     @Test
     fun modernStatusOneNavTwoCutoutOneTwentyEightIsModernPublic() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = true,
             hasGetId = true,
@@ -341,9 +341,9 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = 128,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.MODERN_PUBLIC, info.encoding)
+        assertEquals(InsetsTypeEncoding.MODERN_PUBLIC, info.encoding)
         assertEquals(1, info.statusBarType)
         assertEquals(2, info.navigationType)
         assertEquals(128, info.displayCutoutType)
@@ -351,7 +351,7 @@ class StatusBarInsetsResolverTest {
 
     @Test
     fun legacyStatusZeroNavOneIsLegacyInternal() {
-        val abi = Insets.InsetsSourceAbi(
+        val abi = InsetsSourceAbi(
             hasOneIntConstructor = true,
             hasIdTypeConstructor = false,
             hasGetId = false,
@@ -363,21 +363,11 @@ class StatusBarInsetsResolverTest {
             publicDisplayCutoutType = null,
         )
 
-        val info = Insets.selectTypeEncoding(abi)
+        val info = StatusBarHeightResolver.selectTypeEncoding(abi)
 
-        assertEquals(Insets.InsetsTypeEncoding.LEGACY_INTERNAL, info.encoding)
+        assertEquals(InsetsTypeEncoding.LEGACY_INTERNAL, info.encoding)
         assertEquals(0, info.statusBarType)
         assertEquals(1, info.navigationType)
         assertEquals(-1, info.displayCutoutType)
-    }
-
-    @Test
-    fun normalizeResolvedTypeMapping() {
-        // Production helper used by safePublicType() and getStaticInt() to map
-        // negative or missing sentinel values to null.
-        assertEquals(null, Insets.normalizeResolvedType(-1))
-        assertEquals(0, Insets.normalizeResolvedType(0))
-        assertEquals(1, Insets.normalizeResolvedType(1))
-        assertEquals(128, Insets.normalizeResolvedType(128))
     }
 }
