@@ -10,11 +10,13 @@ import miui.os.Build
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.HookUtils
+import java.lang.ref.WeakReference
 
 /**
  * Screen, brightness and wallpaper hooks.
@@ -106,33 +108,50 @@ object SystemDisplayHooks {
     /**
      * Per-thread bounded scope for the drawer blur ratio adjustment.
      *
-     * [doFrame] enters the scope with the current modifier percentage; [applyBlur] reads it.
-     * Nested and cross-thread calls are isolated, and [exit] is always called in a `finally`
-     * block so the scope cannot leak after an exception.
+     * [doFrame] enters the scope with the current modifier percentage and the
+     * [WeakReference] of the target [BlurUtilsExt]; [applyBlur] only adjusts the ratio when
+     * it is called on exactly that target instance.  Nested and cross-thread calls are
+     * isolated, and [exit] is always called in a `finally` block so the scope (including the
+     * target reference) cannot leak after an exception.
      */
     internal object DrawerBlurScope {
-        private val depth = ThreadLocal.withInitial { 0 }
-        private val activeModifier = ThreadLocal<Int>()
+        internal data class State(
+            var depth: Int = 0,
+            var modifier: Int = 100,
+            var targetRef: WeakReference<Any>? = null
+        )
 
-        fun enter(modifierPct: Int) {
-            val d = depth.get() ?: 0
-            depth.set(d + 1)
-            if (d == 0) activeModifier.set(modifierPct)
+        private val scope = ThreadLocal<State>()
+
+        fun enter(modifierPct: Int, targetRef: WeakReference<Any>?) {
+            val s = scope.get() ?: State()
+            if (s.depth == 0) {
+                s.modifier = modifierPct
+                s.targetRef = targetRef
+            }
+            s.depth++
+            scope.set(s)
         }
 
         fun exit() {
-            val d = depth.get() ?: 0
-            if (d <= 1) {
-                depth.set(0)
-                activeModifier.remove()
+            val s = scope.get() ?: return
+            s.depth--
+            if (s.depth <= 0) {
+                s.depth = 0
+                s.modifier = 100
+                s.targetRef = null
+                scope.remove()
             } else {
-                depth.set(d - 1)
+                scope.set(s)
             }
         }
 
-        fun isActive(): Boolean = (depth.get() ?: 0) > 0
-        fun getModifier(): Int = activeModifier.get() ?: 100
+        fun isActive(): Boolean = (scope.get()?.depth ?: 0) > 0
+        fun getModifier(): Int = scope.get()?.modifier ?: 100
+        fun getTargetRef(): WeakReference<Any>? = scope.get()?.targetRef
     }
+
+    internal const val DRAWER_BLUR_TARGET_KEY = "customiuizer_drawer_blur_target"
 
     private const val PREF_SYSTEM_DRAWER_BLUR = "system_drawer_blur"
 
@@ -163,7 +182,8 @@ object SystemDisplayHooks {
     }
 
     internal fun onDoFrame(chain: XposedInterface.Chain): Any? {
-        DrawerBlurScope.enter(drawerBlurModifierPct)
+        val target = resolveDrawerBlurTarget(chain.getThisObject())
+        DrawerBlurScope.enter(drawerBlurModifierPct, target?.let { WeakReference(it) })
         return try {
             chain.proceed()
         } finally {
@@ -173,11 +193,76 @@ object SystemDisplayHooks {
 
     internal fun onApplyBlur(chain: XposedInterface.Chain): Any? {
         val args = XposedHelpers.getArgsArray(chain)
-        if (DrawerBlurScope.isActive()) {
+        if (DrawerBlurScope.isActive() && DrawerBlurScope.getTargetRef()?.get() === chain.getThisObject()) {
             val ratio = args[1] as Float
             args[1] = ratio * DrawerBlurScope.getModifier() / 100f
         }
         return chain.proceed(args)
+    }
+
+    private fun resolveDrawerBlurTarget(callback: Any?): Any? {
+        if (callback == null) return null
+
+        val cached = XposedHelpers.getAdditionalInstanceField(callback, DRAWER_BLUR_TARGET_KEY) as? WeakReference<*>
+        cached?.get()?.let { return it }
+
+        return try {
+            val controller = XposedHelpers.getSurroundingThis(callback)
+            val target = findBlurUtilsExt(controller)
+            if (target != null) {
+                XposedHelpers.setAdditionalInstanceField(callback, DRAWER_BLUR_TARGET_KEY, WeakReference(target))
+            }
+            target
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            XposedHelpers.log(t)
+            null
+        }
+    }
+
+    private fun findBlurUtilsExt(controller: Any?): Any? {
+        if (controller == null) return null
+
+        // Hot path: common field names used by HyperOS SystemUI.
+        for (name in arrayOf("mBlurUtilsExt", "blurUtilsExt", "mBlurUtils", "blurUtils", "mBlur", "blur")) {
+            try {
+                val value = XposedHelpers.getObjectField(controller, name)
+                if (value != null && isBlurUtilsExt(value)) return value
+            } catch (ignored: Throwable) {}
+        }
+
+        // Cold path: search for a field whose declared type is BlurUtilsExt.
+        val controllerClass = controller.javaClass
+        for (field in controllerClass.declaredFields) {
+            if (field.type.name == "com.android.systemui.statusbar.policy.BlurUtilsExt") {
+                try {
+                    field.isAccessible = true
+                    val value = field.get(controller)
+                    if (value != null) return value
+                } catch (ignored: Throwable) {}
+            }
+        }
+
+        // Final fallback: search assignable subclasses in the whole hierarchy.
+        var searchClass: Class<*>? = controllerClass
+        while (searchClass != null) {
+            for (field in searchClass.declaredFields) {
+                val value = try {
+                    field.isAccessible = true
+                    field.get(controller)
+                } catch (ignored: Throwable) {
+                    null
+                } ?: continue
+                if (isBlurUtilsExt(value)) return value
+            }
+            searchClass = searchClass.superclass
+        }
+        return null
+    }
+
+    private fun isBlurUtilsExt(value: Any): Boolean {
+        return value.javaClass.name == "com.android.systemui.statusbar.policy.BlurUtilsExt" ||
+            value.javaClass.name.startsWith("com.android.systemui.statusbar.policy.BlurUtils")
     }
 
     internal fun onControlPanelSetBlurRatio(chain: XposedInterface.Chain): Any? {
