@@ -4,7 +4,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Method
 
 /** Which type encoding the ROM uses for `android.view.InsetsSource.getType()`. */
-enum class InsetsTypeEncoding {
+internal enum class InsetsTypeEncoding {
     MODERN_PUBLIC,
     LEGACY_INTERNAL,
     UNSUPPORTED,

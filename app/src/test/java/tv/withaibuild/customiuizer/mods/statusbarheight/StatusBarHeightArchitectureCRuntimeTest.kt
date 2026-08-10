@@ -35,15 +35,18 @@ class StatusBarHeightArchitectureCRuntimeTest {
     }
 
     @Test
-    fun remember_sameOwner_noNewWeakReferenceAllocation() {
+    fun remember_sameOwner_snapshotRetainsSameWeakReference() {
         val runtime = StatusBarHeightRuntime()
         val owner = Any()
 
-        val snapshot = runtime.knownSnapshotForTest()
-        runtime.rememberStatusBar(owner)
-        val ref = runtime.rememberStatusBar(owner)
+        val first = runtime.rememberStatusBar(owner)
+        val snapshotAfterFirst = runtime.knownSnapshotForTest()
+        val second = runtime.rememberStatusBar(owner)
+        val snapshotAfterSecond = runtime.knownSnapshotForTest()
 
-        assertSame(snapshot[0] ?: ref, ref)
+        assertSame(first, second)
+        assertSame(first, snapshotAfterFirst[0])
+        assertSame(first, snapshotAfterSecond[0])
     }
 
     @Test

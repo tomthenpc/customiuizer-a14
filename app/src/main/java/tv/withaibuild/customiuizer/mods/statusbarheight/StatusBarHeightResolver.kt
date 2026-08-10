@@ -296,7 +296,16 @@ internal object StatusBarHeightResolver {
         }
 
         // Deterministic: require exactly one matching overload.
-        return if (exact.size == 1) exact[0].also { it.isAccessible = true } else null
+        if (exact.size != 1) return null
+
+        return try {
+            val chosen = exact[0]
+            chosen.isAccessible = true
+            chosen
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
     }
 
     private fun resolveClientWindowFrames(windowStateClass: Class<*>): Pair<Class<*>?, Field?>? {
@@ -393,28 +402,40 @@ internal object StatusBarHeightResolver {
 
     /**
      * Resolve a public no-arg method on [clazz] or its superclasses.
-     * Deterministic: returns the first exact match found from the class upward.
+     * Deterministic and fail-closed: ambiguous candidates return null.
      */
     fun resolveNoArgMethod(clazz: Class<*>, methodName: String): Method? {
         var current: Class<*>? = clazz
         while (current != null) {
-            val candidate = try {
+            val candidates = try {
                 current.declaredMethods.filter { it.name == methodName && it.parameterTypes.isEmpty() }
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
-                emptyList()
+                return null
             }
 
-            if (candidate.isNotEmpty()) {
-                // Deterministic: if multiple no-arg methods exist (e.g. bridge), prefer non-synthetic.
-                val nonSynthetic = candidate.firstOrNull { !it.isSynthetic && !it.isBridge }
-                val chosen = nonSynthetic ?: candidate[0]
-                chosen.isAccessible = true
-                return chosen
+            if (candidates.isNotEmpty()) {
+                val chosen = selectDeterministicNoArgMethod(candidates) ?: return null
+                return try {
+                    chosen.isAccessible = true
+                    chosen
+                } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
+                    null
+                }
             }
             current = current.superclass
         }
         return null
+    }
+
+    private fun selectDeterministicNoArgMethod(candidates: List<Method>): Method? {
+        val nonSynthetic = candidates.filter { !it.isSynthetic && !it.isBridge }
+        return when {
+            nonSynthetic.size == 1 -> nonSynthetic[0]
+            nonSynthetic.isEmpty() && candidates.size == 1 -> candidates[0]
+            else -> null
+        }
     }
 
     fun resolveDeclaredField(clazz: Class<*>, name: String): Field? {
