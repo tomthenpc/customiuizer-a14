@@ -462,9 +462,9 @@ object SystemStatusBarInsetsHooks {
             return chain.proceed()
         }
 
-        // Known status bars are recognized and marked as latest in a single bounded scan.
-        // Unknown WindowStates fall through to the type/fallback discovery path.
-        if (!markLatestIfKnownStatusBar(win) && !isStatusBarWindow(win)) return chain.proceed()
+        // Single-pass recognition: known owners reuse the retained WeakReference and update
+        // latest; unknown WindowStates fall through to type/fallback discovery.
+        if (!isStatusBarWindow(win)) return chain.proceed()
 
         val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
         val displayId = getDisplayId(win)
@@ -658,7 +658,9 @@ object SystemStatusBarInsetsHooks {
      */
     @JvmStatic
     internal fun isStatusBarWindow(win: Any): Boolean {
-        if (isKnownStatusBarWindow(win)) return true
+        // Known owner: a single bounded scan also updates the latest reference, reusing the
+        // retained WeakReference.  Unknown windows fall through to type/fallback discovery.
+        if (markLatestIfKnownStatusBar(win)) return true
         return try {
             val attrs = readWindowAttrs(win) ?: return false
             if (readAttrsType(attrs) == TYPE_STATUS_BAR) {

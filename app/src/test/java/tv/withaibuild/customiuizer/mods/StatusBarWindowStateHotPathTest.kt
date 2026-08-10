@@ -14,6 +14,7 @@ import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightRuntime
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.PrefMap
+import java.io.File
 import java.lang.reflect.Executable
 
 /**
@@ -189,6 +190,31 @@ class StatusBarWindowStateHotPathTest {
     }
 
     @Test
+    fun sourceGuard_usesSinglePassOwnerLookup() {
+        val lines = facadeSourceLines()
+
+        val isStatusBarCalls = callCount(lines, "isStatusBarWindow(")
+        val isKnownCalls = callCount(lines, "isKnownStatusBarWindow(")
+        val markLatestCalls = callCount(lines, "markLatestIfKnownStatusBar(")
+
+        assertEquals(
+            "onLayoutWindowLw must call isStatusBarWindow exactly once",
+            1,
+            isStatusBarCalls
+        )
+        assertEquals(
+            "H3 (setFrames) must be the only isKnownStatusBarWindow caller",
+            1,
+            isKnownCalls
+        )
+        assertEquals(
+            "markLatestIfKnownStatusBar must only be called from disabled path and isStatusBarWindow",
+            2,
+            markLatestCalls
+        )
+    }
+
+    @Test
     fun setFramesFatalPropagatesAndProceedsOnce() {
         configureHeight(44)
         val error = OutOfMemoryError("setFrames OOM")
@@ -210,6 +236,17 @@ class StatusBarWindowStateHotPathTest {
 
     private fun configureHeight(dp: Int) {
         StatusBarHeightConfig.configure(PrefMap().apply { put("system_statusbarheight", dp) })
+    }
+
+    private fun facadeSourceLines(): List<String> {
+        val root = java.lang.System.getProperty("user.dir") ?: ""
+        val project = if (File(root, "app").isDirectory) root else File(root).parent
+        val file = File(project, "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemStatusBarInsetsHooks.kt")
+        return if (file.exists()) file.readLines() else emptyList()
+    }
+
+    private fun callCount(lines: List<String>, call: String): Int {
+        return lines.count { it.contains(call) && !it.contains("fun ") }
     }
 
     private fun setWindowStateClass(clazz: Class<*>?) {
