@@ -66,7 +66,7 @@ object SystemUIBatteryHooks {
     @Volatile
     private var batteryStyleObserverRegistered = false
 
-    private fun readBatteryStyle(): BatteryStyle {
+    internal fun readBatteryStyle(): BatteryStyle {
         val prefs = MainModule.mPrefs
         return BatteryStyle(
             swap = prefs.getBoolean(PREF_SWAP),
@@ -206,11 +206,11 @@ object SystemUIBatteryHooks {
                 if (style.swap) {
                     applyBatteryChildSwapIfNeeded(batteryView, mBatteryPercentView, mBatteryPercentMarkView)
                 }
-                if (style.fontSizeDp > 7.5) {
+                if (style.fontSizeDp != 7.5f) {
                     setTextSizeIfChanged(mBatteryTextDigitView, style.fontSizeDp)
                     setTextSizeIfChanged(mBatteryPercentView, style.fontSizeDp)
                 }
-                if (style.markFontSizeDp > 7.5) {
+                if (style.markFontSizeDp != 7.5f) {
                     setTextSizeIfChanged(mBatteryPercentMarkView, style.markFontSizeDp)
                 }
                 if (style.bold) {
@@ -241,18 +241,18 @@ object SystemUIBatteryHooks {
                     digitRightMargin = 0
                     markRightMargin = rightMargin
                 }
-                if (leftMargin > 0 || topMargin != 8 || digitRightMargin > 0) {
+                if (leftMargin > 0 || topMargin != 0 || digitRightMargin > 0) {
                     setPaddingRelativeIfChanged(mBatteryPercentView, leftMargin, topMargin, digitRightMargin, 0)
                 }
 
-                val markTopMargin = if (style.markVerticalOffset < 17) {
+                val markTopMargin = if (style.markVerticalOffset != 17) {
                     TypedValue.applyDimension(
                         TypedValue.COMPLEX_UNIT_DIP,
                         (style.markVerticalOffset - 8) * 0.5f,
                         metrics
                     ).toInt()
                 } else topMargin
-                if (style.markVerticalOffset < 17 || markRightMargin > 0) {
+                if (style.markVerticalOffset != 17 || markRightMargin > 0) {
                     setPaddingRelativeIfChanged(mBatteryPercentMarkView, 0, markTopMargin, markRightMargin, 0)
                 }
             }
