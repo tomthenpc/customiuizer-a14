@@ -144,27 +144,44 @@ object SystemUIControlCenterHooks {
         })
     }
 
-    private var blurCollapsed = 0.0f
+    internal data class VolumeBlurSnapshot(
+        val collapsed: Float = 0f,
+        val expanded: Float = 0f
+    )
 
-    private var blurExpanded = 0.0f
+    @Volatile
+    private var volumeBlurSnapshot = VolumeBlurSnapshot()
 
     private var volumeBlurObserverRegistered = false
 
+    private val VOLUME_BLUR_COLLAPSED_KEY = "system_volumeblur_collapsed"
+    private val VOLUME_BLUR_EXPANDED_KEY = "system_volumeblur_expanded"
+
+    internal fun refreshVolumeBlurSnapshot() {
+        val collapsed = MainModule.mPrefs.getInt(VOLUME_BLUR_COLLAPSED_KEY, 0) / 100f
+        val expanded = MainModule.mPrefs.getInt(VOLUME_BLUR_EXPANDED_KEY, 0) / 100f
+        volumeBlurSnapshot = VolumeBlurSnapshot(collapsed, expanded)
+    }
+
+    internal fun onVolumeBlurPreferenceChanged(key: String?) {
+        if (key == null) {
+            refreshVolumeBlurSnapshot()
+        } else if (key == VOLUME_BLUR_COLLAPSED_KEY || key == VOLUME_BLUR_EXPANDED_KEY) {
+            refreshVolumeBlurSnapshot()
+        }
+    }
+
+    internal fun getVolumeBlurSnapshot(): VolumeBlurSnapshot = volumeBlurSnapshot
+
     private val volumeBlurPreferenceObserver = object : ModuleHelper.PreferenceObserver {
         override fun onChange(key: String?) = ModuleHelper.guarded {
-            if (key == "system_volumeblur_collapsed") {
-                blurCollapsed = MainModule.mPrefs.getInt("system_volumeblur_collapsed", 0) / 100f
-            }
-            if (key == "system_volumeblur_expanded") {
-                blurExpanded = MainModule.mPrefs.getInt("system_volumeblur_expanded", 0) / 100f
-            }
+            onVolumeBlurPreferenceChanged(key)
         }
     }
 
     @JvmStatic
     fun BlurVolumeDialogBackgroundHook(classLoader: ClassLoader) {
-        blurCollapsed = MainModule.mPrefs.getInt("system_volumeblur_collapsed", 0) / 100f
-        blurExpanded = MainModule.mPrefs.getInt("system_volumeblur_expanded", 0) / 100f
+        refreshVolumeBlurSnapshot()
         if (!volumeBlurObserverRegistered) {
             volumeBlurObserverRegistered = true
             ModuleHelper.observePreferenceChange(volumeBlurPreferenceObserver)
@@ -174,12 +191,9 @@ object SystemUIControlCenterHooks {
                 val mWindow = XposedHelpers.getObjectField(param.getThisObject(), "mWindow") as Window
                 mWindow.setDimAmount(0.0f)
                 val mExpanded = XposedHelpers.getBooleanField(param.getThisObject(), "mExpanded")
-                var blurRatio = blurCollapsed
-                val isVisible = param.getArgs()[0] as Boolean
-                if (mExpanded && !isVisible) {
-                    blurRatio = blurExpanded
-                }
-                if (!mExpanded && blurCollapsed > 0.001f) {
+                val snapshot = volumeBlurSnapshot
+                val blurRatio = if (mExpanded && !(param.getArgs()[0] as Boolean)) snapshot.expanded else snapshot.collapsed
+                if (!mExpanded && snapshot.collapsed > 0.001f) {
                     mWindow.clearFlags(8)
                 }
                 if (mExpanded) {
@@ -189,10 +203,11 @@ object SystemUIControlCenterHooks {
         })
         ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "showH", Int::class.javaPrimitiveType!!, object : MethodHook() {
             override fun after(param: AfterHookCallback) {
-                if (blurCollapsed > 0.001f) {
+                val snapshot = volumeBlurSnapshot
+                if (snapshot.collapsed > 0.001f) {
                     val mWindow = XposedHelpers.getObjectField(param.getThisObject(), "mWindow") as Window
                     mWindow.clearFlags(8)
-                    XposedHelpers.callMethod(param.getThisObject(), "startBlurAnim", 0f, blurCollapsed, 0)
+                    XposedHelpers.callMethod(param.getThisObject(), "startBlurAnim", 0f, snapshot.collapsed, 0)
                 }
             }
         })
