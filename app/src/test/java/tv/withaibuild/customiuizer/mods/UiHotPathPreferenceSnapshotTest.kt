@@ -18,7 +18,7 @@ class UiHotPathPreferenceSnapshotTest {
     fun keyguardSetTranslationReadsSnapshotFlags() {
         val body = hookBody(
             "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUILockScreenHooks.kt",
-            "\"setTranslation\"",
+            "\"com.android.keyguard.KeyguardMoveHelper\"",
         )
 
         assertFalse("setTranslation runs per touch sample", body.contains("MainModule.mPrefs"))

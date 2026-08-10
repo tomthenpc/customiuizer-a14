@@ -363,7 +363,9 @@ object SystemUILockScreenHooks {
 
         ModuleHelper.findAndHookMethod("com.android.keyguard.KeyguardMoveHelper", lpparam.classLoader, "setTranslation", Float::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, Boolean::class.javaPrimitiveType!!, object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                onKeyguardMoveHelperSetTranslationBefore(param)
+                val rightOff = swipeRightOff
+                val leftOff = swipeLeftOff
+                onKeyguardMoveHelperSetTranslationBefore(param, rightOff, leftOff)
             }
         })
 
@@ -391,9 +393,11 @@ object SystemUILockScreenHooks {
      * live preference changes are gated by the volatile [swipeRightOff]/[swipeLeftOff]
      * snapshots instead of dynamic hook install/uninstall.
      */
-    internal fun onKeyguardMoveHelperSetTranslationBefore(param: BeforeHookCallback) {
-        val rightOff = swipeRightOff
-        val leftOff = swipeLeftOff
+    internal fun onKeyguardMoveHelperSetTranslationBefore(
+        param: BeforeHookCallback,
+        rightOff: Boolean = swipeRightOff,
+        leftOff: Boolean = swipeLeftOff
+    ) {
         if (!rightOff && !leftOff) return
         val mCurrentScreen = XposedHelpers.getIntField(param.getThisObject(), "mCurrentScreen")
         if (mCurrentScreen != 1) return
