@@ -284,21 +284,31 @@ internal object ClockResolver {
     private fun selectMostSpecificFormat(candidates: List<Method>): Method? {
         if (candidates.size == 1) return setAccessible(candidates[0])
 
-        var chosen: Method? = null
-        for (method in candidates) {
-            if (chosen == null) {
-                chosen = method
-                continue
+        // A winner must dominate every other distinct parameter signature.
+        // Same-signature normalization already ran, so dominance is strict here.
+        var winner: Method? = null
+
+        for (candidate in candidates) {
+            var dominatesAll = true
+
+            for (other in candidates) {
+                if (candidate === other) continue
+                if (!candidate.dominates(other)) {
+                    dominatesAll = false
+                    break
+                }
             }
 
-            when {
-                method.dominates(chosen) -> chosen = method
-                chosen.dominates(method) -> { /* keep chosen */ }
-                else -> return null
+            if (dominatesAll) {
+                if (winner != null) {
+                    // two unrelated candidates each dominate all others; malformed
+                    return null
+                }
+                winner = candidate
             }
         }
 
-        return setAccessible(chosen)
+        return setAccessible(winner)
     }
 
     private fun Method.dominates(other: Method): Boolean {

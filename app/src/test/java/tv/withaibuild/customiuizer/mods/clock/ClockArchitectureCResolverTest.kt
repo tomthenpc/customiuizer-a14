@@ -278,6 +278,42 @@ class ClockArchitectureCResolverTest {
         assertEquals(Any::class.java, cap.formatMethod.parameterTypes[1])
     }
 
+    @Test
+    fun format_threeCandidates_universalWinnerDominatesAll() {
+        val cap = ClockResolver.resolveCalendarFromDeclaredType(
+            FakeCalendarFormatTriadAllInOne::class.java,
+            Context::class.java,
+        )
+
+        assertNotNull(cap)
+        assertEquals(StringBuilder::class.java, cap!!.formatMethod.parameterTypes[1])
+        assertEquals(StringBuilder::class.java, cap.formatMethod.parameterTypes[2])
+    }
+
+    @Test
+    fun format_threeCandidates_childNarrowAmongParentBroad_selectsChildNarrow() {
+        val cap = ClockResolver.resolveCalendarFromDeclaredType(
+            FakeCalendarFormatTriadChildNarrow::class.java,
+            Context::class.java,
+        )
+
+        assertNotNull(cap)
+        assertEquals(FakeCalendarFormatTriadChildNarrow::class.java, cap!!.formatMethod.declaringClass)
+        assertEquals(StringBuilder::class.java, cap.formatMethod.parameterTypes[1])
+    }
+
+    @Test
+    fun format_threeCandidates_parentNarrowAmongChildBroad_selectsParentNarrow() {
+        val cap = ClockResolver.resolveCalendarFromDeclaredType(
+            FakeCalendarFormatTriadParentNarrow::class.java,
+            Context::class.java,
+        )
+
+        assertNotNull(cap)
+        assertEquals(FakeCalendarFormatTriadParentNarrowParent::class.java, cap!!.formatMethod.declaringClass)
+        assertEquals(StringBuilder::class.java, cap.formatMethod.parameterTypes[1])
+    }
+
     // ------------------------------------------------------------------------
     // Runtime fallback.
     // ------------------------------------------------------------------------
@@ -475,6 +511,37 @@ class ClockArchitectureCResolverTest {
 
     class FakeCalendarChildPrivateParent : FakeCalendarParentPrivate() {
         fun format(ctx: Context, out: Any, pattern: Any) {}
+    }
+
+    // ------------------------------------------------------------------------
+    // Three-candidate universal-winner fakes.
+    // ------------------------------------------------------------------------
+
+    open class FakeCalendarFormatTriadAllInOne {
+        fun setTimeInMillis(millis: Long) {}
+        fun format(ctx: Context, out: Appendable, pattern: Any) {}
+        fun format(ctx: Context, out: CharSequence, pattern: Any) {}
+        fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {}
+    }
+
+    open class FakeCalendarFormatTriadChildNarrowParent {
+        fun setTimeInMillis(millis: Long) {}
+        open fun format(ctx: Context, out: Appendable, pattern: Any) {}
+        open fun format(ctx: Context, out: CharSequence, pattern: Any) {}
+    }
+
+    class FakeCalendarFormatTriadChildNarrow : FakeCalendarFormatTriadChildNarrowParent() {
+        fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {}
+    }
+
+    open class FakeCalendarFormatTriadParentNarrowParent {
+        fun setTimeInMillis(millis: Long) {}
+        open fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {}
+    }
+
+    class FakeCalendarFormatTriadParentNarrow : FakeCalendarFormatTriadParentNarrowParent() {
+        fun format(ctx: Context, out: Appendable, pattern: Any) {}
+        fun format(ctx: Context, out: CharSequence, pattern: Any) {}
     }
 
     class FakeContextForResolver : ContextWrapper(null)

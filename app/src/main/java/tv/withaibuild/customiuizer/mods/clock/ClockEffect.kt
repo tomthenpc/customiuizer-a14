@@ -98,8 +98,9 @@ internal class ClockEffect(
     /**
      * Calls the frozen `format` method on a calendar object.
      *
-     * Before invocation, the calendar class is checked and the frozen method's formal parameter
-     * types are verified against the actual runtime arguments.  The return value is not inspected.
+     * The calendar class is checked before invocation.  The frozen method was already validated by
+     * the resolver, so no per-call parameter metadata read is performed here.  The return value is
+     * not inspected; `Method.invoke` raises a nonfatal `Throwable` on argument mismatch.
      */
     fun format(
         calendarObject: Any,
@@ -109,17 +110,8 @@ internal class ClockEffect(
     ): Boolean {
         if (!calendar.calendarClass.isInstance(calendarObject)) return false
 
-        val method = calendar.formatMethod
-        val pt = method.parameterTypes
-        if (!pt[0].isInstance(context) ||
-            !pt[1].isInstance(out) ||
-            !pt[2].isInstance(pattern)
-        ) {
-            return false
-        }
-
         return try {
-            method.invoke(calendarObject, context, out, pattern)
+            calendar.formatMethod.invoke(calendarObject, context, out, pattern)
             true
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
@@ -137,34 +129,26 @@ internal class ClockEffect(
     private fun selectTarget(clock: Any): ClockTargetCapability? {
         var selected: ClockTargetCapability? = null
 
-        for (i in abi.targets.indices) {
+        var i = 0
+        val size = abi.targets.size
+        while (i < size) {
             val candidate = abi.targets[i]
-            if (!candidate.targetClass.isInstance(clock)) continue
-
-            val current = selected
-            if (current == null) {
-                selected = candidate
-                continue
-            }
-
-            if (current.targetClass == candidate.targetClass) {
-                // duplicate target class is a malformed ABI
-                return null
-            }
-
-            when {
-                current.targetClass.isAssignableFrom(candidate.targetClass) -> {
+            if (candidate.targetClass.isInstance(clock)) {
+                val current = selected
+                if (current == null) {
+                    selected = candidate
+                } else if (current.targetClass == candidate.targetClass) {
+                    // duplicate target class is a malformed ABI
+                    return null
+                } else if (current.targetClass.isAssignableFrom(candidate.targetClass)) {
                     // candidate is a strict subclass of current; it is more specific.
                     selected = candidate
-                }
-                candidate.targetClass.isAssignableFrom(current.targetClass) -> {
-                    // current remains the more specific class.
-                }
-                else -> {
+                } else if (!candidate.targetClass.isAssignableFrom(current.targetClass)) {
                     // incomparable matching classes
                     return null
                 }
             }
+            i++
         }
 
         return selected
