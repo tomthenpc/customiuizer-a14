@@ -130,6 +130,7 @@ object LauncherGestureHooks {
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -157,12 +158,14 @@ object LauncherGestureHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
                 try {
                     if (MainModule.mPrefs.getInt("launcher_swipedown_action", 1) > 1) { result = "no_action"; throwable = null }
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -180,6 +183,7 @@ object LauncherGestureHooks {
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -281,6 +285,7 @@ object LauncherGestureHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -301,6 +306,7 @@ object LauncherGestureHooks {
                     }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -321,6 +327,7 @@ object LauncherGestureHooks {
 
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -371,6 +378,7 @@ object LauncherGestureHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -388,6 +396,7 @@ object LauncherGestureHooks {
                     sensorMgr.registerListener(shakeMgr, sensorMgr.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_NORMAL)
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -401,6 +410,7 @@ object LauncherGestureHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -413,6 +423,7 @@ object LauncherGestureHooks {
                     sensorMgr.unregisterListener(XposedHelpers.getAdditionalInstanceField(thisObject, shakeMgrKey) as ShakeManager)
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -438,6 +449,7 @@ object LauncherGestureHooks {
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -452,6 +464,7 @@ object LauncherGestureHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -472,6 +485,7 @@ object LauncherGestureHooks {
                     }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -485,6 +499,7 @@ object LauncherGestureHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -506,6 +521,7 @@ object LauncherGestureHooks {
                     // Non-caller queries keep the ROM result and throwable unchanged.
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -533,6 +549,7 @@ object LauncherGestureHooks {
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -598,6 +615,7 @@ object LauncherGestureHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -612,6 +630,7 @@ object LauncherGestureHooks {
                     XposedHelpers.setAdditionalInstanceField(thisObject, "mDoubleTapControllerEx", mDoubleTapControllerEx)
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -636,6 +655,7 @@ object LauncherGestureHooks {
 
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -676,6 +696,7 @@ object LauncherGestureHooks {
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -692,6 +713,7 @@ object LauncherGestureHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -706,6 +728,7 @@ object LauncherGestureHooks {
                     }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -723,6 +746,7 @@ object LauncherGestureHooks {
 
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -773,6 +797,7 @@ object LauncherGestureHooks {
 
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -791,6 +816,7 @@ object LauncherGestureHooks {
 
                     result = chain.proceed(args)
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -813,12 +839,14 @@ object LauncherGestureHooks {
                     }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
 
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -830,6 +858,7 @@ object LauncherGestureHooks {
                     }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -842,6 +871,7 @@ object LauncherGestureHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -859,6 +889,7 @@ object LauncherGestureHooks {
                     GlobalActions.handleAction(mContext, "controls_fsg_swipeandstop", false, bundle)
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -884,6 +915,7 @@ object LauncherGestureHooks {
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -923,6 +955,7 @@ object LauncherGestureHooks {
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }

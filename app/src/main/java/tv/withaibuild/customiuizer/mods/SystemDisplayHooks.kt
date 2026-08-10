@@ -37,15 +37,17 @@ object SystemDisplayHooks {
                     try {
                         XposedHelpers.setObjectField(thisObject, "mColorFadeEnabled", true)
                         XposedHelpers.setObjectField(thisObject, "mColorFadeFadesConfig", true)
-                    } catch (ignore: Throwable) {}
+                    } catch (ignore: Throwable) { FatalErrors.rethrowIfFatal(ignore) }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
 
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -69,6 +71,7 @@ object SystemDisplayHooks {
                     }, thisObject)
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -97,6 +100,7 @@ object SystemDisplayHooks {
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -228,7 +232,9 @@ object SystemDisplayHooks {
             try {
                 val value = XposedHelpers.getObjectField(controller, name)
                 if (value != null && isBlurUtilsExt(value)) return value
-            } catch (ignored: Throwable) {}
+            } catch (ignored: Throwable) {
+                FatalErrors.rethrowIfFatal(ignored)
+            }
         }
 
         // Cold path: search for a field whose declared type is BlurUtilsExt.
@@ -239,7 +245,9 @@ object SystemDisplayHooks {
                     field.isAccessible = true
                     val value = field.get(controller)
                     if (value != null) return value
-                } catch (ignored: Throwable) {}
+                } catch (ignored: Throwable) {
+                FatalErrors.rethrowIfFatal(ignored)
+            }
             }
         }
 
@@ -251,6 +259,7 @@ object SystemDisplayHooks {
                     field.isAccessible = true
                     field.get(controller)
                 } catch (ignored: Throwable) {
+                    FatalErrors.rethrowIfFatal(ignored)
                     null
                 } ?: continue
                 if (isBlurUtilsExt(value)) return value
@@ -392,6 +401,7 @@ object SystemDisplayHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -404,6 +414,7 @@ object SystemDisplayHooks {
                     }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -417,6 +428,7 @@ object SystemDisplayHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -427,6 +439,7 @@ object SystemDisplayHooks {
                     XposedHelpers.setLongField(thisObject, "mDarkeningLightDebounceConfig", 1200L)
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -440,6 +453,7 @@ object SystemDisplayHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -452,6 +466,7 @@ object SystemDisplayHooks {
                     }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -475,6 +490,7 @@ object SystemDisplayHooks {
 
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -506,12 +522,14 @@ object SystemDisplayHooks {
                     }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
 
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -527,6 +545,7 @@ object SystemDisplayHooks {
                     }
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -543,6 +562,7 @@ object SystemDisplayHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -554,6 +574,7 @@ object SystemDisplayHooks {
                     XposedHelpers.setFloatField(thisObject, "mMaximumScreenDimRatioConfig", opt)
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -570,6 +591,7 @@ object SystemDisplayHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -578,6 +600,7 @@ object SystemDisplayHooks {
                     XposedHelpers.callMethod(chain.getArg(0), "setShowInSettings", true)
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -631,6 +654,7 @@ object SystemDisplayHooks {
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -648,6 +672,7 @@ object SystemDisplayHooks {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -666,6 +691,7 @@ object SystemDisplayHooks {
                     }, thisObject)
 
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)

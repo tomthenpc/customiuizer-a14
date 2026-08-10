@@ -20,6 +20,7 @@ import androidx.core.content.res.ResourcesCompat
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
@@ -165,6 +166,7 @@ object SystemUILockScreenHooks {
                         view.alpha = 1.0f
                         registerLockScreenAlbumArtReceiver(view.context, param.getThisObject() ?: return)
                     } catch (t: Throwable) {
+                        FatalErrors.rethrowIfFatal(t)
                         XposedHelpers.log(t)
                     }
                 }
@@ -184,6 +186,7 @@ object SystemUILockScreenHooks {
                         }
                         param.returnAndSkip(null)
                     } catch (t: Throwable) {
+                        FatalErrors.rethrowIfFatal(t)
                         XposedHelpers.log(t)
                     }
                 }
@@ -199,6 +202,7 @@ object SystemUILockScreenHooks {
                         LockScreenAlbumArtController.setAod(!screenOn)
                         XposedHelpers.callMethod(param.getThisObject(), "updateThemeBackgroundVisibility")
                     } catch (t: Throwable) {
+                        FatalErrors.rethrowIfFatal(t)
                         XposedHelpers.log(t)
                     }
                 }
@@ -230,6 +234,7 @@ object SystemUILockScreenHooks {
                     val grayscale = MainModule.mPrefs.getBoolean("system_albumartonlock_gray")
                     LockScreenAlbumArtController.updateMediaMetaData(mContext, art, blur, rescale, grayscale)
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
             }
@@ -243,6 +248,7 @@ object SystemUILockScreenHooks {
                         LockScreenAlbumArtController.updateMediaMetaData(mContext, null, 0, 1, false)
                     }
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
             }
@@ -253,10 +259,12 @@ object SystemUILockScreenHooks {
         if (cls == null) return false
         return try {
             XposedHelpers.callStaticMethod(cls, "isDefaultLockScreenTheme") as Boolean
-        } catch (_: Throwable) {
+        } catch (ignored: Throwable) {
+            FatalErrors.rethrowIfFatal(ignored)
             try {
                 XposedHelpers.callStaticMethod(cls, "isDefaultKeyguardNotTheme") as Boolean
-            } catch (_: Throwable) {
+            } catch (ignored2: Throwable) {
+                FatalErrors.rethrowIfFatal(ignored2)
                 false
             }
         }
@@ -448,6 +456,7 @@ object SystemUILockScreenHooks {
                 try {
                     mStartedFromLockScreen = XposedHelpers.getAdditionalInstanceField(act.application, "wasStartedFromLockScreen") as Boolean
                 } catch (ignore: Throwable) {
+                    FatalErrors.rethrowIfFatal(ignore)
                 }
                 if (mFromSecureKeyguard || mStartedFromLockScreen) {
                     XposedHelpers.setAdditionalInstanceField(act.application, "wasStartedFromLockScreen", true)
@@ -494,6 +503,7 @@ object SystemUILockScreenHooks {
                             XposedHelpers.callMethod(mStatusBar, "collapsePanels")
                             XposedHelpers.callMethod(mContext, "startActivityAsUser", intent, XposedHelpers.newInstance(UserHandle::class.java, user))
                         } catch (t: Throwable) {
+                            FatalErrors.rethrowIfFatal(t)
                             XposedHelpers.log(t)
                         }
                     } else {
