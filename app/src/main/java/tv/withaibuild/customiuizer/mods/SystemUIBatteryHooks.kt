@@ -240,8 +240,7 @@ object SystemUIBatteryHooks {
             style.leftMarginDp == 0f &&
             style.rightMarginDp == 0f &&
             style.verticalOffset == 8 &&
-            style.markVerticalOffset == 17 &&
-            !style.battery4
+            style.markVerticalOffset == 17
     }
 
     internal data class Padding(
@@ -352,15 +351,55 @@ object SystemUIBatteryHooks {
         if (digitView.typeface !== targetDigitTypeface) return false
         if (percentView.typeface !== targetPercentTypeface) return false
 
-        val (percentPadding, markPadding) = computePaddings(style, baseline, metrics)
-        if (!paddingEquals(percentView, percentPadding)) return false
-        if (!paddingEquals(markView, markPadding)) return false
+        val leftMargin = dipToPx(style.leftMarginDp, metrics)
+        val topMargin = if (style.verticalOffset == 8) 0 else dipToPx((style.verticalOffset - 8) * 0.5f, metrics)
+        val rightMargin = dipToPx(style.rightMarginDp, metrics)
+        val rightMarginOnPercent = if (style.battery4) rightMargin else 0
+        val rightMarginOnMark = if (style.battery4) 0 else rightMargin
+        val markTopMargin = if (style.markVerticalOffset == 17 && style.verticalOffset == 8) {
+            topMargin
+        } else {
+            dipToPx((style.markVerticalOffset - 8) * 0.5f, metrics)
+        }
+
+        val useBaselinePercent = style.leftMarginDp == 0f && style.rightMarginDp == 0f && style.verticalOffset == 8
+        val useBaselineMark = style.rightMarginDp == 0f &&
+            ((style.markVerticalOffset == 17 && style.verticalOffset == 8) ||
+                (style.markVerticalOffset == style.verticalOffset && style.markVerticalOffset == 17))
+
+        if (useBaselinePercent) {
+            if (!paddingEquals(percentView, baseline.percentPadding)) return false
+        } else {
+            if (percentView.paddingStart != leftMargin ||
+                percentView.paddingTop != topMargin ||
+                percentView.paddingEnd != rightMarginOnPercent ||
+                percentView.paddingBottom != 0
+            ) {
+                return false
+            }
+        }
+
+        if (useBaselineMark) {
+            if (!paddingEquals(markView, baseline.markPadding)) return false
+        } else {
+            if (markView.paddingStart != 0 ||
+                markView.paddingTop != markTopMargin ||
+                markView.paddingEnd != rightMarginOnMark ||
+                markView.paddingBottom != 0
+            ) {
+                return false
+            }
+        }
 
         return true
     }
 
     private fun expectedTextSize(view: TextView, sizeDp: Float, baselineSize: Float): Float {
         return if (sizeDp == 7.5f) baselineSize else TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, sizeDp, view.resources.displayMetrics)
+    }
+
+    private fun dipToPx(dp: Float, metrics: android.util.DisplayMetrics): Int {
+        return TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, metrics).toInt()
     }
 
     internal fun restoreBatteryBaseline(parent: ViewGroup, baseline: BatteryBaseline) {
@@ -385,6 +424,7 @@ object SystemUIBatteryHooks {
         val digitView = XposedHelpers.getObjectField(parent, "mBatteryTextDigitView") as? TextView ?: return
         val percentView = XposedHelpers.getObjectField(parent, "mBatteryPercentView") as? TextView ?: return
         val markView = XposedHelpers.getObjectField(parent, "mBatteryPercentMarkView") as? TextView ?: return
+        val metrics = parent.resources.displayMetrics
 
         if (style.swap) {
             applyBatteryChildSwapIfNeeded(parent, percentView, markView)
@@ -414,31 +454,33 @@ object SystemUIBatteryHooks {
             setTypefaceIfChanged(percentView, baseline.percentTypeface)
         }
 
-        val metrics = parent.resources.displayMetrics
-        val (percentPadding, markPadding) = computePaddings(style, baseline, metrics)
-        setPaddingRelativeIfChanged(percentView, percentPadding)
-        setPaddingRelativeIfChanged(markView, markPadding)
-    }
+        val leftMargin = dipToPx(style.leftMarginDp, metrics)
+        val topMargin = if (style.verticalOffset == 8) 0 else dipToPx((style.verticalOffset - 8) * 0.5f, metrics)
+        val rightMargin = dipToPx(style.rightMarginDp, metrics)
+        val rightMarginOnPercent = if (style.battery4) rightMargin else 0
+        val rightMarginOnMark = if (style.battery4) 0 else rightMargin
+        val markTopMargin = if (style.markVerticalOffset == 17 && style.verticalOffset == 8) {
+            topMargin
+        } else {
+            dipToPx((style.markVerticalOffset - 8) * 0.5f, metrics)
+        }
 
-    internal fun computePaddings(style: BatteryStyle, baseline: BatteryBaseline, metrics: android.util.DisplayMetrics): Pair<Padding, Padding> {
-        val leftMargin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, style.leftMarginDp, metrics).toInt()
-        val topMargin = if (style.verticalOffset == 8) 0 else TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, (style.verticalOffset - 8) * 0.5f, metrics).toInt()
-        val rightMargin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, style.rightMarginDp, metrics).toInt()
-        val digitRightMargin = if (style.battery4) rightMargin else 0
-        val markRightMargin = if (style.battery4) 0 else rightMargin
-        val markTopMargin = if (style.markVerticalOffset == 17) topMargin else TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, (style.markVerticalOffset - 8) * 0.5f, metrics).toInt()
+        val useBaselinePercent = style.leftMarginDp == 0f && style.rightMarginDp == 0f && style.verticalOffset == 8
+        val useBaselineMark = style.rightMarginDp == 0f &&
+            ((style.markVerticalOffset == 17 && style.verticalOffset == 8) ||
+                (style.markVerticalOffset == style.verticalOffset && style.markVerticalOffset == 17))
 
-        val restorePercentPadding = style.leftMarginDp == 0f && style.rightMarginDp == 0f && style.verticalOffset == 8 && style.battery4 == baselineIsBattery4(baseline)
-        val restoreMarkPadding = style.rightMarginDp == 0f && ((style.markVerticalOffset == 17 && style.verticalOffset == 8) || (style.markVerticalOffset == style.verticalOffset && style.markVerticalOffset == 17)) && !style.battery4
+        if (useBaselinePercent) {
+            setPaddingRelativeIfChanged(percentView, baseline.percentPadding)
+        } else {
+            setPaddingRelativeIfChanged(percentView, leftMargin, topMargin, rightMarginOnPercent, 0)
+        }
 
-        val percentPadding = if (restorePercentPadding) baseline.percentPadding else Padding(leftMargin, topMargin, digitRightMargin, 0)
-        val markPadding = if (restoreMarkPadding) baseline.markPadding else Padding(0, markTopMargin, markRightMargin, 0)
-        return percentPadding to markPadding
-    }
-
-    private fun baselineIsBattery4(baseline: BatteryBaseline): Boolean {
-        // Battery4 baseline cannot be detected from padding alone, so default to false unless a custom right margin was stored.
-        return false
+        if (useBaselineMark) {
+            setPaddingRelativeIfChanged(markView, baseline.markPadding)
+        } else {
+            setPaddingRelativeIfChanged(markView, 0, markTopMargin, rightMarginOnMark, 0)
+        }
     }
 
     private fun restoreChildOrder(parent: ViewGroup, percentView: View, markView: View, percentIndex: Int, markIndex: Int) {

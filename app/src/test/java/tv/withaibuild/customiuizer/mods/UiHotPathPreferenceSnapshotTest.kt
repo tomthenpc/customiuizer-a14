@@ -58,6 +58,10 @@ class UiHotPathPreferenceSnapshotTest {
             "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt",
             "\"updateAll\"",
         )
+        val matchBody = methodBody(
+            "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt",
+            "internal fun matchesTarget"
+        )
 
         assertFalse("updateAll must not read nine preferences per call", body.contains("MainModule.mPrefs"))
         assertTrue(body.contains("val style = batteryStyle ?: return"))
@@ -67,6 +71,11 @@ class UiHotPathPreferenceSnapshotTest {
         assertTrue("swap helper is still used", source.contains("applyBatteryChildSwapIfNeeded("))
         assertTrue("text size changes are idempotent", source.contains("setTextSizeIfChanged("))
         assertTrue("padding changes are idempotent", source.contains("setPaddingRelativeIfChanged("))
+
+        assertFalse("repeated target check must not allocate Pair", matchBody.contains("Pair<"))
+        assertFalse("repeated target check must not use destructured pair", matchBody.contains(" to "))
+        assertFalse("repeated target check must not call computePaddings", matchBody.contains("computePaddings("))
+        assertFalse("repeated target check must not construct new Padding", matchBody.contains("Padding("))
     }
 
     /** Returns the brace-balanced hook body that follows the first occurrence of [marker]. */
@@ -86,6 +95,27 @@ class UiHotPathPreferenceSnapshotTest {
             if (depth == 0) return source.substring(markerOffset, index + 1)
             index++
         }
+    }
+
+    private fun methodBody(relativePath: String, prefix: String): String {
+        val source = source(relativePath)
+        val start = source.indexOf(prefix)
+        check(start >= 0) { "Method prefix not found: $prefix" }
+        var open = source.indexOf("{", start)
+        check(open >= 0) { "Method body not found for: $prefix" }
+        var depth = 0
+        var i = open
+        val n = source.length
+        while (i < n) {
+            val c = source[i]
+            if (c == '{') depth++
+            else if (c == '}') {
+                depth--
+                if (depth == 0) return source.substring(start, i + 1)
+            }
+            i++
+        }
+        error("Unbalanced method body for: $prefix")
     }
 
     private fun source(relativePath: String): String {

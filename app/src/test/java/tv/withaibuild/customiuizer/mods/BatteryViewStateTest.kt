@@ -190,6 +190,84 @@ class BatteryViewStateTest {
     }
 
     @Test
+    fun battery4WithDefaultMarginsPreservesOemPadding() {
+        val view = createBatteryView()
+        val baseline = SystemUIBatteryHooks.captureBatteryBaseline(view)!!
+
+        val custom = SystemUIBatteryHooks.BatteryStyle(
+            swap = false,
+            fontSizeDp = 7.5f,
+            markFontSizeDp = 7.5f,
+            bold = false,
+            leftMarginDp = 0f,
+            rightMarginDp = 0f,
+            verticalOffset = 8,
+            markVerticalOffset = 17,
+            battery4 = true
+        )
+        SystemUIBatteryHooks.applyBatteryStyle(view, baseline, custom)
+
+        assertEquals(baseline.percentPadding, capturedPadding(view.mBatteryPercentView))
+        assertEquals(baseline.markPadding, capturedPadding(view.mBatteryPercentMarkView))
+    }
+
+    @Test
+    fun battery4CustomRightMarginGoesToPercent() {
+        val view = createBatteryView()
+        val baseline = SystemUIBatteryHooks.captureBatteryBaseline(view)!!
+
+        val custom = SystemUIBatteryHooks.BatteryStyle(
+            swap = false,
+            fontSizeDp = 7.5f,
+            markFontSizeDp = 7.5f,
+            bold = false,
+            leftMarginDp = 0f,
+            rightMarginDp = 6f,
+            verticalOffset = 8,
+            markVerticalOffset = 17,
+            battery4 = true
+        )
+        SystemUIBatteryHooks.applyBatteryStyle(view, baseline, custom)
+
+        val metrics = view.resources.displayMetrics
+        val rightMarginPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6f, metrics).toInt()
+
+        val percentPad = capturedPadding(view.mBatteryPercentView)
+        val markPad = capturedPadding(view.mBatteryPercentMarkView)
+
+        assertEquals("percent view should carry the right margin", rightMarginPx, percentPad.end)
+        assertEquals("mark view should not carry the right margin", 0, markPad.end)
+    }
+
+    @Test
+    fun nonBattery4CustomRightMarginGoesToMark() {
+        val view = createBatteryView()
+        val baseline = SystemUIBatteryHooks.captureBatteryBaseline(view)!!
+
+        val custom = SystemUIBatteryHooks.BatteryStyle(
+            swap = false,
+            fontSizeDp = 7.5f,
+            markFontSizeDp = 7.5f,
+            bold = false,
+            leftMarginDp = 0f,
+            rightMarginDp = 6f,
+            verticalOffset = 8,
+            markVerticalOffset = 17,
+            battery4 = false
+        )
+        SystemUIBatteryHooks.applyBatteryStyle(view, baseline, custom)
+
+        val metrics = view.resources.displayMetrics
+        val rightMarginPx = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 6f, metrics).toInt()
+
+        val percentPad = capturedPadding(view.mBatteryPercentView)
+        val markPad = capturedPadding(view.mBatteryPercentMarkView)
+
+        assertEquals("percent view should not carry the right margin", 0, percentPad.end)
+        assertEquals("mark view should carry the right margin", rightMarginPx, markPad.end)
+    }
+
+    @Test
     fun childReplacementRecapturesBaseline() {
         val view = createBatteryView()
         val baseline = SystemUIBatteryHooks.captureBatteryBaseline(view)!!
