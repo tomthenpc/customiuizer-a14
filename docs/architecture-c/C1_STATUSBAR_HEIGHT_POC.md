@@ -88,7 +88,7 @@ The hook is registered by method name `setFrame`; the callback rewrites argument
 |--------|------|-------|
 | `com.android.server.wm.WindowState` | `Class` | owner class |
 | `mAttrs` | `Field` | `WindowManager.LayoutParams` |
-| `mDisplayContent` | `Field` | for refresh + H4 metrics fallback |
+| `mDisplayContent` | `Field` | H2/H3 `WindowState` metrics fallback; Refresh `DisplayContent` traversal/invalidation access |
 | `mWmService` | `Field` | for refresh traversal |
 | `mWindowFrames` | `Field` | for H2 frame |
 | `getFrame()` | `Method` | H2 frame access |
@@ -96,7 +96,7 @@ The hook is registered by method name `setFrame`; the callback rewrites argument
 | `getDisplayId()` | `Method` | default vs secondary display |
 | `ClientWindowFrames.frame` | `Field` | H3 frame mutation |
 | `WindowManager.LayoutParams.type` / `height` / `packageName` | `Field` | owner identification / mutation |
-| `com.android.server.wm.DisplayPolicy` | `Class` | H2/H4 display policy |
+| `com.android.server.wm.DisplayPolicy` | `Class` | H2 `layoutWindowLw` hook capability; Refresh `mDecorInsets` invalidation chain |
 
 ### 5.3 Decor insets
 
@@ -226,25 +226,29 @@ LayoutWindowCallback(captured Effect)
 ```text
 SetFramesCallback(captured Effect)
   └─ onSetFrames(chain, effect)
-       ├─ chain.thisObject
        ├─ one StatusBarHeightConfig.currentState()
-       ├─ effect.isClientWindowFrames(value)
-       ├─ effect.readClientWindowFrame(clientFrames)
+       ├─ win = chain.thisObject
+       ├─ Runtime.isKnownStatusBar(win)
+       ├─ clientFrames = arg0
+       ├─ effect.isClientWindowFrames(clientFrames)
        ├─ effect.readDisplayId(win)
        ├─ displayId == 0:
-       │    use config.configuredPx (no DisplayMetrics read)
+       │    configuredPx = config.configuredPx (no DisplayMetrics read)
        ├─ displayId != 0 (including unresolved -1):
-       │    read frozen WindowState metrics
+       │    effect.readWindowDisplayMetrics(win)
        │    if unavailable or nonfatal failure:
-       │         fail closed → original proceed, no H3 frame mutation
+       │         fail closed → chain.proceed original unchanged
        │    if available:
        │         configuredPxFor(config.configuredDp, metrics)
-       ├─ primitive geometry adjust
-       └─ chain.proceed()
+       ├─ configuredPx validity check
+       ├─ effect.readClientWindowFrame(clientFrames)
+       ├─ primitive frame.bottom mutation
+       └─ chain.proceed()        // exactly once
 ```
 
 - One `currentState()` per callback.
 - `ClientWindowFrames` is resolved once at cold time, not by iteration at runtime.
+- `effect.readClientWindowFrame` occurs **after** `displayId`, optional metrics, and `configuredPx` resolution.
 - H3 metrics failure does **not** fall back to the global configured px; it proceeds unchanged.
 
 ## 11. H4 graph
@@ -327,6 +331,20 @@ PreferenceObserver.onChange(key)
 - Nonfatal frozen member failure in any step → that operation returns `null`/`false` and the refresh graph fail-closes accordingly.
 - `RuntimeException` during invalidation does not block traversal.
 - `OutOfMemoryError` propagates with the same identity.
+
+### Status-bar owner discovery
+
+- `Runtime.typeMatchObserved` is the runtime authority for whether `TYPE_STATUS_BAR` has been observed.
+- Before `typeMatchObserved == true`, unknown owners may use the bounded `packageName` + `toString()` fallback.
+- `fallbackProbeBudget` starts at `4096`.
+- Once `typeMatchObserved == true`, unknown non-status-bar windows do not run the package-name/`toString()` fallback.
+- Once the budget is exhausted, the expensive fallback stops entirely.
+
+### Refresh partial capability
+
+- Traversal and decor invalidation are independent frozen capabilities.
+- Missing traversal capability does not make invalidation unavailable.
+- Missing invalidation capability does not make traversal unavailable.
 
 ### Fatal
 
