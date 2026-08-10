@@ -370,6 +370,43 @@ class StatusBarHeightConfigTest {
         assertEquals(generationBefore + 1, StatusBarHeightConfig.generation.get())
     }
 
+    @Test
+    fun recomputePx_unchangedMetrics_resultPreviousEqualsCurrentAndState() {
+        val metrics = DisplayMetrics().apply { densityDpi = 469; density = 2.93125f }
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            metrics = metrics,
+        )
+        val before = StatusBarHeightConfig.currentState()
+
+        val result = StatusBarHeightConfig.recomputePx(metrics)
+
+        assertFalse(result.changed)
+        assertSame(before, result.previous)
+        assertSame(before, result.current)
+        assertSame(before, StatusBarHeightConfig.currentState())
+    }
+
+    @Test
+    fun recomputePx_changedDensity_resultPublishesNewCurrent() {
+        val initialMetrics = DisplayMetrics().apply { densityDpi = 440; density = 2.75f }
+        StatusBarHeightConfig.configure(
+            PrefMap().apply { put("system_statusbarheight", 44) },
+            metrics = initialMetrics,
+        )
+        val before = StatusBarHeightConfig.currentState()
+
+        val newMetrics = DisplayMetrics().apply { densityDpi = 469; density = 2.93125f }
+        val result = StatusBarHeightConfig.recomputePx(newMetrics)
+
+        assertTrue(result.changed)
+        assertSame(before, result.previous)
+        assertSame(StatusBarHeightConfig.currentState(), result.current)
+        assertNotSame(result.previous, result.current)
+        assertEquals(129, result.current.configuredPx)
+        assertEquals(469, result.current.densityDpi)
+    }
+
     private fun fakeResources(densityDpi: Int): Resources {
         val metrics = DisplayMetrics().apply { this.densityDpi = densityDpi }
         val constructor = AssetManager::class.java.getDeclaredConstructor()

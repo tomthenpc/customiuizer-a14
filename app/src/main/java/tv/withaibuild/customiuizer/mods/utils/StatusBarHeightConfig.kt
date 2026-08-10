@@ -202,12 +202,15 @@ object StatusBarHeightConfig {
      * Recompute px after a configuration/density change. This should only be called when
      * the process is notified of a display or configuration change and the hook is
      * already installed, so the InsetsSource frames can be adjusted to the new px.
+     *
+     * Returns a [ReconfigureResult] so hot-path callbacks can replace their local
+     * [currentState] snapshot with the new state without a second volatile read.
      */
     @JvmStatic
-    fun recomputePx(metrics: DisplayMetrics) {
+    fun recomputePx(metrics: DisplayMetrics): ReconfigureResult {
         val effectiveDensity = metrics.density.takeIf { it > 0 } ?: (metrics.densityDpi / 160f)
 
-        synchronized(this) {
+        return synchronized(this) {
             val previous = state
             val newPx = if (previous.enabled) {
                 dpToPx(previous.configuredDp, metrics.densityDpi)
@@ -227,8 +230,8 @@ object StatusBarHeightConfig {
      * Recompute px from a [Resources] after a configuration/density change.
      */
     @JvmStatic
-    fun recomputePx(resources: Resources) {
-        recomputePx(resources.displayMetrics)
+    fun recomputePx(resources: Resources): ReconfigureResult {
+        return recomputePx(resources.displayMetrics)
     }
 
     /**
