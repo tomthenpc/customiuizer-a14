@@ -175,6 +175,45 @@ class StatusBarWindowStateHotPathTest {
     }
 
     @Test
+    fun layoutWindowLw_preProceedMetricsRuntimeException_proceedsOriginalOnce() {
+        configureHeight(44)
+        val win = FakeWindowState(statusType = true).apply {
+            mAttrs.height = 80
+            onGetDisplayMetrics = { throw RuntimeException("metrics failed") }
+        }
+
+        val chain = FakeChain(argList = listOf(win))
+        val result = SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+
+        assertEquals(1, chain.proceedCount)
+        assertEquals(80, win.mAttrs.height)
+        assertTrue(result == null || result == Unit)
+    }
+
+    @Test
+    fun layoutWindowLw_preProceedMetricsOom_propagatesSameIdentityWithoutProceed() {
+        configureHeight(44)
+        val oom = OutOfMemoryError("metrics OOM")
+        val win = FakeWindowState(statusType = true).apply {
+            mAttrs.height = 80
+            onGetDisplayMetrics = { throw oom }
+        }
+
+        val chain = FakeChain(argList = listOf(win))
+
+        val thrown = try {
+            SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
+            null
+        } catch (t: Throwable) {
+            t
+        }
+
+        assertSame(oom, thrown)
+        assertEquals(0, chain.proceedCount)
+        assertEquals(80, win.mAttrs.height)
+    }
+
+    @Test
     fun setFramesProceedsExactlyOnce() {
         configureHeight(44)
         val win = FakeWindowState(statusType = true)
@@ -241,8 +280,8 @@ class StatusBarWindowStateHotPathTest {
         val markLatestCalls = callCount(lines, "markLatestIfKnownStatusBar(")
 
         assertEquals(
-            "onLayoutWindowLw must call isStatusBarWindow exactly once",
-            1,
+            "isStatusBarWindow must have one production call (onLayoutWindowLw) plus one test/compat wrapper call",
+            2,
             isStatusBarCalls
         )
         assertEquals(
@@ -352,7 +391,7 @@ class StatusBarWindowStateHotPathTest {
 
     class FakeWindowState(
         statusType: Boolean = true,
-        private val onGetDisplayMetrics: (() -> Unit)? = null,
+        var onGetDisplayMetrics: (() -> Unit)? = null,
     ) {
         val mAttrs: FakeLayoutParams = FakeLayoutParams(
             type = if (statusType) TYPE_STATUS_BAR else 1,

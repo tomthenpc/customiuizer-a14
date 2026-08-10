@@ -61,15 +61,18 @@ class StatusBarHeightArchitectureCH2Test {
 
     @Test
     fun readWindowDisplayMetrics_directThrowDoesNotFallback() {
+        val oom = OutOfMemoryError("OOM")
         val effect = effectForWindow()
-        val win = FakeWindowState(throwDisplayMetrics = OutOfMemoryError("OOM"))
+        val win = FakeWindowState(throwDisplayMetrics = oom)
 
-        try {
+        val thrown = try {
             effect.readWindowDisplayMetrics(win)
-            assertTrue("expected OOM", false)
+            null
         } catch (t: Throwable) {
-            assertTrue(t is OutOfMemoryError)
+            t
         }
+
+        assertSame(oom, thrown)
     }
 
     @Test

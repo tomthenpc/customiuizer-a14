@@ -253,7 +253,7 @@ object SystemStatusBarInsetsHooks {
         val callback = SetFrameCallback(insets)
         ModuleHelper.hookAllMethods(insetsSourceClass, SET_FRAME_METHOD, callback)
 
-        installDisplayPolicyHook(classLoader)
+        installDisplayPolicyHook()
         installDecorInsetsInfoHook(classLoader)
         installWindowStateHook(classLoader)
 
@@ -313,7 +313,7 @@ object SystemStatusBarInsetsHooks {
         XposedHelpers.log("$STATUS_BAR_HEIGHT_LIVE_TAG $message gen=$gen")
     }
 
-    private fun installDisplayPolicyHook(classLoader: ClassLoader) {
+    private fun installDisplayPolicyHook() {
         val abi = statusBarHeightAbi ?: run {
             logInstall("ABI not resolved before DisplayPolicy hook install")
             return
@@ -329,7 +329,7 @@ object SystemStatusBarInsetsHooks {
             return
         }
 
-        if (!isH2Capable(abi, effect)) {
+        if (!isH2Capable(abi)) {
             logInstall("H2 capability incomplete, skipping layout hot path")
             return
         }
@@ -345,7 +345,7 @@ object SystemStatusBarInsetsHooks {
         }
     }
 
-    private fun isH2Capable(abi: StatusBarHeightAbi, effect: StatusBarHeightEffect): Boolean {
+    private fun isH2Capable(abi: StatusBarHeightAbi): Boolean {
         val wm = abi.windowManager
         val decor = abi.decorInsets
 
@@ -492,7 +492,7 @@ object SystemStatusBarInsetsHooks {
 
         // Single-pass recognition: known owners reuse the retained WeakReference and update
         // latest; unknown WindowStates fall through to type/fallback discovery.
-        if (!isStatusBarWindow(win)) return chain.proceed()
+        if (!isStatusBarWindow(win, effect)) return chain.proceed()
 
         val metrics = effect.readWindowDisplayMetrics(win) ?: return chain.proceed()
         val displayId = effect.readDisplayId(win)
@@ -683,7 +683,10 @@ object SystemStatusBarInsetsHooks {
     @JvmStatic
     internal fun isStatusBarWindow(win: Any): Boolean {
         val effect = statusBarHeightEffect ?: return false
+        return isStatusBarWindow(win, effect)
+    }
 
+    private fun isStatusBarWindow(win: Any, effect: StatusBarHeightEffect): Boolean {
         // Known owner: a single bounded scan also updates the latest reference, reusing the
         // retained WeakReference.  Unknown windows fall through to type/fallback discovery.
         if (markLatestIfKnownStatusBar(win)) return true
