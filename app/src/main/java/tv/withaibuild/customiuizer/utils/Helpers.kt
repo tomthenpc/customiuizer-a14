@@ -110,9 +110,11 @@ object Helpers {
 
     const val REQUEST_PERMISSIONS_SECURITY_CENTER = 6
 
+    @Volatile
     @JvmField
     var withinAppContext = false
 
+    @Volatile
     @JvmField
     var appContentResolver: ContentResolver? = null
 
@@ -232,6 +234,7 @@ object Helpers {
             act.overridePendingTransition(R.anim.activity_open_enter, R.anim.activity_open_exit)
             true
         } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
             if (!silent) Toast.makeText(act, R.string.various_hiddenfeatures_not_found, Toast.LENGTH_LONG).show()
             false
         }
@@ -248,7 +251,8 @@ object Helpers {
             token = if (currentFocusedView != null) currentFocusedView.windowToken else null
             if (token != null) inputManager.hideSoftInputFromWindow(token, InputMethodManager.HIDE_NOT_ALWAYS)
         } catch (t: Throwable) {
-            t.printStackTrace()
+            FatalErrors.rethrowIfFatal(t)
+            XposedHelpers.log(t)
         }
     }
 
@@ -395,20 +399,27 @@ object Helpers {
     }
 
     private fun getAppContentResolver(): ContentResolver? {
-        if (appContentResolver != null) return appContentResolver
+        val cached = appContentResolver
+        if (cached != null) return cached
         try {
             val appGlobals = Class.forName("android.app.AppGlobals")
             val app = appGlobals.getMethod("getInitialApplication").invoke(null)
-            if (app is Context) return app.contentResolver
+            if (app is Context) {
+                appContentResolver = app.contentResolver
+                return app.contentResolver
+            }
         } catch (t: Throwable) {
-            // ignore
+            FatalErrors.rethrowIfFatal(t)
         }
         try {
             val activityThread = Class.forName("android.app.ActivityThread")
             val app = activityThread.getMethod("currentApplication").invoke(null)
-            if (app is Context) return app.contentResolver
+            if (app is Context) {
+                appContentResolver = app.contentResolver
+                return app.contentResolver
+            }
         } catch (t: Throwable) {
-            // ignore
+            FatalErrors.rethrowIfFatal(t)
         }
         return null
     }
@@ -428,7 +439,8 @@ object Helpers {
         return try {
             Settings.Global.getFloat(resolver, getAnimationScaleKey(type), 1.0f)
         } catch (t: Throwable) {
-            t.printStackTrace()
+            FatalErrors.rethrowIfFatal(t)
+            XposedHelpers.log(t)
             1.0f
         }
     }
@@ -445,7 +457,8 @@ object Helpers {
         } catch (e: IllegalArgumentException) {
             // app lacks WRITE_SECURE_SETTINGS, fall through to root
         } catch (t: Throwable) {
-            t.printStackTrace()
+            FatalErrors.rethrowIfFatal(t)
+            XposedHelpers.log(t)
             return
         }
         if (!written) try {
@@ -453,7 +466,8 @@ object Helpers {
             val p = pb.start()
             p.waitFor()
         } catch (t: Throwable) {
-            t.printStackTrace()
+            FatalErrors.rethrowIfFatal(t)
+            XposedHelpers.log(t)
         }
     }
 
@@ -495,6 +509,7 @@ object Helpers {
                 result.add(appDual)
             }
         } catch (ignore: Throwable) {
+            FatalErrors.rethrowIfFatal(ignore)
         }
     }
 
