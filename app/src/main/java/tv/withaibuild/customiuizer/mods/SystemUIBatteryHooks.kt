@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import java.lang.System
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
@@ -199,63 +200,268 @@ object SystemUIBatteryHooks {
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.views.MiuiBatteryMeterView", lpparam.classLoader, "updateAll", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val style = batteryStyle ?: return
-                val batteryView = param.getThisObject() as LinearLayout
-                val mBatteryTextDigitView = XposedHelpers.getObjectField(param.getThisObject(), "mBatteryTextDigitView") as TextView
-                val mBatteryPercentView = XposedHelpers.getObjectField(param.getThisObject(), "mBatteryPercentView") as TextView
-                val mBatteryPercentMarkView = XposedHelpers.getObjectField(param.getThisObject(), "mBatteryPercentMarkView") as TextView
-                if (style.swap) {
-                    applyBatteryChildSwapIfNeeded(batteryView, mBatteryPercentView, mBatteryPercentMarkView)
-                }
-                if (style.fontSizeDp != 7.5f) {
-                    setTextSizeIfChanged(mBatteryTextDigitView, style.fontSizeDp)
-                    setTextSizeIfChanged(mBatteryPercentView, style.fontSizeDp)
-                }
-                if (style.markFontSizeDp != 7.5f) {
-                    setTextSizeIfChanged(mBatteryPercentMarkView, style.markFontSizeDp)
-                }
-                if (style.bold) {
-                    if (mBatteryTextDigitView.typeface !== Typeface.DEFAULT_BOLD) {
-                        mBatteryTextDigitView.typeface = Typeface.DEFAULT_BOLD
-                    }
-                    if (mBatteryPercentView.typeface !== Typeface.DEFAULT_BOLD) {
-                        mBatteryPercentView.typeface = Typeface.DEFAULT_BOLD
-                    }
-                }
-                val metrics = batteryView.resources.displayMetrics
-                val leftMargin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, style.leftMarginDp, metrics).toInt()
-                var topMargin = 0
-                if (style.verticalOffset != 8) {
-                    topMargin = TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        (style.verticalOffset - 8) * 0.5f,
-                        metrics
-                    ).toInt()
-                }
-                val rightMargin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, style.rightMarginDp, metrics).toInt()
-                val digitRightMargin: Int
-                val markRightMargin: Int
-                if (style.battery4) {
-                    digitRightMargin = rightMargin
-                    markRightMargin = 0
-                } else {
-                    digitRightMargin = 0
-                    markRightMargin = rightMargin
-                }
-                if (leftMargin > 0 || topMargin != 0 || digitRightMargin > 0) {
-                    setPaddingRelativeIfChanged(mBatteryPercentView, leftMargin, topMargin, digitRightMargin, 0)
-                }
+                val owner = param.getThisObject() ?: return
+                val batteryView = owner as? ViewGroup ?: return
+                val state = getOrCreateBatteryViewState(owner)
+                val baseline = state.baseline
 
-                val markTopMargin = if (style.markVerticalOffset != 17) {
-                    TypedValue.applyDimension(
-                        TypedValue.COMPLEX_UNIT_DIP,
-                        (style.markVerticalOffset - 8) * 0.5f,
-                        metrics
-                    ).toInt()
-                } else topMargin
-                if (style.markVerticalOffset != 17 || markRightMargin > 0) {
-                    setPaddingRelativeIfChanged(mBatteryPercentMarkView, 0, markTopMargin, markRightMargin, 0)
+                val childrenChanged = baseline == null || childIdentitiesChanged(batteryView, baseline.childIds)
+                val newBaseline = when {
+                    baseline == null -> captureBatteryBaseline(batteryView)
+                    childrenChanged -> captureBatteryBaseline(batteryView)
+                    state.appliedStyle == null && !matchesBaseline(batteryView, baseline) -> captureBatteryBaseline(batteryView)
+                    else -> baseline
+                }
+                if (newBaseline == null) return
+                state.baseline = newBaseline
+
+                val defaultStyle = isBatteryStyleDefault(style)
+                when {
+                    defaultStyle -> {
+                        if (state.appliedStyle != null || !matchesBaseline(batteryView, newBaseline)) {
+                            restoreBatteryBaseline(batteryView, newBaseline)
+                        }
+                        state.appliedStyle = null
+                    }
+                    state.appliedStyle != style || !matchesTarget(batteryView, newBaseline, style) -> {
+                        applyBatteryStyle(batteryView, newBaseline, style)
+                        state.appliedStyle = style
+                    }
                 }
             }
         })
+    }
+
+    private fun isBatteryStyleDefault(style: BatteryStyle): Boolean {
+        return !style.swap &&
+            style.fontSizeDp == 7.5f &&
+            style.markFontSizeDp == 7.5f &&
+            !style.bold &&
+            style.leftMarginDp == 0f &&
+            style.rightMarginDp == 0f &&
+            style.verticalOffset == 8 &&
+            style.markVerticalOffset == 17 &&
+            !style.battery4
+    }
+
+    internal data class Padding(
+        val start: Int,
+        val top: Int,
+        val end: Int,
+        val bottom: Int
+    )
+
+    internal data class BatteryBaseline(
+        val percentIndex: Int,
+        val markIndex: Int,
+        val digitTextSize: Float,
+        val percentTextSize: Float,
+        val markTextSize: Float,
+        val digitTypeface: Typeface?,
+        val percentTypeface: Typeface?,
+        val percentPadding: Padding,
+        val markPadding: Padding,
+        val childIds: List<Int>
+    )
+
+    internal data class BatteryViewState(
+        var baseline: BatteryBaseline? = null,
+        var appliedStyle: BatteryStyle? = null
+    )
+
+    internal fun getOrCreateBatteryViewState(owner: Any): BatteryViewState {
+        var state = XposedHelpers.getAdditionalInstanceField(owner, "customiuizer_battery_view_state") as? BatteryViewState
+        if (state == null) {
+            state = BatteryViewState()
+            XposedHelpers.setAdditionalInstanceField(owner, "customiuizer_battery_view_state", state)
+        }
+        return state
+    }
+
+    internal fun childIdentitiesChanged(parent: ViewGroup, childIds: List<Int>): Boolean {
+        if (parent.childCount != childIds.size) return true
+        for (i in 0 until parent.childCount) {
+            if (System.identityHashCode(parent.getChildAt(i)) != childIds[i]) return true
+        }
+        return false
+    }
+
+    internal fun captureBatteryBaseline(owner: ViewGroup): BatteryBaseline? {
+        val digitView = XposedHelpers.getObjectField(owner, "mBatteryTextDigitView") as? TextView ?: return null
+        val percentView = XposedHelpers.getObjectField(owner, "mBatteryPercentView") as? TextView ?: return null
+        val markView = XposedHelpers.getObjectField(owner, "mBatteryPercentMarkView") as? TextView ?: return null
+        return BatteryBaseline(
+            percentIndex = owner.indexOfChild(percentView),
+            markIndex = owner.indexOfChild(markView),
+            digitTextSize = digitView.textSize,
+            percentTextSize = percentView.textSize,
+            markTextSize = markView.textSize,
+            digitTypeface = digitView.typeface,
+            percentTypeface = percentView.typeface,
+            percentPadding = Padding(percentView.paddingStart, percentView.paddingTop, percentView.paddingEnd, percentView.paddingBottom),
+            markPadding = Padding(markView.paddingStart, markView.paddingTop, markView.paddingEnd, markView.paddingBottom),
+            childIds = (0 until owner.childCount).map { System.identityHashCode(owner.getChildAt(it)) }
+        )
+    }
+
+    internal fun matchesBaseline(parent: ViewGroup, baseline: BatteryBaseline): Boolean {
+        val digitView = XposedHelpers.getObjectField(parent, "mBatteryTextDigitView") as? TextView ?: return false
+        val percentView = XposedHelpers.getObjectField(parent, "mBatteryPercentView") as? TextView ?: return false
+        val markView = XposedHelpers.getObjectField(parent, "mBatteryPercentMarkView") as? TextView ?: return false
+        return parent.indexOfChild(percentView) == baseline.percentIndex &&
+            parent.indexOfChild(markView) == baseline.markIndex &&
+            digitView.textSize == baseline.digitTextSize &&
+            percentView.textSize == baseline.percentTextSize &&
+            markView.textSize == baseline.markTextSize &&
+            digitView.typeface === baseline.digitTypeface &&
+            percentView.typeface === baseline.percentTypeface &&
+            paddingEquals(percentView, baseline.percentPadding) &&
+            paddingEquals(markView, baseline.markPadding)
+    }
+
+    private fun paddingEquals(view: TextView, padding: Padding): Boolean {
+        return view.paddingStart == padding.start &&
+            view.paddingTop == padding.top &&
+            view.paddingEnd == padding.end &&
+            view.paddingBottom == padding.bottom
+    }
+
+    internal fun matchesTarget(parent: ViewGroup, baseline: BatteryBaseline, style: BatteryStyle): Boolean {
+        val digitView = XposedHelpers.getObjectField(parent, "mBatteryTextDigitView") as? TextView ?: return false
+        val percentView = XposedHelpers.getObjectField(parent, "mBatteryPercentView") as? TextView ?: return false
+        val markView = XposedHelpers.getObjectField(parent, "mBatteryPercentMarkView") as? TextView ?: return false
+        val metrics = parent.resources.displayMetrics
+
+        val percentIndex = parent.indexOfChild(percentView)
+        val markIndex = parent.indexOfChild(markView)
+        if (style.swap) {
+            if (percentIndex != 0 || markIndex != 1) return false
+        } else {
+            if (percentIndex != baseline.percentIndex || markIndex != baseline.markIndex) return false
+        }
+
+        val targetDigitSize = expectedTextSize(digitView, style.fontSizeDp, baseline.digitTextSize)
+        val targetPercentSize = expectedTextSize(percentView, style.fontSizeDp, baseline.percentTextSize)
+        val targetMarkSize = expectedTextSize(markView, style.markFontSizeDp, baseline.markTextSize)
+        if (digitView.textSize != targetDigitSize) return false
+        if (percentView.textSize != targetPercentSize) return false
+        if (markView.textSize != targetMarkSize) return false
+
+        val targetDigitTypeface = if (style.bold) Typeface.DEFAULT_BOLD else baseline.digitTypeface
+        val targetPercentTypeface = if (style.bold) Typeface.DEFAULT_BOLD else baseline.percentTypeface
+        if (digitView.typeface !== targetDigitTypeface) return false
+        if (percentView.typeface !== targetPercentTypeface) return false
+
+        val (percentPadding, markPadding) = computePaddings(style, baseline, metrics)
+        if (!paddingEquals(percentView, percentPadding)) return false
+        if (!paddingEquals(markView, markPadding)) return false
+
+        return true
+    }
+
+    private fun expectedTextSize(view: TextView, sizeDp: Float, baselineSize: Float): Float {
+        return if (sizeDp == 7.5f) baselineSize else TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, sizeDp, view.resources.displayMetrics)
+    }
+
+    internal fun restoreBatteryBaseline(parent: ViewGroup, baseline: BatteryBaseline) {
+        val digitView = XposedHelpers.getObjectField(parent, "mBatteryTextDigitView") as? TextView ?: return
+        val percentView = XposedHelpers.getObjectField(parent, "mBatteryPercentView") as? TextView ?: return
+        val markView = XposedHelpers.getObjectField(parent, "mBatteryPercentMarkView") as? TextView ?: return
+
+        restoreChildOrder(parent, percentView, markView, baseline.percentIndex, baseline.markIndex)
+
+        setTextSizePxIfChanged(digitView, baseline.digitTextSize)
+        setTextSizePxIfChanged(percentView, baseline.percentTextSize)
+        setTextSizePxIfChanged(markView, baseline.markTextSize)
+
+        setTypefaceIfChanged(digitView, baseline.digitTypeface)
+        setTypefaceIfChanged(percentView, baseline.percentTypeface)
+
+        setPaddingRelativeIfChanged(percentView, baseline.percentPadding)
+        setPaddingRelativeIfChanged(markView, baseline.markPadding)
+    }
+
+    internal fun applyBatteryStyle(parent: ViewGroup, baseline: BatteryBaseline, style: BatteryStyle) {
+        val digitView = XposedHelpers.getObjectField(parent, "mBatteryTextDigitView") as? TextView ?: return
+        val percentView = XposedHelpers.getObjectField(parent, "mBatteryPercentView") as? TextView ?: return
+        val markView = XposedHelpers.getObjectField(parent, "mBatteryPercentMarkView") as? TextView ?: return
+
+        if (style.swap) {
+            applyBatteryChildSwapIfNeeded(parent, percentView, markView)
+        } else {
+            restoreChildOrder(parent, percentView, markView, baseline.percentIndex, baseline.markIndex)
+        }
+
+        if (style.fontSizeDp == 7.5f) {
+            setTextSizePxIfChanged(digitView, baseline.digitTextSize)
+            setTextSizePxIfChanged(percentView, baseline.percentTextSize)
+        } else {
+            setTextSizeIfChanged(digitView, style.fontSizeDp)
+            setTextSizeIfChanged(percentView, style.fontSizeDp)
+        }
+
+        if (style.markFontSizeDp == 7.5f) {
+            setTextSizePxIfChanged(markView, baseline.markTextSize)
+        } else {
+            setTextSizeIfChanged(markView, style.markFontSizeDp)
+        }
+
+        if (style.bold) {
+            setTypefaceIfChanged(digitView, Typeface.DEFAULT_BOLD)
+            setTypefaceIfChanged(percentView, Typeface.DEFAULT_BOLD)
+        } else {
+            setTypefaceIfChanged(digitView, baseline.digitTypeface)
+            setTypefaceIfChanged(percentView, baseline.percentTypeface)
+        }
+
+        val metrics = parent.resources.displayMetrics
+        val (percentPadding, markPadding) = computePaddings(style, baseline, metrics)
+        setPaddingRelativeIfChanged(percentView, percentPadding)
+        setPaddingRelativeIfChanged(markView, markPadding)
+    }
+
+    internal fun computePaddings(style: BatteryStyle, baseline: BatteryBaseline, metrics: android.util.DisplayMetrics): Pair<Padding, Padding> {
+        val leftMargin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, style.leftMarginDp, metrics).toInt()
+        val topMargin = if (style.verticalOffset == 8) 0 else TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, (style.verticalOffset - 8) * 0.5f, metrics).toInt()
+        val rightMargin = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, style.rightMarginDp, metrics).toInt()
+        val digitRightMargin = if (style.battery4) rightMargin else 0
+        val markRightMargin = if (style.battery4) 0 else rightMargin
+        val markTopMargin = if (style.markVerticalOffset == 17) topMargin else TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, (style.markVerticalOffset - 8) * 0.5f, metrics).toInt()
+
+        val restorePercentPadding = style.leftMarginDp == 0f && style.rightMarginDp == 0f && style.verticalOffset == 8 && style.battery4 == baselineIsBattery4(baseline)
+        val restoreMarkPadding = style.rightMarginDp == 0f && ((style.markVerticalOffset == 17 && style.verticalOffset == 8) || (style.markVerticalOffset == style.verticalOffset && style.markVerticalOffset == 17)) && !style.battery4
+
+        val percentPadding = if (restorePercentPadding) baseline.percentPadding else Padding(leftMargin, topMargin, digitRightMargin, 0)
+        val markPadding = if (restoreMarkPadding) baseline.markPadding else Padding(0, markTopMargin, markRightMargin, 0)
+        return percentPadding to markPadding
+    }
+
+    private fun baselineIsBattery4(baseline: BatteryBaseline): Boolean {
+        // Battery4 baseline cannot be detected from padding alone, so default to false unless a custom right margin was stored.
+        return false
+    }
+
+    private fun restoreChildOrder(parent: ViewGroup, percentView: View, markView: View, percentIndex: Int, markIndex: Int) {
+        // Move the child with the larger target index first so the smaller target index remains
+        // valid after the first move.
+        if (markIndex > percentIndex) {
+            moveChildTo(parent, markView, markIndex)
+            moveChildTo(parent, percentView, percentIndex)
+        } else {
+            moveChildTo(parent, percentView, percentIndex)
+            moveChildTo(parent, markView, markIndex)
+        }
+    }
+
+    private fun setTextSizePxIfChanged(view: TextView, size: Float) {
+        if (view.textSize != size) view.setTextSize(TypedValue.COMPLEX_UNIT_PX, size)
+    }
+
+    private fun setTypefaceIfChanged(view: TextView, typeface: Typeface?) {
+        if (view.typeface !== typeface) view.typeface = typeface
+    }
+
+    private fun setPaddingRelativeIfChanged(view: TextView, padding: Padding) {
+        setPaddingRelativeIfChanged(view, padding.start, padding.top, padding.end, padding.bottom)
     }
 }
