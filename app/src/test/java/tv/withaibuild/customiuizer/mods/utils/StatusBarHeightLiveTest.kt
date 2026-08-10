@@ -11,16 +11,31 @@ import android.view.WindowManager
 import com.android.server.wm.WindowState as FakeWindowState
 import io.github.libxposed.api.XposedInterface
 import org.junit.After
+import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.SystemStatusBarInsetsHooks
+import tv.withaibuild.customiuizer.mods.statusbarheight.DecorInsetsCapability
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsSourceCapability
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeEncoding
+import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeInfo
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightAbi
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightEffect
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightResolver
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.lang.reflect.Executable
 
 class StatusBarHeightLiveTest {
+
+    @Before
+    fun setUp() {
+        StatusBarHeightConfig.resetForTest()
+        SystemStatusBarInsetsHooks.resetForTest()
+        setStatusBarHeightEffect(makeLiveEffect())
+    }
 
     @After
     fun tearDown() {
@@ -400,6 +415,38 @@ class StatusBarHeightLiveTest {
         rect.top = top
         rect.right = right
         rect.bottom = bottom
+    }
+
+    private fun setStatusBarHeightEffect(effect: StatusBarHeightEffect?) {
+        val field = SystemStatusBarInsetsHooks::class.java.getDeclaredField("statusBarHeightEffect")
+        field.isAccessible = true
+        field.set(null, effect)
+    }
+
+    private fun makeLiveEffect(): StatusBarHeightEffect {
+        val wm = StatusBarHeightResolver.resolveWindowManagerClass(
+            FakeWindowState::class.java,
+            WindowManager.LayoutParams::class.java,
+        )
+        val decor = DecorInsetsCapability(
+            infoClass = null,
+            updateMethod = null,
+            displayContentClass = FakeWindowState.FakeDisplayContent::class.java,
+            displayContentGetDisplayMetricsMethod = FakeWindowState.FakeDisplayContent::class.java.getDeclaredMethod("getDisplayMetrics").also { it.isAccessible = true },
+            nonDecorInsetsField = null,
+            nonDecorFrameField = null,
+        )
+        val insets = InsetsSourceCapability(
+            sourceClass = null,
+            setFrameOneArg = true,
+            setFrameFourArg = true,
+            typeInfo = InsetsTypeInfo(InsetsTypeEncoding.MODERN_PUBLIC, 1, 2, 128),
+            typeField = null,
+            getTypeMethod = null,
+            getIdMethod = null,
+            getFrameMethod = null,
+        )
+        return StatusBarHeightEffect(StatusBarHeightAbi(insets, wm, decor))
     }
 
     private fun newStatusBarWindow(): FakeWindowState {
