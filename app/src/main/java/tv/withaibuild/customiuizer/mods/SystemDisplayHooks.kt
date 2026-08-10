@@ -216,32 +216,90 @@ object SystemDisplayHooks {
         ModuleHelper.findAndHookMethod("com.miui.charge.container.MiuiChargeAnimationView", lpparam.classLoader, "getAnimationDuration", HookerClassHelper.returnConstant(timeout))
     }
 
-    private var mMaximumBacklight = 0f
+    internal var mMaximumBacklight = 0f
 
-    private var mMinimumBacklight = 0f
+    internal var mMinimumBacklight = 0f
 
-    private var backlightMaxLevel = 0
+    internal var backlightMaxLevel = 0
 
-    private fun constrainValue(value: Float): Float {
+    private data class AutoBrightnessRangeSnapshot(
+        val limitMin: Boolean = false,
+        val limitMax: Boolean = false,
+        val minValue: Float = 0f,
+        val maxValue: Float = 1f,
+        val initialized: Boolean = false
+    )
+
+    @Volatile
+    private var autoBrightnessRangeSnapshot = AutoBrightnessRangeSnapshot()
+
+    private var autoBrightnessRangeObserverInstalled = false
+
+    internal fun refreshAutoBrightnessRangeSnapshot() {
+        val limitMin = MainModule.mPrefs.getBoolean("system_autobrightness_limitmin")
+        val limitMax = MainModule.mPrefs.getBoolean("system_autobrightness_limitmax")
+        val minPct = MainModule.mPrefs.getInt("system_autobrightness_min", 25)
+        val maxPct = MainModule.mPrefs.getInt("system_autobrightness_max", 75)
+
+        if (backlightMaxLevel <= 0 || mMaximumBacklight <= mMinimumBacklight) {
+            autoBrightnessRangeSnapshot = AutoBrightnessRangeSnapshot(
+                limitMin = limitMin,
+                limitMax = limitMax,
+                initialized = false
+            )
+            return
+        }
+
+        val min = HookUtils.convertGammaToLinearFloat(minPct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
+        val max = HookUtils.convertGammaToLinearFloat(maxPct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
+
+        autoBrightnessRangeSnapshot = AutoBrightnessRangeSnapshot(
+            limitMin = limitMin,
+            limitMax = limitMax,
+            minValue = min,
+            maxValue = max,
+            initialized = true
+        )
+    }
+
+    internal fun onAutoBrightnessRangePreferenceChanged(key: String?) {
+        if (key == null ||
+            key == "system_autobrightness_limitmin" ||
+            key == "system_autobrightness_limitmax" ||
+            key == "system_autobrightness_min" ||
+            key == "system_autobrightness_max") {
+            refreshAutoBrightnessRangeSnapshot()
+        }
+    }
+
+    private fun installAutoBrightnessRangeSnapshot() {
+        if (autoBrightnessRangeObserverInstalled) return
+        autoBrightnessRangeObserverInstalled = true
+        refreshAutoBrightnessRangeSnapshot()
+        ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) = ModuleHelper.guarded {
+                onAutoBrightnessRangePreferenceChanged(key)
+            }
+        })
+    }
+
+    internal fun constrainValue(value: Float): Float {
+        val snap = autoBrightnessRangeSnapshot
+        if (!snap.initialized || value < 0) return value
+
         var newVal = value
         if (newVal < 0) newVal = 0f
         if (newVal > 1) newVal = 1f
 
-        val limitmin = MainModule.mPrefs.getBoolean("system_autobrightness_limitmin")
-        val limitmax = MainModule.mPrefs.getBoolean("system_autobrightness_limitmax")
-        val min_pct = MainModule.mPrefs.getInt("system_autobrightness_min", 25)
-        val max_pct = MainModule.mPrefs.getInt("system_autobrightness_max", 75)
-
-        val min = HookUtils.convertGammaToLinearFloat(min_pct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
-        val max = HookUtils.convertGammaToLinearFloat(max_pct / 100f * backlightMaxLevel, backlightMaxLevel, mMinimumBacklight, mMaximumBacklight)
-
-        if (limitmin && newVal < min) newVal = min
-        if (limitmax && newVal > max) newVal = max
+        if (snap.limitMin && newVal < snap.minValue) newVal = snap.minValue
+        if (snap.limitMax && newVal > snap.maxValue) newVal = snap.maxValue
         return newVal
     }
 
     @JvmStatic
     fun AutoBrightnessRangeHook(lpparam: SystemServerStartingParam) {
+        installAutoBrightnessRangeSnapshot()
+
         ModuleHelper.findAndHookMethod("com.android.server.display.AutomaticBrightnessController", lpparam.classLoader, "clampScreenBrightness", Float::class.javaPrimitiveType!!, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any?
@@ -328,6 +386,7 @@ object SystemDisplayHooks {
                     backlightMaxLevel = (1 shl backlightBit) - 1
                     mMinimumBacklight = (minBrightnessLevel - 1) * 1.0f / (backlightMaxLevel - 1)
                     mMaximumBacklight = (maxBrightnessLevel - 1) * 1.0f / (backlightMaxLevel - 1)
+                    refreshAutoBrightnessRangeSnapshot()
 
                     result = chain.proceed()
                 } catch (t: Throwable) {
