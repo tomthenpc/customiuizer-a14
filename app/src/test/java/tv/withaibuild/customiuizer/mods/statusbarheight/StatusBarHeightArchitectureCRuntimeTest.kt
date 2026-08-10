@@ -92,6 +92,69 @@ class StatusBarHeightArchitectureCRuntimeTest {
     }
 
     @Test
+    fun markLatestIfKnown_unknown_returnsFalse() {
+        val runtime = StatusBarHeightRuntime()
+        assertFalse(runtime.markLatestIfKnown(Any()))
+        assertNull(runtime.latestRefForTest())
+    }
+
+    @Test
+    fun markLatestIfKnown_known_returnsTrue() {
+        val runtime = StatusBarHeightRuntime()
+        val owner = Any()
+        val ref = runtime.rememberStatusBar(owner)
+
+        assertTrue(runtime.markLatestIfKnown(owner))
+        assertSame(ref, runtime.latestRefForTest())
+    }
+
+    @Test
+    fun markLatestIfKnown_reusesExactWeakReference() {
+        val runtime = StatusBarHeightRuntime()
+        val owner = Any()
+        val ref = runtime.rememberStatusBar(owner)
+
+        repeat(10) {
+            assertTrue(runtime.markLatestIfKnown(owner))
+        }
+
+        assertSame(ref, runtime.latestRefForTest())
+    }
+
+    @Test
+    fun markLatestIfKnown_multipleOwners_latestFollowsLastMarked() {
+        val runtime = StatusBarHeightRuntime()
+        val a = Any()
+        val b = Any()
+        val refA = runtime.rememberStatusBar(a)
+        val refB = runtime.rememberStatusBar(b)
+
+        assertTrue(runtime.markLatestIfKnown(a))
+        assertSame(refA, runtime.latestRefForTest())
+
+        assertTrue(runtime.markLatestIfKnown(b))
+        assertSame(refB, runtime.latestRefForTest())
+
+        assertSame(refA, runtime.rememberStatusBar(a))
+        assertSame(refA, runtime.latestRefForTest())
+    }
+
+    @Test
+    fun markLatestIfKnown_repeatedMarkDoesNotReallocate() {
+        val runtime = StatusBarHeightRuntime()
+        val owner = Any()
+        val ref = runtime.rememberStatusBar(owner)
+
+        val snapshot = runtime.knownSnapshotForTest()
+        repeat(10) {
+            runtime.markLatestIfKnown(owner)
+        }
+
+        assertSame(ref, runtime.latestRefForTest())
+        assertSame(ref, snapshot[0])
+    }
+
+    @Test
     fun latestRef_reusesSameWeakReferenceForSameOwner() {
         val runtime = StatusBarHeightRuntime()
         val owner = Any()

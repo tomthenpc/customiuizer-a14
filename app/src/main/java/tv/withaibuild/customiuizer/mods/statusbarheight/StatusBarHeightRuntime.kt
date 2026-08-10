@@ -58,6 +58,31 @@ internal class StatusBarHeightRuntime {
     }
 
     /**
+     * If [owner] is already known, mark it as the most recently laid-out status bar without
+     * creating a new [WeakReference].  Returns `true` when the owner was known and the latest
+     * ref was updated (or already pointed to the same reference).
+     *
+     * Fast path:
+     * - single volatile snapshot acquire
+     * - bounded identity scan
+     * - no lock
+     * - no allocation
+     */
+    fun markLatestIfKnown(owner: Any): Boolean {
+        val snapshot = knownOwners
+        for (i in 0 until MAX_TRACKED) {
+            val ref = snapshot[i]
+            if (ref?.get() === owner) {
+                if (latestKnownStatusBar !== ref) {
+                    latestKnownStatusBar = ref
+                }
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
      * Remember that [owner] is a status bar.
      *
      * Rare discovery path.  It allocates a new [WeakReference] only for a genuinely new owner and

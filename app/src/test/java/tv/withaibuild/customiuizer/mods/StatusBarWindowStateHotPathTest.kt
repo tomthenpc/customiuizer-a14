@@ -10,10 +10,10 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightRuntime
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.PrefMap
-import java.lang.ref.WeakReference
 import java.lang.reflect.Executable
 
 /**
@@ -197,24 +197,18 @@ class StatusBarWindowStateHotPathTest {
         field.set(null, clazz)
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun rememberStatusBarWindow(win: Any) {
-        val field = SystemStatusBarInsetsHooks::class.java.getDeclaredField("statusBarWindows")
+    private fun statusBarHeightRuntime(): StatusBarHeightRuntime {
+        val field = SystemStatusBarInsetsHooks::class.java.getDeclaredField("statusBarHeightRuntime")
         field.isAccessible = true
-        val current = field.get(null) as? Array<WeakReference<Any>> ?: emptyArray()
-        val updated = current.toMutableList()
-        updated.add(WeakReference(win))
-        field.set(null, updated.toTypedArray() as Array<WeakReference<Any>>)
+        return field.get(null) as StatusBarHeightRuntime
+    }
+
+    private fun rememberStatusBarWindow(win: Any) {
+        statusBarHeightRuntime().rememberStatusBar(win)
     }
 
     private fun isKnownStatusBarWindow(win: Any): Boolean {
-        val field = SystemStatusBarInsetsHooks::class.java.getDeclaredField("statusBarWindows")
-        field.isAccessible = true
-        val known = field.get(null) as? Array<WeakReference<Any>> ?: return false
-        for (i in known.indices) {
-            if (known[i].get() === win) return true
-        }
-        return false
+        return statusBarHeightRuntime().isKnownStatusBar(win)
     }
 
     class FakeWindowState(statusType: Boolean = true) {

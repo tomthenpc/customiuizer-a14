@@ -10,16 +10,15 @@ import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsSourceCapability
 import tv.withaibuild.customiuizer.mods.statusbarheight.InsetsTypeEncoding
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightAbi
+import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightRuntime
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightResolver
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import java.lang.ref.WeakReference
 import java.lang.reflect.Field
 import java.lang.reflect.Method
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicLongArray
 
@@ -76,35 +75,13 @@ object SystemStatusBarInsetsHooks {
     private const val STATUS_BAR_HEIGHT_LIVE_TAG = "[StatusBarHeightLive]"
     private const val ORIGINAL_STATUS_BAR_HEIGHT_KEY = "customiuizer_originalStatusBarHeight"
 
-    /** Upper bound for the identity fast path and for the per-display diagnostic stamps. */
-    internal const val MAX_TRACKED_DISPLAYS = 4
-
-    /** Upper bound for the expensive packageName/toString status bar probe. */
-    internal const val MAX_FALLBACK_PROBES = 4096
-
     /** Process-scoped frozen ABI for the status bar height feature. */
     @Volatile
     private var statusBarHeightAbi: StatusBarHeightAbi? = null
     private var hookInstalled: Boolean = false
 
-    /** Weak reference to the most recently laid-out status bar WindowState for refresh. */
-    @Volatile
-    private var statusBarWindowRef: WeakReference<Any>? = null
-
-    /**
-     * Identity fast path: WindowStates already proven to be status bars. The hot path only
-     * compares references against this snapshot; the array is rebuilt on the rare discovery
-     * path so readers never allocate and never lock.
-     */
-    @Volatile
-    private var statusBarWindows: Array<WeakReference<Any>> = emptyArray()
-
-    /** True once `mAttrs.type == TYPE_STATUS_BAR` has identified a status bar on this ROM. */
-    @Volatile
-    private var typeMatchObserved = false
-
-    /** Remaining budget for the packageName/toString fallback probe. */
-    private val fallbackProbeBudget = AtomicInteger(MAX_FALLBACK_PROBES)
+    /** Process-scoped runtime state: identity, weak owner refs, fallback budget and refresh. */
+    private val statusBarHeightRuntime = StatusBarHeightRuntime()
 
     /** Resolved `WindowState.mAttrs` / `WindowManager.LayoutParams.type` for the WMS hot path. */
     @Volatile
@@ -152,16 +129,16 @@ object SystemStatusBarInsetsHooks {
      * Per-display "already logged for this generation" stamps. They let the hot path skip the
      * whole diagnostic prelude (string keys, Rect copies, extra reflection) without a lock.
      */
-    private val layoutLogStamps = AtomicLongArray(MAX_TRACKED_DISPLAYS)
-    private val windowFrameLogStamps = AtomicLongArray(MAX_TRACKED_DISPLAYS)
-    private val clientFrameLogStamps = AtomicLongArray(MAX_TRACKED_DISPLAYS)
+    private val layoutLogStamps = AtomicLongArray(StatusBarHeightRuntime.MAX_TRACKED)
+    private val windowFrameLogStamps = AtomicLongArray(StatusBarHeightRuntime.MAX_TRACKED)
+    private val clientFrameLogStamps = AtomicLongArray(StatusBarHeightRuntime.MAX_TRACKED)
 
     /**
      * Returns true at most once per (display, generation) pair. The stamp is `generation + 1`
      * so the zero-initialised array never suppresses generation 0.
      */
     private fun claimLiveLogStamp(stamps: AtomicLongArray, displayId: Int): Boolean {
-        val slot = if (displayId in 0 until MAX_TRACKED_DISPLAYS) displayId else MAX_TRACKED_DISPLAYS - 1
+        val slot = if (displayId in 0 until StatusBarHeightRuntime.MAX_TRACKED) displayId else StatusBarHeightRuntime.MAX_TRACKED - 1
         val stamp = StatusBarHeightConfig.generation.get() + 1
         return stamps.getAndSet(slot, stamp) != stamp
     }
@@ -191,11 +168,7 @@ object SystemStatusBarInsetsHooks {
         resetDiagnosticsForTest()
         statusBarHeightAbi = null
         hookInstalled = false
-        statusBarWindowRef = null
-        statusBarWindows = emptyArray()
-        typeMatchObserved = false
-        fallbackProbeBudget.set(MAX_FALLBACK_PROBES)
-        lastRefreshGeneration.set(-1L)
+        statusBarHeightRuntime.resetKnownStatusBars()
         windowStateClass = null
         windowStateAttrsField = null
         layoutParamsTypeField = null
@@ -486,8 +459,7 @@ object SystemStatusBarInsetsHooks {
         if (!StatusBarHeightConfig.enabled) {
             // Disabled path must not perform status-bar discovery on unknown WindowStates.
             // Only a previously identified status bar gets its original height restored.
-            if (isKnownStatusBarWindow(win)) {
-                if (statusBarWindowRef?.get() !== win) statusBarWindowRef = WeakReference(win)
+            if (markLatestIfKnownStatusBar(win)) {
                 restoreStatusBarWindowHeight(win)
             }
             return chain.proceed()
@@ -495,7 +467,7 @@ object SystemStatusBarInsetsHooks {
 
         if (!isStatusBarWindow(win)) return chain.proceed()
 
-        if (statusBarWindowRef?.get() !== win) statusBarWindowRef = WeakReference(win)
+        markLatestIfKnownStatusBar(win)
 
         val metrics = tryGetWindowDisplayMetrics(win) ?: return chain.proceed()
         val displayId = getDisplayId(win)
@@ -671,24 +643,14 @@ object SystemStatusBarInsetsHooks {
         return if (resolved != null) resolved.isInstance(win) else win.javaClass.name == WINDOW_STATE_CLASS
     }
 
-    private fun isKnownStatusBarWindow(win: Any): Boolean {
-        val known = statusBarWindows
-        for (i in known.indices) {
-            if (known[i].get() === win) return true
-        }
-        return false
-    }
+    private fun isKnownStatusBarWindow(win: Any): Boolean =
+        statusBarHeightRuntime.isKnownStatusBar(win)
+
+    private fun markLatestIfKnownStatusBar(win: Any): Boolean =
+        statusBarHeightRuntime.markLatestIfKnown(win)
 
     private fun rememberStatusBarWindow(win: Any) {
-        synchronized(this) {
-            if (isKnownStatusBarWindow(win)) return
-            val known = statusBarWindows
-            val live = ArrayList<WeakReference<Any>>(known.size + 1)
-            for (ref in known) if (ref.get() != null) live.add(ref)
-            while (live.size >= MAX_TRACKED_DISPLAYS) live.removeAt(0)
-            live.add(WeakReference(win))
-            statusBarWindows = live.toTypedArray()
-        }
+        statusBarHeightRuntime.rememberStatusBar(win)
     }
 
     /**
@@ -703,13 +665,13 @@ object SystemStatusBarInsetsHooks {
         return try {
             val attrs = readWindowAttrs(win) ?: return false
             if (readAttrsType(attrs) == TYPE_STATUS_BAR) {
-                typeMatchObserved = true
+                statusBarHeightRuntime.typeMatchObserved = true
                 rememberStatusBarWindow(win)
                 return true
             }
 
-            if (typeMatchObserved) return false
-            if (fallbackProbeBudget.decrementAndGet() < 0) return false
+            if (statusBarHeightRuntime.typeMatchObserved) return false
+            if (statusBarHeightRuntime.fallbackProbeBudget.decrementAndGet() < 0) return false
 
             val packageName = XposedHelpers.getObjectField(attrs, "packageName") as? String
             if (packageName?.contains("com.android.systemui") != true) return false
@@ -840,14 +802,14 @@ object SystemStatusBarInsetsHooks {
 
     @JvmStatic
     internal fun requestStatusBarTraversal() {
-        val win = statusBarWindowRef?.get() ?: return
+        val win = statusBarHeightRuntime.latestKnownStatusBar?.get() ?: return
         try {
             invalidateDecorInsets(win)
             val wmService = XposedHelpers.getObjectField(win, "mWmService") ?: return
             val windowPlacer = XposedHelpers.getObjectField(wmService, "mWindowPlacerLocked") ?: return
 
             val newGen = StatusBarHeightConfig.generation.get()
-            val lastGen = lastRefreshGeneration.getAndSet(newGen)
+            val lastGen = statusBarHeightRuntime.lastRefreshGeneration.getAndSet(newGen)
             if (lastGen == newGen) {
                 logLive("refresh coalesced gen=$newGen", "refresh")
                 return
