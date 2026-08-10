@@ -66,12 +66,21 @@ A. initial enabled (system_statusbarheight > 11):
    - statusBarHeightObserver registered in PreferenceObserverRegistry.
    - live preference change works: custom -> custom, custom -> disabled, disabled -> enabled.
 
-B. initial disabled (system_statusbarheight <= 11):
+B. initial disabled (system_statusbarheight <= 11) — system_server Insets topology:
    - StatusBarHeightInsetsFeature SKIPPED by FeatureInstallRegistry.
-   - No hooks installed.
-   - No observer registered.
-   - disabled -> enabled cannot be activated live; requires system_server / SystemUI process restart
-     so that FeatureInstallRegistry can see the new preference and create the feature.
+   - No InsetsSource / DisplayPolicy / WindowState / DecorInsets.Info hooks installed.
+   - statusBarHeightObserver NOT registered.
+   - disabled -> enabled cannot be activated live.
+   - Reactivation requires system_server process restart (or device reboot) so that
+     SystemServerInstaller -> FeatureInstallRegistry re-runs and creates StatusBarHeightInsetsFeature.
+   - SystemUI process restart alone does NOT reinstall the system_server StatusBarHeightInsets topology.
+
+C. initial disabled (system_statusbarheight <= 11) — PACKAGE_READY resource topology:
+   - StatusBarHeightFeature SKIPPED by CommonPackageFeatures.
+   - No framework dimen resource replacement for the package.
+   - disabled -> enabled cannot be activated live for that package.
+   - Reactivation requires the corresponding package/process to reload and re-enter PACKAGE_READY,
+     e.g. a SystemUI resource change requires a SystemUI process reload.
 ```
 
 This is the current r14.18.8 oracle behavior.  Any change to a permanent live topology (e.g. installing hooks+observer even when initially disabled) is a **semantic change**, not a parity refactor, and must be proposed and tested separately.
@@ -193,7 +202,7 @@ This is the current r14.18.8 oracle behavior.  Any change to a permanent live to
 | density changed | `recomputePx(metrics)` updates `StatusBarHeightConfig.configuredPx` and `densityDpi` | `recomputePx` is synchronized and bumps generation only on effective change. |
 | display change (secondary display) | local px computed from the display's metrics without mutating global config | `onLayoutWindowLw` uses `StatusBarHeightConfig.configuredPxFor(configuredDp, metrics)` for `displayId != 0`. `onSetFrames` also uses local metrics for non-zero display. |
 | frame unchanged | `chain.proceed()` with original args, no Rect allocation | `SetFrameCallback.adjustArgs` returns `null` when `newBottom == oldBottom`; `onSetFrames` returns `chain.proceed()` when bottom unchanged. |
-| config live update | If hooks+observer were installed at process start: preference observer calls `reconfigure()` then `requestStatusBarTraversal()`.  If not installed, change requires process restart. | `statusBarHeightObserver.onChange` filters to `PREF_KEY` (and accepts `null`), calls `reconfigure`, and if `change.changed` calls `requestStatusBarTraversal`.  Observer is registered only when feature is enabled at install. |
+| config live update | If system_server Insets hooks+observer were installed at process start: preference observer calls `reconfigure()` then `requestStatusBarTraversal()`.  If the Insets feature was skipped at process start, live activation requires a **system_server restart / reboot**. | `statusBarHeightObserver.onChange` filters to `PREF_KEY` (and accepts `null`), calls `reconfigure`, and if `change.changed` calls `requestStatusBarTraversal`.  Observer is registered only when the system_server Insets feature is enabled at install. |
 | null-key invalidation | `key == null` is treated as full invalidation; `reconfigure(MainModule.mPrefs)` re-reads current snapshot.  It does **not** force default 11. | `statusBarHeightObserver.onChange`: `if (key != null && key != PREF_KEY) return`.  Then `reconfigure(MainModule.mPrefs)`. |
 | preference absent | `PrefMap.getInt(key, DEFAULT_SENTINEL)` returns 11; feature disabled. | `PrefMap.getInt` default handling. |
 | fallback ABI (legacy InsetsState) | `selectTypeEncoding` picks `LEGACY_INTERNAL` if one-int constructor, no modern constructor, getType, and both legacy status/nav constants exist | `resolveInsetsSourceAbi` and `selectTypeEncoding` implement this. |
@@ -201,7 +210,8 @@ This is the current r14.18.8 oracle behavior.  Any change to a permanent live to
 | original RuntimeException | propagates through `chain.proceed()` without suppression | `onLayoutWindowLw` / `onSetFrames` / `onDecorInsetsInfoUpdate` do not catch exceptions from `chain.proceed()`. |
 | OOM/fatal | propagates; `FatalErrors.unwrapAndRethrowIfFatal(t)` in all `catch (Throwable)` blocks before logging | Verified by code and unit tests. |
 | nested/reentry | `hookInstalled` guard and `FeatureInstallState` ensure one install per process; callback does not re-enter itself | `StatusBarInsetsHeightHook` returns immediately if `hookInstalled`. `FeatureInstallRegistry` checks `FeatureInstallState.beginInstall`. |
-| initial-disabled -> enabled at runtime | **Not live-activatable.**  Feature was skipped at install; no hooks, no observer.  Requires process restart. | FeatureInstallRegistry `isEnabled` gate before `create()`.  See install-time topology contract. |
+| initial disabled -> enabled at runtime (system_server Insets) | **Not live-activatable.**  `StatusBarHeightInsetsFeature` was skipped at system_server start; no Insets hooks, no observer.  Requires **system_server process restart or device reboot**.  SystemUI restart alone is insufficient. | `FeatureInstallRegistry.isEnabled` gate before `create()`.  `SystemServerInstaller.install` runs once per system_server process.  See install-time topology contract. |
+| initial disabled -> enabled at runtime (PACKAGE_READY resource) | **Not live-activatable for the package.**  `StatusBarHeightFeature` was skipped when the package loaded; no resource replacement.  Requires the **corresponding package/process to reload and re-enter PACKAGE_READY**, e.g. SystemUI resource change requires SystemUI process reload. | `CommonPackageFeatures.all` and `FeatureInstallRegistry` check `isEnabled` before creating the feature.  No observer. |
 | PACKAGE_READY resource replacement | Executed once per eligible package at `PackageReadyParam` load when `StatusBarHeightFeature.isEnabled(prefs)` is true.  No preference observer; no live update for resource path. | `System.StatusBarHeightHook` calls `StatusBarHeightConfig.configure()` and 4 `replacePkgAndFrameworkValue()` calls.  `CommonPackageFeatures` only registers the feature if enabled. |
 
 ---
@@ -270,13 +280,19 @@ Hot-path cost when no status bar source:
 - 1 volatile Boolean read
 - 2-3 Int compares
 - 1 volatile Int read
-- 1 Int field read (cached `mType`) **OR** 1 cached method invoke (if `typeField == null` at install)
+- 1 Int field read (preferred cached `mType`) **OR** 1 cached method invoke (if `typeField == null` at install)
 - 1 Int compare
 - `chain.proceed()`
 
-No `PrefMap`, no String lookup, no reflection discovery, no temporary WeakReference, no HashMap, no Pair/Triple, no per-call diagnostic String allocation once the generation-stamp gate has fired.
+No `PrefMap`, no per-call `PrefMap`/String key lookup, no steady-state reflection discovery, no temporary WeakReference, no HashMap, no Pair/Triple, no per-call diagnostic String allocation once the generation-stamp gate has fired.
 
-**H1 mType fallback fact:** `SetFrameCallback.typeField` is fixed at install time.  If it is `null` because `mType` could not be resolved, the hot path falls back to `XposedHelpers.callMethod(source, "getType")` on **every** call.  XposedHelpers caches the `Method`, but the callback still pays generic cache/invoke cost.  C1 target: Resolver should guarantee a frozen `mType` Field or a frozen `getType()` Method/Invoker; no steady-state generic fallback.
+**H1 mType path (two distinct steady-state branches):**
+
+1. **Preferred mType Field path:** `typeField` is fixed at `SetFrameCallback` construction time.  If it is non-null, the steady-state callback does `Field.getInt(source)` — no generic `XposedHelpers` method-cache lookup/invoke, no String key lookup, no new reflection discovery.
+
+2. **Fallback `getType()` path:** If `typeField == null` at install, the callback executes `XposedHelpers.callMethod(source, "getType")` on **every** call.  `XposedHelpers` internally performs a `findMethodBestMatch` cache lookup (cached in `noArgMethodCache`) and then `Method.invoke`.  This is still a generic cached method lookup/invoke path, not the desired Architecture C hot path.  No new reflection discovery on cache hit, but still more dynamic than a direct `Field.getInt`.
+
+C1 target: Resolver should guarantee a frozen `mType` Field or a frozen `getType()` Method/Invoker; steady-state callback must not call generic `XposedHelpers.callMethod`.
 
 ### H2: `DisplayPolicy.layoutWindowLw`
 
@@ -481,7 +497,7 @@ Constraint: C1 does **not** require blindly deleting all fallback.  Fallback mus
 | R5 | P1 hot regression | H1/H2/H4 hot path analysis shows minimal but non-zero allocation | C1 abstraction could add interface dispatch, `Pair`, `data class` copies, or per-call reflection. | Audit helper graph after C1; require 0 allocation on unchanged steady-state paths.  Eliminate H4 `currentState()` and H4 generic `callMethod`. |
 | R6 | P1 ROM ABI fallback | Resolver supports MODERN_PUBLIC, LEGACY_INTERNAL, UNSUPPORTED | Refactor could drop a fallback branch or change `selectTypeEncoding` sentinel rules. | Preserve `StatusBarInsetsResolverTest` assertions and add C1 ABI structural tests. |
 | R7 | P2 cold-start regression | Feature catalog has 50 system_server specs; StatusBarHeight is one | Splitting into 5-6 files does not change cold cost if object count stays the same; but adding a big `StatusBarHeightAbi` data class may increase `clinit` and retained heap. | Measure install-time allocation and R8 shrink; do not add unnecessary fields. |
-| R8 | P0 install-time topology | Feature is skipped when disabled at process start; live activation requires restart | C1 refactor could accidentally always install hooks+observer (semantic change disguised as refactor) or break enabled->disabled live update. | Add C1 tests for initial-enabled and initial-disabled topology.  Never install hooks+observer when disabled unless an explicit separate semantic change is approved. |
+| R8 | P0 install-time topology | Feature is skipped when disabled at process start; system_server Insets live activation requires system_server restart/reboot; PACKAGE_READY resource live activation requires corresponding package/process reload. | C1 refactor could accidentally always install hooks+observer (semantic change disguised as refactor) or break enabled->disabled live update.  It could also conflate the two topologies. | Add C1 tests for initial-enabled and initial-disabled topology for both system_server Insets and PACKAGE_READY resource paths.  Document exactly which process must restart for each.  Never install hooks+observer when disabled unless an explicit separate semantic change is approved. |
 
 ---
 
@@ -495,12 +511,17 @@ Constraint: C1 does **not** require blindly deleting all fallback.  Fallback mus
 
 - `StatusBarHeightInsetsFeature` must be `SKIPPED` when `system_statusbarheight <= 11`.
 - When skipped, `PreferenceObserverRegistry` must not contain `statusBarHeightObserver`.
-- When enabled at process start, hooks and observer must both be installed.
-- Changing preference from disabled to enabled at runtime must **not** install hooks unless a separate semantic change is approved.
+- When enabled at process start, all Insets hooks and `statusBarHeightObserver` must both be installed.
+- Changing system_server Insets preference from disabled to enabled at runtime must **not** install hooks unless a separate semantic change is approved.  Reactivation requires system_server process restart or device reboot.
+- `StatusBarHeightFeature` must be `SKIPPED` for a package when `system_statusbarheight <= 11`.
+- When skipped, no `replacePkgAndFrameworkValue` calls are made for that package.
+- Changing PACKAGE_READY resource preference from disabled to enabled at runtime must **not** update resources unless a separate semantic change is approved.  Reactivation requires the corresponding package/process to reload and re-enter `PACKAGE_READY`.
 
 ### Structural
 
-- Verify that `StatusBarHeightResolver` produces a frozen `StatusBarHeightAbi` with all A1-A25 fields/methods before any hook is installed.
+- Core hot ABI (A1-A18) must be resolved and frozen before the corresponding hot callback reaches steady-state execution.  Hot callbacks must not perform `getDeclaredField`/`getDeclaredMethod` discovery or generic resolver re-entry.
+- Late ABI (A19-A25) may be resolved on first real object / owner appearance, safely published, then frozen and reused.  Steady-state rediscovery is forbidden.
+- `StatusBarHeightResolver` must not claim to pre-resolve A19-A25 at process entry if those members are only reachable after a real framework object is created.
 - Verify that `StatusBarHeightConfig` publishes an immutable `State` snapshot through a single reference.
 - Verify that `StatusBarHeightRuntime` does not contain strong `WindowState` references.
 
