@@ -1,12 +1,13 @@
 # C5-B1 — VolumeDialogAutohideDelay Architecture C Implementation
 
-**Repository:** `tomthenpc/customiuizer-a14`  
-**Branch:** `devin/a14-architecture-c-r14.20.0`  
-**C5-A0 freeze SHA:** `222af8f2cf2012a76e82427279db5954a7fbaf7c`  
-**C5 target-selection freeze SHA:** `3c5cb8cca3cd08799097e534ffef2366a6504b59`  
-**B1 implementation SHA under review:** `5a9c61c26f6fa1eb69cba47b23d9039a26264021`
+**Repository:** `tomthenpc/customiuizer-a14`
+**Branch:** `devin/a14-architecture-c-r14.20.0`
+**C5-A0 freeze SHA:** `222af8f2cf2012a76e82427279db5954a7fbaf7c`
+**C5 target-selection freeze SHA:** `3c5cb8cca3cd08799097e534ffef2366a6504b59`
+**B1 original implementation SHA:** `5a9c61c26f6fa1eb69cba47b23d9039a26264021`
 **Corrective base SHA:** `10c562746d910fbfd825eed16d56b97c3795544f`
-**Scope:** `SystemUIControlCenterHooks.VolumeDialogAutohideDelayHook` → `com.android.systemui.miui.volume.MiuiVolumeDialogImpl.computeTimeoutH`  
+**B1 corrective production/tests SHA:** `c4b15a32197f78990f14abfa15fcd76a6402a4c5`
+**Scope:** `SystemUIControlCenterHooks.VolumeDialogAutohideDelayHook` → `com.android.systemui.miui.volume.MiuiVolumeDialogImpl.computeTimeoutH`
 **Type:** B1 production implementation, with singleton-publication + single-snapshot corrective.
 
 ---
@@ -16,12 +17,11 @@
 | Check | Result | Evidence |
 |---|---|---|
 | Current branch | `devin/a14-architecture-c-r14.20.0` | `git branch --show-current` |
-| Local HEAD | `10c562746d910fbfd825eed16d56b97c3795544f` | `git rev-parse HEAD` |
-| Remote HEAD | `10c562746d910fbfd825eed16d56b97c3795544f` | `git rev-parse origin/devin/a14-architecture-c-r14.20.0` |
-| Merge-base against `10c56274...` | `10c562746d910fbfd825eed16d56b97c3795544f` | `git merge-base HEAD origin/devin/a14-architecture-c-r14.20.0` |
+| Local HEAD | *(set at submission time)* | `git rev-parse HEAD` |
+| Remote HEAD | *(set at submission time)* | `git rev-parse origin/devin/a14-architecture-c-r14.20.0` |
+| Merge-base against `devin/a14-architecture-c-r14.20.0` | *(set at submission time)* | `git merge-base HEAD origin/devin/a14-architecture-c-r14.20.0` |
 | Worktree | clean | `git status --short` empty |
 | C1/C2/C3/C4 production changed | `false` | no modifications in those phases |
-| B1 implementation SHA changed | `true` | RuntimeState + Effect corrective |
 
 START PASS.
 
@@ -529,8 +529,8 @@ Allowed:
 | `VolumeDialogAutohideDelayEffect` LEGACY oracle | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | `VolumeDialogAutohideDelayEffect` mode selection | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | `VolumeDialogAutohideDelayEffect` safety alias | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
-| `VolumeDialogAutohideDelayEffect` single snapshot capture | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
-| `VolumeDialogAutohideDelayEffect` `processFast` uses captured snapshot | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
+| `VolumeDialogAutohideDelayEffect` one `snapshotRef.get()` per callback | `STRUCTURAL` | `VolumeDialogAutohideDelayEffect.process` source contains exactly one `snapshotRef.get()` and passes the result directly to `processFast` |
+| `VolumeDialogAutohideDelayEffect` `processFast` consumes the captured snapshot | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | `VolumeDialogAutohideDelayEffect` `IllegalAccessException` mapping | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | `VolumeDialogAutohideDelayEffect` `IllegalArgumentException` propagation | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | Real `computeTimeoutH` return type | `NOT_PROVEN` | no real ROM/device/binary evidence |
@@ -562,11 +562,13 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 ## 19. SUBMISSION FIELDS
 
 | Field | Value |
-|---|---|
-| Base SHA (corrective) | `10c562746d910fbfd825eed16d56b97c3795544f` |
-| B1 implementation SHA | `5a9c61c26f6fa1eb69cba47b23d9039a26264021` |
-| Corrective commit SHA | `c4b15a32197f78990f14abfa15fcd76a6402a4c5` |
-| Final SHA | `7b2ad4b8e58309703aecd96a2df976c2139b0379` |
+|---|---|---|
+| B1 original implementation SHA | `5a9c61c26f6fa1eb69cba47b23d9039a26264021` |
+| Corrective base SHA | `10c562746d910fbfd825eed16d56b97c3795544f` |
+| B1 corrective production/tests SHA | `c4b15a32197f78990f14abfa15fcd76a6402a4c5` |
+| B1 document checkpoint SHA | `7b2ad4b8e58309703aecd96a2df976c2139b0379` |
+| Previous branch HEAD at independent gate | `baec1acd72a530b7f6a8b966a03e94ae64765097` |
+| Final branch HEAD | *(set at submission time)* |
 | Branch | `devin/a14-architecture-c-r14.20.0` |
 | Production changed | `true` |
 | Tests changed | `true` |
@@ -574,4 +576,4 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 
 ---
 
-C5_B1_CORRECTIVE_READY_FOR_INDEPENDENT_AUDIT
+C5_B1_FINAL_TEST_CORRECTIVE_READY_FOR_INDEPENDENT_AUDIT

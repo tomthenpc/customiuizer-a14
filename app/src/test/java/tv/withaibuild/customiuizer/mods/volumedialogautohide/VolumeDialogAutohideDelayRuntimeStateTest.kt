@@ -200,17 +200,30 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
             ),
         )
 
-        val threads = (0 until 8).map { _ ->
+        val threadCount = 8
+        val ready = CountDownLatch(threadCount)
+        val start = CountDownLatch(1)
+
+        val threads = (0 until threadCount).map { _ ->
             object : Thread() {
                 var returned: VolumeDialogAutohideDelayRuntimeState? = null
                 override fun run() {
+                    ready.countDown()
+                    assertTrue(
+                        "all workers must reach the start barrier",
+                        start.await(2, TimeUnit.SECONDS),
+                    )
                     returned = VolumeDialogAutohideDelayRuntimeState.install()
                 }
             }
         }
 
-        val start = CountDownLatch(1)
         threads.forEach { it.start() }
+
+        assertTrue(
+            "all install workers must arrive at the start barrier",
+            ready.await(2, TimeUnit.SECONDS),
+        )
         start.countDown()
 
         threads.forEach { it.join(2_000) }
@@ -227,6 +240,11 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
 
         val observerCount = processScopedObserverCount()
         assertEquals("observer must be registered exactly once", 1, observerCount)
+
+        assertTrue(
+            "installed flag must be published after successful init",
+            VolumeDialogAutohideDelayRuntimeState.isInstalled(),
+        )
     }
 
     @Test
@@ -320,7 +338,6 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
         )
 
         val blockingMapA = BlockingMap(mapA)
-        val blockingLatch = CountDownLatch(1)
 
         var callCount = 0
         val state = VolumeDialogAutohideDelayRuntimeState {
@@ -331,33 +348,53 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
             }
         }
 
-        val firstBlocked = CountDownLatch(1)
+        val secondStarted = java.util.concurrent.atomic.AtomicBoolean(false)
+        val secondCompleted = CountDownLatch(1)
+
         val firstRefresh = Thread {
             state.initialize()
-            firstBlocked.countDown()
         }
 
+        // 1. Start Refresh A.
         firstRefresh.start()
-        assertTrue(blockingMapA.awaitEntered(2, TimeUnit.SECONDS))
 
-        // While the first refresh holds refreshLock, update the backing PrefMap and start a second refresh.
+        // 2. Refresh A acquires refreshLock, then blocks inside source Map.get.
+        assertTrue(
+            "Refresh A must be inside Map.get before we continue",
+            blockingMapA.awaitEntered(),
+        )
+
+        // 3. Update the backing PrefMap to generation B.
         MainModule.mPrefs.replaceSnapshot(mapB)
+
+        // 4. Start Refresh B. It must park on refreshLock, not complete.
         val secondRefresh = Thread {
+            secondStarted.set(true)
             state.onPreferenceChanged("system_volumedialogdelay_expanded")
+            secondCompleted.countDown()
         }
         secondRefresh.start()
 
-        // Give the second thread a moment to become parked on refreshLock.
-        Thread.sleep(50)
+        // Wait for B to actually start, then prove it cannot finish while A is blocked.
+        assertTrue(
+            "Refresh B must have started",
+            spinUntilTrue { secondStarted.get() },
+        )
+        assertFalse(
+            "Refresh B must be waiting behind refreshLock while A is blocked",
+            secondCompleted.await(100, TimeUnit.MILLISECONDS),
+        )
 
-        // Release the first refresh; it publishes A.
-        blockingMapA.release(blockingLatch)
-        firstBlocked.await(2, TimeUnit.SECONDS)
+        // 5. Release A. It publishes generation A and exits the lock.
+        blockingMapA.release()
 
-        // The second refresh now acquires the lock and must see the latest generation B.
-        secondRefresh.join(2_000)
-        assertTrue("second refresh must complete", !secondRefresh.isAlive)
+        // 6. B acquires refreshLock, then invokes refreshSource() and sees generation B.
+        assertTrue(
+            "Refresh B must complete",
+            secondCompleted.await(2, TimeUnit.SECONDS),
+        )
 
+        // 7. Final snapshot must reflect the latest generation captured by B.
         val snapshot = state.snapshotRef.get()!!
         assertEquals("final snapshot must reflect generation B", 3, snapshot.expanded)
         assertEquals(4, snapshot.collapsed)
@@ -378,34 +415,46 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
         return observers.size
     }
 
+    private fun spinUntilTrue(condition: () -> Boolean): Boolean {
+        val deadline = System.currentTimeMillis() + 2_000
+        while (!condition()) {
+            if (System.currentTimeMillis() > deadline) return false
+            Thread.yield()
+        }
+        return true
+    }
+
     /**
      * A [Map] whose first [get] call blocks until the test releases it, while still
      * holding the [VolumeDialogAutohideDelayRuntimeState.refreshLock].
+     *
+     * This creates a deterministic point inside `synchronized(refreshLock)` where a second
+     * refresh can be shown to be waiting and the backing preference source can be changed.
      */
     private class BlockingMap(
         private val map: Map<String, Any>,
     ) : AbstractMap<String, Any>() {
 
-        private val entered = java.util.concurrent.atomic.AtomicBoolean(false)
-        private val enteredLatch = CountDownLatch(1)
-        private var blockLatch: CountDownLatch? = null
+        private val entered = CountDownLatch(1)
+        private val release = CountDownLatch(1)
+        private val blockOnce = java.util.concurrent.atomic.AtomicBoolean(true)
 
         override val entries: Set<Map.Entry<String, Any>> = map.entries
 
         override fun get(key: String): Any? {
-            if (entered.compareAndSet(false, true)) {
-                enteredLatch.countDown()
+            if (blockOnce.compareAndSet(true, false)) {
+                entered.countDown()
+                check(
+                    release.await(2, TimeUnit.SECONDS),
+                ) { "test did not release BlockingMap in time" }
             }
-            blockLatch?.await(2, TimeUnit.SECONDS)
             return map[key]
         }
 
-        fun awaitEntered(timeout: Long, unit: TimeUnit): Boolean =
-            enteredLatch.await(timeout, unit)
+        fun awaitEntered(): Boolean =
+            entered.await(2, TimeUnit.SECONDS)
 
-        fun release(latch: CountDownLatch) {
-            blockLatch = latch
-            latch.countDown()
-        }
+        fun release() =
+            release.countDown()
     }
 }
