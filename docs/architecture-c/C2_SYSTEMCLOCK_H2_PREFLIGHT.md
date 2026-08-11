@@ -92,6 +92,27 @@ SecondTicker(..., private val publication: ClockEffectPublication?)
 
 `SecondTicker` will strongly retain only `publication`, which itself retains only `ClockAbi` / `ClockEffect` / frozen `Field`/`Method`/`Class` metadata. No `Context`, `View`, controller or calendar instance is retained by the publication.
 
+### `publication == null` contract
+
+`publication` is nullable because `ClockResolver.resolveCore(...)?.let(::ClockEffectPublication)` may return `null` if the Architecture C Clock core cannot resolve. When `publication == null`, H2 must fail closed:
+
+- Do **not** create or start a `SecondTicker`.
+- Do **not** fall back to legacy/generic `XposedHelpers` reflection.
+- Do **not** perform per-tick resolver or member discovery.
+- Existing H1 behavior remains unchanged: H1 can still proceed original when its Architecture C effect is unavailable, because H1 has an original callback to fall through.
+
+The `initSecondTicker` handoff contract is:
+
+```text
+if (needsTicker && publication != null) {
+    create/reuse/start SecondTicker
+} else {
+    dispose/remove any existing SecondTicker
+}
+```
+
+`showSeconds` metadata must not advertise an active custom seconds ticker when no ticker can run. If `publication == null`, `initSecondTicker` must not set `showSeconds` to `true` and must clear any existing `showSeconds` tags (or leave them null) for the clocks it processes. The minimum behavior-compatible implementation is to treat `publication == null` the same as `needsTicker == false` for the purpose of tag assignment and ticker creation.
+
 ---
 
 ## 3. Controller / Listener Lifecycle Facts
@@ -202,11 +223,12 @@ Key points:
 
 ## 6. Empty-Listener Lifecycle Case
 
-If `mClockListeners` is empty when the ticker starts (or remains empty on a later tick), the ticker still runs because `needsTicker` is independent of the listener count.
+If `mClockListeners` is empty when the ticker starts (or remains empty on a later tick), the ticker still runs because `needsTicker` is independent of the listener count. This section assumes `publication != null`; the `publication == null` case is handled by the null contract in section 2.
 
 Behavior:
 
-- `effect.readClockListeners(controller)` returns an empty `List<*>`.
+- In the cold-incomplete `effect == null` case, listener enumeration comes from the publication-level frozen controller-field helper, i.e. `publication.readClockListeners(controller)`, not from a `ClockEffect`.
+- `publication.readClockListeners(controller)` returns an empty `List<*>.
 - If `effect == null` and the list is empty, no calibration can occur; the `guarded` block returns and `scheduleNextTick()` runs.
 - No generic `XposedHelpers` fallback is performed.
 - The calendar and `mIs24` are **not** updated until at least one eligible real clock appears.
@@ -355,6 +377,7 @@ B3 is the implementation of the H2 `SecondTicker` Architecture C migration. Its 
 - Move the local `ClockEffectPublication` construction in `StatusBarClockTweakHook` to before `scheduleHook`.
 - Add `publication: ClockEffectPublication?` to `initSecondTicker` and to `SecondTicker`.
 - Update the three call sites in `SystemClockHooks.kt` (`scheduleHook`, `TIME_SET` receiver, preference observer) to pass the publication.
+- Implement the `publication == null` fail-closed contract in `initSecondTicker`: if `needsTicker && publication != null`, create/reuse/start the `SecondTicker`; otherwise dispose/remove any existing one and do not set `showSeconds` tags. Do not fall back to legacy/generic `XposedHelpers` reflection or per-tick member discovery.
 - Implement the `SecondTicker.run` graph from section 4 (cold-complete) and section 5 (cold-incomplete calibration).
 - Add a `ClockEffectPublication.readClockListeners(controller)` helper (or equivalent access to `ControllerCapability.clockListenersField`) so `SecondTicker` can enumerate listeners before an `ClockEffect` is published.
 - Replace the generic `XposedHelpers.getObjectField` / `callMethod` / `setObjectField` calls in `SecondTicker.run` with frozen `ClockEffect` methods.
@@ -423,6 +446,13 @@ Before the B3 production implementation can be considered complete, the followin
 ### H2 ownership
 
 - `SecondTicker` does not strongly retain a `View`, the controller, or a calendar instance through the new `publication` handoff.
+
+### Nullable publication
+
+- `publication == null` does not create/start a permanent no-op `SecondTicker`.
+- `publication == null` does not execute a generic `XposedHelpers` reflection fallback.
+- Nullable-publication fail-closed behavior leaves no stale active `SecondTicker`.
+- Cold-incomplete empty listener enumeration uses the publication-level frozen controller-field helper (`publication.readClockListeners`).
 
 ---
 
