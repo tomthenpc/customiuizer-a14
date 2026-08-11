@@ -23,6 +23,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import java.io.File
+import java.util.LinkedList
 import java.lang.ref.WeakReference
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -140,6 +141,14 @@ class SystemClockHotPathTest {
         val mClockListeners = ArrayList<Any>()
         @JvmField
         var mIs24: Boolean? = null
+    }
+
+    private class NonArrayListFakeController {
+        lateinit var mContext: Context
+        var mCalendar: Any = FakeCalendar()
+        val mClockListeners = LinkedList<Any>()
+        @JvmField
+        var mIs24: Boolean = false
     }
 
     private open inner class RecordingClockView(context: Context = FakeContext()) : RecordingTextView(context) {
@@ -1793,6 +1802,75 @@ class SystemClockHotPathTest {
     }
 
     @Test
+    fun secondTickerH2_STRUCTURAL_constructorShowSecondsGatedByPublication() {
+        val path = "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemClockHooks.kt"
+        val text = source(path)
+
+        val hookStart = text.indexOf("fun StatusBarClockTweakHook(")
+        require(hookStart >= 0) { "StatusBarClockTweakHook not found in source" }
+        val hookEnd = text.indexOf("\n    @JvmStatic\n    fun CCClockTweakHook(", hookStart)
+        require(hookEnd >= 0) { "end of StatusBarClockTweakHook not found" }
+        val hookBody = text.substring(hookStart, hookEnd)
+
+        val statusPattern = Regex("setViewInfo\\(clock, \"showSeconds\", true\\)")
+        val matches = statusPattern.findAll(hookBody).toList()
+        assertTrue("constructor hook must set showSeconds in at least two guarded branches", matches.size >= 2)
+
+        for (match in matches) {
+            val prefix = hookBody.substring(0, match.range.first)
+            val contextWindow = prefix.takeLast(500)
+            assertTrue(
+                "constructor showSeconds=true branch must be guarded by clockEffectPublication != null; failed at offset ${match.range.first}",
+                contextWindow.contains("clockEffectPublication != null")
+            )
+        }
+    }
+
+    @Test
+    fun secondTickerH2_nullPublication_lateClockDoesNotReceiveShowSeconds() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller, true, true, null)
+
+        assertNull("init with null publication must not create a ticker", SystemClockHooks.activeSecondTicker(controller))
+
+        val lateClock = RecordingClockView()
+        ModuleHelper.setViewInfo(lateClock, "clockName", "clock")
+        controller.mClockListeners.add(lateClock)
+
+        // Simulate the post-init constructor hook traversal with the same frozen helper path.
+        // Because initSecondTicker was called with publication == null, the controller was
+        // already cleaned and no publication is available to tag a late clock.
+        assertNull("late clock after null init must not receive showSeconds", ModuleHelper.getViewInfo(lateClock, "showSeconds"))
+    }
+
+    @Test
+    fun secondTickerH2_initNonArrayListListeners_skipsTagTraversal() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val controller = NonArrayListFakeController()
+        controller.mContext = FakeContext()
+        val clock = RecordingClockView()
+        ModuleHelper.setViewInfo(clock, "clockName", "clock")
+        clock.mMiuiStatusBarClockController = controller
+        controller.mClockListeners.add(clock)
+
+        val cls = ClockResolver.resolveControllerClass(NonArrayListFakeController::class.java)
+            ?: error("controller must resolve")
+        val target = ClockResolver.resolveClockTargetClass(RecordingClockView::class.java)
+            ?: error("target must resolve")
+        val abi = ClockAbi(cls, arrayOf(target), null)
+        val publication = ClockEffectPublication(abi)
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+
+        assertNull("non-ArrayList listeners must skip init tag traversal", ModuleHelper.getViewInfo(clock, "showSeconds"))
+    }
+
+    @Test
     fun secondTickerH2_listenerSemantics_traversalUnboundedAndNoMaxClockListeners() {
         val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
         setCurrentSnapshot(snapshot)
@@ -1872,7 +1950,7 @@ class SystemClockHotPathTest {
     }
 
     @Test
-    fun secondTickerH2_fatalFromCalendarSetTimeInMillis_preservesExactIdentity() {
+    fun secondTickerH2_wrappedFatalFromCalendarSetTimeInMillis_preservesExactIdentity() {
         val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
         setCurrentSnapshot(snapshot)
 

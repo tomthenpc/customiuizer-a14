@@ -682,10 +682,10 @@ object SystemClockHooks {
         val effectiveStatusBarSeconds = statusbarClockTweak && snapshot.showStatusBarSeconds
         val effectiveCcSeconds = ccClockTweak && snapshot.showCCSeconds
 
+        @Suppress("UNCHECKED_CAST")
         val clockListeners = if (publication != null) {
-            publication.readClockListeners(clockController)
+            publication.readClockListeners(clockController) as? ArrayList<Any>
         } else {
-            @Suppress("UNCHECKED_CAST")
             XposedHelpers.getObjectField(clockController, "mClockListeners") as? ArrayList<Any>
         }
         if (clockListeners != null) {
@@ -996,13 +996,13 @@ object SystemClockHooks {
 
                     if (clockId == thisClockId) {
                         ModuleHelper.setViewInfo(clock, "clockName", "clock")
-                        if (statusbarClockTweak && snapshot.showStatusBarSeconds) {
+                        if (clockEffectPublication != null && statusbarClockTweak && snapshot.showStatusBarSeconds) {
                             ModuleHelper.setViewInfo(clock, "showSeconds", true)
                         }
                     } else if (bigClockId == thisClockId) {
                         ModuleHelper.setViewInfo(clock, "clockName", "ccClock")
                         if (ccClockTweak) {
-                            if (snapshot.showCCSeconds) {
+                            if (clockEffectPublication != null && snapshot.showCCSeconds) {
                                 ModuleHelper.setViewInfo(clock, "showSeconds", true)
                             }
                             initClockStyle(clock, "ccClock", snapshot)
