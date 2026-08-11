@@ -94,8 +94,8 @@ Declared facts:
 
 | Statement | Classification |
 |---|---|
-| `applyMobileState` is hooked by `hookAllMethods` | STRUCTURAL (source) |
-| `updateState` is hooked by `hookAllMethods` | STRUCTURAL (source) |
+| `applyMobileState` is hooked by `hookAllMethods` (source inspection) | STRUCTURAL |
+| `updateState` is hooked by `hookAllMethods` (source inspection) | STRUCTURAL |
 | `REAL_METHOD_OVERLOAD_SET = NOT_PROVEN` | NOT_PROVEN |
 | `ZERO_ARG_OVERLOAD_GETARG0_BEHAVIOR = NOT_PROVEN` | NOT_PROVEN |
 
@@ -444,12 +444,12 @@ The following remain unchanged from the B1 production freeze:
 | Effect LEGACY on class mismatch | RUNTIME_TESTED_COMPONENT |
 | Effect shadowing preservation | RUNTIME_TESTED_COMPONENT |
 | Effect failure mapping and partial mutation | RUNTIME_TESTED_COMPONENT |
-| Effect immutable / no mutable process-global | RUNTIME_TESTED_COMPONENT + STRUCTURAL |
+| Effect immutable / no mutable process-global | STRUCTURAL |
 | Hook wiring: ABI resolved once, Effect local, hookAllMethods both names | STRUCTURAL |
 | `processFast` contains no `XposedHelpers` field accessors | STRUCTURAL |
 | `SystemUIStatusBarHooks` has no `StatusBarIconVisibilityEffect` field | STRUCTURAL |
 | `StatusBarIconVisibilityHotPathTest` | RUNTIME_TESTED_COMPONENT |
-| `python tools/verify.py full` | BUILD (LOCAL_EXECUTION_EVIDENCE_ONLY) |
+| `python tools/verify.py full` (compile, test, lint) | LOCAL_EXECUTION_EVIDENCE_ONLY |
 | Real `applyMobileState` callback on HyperOS | NOT_RUNTIME_TESTED_CALLBACK |
 | Real `updateState` callback on HyperOS | NOT_RUNTIME_TESTED_CALLBACK |
 | Real HyperOS field owner / type / root | NOT_PROVEN |
