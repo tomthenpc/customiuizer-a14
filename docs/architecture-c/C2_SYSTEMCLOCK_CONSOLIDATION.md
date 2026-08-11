@@ -83,8 +83,8 @@ It then installs `updateTimeHook` on `MiuiClock.updateTime` and `MiuiStatusBarCl
 | Hidden clock path correct | `clock.text = ""` + early return; never reaches `chain.proceed()` (`SystemClockHooks.kt:1054-1055`) | STRUCTURAL + runtime (`SystemClockHotPathTest`) |
 | `timeFmt == null` proceeds original | `skipped = true` -> `chain.proceed()` (`SystemClockHooks.kt:1067-1069`, `1108-1110`) | STRUCTURAL |
 | Ordinary Architecture C failure proceeds original | `effect == null`, `controller == null`, `calendar == null`, `formatted == false` all set `skipped = true` (`SystemClockHooks.kt:1076-1096`) | STRUCTURAL |
-| Fatal propagates exact identity | `catch (Throwable)` calls `FatalErrors.unwrapAndRethrowIfFatal(t)`; `OutOfMemoryError`/`ThreadDeath`/`VirtualMachineError` rethrown before `throwable = t` (`SystemClockHooks.kt:1103-1105`; `FatalErrors.kt:38-51`) | STRUCTURAL + RUNTIME (`secondTickerH2_*_preservesExactIdentity` for wrapped-fatal; direct-fatal NOT injected) |
-| Cold-complete H1 has no runtime calibration | `publication.currentEffect()` returns a non-null `ClockEffect` when `ClockAbi.calendarCold` is non-null; `resolveForClock` is skipped (`SystemClockHotPathTest.secondTickerH2_coldComplete_doesNotUseRuntimeCalibration` mirrors the publication mechanism used by H1) | RUNTIME (indirect: publication behavior) |
+| Fatal propagates exact identity | H1 `updateTimeHook` catches `Throwable` and calls `FatalErrors.unwrapAndRethrowIfFatal(t)`, rethrowing `OutOfMemoryError`/`ThreadDeath`/`VirtualMachineError` before storing `throwable` (`SystemClockHooks.kt:1103-1105`; `FatalErrors.kt:38-51`) | STRUCTURAL for the H1 hook control flow. Supporting component evidence: `ClockEffect`/`FatalErrors` wrapped-fatal exact identity is RUNTIME_TESTED by `secondTickerH2_wrappedFatalFromCalendarSetTimeInMillis_preservesExactIdentity`. H1 `updateTimeHook` fatal propagation itself is **NOT runtime-injected**. |
+| Cold-complete H1 has no runtime calibration | H1 `updateTimeHook` calls `publication?.currentEffect()` first and only falls through to `resolveForClock` when the published effect is null (`SystemClockHooks.kt:1070-1075`). When `ClockAbi.calendarCold` is non-null, `currentEffect()` returns a non-null `ClockEffect` and `resolveForClock` is not reached. | STRUCTURAL H1 control flow. Supporting component evidence: the shared `ClockEffectPublication` component behavior is RUNTIME_TESTED by `secondTickerH2_coldComplete_doesNotUseRuntimeCalibration`. The H1 `updateTimeHook` callback itself is **NOT RUNTIME_TESTED** for this claim. |
 | Steady-state H1 has no generic Xposed member lookup | `updateTimeHook` uses only frozen `effect.*` methods; no `XposedHelpers.getObjectField`/`callMethod`/`setObjectField` in the hot path (`SystemClockHooks.kt:1041-1112`) | STRUCTURAL |
 | No `MainModule.mPrefs` read in H1 hot path | `mPrefs` is read only in `StatusBarClockTweakHook` install; `updateTimeHook` uses captured booleans and snapshot | STRUCTURAL |
 | No strong Android owner in `ClockEffectPublication` | `ClockAbi`/`ClockEffect` store only `Class`/`Field`/`Method`; `ClockEffectPublication` stores `ClockAbi` + volatile `ClockEffect?` + `AtomicInteger` (`ClockEffectPublication.kt:14-21`; `ClockAbi.kt:12-58`; `ClockEffect.kt:16-19`) | STRUCTURAL |
@@ -92,7 +92,12 @@ It then installs `updateTimeHook` on `MiuiClock.updateTime` and `MiuiStatusBarCl
 ### 2.4 H1 remaining notes
 
 - `resolveForClock` in the `updateTime` hook is a slow path. If `ClockAbi.calendarCold` is present, it is never reached. If `calendarCold` is missing, a one-time runtime calibration is performed on the first eligible clock and the resulting `ClockEffect` is cached.
-- `effect.format(...)` uses `Method.invoke`. This is the remaining source of per-call allocation in H1 (`Object[]` for varargs, plus `StringBuilder` reuse amortized by `ThreadLocal`).
+- Source-visible H1 allocation on the successful path:
+  - `buildClockText` normally reuses a `String` from the `ClockStyleSnapshot`; if weather replacement is enabled and `"tq"` is present, `String.replace(...)` creates a replacement `String`.
+  - `effect.format(...)` uses `Method.invoke` with three `Object` arguments, which allocates an `Object[]` per call.
+  - `clockFormatBuilder` and `clockTextBuilder` are `ThreadLocal` `StringBuilder`s reused each call, but they only avoid allocating mutable builders, not the final output.
+  - `clock.text = textSb.toString()` creates the final output `String` on a successful custom-clock update.
+  - Not claimed: zero allocation.
 - `buildClockText` does **not** read `MainModule.mPrefs`; it uses the supplied `ClockStyleSnapshot`, `weatherInfo`, and captured feature flags.
 
 ---
@@ -245,7 +250,7 @@ The three listener paths are intentionally different and are not conflated in co
 | `effect.readCalendar(controller)` returns null | `runWithEffect` returns immediately | STRUCTURAL (`if (calendar == null) return` at `SystemClockHooks.kt:827`) |
 | `effect.setTimeInMillis(...)` returns false | `runWithEffect` returns; no `writeIs24`, no listener updates | RUNTIME (`secondTickerH2_failure_setTimeInMillisFailureAbortsRemainingTick`) |
 | `effect.writeIs24(...)` returns false | `runWithEffect` returns; no listener updates | RUNTIME (`secondTickerH2_failure_writeIs24FailureAbortsListenerUpdates`) |
-| `effect.readClockListeners(controller)` returns null / wrong `List` type | `runWithEffect` aborts via `return` or `ClassCastException` (`as ArrayList<Any>`); no listener updates | STRUCTURAL (`SystemClockHooks.kt:831`) |
+| `effect.readClockListeners(controller)` returns null or a non-`ArrayList` `List` | The hard `as ArrayList<Any>` cast fails inside `ModuleHelper.guarded`; the current tick aborts; no listener updates | STRUCTURAL (`SystemClockHooks.kt:831`). The exact Kotlin/JVM exception type is not important to the contract. |
 | A listener is not a `View` (`listener as View` throws) | `ModuleHelper.guarded` catches `ClassCastException`; tick aborts; later listeners not updated | RUNTIME (`secondTickerH2_listenerSemantics_nonViewEntryAbortsTick`) |
 | `effect.invokeUpdateTime(clock)` returns false | `runWithEffect` returns; later listeners not updated | RUNTIME (`secondTickerH2_failure_updateTimeFailureAbortsRemainingListeners`) |
 
@@ -256,7 +261,7 @@ After any ordinary failure:
 
 Classification summary:
 
-- Order-sensitive abort semantics: **STRUCTURALLY PROVEN** for `readCalendar`/`readClockListeners` return paths; **RUNTIME TESTED** for `setTimeInMillis`, `writeIs24`, non-`View` listener, and `invokeUpdateTime` failures.
+- Order-sensitive abort semantics: **STRUCTURALLY PROVEN** for `readCalendar` null-return and `readClockListeners` hard-cast-failure paths; **RUNTIME TESTED** for `setTimeInMillis`, `writeIs24`, non-`View` listener, and `invokeUpdateTime` failures.
 - `scheduleNextTick()` after ordinary failure: **STRUCTURALLY PROVEN** by `secondTickerH2_STRUCTURAL_guardedAndCallbackGuardShape` (the `guarded` block closes before `scheduleNextTick()` is reached).
 
 ---

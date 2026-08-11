@@ -2169,21 +2169,14 @@ class SystemClockHotPathTest {
 
         // --- B. CallbackGuard.guarded rethrows the required fatal categories ---
         val guard = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/CallbackGuard.kt")
-        assertTrue(
-            "CallbackGuard must handle OutOfMemoryError",
-            guard.contains("is OutOfMemoryError") || guard.contains("OutOfMemoryError ->")
+
+        // Whitespace-insensitive regex proving the fatal categories are connected to the same throw.
+        val fatalRethrowPattern = Regex(
+            """if\s*\(\s*t\s+is\s+OutOfMemoryError\s+\|\|\s+t\s+is\s+ThreadDeath\s+\|\|\s+t\s+is\s+VirtualMachineError\s*\)\s+throw\s+t"""
         )
         assertTrue(
-            "CallbackGuard must handle ThreadDeath",
-            guard.contains("is ThreadDeath") || guard.contains("ThreadDeath ->")
-        )
-        assertTrue(
-            "CallbackGuard must handle VirtualMachineError",
-            guard.contains("is VirtualMachineError") || guard.contains("VirtualMachineError ->")
-        )
-        assertTrue(
-            "CallbackGuard must throw the fatal error",
-            guard.contains("throw t")
+            "CallbackGuard.guarded must rethrow OutOfMemoryError, ThreadDeath, and VirtualMachineError in a single fatal branch",
+            fatalRethrowPattern.find(guard) != null
         )
     }
 }
