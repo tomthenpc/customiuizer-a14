@@ -22,6 +22,9 @@ import androidx.annotation.VisibleForTesting
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.clock.ClockEffect
+import tv.withaibuild.customiuizer.mods.clock.ClockEffectPublication
+import tv.withaibuild.customiuizer.mods.clock.ClockResolver
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
@@ -998,6 +1001,13 @@ object SystemClockHooks {
                 return StringBuilder(32)
             }
         }
+
+        val clockEffectPublication = if (statusbarClockTweak || ccClockTweak) {
+            ClockResolver.resolveCore(lpparam.classLoader)?.let(::ClockEffectPublication)
+        } else {
+            null
+        }
+
         val updateTimeHook = object : MethodHook(XposedInterface.PRIORITY_HIGHEST) {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var skipped = false
@@ -1017,9 +1027,6 @@ object SystemClockHooks {
 
                     val snapshot = currentClockStyleSnapshot() ?: ensureClockStyleSnapshot(clock.context.resources)
 
-                    val mMiuiStatusBarClockController = XposedHelpers.getObjectField(clock, "mMiuiStatusBarClockController")
-                    val mCalendar = XposedHelpers.getObjectField(mMiuiStatusBarClockController, "mCalendar")
-
                     val timeFmt = buildClockText(
                         clockName,
                         snapshot,
@@ -1027,22 +1034,47 @@ object SystemClockHooks {
                         statusbarClockTweak,
                         ccClockTweak,
                     )
-                    if (timeFmt != null) {
-                        val formatSb = clockFormatBuilder.get()!!
-                        formatSb.setLength(0)
-                        formatSb.append(timeFmt)
-                        val textSb = clockTextBuilder.get()!!
-                        textSb.setLength(0)
-                        XposedHelpers.callMethod(mCalendar, "format", clock.context, textSb, formatSb)
-                        clock.text = textSb.toString()
-                        skipped = true; result = null; throwable = null
-                    }
+                    if (timeFmt == null) {
+                        skipped = true
+                    } else {
+                        val effect = clockEffectPublication?.resolveForClock(
+                            clock,
+                            clock.context.javaClass,
+                        )
+                        if (effect == null) {
+                            skipped = true
+                        } else {
+                            val controller = effect.readController(clock)
+                            if (controller == null) {
+                                skipped = true
+                            } else {
+                                val calendar = effect.readCalendar(controller)
+                                if (calendar == null) {
+                                    skipped = true
+                                } else {
+                                    val formatSb = clockFormatBuilder.get()!!
+                                    formatSb.setLength(0)
+                                    formatSb.append(timeFmt)
+                                    val textSb = clockTextBuilder.get()!!
+                                    textSb.setLength(0)
 
-                    if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
-                    result = chain.proceed()
+                                    val formatted = effect.format(calendar, clock.context, textSb, formatSb)
+                                    if (!formatted) {
+                                        skipped = true
+                                    } else {
+                                        clock.text = textSb.toString()
+                                    }
+                                }
+                            }
+                        }
+                    }
                 } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
                     throwable = t
-                    result = null
+                }
+
+                if (skipped) {
+                    result = chain.proceed()
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
             }
