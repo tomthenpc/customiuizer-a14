@@ -177,12 +177,23 @@ fun StatusBarStyleBatteryIconHook(lpparam: PackageReadyParam) {
 children changed? → recapture
 state.appliedStyle == null && !matchesBaseline? → recapture
 else → keep baseline
-default style? → restore if needed, appliedStyle = null
+default style? →
+  state.appliedStyle != null || !matchesBaseline? → restore
+  appliedStyle = null
 custom style? →
-  state.appliedStyle != style || !matchesTarget? → apply, appliedStyle = style
+  state.appliedStyle != style || !matchesTarget? → apply
+  appliedStyle = style
 ```
 
-- Identity short-circuit (`state.appliedStyle != style`) still precedes `matchesTarget`.
+### Kotlin boolean short-circuit
+
+- Custom-style branch: `state.appliedStyle != style || !matchesTarget(...)`
+  - When `state.appliedStyle !== style` (new identity), `matchesTarget` is **not** executed.
+  - Field reads in this case come only from the `applyBatteryStyle` path.
+- Default-style branch: `state.appliedStyle != null || !matchesBaseline(...)`
+  - When `state.appliedStyle` is non-null (previous custom style not restored), `matchesBaseline` is **not** executed.
+  - Field reads in this case come only from the `restoreBatteryBaseline` path.
+
 - Baseline recapture logic unchanged.
 - View mutation semantics (text size, bold, padding, vertical offset, battery4 margin, swap, restore, child order) unchanged.
 
@@ -224,8 +235,9 @@ No silent semantic narrowing detected.
 | `BatteryArchitectureCTest.nullFieldValue_safeCastNoOp` | `RUNTIME_TESTED_COMPONENT` | null no-op |
 | `BatteryArchitectureCTest.resolver_returnsFrozenAbiForTargetClassWithAllFields` | `RUNTIME_TESTED_COMPONENT` | resolver success |
 | `BatteryArchitectureCTest.resolver_returnsNullWhenTargetClassMissesField` | `RUNTIME_TESTED_COMPONENT` | field miss fallback |
-| `BatteryArchitectureCTest.resolverMissingClass_returnsNullForFallback` | `RUNTIME_TESTED_COMPONENT` | class miss + log |
-| `BatteryArchitectureCTest.resolverMissingDigitField_*` / `Percent` / `Mark` | `RUNTIME_TESTED_COMPONENT` | per-field miss |
+| `BatteryArchitectureCTest.resolverMissingClass_returnsNullForFallback` | `RUNTIME_TESTED_COMPONENT` | class miss -> null ABI / fallback |
+| `BatteryArchitectureCTest.resolverMissingDigitField_*` / `Percent` / `Mark` | `RUNTIME_TESTED_COMPONENT` | per-field miss -> null ABI / fallback |
+| Resolver ordinary-failure diagnostic emission | `STRUCTURAL` | `BatteryStyleResolver.missing(...)` calls `XposedHelpers.log(...)` (source inspection) |
 | `BatteryArchitectureCTest.resolverFatal_propaatesImmediately` | `RUNTIME_TESTED_COMPONENT` | fatal boundary |
 | `BatteryArchitectureCTest.batteryStyleIdentityRefresh_forcesReApply` | `RUNTIME_TESTED_COMPONENT` | identity equality |
 | `BatteryArchitectureCTest.childReplacement_recapturesBaseline` | `RUNTIME_TESTED_COMPONENT` | child replacement |
@@ -248,6 +260,7 @@ Remaining `NOT_PROVEN` / `NOT_RUNTIME_TESTED_CALLBACK`:
 | Callback thread | `NOT_PROVEN` |
 | `BatteryViewState` single-thread confinement | `NOT_PROVEN` |
 | Concurrent access | `NOT_PROVEN` |
+| Resolver diagnostic log emission | `STRUCTURAL` |
 
 ## Allocation audit
 
@@ -268,28 +281,50 @@ Remaining `NOT_PROVEN` / `NOT_RUNTIME_TESTED_CALLBACK`:
 
 The number of field reads is unchanged; only the lookup overhead changes on the FAST path.
 
+### Short-circuit oracle
+
+For the custom-style branch:
+
+```text
+state.appliedStyle != style || !matchesTarget(...)
+```
+
+- If `state.appliedStyle !== style` (new identity or first application), `matchesTarget` is **not** executed due to Kotlin short-circuit `||`.
+
+For the default-style branch:
+
+```text
+state.appliedStyle != null || !matchesBaseline(...)
+```
+
+- If `state.appliedStyle` is non-null (a custom style was previously applied), `matchesBaseline` is **not** executed.
+
+### Field-read counts per updateAll callback
+
 | Scenario | Field reads | Notes |
 |---|---|---|
-| First custom | 6 | capture + apply |
-| First default | 6 | capture + restore |
-| Steady same custom match | 3 | `matchesTarget` |
-| Steady same custom drift | 6 | `matchesTarget` false + `applyBatteryStyle` |
-| Preference new identity | 3 | `state.appliedStyle != style` → `matchesTarget` |
-| Custom → default | 3 | `matchesBaseline` + `restoreBatteryBaseline` |
-| Steady default | 6 | `matchesBaseline` + `restoreBatteryBaseline` |
-| OEM drift | up to 9 | `matchesBaseline` false → recapture → restore |
-| Child replacement same custom | up to 9 | recapture → apply |
+| FIRST_CUSTOM | 6 | `captureBatteryBaseline` 3 + `applyBatteryStyle` 3; `state.appliedStyle != style` short-circuits `matchesTarget` |
+| FIRST_DEFAULT | 6 | `captureBatteryBaseline` 3 + `matchesBaseline` 3; fresh baseline usually matches, so no `restoreBatteryBaseline` |
+| STEADY_SAME_CUSTOM_TARGET_MATCH | 3 | `matchesTarget` 3; `state.appliedStyle === style` so no re-apply |
+| STEADY_SAME_CUSTOM_TARGET_DRIFT | 6 | `matchesTarget` 3 (false) + `applyBatteryStyle` 3 |
+| PREFERENCE_REFRESH_NEW_STYLE_IDENTITY | 3 | `applyBatteryStyle` 3; `state.appliedStyle != style` is true, so `matchesTarget` is short-circuited |
+| CUSTOM_TO_DEFAULT | 3 | `restoreBatteryBaseline` 3; `state.appliedStyle != null` is true, so `matchesBaseline` is short-circuited |
+| STEADY_DEFAULT_UNCHANGED | 6 | Baseline-resolution `matchesBaseline` 3 + default branch `matchesBaseline` 3; both match, no `restoreBatteryBaseline` |
+| STEADY_DEFAULT_SAME_CHILDREN_OEM_DRIFT | up to 9 | `matchesBaseline` 3 (false) → `captureBatteryBaseline` 3 → default branch `matchesBaseline` 3; no restore if the new baseline matches OEM defaults |
+| CHILD_REPLACEMENT_SAME_CUSTOM_STYLE_IDENTITY | up to 9 | `captureBatteryBaseline` 3 + `matchesTarget` 3 + `applyBatteryStyle` 3; `apply` is skipped if the replaced children already match the target style |
 
 No benchmark numbers claimed; this is a structural field-read count analysis.
 
 ## Scope audit
 
-From `bad42503` to `0f56f7f9`, production changes are limited to:
+From `bad42503` (A0) to `0f56f7f9` (B1 production freeze), production changes are limited to:
 
 - `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/mods/battery/BatteryStyleAbi.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/mods/battery/BatteryStyleResolver.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/mods/battery/BatteryStyleEffect.kt`
+
+B2 made no production changes; it added focused structural tests and this consolidation document only.
 
 Unchanged:
 
@@ -313,7 +348,7 @@ python tools/verify.py full             # passed
   - gradlew compileDebugKotlin compileDebugJavaWithJavac: ok
   - gradlew testDebugUnitTest: ok
   - gradlew lintDebug: ok
-.\gradlew.bat :app:testDebugUnitTest    # 1627 tests completed, all passed
+.\gradlew.bat :app:testDebugUnitTest    # local Gradle output: 1627 tests completed, all passed
 ```
 
 All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`. They do not prove real-device / HyperOS / Xposed runtime behavior.
@@ -322,6 +357,6 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`. They do not prove re
 
 No concrete correctness blockers found.
 
-C3_B2_BATTERY_STYLE_CONSOLIDATION_READY_FOR_INDEPENDENT_AUDIT
+C3_B2_BATTERY_STYLE_FACTUAL_CORRECTIVE_READY_FOR_INDEPENDENT_AUDIT
 
 STOP. Do not enter C3 final completion. Do not select the next target.
