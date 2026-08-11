@@ -1840,9 +1840,11 @@ class SystemClockHotPathTest {
         ModuleHelper.setViewInfo(lateClock, "clockName", "clock")
         controller.mClockListeners.add(lateClock)
 
-        // Simulate the post-init constructor hook traversal with the same frozen helper path.
-        // Because initSecondTicker was called with publication == null, the controller was
-        // already cleaned and no publication is available to tag a late clock.
+        // This test checks the controller/listener state AFTER a null init.
+        // It does NOT invoke the MiuiClock constructor hook directly; the
+        // structural test secondTickerH2_STRUCTURAL_constructorShowSecondsGatedByPublication
+        // covers the constructor source guard. Both together establish that a
+        // late clock cannot become showSeconds=true when publication is unavailable.
         assertNull("late clock after null init must not receive showSeconds", ModuleHelper.getViewInfo(lateClock, "showSeconds"))
     }
 
@@ -2059,7 +2061,7 @@ class SystemClockHotPathTest {
     }
 
     @Test
-    fun secondTickerH2_ownership_controllerRemainsWeakAndNoAndroidOwners() {
+    fun secondTickerH2_ownership_controllerWeakAndNoViewOrCalendarFields() {
         val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
         setCurrentSnapshot(snapshot)
 
@@ -2125,5 +2127,26 @@ class SystemClockHotPathTest {
         assertTrue("SecondTicker must use publication-level listener helper", secondTickerBody.contains("publication.readClockListeners"))
         assertTrue("SecondTicker must use legacy ArrayList/Iterator traversal", secondTickerBody.contains("for (listener in clockListeners)"))
         assertTrue("SecondTicker must preserve listener as View cast", secondTickerBody.contains("listener as View"))
+    }
+
+    @Test
+    fun secondTickerH2_STRUCTURAL_guardedBoundaryPreventsScheduleNextTickAfterFatal() {
+        val path = "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemClockHooks.kt"
+        val text = source(path)
+
+        val runStart = text.indexOf("override fun run() {")
+        require(runStart >= 0) { "SecondTicker.run not found" }
+        val runEnd = text.indexOf("\n        }\n\n", runStart)
+        require(runEnd >= 0) { "end of SecondTicker.run not found" }
+        val runBody = text.substring(runStart, runEnd)
+
+        // The entire effect execution is inside ModuleHelper.guarded { ... }.
+        // CallbackGuard rethrows OutOfMemoryError/ThreadDeath/VirtualMachineError,
+        // so scheduleNextTick() cannot be reached after a fatal escapes.
+        val guardedIndex = runBody.indexOf("ModuleHelper.guarded {")
+        val scheduleIndex = runBody.indexOf("scheduleNextTick()")
+        assertTrue("SecondTicker.run must use ModuleHelper.guarded", guardedIndex >= 0)
+        assertTrue("SecondTicker.run must call scheduleNextTick", scheduleIndex >= 0)
+        assertTrue("scheduleNextTick must appear after the guarded block", scheduleIndex > guardedIndex)
     }
 }
