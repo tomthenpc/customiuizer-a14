@@ -235,11 +235,12 @@ The following ABI questions must be resolved in C6-A0 before any production code
 | `getPackageName` parameter shape | `NOT_PROVEN` | Legacy call uses zero arguments; overloads may exist. |
 | `getPackageName` return type | `NOT_PROVEN` | Legacy code casts to `String`; the method may return `String` or `CharSequence`. |
 | `getPackageName` overload set | `NOT_PROVEN` | Multiple overloads may exist. |
+| `setSystemExpanded` legacy invocation arity | `STRUCTURAL` | The legacy callback calls `XposedHelpers.callMethod(thisObject, "setSystemExpanded", true)`, so exactly one argument is supplied. |
 | `setSystemExpanded` declaration root | `NOT_PROVEN` | Method may be declared in `ExpandableNotificationRow` or a superclass. |
-| `setSystemExpanded` parameter shape | `NOT_PROVEN` | Legacy call passes one `Boolean` literal; the real method may take `boolean`, `Boolean`, or additional parameters. |
-| `setSystemExpanded` primitive vs. reference parameter | `NOT_PROVEN` | The Kotlin `true` literal is boxed to `java.lang.Boolean` for the Java varargs `callMethod`; the real method may be `boolean` primitive. |
+| `setSystemExpanded` parameter shape | `NOT_PROVEN` | The legacy call supplies exactly one argument. The exact one-argument type (`boolean` primitive, `Boolean` reference, or another compatible one-argument type) is `NOT_PROVEN`. The legacy callback does **not** prove any additional required parameters. |
+| `setSystemExpanded` primitive vs. reference parameter | `NOT_PROVEN` | The Kotlin `true` literal is boxed to `java.lang.Boolean` for the Java varargs `callMethod`; the real method parameter may be `boolean` primitive, `Boolean` reference, or another compatible one-argument type. |
 | `setSystemExpanded` return type | `NOT_PROVEN` | Legacy code ignores the return value. |
-| `setSystemExpanded` overload set | `NOT_PROVEN` | `hookAllMethods` may hook multiple overloads. |
+| `setSystemExpanded` overload set | `NOT_PROVEN` | The legacy callback invokes `XposedHelpers.callMethod`, which uses `findMethodBestMatch` and may resolve among compatible one-argument overloads. `hookAllMethods` may also install on multiple overloads. The exact ROM overload set is `NOT_PROVEN`. |
 | `setFeedbackIcon` parameter shape | `NOT_PROVEN` | `ModuleHelper.hookAllMethods` is called with only the method name. |
 | `setFeedbackIcon` return type | `NOT_PROVEN` | Required to know what `chain.proceed()` returns. |
 | `setFeedbackIcon` overload set | `NOT_PROVEN` | `hookAllMethods` may install on multiple overloads. |
