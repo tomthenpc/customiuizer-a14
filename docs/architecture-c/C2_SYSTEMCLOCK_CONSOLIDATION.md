@@ -1,9 +1,9 @@
 # C2 — SystemClock Architecture C Consolidation Audit
 
-**Repository:** `tomthenpc/customiuizer-a14`  
-**Branch:** `devin/a14-architecture-c-r14.20.0`  
-**Scope:** Final integration audit of the C2 SystemClock Architecture C slice (`SystemClockHooks.kt`, `ClockEffect*`, `ClockResolver`, `ClockAbi`, tests).  
-**Consolidation Base SHA:** `92d717ec7d88df4bcb6d8b38819abd1cd0e8eeac`  
+**Repository:** `tomthenpc/customiuizer-a14`
+**Branch:** `devin/a14-architecture-c-r14.20.0`
+**Scope:** Final integration audit of the C2 SystemClock Architecture C slice (`SystemClockHooks.kt`, `ClockEffect*`, `ClockResolver`, `ClockAbi`, tests).
+**Consolidation Base SHA:** `92d717ec7d88df4bcb6d8b38819abd1cd0e8eeac`
 **Status:** No production code modified during this consolidation. Only documentation and test naming/comments adjusted.
 
 > This document records the state after C2-B1, C2-B2 H1, C2-B3-A0, and C2-B3 H2 are complete. C3 has not started.
