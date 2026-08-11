@@ -35,6 +35,8 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallbac
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
 import tv.withaibuild.customiuizer.mods.utils.CustomTextIconTintRoute
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
+import tv.withaibuild.customiuizer.mods.statusbariconvisibility.StatusBarIconVisibilityEffect
+import tv.withaibuild.customiuizer.mods.statusbariconvisibility.StatusBarIconVisibilityResolver
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.HookInstallStateMachine
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
@@ -2530,34 +2532,12 @@ object SystemUIStatusBarHooks {
     fun HideIconsSignalHook(lpparam: PackageReadyParam) {
         ensureStatusBarIconVisibilityRuntimeState()
 
+        val abi = StatusBarIconVisibilityResolver.resolve(lpparam.classLoader)
+        val effect = StatusBarIconVisibilityEffect(abi) { currentOrBuildStatusBarIconVisibilitySnapshot() }
+
         val stateHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val mobileIconState = param.getArg(0)
-                var shouldUpdate = "updateState" == param.getMember().name
-                if (!shouldUpdate) {
-                    val mState = XposedHelpers.getObjectField(param.getThisObject(), "mState")
-                    shouldUpdate = mState == null
-                }
-                if (!shouldUpdate) return
-
-                val snapshot = currentOrBuildStatusBarIconVisibilitySnapshot()
-                val wifiAvailable = XposedHelpers.getBooleanField(mobileIconState, "wifiAvailable")
-                val subId = XposedHelpers.getObjectField(mobileIconState, "subId") as Int
-                val dataSubId = SubscriptionManager.getActiveDataSubscriptionId()
-                val slotId = SubscriptionManager.getSlotIndex(subId)
-                val result = computeSignalIconHiding(wifiAvailable, subId, dataSubId, slotId, snapshot)
-
-                if (result.visible == false) {
-                    XposedHelpers.setObjectField(mobileIconState, "visible", false)
-                    return
-                }
-                if (result.roaming != null) {
-                    XposedHelpers.setObjectField(mobileIconState, "roaming", result.roaming)
-                }
-                if (result.volte != null) {
-                    XposedHelpers.setObjectField(mobileIconState, "volte", result.volte)
-                    XposedHelpers.setObjectField(mobileIconState, "speechHd", result.speechHd)
-                }
+                effect.before(param)
             }
         }
         ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState", stateHook)
