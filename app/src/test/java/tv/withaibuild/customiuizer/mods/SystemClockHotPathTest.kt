@@ -1973,7 +1973,7 @@ class SystemClockHotPathTest {
             runTicker(ticker)
             fail("fatal must propagate with exact identity")
         } catch (t: Throwable) {
-            assertSame("direct fatal must preserve exact identity", oom, t)
+            assertSame("wrapped fatal must preserve exact original identity", oom, t)
         } finally {
             disposeTicker(ticker)
         }
@@ -2130,23 +2130,60 @@ class SystemClockHotPathTest {
     }
 
     @Test
-    fun secondTickerH2_STRUCTURAL_guardedBoundaryPreventsScheduleNextTickAfterFatal() {
-        val path = "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemClockHooks.kt"
-        val text = source(path)
+    fun secondTickerH2_STRUCTURAL_guardedAndCallbackGuardShape() {
+        val hooks = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemClockHooks.kt")
 
-        val runStart = text.indexOf("override fun run() {")
+        // --- A. SecondTicker.run closes the guarded block before scheduleNextTick() ---
+        val runStart = hooks.indexOf("override fun run() {")
         require(runStart >= 0) { "SecondTicker.run not found" }
-        val runEnd = text.indexOf("\n        }\n\n", runStart)
+        val runEnd = hooks.indexOf("\n        }\n\n", runStart)
         require(runEnd >= 0) { "end of SecondTicker.run not found" }
-        val runBody = text.substring(runStart, runEnd)
+        val runBody = hooks.substring(runStart, runEnd)
 
-        // The entire effect execution is inside ModuleHelper.guarded { ... }.
-        // CallbackGuard rethrows OutOfMemoryError/ThreadDeath/VirtualMachineError,
-        // so scheduleNextTick() cannot be reached after a fatal escapes.
-        val guardedIndex = runBody.indexOf("ModuleHelper.guarded {")
-        val scheduleIndex = runBody.indexOf("scheduleNextTick()")
-        assertTrue("SecondTicker.run must use ModuleHelper.guarded", guardedIndex >= 0)
-        assertTrue("SecondTicker.run must call scheduleNextTick", scheduleIndex >= 0)
-        assertTrue("scheduleNextTick must appear after the guarded block", scheduleIndex > guardedIndex)
+        val guardedCall = runBody.indexOf("ModuleHelper.guarded {")
+        require(guardedCall >= 0) { "ModuleHelper.guarded not found in SecondTicker.run" }
+
+        // Find the matching '}' for the ModuleHelper.guarded { ... } block.
+        val blockOpen = runBody.indexOf('{', guardedCall)
+        var depth = 0
+        var guardedClose = -1
+        for (i in blockOpen until runBody.length) {
+            when (runBody[i]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) {
+                        guardedClose = i + 1
+                        break
+                    }
+                }
+            }
+        }
+        assertTrue("ModuleHelper.guarded block must be closed in SecondTicker.run", guardedClose >= 0)
+
+        val afterGuarded = runBody.substring(guardedClose).trimStart()
+        assertTrue(
+            "scheduleNextTick() must be the statement immediately after the guarded block closes",
+            afterGuarded.startsWith("scheduleNextTick()")
+        )
+
+        // --- B. CallbackGuard.guarded rethrows the required fatal categories ---
+        val guard = source("app/src/main/java/tv/withaibuild/customiuizer/mods/utils/CallbackGuard.kt")
+        assertTrue(
+            "CallbackGuard must handle OutOfMemoryError",
+            guard.contains("is OutOfMemoryError") || guard.contains("OutOfMemoryError ->")
+        )
+        assertTrue(
+            "CallbackGuard must handle ThreadDeath",
+            guard.contains("is ThreadDeath") || guard.contains("ThreadDeath ->")
+        )
+        assertTrue(
+            "CallbackGuard must handle VirtualMachineError",
+            guard.contains("is VirtualMachineError") || guard.contains("VirtualMachineError ->")
+        )
+        assertTrue(
+            "CallbackGuard must throw the fatal error",
+            guard.contains("throw t")
+        )
     }
 }

@@ -24,12 +24,12 @@ Independent verification performed at consolidation start:
 
 ```text
 $ git rev-parse HEAD
-92d717ec7d88df4bcb6d8b38819abd1cd0e8eeac
+9d609e33dc631b73b0805d1714763c1a586717be
 $ git status --short
 (empty)
 ```
 
-No C1, NetSpeed, or C3 files are modified. Worktree is clean.
+The consolidation documentation and test naming were committed on top of the frozen C2 production checkpoint `92d717ec...`. Final SHA `9d609e33...` is two commits ahead of `92d717ec...` (consolidation document, then a whitespace cleanup). No production files were modified in either commit. Worktree is clean.
 
 ---
 
@@ -148,11 +148,12 @@ It then installs `updateTimeHook` on `MiuiClock.updateTime` and `MiuiStatusBarCl
 
 | Claim | Evidence | Classification |
 |-------|----------|----------------|
-| No generic Xposed member lookup in `SecondTicker` | Source-structural guard `secondTickerH2_sourceStructural_hotPathHasNoForbiddenReflection` passes; class body contains no `XposedHelpers.getObjectField`/`setObjectField`/`callMethod`, `resolveCore`, `findClass`, `MainModule.mPrefs`, `MAX_CLOCK_LISTENERS`, `Sequence`, `Flow` | STRUCTURAL + RUNTIME (guard) |
+| No generic Xposed member lookup in `SecondTicker` | Source-structural guard `secondTickerH2_sourceStructural_hotPathHasNoForbiddenReflection` passes; class body contains no `XposedHelpers.getObjectField`/`setObjectField`/`callMethod`, `resolveCore`, `findClass`, `MainModule.mPrefs`, `MAX_CLOCK_LISTENERS`, `Sequence`, `Flow` | STRUCTURAL (the JUnit reads source text and asserts substrings) |
 | No runtime `findClass`/member enumeration | Uses only frozen `Class`/`Field`/`Method` from `ClockAbi` | STRUCTURAL |
 | No `MainModule.mPrefs` in `SecondTicker` | `SecondTicker` uses captured `publication`, `context`, and frozen effect | STRUCTURAL |
 | No `MAX_CLOCK_LISTENERS` in `SecondTicker` | Source-structural guard; `SecondTicker.run` iterates the full `ArrayList` | STRUCTURAL |
-| No List/index-loop relaxation | `for (listener in clockListeners)` over `ArrayList`; `listener as View` hard cast preserved | STRUCTURAL + RUNTIME |
+| No List/index-loop relaxation | `for (listener in clockListeners)` over `ArrayList`; source contains no indexed `for` or `List.get` loop | STRUCTURAL (the JUnit reads source text and asserts substrings) |
+| Non-`View` listener entry hard-cast aborts the tick | `listener as View` throws `ClassCastException` for a non-`View` element; caught by `ModuleHelper.guarded` | RUNTIME (`secondTickerH2_listenerSemantics_nonViewEntryAbortsTick`) |
 | No coroutine/Flow | Source-structural guard | STRUCTURAL |
 | No strong View/controller/calendar retention in `SecondTicker` | `clockControllerRef` is `WeakReference`; fields are `Context`, `Boolean`, `ClockEffectPublication`; `SecondTicker` has no View or calendar fields (`secondTickerH2_ownership_controllerWeakAndNoViewOrCalendarFields`) | STRUCTURAL + RUNTIME (field inspection) |
 | `ClockEffectPublication` is non-null at ticker construction | `initSecondTicker` passes `publication` to `SecondTicker` constructor only when `publication != null` (`SystemClockHooks.kt:716`, `726`) | STRUCTURAL |
@@ -241,11 +242,12 @@ The three listener paths are intentionally different and are not conflated in co
 
 | Failure point | Effect on current tick | Evidence |
 |---------------|------------------------|----------|
-| `effect.readCalendar(controller)` returns null | `runWithEffect` returns immediately | STRUCTURAL (line 827) + RUNTIME (`secondTickerH2_*` tests) |
-| `effect.setTimeInMillis(...)` returns false | `runWithEffect` returns; no `writeIs24`, no listener updates | STRUCTURAL (line 828) + RUNTIME (`secondTickerH2_failure_setTimeInMillisFailureAbortsRemainingTick`) |
-| `effect.writeIs24(...)` returns false | `runWithEffect` returns; no listener updates | STRUCTURAL (line 829) + RUNTIME (`secondTickerH2_failure_writeIs24FailureAbortsListenerUpdates`) |
-| `effect.readClockListeners(controller)` returns null or `as ArrayList` throws | `runWithEffect` aborts via `return` or `ClassCastException`; `guarded` catches; no listener updates | STRUCTURAL + RUNTIME (non-View listener test) |
-| `effect.invokeUpdateTime(clock)` returns false | `runWithEffect` returns; later listeners not updated | STRUCTURAL (line 835) + RUNTIME (`secondTickerH2_failure_updateTimeFailureAbortsRemainingListeners`) |
+| `effect.readCalendar(controller)` returns null | `runWithEffect` returns immediately | STRUCTURAL (`if (calendar == null) return` at `SystemClockHooks.kt:827`) |
+| `effect.setTimeInMillis(...)` returns false | `runWithEffect` returns; no `writeIs24`, no listener updates | RUNTIME (`secondTickerH2_failure_setTimeInMillisFailureAbortsRemainingTick`) |
+| `effect.writeIs24(...)` returns false | `runWithEffect` returns; no listener updates | RUNTIME (`secondTickerH2_failure_writeIs24FailureAbortsListenerUpdates`) |
+| `effect.readClockListeners(controller)` returns null / wrong `List` type | `runWithEffect` aborts via `return` or `ClassCastException` (`as ArrayList<Any>`); no listener updates | STRUCTURAL (`SystemClockHooks.kt:831`) |
+| A listener is not a `View` (`listener as View` throws) | `ModuleHelper.guarded` catches `ClassCastException`; tick aborts; later listeners not updated | RUNTIME (`secondTickerH2_listenerSemantics_nonViewEntryAbortsTick`) |
+| `effect.invokeUpdateTime(clock)` returns false | `runWithEffect` returns; later listeners not updated | RUNTIME (`secondTickerH2_failure_updateTimeFailureAbortsRemainingListeners`) |
 
 After any ordinary failure:
 
@@ -254,8 +256,8 @@ After any ordinary failure:
 
 Classification summary:
 
-- Order-sensitive abort semantics: **STRUCTURALLY PROVEN** and **RUNTIME TESTED** for the main cases.
-- `scheduleNextTick()` after ordinary failure: **STRUCTURALLY PROVEN** by `secondTickerH2_STRUCTURAL_guardedBoundaryPreventsScheduleNextTickAfterFatal` (the `guarded` block ends before `scheduleNextTick()` is reached).
+- Order-sensitive abort semantics: **STRUCTURALLY PROVEN** for `readCalendar`/`readClockListeners` return paths; **RUNTIME TESTED** for `setTimeInMillis`, `writeIs24`, non-`View` listener, and `invokeUpdateTime` failures.
+- `scheduleNextTick()` after ordinary failure: **STRUCTURALLY PROVEN** by `secondTickerH2_STRUCTURAL_guardedAndCallbackGuardShape` (the `guarded` block closes before `scheduleNextTick()` is reached).
 
 ---
 
@@ -289,7 +291,7 @@ scheduleNextTick()
 | Test | What it proves | Classification |
 |------|----------------|----------------|
 | `secondTickerH2_wrappedFatalFromCalendarSetTimeInMillis_preservesExactIdentity` | `Method.invoke` throws `InvocationTargetException` wrapping `OutOfMemoryError`; `ClockEffect` unwraps and rethrows with exact original identity | RUNTIME — **WRAPPED FATAL** |
-| `secondTickerH2_STRUCTURAL_guardedBoundaryPreventsScheduleNextTickAfterFatal` | `SecondTicker.run` places effect execution inside `ModuleHelper.guarded { ... }`; `scheduleNextTick()` is after the `guarded` block, so a fatal escaping `guarded` cannot reach scheduling | STRUCTURAL |
+| `secondTickerH2_STRUCTURAL_guardedAndCallbackGuardShape` | Source-structural: `SecondTicker.run` closes the `ModuleHelper.guarded { ... }` block immediately before `scheduleNextTick()`; `CallbackGuard.guarded` source rethrows `OutOfMemoryError`/`ThreadDeath`/`VirtualMachineError` | STRUCTURAL (the JUnit reads and parses source text) |
 | Direct `OutOfMemoryError`/`ThreadDeath`/`VirtualMachineError` in H2 run | Not injected in the current unit harness; covered by the same `FatalErrors` logic and the structural guarded boundary | NOT PROVEN at runtime |
 
 ### 7.4 Verdict
@@ -354,24 +356,24 @@ MiuiStatusBarClockController instance
 |-----------|------|----------------|
 | `ModuleHelper.getViewInfo` | Tag-map lookup | O(1), small |
 | `currentClockStyleSnapshot()` | Volatile read of cached snapshot | O(1), no allocation |
-| `buildClockText` | String build / weather substitution | Memory: `StringBuilder` reuse via `ThreadLocal`; small transient strings |
+| `buildClockText` | Selects an existing format `String` from `ClockStyleSnapshot`; if weather replacement enabled and `"tq"` present, `String.replace(...)` creates a new `String` output | No `ThreadLocal` here; may allocate a format `String` only when weather substitution occurs |
 | `publication.currentEffect()` | Volatile read | O(1) |
-| `effect.readController` / `effect.readCalendar` | `Field.get` | O(1), no allocation |
+| `effect.readController` / `effect.readCalendar` | `Field.get` | O(1); no source-visible temporary collection or object created by our code (JVM reflection internal allocation is not measured) |
 | `clockFormatBuilder.get()` / `clockTextBuilder.get()` | `ThreadLocal.get` | O(1) amortized, `StringBuilder` reset in place |
 | `effect.format(...)` | `Method.invoke(calendar, context, textSb, formatSb)` | `Object[]` for varargs allocated per call; `StringBuilder` content mutated in place; no per-char allocation beyond output |
 | `clock.text = textSb.toString()` | `setText` + UI invalidation | Framework cost, unavoidable |
 
-**NOT proven zero allocation.** `Method.invoke` with three `Object` arguments allocates an `Object[]`. Long-arg `setTimeInMillis` is H2, not H1.
+**NOT proven zero allocation.** `buildClockText` may allocate a weather-substituted `String`. `effect.format(...)` uses `Method.invoke` with three `Object` arguments, which allocates an `Object[]`. The `clockFormatBuilder` and `clockTextBuilder` `ThreadLocal` reuse happens after `buildClockText`, inside the `effect.format` path.
 
 ### 10.2 H2 steady-state (`SecondTicker.run`)
 
 | Operation | Cost | Classification |
 |-----------|------|----------------|
 | `publication.currentEffect()` | Volatile read | O(1) |
-| `effect.readCalendar` | `Field.get` | O(1) |
-| `effect.setTimeInMillis(calendar, millis)` | `Method.invoke` with one `Long` boxed arg | `Object[]` + `Long` boxing per tick |
-| `effect.writeIs24(controller, DateFormat.is24HourFormat(context))` | `DateFormat.is24HourFormat` + `Field.setBoolean` | `DateFormat.is24HourFormat` may perform a `ContentResolver`/`Settings` read (system setting, not `mPrefs`); `Field.setBoolean` is O(1) with no boxing |
-| `effect.readClockListeners` | `Field.get` | O(1) |
+| `effect.readCalendar` | `Field.get` | O(1); no source-visible temporary collection or object created by our code |
+| `effect.setTimeInMillis(calendar, millis)` | `Method.invoke` with one `Long` arg | `Object[]` + `Long` boxing per tick; `setTimeInMillis` is a primitive `long` overload, so `Method.invoke` boxes it |
+| `effect.writeIs24(controller, DateFormat.is24HourFormat(context))` | `DateFormat.is24HourFormat` + `Field.setBoolean` | `Field.setBoolean` is O(1) with no boxing. `DateFormat.is24HourFormat` is called every tick; its target HyperOS 1 implementation cost / Binder behavior is **NOT_PROVEN** by this harness |
+| `effect.readClockListeners` | `Field.get` | O(1); no source-visible temporary collection or object created by our code |
 | `as ArrayList<Any>` | Type cast | O(1) |
 | `for (listener in clockListeners)` | `Iterator` over `ArrayList` | New `Iterator` object per tick (legacy compatibility debt) |
 | `ModuleHelper.getViewInfo(clock, "showSeconds")` | Per-listener tag lookup | O(1) per listener |
@@ -382,7 +384,7 @@ MiuiStatusBarClockController instance
 
 - `ArrayList` `Iterator` allocation per tick (`for` loop on `ArrayList` still creates an `Iterator`).
 - `Method.invoke` argument boxing for `setTimeInMillis(long)`.
-- `DateFormat.is24HourFormat(context)` per tick is a system setting read retained from the original implementation. It is **not** a `MainModule.mPrefs` read, but it is a per-tick `ContentResolver`/Binder-ish query and remains a cost.
+- `DateFormat.is24HourFormat(context)` per tick is retained from the original implementation. It is **not** a `MainModule.mPrefs` read. Its target-device implementation cost (e.g., `ContentResolver`/`Settings`/`Binder`) is **NOT_PROVEN** by this harness.
 
 **Not claimed:** zero allocation, zero `DateFormat` cost, or zero `Iterator` cost.
 
@@ -397,12 +399,13 @@ All `SystemClockHotPathTest` H2 tests reviewed. Misleading or corrected items:
 | `secondTickerH2_fatalFromCalendarSetTimeInMillis_preservesExactIdentity` | Name claimed a generic fatal; the test injects the fatal through `Method.invoke`, which wraps it in `InvocationTargetException` | Renamed to `secondTickerH2_wrappedFatalFromCalendarSetTimeInMillis_preservesExactIdentity` |
 | `secondTickerH2_ownership_controllerRemainsWeakAndNoAndroidOwners` | Name implied "no Android owners"; `SecondTicker` does hold a `Context` (`mContext`) and the test does not inspect it | Renamed to `secondTickerH2_ownership_controllerWeakAndNoViewOrCalendarFields`; comment clarifies it checks controller is weak and no `View`/`calendar` instance fields |
 | `secondTickerH2_nullPublication_lateClockDoesNotReceiveShowSeconds` | Runtime test adds a late listener manually; it does not invoke the actual `MiuiClock` constructor hook | Comment added explaining the test checks post-init controller state; constructor-hook guard is covered by `secondTickerH2_STRUCTURAL_constructorShowSecondsGatedByPublication` |
+| `secondTickerH2_wrappedFatalFromCalendarSetTimeInMillis_preservesExactIdentity` | Assertion message said "direct fatal"; the test injects the fatal via `Method.invoke`, which wraps it in `InvocationTargetException` | Assertion message changed to "wrapped fatal must preserve exact original identity" |
 
-Correctly named/retained structural tests:
+Correctly named/retained structural tests (they read source text and assert substrings/order; they are **STRUCTURAL** even though the JUnit itself executes):
 
 - `secondTickerH2_sourceStructural_hotPathHasNoForbiddenReflection`
 - `secondTickerH2_STRUCTURAL_constructorShowSecondsGatedByPublication`
-- `secondTickerH2_STRUCTURAL_guardedBoundaryPreventsScheduleNextTickAfterFatal`
+- `secondTickerH2_STRUCTURAL_guardedAndCallbackGuardShape`
 
 These test names explicitly include `STRUCTURAL` and do not claim runtime behavior.
 
@@ -426,7 +429,7 @@ These test names explicitly include `STRUCTURAL` and do not claim runtime behavi
 - **H2 final verdict:** `SecondTicker.run` uses the frozen `ClockEffect` path, preserves legacy `ArrayList` + `Iterator` + `View` cast semantics, fails closed on null publication, and does not perform generic Xposed member lookup in the periodic hot path.
 - **Null-publication verdict:** Fully fail-closed; late clocks are guarded in the constructor hook; no ticker is created; no generic H2 fallback; no resolver retry timer.
 - **Listener compatibility verdict:** Three intentionally different policies (`initSecondTicker` soft `as? ArrayList`, `SecondTicker` hard `as ArrayList`, preference observer capped `MAX_CLOCK_LISTENERS`) are preserved and not conflated.
-- **Failure/fatal verdict:** Ordinary failures abort the current tick in order and scheduling remains reachable; fatal errors are unwrapped and rethrown with exact identity, and `scheduleNextTick` cannot be reached after a fatal escapes `CallbackGuard`.
+- **Failure/fatal verdict:** Ordinary failures abort the current tick in order and scheduling remains reachable; fatal errors are unwrapped and rethrown with exact identity, and `scheduleNextTick` is structurally unreachable after a fatal escapes `CallbackGuard`.
 - **Ownership/publication verdict:** `ClockEffectPublication` holds only frozen metadata; `SecondTicker` uses a `WeakReference` controller and does not retain `View`/calendar instances.
 - **Production changed during consolidation:** `false`
 - **C2_CONSOLIDATION_READY_FOR_INDEPENDENT_AUDIT**
