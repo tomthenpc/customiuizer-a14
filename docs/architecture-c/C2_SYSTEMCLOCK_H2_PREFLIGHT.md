@@ -96,14 +96,26 @@ SecondTicker(..., private val publication: ClockEffectPublication?)
 
 ## 3. Controller / Listener Lifecycle Facts
 
-All facts below are derived from the current source and the existing `SystemClockHotPathTest` fakes.
+All observations below are derived from the current source, `ClockResolver`, and the existing `SystemClockHotPathTest` fakes. Real HyperOS/SystemUI lifecycle evidence is **NOT_PROVEN**.
 
-| Question | Fact |
-|----------|------|
-| Are `mClockListeners` guaranteed to exist when `initSecondTicker` is called after the controller constructor? | The field is **guaranteed to be non-null** in a correctly constructed `MiuiStatusBarClockController` (the controller class declares it, and the constructor initializes the list). However, the list may be **empty**. The current `initSecondTicker` already handles `null` defensively with `as? ArrayList<Any>` (line 685). |
-| Can `initSecondTicker` safely find an eligible real clock from `mClockListeners` and call `publication.resolveForClock(clock, clock.context.javaClass)` before the ticker starts? | **Only opportunistically.** If `mClockListeners` is non-empty, the first `View` with a known `clockName` can be used. If the list is empty, no real clock is available at that instant. |
-| Are there valid states where `needsTicker == true` but `mClockListeners` is empty? | **YES.** `needsTicker` is computed from `snapshot.showStatusBarSeconds / showCCSeconds` and the feature flags, not from the listener count. At controller construction the seconds feature may be enabled but no clock view has been attached yet. |
-| Can clocks be added after the initial `initSecondTicker` call? | **YES.** `SecondTicker.run` reads `mClockListeners` fresh every second. New `MiuiClock` / `MiuiStatusBarClock` instances are constructed later, their constructor hook sets `clockName` / `showSeconds` tags (lines 937–992), and the controller adds them to `mClockListeners`. `initSecondTicker` is also re-invoked on `TIME_SET` and on preference changes. |
+### FACT
+
+- `ClockResolver.resolveControllerClass` requires the `mClockListeners` `Field` to exist for `ControllerCapability`; a missing field makes the whole ABI `null`.
+- Current `initSecondTicker` defensively accepts a `null` / non-`ArrayList` value with `as? ArrayList<Any>` (line 685) and simply skips the tag loop.
+- Current `SecondTicker.run` re-reads `mClockListeners` every tick.
+- The current test fakes initialize `mClockListeners` as an `ArrayList`, but this does **not** prove real SystemUI timing.
+
+### NOT_PROVEN
+
+- Real `MiuiStatusBarClockController` guarantees a non-null `mClockListeners` immediately after construction.
+- Exact timing at which real clocks are inserted into `mClockListeners`.
+- Whether `mClockListeners` can be mutated during a single `SecondTicker.run` traversal.
+
+### DESIGN REQUIREMENT
+
+- `initSecondTicker` must not require an eligible real clock.
+- An empty or unavailable listener state must fail closed and allow a later tick.
+- Later listener availability must allow calibration without retaining a `View`.
 
 **Conclusion:** An eligible real clock is **not guaranteed** at `initSecondTicker` time. H2 cannot depend on calibration completing inside `initSecondTicker`.
 
@@ -128,15 +140,18 @@ SecondTicker.run
   │     val calendar = effect.readCalendar(controller) ?: return@guarded
   │     if (!effect.setTimeInMillis(calendar, now)) return@guarded
   │     if (!effect.writeIs24(controller, is24)) return@guarded
-  │     val listeners = effect.readClockListeners(controller) ?: return@guarded
-  │     index/while over listeners {
-  │         val clock = listener as? View ?: continue
+  │     @Suppress("UNCHECKED_CAST")
+  │     val clockListeners = effect.readClockListeners(controller) as ArrayList<Any>
+  │     for (listener in clockListeners) {
+  │         val clock = listener as View
   │         if (ModuleHelper.getViewInfo(clock, "showSeconds") == null) continue
   │         if (!effect.invokeUpdateTime(clock)) return@guarded
   │     }
   │  }
   └─ scheduleNextTick()
 ```
+
+This preserves the legacy traversal semantics: `ArrayList<Any>` cast, `Iterator` allocation, `listener as View` cast, and fail-fast `ConcurrentModificationException`. The `Iterator` allocation is recorded as an explicit later optimization debt; see section 10.
 
 **No additional capability is missing for the cold-complete case.** Existing `ClockEffect` methods cover `readCalendar`, `setTimeInMillis`, `writeIs24`, `readClockListeners` and `invokeUpdateTime`.
 
@@ -154,11 +169,11 @@ SecondTicker.run
   ├─ var effect = publication.currentEffect()
   ├─ ModuleHelper.guarded {
   │     if (effect == null) {
-  │         // Bounded, one-time calibration attempt using the first eligible real clock.
-  │         val listeners = publication.readClockListeners(controller) ?: return@guarded
-  │         for (i in 0 until listeners.size) {
-  │             val listener = listeners[i]
-  │             val clock = listener as? View ?: continue
+  │         // Bounded per-target calibration; unresolved listener discovery may recur per tick.
+  │         @Suppress("UNCHECKED_CAST")
+  │         val clockListeners = publication.readClockListeners(controller) as ArrayList<Any>
+  │         for (listener in clockListeners) {
+  │             val clock = listener as View
   │             if (ModuleHelper.getViewInfo(clock, "showSeconds") == null) continue
   │             effect = publication.resolveForClock(clock, clock.context.javaClass)
   │             if (effect != null) break
@@ -177,8 +192,9 @@ Key points:
 
 - The slow path is triggered only while `currentEffect()` is `null`.
 - The calibration target is a real clock `View` taken from `mClockListeners`; it is **not** strongly retained.
-- `publication.resolveForClock` uses the frozen `ClockAbi` (target classes, controller field, calendar field) and, if necessary, `ClockResolver.resolveCalendarFromRuntime` once.
-- `resolveForClock` has a per-target-class `failedTargetMask`; repeated failures for the same target class are remembered, so the slow path does not run generic reflection on every tick.
+- `publication.resolveForClock` uses the frozen `ClockAbi` (target classes, controller field, calendar field) and, if necessary, `ClockResolver.resolveCalendarFromRuntime`.
+- `resolveForClock` has a per-target-class `failedTargetMask`; runtime member discovery does **not** recur for a target already marked failed.
+- Unresolved listener discovery may recur per tick until an eligible target appears; the `failedTargetMask` only bounds the expensive calendar resolution for a known-bad target.
 
 **Missing publication capability:** `ClockEffectPublication` does not currently expose a way to read `mClockListeners` before an `ClockEffect` exists. The aggregate `ClockAbi` already contains `ControllerCapability.clockListenersField`, so the publication can be extended with an internal `readClockListeners(controller)` helper (or expose its `abi`) without splitting the ABI.
 
@@ -210,9 +226,9 @@ This is an intentional deviation from the legacy generic path, which would call 
    - If `publication?.currentEffect() == null` and `mClockListeners` is non-empty, scan listeners for the first `View` with a known `clockName`.
    - Call `publication.resolveForClock(clock, clock.context.javaClass)`.
    - Stop on first success.
-2. **Runtime calibration in `SecondTicker.run`** (bounded fallback):
+2. **Runtime calibration in `SecondTicker.run`** (per-tick bounded fallback):
    - If `publication.currentEffect()` is still `null`, during the listener loop attempt `resolveForClock` on the first `View` that has a `showSeconds` tag.
-   - The `failedTargetMask` in `ClockEffectPublication` prevents repeated attempts on the same target class.
+   - The `failedTargetMask` in `ClockEffectPublication` prevents repeated runtime member discovery for a target class already known to be bad; unresolved listener discovery may recur per tick until an eligible target appears.
 3. **No permanent generic fallback.**
 4. **No strong clock retention.** The listener reference is local to the loop.
 
@@ -233,9 +249,11 @@ Target Architecture C behavior for H2:
 - Each `ClockEffect` operation returns a sentinel (`null` / `false`) on non-fatal failure.
 - `SecondTicker.run` checks the return value and, on failure, executes `return@guarded`.
 - `scheduleNextTick()` still runs.
-- **No per-tick logging is added.** `ClockEffect` methods already catch non-fatal `Throwable`, call `FatalErrors.unwrapAndRethrowIfFatal`, and return the sentinel. The `guarded` wrapper therefore receives no exception and does not log.
+- **No per-tick logging is added for frozen Effect method failures.** `ClockEffect` methods already catch non-fatal `Throwable`, call `FatalErrors.unwrapAndRethrowIfFatal`, and return the sentinel. The `guarded` wrapper therefore receives no exception for those failures and does not log.
 
-This removes the per-second log spam that the generic `XposedHelpers` path produced, while preserving the key semantic: **abort current tick, schedule next tick**.
+The legacy listener-traversal failures (malformed `mClockListeners` / non-`ArrayList`, `listener as View` cast failure, `ConcurrentModificationException`) are still thrown by the `ArrayList`/`Iterator`/`as View` code and are caught/logged by `guarded`; `scheduleNextTick()` still runs. This preserves fail-fast traversal behavior by default.
+
+This removes the per-second log spam that the generic `XposedHelpers` method-lookup path produced, while preserving the key semantic: **abort current tick, schedule next tick**.
 
 Mapping table:
 
@@ -269,32 +287,33 @@ This fixes the wrapped-fatal bug while preserving the exact original fatal ident
 
 ## 10. Listener Iteration Semantics
 
-Proposed B3 iteration:
+Default B3 iteration (legacy-compatible):
 
 ```kotlin
-val listeners = effect.readClockListeners(controller) ?: return@guarded
-val size = listeners.size
-var i = 0
-while (i < size) {
-    val listener = listeners[i]
-    val clock = listener as? View ?: continue
+@Suppress("UNCHECKED_CAST")
+val clockListeners = effect.readClockListeners(controller) as ArrayList<Any>
+for (listener in clockListeners) {
+    val clock = listener as View
     if (ModuleHelper.getViewInfo(clock, "showSeconds") == null) continue
     if (!effect.invokeUpdateTime(clock)) return@guarded
-    i++
 }
 ```
 
-Behavior differences versus current code:
+This preserves the legacy semantics:
 
-| Aspect | Legacy | Proposed |
-|--------|--------|----------|
-| List type | `XposedHelpers.getObjectField(...)` cast to `ArrayList<Any>` | `effect.readClockListeners()` returns `List<*>?`; any `List` implementation is accepted |
-| Loop construct | `for (listener in clockListeners)` — allocates an `Iterator` each tick | index `while` — no source-visible `Iterator` allocation |
-| Element cast | `listener as View` — throws `ClassCastException` for non-View entries | `listener as? View ?: continue` — skips non-View entries silently |
-| Bound | unbounded `for` | unbounded `while`; no `MAX_CLOCK_LISTENERS` introduced |
-| Concurrent modification | `ArrayList` iterator fast-fails with `ConcurrentModificationException` | index loop does not detect concurrent modification; on `ArrayList` it may see shifted or duplicated entries. The controller and ticker both run on the main looper, so modifications during a single tick are unlikely. |
+- `mClockListeners` is cast to `ArrayList<Any>` (matches `XposedHelpers.getObjectField(...)` `as ArrayList<Any>`).
+- `for (listener in clockListeners)` uses the `ArrayList` `Iterator`.
+- `listener as View` throws `ClassCastException` for non-`View` entries; `guarded` catches and logs.
+- Unbounded; no `MAX_CLOCK_LISTENERS`.
+- `ConcurrentModificationException` fail-fast is preserved.
 
-**No claim of zero allocation beyond source-visible facts.** The `Iterator` is removed, but `Method.invoke` still allocates its internal argument array and the boxed `Long` for `setTimeInMillis`; the `List` object and its backing array are owned by the controller, not allocated by the ticker.
+The `Iterator` allocation is recorded as an explicit later optimization debt. It is out of scope for B3 because:
+
+- There is no repository evidence that `mClockListeners` cannot be mutated during a single `SecondTicker.run` traversal.
+- An index/while loop would not detect concurrent modification and would change the fail-fast contract.
+- `as? View ?: continue` would silently skip non-View entries instead of aborting the tick.
+
+If future device/lifecycle evidence proves mutation cannot occur during a traversal, the index/while version must advance the index before any `continue` (e.g., a `for (i in 0 until size)` construct where the Kotlin compiler increments `i` at the loop header). That is a separate, measured optimization.
 
 ---
 
@@ -339,7 +358,7 @@ B3 is the implementation of the H2 `SecondTicker` Architecture C migration. Its 
 - Implement the `SecondTicker.run` graph from section 4 (cold-complete) and section 5 (cold-incomplete calibration).
 - Add a `ClockEffectPublication.readClockListeners(controller)` helper (or equivalent access to `ControllerCapability.clockListenersField`) so `SecondTicker` can enumerate listeners before an `ClockEffect` is published.
 - Replace the generic `XposedHelpers.getObjectField` / `callMethod` / `setObjectField` calls in `SecondTicker.run` with frozen `ClockEffect` methods.
-- Change the listener loop to index/while over `List<*>`, keep it unbounded, and use `as? View`.
+- Preserve the legacy `ArrayList<Any>` cast and `for` (Iterator) listener traversal; keep it unbounded and use `listener as View`. Document the `Iterator` allocation as an explicit later optimization debt.
 - Keep `ModuleHelper.guarded` as the outer boundary; rely on `ClockEffect` sentinel returns for ordinary failures and on `FatalErrors.unwrapAndRethrowIfFatal` for fatal identity.
 - Preserve the existing scheduling, screen-on/screen-off, `WeakReference` and disposal semantics exactly.
 
@@ -376,6 +395,34 @@ If H2 later needs to read the controller / listeners before `ClockEffect` exists
 - `ClockEffectPublication` exposes an internal `readClockListeners(controller): List<*>?` using `abi.controller.clockListenersField.get(controller)`.
 
 This keeps `ClockEffect` focused on the calendar-dependent hot path and does not introduce a separate `ClockControllerEffect` or `ClockRuntime` abstraction.
+
+---
+
+## 14. B3 Implementation-Test Debt
+
+Before the B3 production implementation can be considered complete, the following tests must be added or updated. They are **not** currently proven or implemented.
+
+### H2 calibration
+
+- `SecondTicker` can run the cold-complete path using `publication.currentEffect()` without triggering runtime calendar calibration.
+- `SecondTicker` with an empty `mClockListeners` state schedules the next tick without performing generic `XposedHelpers` reflection.
+- A later eligible real clock inserted into `mClockListeners` can publish the `ClockEffect`.
+- A failed target class does not repeat runtime calendar resolution on subsequent ticks.
+
+### H2 listener traversal
+
+- Listener traversal remains unbounded (`MAX_CLOCK_LISTENERS = 64` is not used in `SecondTicker.run`).
+- Malformed listener behavior matches the selected legacy-compatible policy (`ArrayList` cast, `as View`, `Iterator` fail-fast).
+
+### H2 failure semantics
+
+- An ordinary `ClockEffect` failure aborts the rest of the tick and the next schedule is still possible.
+- A direct fatal error is rethrown with exact identity and `scheduleNextTick()` is not reached.
+- A fatal wrapped in `InvocationTargetException` / `XposedHelpers.InvocationTargetError` is unwrapped and rethrown with exact identity; `scheduleNextTick()` is not reached.
+
+### H2 ownership
+
+- `SecondTicker` does not strongly retain a `View`, the controller, or a calendar instance through the new `publication` handoff.
 
 ---
 
