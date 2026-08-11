@@ -10,7 +10,10 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
+import java.io.File
+import java.net.URLDecoder
 import java.lang.reflect.Modifier
 import tv.withaibuild.customiuizer.mods.SystemUIBatteryHooks
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
@@ -440,6 +443,36 @@ class BatteryArchitectureCTest {
     }
 
     // -------------------------------------------------------------------------
+    // S. Structural source invariants.
+    // -------------------------------------------------------------------------
+    @Test
+    fun fastPathSourceDoesNotContainXposedGetObjectField() {
+        val source = sourceOf(BatteryStyleEffect::class.java)
+        assumeTrue("source file must be available in the workspace", source != null)
+        val body = source!!.substringAfter("private fun readFast(").substringBefore("private fun readLegacy(")
+        assertFalse(
+            "FAST path readFast must not call XposedHelpers.getObjectField",
+            body.contains("XposedHelpers.getObjectField"),
+        )
+    }
+
+    @Test
+    fun hookCallbackCapturesLocalEffectSource() {
+        val source = sourceOf(SystemUIBatteryHooks::class.java)
+        assumeTrue("source file must be available in the workspace", source != null)
+        val body = source!!.substringAfter("fun StatusBarStyleBatteryIconHook(").substringBefore("private fun isBatteryStyleDefault")
+        assertTrue(
+            "StatusBarStyleBatteryIconHook must create a local effect and not use a mutable global",
+            body.contains("val effect = BatteryStyleEffect(") &&
+                body.contains("reconcileBatteryView(batteryView, style, state, effect)"),
+        )
+        assertFalse(
+            "StatusBarStyleBatteryIconHook must not contain the old mutable batteryStyleEffect field",
+            body.contains("batteryStyleEffect"),
+        )
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
     private fun resolveAbiFor(clazz: Class<*>): BatteryStyleAbi {
@@ -500,6 +533,27 @@ class BatteryArchitectureCTest {
     private class BaseBatteryViewMissingMark : LinearLayout(null as android.content.Context?) {
         lateinit var mBatteryTextDigitView: TextView
         lateinit var mBatteryPercentView: TextView
+    }
+
+    private fun sourceOf(clazz: Class<*>): String? {
+        val resourcePath = clazz.name.replace('.', '/') + ".class"
+        val loader = javaClass.classLoader ?: return null
+        val url = loader.getResource(resourcePath) ?: return null
+        // Decode the file path from the URL, handling spaces and percent-escapes.
+        val classFile = File(URLDecoder.decode(url.file, "UTF-8"))
+        var dir: File? = classFile.parentFile
+        var safety = 0
+        while (dir != null && safety < 20) {
+            val srcMain = File(dir, "src/main/java")
+            if (srcMain.isDirectory) {
+                val relative = clazz.name.replace('.', '/') + ".kt"
+                val kt = File(srcMain, relative)
+                if (kt.exists()) return kt.readText()
+            }
+            dir = dir.parentFile
+            safety++
+        }
+        return null
     }
 
     private class NonTextView : View(null as android.content.Context?)
