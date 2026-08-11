@@ -13,9 +13,9 @@
 | Check | Result | Evidence |
 |---|---|---|
 | Current branch | `devin/a14-architecture-c-r14.20.0` | `git branch --show-current` |
-| Local HEAD | `3c5cb8cca3cd08799097e534ffef2366a6504b59` | `git rev-parse HEAD` |
-| Remote HEAD | `3c5cb8cca3cd08799097e534ffef2366a6504b59` | `git rev-parse origin/devin/a14-architecture-c-r14.20.0` |
-| Merge-base against `3c5cb8cc...` | `3c5cb8cca3cd08799097e534ffef2366a6504b59` | `git merge-base HEAD origin/devin/a14-architecture-c-r14.20.0` |
+| Local HEAD | `4c27065a56b2939983a9377f065aa5b53e0b05c5` | `git rev-parse HEAD` |
+| Remote HEAD | `4c27065a56b2939983a9377f065aa5b53e0b05c5` | `git rev-parse origin/devin/a14-architecture-c-r14.20.0` |
+| Merge-base against `4c27065a...` | `4c27065a56b2939983a9377f065aa5b53e0b05c5` | `git merge-base HEAD origin/devin/a14-architecture-c-r14.20.0` |
 | Worktree | clean | `git status --short` empty |
 | C1/C2/C3/C4 production changed | `false` | no modifications in those phases |
 | C5 production started | `false` | no Resolver/ABI/Effect/Hook production files created |
@@ -415,25 +415,33 @@ data class VolumeDialogAutohideDelaySnapshot(
 - `system_volumedialogdelay_expanded`
 - `system_volumedialogdelay_collapsed`
 
-### 7.3 Frozen publication contract
+### 7.3 Frozen publication and construction contract
 
 | Attribute | Contract |
 |---|---|
-| Publication primitive | `AtomicReference<VolumeDialogAutohideDelaySnapshot?>` or `@Volatile` immutable reference. `AtomicReference` is preferred for CAS-based refresh and clear semantics. |
-| Initial construction | Lazy at first `currentOrBuildSnapshot()` call, or eagerly at hook install. A0 freezes lazy construction to avoid build-side effects at install. |
+| Publication primitive | `SNAPSHOT_PUBLICATION = AtomicReference<VolumeDialogAutohideDelaySnapshot?>` with initial value `null`. No `@Volatile` alternative is left open. |
+| Initial construction | At `VolumeDialogAutohideDelayRuntimeState` creation: register the process-scoped `PreferenceObserver`, then perform the initial refresh **outside** `computeTimeoutH`. `snapshotRef` starts as `null`; the first refresh sets it. The callback never triggers a lazy build. |
+| Snapshot construction | Build exactly one `VolumeDialogAutohideDelaySnapshot` from **one** `PrefMap` generation: `val source = MainModule.mPrefs.getAll()`; `val expanded = source[EXPANDED_KEY] as? Int ?: 0`; `val collapsed = source[COLLAPSED_KEY] as? Int ?: 0`. Two independent `MainModule.mPrefs.getInt` calls are forbidden because each typed getter reads the current `PrefMap` snapshot independently and may observe different generations. |
+| Refresh serialization | A single private `refreshLock` (e.g. `private val refreshLock = Any()`) is owned by `VolumeDialogAutohideDelayRuntimeState`. Both the initial refresh and `PreferenceObserver.onChange` synchronize on `refreshLock` while rebuilding and publishing. The `computeTimeoutH` callback never acquires `refreshLock`; it only calls `snapshotRef.get()`. |
+| Refresh function | `refreshSnapshot()`: `try { source = MainModule.mPrefs.getAll(); snapshot = build from source; snapshotRef.set(snapshot) } catch (t: Throwable) { snapshotRef.set(null); FatalErrors.rethrowIfFatal(t); XposedHelpers.log(t) }`. The existing snapshot is cleared **before** an ordinary failed refresh is allowed to return. |
 | Observer registration | Process-scoped `PreferenceObserver` registered through `ModuleHelper.observePreferenceChange(observer)` without a short-lived owner. |
 | Relevant-key filter | `observer.onChange(key)` returns early if `key != null && key !in relevantKeys`; `null` triggers a full rebuild. |
 | Key == null behavior | `null` key rebuilds the snapshot. |
-| Thread independence | `CALLBACK_THREAD = NOT_PROVEN`; publication must be safe regardless of observer or callback thread. `AtomicReference` satisfies this. |
-| Effect read | `val snapshot = snapshotProvider.get()`; the effect reads the snapshot once per callback and uses the two `Int`s. |
+| Thread independence | `CALLBACK_THREAD = NOT_PROVEN`; publication must be safe regardless of observer or callback thread. `AtomicReference.set`/`get` is safe. |
+| Effect read | `val snapshot = snapshotRef.get()` once per callback. If `null`, execute `COMPLETE_LEGACY` before any FAST field access. |
 
 ### 7.4 Evidence
 
 | Item | Evidence |
 |---|---|
-| `PrefMap.getInt` is non-throwing for type-mismatched values | `STRUCTURAL` (`PrefMap.kt:120-123`) — it uses `value as? Int ?: defaultValue`. |
+| `PrefMap.getAll` returns a single generation-consistent `Map` | `STRUCTURAL` (`PrefMap.kt:118-119`) — it reads `snapshot.get()` once and wraps it unmodifiable. |
+| `PrefMap` typed getters each independently read `snapshot.get()` | `STRUCTURAL` (`PrefMap.kt:27-31`, `120-123`) — `getValue` calls `currentSnapshot()` per typed getter. |
+| `PrefMap.getInt` returns `defaultValue` on type mismatch | `STRUCTURAL` (`PrefMap.kt:120-123`) — it uses `value as? Int ?: defaultValue`. This does **not** prove `getInt` can never throw for other failure modes. |
+| `MainModule.mPrefs` is a non-null `public static final PrefMap` | `STRUCTURAL` (`MainModule.java:47`). It is not a valid snapshot-build failure case. |
 | `PrefMap` snapshot publication is `AtomicReference` | `STRUCTURAL` (`PrefMap.kt:25-48`). |
 | `PreferenceObserverRegistry` is process-scoped and isolates observer failures | `STRUCTURAL` (`PreferenceObserverRegistry.kt:58-168`). |
+| `PreferenceBootstrap.onPreferenceChanged` catches `Throwable` and logs | `STRUCTURAL` (`PreferenceBootstrap.kt:265-291`). |
+| `PreferenceBootstrap` uses `ModuleHelper::handlePreferenceChanged` as `changeDispatcher` | `STRUCTURAL` (`PreferenceBootstrap.kt:33`, `79`, `287`). |
 | Real preference observer callback execution | `NOT_RUNTIME_TESTED_CALLBACK`. |
 
 ---
@@ -442,7 +450,7 @@ data class VolumeDialogAutohideDelaySnapshot(
 
 ### 8.1 Failure timing
 
-Moving `MainModule.mPrefs.getInt` from the callback to the observer changes the timing of a failure. If the snapshot builder throws while building, the failure must be handled without changing visible hook behavior.
+Moving preference reads from the callback to a background/observer-time refresh changes when a failure is observed. If `refreshSnapshot()` throws, the failure must not produce a synthetic timeout or a stale snapshot.
 
 ### 8.2 Frozen snapshot-availability contract
 
@@ -451,19 +459,39 @@ snapshot: VolumeDialogAutohideDelaySnapshot?
 
 successful build  -> snapshot = non-null
 ordinary failure  -> snapshot = null (unavailable)
-fatal failure     -> propagate
+fatal failure     -> clear snapshot, then propagate from C5 refresh boundary
 ```
+
+The `refreshSnapshot()` contract:
+
+```text
+try:
+    source = MainModule.mPrefs.getAll()
+    snapshot = build from source
+    snapshotRef.set(snapshot)
+catch (t: Throwable):
+    snapshotRef.set(null)
+    FatalErrors.rethrowIfFatal(t)
+    XposedHelpers.log(t)
+```
+
+The existing snapshot is cleared **before** the function returns on any `Throwable`, including a fatal. For an ordinary `Throwable`, the function returns after logging and setting `null`. For a fatal `Throwable`, `rethrowIfFatal` rethrows after `snapshotRef.set(null)`. The further propagation through `PreferenceObserverRegistry` and `PreferenceBootstrap` is documented in the nested boundary contract below.
 
 ### 8.3 Hot-path behavior
 
 ```text
+thisObject = param.getThisObject()
+
 if VolumeDialogAutohideDelayAbi == null:
     COMPLETE_LEGACY()
 
-if thisObject.javaClass !== resolutionRootClass:
+if thisObject == null:
     COMPLETE_LEGACY()
 
-val snapshot = snapshotProvider.get()
+if thisObject.javaClass !== abi.resolutionRootClass:
+    COMPLETE_LEGACY()
+
+val snapshot = snapshotRef.get()
 if snapshot == null:
     COMPLETE_LEGACY()
 
@@ -472,13 +500,41 @@ val mHovering = mHoveringField.getBoolean(thisObject)
 ...
 ```
 
-### 8.4 Rationale
+`COMPLETE_LEGACY()` runs the exact original callback oracle. No preference read is attempted on the FAST path; the snapshot is the only source of the two `Int`s.
 
-This preserves the legacy failure semantics:
+### 8.4 Nested fatal boundary contract
 
-- If a preference value is unreadable at callback time, the original `MainModule.mPrefs.getInt` would return its `defaultValue` (no throw). The snapshot builder uses the same `getInt` calls and can never produce a synthetic timeout.
-- If the snapshot builder fails for any other reason (e.g., `MainModule.mPrefs` is null), the original callback would throw and `MethodHook.beforeHook` would log and allow the original method to proceed. By publishing `null` and falling back to complete legacy, the same behavior is achieved.
-- A stale snapshot must not be retained after a failed refresh. The `AtomicReference` is `set(null)` on ordinary build failure, and the next callback sees `null` and uses legacy.
+The call chain from a remote preference change to the C5 observer is:
+
+```text
+PreferenceBootstrap.onPreferenceChanged
+    → changeDispatcher(canonicalKey)
+    → ModuleHelper.handlePreferenceChanged
+    → PreferenceObserverRegistry.handlePreferenceChanged
+        → try: C5 PreferenceObserver.onChange
+            → synchronized(refreshLock): refreshSnapshot()
+        catch: rethrow OOM / ThreadDeath / VirtualMachineError / LinkageError
+               log ordinary Throwable
+        catch: OutOfMemoryError (registry top-level)
+        catch: Throwable → rethrowFatalObserverError(t); XposedHelpers.log(t)
+    catch: Throwable → XposedHelpers.log(t) (PreferenceBootstrap outer catch)
+```
+
+Frozen boundary statements:
+
+| Boundary | Statement |
+|---|---|
+| `C5_REFRESH_FATAL` | The C5 `refreshSnapshot()` function clears `snapshotRef` and then rethrows `OutOfMemoryError`, `ThreadDeath`, or `VirtualMachineError` via `FatalErrors.rethrowIfFatal(t)`. This is the C5 refresh boundary. |
+| `REGISTRY_FATAL` | `PreferenceObserverRegistry.rethrowFatalObserverError` rethrows `OutOfMemoryError`, `ThreadDeath`, `VirtualMachineError`, and `LinkageError`. (`PreferenceObserverRegistry.kt:113-128`) |
+| `REMOTE_LISTENER_OUTER_BOUNDARY` | `PreferenceBootstrap.onPreferenceChanged` currently wraps its body, including `changeDispatcher(...)`, in `catch (t: Throwable) { XposedHelpers.log(t) }`. (`PreferenceBootstrap.kt:289-291`) |
+| `REAL_END_TO_END_FATAL_ESCAPE` | `NOT_PROVEN`. The A0 document does not claim that a C5 refresh fatal necessarily escapes the entire remote preference listener stack, because `PreferenceBootstrap` may log it. |
+
+### 8.5 Rationale
+
+- `MainModule.mPrefs` is a `public static final PrefMap` (`MainModule.java:47`); it is not a valid ordinary failure case.
+- `PrefMap.getInt` returns `defaultValue` on type mismatch (`PrefMap.kt:120-123`), but `refreshSnapshot()` still needs a general `Throwable` boundary because other runtime failures are possible.
+- By clearing the snapshot before returning on an ordinary failure, a failed refresh cannot leave a stale non-null snapshot behind. The next callback sees `null` and runs the complete legacy oracle, which is behavior-compatible because the legacy oracle would have thrown and been swallowed if the preference read had failed at callback time.
+- A callback racing with initial refresh may observe `snapshot == null` and run complete legacy. This is safe and does not require blocking `computeTimeoutH` waiting for initialization.
 
 ---
 
@@ -512,7 +568,11 @@ The observer is owned by the `VolumeDialogAutohideDelayRuntimeState` (a process-
 |---|---|
 | `PreferenceObserver` interface and registry | `STRUCTURAL` |
 | `canonicalPreferenceKey` removes `pref_key_` prefix | `STRUCTURAL` (`PreferenceKeys.kt:14-18`) |
-| Real observer callback timing or thread | `NOT_RUNTIME_TESTED_CALLBACK` |
+| `PreferenceObserverRegistry` rethrows OOM / ThreadDeath / VME / LinkageError | `STRUCTURAL` (`PreferenceObserverRegistry.kt:143-148`, `113-128`) |
+| `PreferenceObserverRegistry` logs ordinary observer failures | `STRUCTURAL` (`PreferenceObserverRegistry.kt:145-148`, `162-165`) |
+| `PreferenceBootstrap.onPreferenceChanged` wraps `changeDispatcher` in `catch (Throwable)` and logs | `STRUCTURAL` (`PreferenceBootstrap.kt:265-291`) |
+| `PreferenceBootstrap` uses `ModuleHelper::handlePreferenceChanged` as the dispatcher | `STRUCTURAL` (`PreferenceBootstrap.kt:79`, `287`) |
+| Real observer callback execution | `NOT_RUNTIME_TESTED_CALLBACK` |
 
 ---
 
@@ -526,11 +586,13 @@ Cold Resolve
 Typed Config
     → VolumeDialogAutohideDelayRuntimeState
         → VolumeDialogAutohideDelaySnapshot?
-        → AtomicReference<VolumeDialogAutohideDelaySnapshot?>
+        → AtomicReference<VolumeDialogAutohideDelaySnapshot?> (initial null)
+        → private val refreshLock = Any()
         → PreferenceObserver
+        → initial refresh outside computeTimeoutH
 
 Immutable Effect
-    → VolumeDialogAutohideDelayEffect(abi, snapshotSupplier)
+    → VolumeDialogAutohideDelayEffect(abi, snapshotRef)
         hook-local val
 
 Thin Hook
@@ -543,19 +605,21 @@ Thin Hook
            )
 
 Mode Select (before any FAST field access)
+    → abi != null
     → thisObject != null
     → thisObject.javaClass === abi.resolutionRootClass
-    → snapshot != null
+    → snapshotRef.get() != null
 
 Hot Execute
     → mHovering = mHoveringField.getBoolean(thisObject)
     → if mHovering: returnAndSkip(16000)
     → mSafetyWarning = LEGACY_SAFETY_ALIAS_READ(thisObject)
         (Strategy A: exact existing XposedHelpers try/catch block)
-    → if mSafetyWarning: returnAndSkip(opt > 0 ? opt : 5000)
+    → if mSafetyWarning:
+        opt = snapshot.expanded
+        returnAndSkip(opt > 0 ? opt : 5000)
     → mExpanded = mExpandedField.getBoolean(thisObject)
-    → key = mExpanded ? snapshot.expanded : snapshot.collapsed
-    → opt = mExpanded ? snapshot.expanded : snapshot.collapsed
+    → opt = if (mExpanded) snapshot.expanded else snapshot.collapsed
     → if opt > 0: returnAndSkip(opt)
     → otherwise fall through
 
@@ -573,11 +637,11 @@ No managers, coroutine scopes, `Flow`, per-view caches, runtime ABI maps, genera
 |---|---|---|
 | `VolumeDialogAutohideDelayAbi` | Install-time immutable. | `resolutionRootClass: Class<*>`; `mHovering: Field`; `mExpanded: Field`; all set `accessible`. |
 | `VolumeDialogAutohideDelaySnapshot` | Immutable published value. | `expanded: Int`; `collapsed: Int`. |
-| `VolumeDialogAutohideDelayRuntimeState` | Process-scoped singleton. | `AtomicReference<VolumeDialogAutohideDelaySnapshot?>`; `PreferenceObserver`. No `View`/`Context`/`Activity`/`MiuiVolumeDialogImpl`. |
-| `VolumeDialogAutohideDelayEffect` | Hook-local `val` captured by the installed `MethodHook`. | Holds `abi` and a snapshot supplier. No per-instance mutable state. |
+| `VolumeDialogAutohideDelayRuntimeState` | Process-scoped singleton. | `AtomicReference<VolumeDialogAutohideDelaySnapshot?>`; `private val refreshLock = Any()`; `PreferenceObserver`. No `View`/`Context`/`Activity`/`MiuiVolumeDialogImpl`. |
+| `VolumeDialogAutohideDelayEffect` | Hook-local `val` captured by the installed `MethodHook`. | Holds `abi` and the `AtomicReference<VolumeDialogAutohideDelaySnapshot?>`. No per-instance mutable state. |
 | `MiuiVolumeDialogImpl` instance | Callback-local only. | Never retained by `Effect`, `RuntimeState`, or `Abi`. |
 
-No per-instance runtime cache is required. The `Effect` may be a single instance installed as the hook callback; it captures `abi` and `snapshotSupplier`.
+No per-instance runtime cache is required. The `Effect` may be a single instance installed as the hook callback; it captures `abi` and the snapshot reference.
 
 ---
 
@@ -641,12 +705,13 @@ Tests are specified, not implemented, in A0.
 
 ### 13.3 Snapshot
 
-- expanded/collapsed mapping.
+- **MULTI_KEY_SOURCE_CONSISTENCY**: build one C5 snapshot from one `PrefMap.getAll()` source; prove `expanded` and `collapsed` belong to the same captured map; do not use two independent `getInt` calls.
 - relevant key refresh.
 - irrelevant key ignored.
 - null-key full rebuild.
-- ordinary refresh failure publishes `null`.
-- fatal refresh failure propagates.
+- **INITIALIZATION**: initial state `null`; a callback while `null` selects complete legacy; successful initial refresh publishes a non-null snapshot; no callback-time lazy build.
+- **REFRESH SERIALIZATION**: initial refresh and observer refresh cannot stale-overwrite each other because both synchronize on the same `refreshLock`; the callback never acquires `refreshLock`.
+- **REFRESH FAILURE**: ordinary refresh failure clears the previous snapshot (no stale snapshot retained); C5 fatal boundary clears the snapshot and then rethrows; `PreferenceObserverRegistry` and `PreferenceBootstrap` boundaries are tested only to the extent documented.
 - immutable publication (`AtomicReference`).
 
 ### 13.4 Effect / oracle
@@ -668,6 +733,13 @@ Tests are specified, not implemented, in A0.
 - no illegal retry after `mHovering` FAST begins.
 - `IllegalAccessException` maps to `IllegalAccessError`.
 
+### 13.6 Observer
+
+- irrelevant non-null key does not rebuild.
+- relevant key rebuilds.
+- null key rebuilds.
+- C5 `PreferenceObserver.onChange` runs under `ModuleHelper.guarded`.
+
 ---
 
 ## 14. EVIDENCE / NOT PROVEN MATRIX
@@ -683,9 +755,14 @@ Tests are specified, not implemented, in A0.
 | `XposedHelpers.getBooleanField` primitive semantics | `STRUCTURAL` (`XposedHelpers.java:1385-1395`) |
 | `XposedHelpers.getObjectField` object semantics | `STRUCTURAL` (`XposedHelpers.java:1362-1372`) |
 | `XposedHelpers.findField` runtime-class-first lookup | `STRUCTURAL` (`XposedHelpers.java:556-572`) |
-| `PrefMap.getInt` non-throwing cast | `STRUCTURAL` (`PrefMap.kt:120-123`) |
+| `PrefMap.getAll` returns a single generation-consistent `Map` | `STRUCTURAL` (`PrefMap.kt:118-119`) |
+| `PrefMap` typed getters may observe different snapshots | `STRUCTURAL` (`PrefMap.kt:27-31`, `120-123`) |
+| `PrefMap.getInt` returns `defaultValue` on type mismatch | `STRUCTURAL` (`PrefMap.kt:120-123`) |
 | `PrefMap` `AtomicReference` publication | `STRUCTURAL` (`PrefMap.kt:25-48`) |
+| `MainModule.mPrefs` is a non-null `public static final PrefMap` | `STRUCTURAL` (`MainModule.java:47`) |
 | `PreferenceObserverRegistry` fan-out and failure isolation | `STRUCTURAL` (`PreferenceObserverRegistry.kt:58-168`) |
+| `PreferenceObserverRegistry` rethrows OOM / ThreadDeath / VME / LinkageError | `STRUCTURAL` (`PreferenceObserverRegistry.kt:143-148`, `113-128`) |
+| `PreferenceBootstrap.onPreferenceChanged` catches `Throwable` and logs | `STRUCTURAL` (`PreferenceBootstrap.kt:265-291`) |
 | `REAL_COMPUTE_TIMEOUT_H_RETURN_TYPE` | `NOT_PROVEN` |
 | `REAL_COMPUTE_TIMEOUT_H_OVERLOAD_SET` | `NOT_PROVEN` |
 | `REAL_HYPEROS_FIELD_TYPE_FOR_MHOVERING` | `NOT_PROVEN` — resolver enforces `Boolean.TYPE`; any other type is a miss. |
@@ -731,8 +808,12 @@ The preflight contract can be frozen as follows:
 - The `mHovering` and `mExpanded` FAST field contract is frozen as primitive `boolean` only, with exact-root eligibility and no fallback after FAST begins.
 - The safety alias is the primary A0 blocker. **Strategy A (keep safety alias legacy)** is selected because it preserves the exact failure/fatal contract and avoids a fragile failure-emulation layer.
 - Complete legacy fallback boundary is defined: fallback allowed only before any FAST field operation; exact-root check must precede FAST.
-- Snapshot/config publication is frozen as an immutable `VolumeDialogAutohideDelaySnapshot` published through `AtomicReference<VolumeDialogAutohideDelaySnapshot?>`, with `null` meaning unavailable and forcing complete legacy.
-- Snapshot failure semantics are frozen: ordinary build failure publishes `null`; fatal propagates; no stale snapshot retained.
+- Snapshot/config publication is frozen as `SNAPSHOT_PUBLICATION = AtomicReference<VolumeDialogAutohideDelaySnapshot?>` with initial value `null`. `null` means unavailable and forces `COMPLETE_LEGACY` before any FAST field access. No `@Volatile` alternative is left open.
+- Snapshot construction is frozen to build from a single `PrefMap.getAll()` source; two independent `MainModule.mPrefs.getInt` calls are forbidden.
+- Snapshot refresh is frozen to a single `refreshSnapshot()` function that clears `snapshotRef` before returning on any `Throwable`, with fatal rethrow after the clear.
+- Refresh serialization is frozen to a private `refreshLock` owned by `VolumeDialogAutohideDelayRuntimeState`; the `computeTimeoutH` callback never acquires this lock.
+- Initial construction is frozen to runtime-state creation: register observer, then perform initial refresh outside `computeTimeoutH`; the callback never triggers lazy snapshot construction.
+- Snapshot failure boundaries are frozen: `C5_REFRESH_FATAL` (C5 `refreshSnapshot` clears and rethrows), `REGISTRY_FATAL` (`PreferenceObserverRegistry` rethrows OOM/ThreadDeath/VME/LinkageError), `REMOTE_LISTENER_OUTER_BOUNDARY` (`PreferenceBootstrap.onPreferenceChanged` catches `Throwable` and logs), and `REAL_END_TO_END_FATAL_ESCAPE` is `NOT_PROVEN`.
 - Preference observer ownership is process-lifetime only, with no `View`/`Context`/`Activity`/`MiuiVolumeDialogImpl` retention.
 - The future Architecture C chain is proposed without introducing extra abstraction layers.
 - Hot-path cost is stated conditionally and honestly: `mHovering`/`mExpanded` move to FAST, preference reads move to a snapshot, and the safety alias remains legacy.
@@ -757,7 +838,7 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 
 | Field | Value |
 |---|---|
-| Base SHA | `3c5cb8cca3cd08799097e534ffef2366a6504b59` |
+| Base SHA | `4c27065a56b2939983a9377f065aa5b53e0b05c5` |
 | Final SHA | *(to be recorded after commit and push)* |
 | Branch | `devin/a14-architecture-c-r14.20.0` |
 | Changed files | `docs/architecture-c/C5_VOLUME_DIALOG_AUTOHIDE_A0_PREFLIGHT.md` |
