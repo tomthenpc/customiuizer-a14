@@ -1,5 +1,6 @@
 package tv.withaibuild.customiuizer.mods.statusbariconvisibility
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -21,38 +22,43 @@ class C4HideIconsSignalB2StructuralTest {
     // -------------------------------------------------------------------------
     @Test
     fun hideIconsSignalHook_wiringSourceInvariants() {
-        val source = readMainSource("SystemUIStatusBarHooks.kt")
+        val body = extractHideIconsSignalHookBody(readMainSource("SystemUIStatusBarHooks.kt"))
 
-        // Resolver called once with the install classloader.
-        assertTrue(
-            "HideIconsSignalHook must resolve ABI once at install",
-            source.contains("val abi = StatusBarIconVisibilityResolver.resolve(lpparam.classLoader)"),
-        )
-
-        // Effect created as a local, immutable val and captured by the hook.
-        assertTrue(
-            "HideIconsSignalHook must create the Effect as a local val",
-            source.contains("val effect = StatusBarIconVisibilityEffect(abi) { currentOrBuildStatusBarIconVisibilitySnapshot() }"),
+        // Resolver called exactly once with the install classloader inside this hook.
+        assertEquals(
+            "HideIconsSignalHook must resolve ABI exactly once",
+            1,
+            body.occurrenceCount("val abi = StatusBarIconVisibilityResolver.resolve(lpparam.classLoader)"),
         )
 
-        // Callback delegates to the captured Effect.
-        assertTrue(
-            "MethodHook.before must delegate to effect.before(param)",
-            source.contains("effect.before(param)"),
+        // Effect created exactly once as a local, immutable val and captured by the hook.
+        assertEquals(
+            "HideIconsSignalHook must create the Effect as a local val exactly once",
+            1,
+            body.occurrenceCount("val effect = StatusBarIconVisibilityEffect(abi) { currentOrBuildStatusBarIconVisibilitySnapshot() }"),
         )
 
-        // Both methods are still installed via hookAllMethods.
-        assertTrue(
-            "applyMobileState must be installed with hookAllMethods",
-            source.contains("\"applyMobileState\""),
+        // Callback in this hook delegates to the captured Effect.
+        assertEquals(
+            "MethodHook.before in HideIconsSignalHook must delegate to effect.before(param)",
+            1,
+            body.occurrenceCount("effect.before(param)"),
         )
-        assertTrue(
-            "updateState must be installed with hookAllMethods",
-            source.contains("\"updateState\""),
+
+        // Both methods are installed via hookAllMethods on the StatusBarMobileView hook surface.
+        assertEquals(
+            "applyMobileState must be installed exactly once in this hook",
+            1,
+            body.occurrenceCount(
+                "ModuleHelper.hookAllMethods(\"com.android.systemui.statusbar.StatusBarMobileView\", lpparam.classLoader, \"applyMobileState\", stateHook)",
+            ),
         )
-        assertTrue(
-            "hookAllMethods must be called on com.android.systemui.statusbar.StatusBarMobileView",
-            source.contains("\"com.android.systemui.statusbar.StatusBarMobileView\""),
+        assertEquals(
+            "updateState must be installed exactly once in this hook",
+            1,
+            body.occurrenceCount(
+                "ModuleHelper.hookAllMethods(\"com.android.systemui.statusbar.StatusBarMobileView\", lpparam.classLoader, \"updateState\", stateHook)",
+            ),
         )
     }
 
@@ -114,5 +120,29 @@ class C4HideIconsSignalB2StructuralTest {
         val altPath = File("src/main/java/tv/withaibuild/customiuizer/mods/$fileName")
         val file = if (path.exists()) path else altPath
         return file.readText(Charsets.UTF_8)
+    }
+
+    private fun extractHideIconsSignalHookBody(source: String): String {
+        val startMarker = "fun HideIconsSignalHook"
+        val start = source.indexOf(startMarker)
+        assertTrue("HideIconsSignalHook must exist in source", start >= 0)
+
+        // The enclosing object is indented with 4 spaces; the next top-level function
+        // inside that object starts with 4 spaces + "fun ". Nested functions such as
+        // `override fun before` are indented further, so they do not end the extraction.
+        val nextTopLevel = source.indexOf("\n    fun ", start + startMarker.length)
+        assertTrue("HideIconsSignalHook body must end before next top-level function", nextTopLevel >= 0)
+        return source.substring(start, nextTopLevel)
+    }
+
+    private fun String.occurrenceCount(target: String): Int {
+        var count = 0
+        var from = 0
+        while (true) {
+            val idx = indexOf(target, from)
+            if (idx < 0) return count
+            count++
+            from = idx + target.length
+        }
     }
 }

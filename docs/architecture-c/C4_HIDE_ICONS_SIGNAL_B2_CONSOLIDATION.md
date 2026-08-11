@@ -1,10 +1,17 @@
 # C4-B2 — HideIconsSignal Architecture C Consolidation / Final Code Gate
 
-**Repository:** `tomthenpc/customiuizer-a14`  
-**Branch:** `devin/a14-architecture-c-r14.20.0`  
-**C4 A0 freeze:** `2dd28afe7bb73a7b9cb6046239a55530a15d1776`  
-**C4 B1 production/final freeze:** `a9fa99557b93dceccd79a6c58b9fe8d048a7f371`  
-**B2 start gate:** `a9fa99557b93dceccd79a6c58b9fe8d048a7f371`  
+**Repository:** `tomthenpc/customiuizer-a14`
+
+**Branch:** `devin/a14-architecture-c-r14.20.0`
+
+**C4 target-selection freeze:** `e559df4d3381a8627641072eeed8f4dec1036aee`
+
+**C4 A0 preflight freeze:** `2dd28afe7bb73a7b9cb6046239a55530a15d1776`
+
+**C4 B1 production/final freeze:** `a9fa99557b93dceccd79a6c58b9fe8d048a7f371`
+
+**B2 start gate:** `a9fa99557b93dceccd79a6c58b9fe8d048a7f371`
+
 **Evidence classification:** `LOCAL_EXECUTION_EVIDENCE_ONLY`
 
 ---
@@ -13,9 +20,9 @@
 
 | Input | SHA | Scope |
 |---|---|---|
-| C4 target selection | `2dd28afe7bb73a7b9cb6046239a55530a15d1776` | `SystemUIStatusBarHooks.HideIconsSignalHook`, `StatusBarMobileView.applyMobileState`, `StatusBarMobileView.updateState` |
-| C4 A0 freeze | `2dd28afe7bb73a7b9cb6046239a55530a15d1776` | contract text only: resolution roots, primitive `wifiAvailable`, exact-root FAST, no-fallback-after-fast, etc. |
-| C4 B1 production/final freeze | `a9fa99557b93dceccd79a6c58b9fe8d048a7f371` | `StatusBarIconVisibilityResolver`, `StatusBarIconVisibilityAbi`, `StatusBarIconVisibilityEffect`, `SystemUIStatusBarHooks.HideIconsSignalHook` wiring |
+| C4 target selection | `e559df4d3381a8627641072eeed8f4dec1036aee` | `SystemUIStatusBarHooks.HideIconsSignalHook`, `StatusBarMobileView.applyMobileState`, `StatusBarMobileView.updateState` |
+| C4 A0 preflight | `2dd28afe7bb73a7b9cb6046239a55530a15d1776` | contract text: resolution roots, primitive `wifiAvailable`, exact-root FAST, no-fallback-after-fast, etc. |
+| C4 B1 production/final | `a9fa99557b93dceccd79a6c58b9fe8d048a7f371` | `StatusBarIconVisibilityResolver`, `StatusBarIconVisibilityAbi`, `StatusBarIconVisibilityEffect`, `SystemUIStatusBarHooks.HideIconsSignalHook` wiring |
 | Current branch | `devin/a14-architecture-c-r14.20.0` | consistent local/remote/merge-base at `a9fa995...` |
 
 ---
@@ -33,28 +40,39 @@ HideIconsSignalHook(lpparam)
   └─ ModuleHelper.hookAllMethods(StatusBarMobileView, "updateState", stateHook)
 
 MethodHook.before(param)
-  ├─ Effect.before
-  │   ├─ getArg(0)
-  │   ├─ member.name
-  │   ├─ getThisObject
-  │   └─ process(thisObject, mobileIconState, methodName)
-  │       ├─ FAST eligibility check
-  │       │   ├─ thisObject.javaClass === abi.statusBarMobileViewResolutionRootClass
-  │       │   └─ mobileIconState.javaClass === abi.mobileIconStateResolutionRootClass
-  │       ├─ if !shouldUpdate: read mState
-  │       ├─ early return if ineligible / mState != null
-  │       ├─ snapshot = currentOrBuildStatusBarIconVisibilitySnapshot()
-  │       ├─ wifiAvailable
-  │       ├─ subId
-  │       ├─ SubscriptionManager.getActiveDataSubscriptionId()
-  │       ├─ SubscriptionManager.getSlotIndex(subId)
-  │       ├─ computeSignalIconHiding(...)
-  │       ├─ visible write + early return
-  │       ├─ roaming
-  │       ├─ volte
-  │       └─ speechHd
-  └─ original method proceeds after before callback
+  └─ Effect.before(param)
+      ├─ getArg(0)              -> mobileIconState
+      ├─ getMember().name       -> methodName
+      ├─ getThisObject()        -> thisObject  (mode eligibility, not a field access)
+      └─ process(thisObject, mobileIconState, methodName)
+          ├─ isFastEligible(thisObject, mobileIconState)
+          │   ├─ abi != null
+          │   ├─ thisObject != null
+          │   ├─ mobileIconState != null
+          │   ├─ thisObject.javaClass === abi.statusBarMobileViewResolutionRootClass
+          │   └─ mobileIconState.javaClass === abi.mobileIconStateResolutionRootClass
+          │
+          ├─ if useFast:  processFast(thisObject, mobileIconState, methodName)
+          │   └─ oracle may early return (mState != null, visible == false, ...)
+          └─ else:        processLegacy(thisObject, mobileIconState, methodName)
+              └─ oracle may early return (mState != null, visible == false, ...)
+
+processFast / processLegacy oracle
+  ├─ if !updateState: read mState
+  ├─ if mState != null (non-updateState only): early return
+  ├─ snapshot = currentOrBuildStatusBarIconVisibilitySnapshot()
+  ├─ wifiAvailable
+  ├─ subId
+  ├─ SubscriptionManager.getActiveDataSubscriptionId()
+  ├─ SubscriptionManager.getSlotIndex(subId)
+  ├─ computeSignalIconHiding(...)
+  ├─ visible write; if visible == false: early return
+  ├─ roaming write
+  ├─ volte write
+  └─ speechHd write
 ```
+
+`isFastEligible` returning `false` **never** causes an early callback return. It only selects `processLegacy`. Early returns happen only inside the selected path for normal callback-oracle reasons (`mState != null`, `visible == false`).
 
 Source files:
 
@@ -68,9 +86,9 @@ Source files:
 ## C. Hook-surface audit
 
 - `ModuleHelper.hookAllMethods` is preserved for **both** method names.
-- It installs on all declared methods named `applyMobileState` and `updateState` in the named class.
-- No overload is filtered, reduced, or selected by the hook installer.
-- The callback receives `BeforeHookCallback` and does not assume parameter count or signature.
+- `hookAllMethods` installs on all declared methods named `applyMobileState` and `updateState` in the named class; it does not filter overloads by signature.
+- The callback receives `BeforeHookCallback` and immediately calls `getArg(0)`, treating the argument at index 0 as the `MobileIconState` instance.
+- The callback therefore assumes `arg(0)` exists and is the intended state object; it does not branch on overload signature, but it does depend on `getArg(0)` behavior.
 
 Declared facts:
 
@@ -80,6 +98,8 @@ Declared facts:
 | `updateState` is hooked by `hookAllMethods` | STRUCTURAL (source) |
 | `REAL_METHOD_OVERLOAD_SET = NOT_PROVEN` | NOT_PROVEN |
 | `ZERO_ARG_OVERLOAD_GETARG0_BEHAVIOR = NOT_PROVEN` | NOT_PROVEN |
+
+No real HyperOS method signatures are inferred.
 
 ---
 
@@ -91,20 +111,33 @@ Frozen accessor/execution order in `StatusBarIconVisibilityEffect.before`:
 2. `param.getMember().name` — `methodName`
 3. `param.getThisObject()` — `thisObject` (mode eligibility only, not a field access)
 4. `process(thisObject, mobileIconState, methodName)`
-5. If `methodName != "updateState"`: read `mState`
-6. If `mState != null` and not `updateState`: early return
-7. Build or use snapshot
-8. Read `wifiAvailable`
-9. Read `subId`
-10. `SubscriptionManager.getActiveDataSubscriptionId()`
-11. `SubscriptionManager.getSlotIndex(subId)`
-12. `computeSignalIconHiding(...)`
-13. Write `visible`; if `visible == false`: early return
-14. Write `roaming`
-15. Write `volte`
-16. Write `speechHd`
+5. `isFastEligible(thisObject, mobileIconState)`
+6. If eligible: `processFast(...)`; otherwise: `processLegacy(...)`
+7. Inside the selected path, if `methodName != "updateState"`: read `mState`
+8. If `mState != null` and not `updateState`: early return
+9. Build or use snapshot
+10. Read `wifiAvailable`
+11. Read `subId`
+12. `SubscriptionManager.getActiveDataSubscriptionId()`
+13. `SubscriptionManager.getSlotIndex(subId)`
+14. `computeSignalIconHiding(...)`
+15. Write `visible`; if `visible == false`: early return
+16. Write `roaming`
+17. Write `volte`
+18. Write `speechHd`
 
 The `getThisObject()` call is in addition to the original semantic oracle: it is needed for the exact-root FAST eligibility check and does not replace or precede `getArg(0)`. `getThisObject` returns the existing receiver reference; it is not a field access.
+
+`isFastEligible` short-circuits on `&&`, so the number of identity comparisons evaluated depends on runtime values:
+
+| Condition | Equality comparisons evaluated |
+|---|---|
+| `abi == null` | 0 |
+| `thisObject == null` | 0 |
+| `thisObject != null && mobileIconState == null` | 0 |
+| Both non-null, `thisObject.javaClass !== root` | 1 |
+| Both non-null, `thisObject` exact, `mobileIconState` mismatch | 2 |
+| Both non-null, both exact | 2 → FAST |
 
 ---
 
@@ -256,38 +289,54 @@ No second publication mechanism was introduced.
 
 ## M. Hot-path audit
 
-### Removed in exact-root FAST
+### Steady-state models
 
-Before (legacy):
-
-```text
-XposedHelpers runtime class-first name lookup
-  -> field cache / reflection
-  -> Field access
-```
-
-After (exact-root FAST):
+**LEGACY steady-state field access:**
 
 ```text
-Two javaClass identity checks
-  -> direct frozen Field.get / getBoolean / set
+runtime receiver Class
+  -> XposedHelpers fieldCache lookup for that Class
+  -> field-name lookup
+  -> cached Field
+  -> Field.get / getBoolean / set
 ```
 
-What was removed from the hot path:
+On a **cache MISS only**:
 
-- `XposedHelpers` runtime class-name lookup.
-- Per-call reflection resolution (`findFieldIfExists`).
-- `Class.getDeclaredField` recursion on every callback.
+```text
+findFieldRecursiveImpl
+  -> getDeclaredField
+  -> superclass traversal
+  -> setAccessible
+  -> cache Field
+```
 
-What remains:
+**FAST exact-root steady-state:**
+
+```text
+exact runtime-class eligibility (short-circuit &&, 0–2 identity comparisons)
+  -> already frozen Field
+  -> Field.get / getBoolean / set
+```
+
+### What the migration removes on FAST-eligible callbacks
+
+The recurring `XposedHelpers` helper + runtime-class/name field-cache lookup is removed for FAST-eligible callbacks. `Field` access itself remains.
+
+### What remains
 
 - `Field.get` / `getBoolean` / `get` / `set` (still reflection, but on frozen fields).
+- `XposedHelpers` runtime-class-first lookup for all LEGACY-eligible callbacks.
 - `SubscriptionManager.getActiveDataSubscriptionId()` and `getSlotIndex(subId)` (unchanged, out of scope).
+
+### No over-claim
 
 No claim is made that:
 
 - field access was eliminated,
 - reflection was eliminated entirely,
+- recursive `getDeclaredField` existed on every callback,
+- `findFieldIfExists` ran per callback,
 - allocation was eliminated,
 - `SubscriptionManager` cost improved,
 - callback frequency is known,
@@ -297,14 +346,16 @@ No claim is made that:
 
 ## N. Hot-path operation table
 
+Class equality checks are `0–2` because `isFastEligible` uses short-circuit `&&`. The count is exactly `2` only when both `thisObject` and `mobileIconState` are non-null and both reach the runtime-class identity comparisons. It is `0` when `abi` is null, `thisObject` is null, or `mobileIconState` is null. It is `1` when `thisObject` is non-null and fails the first identity check (the second is not evaluated).
+
 ### 1. `applyMobileState`, `mState != null`
 
 | Step | Operation |
 |---|---|
-| class checks | `thisObject?.javaClass === root`, `mobileIconState?.javaClass === root` |
+| class checks | 0–2 identity checks (short-circuit) |
 | mode | FAST or LEGACY |
 | `mState` read | `Field.get` or `XposedHelpers.getObjectField` |
-| `mState != null` | early return |
+| `mState != null` | early return inside selected path |
 | `SubscriptionManager` | not called |
 | writes | none |
 
@@ -312,7 +363,7 @@ No claim is made that:
 
 | Step | Operation |
 |---|---|
-| class checks | 2 identity checks |
+| class checks | 0–2 identity checks (2 for exact-root FAST) |
 | `mState` | `Field.get` / `XposedHelpers.getObjectField`; null |
 | snapshot | `currentOrBuildStatusBarIconVisibilitySnapshot()` |
 | `wifiAvailable` | `Field.getBoolean` / `XposedHelpers.getBooleanField` |
@@ -337,7 +388,7 @@ Same as (2), plus:
 
 | Step | Operation |
 |---|---|
-| class checks | 2 identity checks |
+| class checks | 0–2 identity checks (2 for exact-root FAST) |
 | `mState` | skipped |
 | snapshot / `wifiAvailable` / `subId` / `SubscriptionManager` / compute | as above |
 | `visible=false` | write + early return |
@@ -346,7 +397,7 @@ Same as (2), plus:
 
 | Step | Operation |
 |---|---|
-| class checks | 2 identity checks |
+| class checks | 0–2 identity checks (2 for exact-root FAST) |
 | `mState` | skipped |
 | snapshot / reads / `SubscriptionManager` / compute | as above |
 | `roaming` / `volte` / `speechHd` | written in order |
@@ -355,10 +406,10 @@ Same as (2), plus:
 
 | Step | Operation |
 |---|---|
-| class checks | 2 identity checks (one or both fail) |
+| class checks | 0–2 identity checks (short-circuit; 1 if `thisObject` fails first comparison, 0 if null/abi null) |
 | all subsequent work | complete `XposedHelpers` legacy path from the runtime classes |
 
-Short-circuit: the mode decision happens before any `Field.get` or `XposedHelpers` field access.
+Short-circuit: the mode decision happens before any `Field.get` or `XposedHelpers` field access. `isFastEligible == false` selects `processLegacy`; it does **not** return early.
 
 ---
 
@@ -368,13 +419,15 @@ The following remain unchanged from the B1 production freeze:
 
 - `applyMobileState` `mState` gating (non-`updateState` reads `mState` first).
 - `updateState` skips the `mState` field read.
-- Snapshot is obtained after FAST/LEGACY mode is decided and after `mState` eligibility.
+- Mode (FAST/LEGACY) is decided before the snapshot or any field access.
+- Snapshot is read after mode selection and after the `mState` non-null short-circuit (for non-`updateState`).
 - `visible=false` early return after the first write.
 - `roaming` is written before `volte`.
 - `speechHd` is written only inside the `volte` branch.
 - The `mobileIconState` object itself is not replaced; only its fields are mutated.
 - The original method proceeds after the `before` callback.
 - Partial mutation semantics are preserved (earlier writes survive a later fast failure).
+- `isFastEligible == false` falls back to the complete LEGACY path; it does not return early.
 
 ---
 
@@ -446,7 +499,13 @@ B2 adds only:
 
 `C4HideIconsSignalB2StructuralTest` covers:
 
-1. `hideIconsSignalHook_wiringSourceInvariants` — source contains `resolve` once, `StatusBarIconVisibilityEffect` local, `effect.before(param)`, and `hookAllMethods` for both `applyMobileState` and `updateState`.
+1. `hideIconsSignalHook_wiringSourceInvariants`
+   - Extracts the `HideIconsSignalHook` function body from `SystemUIStatusBarHooks.kt`.
+   - Asserts the resolver is called exactly once with `lpparam.classLoader`.
+   - Asserts the Effect is constructed exactly once as a local val.
+   - Asserts `effect.before(param)` is present once inside this hook body.
+   - Asserts `hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "applyMobileState", stateHook)` is present exactly once.
+   - Asserts the matching `updateState` `hookAllMethods` call is present exactly once.
 2. `processFast_containsNoXposedHelpersFieldAccess` — extracts the `processFast` body and asserts it does not contain `XposedHelpers.getObjectField`, `getBooleanField`, `setObjectField`, `findField(`, or `findFieldIfExists`.
 3. `noMutableProcessGlobalEffectField` — reflects over `SystemUIStatusBarHooks` and asserts it has no `StatusBarIconVisibilityEffect` field.
 
@@ -458,4 +517,4 @@ All structural invariants pass with `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 
 C4-B2 is a consolidation / final code gate. No C4-B1 production re-design, no C5 target selection, and no C1/C2/C3 changes are performed.
 
-C4_B2_HIDE_ICONS_SIGNAL_CONSOLIDATION_READY_FOR_INDEPENDENT_AUDIT
+C4_B2_FACTUAL_CORRECTIVE_READY_FOR_INDEPENDENT_AUDIT
