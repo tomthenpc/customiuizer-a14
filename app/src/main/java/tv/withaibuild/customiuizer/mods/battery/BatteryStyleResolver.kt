@@ -36,11 +36,15 @@ internal object BatteryStyleResolver {
     @JvmStatic
     fun resolve(classLoader: ClassLoader?, targetClassName: String): BatteryStyleAbi? {
         return try {
-            val targetClass = XposedHelpers.findClassIfExists(targetClassName, classLoader) ?: return null
+            val targetClass = XposedHelpers.findClassIfExists(targetClassName, classLoader)
+                ?: return missing("target class not found: $targetClassName")
 
-            val digitField = XposedHelpers.findFieldIfExists(targetClass, FIELD_DIGIT) ?: return null
-            val percentField = XposedHelpers.findFieldIfExists(targetClass, FIELD_PERCENT) ?: return null
-            val markField = XposedHelpers.findFieldIfExists(targetClass, FIELD_MARK) ?: return null
+            val digitField = XposedHelpers.findFieldIfExists(targetClass, FIELD_DIGIT)
+                ?: return missing("field not found: $FIELD_DIGIT on $targetClassName")
+            val percentField = XposedHelpers.findFieldIfExists(targetClass, FIELD_PERCENT)
+                ?: return missing("field not found: $FIELD_PERCENT on $targetClassName")
+            val markField = XposedHelpers.findFieldIfExists(targetClass, FIELD_MARK)
+                ?: return missing("field not found: $FIELD_MARK on $targetClassName")
 
             BatteryStyleAbi(
                 resolutionRootClass = targetClass,
@@ -53,5 +57,10 @@ internal object BatteryStyleResolver {
             XposedHelpers.log(t)
             null
         }
+    }
+
+    private fun missing(reason: String): BatteryStyleAbi? {
+        XposedHelpers.log("BatteryStyleResolver: $reason; using legacy fallback")
+        return null
     }
 }

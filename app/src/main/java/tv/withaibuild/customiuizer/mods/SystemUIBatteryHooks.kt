@@ -67,10 +67,10 @@ object SystemUIBatteryHooks {
     internal var batteryStyle: BatteryStyle? = null
 
     /**
-     * Cold-resolved frozen ABI effect. Initialized to a fallback-only effect before
-     * [StatusBarStyleBatteryIconHook] replaces it with the resolved effect.
+     * Immutable fallback effect for direct helper/test calls that do not supply an effect.
+     * It is never mutated after initialization and is not used by the production hook callback.
      */
-    internal var batteryStyleEffect: BatteryStyleEffect = BatteryStyleEffect(null)
+    private val FALLBACK_BATTERY_STYLE_EFFECT = BatteryStyleEffect(null)
 
     @Volatile
     private var batteryStyleObserverRegistered = false
@@ -206,26 +206,31 @@ object SystemUIBatteryHooks {
     fun StatusBarStyleBatteryIconHook(lpparam: PackageReadyParam) {
         installBatteryStyleSnapshot()
         val abi = BatteryStyleResolver.resolve(lpparam.classLoader)
-        batteryStyleEffect = BatteryStyleEffect(abi)
+        val effect = BatteryStyleEffect(abi)
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.views.MiuiBatteryMeterView", lpparam.classLoader, "updateAll", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val style = batteryStyle ?: return
                 val owner = param.getThisObject() ?: return
                 val batteryView = owner as? ViewGroup ?: return
                 val state = getOrCreateBatteryViewState(owner)
-                reconcileBatteryView(batteryView, style, state)
+                reconcileBatteryView(batteryView, style, state, effect)
             }
         })
     }
 
-    internal fun reconcileBatteryView(parent: ViewGroup, style: BatteryStyle, state: BatteryViewState) {
+    internal fun reconcileBatteryView(
+        parent: ViewGroup,
+        style: BatteryStyle,
+        state: BatteryViewState,
+        effect: BatteryStyleEffect = FALLBACK_BATTERY_STYLE_EFFECT,
+    ) {
         val baseline = state.baseline
 
         val childrenChanged = baseline == null || childIdentitiesChanged(parent, baseline.childIds)
         val newBaseline = when {
-            baseline == null -> captureBatteryBaseline(parent)
-            childrenChanged -> captureBatteryBaseline(parent)
-            state.appliedStyle == null && !matchesBaseline(parent, baseline) -> captureBatteryBaseline(parent)
+            baseline == null -> captureBatteryBaseline(parent, effect)
+            childrenChanged -> captureBatteryBaseline(parent, effect)
+            state.appliedStyle == null && !matchesBaseline(parent, baseline, effect) -> captureBatteryBaseline(parent, effect)
             else -> baseline
         }
         if (newBaseline == null) return
@@ -234,13 +239,13 @@ object SystemUIBatteryHooks {
         val defaultStyle = isBatteryStyleDefault(style)
         when {
             defaultStyle -> {
-                if (state.appliedStyle != null || !matchesBaseline(parent, newBaseline)) {
-                    restoreBatteryBaseline(parent, newBaseline)
+                if (state.appliedStyle != null || !matchesBaseline(parent, newBaseline, effect)) {
+                    restoreBatteryBaseline(parent, newBaseline, effect)
                 }
                 state.appliedStyle = null
             }
-            state.appliedStyle != style || !matchesTarget(parent, newBaseline, style) -> {
-                applyBatteryStyle(parent, newBaseline, style)
+            state.appliedStyle != style || !matchesTarget(parent, newBaseline, style, effect) -> {
+                applyBatteryStyle(parent, newBaseline, style, effect)
                 state.appliedStyle = style
             }
         }
@@ -305,7 +310,7 @@ object SystemUIBatteryHooks {
 
     internal fun captureBatteryBaseline(
         owner: ViewGroup,
-        effect: BatteryStyleEffect = batteryStyleEffect,
+        effect: BatteryStyleEffect = FALLBACK_BATTERY_STYLE_EFFECT,
     ): BatteryBaseline? {
         val useFast = effect.useFastPath(owner)
         val digitView = effect.readDigitView(owner, useFast) ?: return null
@@ -328,7 +333,7 @@ object SystemUIBatteryHooks {
     internal fun matchesBaseline(
         parent: ViewGroup,
         baseline: BatteryBaseline,
-        effect: BatteryStyleEffect = batteryStyleEffect,
+        effect: BatteryStyleEffect = FALLBACK_BATTERY_STYLE_EFFECT,
     ): Boolean {
         val useFast = effect.useFastPath(parent)
         val digitView = effect.readDigitView(parent, useFast) ?: return false
@@ -356,7 +361,7 @@ object SystemUIBatteryHooks {
         parent: ViewGroup,
         baseline: BatteryBaseline,
         style: BatteryStyle,
-        effect: BatteryStyleEffect = batteryStyleEffect,
+        effect: BatteryStyleEffect = FALLBACK_BATTERY_STYLE_EFFECT,
     ): Boolean {
         val useFast = effect.useFastPath(parent)
         val digitView = effect.readDigitView(parent, useFast) ?: return false
@@ -438,7 +443,7 @@ object SystemUIBatteryHooks {
     internal fun restoreBatteryBaseline(
         parent: ViewGroup,
         baseline: BatteryBaseline,
-        effect: BatteryStyleEffect = batteryStyleEffect,
+        effect: BatteryStyleEffect = FALLBACK_BATTERY_STYLE_EFFECT,
     ) {
         val useFast = effect.useFastPath(parent)
         val digitView = effect.readDigitView(parent, useFast) ?: return
@@ -462,7 +467,7 @@ object SystemUIBatteryHooks {
         parent: ViewGroup,
         baseline: BatteryBaseline,
         style: BatteryStyle,
-        effect: BatteryStyleEffect = batteryStyleEffect,
+        effect: BatteryStyleEffect = FALLBACK_BATTERY_STYLE_EFFECT,
     ) {
         val useFast = effect.useFastPath(parent)
         val digitView = effect.readDigitView(parent, useFast) ?: return

@@ -4,7 +4,6 @@ import android.util.TypedValue
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -12,6 +11,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.lang.reflect.Modifier
 import tv.withaibuild.customiuizer.mods.SystemUIBatteryHooks
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.mods.battery.testfixtures.BaseBatteryView
@@ -26,11 +26,6 @@ import java.lang.reflect.Field
  */
 class BatteryArchitectureCTest {
 
-    @After
-    fun tearDown() {
-        // Ensure global production state is reset to a safe fallback-only effect.
-        SystemUIBatteryHooks.batteryStyleEffect = BatteryStyleEffect(null)
-    }
 
     // -------------------------------------------------------------------------
     // A. Exact runtime target class -> FAST selected and returns legacy value.
@@ -344,7 +339,7 @@ class BatteryArchitectureCTest {
     // -------------------------------------------------------------------------
 
     // -------------------------------------------------------------------------
-    // O. Resolver ordinary failure -> fallback.
+    // C (revised). Resolver missing target class -> null/fallback.
     // -------------------------------------------------------------------------
     @Test
     fun resolverMissingClass_returnsNullForFallback() {
@@ -356,7 +351,37 @@ class BatteryArchitectureCTest {
     }
 
     // -------------------------------------------------------------------------
-    // P. Resolver fatal boundary -> does not swallow fatal.
+    // D (revised). Resolver missing each exact field -> null/fallback.
+    // -------------------------------------------------------------------------
+    @Test
+    fun resolverMissingDigitField_returnsNullForFallback() {
+        val abi = BatteryStyleResolver.resolve(
+            BaseBatteryViewMissingDigit::class.java.classLoader,
+            BaseBatteryViewMissingDigit::class.java.name,
+        )
+        assertNull("missing digit field must select fallback", abi)
+    }
+
+    @Test
+    fun resolverMissingPercentField_returnsNullForFallback() {
+        val abi = BatteryStyleResolver.resolve(
+            BaseBatteryViewMissingPercent::class.java.classLoader,
+            BaseBatteryViewMissingPercent::class.java.name,
+        )
+        assertNull("missing percent field must select fallback", abi)
+    }
+
+    @Test
+    fun resolverMissingMarkField_returnsNullForFallback() {
+        val abi = BatteryStyleResolver.resolve(
+            BaseBatteryViewMissingMark::class.java.classLoader,
+            BaseBatteryViewMissingMark::class.java.name,
+        )
+        assertNull("missing mark field must select fallback", abi)
+    }
+
+    // -------------------------------------------------------------------------
+    // E (revised). Resolver fatal boundary -> does not swallow fatal.
     // -------------------------------------------------------------------------
     @Test(expected = OutOfMemoryError::class)
     fun resolverFatal_propaatesImmediately() {
@@ -366,6 +391,52 @@ class BatteryArchitectureCTest {
             }
         }
         BatteryStyleResolver.resolve(throwingLoader, BaseBatteryView::class.java.name)
+    }
+
+    // -------------------------------------------------------------------------
+    // A (revised). Production callback wiring uses captured effect, not mutable global state.
+    // -------------------------------------------------------------------------
+    @Test
+    fun noMutableGlobalBatteryStyleEffect() {
+        val mutableEffectFields = SystemUIBatteryHooks::class.java.declaredFields.filter {
+            BatteryStyleEffect::class.java.isAssignableFrom(it.type) && !Modifier.isFinal(it.modifiers)
+        }
+        assertTrue(
+            "SystemUIBatteryHooks must not expose a mutable BatteryStyleEffect field; use a hook-local capture",
+            mutableEffectFields.isEmpty(),
+        )
+    }
+
+    // -------------------------------------------------------------------------
+    // B (revised). reconcileBatteryView receives an explicit Effect and passes it to helpers.
+    // -------------------------------------------------------------------------
+    @Test
+    fun reconcileBatteryView_usesSuppliedEffect() {
+        val view = BaseBatteryView()
+        view.setupChildrenInOemOrder()
+
+        val abi = resolveAbiFor(BaseBatteryView::class.java)
+        val effect = BatteryStyleEffect(abi)
+        assertTrue("test fixture must be eligible for FAST path", effect.useFastPath(view))
+
+        val state = SystemUIBatteryHooks.BatteryViewState()
+        val style = SystemUIBatteryHooks.BatteryStyle(
+            swap = false,
+            fontSizeDp = 12.0f,
+            markFontSizeDp = 10.0f,
+            bold = false,
+            leftMarginDp = 6f,
+            rightMarginDp = 4f,
+            verticalOffset = 12,
+            markVerticalOffset = 20,
+            battery4 = false,
+        )
+
+        SystemUIBatteryHooks.reconcileBatteryView(view, style, state, effect)
+
+        assertTrue("reconcile must apply the supplied style", state.appliedStyle === style)
+        assertEquals(12.0f * 2.0f, view.mBatteryTextDigitView.textSize, 0.001f)
+        assertEquals(12.0f * 2.0f, view.mBatteryPercentView.textSize, 0.001f)
     }
 
     // -------------------------------------------------------------------------
@@ -405,7 +476,25 @@ class BatteryArchitectureCTest {
     }
 
     /**
-     * View that is missing one of the three fields for test I.
+     * View that is missing the digit field for resolver field-miss tests.
+     */
+    @Suppress("Unused")
+    private class BaseBatteryViewMissingDigit : LinearLayout(null as android.content.Context?) {
+        lateinit var mBatteryPercentView: TextView
+        lateinit var mBatteryPercentMarkView: TextView
+    }
+
+    /**
+     * View that is missing the percent field for resolver field-miss tests.
+     */
+    @Suppress("Unused")
+    private class BaseBatteryViewMissingPercent : LinearLayout(null as android.content.Context?) {
+        lateinit var mBatteryTextDigitView: TextView
+        lateinit var mBatteryPercentMarkView: TextView
+    }
+
+    /**
+     * View that is missing the mark field for resolver field-miss tests.
      */
     @Suppress("Unused")
     private class BaseBatteryViewMissingMark : LinearLayout(null as android.content.Context?) {

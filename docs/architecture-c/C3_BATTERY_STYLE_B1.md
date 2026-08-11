@@ -1,4 +1,4 @@
-# C3-B1 — Battery Style Architecture C Production Migration
+# C3-B1 — Battery Style Architecture C Production Migration (corrective)
 
 ## Base / frozen input
 
@@ -31,7 +31,8 @@ New test files:
 - `getOrCreateBatteryViewState` uses existing additional-instance key.
 - `StatusBarStyleBatteryIconHook` still overrides `after(AfterHookCallback)` and does not call `chain.proceed()`.
 - Hook body remains thin: read snapshot, get owner, get state, call `reconcileBatteryView`.
-- `reconcileBatteryView` control-flow branches and short-circuit order unchanged.
+- The hook installs the resolved `BatteryStyleEffect` as a **captured local val** inside `StatusBarStyleBatteryIconHook`; no mutable process-global effect publication.
+- `reconcileBatteryView` accepts an explicit `effect` parameter and passes the same reference through all migrated helpers.
 
 ## Resolver design
 
@@ -41,8 +42,10 @@ Field names:  mBatteryTextDigitView, mBatteryPercentView, mBatteryPercentMarkVie
 No declared-type validation
 No field aliases
 Fatal boundary: FatalErrors.unwrapAndRethrowIfFatal(t) before logging
-Ordinary failure: XposedHelpers.log(t); return null
+Ordinary failure: XposedHelpers.log("BatteryStyleResolver: <reason>; using legacy fallback"); return null
 ```
+
+Expected missing cases (target class, digit, percent, mark) each log a single bounded diagnostic and then return `null`. The diagnostic is emitted once per resolver invocation.
 
 `BatteryStyleResolver.resolve(ClassLoader?)` is the production entry point. A test-only overload `resolve(ClassLoader?, String)` is provided so the resolver logic can be exercised with test doubles without mocking the real class name.
 
@@ -53,11 +56,21 @@ FAST eligibility: abi != null && parent.javaClass === abi.resolutionRootClass
 FAST:            abi.xxxField.get(parent) as? TextView
 LEGACY FALLBACK: XposedHelpers.getObjectField(parent, exactFieldName) as? TextView
 Mode selection:  once per helper invocation; all three children same mode
+Effect lifetime: one effect reference per updateAll callback invocation
+Fallback helper default: private val FALLBACK_BATTERY_STYLE_EFFECT = BatteryStyleEffect(null)
 No Map<Class, Abi>, no runtime cache, no per-owner ABI state
 No Pair/Triple/List/Map/Flow/coroutine allocation
 ```
 
 `BatteryStyleEffect` handles `IllegalAccessException` by logging and throwing `IllegalAccessError(e.message)`, matching `XposedHelpers.getObjectField`. `IllegalArgumentException` is rethrown unchanged.
+
+## Effect publication / callback ownership
+
+- No mutable `batteryStyleEffect` process-global field.
+- `StatusBarStyleBatteryIconHook` resolves the ABI once at install time, constructs one `BatteryStyleEffect`, and captures it in the `after` callback closure.
+- Each `updateAll` callback uses the same captured effect reference.
+- `reconcileBatteryView` receives the effect explicitly and passes it to every migrated helper.
+- A private immutable `FALLBACK_BATTERY_STYLE_EFFECT` is used only as a default for direct helper/test calls; it is never mutated and never used by the production hook callback.
 
 ## FAST eligibility / field shadowing
 
@@ -87,11 +100,14 @@ Evidence: `BatteryArchitectureCTest.runtimeSubclassShadowing_fallbackPreservesRu
 | Test | Classification |
 |---|---|
 | `BatteryArchitectureCTest` runtime assertions on resolver/effect/helper | `RUNTIME_TESTED_COMPONENT` |
+| `BatteryArchitectureCTest.noMutableGlobalBatteryStyleEffect` | `STRUCTURAL` / design invariant (reflection) |
+| `BatteryArchitectureCTest.reconcileBatteryView_usesSuppliedEffect` | `RUNTIME_TESTED_COMPONENT` |
 | `BatteryViewStateTest` / `BatteryChildReorderBehaviorTest` existing helper tests | `RUNTIME_TESTED_COMPONENT` (still pass unchanged) |
 | `BatteryStyleSnapshotTest` | `RUNTIME_TESTED_COMPONENT` for `readBatteryStyle()` mapping; preference observer callback = `NOT_RUNTIME_TESTED_CALLBACK` |
 | Real `MiuiBatteryMeterView.updateAll` after callback | `NOT_RUNTIME_TESTED_CALLBACK` |
 | Real HyperOS / SystemUI runtime | `NOT_PROVEN` |
 | FAST path source absence of `XposedHelpers.getObjectField` in `BatteryStyleEffect.readFast` | `STRUCTURAL` (source inspection) |
+| FAST `IllegalAccessException -> IllegalAccessError` path | `STRUCTURAL` (not feasible to trigger in unit tests because `XposedHelpers.findField` calls `setAccessible(true)`) |
 
 ## Remaining NOT_PROVEN evidence
 
@@ -142,6 +158,6 @@ Unchanged:
 
 ## Final marker
 
-C3_B1_BATTERY_STYLE_READY_FOR_INDEPENDENT_AUDIT
+C3_B1_BATTERY_STYLE_CORRECTIVE_READY_FOR_INDEPENDENT_AUDIT
 
 STOP. Do not enter B2. Do not modify DetailedNetSpeed / Drawer blur / Status bar icon visibility.
