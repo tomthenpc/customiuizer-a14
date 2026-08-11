@@ -19,14 +19,19 @@ class ClockEffectPublicationTest {
     @Test
     fun coldComplete_resolveReturnsEffectImmediately() {
         val publication = publicationWithColdComplete()
+
+        val current = publication.currentEffect()
+        assertNotNull(current)
+        assertEquals(0, publication.calibrationAttempts)
+
         val clock = FakeB2MiuiClock().apply {
             mMiuiStatusBarClockController = FakeB2ControllerColdComplete()
         }
 
-        val effect = publication.resolveForClock(clock, FakeB2Context::class.java)
+        val resolved = publication.resolveForClock(clock, FakeB2Context::class.java)
 
-        assertNotNull(effect)
-        assertEquals(1, publication.calibrationAttempts)
+        assertSame(current, resolved)
+        assertEquals(0, publication.calibrationAttempts)
     }
 
     @Test
@@ -36,11 +41,13 @@ class ClockEffectPublicationTest {
             mMiuiStatusBarClockController = FakeB2ControllerColdComplete()
         }
 
+        val current = publication.currentEffect()
         val first = publication.resolveForClock(clock, FakeB2Context::class.java)
         val second = publication.resolveForClock(clock, FakeB2Context::class.java)
 
+        assertSame(current, first)
         assertSame(first, second)
-        assertEquals(1, publication.calibrationAttempts)
+        assertEquals(0, publication.calibrationAttempts)
     }
 
     // ------------------------------------------------------------------------
@@ -50,6 +57,9 @@ class ClockEffectPublicationTest {
     @Test
     fun coldIncomplete_runtimeCalendarCalibrationPublishesEffect() {
         val publication = publicationWithColdIncomplete()
+
+        assertNull(publication.currentEffect())
+
         val clock = FakeB2MiuiClock().apply {
             mMiuiStatusBarClockController = FakeB2ControllerColdIncomplete()
         }
@@ -58,6 +68,27 @@ class ClockEffectPublicationTest {
 
         assertNotNull(effect)
         assertEquals(1, publication.calibrationAttempts)
+        assertSame(effect, publication.currentEffect())
+    }
+
+    @Test
+    fun runtimePublication_fastPathAfterSuccess() {
+        val publication = publicationWithColdIncomplete()
+        val clock = FakeB2MiuiClock().apply {
+            mMiuiStatusBarClockController = FakeB2ControllerColdIncomplete()
+        }
+
+        assertNull(publication.currentEffect())
+
+        val first = publication.resolveForClock(clock, FakeB2Context::class.java)
+        assertNotNull(first)
+        assertEquals(1, publication.calibrationAttempts)
+        assertSame(first, publication.currentEffect())
+
+        val second = publication.resolveForClock(clock, FakeB2Context::class.java)
+        assertSame(first, second)
+        assertEquals(1, publication.calibrationAttempts)
+        assertSame(first, publication.currentEffect())
     }
 
     // ------------------------------------------------------------------------
@@ -123,12 +154,14 @@ class ClockEffectPublicationTest {
         val target = ClockResolver.resolveClockTargetClass(FakeB2Clock::class.java)!!
         val publication = ClockEffectPublication(
             ClockAbi(
-                controllerFor(FakeB2ControllerColdComplete::class.java),
+                controllerFor(FakeB2ControllerColdIncomplete::class.java),
                 arrayOf(target, target),
-                calendarFor(FakeB2Calendar::class.java),
+                null,
             ),
         )
-        val clock = FakeB2Clock()
+        val clock = FakeB2Clock().apply {
+            mMiuiStatusBarClockController = FakeB2ControllerColdIncomplete()
+        }
 
         assertNull(publication.resolveForClock(clock, FakeB2Context::class.java))
         assertEquals(0, publication.calibrationAttempts)
@@ -138,7 +171,9 @@ class ClockEffectPublicationTest {
     fun incomparableTargetsFailClosed() {
         val controllerField = FakeB2Clock::class.java.getDeclaredField("mMiuiStatusBarClockController").also { it.isAccessible = true }
         val updateTimeMethod = FakeB2Clock::class.java.getDeclaredMethod("updateTime").also { it.isAccessible = true }
-        val clock = FakeB2AmbiguousClock()
+        val clock = FakeB2AmbiguousClock().apply {
+            mMiuiStatusBarClockController = FakeB2ControllerColdIncomplete()
+        }
 
         val targets = arrayOf(
             ClockTargetCapability(Runnable::class.java, controllerField, updateTimeMethod),
@@ -147,9 +182,9 @@ class ClockEffectPublicationTest {
 
         val publication = ClockEffectPublication(
             ClockAbi(
-                controllerFor(FakeB2ControllerColdComplete::class.java),
+                controllerFor(FakeB2ControllerColdIncomplete::class.java),
                 targets,
-                calendarFor(FakeB2Calendar::class.java),
+                null,
             ),
         )
 

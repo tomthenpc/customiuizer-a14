@@ -16,7 +16,7 @@ internal class ClockEffectPublication(
 ) {
 
     @Volatile
-    private var effect: ClockEffect? = null
+    private var effect: ClockEffect? = abi.calendarCold?.let { ClockEffect(abi, it) }
 
     private val failedTargetMask = AtomicInteger(0)
 
@@ -26,6 +26,12 @@ internal class ClockEffectPublication(
      */
     internal var calibrationAttempts: Int = 0
         private set
+
+    /**
+     * Direct volatile read of the already-published effect.  No synchronization, target scan, or
+     * allocation is performed.
+     */
+    fun currentEffect(): ClockEffect? = effect
 
     /**
      * Returns the published [ClockEffect] for [clock].

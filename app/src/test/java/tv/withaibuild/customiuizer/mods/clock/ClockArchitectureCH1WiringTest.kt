@@ -46,6 +46,7 @@ class ClockArchitectureCH1WiringTest {
     fun updateTimeHook_usesArchitectureCEffect() {
         val region = extractUpdateTimeHookRegion()
 
+        assertTrue("must call currentEffect", region.contains("currentEffect("))
         assertTrue("must call resolveForClock", region.contains("resolveForClock("))
         assertTrue("must call readController", region.contains("readController("))
         assertTrue("must call readCalendar", region.contains("readCalendar("))
@@ -64,6 +65,36 @@ class ClockArchitectureCH1WiringTest {
         assertTrue(
             "buildClockText must appear before resolveForClock",
             buildClockTextIndex < resolveForClockIndex,
+        )
+    }
+
+    @Test
+    fun updateTimeHook_currentEffectBeforeResolveForClock() {
+        val region = extractUpdateTimeHookRegion()
+
+        val currentEffectIndex = region.indexOf("currentEffect(")
+        val resolveForClockIndex = region.indexOf("resolveForClock(")
+
+        assertTrue("currentEffect must be present", currentEffectIndex != -1)
+        assertTrue("resolveForClock must be present", resolveForClockIndex != -1)
+        assertTrue(
+            "currentEffect must appear before resolveForClock",
+            currentEffectIndex < resolveForClockIndex,
+        )
+    }
+
+    @Test
+    fun updateTimeHook_runtimeContextClassOnlyOnSlowPath() {
+        val region = extractUpdateTimeHookRegion()
+
+        val resolveForClockIndex = region.indexOf("resolveForClock(")
+        val contextClassIndex = region.indexOf("clock.context.javaClass")
+
+        assertTrue("resolveForClock must be present", resolveForClockIndex != -1)
+        assertTrue("clock.context.javaClass must be present", contextClassIndex != -1)
+        assertTrue(
+            "clock.context.javaClass must appear after resolveForClock",
+            resolveForClockIndex < contextClassIndex,
         )
     }
 

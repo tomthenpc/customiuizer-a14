@@ -1037,10 +1037,12 @@ object SystemClockHooks {
                     if (timeFmt == null) {
                         skipped = true
                     } else {
-                        val effect = clockEffectPublication?.resolveForClock(
-                            clock,
-                            clock.context.javaClass,
-                        )
+                        val publication = clockEffectPublication
+                        val effect = publication?.currentEffect()
+                            ?: publication?.resolveForClock(
+                                clock,
+                                clock.context.javaClass,
+                            )
                         if (effect == null) {
                             skipped = true
                         } else {
