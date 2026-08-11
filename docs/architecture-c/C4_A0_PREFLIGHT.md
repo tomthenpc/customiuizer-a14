@@ -154,10 +154,12 @@ Source: `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHoo
 | Lookup starting runtime class | `mobileIconState.javaClass` |
 | Declaring owner | `REAL_HYPEROS_FIELD_OWNER = NOT_PROVEN` |
 | `REAL_HYPEROS_wifiAvailable_FIELD_TYPE` | **NOT_PROVEN**. The repository does not prove whether the actual HyperOS field is primitive `boolean` or `Boolean` object. |
-| Expected frozen fast-path semantics | **primitive `boolean` `Field.getBoolean(obj)` semantics**. `XposedHelpers.getBooleanField` ultimately calls `Field.getBoolean`. This is the only legacy access path; `Boolean` wrapper access is not declared equivalent. |
-| Resolver requirement | If a future `Resolver` cannot establish an ABI whose `Field.getBoolean` is semantically compatible with the legacy primitive-boolean read, it must **miss** and the callback must use the complete legacy `XposedHelpers.getBooleanField` path. |
+| Legacy access | `XposedHelpers.getBooleanField(mobileIconState, "wifiAvailable")` → `Field.getBoolean(obj)`. |
+| FAST resolver requirement | `wifiAvailableField.type === Boolean.TYPE`. If `wifiAvailableField.type !== Boolean.TYPE` (including `Boolean.class`), the `Resolver` must treat this as an **expected miss**, the ABI is unavailable, and the callback must use the complete legacy `XposedHelpers.getBooleanField` path. |
+| Expected frozen fast-path semantics | **primitive `boolean` `Field.getBoolean(obj)` semantics only**. `java.lang.Boolean` wrapper fields are **not** declared FAST-compatible. |
 | Null behavior | `mobileIconState == null` causes NPE in `findField`; caught by `MethodHook.beforeHook`. |
-| Wrong-type behavior | `IllegalArgumentException` if the frozen `Field` is not primitive `boolean` or a `Boolean` wrapper that `getBoolean` can unbox; the runtime failure is non-fatal and handled by `MethodHook.beforeHook`. |
+| Wrong-type behavior (legacy) | `IllegalArgumentException` if the legacy `Field.getBoolean` cannot read the actual field; caught by `MethodHook.beforeHook`. |
+| Wrong-type behavior (FAST) | Must not occur if the `Resolver` enforces `Boolean.TYPE`. If it does, the runtime `IllegalArgumentException` is non-fatal and handled by `MethodHook.beforeHook`; do not fall back after fast execution begins. |
 | Missing-field behavior | `NoSuchFieldError`; caught, no mutation. |
 
 ### 3.3 `MobileIconState.subId` — READ
@@ -189,7 +191,7 @@ Source: `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHoo
 | Field | RW | Expected type |
 |---|---|---|
 | `StatusBarMobileView.mState` | R | `Object` (state or `null`) |
-| `MobileIconState.wifiAvailable` | R | `boolean` primitive semantics (`REAL_HYPEROS_wifiAvailable_FIELD_TYPE = NOT_PROVEN`) |
+| `MobileIconState.wifiAvailable` | R | primitive `boolean` only; FAST requires `Field.type === Boolean.TYPE` (`REAL_HYPEROS_wifiAvailable_FIELD_TYPE = NOT_PROVEN`) |
 | `MobileIconState.subId` | R | `int` / `Integer` |
 | `MobileIconState.visible` | W | `boolean` / `Boolean` |
 | `MobileIconState.roaming` | W | `boolean` / `Boolean` |
@@ -210,24 +212,59 @@ This means a subclass-declared field hides a same-named superclass field for the
 
 ### 4.2 Fast-path eligibility
 
-```text
-FAST_PATH_ELIGIBILITY = exact runtime class match
+The future `Resolver` resolves two independent **resolution roots**:
 
-For any receiver R and frozen Field F:
-    if (R.javaClass === F.declaringClass) {
-        use F directly
-    } else {
-        use legacy XposedHelpers get/set helpers
-    }
+```text
+STATUS_BAR_MOBILE_VIEW_RESOLUTION_ROOT = the Class<?> used to resolve mState
+                                         and the applyMobileState / updateState Method(s)
+
+MOBILE_ICON_STATE_RESOLUTION_ROOT      = the Class<?> used to resolve wifiAvailable,
+                                         subId, visible, roaming, volte, speechHd
+```
+
+```text
+FAST_PATH_ELIGIBILITY = exact runtime class match against the resolution root
+
+For the StatusBarMobileView receiver:
+    thisObject.javaClass === abi.statusBarMobileViewResolutionRootClass
+
+For the mobileIconState receiver:
+    mobileIconState.javaClass === abi.mobileIconStateResolutionRootClass
+```
+
+A resolved `Field` may legitimately be declared in a superclass of its resolution root (e.g., an inherited `mState` or `wifiAvailable` field). The `Resolver` may freeze such a `Field` even when:
+
+```text
+field.declaringClass !== resolutionRootClass
 ```
 
 ```text
 LEGACY_FALLBACK_REQUIRED = true
 ```
 
+Frozen behavior-preservation contract:
+
+- **Exact runtime class == resolution root**: FAST allowed, including for fields inherited from a superclass.
+- **Strict runtime subclass of resolution root**: complete legacy `XposedHelpers` fallback.
+- **Subclass field shadowing**: preserved by the fallback, because legacy `XposedHelpers.findField` starts at `obj.getClass()` and sees the shadowing field first.
+- **Inherited field on exact resolution root**: FAST allowed, because the runtime class is exactly the root and the resolved `Field` points to the only matching field in the hierarchy.
+
 ### 4.3 Behavior-preservation proof
 
-Legacy `findField(R.javaClass, name)` returns the first matching field when walking from `R.javaClass` upward. If `R.javaClass === F.declaringClass`, the walk stops at `F.declaringClass` and returns `F`. If `R.javaClass` is a strict subclass, the walk first inspects the subclass. A frozen base-class `Field` used on a subclass instance would read/write the **base** field, while legacy `findField` would read/write the **subclass** field if it shadows the name. Therefore the fast path must require exact class equality, and any non-exact class must fall back to the legacy runtime-class-first lookup. This preserves shadowing semantics at the cost of conservative fast-path eligibility.
+Legacy `XposedHelpers.findField(obj.javaClass, name)` returns the first declared field named `name` encountered when walking from `obj.javaClass` upward to `Object`. This gives the most-derived (subclass) field declaration precedence.
+
+The `Resolver` resolves the same hierarchy starting from the **resolution root class** `R`. It returns the first matching `Field` found when walking from `R` upward; call this `F`. `F` may be declared in `R` itself or in a superclass of `R`.
+
+**Case 1 — runtime class equals resolution root (`obj.javaClass === R`):**
+There is no subclass below `R` that could shadow the field. `F` is the only matching field in the hierarchy starting at `R`. Using `F` directly on `obj` reads/writes the same field as the legacy lookup. FAST is safe.
+
+**Case 2 — runtime class is a strict subclass of `R` (`S extends R`, `obj.javaClass === S`):**
+A strict subclass may declare a field with the same name, shadowing the field found by the `Resolver`. Legacy `findField` would return the subclass field, while `F` (resolved from `R`) would return the superclass field. Therefore the FAST path must not be used; the `Effect` must fall back to the complete legacy `XposedHelpers` path, which preserves subclass shadowing.
+
+**Case 3 — runtime class is a superclass of `R`:**
+This cannot happen if the resolution root was chosen correctly (it is the hook target or parameter type), but if it did, the object is not an instance of `R` and `Field.get`/`set` would throw `IllegalArgumentException`. This is a runtime failure, not a fallback scenario; the `Effect` must not begin the FAST path because the eligibility check fails.
+
+**Conclusion:** `FAST_PATH_ELIGIBILITY` is sound and behavior-preserving when defined as exact runtime-class equality with the resolution root. It does not require `obj.javaClass === field.declaringClass`; it allows inherited fields on the exact resolution root while correctly falling back for subclasses that might shadow.
 
 ---
 
@@ -246,12 +283,12 @@ The legacy path does **not** retry a different field-access path after a field a
 
 #### 5.2.1 `FALLBACK_ALLOWED_BEFORE_FAST_EXECUTE`
 
-The following conditions may cause the callback to select the **complete existing legacy `XposedHelpers` path**, as long as the decision is made before any fast `Field.get` / `Field.set` / `as Int` operation begins:
+The following conditions may cause the callback to select the **complete existing legacy `XposedHelpers` path**, as long as the decision is made before any fast `Field.get` / `Field.getBoolean` / `Field.set` / `as Int` operation begins:
 
 - Resolver expected miss (class or field not resolvable at install time).
 - Resolver ordinary non-fatal `Throwable` during install-time resolution.
-- Receiver runtime class does not satisfy `FAST_PATH_ELIGIBILITY` (e.g., `thisObject.javaClass !== resolvedStatusBarMobileViewClass` or `mobileIconState.javaClass !== resolvedMobileIconStateClass`).
-- Any ABI incompatibility detected before the first fast field operation, including a `wifiAvailable` `Field` that cannot be proven compatible with **primitive `boolean` `Field.getBoolean` semantics**.
+- Receiver runtime class does not satisfy `FAST_PATH_ELIGIBILITY` (e.g., `thisObject.javaClass !== abi.statusBarMobileViewResolutionRootClass` or `mobileIconState.javaClass !== abi.mobileIconStateResolutionRootClass`).
+- Any ABI incompatibility detected before the first fast field operation, including a `wifiAvailable` `Field` whose `type !== Boolean.TYPE`.
 
 For these cases the `Effect` may use the complete legacy `XposedHelpers` path and the legacy `MethodHook.beforeHook` contract remains responsible for ordinary failures.
 
@@ -260,8 +297,9 @@ For these cases the `Effect` may use the complete legacy `XposedHelpers` path an
 Once the `Effect` has committed to the fast path and performed at least one fast operation, the following runtime failures must **not** be retried through `XposedHelpers`:
 
 - direct `Field.get` `IllegalAccessException`
+- direct `Field.getBoolean` `IllegalAccessException`
 - direct `Field.set` `IllegalAccessException`
-- direct `Field.get` / `Field.set` `IllegalArgumentException`
+- direct `Field.get` / `Field.getBoolean` / `Field.set` `IllegalArgumentException`
 - `subId as Int` `ClassCastException`
 - any ordinary field-access or cast failure after one or more fast operations have started
 
@@ -277,10 +315,10 @@ For these failures the `Effect` must:
 
 `XposedHelpers.getObjectField` / `setObjectField` catch `IllegalAccessException`, log it, and rethrow `IllegalAccessError`. `IllegalAccessError` is an `Error` but is **not** one of the fatal `OutOfMemoryError` / `ThreadDeath` / `VirtualMachineError` categories, so `MethodHook.beforeHook` catches it, logs it, and the original callback proceeds.
 
-This exact mapping must be preserved for any fast `Field.get` / `Field.set` that throws `IllegalAccessException`:
+This exact mapping must be preserved for any fast `Field.get` / `Field.getBoolean` / `Field.set` that throws `IllegalAccessException`:
 
 ```text
-direct Field.get / Field.set IllegalAccessException
+direct Field.get / Field.getBoolean / Field.set IllegalAccessException
     → wrap as IllegalAccessError
     → throw
     → MethodHook.beforeHook catches (non-fatal Error)
@@ -298,10 +336,10 @@ The `Field` objects resolved by the future `Resolver` must be `setAccessible(tru
 | Resolver unexpected ordinary `Throwable` | **Before fast** | N/A | Log once, return `null` ABI, `Effect` uses complete legacy path. |
 | Receiver runtime class not eligible | **Before fast** | Legacy uses runtime-class-first lookup. | Use complete legacy `XposedHelpers` path. No fast operation begins. |
 | `mState` missing / incompatible / `IllegalAccessException` / `IllegalArgumentException` | Before fast if Resolver detects; **forbidden after fast** | `NoSuchFieldError` / `IllegalArgumentException` caught; original proceeds. | If detected before fast, use legacy. If fast `Field.get` fails, do not retry, do not continue. No partial mutations to preserve for this read. |
-| `wifiAvailable` `Field` not compatible with primitive `boolean` `Field.getBoolean` | **Before fast** | `IllegalArgumentException` from `Field.getBoolean` caught. | `Resolver` must **miss** and force legacy path. If a fast `Field.getBoolean` fails at runtime, do not retry, do not continue. No prior mutations. |
+| `wifiAvailable` `Field.type !== Boolean.TYPE` (including `Boolean.class`) | **Before fast** | `IllegalArgumentException` from `Field.getBoolean` caught. | `Resolver` must treat this as an expected **miss** and force the complete legacy `XposedHelpers.getBooleanField` path. FAST `Field.getBoolean` must never be invoked on a non-primitive `boolean` field. |
 | `subId as Int` `ClassCastException` | **Forbidden after fast** | Caught; no mutation. | Use `Field.get(mobileIconState) as Int` to preserve `ClassCastException` semantics. Do not continue to `SubscriptionManager` calls or writes. No prior mutations. |
 | `visible` / `roaming` / `volte` / `speechHd` write missing or `IllegalArgumentException` | **Forbidden after fast** | `NoSuchFieldError` / `IllegalArgumentException` caught; earlier successful writes remain. | Fast `Field.set` fails; do not retry, do not continue to later writes. Preserve any earlier successful partial mutations. |
-| Fast `Field.get` / `Field.set` `IllegalAccessException` | **Forbidden after fast** | `XposedHelpers` maps to `IllegalAccessError` (non-fatal `Error`). | Map `IllegalAccessException` to `IllegalAccessError` and throw; `MethodHook.beforeHook` logs and original proceeds. |
+| Fast `Field.get` / `Field.getBoolean` / `Field.set` `IllegalAccessException` | **Forbidden after fast** | `XposedHelpers` maps to `IllegalAccessError` (non-fatal `Error`). | Map `IllegalAccessException` to `IllegalAccessError` and throw; `MethodHook.beforeHook` logs and original proceeds. |
 | Fatal `Throwable` (`OutOfMemoryError`, `ThreadDeath`, `VirtualMachineError`) | Any | Rethrown immediately. | Never catch; propagate. Never enter fallback. |
 
 ### 5.5 Partial-mutation contract
@@ -423,10 +461,10 @@ val slotId = SubscriptionManager.getSlotIndex(subId)
 The preflight contract can be fully frozen:
 
 - Hook surface, callback oracle, field ABI, and failure semantics are documented.
-- A behavior-preserving fast-path contract (`exact runtime class match` + mandatory legacy fallback) is defined and justified.
-- The fast-execute fallback boundary is frozen: fallback is allowed only before any fast operation; after fast execution begins, runtime field failures terminate the callback, preserve earlier partial mutations, and rely on `MethodHook.beforeHook` for log-and-continue.
+- A behavior-preserving fast-path contract (`exact runtime class match against the resolution root` + mandatory legacy fallback) is defined and justified.
+- The fast-execute fallback boundary is frozen: fallback is allowed only before any fast `Field.get` / `Field.getBoolean` / `Field.set` / `as Int` operation; after fast execution begins, runtime field failures terminate the callback, preserve earlier partial mutations, and rely on `MethodHook.beforeHook` for log-and-continue.
 - `IllegalAccessException` is mapped to `IllegalAccessError` exactly as the legacy `XposedHelpers` path does.
-- `wifiAvailable` access semantics are frozen as primitive `boolean` `Field.getBoolean` semantics; the Resolver must miss if it cannot establish this ABI.
+- `wifiAvailable` access semantics are frozen as primitive `boolean` `Field.getBoolean` semantics with the `Resolver` enforcing `wifiAvailableField.type === Boolean.TYPE`; `java.lang.Boolean` wrapper fields are not FAST-compatible.
 - `ZERO_ARG_OVERLOAD_GETARG0_BEHAVIOR = NOT_PROVEN` and `REAL_METHOD_OVERLOAD_SET = NOT_PROVEN` are frozen without inferring `null`/NPE behavior.
 - Config/publication and ownership are already in a reusable frozen state.
 - `SubscriptionManager` is explicitly out of scope.
