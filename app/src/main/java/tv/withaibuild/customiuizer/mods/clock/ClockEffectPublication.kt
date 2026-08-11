@@ -21,6 +21,25 @@ internal class ClockEffectPublication(
     private val failedTargetMask = AtomicInteger(0)
 
     /**
+     * Reads `mClockListeners` from a controller instance using the frozen
+     * [ControllerCapability.clockListenersField].
+     *
+     * Returns the value only when its runtime type is [List].  No `XposedHelpers`, `ClassLoader`
+     * lookup, or member discovery is performed.  Fatal errors are rethrown with exact identity.
+     */
+    fun readClockListeners(controller: Any): List<*>? {
+        val field = abi.controller.clockListenersField
+        if (!field.declaringClass.isInstance(controller)) return null
+        return try {
+            val value = field.get(controller)
+            if (value is List<*>) value else null
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            null
+        }
+    }
+
+    /**
      * Number of times the slow calibration path has run.  Visible only for tests; not used by hot
      * production code.
      */

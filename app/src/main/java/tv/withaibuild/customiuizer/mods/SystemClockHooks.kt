@@ -674,6 +674,7 @@ object SystemClockHooks {
         clockController: Any,
         statusbarClockTweak: Boolean,
         ccClockTweak: Boolean,
+        publication: ClockEffectPublication?,
     ) {
         val mContext = XposedHelpers.getObjectField(clockController, "mContext") as Context
         val snapshot = currentClockStyleSnapshot() ?: ensureClockStyleSnapshot(mContext.resources)
@@ -681,16 +682,24 @@ object SystemClockHooks {
         val effectiveStatusBarSeconds = statusbarClockTweak && snapshot.showStatusBarSeconds
         val effectiveCcSeconds = ccClockTweak && snapshot.showCCSeconds
 
-        @Suppress("UNCHECKED_CAST")
-        val clockListeners = XposedHelpers.getObjectField(clockController, "mClockListeners") as? ArrayList<Any>
+        val clockListeners = if (publication != null) {
+            publication.readClockListeners(clockController)
+        } else {
+            @Suppress("UNCHECKED_CAST")
+            XposedHelpers.getObjectField(clockController, "mClockListeners") as? ArrayList<Any>
+        }
         if (clockListeners != null) {
             for (listener in clockListeners) {
                 val clock = listener as? View ?: continue
                 val clockName = ModuleHelper.getViewInfo(clock, "clockName") as? String ?: continue
-                val showSeconds = when (clockName) {
-                    "clock" -> effectiveStatusBarSeconds
-                    "ccClock" -> effectiveCcSeconds
-                    else -> false
+                val showSeconds = if (publication == null) {
+                    false
+                } else {
+                    when (clockName) {
+                        "clock" -> effectiveStatusBarSeconds
+                        "ccClock" -> effectiveCcSeconds
+                        else -> false
+                    }
                 }
                 if (showSeconds) {
                     ModuleHelper.setViewInfo(clock, "showSeconds", true)
@@ -704,7 +713,7 @@ object SystemClockHooks {
         val previousTicker = XposedHelpers.getAdditionalInstanceField(clockController, "secondTicker") as SecondTicker?
         val needsTicker = effectiveStatusBarSeconds || effectiveCcSeconds
 
-        if (needsTicker) {
+        if (needsTicker && publication != null) {
             if (previousTicker != null
                 && previousTicker.showStatusBarSeconds == effectiveStatusBarSeconds
                 && previousTicker.showCCSeconds == effectiveCcSeconds
@@ -714,7 +723,7 @@ object SystemClockHooks {
                 return
             }
             previousTicker?.dispose()
-            val ticker = SecondTicker(clockController, mContext, effectiveStatusBarSeconds, effectiveCcSeconds)
+            val ticker = SecondTicker(clockController, mContext, effectiveStatusBarSeconds, effectiveCcSeconds, publication)
             XposedHelpers.setAdditionalInstanceField(clockController, "secondTicker", ticker)
             ticker.start()
         } else {
@@ -741,6 +750,7 @@ object SystemClockHooks {
         private val context: Context,
         internal val showStatusBarSeconds: Boolean,
         internal val showCCSeconds: Boolean,
+        private val publication: ClockEffectPublication,
     ) : Runnable, ScreenStateController.ScreenStateListener {
         private val clockControllerRef = WeakReference(clockController)
         private val handler = context.mainLooper?.let { Handler(it) }
@@ -791,19 +801,39 @@ object SystemClockHooks {
                 return
             }
             ModuleHelper.guarded {
-                val calendar = XposedHelpers.getObjectField(clockController, "mCalendar")
-                XposedHelpers.callMethod(calendar, "setTimeInMillis", java.lang.System.currentTimeMillis())
-                XposedHelpers.setObjectField(clockController, "mIs24", DateFormat.is24HourFormat(context))
-                @Suppress("UNCHECKED_CAST")
-                val clockListeners = XposedHelpers.getObjectField(clockController, "mClockListeners") as ArrayList<Any>
-                for (listener in clockListeners) {
-                    val clock = listener as View
-                    if (ModuleHelper.getViewInfo(clock, "showSeconds") != null) {
-                        XposedHelpers.callMethod(clock, "updateTime")
-                    }
+                var effect = publication.currentEffect()
+                if (effect == null) {
+                    effect = calibrateEffect(clockController)
+                    if (effect == null) return@guarded
                 }
+                runWithEffect(effect, clockController)
             }
             scheduleNextTick()
+        }
+
+        private fun calibrateEffect(controller: Any): ClockEffect? {
+            @Suppress("UNCHECKED_CAST")
+            val clockListeners = publication.readClockListeners(controller) as ArrayList<Any>
+            for (listener in clockListeners) {
+                val clock = listener as View
+                if (ModuleHelper.getViewInfo(clock, "showSeconds") == null) continue
+                val effect = publication.resolveForClock(clock, clock.context?.javaClass ?: context.javaClass)
+                if (effect != null) return effect
+            }
+            return null
+        }
+
+        private fun runWithEffect(effect: ClockEffect, controller: Any) {
+            val calendar = effect.readCalendar(controller) ?: return
+            if (!effect.setTimeInMillis(calendar, java.lang.System.currentTimeMillis())) return
+            if (!effect.writeIs24(controller, DateFormat.is24HourFormat(context))) return
+            @Suppress("UNCHECKED_CAST")
+            val clockListeners = effect.readClockListeners(controller) as ArrayList<Any>
+            for (listener in clockListeners) {
+                val clock = listener as View
+                if (ModuleHelper.getViewInfo(clock, "showSeconds") == null) continue
+                if (!effect.invokeUpdateTime(clock)) return
+            }
         }
 
         private fun scheduleNextTick() {
@@ -852,6 +882,12 @@ object SystemClockHooks {
         val hideDateView = MainModule.mPrefs.getBoolean("system_cc_hidedate")
         val hideDrawerDate = MainModule.mPrefs.getBoolean("system_drawer_hidedate")
 
+        val clockEffectPublication = if (statusbarClockTweak || ccClockTweak) {
+            ClockResolver.resolveCore(lpparam.classLoader)?.let(::ClockEffectPublication)
+        } else {
+            null
+        }
+
         val scheduleHook = object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any?
@@ -880,10 +916,10 @@ object SystemClockHooks {
                             timeSetIntent,
                             Context.RECEIVER_NOT_EXPORTED,
                         ) { _, owner, _, _ ->
-                            ModuleHelper.guarded { initSecondTicker(owner, statusbarClockTweak, ccClockTweak) }
+                            ModuleHelper.guarded { initSecondTicker(owner, statusbarClockTweak, ccClockTweak, clockEffectPublication) }
                         }
                     }
-                    initSecondTicker(thisObject, statusbarClockTweak, ccClockTweak)
+                    initSecondTicker(thisObject, statusbarClockTweak, ccClockTweak, clockEffectPublication)
 
                     val controllerRef = WeakReference(thisObject)
                     val handler = Handler(mContext.mainLooper)
@@ -911,7 +947,7 @@ object SystemClockHooks {
                                         }
                                     }
 
-                                    initSecondTicker(controller, statusbarClockTweak, ccClockTweak)
+                                    initSecondTicker(controller, statusbarClockTweak, ccClockTweak, clockEffectPublication)
                                 } catch (oom: OutOfMemoryError) {
                                     throw oom
                                 } catch (t: Throwable) {
@@ -1000,12 +1036,6 @@ object SystemClockHooks {
             override fun initialValue(): StringBuilder {
                 return StringBuilder(32)
             }
-        }
-
-        val clockEffectPublication = if (statusbarClockTweak || ccClockTweak) {
-            ClockResolver.resolveCore(lpparam.classLoader)?.let(::ClockEffectPublication)
-        } else {
-            null
         }
 
         val updateTimeHook = object : MethodHook(XposedInterface.PRIORITY_HIGHEST) {

@@ -31,9 +31,16 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import tv.withaibuild.customiuizer.MainModule
+import tv.withaibuild.customiuizer.mods.clock.ClockAbi
+import tv.withaibuild.customiuizer.mods.clock.CalendarCapability
+import tv.withaibuild.customiuizer.mods.clock.ClockEffect
+import tv.withaibuild.customiuizer.mods.clock.ClockEffectPublication
+import tv.withaibuild.customiuizer.mods.clock.ClockResolver
+import tv.withaibuild.customiuizer.mods.clock.ControllerCapability
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
 import tv.withaibuild.customiuizer.mods.utils.ScreenStateController
@@ -92,7 +99,7 @@ class SystemClockHotPathTest {
     @Suppress("DEPRECATION", "NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
     private inner class FakeContext : ContextWrapper(null) {
         private val fakeResources = FakeResources()
-        override fun getMainLooper(): Looper? = null
+        override fun getMainLooper(): Looper? = Looper.getMainLooper()
         override fun getResources(): Resources = fakeResources
         override fun getApplicationContext(): Context = this
         override fun getSystemService(name: String): Any? = null
@@ -102,13 +109,46 @@ class SystemClockHotPathTest {
 
     private class FakeController {
         lateinit var mContext: Context
-        var mCalendar: Any = java.util.Calendar.getInstance()
+        var mCalendar: Any = FakeCalendar()
         val mClockListeners = ArrayList<Any>()
+        @JvmField
+        var mIs24: Boolean = false
     }
 
-    private inner class RecordingClockView : RecordingTextView() {
+    open class FakeCalendar {
+        val setTimeInMillisCalls = mutableListOf<Long>()
+        val formatCalls = mutableListOf<Triple<Context, StringBuilder, StringBuilder>>()
+
+        open fun setTimeInMillis(millis: Long) {
+            setTimeInMillisCalls.add(millis)
+        }
+
+        open fun format(ctx: Context, out: StringBuilder, pattern: StringBuilder) {
+            out.append(pattern)
+        }
+    }
+
+    class FailingFakeCalendar(val error: Throwable) : FakeCalendar() {
+        override fun setTimeInMillis(millis: Long) {
+            throw error
+        }
+    }
+
+    private class FailingIs24FakeController {
+        lateinit var mContext: Context
+        var mCalendar: Any = FakeCalendar()
+        val mClockListeners = ArrayList<Any>()
+        @JvmField
+        var mIs24: Boolean? = null
+    }
+
+    private open inner class RecordingClockView(context: Context = FakeContext()) : RecordingTextView(context) {
         val updateTimeCalls = mutableListOf<Any?>()
-        fun updateTime() {
+
+        @JvmField
+        var mMiuiStatusBarClockController: Any? = null
+
+        open fun updateTime() {
             updateTimeCalls.add(null)
         }
     }
@@ -144,6 +184,7 @@ class SystemClockHotPathTest {
         val controller = FakeController()
         controller.mContext = FakeContext()
         ModuleHelper.setViewInfo(clock, "clockName", "clock")
+        (clock as? RecordingClockView)?.mMiuiStatusBarClockController = controller
         controller.mClockListeners.add(clock)
         return controller
     }
@@ -152,6 +193,7 @@ class SystemClockHotPathTest {
         val controller = FakeController()
         controller.mContext = FakeContext()
         ModuleHelper.setViewInfo(clock, "clockName", "ccClock")
+        (clock as? RecordingClockView)?.mMiuiStatusBarClockController = controller
         controller.mClockListeners.add(clock)
         return controller
     }
@@ -161,9 +203,36 @@ class SystemClockHotPathTest {
         controller.mContext = FakeContext()
         ModuleHelper.setViewInfo(statusClock, "clockName", "clock")
         ModuleHelper.setViewInfo(ccClock, "clockName", "ccClock")
+        (statusClock as? RecordingClockView)?.mMiuiStatusBarClockController = controller
+        (ccClock as? RecordingClockView)?.mMiuiStatusBarClockController = controller
         controller.mClockListeners.add(statusClock)
         controller.mClockListeners.add(ccClock)
         return controller
+    }
+
+    private fun makePublication(calendarCold: CalendarCapability? = null): ClockEffectPublication? {
+        val controller = ClockResolver.resolveControllerClass(FakeController::class.java)
+            ?: return null
+        val target = ClockResolver.resolveClockTargetClass(RecordingClockView::class.java)
+            ?: return null
+        val abi = ClockAbi(controller, arrayOf(target), calendarCold)
+        return ClockEffectPublication(abi)
+    }
+
+    private fun makeCalendarCold(): CalendarCapability? {
+        return ClockResolver.resolveCalendarFromDeclaredType(FakeCalendar::class.java, Context::class.java)
+    }
+
+    private fun makeFailingIs24Publication(calendarCold: CalendarCapability? = null): ClockEffectPublication? {
+        val cls = FailingIs24FakeController::class.java
+        val calendarField = cls.getDeclaredField("mCalendar").apply { isAccessible = true }
+        val clockListenersField = cls.getDeclaredField("mClockListeners").apply { isAccessible = true }
+        val is24Field = cls.getDeclaredField("mIs24").apply { isAccessible = true }
+        val controller = ControllerCapability(cls, calendarField, clockListenersField, is24Field)
+        val target = ClockResolver.resolveClockTargetClass(RecordingClockView::class.java)
+            ?: return null
+        val abi = ClockAbi(controller, arrayOf(target), calendarCold)
+        return ClockEffectPublication(abi)
     }
 
     private fun secondTickerFlags(ticker: Any): Pair<Boolean, Boolean> {
@@ -171,6 +240,14 @@ class SystemClockHotPathTest {
         val sb = cls.getDeclaredField("showStatusBarSeconds").apply { isAccessible = true }.get(ticker) as Boolean
         val cc = cls.getDeclaredField("showCCSeconds").apply { isAccessible = true }.get(ticker) as Boolean
         return sb to cc
+    }
+
+    private fun startTicker(ticker: Any) {
+        ticker.javaClass.getMethod("start").invoke(ticker)
+    }
+
+    private fun runTicker(ticker: Any) {
+        (ticker as Runnable).run()
     }
 
     private fun makeSnapshotWithSeconds(statusBar: Boolean, cc: Boolean): SystemClockHooks.ClockStyleSnapshot {
@@ -190,7 +267,7 @@ class SystemClockHotPathTest {
         }
     }
 
-    private open inner class RecordingTextView : TextView(null) {
+    private open inner class RecordingTextView(context: Context = FakeContext()) : TextView(context) {
         override fun getResources(): Resources = FakeResources()
 
         // Recorded setter calls for assertions.  Each setter also delegates to the
@@ -1178,7 +1255,7 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(snapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
 
         val ticker = SystemClockHooks.activeSecondTicker(controller)
         assertNotNull("one active ticker must be stored on the controller", ticker)
@@ -1193,10 +1270,10 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(snapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
         val first = SystemClockHooks.activeSecondTicker(controller)
 
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
         val second = SystemClockHooks.activeSecondTicker(controller)
 
         assertSame("same seconds flags must keep the same ticker instance", first, second)
@@ -1211,13 +1288,13 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(onSnapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
         val ticker = SystemClockHooks.activeSecondTicker(controller)
         assertNotNull(ticker)
 
         val offSnapshot = makeSnapshotWithSeconds(statusBar = false, cc = false)
         setCurrentSnapshot(offSnapshot)
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
 
         assertNull("ticker must be removed when seconds are off", SystemClockHooks.activeSecondTicker(controller))
         assertTrue("ScreenStateController listeners must be empty", screenStateListeners().isEmpty())
@@ -1229,18 +1306,18 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(onSnapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
         val first = SystemClockHooks.activeSecondTicker(controller)!!
 
         val offSnapshot = makeSnapshotWithSeconds(statusBar = false, cc = false)
         setCurrentSnapshot(offSnapshot)
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
 
         val second = SystemClockHooks.activeSecondTicker(controller)
         assertNull(second)
 
         setCurrentSnapshot(onSnapshot)
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
         val third = SystemClockHooks.activeSecondTicker(controller)!!
 
         assertTrue("new ticker must not be the disposed old one", first !== third)
@@ -1256,7 +1333,7 @@ class SystemClockHotPathTest {
 
         fun createAndDrop(): Pair<Any, WeakReference<Any>> {
             val controller = makeControllerWithClock() as Any
-            SystemClockHooks.initSecondTicker(controller, true, true)
+            SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
             val ticker = SystemClockHooks.activeSecondTicker(controller)!!
             @Suppress("UNCHECKED_CAST")
             val ref = WeakReference(controller)
@@ -1291,11 +1368,11 @@ class SystemClockHotPathTest {
         setCurrentSnapshot(onSnapshot)
 
         val controller = makeControllerWithClock()
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
 
         val offSnapshot = makeSnapshotWithSeconds(statusBar = false, cc = false)
         setCurrentSnapshot(offSnapshot)
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
 
         val ticker = SystemClockHooks.activeSecondTicker(controller)
         assertNull(ticker)
@@ -1311,7 +1388,7 @@ class SystemClockHotPathTest {
         val controller = makeControllerWithClocks(statusClock, ccClock)
 
         // statusbarClockTweak=true, ccClockTweak=false.
-        SystemClockHooks.initSecondTicker(controller, true, false)
+        SystemClockHooks.initSecondTicker(controller, true, false, makePublication())
 
         val ticker = SystemClockHooks.activeSecondTicker(controller)!!
         val (sb, cc) = secondTickerFlags(ticker)
@@ -1334,7 +1411,7 @@ class SystemClockHotPathTest {
         val controller = makeControllerWithClocks(statusClock, ccClock)
 
         // statusbarClockTweak=false, ccClockTweak=true.
-        SystemClockHooks.initSecondTicker(controller, false, true)
+        SystemClockHooks.initSecondTicker(controller, false, true, makePublication())
 
         val ticker = SystemClockHooks.activeSecondTicker(controller)!!
         val (sb, cc) = secondTickerFlags(ticker)
@@ -1357,12 +1434,12 @@ class SystemClockHotPathTest {
         val controller = makeControllerWithClocks(statusClock, ccClock)
 
         // Start with both features enabled and a ticker running.
-        SystemClockHooks.initSecondTicker(controller, true, true)
+        SystemClockHooks.initSecondTicker(controller, true, true, makePublication())
         assertNotNull(SystemClockHooks.activeSecondTicker(controller))
 
         // Now both features are disabled; stale seconds preferences must not keep
         // the ticker alive or leave showSeconds tags set.
-        SystemClockHooks.initSecondTicker(controller, false, false)
+        SystemClockHooks.initSecondTicker(controller, false, false, makePublication())
 
         assertNull("ticker must be removed when both features are disabled", SystemClockHooks.activeSecondTicker(controller))
         assertTrue("ScreenStateController listeners must be empty", screenStateListeners().isEmpty())
@@ -1377,7 +1454,7 @@ class SystemClockHotPathTest {
 
         val controller = makeControllerWithClock()
 
-        SystemClockHooks.initSecondTicker(controller, false, false)
+        SystemClockHooks.initSecondTicker(controller, false, false, makePublication())
 
         assertNull("no ticker must be created when neither feature is enabled", SystemClockHooks.activeSecondTicker(controller))
         assertTrue("ScreenStateController listeners must be empty", screenStateListeners().isEmpty())
@@ -1476,5 +1553,499 @@ class SystemClockHotPathTest {
         val secondOriginal = clock.getTag(originalStyleTagId)
         assertSame("original state must be captured only once", firstOriginal, secondOriginal)
         assertEquals("original state text size must not change", 55f, (secondOriginal as SystemClockHooks.ClockOriginalStyleState).textSizePx, 0.001f)
+    }
+
+    // -------------------------------------------------------------------------
+    // C2-B3 H2 Architecture C migration tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    fun secondTickerH2_coldComplete_publicationAvailableBeforeTick() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication(makeCalendarCold())
+            ?: error("test publication must build")
+        assertNotNull("cold-complete effect must exist before first tick", publication.currentEffect())
+
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+
+        val ticker = SystemClockHooks.activeSecondTicker(controller)
+        assertNotNull("ticker must be created when publication is non-null", ticker)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_coldComplete_doesNotUseRuntimeCalibration() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication(makeCalendarCold())
+            ?: error("test publication must build")
+
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        startTicker(ticker)
+
+        val before = publication.calibrationAttempts
+        runTicker(ticker)
+
+        assertEquals("cold-complete H2 must not trigger runtime calibration", before, publication.calibrationAttempts)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_repeatedTicksReuseSameEffect() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication(makeCalendarCold())
+            ?: error("test publication must build")
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        val clock = controller.mClockListeners[0] as RecordingClockView
+        val calendar = controller.mCalendar as FakeCalendar
+
+        startTicker(ticker)
+        runTicker(ticker)
+        val firstEffect = publication.currentEffect()
+        assertNotNull(firstEffect)
+        assertEquals("first tick must call setTimeInMillis", 1, calendar.setTimeInMillisCalls.size)
+        assertEquals("first tick must call updateTime", 1, clock.updateTimeCalls.size)
+
+        runTicker(ticker)
+        val secondEffect = publication.currentEffect()
+        assertSame("repeated tick must reuse the same effect", firstEffect, secondEffect)
+        assertEquals("second tick must call setTimeInMillis", 2, calendar.setTimeInMillisCalls.size)
+        assertEquals("second tick must call updateTime", 2, clock.updateTimeCalls.size)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_coldIncomplete_emptyListenerList_failsClosedAndSchedules() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication()
+            ?: error("test publication must build")
+        val controller = makeControllerWithClock()
+        controller.mClockListeners.clear()
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        startTicker(ticker)
+
+        runTicker(ticker)
+
+        assertNull("cold-incomplete with empty listeners must not publish an effect", publication.currentEffect())
+        assertEquals("no runtime calibration must be attempted", 0, publication.calibrationAttempts)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_coldIncomplete_laterEligibleListenerPublishesEffect() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication()
+            ?: error("test publication must build")
+        val controller = makeControllerWithClock()
+        val clock = controller.mClockListeners[0] as RecordingClockView
+        val calendar = controller.mCalendar as FakeCalendar
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        startTicker(ticker)
+
+        assertNull("effect must not exist before first tick", publication.currentEffect())
+        runTicker(ticker)
+
+        assertNotNull("eligible listener must publish the effect", publication.currentEffect())
+        assertEquals("calendar must be updated", 1, calendar.setTimeInMillisCalls.size)
+        assertEquals("clock must be updated", 1, clock.updateTimeCalls.size)
+
+        runTicker(ticker)
+        assertEquals("reused effect must update calendar again", 2, calendar.setTimeInMillisCalls.size)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_coldIncomplete_failedTargetDoesNotRepeatResolution() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication()
+            ?: error("test publication must build")
+        val controller = makeControllerWithClock()
+        val clock = controller.mClockListeners[0] as RecordingClockView
+        clock.mMiuiStatusBarClockController = null
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        startTicker(ticker)
+
+        runTicker(ticker)
+        assertEquals("failed target must consume one calibration attempt", 1, publication.calibrationAttempts)
+
+        clock.mMiuiStatusBarClockController = controller
+        runTicker(ticker)
+        assertEquals("same target must not retry after failure", 1, publication.calibrationAttempts)
+
+        disposeTicker(ticker)
+    }
+
+    private inner class CcClockView(context: Context = FakeContext()) : RecordingClockView(context)
+
+    @Test
+    fun secondTickerH2_coldIncomplete_failedSiblingDoesNotBlockDifferentValidTarget() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = true)
+        setCurrentSnapshot(snapshot)
+
+        val statusClock = RecordingClockView()
+        val ccClock = CcClockView()
+        ModuleHelper.setViewInfo(statusClock, "clockName", "clock")
+        ModuleHelper.setViewInfo(ccClock, "clockName", "ccClock")
+
+        val target = ClockResolver.resolveClockTargetClass(CcClockView::class.java)
+            ?: error("cc target must resolve")
+        val controller = FakeController()
+        controller.mContext = FakeContext()
+        statusClock.mMiuiStatusBarClockController = null
+        ccClock.mMiuiStatusBarClockController = controller
+        controller.mClockListeners.add(statusClock)
+        controller.mClockListeners.add(ccClock)
+
+        val base = ClockResolver.resolveControllerClass(FakeController::class.java)
+            ?: error("controller must resolve")
+        val abi = ClockAbi(base, arrayOf(
+            ClockResolver.resolveClockTargetClass(RecordingClockView::class.java)!!,
+            target,
+        ), null)
+        val publication = ClockEffectPublication(abi)
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        startTicker(ticker)
+
+        runTicker(ticker)
+
+        assertNotNull("different valid target must still publish an effect", publication.currentEffect())
+        assertEquals("cc clock must be updated", 1, ccClock.updateTimeCalls.size)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_nullPublication_createsNoActiveTicker() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = true)
+        setCurrentSnapshot(snapshot)
+
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller, true, true, null)
+
+        assertNull("null publication must not create a ticker", SystemClockHooks.activeSecondTicker(controller))
+        assertTrue("ScreenStateController listeners must be empty", screenStateListeners().isEmpty())
+    }
+
+    @Test
+    fun secondTickerH2_nullPublication_disposesExistingTickerAndRemovesField() {
+        val onSnapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(onSnapshot)
+
+        val controller = makeControllerWithClock()
+        val publication = makePublication(makeCalendarCold())
+            ?: error("test publication must build")
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val first = SystemClockHooks.activeSecondTicker(controller)
+        assertNotNull(first)
+
+        SystemClockHooks.initSecondTicker(controller, true, true, null)
+
+        assertNull("existing ticker must be removed when publication becomes null", SystemClockHooks.activeSecondTicker(controller))
+        assertTrue("ScreenStateController listeners must be empty", screenStateListeners().isEmpty())
+    }
+
+    @Test
+    fun secondTickerH2_nullPublication_clearsStaleShowSeconds() {
+        val onSnapshot = makeSnapshotWithSeconds(statusBar = true, cc = true)
+        setCurrentSnapshot(onSnapshot)
+
+        val statusClock = RecordingClockView()
+        val ccClock = RecordingClockView()
+        val controller = makeControllerWithClocks(statusClock, ccClock)
+        ModuleHelper.setViewInfo(statusClock, "showSeconds", true)
+        ModuleHelper.setViewInfo(ccClock, "showSeconds", true)
+
+        SystemClockHooks.initSecondTicker(controller, false, false, null)
+
+        assertNull("status-bar showSeconds tag must be cleared when publication is null", ModuleHelper.getViewInfo(statusClock, "showSeconds"))
+        assertNull("ccClock showSeconds tag must be cleared when publication is null", ModuleHelper.getViewInfo(ccClock, "showSeconds"))
+    }
+
+    @Test
+    fun secondTickerH2_listenerSemantics_traversalUnboundedAndNoMaxClockListeners() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication(makeCalendarCold())
+            ?: error("test publication must build")
+        val controller = makeControllerWithClock()
+
+        val clock = controller.mClockListeners[0] as RecordingClockView
+        val manyListeners = ArrayList<Any>(100)
+        repeat(100) {
+            manyListeners.add(clock)
+        }
+        controller.mClockListeners.clear()
+        controller.mClockListeners.addAll(manyListeners)
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        startTicker(ticker)
+
+        runTicker(ticker)
+
+        assertEquals("unbounded traversal must update every listener copy", manyListeners.size, clock.updateTimeCalls.size)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_listenerSemantics_nonViewEntryAbortsTick() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication(makeCalendarCold())
+            ?: error("test publication must build")
+        val controller = makeControllerWithClock()
+        val clock = controller.mClockListeners[0] as RecordingClockView
+        controller.mClockListeners.add(Any())
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        val calendar = controller.mCalendar as FakeCalendar
+        startTicker(ticker)
+
+        runTicker(ticker)
+
+        assertEquals("calendar must still be updated", 1, calendar.setTimeInMillisCalls.size)
+        assertEquals("non-View listener must abort remaining updates", 1, clock.updateTimeCalls.size)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_failure_setTimeInMillisFailureAbortsRemainingTick() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val error = IllegalStateException("simulated setTimeInMillis failure")
+        val calendarCold = ClockResolver.resolveCalendarFromDeclaredType(FailingFakeCalendar::class.java, Context::class.java)
+            ?: error("calendar must resolve")
+        val publication = makePublication(calendarCold)
+            ?: error("publication must build")
+
+        val controller = makeControllerWithClock()
+        val clock = controller.mClockListeners[0] as RecordingClockView
+        controller.mCalendar = FailingFakeCalendar(error)
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        startTicker(ticker)
+
+        runTicker(ticker)
+
+        assertEquals("setTimeInMillis failure must not call updateTime", 0, clock.updateTimeCalls.size)
+        assertFalse("setTimeInMillis failure must abort before writeIs24", controller.mIs24)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_fatalFromCalendarSetTimeInMillis_preservesExactIdentity() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val oom = OutOfMemoryError("simulated fatal")
+        val calendarCold = ClockResolver.resolveCalendarFromDeclaredType(FailingFakeCalendar::class.java, Context::class.java)
+            ?: error("calendar must resolve")
+        val publication = makePublication(calendarCold)
+            ?: error("publication must build")
+
+        val controller = makeControllerWithClock()
+        controller.mCalendar = FailingFakeCalendar(oom)
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        startTicker(ticker)
+
+        try {
+            runTicker(ticker)
+            fail("fatal must propagate with exact identity")
+        } catch (t: Throwable) {
+            assertSame("direct fatal must preserve exact identity", oom, t)
+        } finally {
+            disposeTicker(ticker)
+        }
+    }
+
+    @Test
+    fun secondTickerH2_failure_writeIs24FailureAbortsListenerUpdates() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val calendarCold = makeCalendarCold()
+            ?: error("calendar must resolve")
+        val publication = makeFailingIs24Publication(calendarCold)
+            ?: error("publication must build")
+
+        val controller = FailingIs24FakeController()
+        controller.mContext = FakeContext()
+        controller.mCalendar = FakeCalendar()
+        val clock = RecordingClockView()
+        ModuleHelper.setViewInfo(clock, "clockName", "clock")
+        clock.mMiuiStatusBarClockController = controller
+        controller.mClockListeners.add(clock)
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        val calendar = controller.mCalendar as FakeCalendar
+        startTicker(ticker)
+
+        runTicker(ticker)
+
+        assertEquals("setTimeInMillis must run", 1, calendar.setTimeInMillisCalls.size)
+        assertEquals("updateTime must not run when writeIs24 fails", 0, clock.updateTimeCalls.size)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_failure_updateTimeFailureAbortsRemainingListeners() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication(makeCalendarCold())
+            ?: error("publication must build")
+
+        val first = object : RecordingClockView() {
+            override fun updateTime() {
+                throw IllegalStateException("simulated update failure")
+            }
+        }
+        val second = RecordingClockView()
+        ModuleHelper.setViewInfo(first, "clockName", "clock")
+        ModuleHelper.setViewInfo(second, "clockName", "clock")
+
+        val controller = FakeController()
+        controller.mContext = FakeContext()
+        first.mMiuiStatusBarClockController = controller
+        second.mMiuiStatusBarClockController = controller
+        controller.mClockListeners.add(first)
+        controller.mClockListeners.add(second)
+
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+        startTicker(ticker)
+
+        runTicker(ticker)
+
+        assertEquals("first listener must not record a successful update", 0, first.updateTimeCalls.size)
+        assertEquals("second listener must not be updated after first failure", 0, second.updateTimeCalls.size)
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_resolveForClock_publishesEffectFromRuntimeContext() {
+        val publication = makePublication()
+            ?: error("publication must build")
+        val controller = makeControllerWithClock()
+        val clock = controller.mClockListeners[0] as RecordingClockView
+
+        val first = publication.resolveForClock(clock, FakeContext::class.java)
+        assertNotNull("resolveForClock must publish an effect from a runtime context", first)
+
+        val second = publication.resolveForClock(clock, FakeContext::class.java)
+        assertSame("resolveForClock must reuse the published effect", first, second)
+    }
+
+    @Test
+    fun secondTickerH2_ownership_controllerRemainsWeakAndNoAndroidOwners() {
+        val snapshot = makeSnapshotWithSeconds(statusBar = true, cc = false)
+        setCurrentSnapshot(snapshot)
+
+        val publication = makePublication(makeCalendarCold())
+            ?: error("publication must build")
+        val controller = makeControllerWithClock()
+        SystemClockHooks.initSecondTicker(controller, true, true, publication)
+        val ticker = SystemClockHooks.activeSecondTicker(controller)!!
+
+        val cls = ticker.javaClass
+        val controllerField = cls.getDeclaredField("clockControllerRef")
+        assertEquals("controller must be held through a WeakReference", WeakReference::class.java, controllerField.type)
+
+        val publicationField = cls.getDeclaredField("publication")
+        assertEquals("publication must not hold a View, Context or controller", ClockEffectPublication::class.java, publicationField.type)
+
+        val viewFields = cls.declaredFields.filter {
+            View::class.java.isAssignableFrom(it.type)
+        }
+        assertTrue("SecondTicker must not hold any View field strongly", viewFields.isEmpty())
+
+        val calendarFields = cls.declaredFields.filter {
+            FakeCalendar::class.java.isAssignableFrom(it.type)
+        }
+        assertTrue("SecondTicker must not hold a calendar instance field", calendarFields.isEmpty())
+
+        disposeTicker(ticker)
+    }
+
+    @Test
+    fun secondTickerH2_sourceStructural_hotPathHasNoForbiddenReflection() {
+        val path = "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemClockHooks.kt"
+        val text = source(path)
+
+        val classStart = text.indexOf("private class SecondTicker(")
+        val classEnd = text.indexOf("\n    }\n\n", classStart) + 7
+        val secondTickerBody = text.substring(classStart, classEnd)
+
+        val forbidden = listOf(
+            "XposedHelpers.getObjectField",
+            "XposedHelpers.setObjectField",
+            "XposedHelpers.callMethod",
+            "resolveCore",
+            "findClass",
+            "MainModule.mPrefs",
+            "MAX_CLOCK_LISTENERS",
+            "Sequence",
+            "kotlinx.coroutines",
+            "Flow",
+        )
+
+        for (token in forbidden) {
+            assertFalse(
+                "SecondTicker must not contain '$token' in the H2 hot path",
+                secondTickerBody.contains(token)
+            )
+        }
+
+        assertTrue("SecondTicker must call currentEffect", secondTickerBody.contains("currentEffect"))
+        assertTrue("SecondTicker must use effect.readCalendar", secondTickerBody.contains("effect.readCalendar"))
+        assertTrue("SecondTicker must use effect.setTimeInMillis", secondTickerBody.contains("effect.setTimeInMillis"))
+        assertTrue("SecondTicker must use effect.writeIs24", secondTickerBody.contains("effect.writeIs24"))
+        assertTrue("SecondTicker must use publication-level listener helper", secondTickerBody.contains("publication.readClockListeners"))
+        assertTrue("SecondTicker must use legacy ArrayList/Iterator traversal", secondTickerBody.contains("for (listener in clockListeners)"))
+        assertTrue("SecondTicker must preserve listener as View cast", secondTickerBody.contains("listener as View"))
     }
 }
