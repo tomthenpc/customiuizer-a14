@@ -1,0 +1,280 @@
+# C5 — VolumeDialogAutohideDelay Architecture C Target Selection
+
+**Repository:** `tomthenpc/customiuizer-a14`  
+**Branch:** `devin/a14-architecture-c-r14.20.0`  
+**C5 base / C4 final freeze SHA:** `502abe469184690925a4e0f02c5bc935f1dfcd4f`  
+**Evidence classification:** `LOCAL_EXECUTION_EVIDENCE_ONLY`
+
+This is a documentation-only selection artifact. No production migration is authorized.
+
+---
+
+## 0. START GATE
+
+| Check | Result | Evidence |
+|---|---|---|
+| Current branch | `devin/a14-architecture-c-r14.20.0` | `git branch --show-current` |
+| Local HEAD | `502abe469184690925a4e0f02c5bc935f1dfcd4f` | `git rev-parse HEAD` |
+| Remote HEAD | `502abe469184690925a4e0f02c5bc935f1dfcd4f` | `git rev-parse origin/devin/a14-architecture-c-r14.20.0` |
+| Merge-base against `502abe...` | `502abe469184690925a4e0f02c5bc935f1dfcd4f` | `git merge-base HEAD origin/devin/a14-architecture-c-r14.20.0` |
+| Worktree | clean | `git status --short` returned empty |
+| C1/C2/C3/C4 production changed | `false` | source inspection |
+| C5 production started | `false` | no resolver/ABI/effect/hook changes for C5 |
+
+START PASS.
+
+---
+
+## 1. SELECTION SUMMARY
+
+**Selected C5 target:**
+
+```text
+TARGET_HOOK:     SystemUIControlCenterHooks.VolumeDialogAutohideDelayHook
+TARGET_METHOD:   com.android.systemui.miui.volume.MiuiVolumeDialogImpl.computeTimeoutH
+TARGET_DOMAIN:   Control center / volume dialog auto-hide delay
+```
+
+**One-line reason:** the hook is a pure, read-only, single-method callback that already has a clear behavior oracle and an unambiguous ROM ABI, but it still performs per-callback preference reads and `XposedHelpers` field lookups. A frozen Resolver + immutable Snapshot + Effect removes all of that without writing ROM fields, retaining strong references, or touching complex lifecycle.
+
+---
+
+## 2. CANDIDATE INVENTORY
+
+The following domains were inspected in the current production source at `502abe...`.
+
+| Domain | Primary hook(s) | Why inspected | Status |
+|---|---|---|---|
+| Volume dialog auto-hide delay | `VolumeDialogAutohideDelayHook` | Recurring `getBooleanField` / `getObjectField` + `MainModule.mPrefs.getInt` on a single `computeTimeoutH` callback | **Finalist / selected** |
+| Volume dialog background blur | `BlurVolumeDialogBackgroundHook` | Recurring `getObjectField` / `getBooleanField` + `callMethod` on volume dialog | **Finalist** |
+| Drawer blur | `DrawerBlurRatioHook` | Previously deferred from C4; reassessed | **Finalist** |
+| Status bar digital signal | `StatusBarDigitalSignalHook` | Many `getObjectField` / `callMethod` / preference reads in mobile-state callbacks | **Finalist** |
+| Notification auto-expand | `ExpandNotificationsHook` | Recurring field/method access + `getStringSet` on `setFeedbackIcon` | **Finalist** |
+| Notification heads-up expand | `ExpandHeadsUpHook` | Similar to `ExpandNotificationsHook` but allocates `Runnable` and posts delayed callbacks | Rejected from finalist list |
+| Heads-up display delay | `BetterPopupsHideDelayHook` | Constructor-only; already has preference observer and install-time int-field writes | Not a recurring hot path |
+| Notification icon limit | `MaxNotificationIconsHook` | Small but writes `mMaxStaticIcons` on every `resetViewStates` and uses `intercept` | Not selected |
+| Lock screen PIN scramble | `ScramblePINHook` | Runs at view inflation, not a recurring hot path | Not selected |
+| Control center header | `CCHeaderHook` | Multiple dynamic method calls, `ConstraintSet` reflection, prompt state | Too broad for one Architecture C migration |
+| Auto-brightness range | `AutoBrightnessRange` (SystemDisplayHooks) | Already has snapshot; `DisplayPowerController` hooks are low frequency | Not selected |
+
+Excluded by contract (not re-opened):
+- C1 `StatusBarHeight`
+- C2 `SystemClock`
+- C3 `Battery Style`
+- C4 `HideIconsSignal`
+
+---
+
+## 3. FINALIST MATRIX
+
+Ranking priority: correctness > lifecycle/ownership > concurrency/publication > behavior compatibility > hot-path cost > cold-path elegance > code size.
+
+| # | Attribute | **VolumeDialogAutohideDelayHook** | **BlurVolumeDialogBackgroundHook** | **DrawerBlurRatioHook** | **StatusBarDigitalSignalHook** | **ExpandNotificationsHook** |
+|---:|---|---|---|---|---|---|
+| 1 | **Exact production hook surface** | `ModuleHelper.findAndHookMethod` of `MiuiVolumeDialogImpl.computeTimeoutH` (no args, returns `int`) <br> `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:122` | `findAndHookMethod` of `MiuiVolumeDialogImpl.updateDialogWindowH` and `showH` (different arg signatures) <br> `SystemUIControlCenterHooks.kt:183-214` | `findAndHookMethod` of `NotificationShadeDepthController$updateBlurCallback$1.doFrame`, `BlurUtilsExt.applyBlur`, `ControlPanelWindowManager.setBlurRatio` <br> `SystemDisplayHooks.kt:296-312` | `hookAllMethods` on `MobileStatusTracker.mCallback.onMobileStatusChanged`, `StatusBarMobileView.applyMobileState` / `updateState` / `applyDarknessInternal`, and `StatusBarIconControllerImpl.setMobileIcons` <br> `SystemUIStatusBarHooks.kt:887-996` | `hookAllMethods` on `ExpandableNotificationRow.setFeedbackIcon` <br> `SystemNotificationHooks.kt:43-70` |
+| 2 | **Callback shape** | `before(param)` → `param.returnAndSkip(int)` | `after(param)` with `Window` and `startBlurAnim` calls | `intercept(chain)` → `chain.proceed()` / `chain.proceed(args)` on 3 surfaces | `before` / `after` on multiple classes; view creation and state mutation | `intercept(chain)` → `chain.proceed()` with conditional `setSystemExpanded` |
+| 3 | **Callback owner** | `MiuiVolumeDialogImpl` instance | `MiuiVolumeDialogImpl` instance | `NotificationShadeDepthController$updateBlurCallback$1`, `BlurUtilsExt`, `ControlPanelWindowManager` | `MobileStatusTracker$Callback`, `StatusBarMobileView`, `StatusBarIconControllerImpl` | `ExpandableNotificationRow` |
+| 4 | **Known or unknown runtime frequency** | `NOT_PROVEN`. Triggered by volume dialog timeout computations; no real-device timing available. | `NOT_PROVEN`. Triggered by volume dialog show/resize; no timing available. | `NOT_PROVEN`. `doFrame` may run during panel animations; real frequency not measured. | `NOT_PROVEN`. Mobile status and icon updates occur on signal changes; exact frequency not measured. | `NOT_PROVEN`. `setFeedbackIcon` is called per notification feedback update; frequency not measured. |
+| 5 | **Recurring field/member accesses per invocation** | `mHovering` (boolean), `mIsSafetyShowing`/`mSafetyWarning` (Boolean object), `mExpanded` (boolean) | `mWindow` (Window), `mExpanded` (boolean), `startBlurAnim` method | `getAdditionalInstanceField` (cached `WeakReference`), `WeakReference.get()`, `DrawerBlurScope` `ThreadLocal` | `mSubscriptionInfo`, `signalStrength`, `getDbm`, `mState`, `mMobile`, `mobileIconState` (`visible`, `airplane`, `subId`), `mMobileTypeSingle`, `setMobileIcons` args | `mOnKeyguard` (boolean), `getEntry()` method, `mSbn` field, `getPackageName()` method |
+| 6 | `XposedHelpers` or cache work per invocation | Three `XposedHelpers` field lookups per callback (cached `Field` map inside `XposedHelpers`, but still per-call map access + `Field.get`). | Two `XposedHelpers` field lookups + two `callMethod` invocations per relevant callback. | `getAdditionalInstanceField` / `setAdditionalInstanceField` map work + `WeakReference.get()`; `findBlurUtilsExt` only on cache miss. | Many `getObjectField` / `getBooleanField` / `callMethod` per surface; `signalLevelMap` read/write. | `getBooleanField`, `callMethod(getEntry)`, `getObjectField(mSbn)`, `callMethod(getPackageName)`; then `callMethod(setSystemExpanded, true)` only when selected. |
+| 7 | **Preference/config reads per invocation** | Two `MainModule.mPrefs.getInt` calls on every callback (no snapshot). | None in callback; uses `volumeBlurSnapshot` updated by observer. | None in callback; `drawerBlurModifierPct` is a `volatile Float` updated by observer. | Two `MainModule.mPrefs.getBoolean` per `updateState`/`applyMobileState` callback. | `MainModule.mPrefs.getString` + `getStringSet` on every callback. |
+| 8 | **Structurally provable per-invocation allocations** | None structurally proven. `PrefMap.getInt` normalizes the key string; that may allocate. | None structurally proven in hot path. | None structurally proven after first `WeakReference` cache. `DrawerBlurScope` `ThreadLocal` entry on each `doFrame`. | TextView and `String` building on init; `StringBuilder`/`String` dBm formatting per update. | `getStringSet` returns a `Set<String>`; `Integer.parseInt` creates an `Int` but the `String`/`Set` may allocate depending on `PrefMap` implementation. |
+| 9 | **Resolver feasibility** | **High.** Single class `MiuiVolumeDialogImpl`; three fields with one candidate-pair ambiguity (`mIsSafetyShowing`/`mSafetyWarning`) easily handled by ordered field-name list. | **High.** Single class; two fields and one method. Method overload set must be preflighted. | **Medium.** Multiple target classes; `BlurUtilsExt` discovery already has candidate-name + type fallback. The `WeakReference` cache is not a real field, so an ABI cannot fully replace it without re-design. | **Low–Medium.** Multiple resolution roots (`MobileStatusTracker$Callback`, `StatusBarMobileView`, `StatusBarIconControllerImpl`, `MobileIconState`); method and field name set is broad and the callback mutates `mobileIconState`. | **Medium.** Single class `ExpandableNotificationRow`; field `mOnKeyguard` and `mSbn`; methods `getEntry`, `getPackageName`, `setSystemExpanded` must be resolved. |
+| 10 | **Frozen-ABI feasibility** | **High.** All target data is in fields; no method cache needed for the return decision. | **Medium.** Fields freeze easily; `startBlurAnim` requires a frozen `Method`, and two hook points call it with different effective arguments. | **Low–Medium.** `doFrame` target uses `getSurroundingThis` to a controller, then `findBlurUtilsExt`; the BlurUtilsExt target has no stable field name. Re-architecting to a frozen ABI would require owning the BlurUtilsExt object lifecycle. | **Low.** Too many fields, methods, and classes to freeze in one C5 cycle; some state is mutated and other state is created (TextView). | **Medium.** Can freeze `mOnKeyguard`, `mSbn`; `getEntry` and `getPackageName` require method ABI; `setSystemExpanded` requires method ABI. |
+| 11 | **Runtime subclass/shadowing risk** | Low. Exact-root FAST can compare `thisObject.javaClass === MiuiVolumeDialogImpl`; any other class falls through to legacy `XposedHelpers` lookup. | Low. Same root class; `Window`/`mExpanded` are inherited but declared in known class. | Medium–high. Callback is an anonymous inner class (`updateBlurCallback$1`) and the blur target is dynamically discovered; exact root is hard to pin. | Medium. `StatusBarMobileView` and `MobileIconState` have subclasses; the existing hook uses `getObjectField` with runtime class, which naturally walks the hierarchy. | Low. `ExpandableNotificationRow` exact-root FAST possible, with legacy fallback for subclasses. |
+| 12 | **Lifecycle/owner-retention risk** | Very low. Effect holds a `Field` snapshot and an immutable `Int` snapshot; no View, `Context`, `Activity`, or dialog instance is retained beyond the callback frame. | Low. Effect holds `Field`/snapshot; `Window` is read from the dialog instance at callback time and never retained. | Medium. `WeakReference` lifecycle and `ThreadLocal` scope ownership must be preserved; the target may be re-discovered if the reference is cleared. | Medium–high. The hook creates and inserts a `TextView` and stores `signalLevelMap` in the hook closure; this is longer-lived state that does not fit the C4/Architecture C immutable Effect model. | Low. No strong references retained; the `Set<String>` snapshot is a small immutable object. |
+| 13 | **Concurrency/publication risk** | Low. A `VolumeDialogAutohideDelaySnapshot` can be atomically published (e.g. `AtomicReference` or `volatile`); only two `Int`s. UI-thread callback. | Low. `VolumeBlurSnapshot` already exists and uses `volatile`. | Low. `drawerBlurModifierPct` is `volatile`; `DrawerBlurScope` is a `ThreadLocal`. | Medium. `signalLevelMap` is a non-atomic `SparseIntArray` written by one callback and read by another; publication is not explicit. | Low. A snapshot of `Int` mode + `Set<String>` apps can be atomically published. |
+| 14 | **Failure/fatal compatibility risk** | Low. Existing `try/catch` around `mIsSafetyShowing` maps to a resolver field-candidate fallback; `OutOfMemoryError` must be propagated. `returnAndSkip` is non-mutating, so a wrong timeout is the worst visible failure. | Low. `Window` and `mExpanded` field access and `startBlurAnim` call can throw; must be guarded. | Medium. `findBlurUtilsExt` swallows `Throwable` except fatal errors; silently returning null is the existing fallback. An ABI that does not match could produce a no-op blur. | Medium. Multiple surfaces and `setObjectField` / view insertion mean a missed field could corrupt mobile icon state or crash SystemUI. | Low–Medium. `setSystemExpanded` is a method call; missing it or `mSbn` is recoverable. |
+| 15 | **Behavior-oracle complexity** | **Very low.** Pure function of three booleans and two preference values; exact `returnAndSkip` sequence is one short conditional chain. | Low. Two similar callbacks compute `blurRatio` from `mExpanded` and snapshot; both call `startBlurAnim`/`clearFlags` in slightly different conditions. | Medium. Three different callback shapes, dynamic target discovery, and nested `DrawerBlurScope` make the exact oracle harder to state in one Effect. | High. Combines signal-level tracking, view creation, icon state mutation, and dual-row state synchronization; oracle is multi-method and order-sensitive. | Low. Boolean decision from `mOnKeyguard`, package name, mode, and app set. |
+| 16 | **Expected Architecture C reduction** | Remove 2 `MainModule.mPrefs.getInt` calls and 3 `XposedHelpers` field-name/cache lookups per callback. Replace with 3 direct `Field.get` / `Field.getBoolean` and a single immutable snapshot reference. | Remove 2 `XposedHelpers` field lookups and 2 `XposedHelpers.callMethod` calls per relevant callback; snapshot already exists. | Limited. `getAdditionalInstanceField` / `WeakReference.get` remain because the target has no stable frozen field; the main win would be atomic `DrawerBlurSnapshot` publication, which already partially exists. | Large in absolute terms, but the surface is too broad for a single C5 cycle; would need multiple sub-migrations. | Remove 2 preference reads and several reflective method/field lookups; requires method ABI for `getEntry`, `getPackageName`, `setSystemExpanded`. |
+| 17 | **Evidence quality** | `STRUCTURAL` for hook surface, field names, and preference keys; `NOT_PROVEN` for runtime frequency and field-type semantics; `LOCAL_EXECUTION_EVIDENCE_ONLY` for start gate. | `STRUCTURAL` for hook surface, fields, method name, and existing snapshot; `NOT_PROVEN` for frequency and overload set. | `STRUCTURAL` for source design; `NOT_PROVEN` for real ROM target names, `doFrame` frequency, and `BlurUtilsExt` field ownership. | `STRUCTURAL` for source shape; `NOT_PROVEN` for callback frequency, exact mobile icon state class, and `SubscriptionManager` behavior. | `STRUCTURAL` for source shape; `NOT_PROVEN` for `setFeedbackIcon` overload set, `mSbn` ownership, and callback frequency. |
+
+---
+
+## 4. INDEPENDENT SOURCE EVIDENCE
+
+### 4.1 Selected target — `VolumeDialogAutohideDelayHook`
+
+`app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:121-145`
+
+```kotlin
+fun VolumeDialogAutohideDelayHook(classLoader: ClassLoader) {
+    ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "computeTimeoutH", object : MethodHook() {
+        override fun before(param: BeforeHookCallback) {
+            val mHovering = XposedHelpers.getBooleanField(param.getThisObject(), "mHovering")
+            if (mHovering) { param.returnAndSkip(16000); return }
+            val mSafetyWarning = try {
+                XposedHelpers.getObjectField(param.getThisObject(), "mIsSafetyShowing") as Boolean
+            } catch (e: Throwable) {
+                FatalErrors.rethrowIfFatal(e)
+                XposedHelpers.getObjectField(param.getThisObject(), "mSafetyWarning") as Boolean
+            }
+            if (mSafetyWarning) {
+                val opt = MainModule.mPrefs.getInt("system_volumedialogdelay_expanded", 0)
+                param.returnAndSkip(if (opt > 0) opt else 5000)
+                return
+            }
+            val mExpanded = XposedHelpers.getBooleanField(param.getThisObject(), "mExpanded")
+            val opt = MainModule.mPrefs.getInt(if (mExpanded) "system_volumedialogdelay_expanded" else "system_volumedialogdelay_collapsed", 0)
+            if (opt > 0) param.returnAndSkip(opt)
+        }
+    })
+}
+```
+
+Key structural observations:
+- The hook is `before` on a single, no-arg `computeTimeoutH` method and only ever calls `param.returnAndSkip(int)` or falls through.
+- It does **not** modify any ROM object field, call any ROM method, or retain any `View`/`Context`.
+- It performs **two `MainModule.mPrefs.getInt` calls every callback**; no snapshot or observer exists today.
+- It performs **three `XposedHelpers` field lookups** every callback (`mHovering`, `mIsSafetyShowing` or `mSafetyWarning`, `mExpanded`).
+- The `mIsSafetyShowing` vs `mSafetyWarning` ambiguity is already handled by a runtime `try/catch` fallback; a cold Resolver can replicate this as an ordered field-candidate list with no `catch` on the hot path.
+
+### 4.2 Strongest alternative — `BlurVolumeDialogBackgroundHook`
+
+`SystemUIControlCenterHooks.kt:183-214`
+
+- Already has `VolumeBlurSnapshot` and a preference observer (`refreshVolumeBlurSnapshot()`).
+- Remaining hot-path reflection: `mWindow` field, `mExpanded` field, and `startBlurAnim` method.
+- Why it loses: it requires a method ABI and has two related but non-identical callbacks (`updateDialogWindowH` and `showH`). The snapshot already removes preferences from the hot path, so the remaining gain is smaller and the ABI is less trivial than the selected target.
+
+### 4.3 Drawer blur reassessment
+
+`SystemDisplayHooks.kt:190-312`
+
+- The previous C4 deferral noted unproven callback-frequency and dynamic-discovery complexity.
+- Current source shows the hook already has:
+  - a volatile `drawerBlurModifierPct` value updated by a preference observer,
+  - a `ThreadLocal` `DrawerBlurScope`,
+  - a `WeakReference` cache stored as an additional instance field,
+  - a cold-path `findBlurUtilsExt` that is only executed on cache miss.
+- The steady-state `doFrame` path is already allocation-free and only does `getAdditionalInstanceField`, `WeakReference.get()`, and `ThreadLocal` enter/exit.
+- Conclusion for C5: the real remaining reflective work (`getAdditionalInstanceField` and `WeakReference.get`) is not easily replaced by a frozen `Field` ABI because the blur target is not stored in a stable, name-known field. The lifecycle and discovery risks are still higher than the selected target, and the expected reduction is smaller.
+
+### 4.4 `StatusBarDigitalSignalHook`
+
+`SystemUIStatusBarHooks.kt:887-996`
+
+- Spans four distinct hook surfaces, multiple classes (`MobileStatusTracker`, `StatusBarMobileView`, `StatusBarIconControllerImpl`), view creation, and `mobileIconState` mutation.
+- While it has many `XposedHelpers` accesses, the surface is too broad for a single C5 cycle and the behavior oracle is multi-step and order-sensitive.
+- Conclusion: serious candidate, but deferred to a later Architecture C cycle.
+
+### 4.5 `ExpandNotificationsHook`
+
+`SystemNotificationHooks.kt:43-70`
+
+- Single class `ExpandableNotificationRow`, method `setFeedbackIcon`.
+- Per callback: `mOnKeyguard`, `getEntry()`, `mSbn`, `getPackageName()`, `MainModule.mPrefs.getString` + `getStringSet`, and conditional `setSystemExpanded`.
+- Requires a method ABI for `getEntry`, `getPackageName`, and `setSystemExpanded`, plus a `Set<String>` snapshot.
+- Conclusion: bounded, but more complex and riskier than `VolumeDialogAutohideDelayHook` due to the `Set` snapshot and method calls.
+
+---
+
+## 5. SELECTED TARGET AND REJECTION REASONING
+
+### 5.1 Selected: `VolumeDialogAutohideDelayHook`
+
+It wins on every selection-priority axis:
+
+1. **Correctness** — the hook is a pure timeout function of three booleans and two ints. The legacy oracle is a single conditional chain, easy to freeze and verify.
+2. **Lifecycle / ownership** — the Effect can be a hook-local immutable object that owns only `Field` references and a `VolumeDialogAutohideDelaySnapshot` supplier. No `View`, `Context`, `Activity`, `Window`, or dialog controller is retained.
+3. **Concurrency / publication** — the snapshot is two `Int`s; atomic publication is trivial. No shared mutable `signalLevelMap`, `WeakReference`, or `ThreadLocal`.
+4. **Behavior compatibility** — the legacy fallback is exactly the current `XposedHelpers` path. The resolver only needs to try two field names for the same semantic value (`mIsSafetyShowing` / `mSafetyWarning`).
+5. **Hot-path cost** — removes two `PrefMap.getInt` map/key-normalization lookups and three `XposedHelpers` field-name/cache lookups per callback.
+6. **Cold-path elegance** — one resolver, one ABI, one effect, one snapshot, one runtime-state object, all in a single existing file.
+7. **Code size** — narrow scope: one class, one method, three fields, two preferences.
+
+### 5.2 Rejected / deferred finalists
+
+- **`BlurVolumeDialogBackgroundHook`**: already has a snapshot; the remaining win is smaller and requires a method ABI. Ranked #2.
+- **`DrawerBlurRatioHook`**: already has a `ThreadLocal` / `WeakReference` cache and a volatile preference value; dynamic target discovery and multi-surface lifecycle remain complex. Ranked #3.
+- **`StatusBarDigitalSignalHook`**: too broad; four surfaces, view creation, and state mutation. Deferred to a later cycle.
+- **`ExpandNotificationsHook`**: bounded but requires a `Set<String>` snapshot and three method resolutions (`getEntry`, `getPackageName`, `setSystemExpanded`). The `Set` snapshot and `intercept` shape make it riskier than the selected target.
+
+---
+
+## 6. EXPLICIT `NOT_PROVEN` ITEMS
+
+The following facts are **not** structurally or runtime proven in this document:
+
+- `REAL_CALLBACK_FREQUENCY` for `MiuiVolumeDialogImpl.computeTimeoutH`, volume blur, drawer blur, status-bar digital signal, or `ExpandableNotificationRow.setFeedbackIcon`.
+- `REAL_VOLUME_DIALOG_TIMEOUT_METHOD_SIGNATURE` — the code assumes a no-arg `computeTimeoutH` returning `int`; overloads are `NOT_PROVEN`.
+- `REAL_HYPEROS_FIELD_TYPE_FOR_SAFETY_WARNING` — the source treats it as a `Boolean` object via `getObjectField(...) as Boolean`, but the real ROM could use `boolean` primitive; the effect must handle both.
+- `REAL_MISAFETYSHOWING_VS_MSAFETYWARNING_PREVALENCE` — which ROM variant uses which field is unknown; the resolver must try both.
+- `MIUIVOLUMEDIALOGIMPL_SUBCLASS_BEHAVIOR` — whether HyperOS subclasses `MiuiVolumeDialogImpl` and/or shadows these fields is `NOT_PROVEN`. Exact-root FAST with legacy fallback is the conservative choice.
+- `PERFORMANCE_GAIN_PERCENTAGE_OR_LATENCY` — no timing, allocation counts, or device measurements are stated.
+
+---
+
+## 7. PROPOSED C5-A0 PREFLIGHT SCOPE
+
+A future `C5_A0_PREFLIGHT.md` should fully define, without writing production code, the following frozen contracts:
+
+1. **Exact hook surface**
+   - `MiuiVolumeDialogImpl.computeTimeoutH` — no-arg, returns `int`.
+   - Confirm `ModuleHelper.findAndHookMethod` vs `hookAllMethods` semantics for this single method.
+   - Confirm `BeforeHookCallback` / `returnAndSkip(Int)` behavior and the exact `MethodHook` priority.
+
+2. **Legacy callback oracle**
+   - Preserve the exact decision order: `mHovering` → safety warning (`mIsSafetyShowing` / `mSafetyWarning`) → `mExpanded`.
+   - Preserve the timeout constants: `16000`, `5000`.
+   - Preserve the preference keys: `system_volumedialogdelay_expanded`, `system_volumedialogdelay_collapsed`.
+   - Preserve the fall-through-to-original behavior when the selected preference value is `0`.
+
+3. **Resolver contract**
+   - Resolve `com.android.systemui.miui.volume.MiuiVolumeDialogImpl` as the single resolution root.
+   - Resolve `mHovering` and `mExpanded` as primitive `boolean` fields.
+   - Resolve the safety-warning field as an ordered candidate list: `["mIsSafetyShowing", "mSafetyWarning"]` with type `Boolean`.
+   - Define failure mode: if the resolution root or any required field is missing, Resolver returns `null` and the hook installs a complete legacy path.
+   - Define exact-root FAST eligibility: `thisObject != null && thisObject.javaClass === resolutionRootClass`.
+
+4. **Frozen-ABI contract**
+   - Data class with `resolutionRootClass: Class<*>` and `Field` references for `mHovering`, `safetyWarning`, and `mExpanded`.
+   - `safetyWarning` reader must unbox a `Boolean` object, or a primitive `boolean` if the field is `Boolean.TYPE`.
+
+5. **Typed config / snapshot contract**
+   - `VolumeDialogAutohideDelaySnapshot(expanded: Int, collapsed: Int)`.
+   - `VolumeDialogAutohideDelayRuntimeState` with `AtomicReference<VolumeDialogAutohideDelaySnapshot?>` and a `PreferenceObserver`.
+   - `currentOrBuildVolumeDialogAutohideDelaySnapshot()` must be the only hot-path reader of `MainModule.mPrefs` for these keys.
+
+6. **Effect contract**
+   - `VolumeDialogAutohideDelayEffect(abi, snapshotProvider)`.
+   - `before(param)` reads `thisObject`, applies the frozen decision chain, and calls `param.returnAndSkip(timeout)` or returns.
+   - No ROM field writes, no `Context`/`View` capture, no `callMethod`.
+
+7. **Failure / fatal compatibility**
+   - `OutOfMemoryError` must propagate.
+   - Non-fatal reflection errors fall back to legacy at install time, not at callback time.
+   - The legacy fallback must match the current `VolumeDialogAutohideDelayHook` code exactly.
+
+8. **Testability**
+   - Resolver tests using a fake `MiuiVolumeDialogImpl` fixture with both `mIsSafetyShowing` and `mSafetyWarning` variants.
+   - Effect tests using a fake `BeforeHookCallback` that records `returnAndSkip` values.
+   - Snapshot tests verifying that preference observer updates produce a new snapshot.
+
+---
+
+## 8. VALIDATION
+
+| Command | Result | Evidence |
+|---|---|---|
+| `git diff --check` | pass | exit code 0, no output |
+| `python tools/check_document_contracts.py` | pass | exit code 0, output: "Document contract checks pass." |
+| `python tools/verify.py full` | **not run** | This is a documentation-only change; no production or test files were modified, so Android compilation is not in scope per project rules. |
+
+All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
+
+## 9. SUBMISSION FIELDS
+
+| Field | Value |
+|---|---|
+| Base SHA | `502abe469184690925a4e0f02c5bc935f1dfcd4f` |
+| Final SHA | *(to be recorded after commit and push)* |
+| Branch | `devin/a14-architecture-c-r14.20.0` |
+| Changed files | `docs/architecture-c/C5_TARGET_SELECTION.md` |
+| Production changed | `false` |
+| Tests changed | `false` |
+| Docs changed | `true` |
+
+---
+
+C5_TARGET_SELECTION_READY_FOR_INDEPENDENT_AUDIT
