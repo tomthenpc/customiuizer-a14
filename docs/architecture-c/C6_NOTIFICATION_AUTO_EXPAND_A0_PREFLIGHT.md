@@ -149,7 +149,7 @@ Source: `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/XposedHelpers.
 - Calls `findField(obj.getClass(), fieldName).getBoolean(obj)`.
 - `IllegalAccessException` is logged and rethrown as `IllegalAccessError(e.getMessage())`.
 - `IllegalArgumentException` is rethrown as-is.
-- `Field.getBoolean` is a JDK primitive `boolean` accessor. The JDK documents it as reading an instance `boolean` field; `Boolean` object unboxing support is **not** guaranteed to be stable across all Android versions. A robust FAST resolver should inspect `Field.getType()` and handle `Boolean.TYPE` and `Boolean.class` separately, rather than relying solely on `getBoolean` for a `Boolean` reference field.
+- `Field.getBoolean` is a JDK primitive `boolean` accessor. The JDK documents it as reading an instance `boolean` field. For the FAST `mOnKeyguard` contract, the resolver must require `field.getType() == Boolean.TYPE`; any other type, including `Boolean.class`, must be rejected so that FAST semantics match the legacy `Field.getBoolean` path.
 
 ### C. `XposedHelpers.getObjectField(Object obj, String fieldName)`
 
@@ -235,7 +235,7 @@ ModuleHelper.hookAllMethods(
 
 | Question | Answer |
 |---|---|
-| Exact class resolution semantics | Class name string resolved through `findClassIfExists`, with `ClassLoader` cache and application `ClassLoader` fallback. |
+| Exact class resolution semantics | Class name string resolved through `findClassIfExists`, with `ClassLoader` cache and application `ClassLoader` fallback. If `findClassIfExists` returns `null`, `ModuleHelper.hookAllMethods` logs, records `TARGET_CLASS_MISSING`, and returns; no callback is installed. |
 | Does `hookAllMethods` hook all overloads? | It hooks **all declared overloads** of `setFeedbackIcon` in `ExpandableNotificationRow`. Inherited `setFeedbackIcon` methods are **not** considered. |
 | Does FAST need `setFeedbackIcon` parameter shape? | **No.** The callback never reads `setFeedbackIcon` arguments. The original method still runs through `chain.proceed()` with its original arguments. |
 | Does FAST need `setFeedbackIcon` return type? | **No.** The callback returns the result of `chain.proceed()` or rethrows. The return type of `setFeedbackIcon` is not used for any custom decision. |
@@ -275,8 +275,7 @@ A conservative FAST `mOnKeyguard` field can be frozen under the following contra
 - **Field resolution:** `XposedHelpers.findField(resolutionRoot, "mOnKeyguard")`.
 - **Type check at install:**
   - If `field.getType() == Boolean.TYPE`: use `Field.getBoolean(obj)`.
-  - If `field.getType() == Boolean.class`: use `Field.get(obj)` and unbox to `boolean`.
-  - Any other type: resolver returns `null` for this field, disabling the FAST path.
+  - If `field.getType()` is anything else, including `Boolean.class`: resolver returns `null` for this field, disabling the FAST path.
 - **FAST eligibility:** `thisObject != null && thisObject.javaClass === resolutionRoot && mOnKeyguardField != null`.
 - **Reason for exact-class check:** If `thisObject` is a subclass that shadows `mOnKeyguard`, the frozen field from `resolutionRoot` would read the superclass field while the legacy path would read the subclass field. This is a semantic mismatch. Requiring `thisObject.javaClass === resolutionRoot` eliminates this ambiguity.
 
@@ -292,7 +291,7 @@ A conservative FAST `mOnKeyguard` field can be frozen under the following contra
 
 ### 5.5 A0 disposition
 
-`mOnKeyguard` is **feasible as a frozen FAST field** under the exact-root, type-aware contract above. It is the least risky FAST member because it is a read, not a mutation, and its target object is the hooked `thisObject`.
+`mOnKeyguard` is **feasible as a frozen FAST field** under the exact-root, primitive-boolean-only contract above. It is the least risky FAST member because it is a read, not a mutation, and its target object is the hooked `thisObject`.
 
 ---
 
@@ -489,7 +488,7 @@ Problems:
 
 Frozen members:
 
-- `mOnKeyguard` Field (exact root, type-aware)
+- `mOnKeyguard` Field (exact root, primitive `boolean` only)
 - `getEntry` Method (exact root, zero-arg)
 - `setSystemExpanded` Method (exact root, `Boolean.class` best-match)
 
@@ -542,7 +541,7 @@ Risks:
 | Item | Value |
 |---|---|
 | `C6_A0_SELECTED_ABI_STRATEGY` | `CONSERVATIVE_PARTIAL_FAST` (Strategy B) |
-| `C6_A0_FROZEN_FAST_MEMBERS` | `mOnKeyguard` Field; `getEntry` Method (zero-arg); `setSystemExpanded` Method (one-arg, `Boolean.class` best-match) |
+| `C6_A0_FROZEN_FAST_MEMBERS` | `mOnKeyguard` Field (primitive `boolean` only); `getEntry` Method (zero-arg); `setSystemExpanded` Method (one-arg, `Boolean.class` best-match) |
 | `C6_A0_RETAINED_LEGACY_MEMBERS` | `mSbn` read via `XposedHelpers.getObjectField`; `getPackageName` call via `XposedHelpers.callMethod` |
 | `C6_A0_EXACT_ROOT_POLICY` | `ExpandableNotificationRow` resolved at install time. At callback, `thisObject != null && thisObject.javaClass === resolutionRoot` is required before any FAST field or method access. |
 | `C6_A0_FAST_TO_LEGACY_RETRY` | `FORBIDDEN_AFTER_FAST_BOUNDARY` |
@@ -553,8 +552,8 @@ Risks:
 1. Resolve `resolutionRoot = XposedHelpers.findClass(..., classLoader)` for `com.android.systemui.statusbar.notification.row.ExpandableNotificationRow`.
 2. `mOnKeyguardField`:
    - `findField(resolutionRoot, "mOnKeyguard")`.
-   - Inspect type. Accept `Boolean.TYPE` or `Boolean.class`; store a type-aware reader.
-   - Any other type → resolver miss.
+   - Inspect type. Accept only `Boolean.TYPE`; reject `Boolean.class` or any other type.
+   - Non-primitive-boolean type → resolver miss.
 3. `getEntryMethod`:
    - `findMethodBestMatch(resolutionRoot, "getEntry")` (zero arg).
    - If found and exactly one best match (no ambiguity), store it.
@@ -644,7 +643,8 @@ For each row:
 
 | Condition | LEGACY behavior | FAST behavior | Equivalent? | Fallback before FAST? | Fallback after FAST? |
 |---|---|---|---|---|---|
-| `resolutionRoot` class missing | Hook installation fails; feature absent | Resolver returns `null`; `COMPLETE_LEGACY` for every callback | `NOT_APPLICABLE` (no FAST) | `COMPLETE_LEGACY` | `N/A` |
+| Hook target class missing | `ModuleHelper.hookAllMethods` logs, records `TARGET_CLASS_MISSING`, and returns; no `setFeedbackIcon` callback is installed | Same as legacy; no callback is installed | `YES` | `N/A` | `N/A` |
+| ABI resolver miss (hook target exists) | The callback is installed and runs the legacy oracle | Resolver returns `null`; the Effect selects `COMPLETE_LEGACY` before the FAST boundary | `YES` | `COMPLETE_LEGACY` | `N/A` |
 | `mOnKeyguard` field missing | `NoSuchFieldError` | Resolver miss → `null` ABI | `NOT_APPLICABLE` | `COMPLETE_LEGACY` | `N/A` |
 | `mOnKeyguard` wrong type | `IllegalArgumentException` or `IllegalAccessError` | Resolver type check rejects → `null` ABI | `NOT_APPLICABLE` | `COMPLETE_LEGACY` | `N/A` |
 | `mOnKeyguard` `IllegalAccessException` | `IllegalAccessError` | `IllegalAccessError` | `YES` | `N/A` | `NO` |
@@ -724,8 +724,8 @@ No fixed per-callback operation count is claimed; actual savings are conditional
 ### 16.1 Resolver
 
 - `ExpandableNotificationRow` resolves at install.
-- `mOnKeyguard` field resolves with `Boolean.TYPE` or `Boolean.class`.
-- Other `mOnKeyguard` type → resolver returns `null`.
+- `mOnKeyguard` field resolves with `Boolean.TYPE` only.
+- Any other `mOnKeyguard` type, including `Boolean.class` → resolver returns `null`.
 - Missing `mOnKeyguard` → resolver returns `null`.
 - Zero-arg `getEntry` resolves from root or superclass.
 - Missing or ambiguous `getEntry` → resolver returns `null`.
@@ -787,7 +787,7 @@ No fixed per-callback operation count is claimed; actual savings are conditional
 | `setFeedbackIcon` return type | `NOT_PROVEN` | callback does not need it |
 | Real callback timing / thread / frequency | `NOT_RUNTIME_TESTED_CALLBACK` | no real device evidence |
 | Start gate / validation commands | `LOCAL_EXECUTION_EVIDENCE_ONLY` | executed locally during this A0 preflight |
-| GitHub CI / workflow runs | `NONE` (status, not evidence classification) | no CI or workflow data available |
+
 
 ---
 
@@ -818,7 +818,7 @@ No fixed per-callback operation count is claimed; actual savings are conditional
 |---|---|
 | `C6_A0_FEASIBILITY` | `PASS` |
 | `C6_A0_SELECTED_ABI_STRATEGY` | `CONSERVATIVE_PARTIAL_FAST` (Strategy B) |
-| `C6_A0_FROZEN_FAST_MEMBERS` | `mOnKeyguard` Field (exact root, type-aware); `getEntry` Method (zero-arg, Xposed-compatible wrapper); `setSystemExpanded` Method (one-arg, `Boolean.class` best-match, Xposed-compatible wrapper) |
+| `C6_A0_FROZEN_FAST_MEMBERS` | `mOnKeyguard` Field (primitive `boolean` only); `getEntry` Method (zero-arg, Xposed-compatible wrapper); `setSystemExpanded` Method (one-arg, `Boolean.class` best-match, Xposed-compatible wrapper) |
 | `C6_A0_RETAINED_LEGACY_MEMBERS` | `mSbn` via `XposedHelpers.getObjectField`; `getPackageName` via `XposedHelpers.callMethod` |
 | `C6_A0_EXACT_ROOT_POLICY` | `ExpandableNotificationRow` resolved at install; callback requires `thisObject.javaClass === resolutionRoot` |
 | `C6_A0_COMPLETE_LEGACY_CONDITIONS` | ABI `null`; `thisObject == null`; class mismatch; any required FAST member missing/ambiguous; runtime shape not covered by the FAST contract |
@@ -829,7 +829,7 @@ No fixed per-callback operation count is claimed; actual savings are conditional
 The preflight freezes a conservative, fail-closed ABI contract:
 
 - The exact legacy callback oracle is preserved.
-- The `mOnKeyguard` field can be frozen with an exact-root, type-aware reader.
+- The `mOnKeyguard` field can be frozen with an exact-root, primitive `boolean` reader; `Boolean.class` is rejected.
 - `getEntry` and `setSystemExpanded` can be frozen as direct `Method` invocations with a small Xposed-compatible error-mapping wrapper, because they are called on the exact root object.
 - `mSbn` and `getPackageName` remain on the legacy `XposedHelpers` path because their runtime object classes cannot be pinned to the resolution root without per-row caches or unproven ROM assumptions.
 - The hook installation surface (`ModuleHelper.hookAllMethods`) is not changed.
@@ -878,7 +878,7 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 ```text
 C6_A0_BASE = 8001f972e194bd388341c45f7064175cbcb27560
 C6_A0_SELECTED_ABI_STRATEGY = CONSERVATIVE_PARTIAL_FAST
-C6_A0_FROZEN_FAST_MEMBERS = mOnKeyguard Field; getEntry Method; setSystemExpanded Method
+C6_A0_FROZEN_FAST_MEMBERS = mOnKeyguard Field (primitive boolean only); getEntry Method; setSystemExpanded Method
 C6_A0_RETAINED_LEGACY_MEMBERS = mSbn getObjectField; getPackageName callMethod
 C6_A0_EXACT_ROOT_POLICY = ExpandableNotificationRow resolved at install; exact thisObject class match required
 C6_A0_COMPLETE_LEGACY_CONDITIONS = ABI null; thisObject null; class mismatch; any required FAST member missing/ambiguous; unknown runtime shape
