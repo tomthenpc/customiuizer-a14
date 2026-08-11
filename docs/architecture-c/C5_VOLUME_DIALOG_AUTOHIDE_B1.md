@@ -568,7 +568,8 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 | B1 corrective production/tests SHA | `c4b15a32197f78990f14abfa15fcd76a6402a4c5` |
 | B1 document checkpoint SHA | `7b2ad4b8e58309703aecd96a2df976c2139b0379` |
 | Previous branch HEAD at independent gate | `baec1acd72a530b7f6a8b966a03e94ae64765097` |
-| Final branch HEAD | `0d7bac289d809eb7f2975e631d5de7ee2ffbc617` |
+| B1 final test corrective SHA | `0d7bac289d809eb7f2975e631d5de7ee2ffbc617` |
+| B1 completion freeze | *(established by independent audit; see B2 consolidation)* |
 | Branch | `devin/a14-architecture-c-r14.20.0` |
 | Production changed | `true` |
 | Tests changed | `true` |
