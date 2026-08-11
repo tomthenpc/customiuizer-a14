@@ -240,7 +240,7 @@ The following ABI questions must be resolved in C6-A0 before any production code
 | `setSystemExpanded` parameter shape | `NOT_PROVEN` | The legacy call supplies exactly one argument. The exact one-argument type (`boolean` primitive, `Boolean` reference, or another compatible one-argument type) is `NOT_PROVEN`. The legacy callback does **not** prove any additional required parameters. |
 | `setSystemExpanded` primitive vs. reference parameter | `NOT_PROVEN` | The Kotlin `true` literal is boxed to `java.lang.Boolean` for the Java varargs `callMethod`; the real method parameter may be `boolean` primitive, `Boolean` reference, or another compatible one-argument type. |
 | `setSystemExpanded` return type | `NOT_PROVEN` | Legacy code ignores the return value. |
-| `setSystemExpanded` overload set | `NOT_PROVEN` | The legacy callback invokes `XposedHelpers.callMethod`, which uses `findMethodBestMatch` and may resolve among compatible one-argument overloads. `hookAllMethods` may also install on multiple overloads. The exact ROM overload set is `NOT_PROVEN`. |
+| `setSystemExpanded` overload set | `NOT_PROVEN` | Legacy invokes `XposedHelpers.callMethod(thisObject, "setSystemExpanded", true)`. `callMethod` uses `findMethodBestMatch` and may resolve among compatible one-argument overloads. The exact ROM overload set is `NOT_PROVEN`. |
 | `setFeedbackIcon` parameter shape | `NOT_PROVEN` | `ModuleHelper.hookAllMethods` is called with only the method name. |
 | `setFeedbackIcon` return type | `NOT_PROVEN` | Required to know what `chain.proceed()` returns. |
 | `setFeedbackIcon` overload set | `NOT_PROVEN` | `hookAllMethods` may install on multiple overloads. |
