@@ -21,9 +21,24 @@ internal class VolumeDialogAutohideDelayRuntimeState @JvmOverloads internal cons
     val snapshotRef: AtomicReference<VolumeDialogAutohideDelaySnapshot?> = AtomicReference(null)
 
     private val refreshLock = Any()
-    private val preferenceObserver = object : ModuleHelper.PreferenceObserver {
+    @JvmField
+    internal val preferenceObserver = object : ModuleHelper.PreferenceObserver {
         override fun onChange(key: String?) = ModuleHelper.guarded {
             onPreferenceChanged(key)
+        }
+    }
+
+    private var observerRegistered: Boolean = false
+
+    /**
+     * Registers the process-scoped preference observer exactly once for this state.
+     *
+     * Must be called under [installLock].
+     */
+    internal fun installObserver() {
+        if (!observerRegistered) {
+            ModuleHelper.observePreferenceChange(preferenceObserver)
+            observerRegistered = true
         }
     }
 
@@ -77,28 +92,65 @@ internal class VolumeDialogAutohideDelayRuntimeState @JvmOverloads internal cons
         @Volatile
         private var installed: Boolean = false
         private var instance: VolumeDialogAutohideDelayRuntimeState? = null
+        private val installLock = Any()
 
         /**
          * Creates and initializes the process-scoped runtime state at most once.
          *
          * Registers the process-scoped observer, then performs the initial refresh
          * outside the hooked [computeTimeoutH] callback.
+         *
+         * Publication invariant: `installed` is set to `true` only after the unique
+         * instance is non-null, the observer has been registered, and the initial
+         * refresh has completed. A caller that observes `installed == true` is
+         * guaranteed to receive the unique, initialized process instance.
          */
         @JvmStatic
-        fun install(): VolumeDialogAutohideDelayRuntimeState {
-            if (!installed) {
-                synchronized(this) {
-                    if (!installed) {
-                        installed = true
-                        val runtimeState = VolumeDialogAutohideDelayRuntimeState()
-                        ModuleHelper.observePreferenceChange(runtimeState.preferenceObserver)
-                        runtimeState.initialize()
-                        instance = runtimeState
-                        return runtimeState
-                    }
-                }
+        fun install(): VolumeDialogAutohideDelayRuntimeState =
+            install(VolumeDialogAutohideDelayRuntimeState())
+
+        /**
+         * Test seam: installs a provided [VolumeDialogAutohideDelayRuntimeState]
+         * using the same publication invariants as [install].
+         */
+        @JvmStatic
+        internal fun install(runtimeState: VolumeDialogAutohideDelayRuntimeState): VolumeDialogAutohideDelayRuntimeState {
+            if (installed) {
+                return checkNotNull(instance) { "installed=true but instance is null" }
             }
-            return instance ?: VolumeDialogAutohideDelayRuntimeState()
+
+            synchronized(installLock) {
+                if (installed) {
+                    return checkNotNull(instance) { "installed=true but instance is null" }
+                }
+
+                val candidate = instance ?: runtimeState.also {
+                    instance = it
+                }
+
+                candidate.installObserver()
+                candidate.initialize()
+
+                installed = true
+                return candidate
+            }
+        }
+
+        /**
+         * Returns whether the process singleton has been published. For tests only.
+         */
+        @JvmStatic
+        internal fun isInstalled(): Boolean = installed
+
+        /**
+         * Resets the install state. For tests only.
+         */
+        @JvmStatic
+        internal fun resetForTest() {
+            synchronized(installLock) {
+                installed = false
+                instance = null
+            }
         }
     }
 }

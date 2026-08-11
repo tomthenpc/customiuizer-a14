@@ -4,8 +4,10 @@
 **Branch:** `devin/a14-architecture-c-r14.20.0`  
 **C5-A0 freeze SHA:** `222af8f2cf2012a76e82427279db5954a7fbaf7c`  
 **C5 target-selection freeze SHA:** `3c5cb8cca3cd08799097e534ffef2366a6504b59`  
+**B1 implementation SHA under review:** `5a9c61c26f6fa1eb69cba47b23d9039a26264021`
+**Corrective base SHA:** `10c562746d910fbfd825eed16d56b97c3795544f`
 **Scope:** `SystemUIControlCenterHooks.VolumeDialogAutohideDelayHook` → `com.android.systemui.miui.volume.MiuiVolumeDialogImpl.computeTimeoutH`  
-**Type:** B1 production implementation.
+**Type:** B1 production implementation, with singleton-publication + single-snapshot corrective.
 
 ---
 
@@ -14,19 +16,32 @@
 | Check | Result | Evidence |
 |---|---|---|
 | Current branch | `devin/a14-architecture-c-r14.20.0` | `git branch --show-current` |
-| Local HEAD | `222af8f2cf2012a76e82427279db5954a7fbaf7c` | `git rev-parse HEAD` |
-| Remote HEAD | `222af8f2cf2012a76e82427279db5954a7fbaf7c` | `git rev-parse origin/devin/a14-architecture-c-r14.20.0` |
-| Merge-base against `222af8f2...` | `222af8f2cf2012a76e82427279db5954a7fbaf7c` | `git merge-base HEAD origin/devin/a14-architecture-c-r14.20.0` |
+| Local HEAD | `10c562746d910fbfd825eed16d56b97c3795544f` | `git rev-parse HEAD` |
+| Remote HEAD | `10c562746d910fbfd825eed16d56b97c3795544f` | `git rev-parse origin/devin/a14-architecture-c-r14.20.0` |
+| Merge-base against `10c56274...` | `10c562746d910fbfd825eed16d56b97c3795544f` | `git merge-base HEAD origin/devin/a14-architecture-c-r14.20.0` |
 | Worktree | clean | `git status --short` empty |
 | C1/C2/C3/C4 production changed | `false` | no modifications in those phases |
+| B1 implementation SHA changed | `true` | RuntimeState + Effect corrective |
 
 START PASS.
 
 ---
 
-## 2. IMPLEMENTATION SCOPE
+## 2. CORRECTIVE SUMMARY
 
-### 2.1 Production files
+This B1 document records a post-implementation corrective for two independent issues found during independent gate review:
+
+1. **Singleton publication race in `VolumeDialogAutohideDelayRuntimeState.install()`**: the original code published the volatile `installed` flag before the unique instance, observer registration, and initial refresh were complete. A concurrent caller could observe `installed == true` while `instance == null` and receive a detached, uninitialized `RuntimeState`. The corrected state machine uses a dedicated `installLock`, publishes `installed = true` only as the final successful step, and never returns a fallback `VolumeDialogAutohideDelayRuntimeState()`.
+
+2. **Snapshot double-read in `VolumeDialogAutohideDelayEffect.process()`**: the original code called `snapshotRef.get()` once for eligibility and then again inside `processFast()`. The corrected code captures the snapshot exactly once per callback and passes the captured immutable snapshot through the entire FAST invocation.
+
+All other B1 design decisions remain frozen.
+
+---
+
+## 3. IMPLEMENTATION SCOPE
+
+### 3.1 Production files
 
 | File | Purpose |
 |---|---|
@@ -38,41 +53,38 @@ START PASS.
 | `app/src/main/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayHook.kt` | Thin hook installer. |
 | `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt` | Wired to call `VolumeDialogAutohideDelayHook.install(classLoader)`. |
 
-### 2.2 Test files
+### 3.2 Test files
 
 | File | Purpose |
 |---|---|
 | `app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayFixtures.java` | Structural test fixtures. |
 | `app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayResolverTest.kt` | Resolver component tests. |
-| `app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayRuntimeStateTest.kt` | Runtime state / publication component tests. |
-| `app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayEffectTest.kt` | Effect / oracle / safety alias / failure component tests. |
+| `app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayRuntimeStateTest.kt` | Runtime state / publication / singleton / snapshot component tests. |
+| `app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayEffectTest.kt` | Effect / oracle / safety alias / snapshot-capture / failure component tests. |
 
-### 2.3 Changed-file summary
+### 3.3 Corrective changed-file scope
 
 ```text
-app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt
-app/src/main/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayAbi.kt
-app/src/main/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayEffect.kt
-app/src/main/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayHook.kt
-app/src/main/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayResolver.kt
 app/src/main/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayRuntimeState.kt
-app/src/main/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelaySnapshot.kt
-app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayFixtures.java
-app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayResolverTest.kt
+app/src/main/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayEffect.kt
 app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayRuntimeStateTest.kt
 app/src/test/java/tv/withaibuild/customiuizer/mods/volumedialogautohide/VolumeDialogAutohideDelayEffectTest.kt
 docs/architecture-c/C5_VOLUME_DIALOG_AUTOHIDE_B1.md
 ```
 
-### 2.4 Scope freeze
+### 3.4 Scope freeze
 
 - C1/C2/C3/C4 are not reopened.
 - No changes to `BlurVolumeDialogBackgroundHook`, `DrawerBlurRatioHook`, `VolumeTimerValuesRes`, or other volume features.
 - No shared preference infrastructure changes.
+- Strategy A safety alias unchanged.
+- Primitive-boolean `mHovering`/`mExpanded` FAST ABI unchanged.
+- Exact-root FAST eligibility unchanged.
+- No return-type filtering unchanged.
 
 ---
 
-## 3. IMPLEMENTATION CHAIN
+## 4. IMPLEMENTATION CHAIN
 
 ```text
 Cold Resolve
@@ -99,20 +111,23 @@ Thin Hook
            )
 
 Mode Select (before any FAST field access)
-    → abi != null
+    → val a = abi
+    → val snapshot = snapshotRef.get()   // exactly one per callback
+    → a != null
     → thisObject != null
-    → thisObject.javaClass === abi.resolutionRootClass
-    → snapshotRef.get() != null
+    → thisObject.javaClass === a.resolutionRootClass
+    → snapshot != null
 
 Hot Execute
-    → mHovering = mHoveringField.getBoolean(thisObject)
+    → processFast(thisObject, a, snapshot, param)
+    → mHovering = a.mHoveringField.getBoolean(thisObject)
     → if mHovering: returnAndSkip(16000)
     → mSafetyWarning = LEGACY_SAFETY_ALIAS_READ(thisObject)
         (Strategy A: exact existing XposedHelpers try/catch block)
     → if mSafetyWarning:
         opt = snapshot.expanded
         returnAndSkip(opt > 0 ? opt : 5000)
-    → mExpanded = mExpandedField.getBoolean(thisObject)
+    → mExpanded = a.mExpandedField.getBoolean(thisObject)
     → opt = if (mExpanded) snapshot.expanded else snapshot.collapsed
     → if opt > 0: returnAndSkip(opt)
     → otherwise fall through to original computeTimeoutH
@@ -123,7 +138,9 @@ Legacy
 
 ---
 
-## 4. RESOLVER
+## 5. RESOLVER
+
+Unchanged from B1 implementation.
 
 - Resolution root: `com.android.systemui.miui.volume.MiuiVolumeDialogImpl`.
 - Verifies the zero-explicit-parameter `computeTimeoutH` method surface with `XposedHelpers.findMethodExactIfExists`, without inspecting or filtering `Method.returnType`.
@@ -136,7 +153,9 @@ Legacy
 
 ---
 
-## 5. ABI
+## 6. ABI
+
+Unchanged from B1 implementation.
 
 ```kotlin
 internal class VolumeDialogAutohideDelayAbi(
@@ -153,7 +172,7 @@ internal class VolumeDialogAutohideDelayAbi(
 
 ---
 
-## 6. SNAPSHOT AND PUBLICATION
+## 7. SNAPSHOT AND PUBLICATION
 
 ```kotlin
 data class VolumeDialogAutohideDelaySnapshot(
@@ -171,10 +190,11 @@ data class VolumeDialogAutohideDelaySnapshot(
   val collapsed = source[COLLAPSED_KEY] as? Int ?: 0
   ```
 - No two independent `MainModule.mPrefs.getInt` calls.
+- Once a callback captures a non-null `Snapshot`, that invocation uses the captured immutable value for its entire execution. A concurrent observer refresh cannot alter the values used by an in-flight callback.
 
 ---
 
-## 7. RUNTIME STATE / OWNERSHIP
+## 8. RUNTIME STATE / OWNERSHIP
 
 - `VolumeDialogAutohideDelayRuntimeState` is process-scoped.
 - It owns:
@@ -182,17 +202,72 @@ data class VolumeDialogAutohideDelaySnapshot(
   - `private val refreshLock = Any()`
   - `PreferenceObserver`
 - It does **not** own `View`, `Window`, `Context`, `Activity`, `MiuiVolumeDialogImpl`, or per-dialog cache.
-- Installation protocol:
-  1. `snapshotRef` starts `null`.
-  2. Register process-scoped `PreferenceObserver`.
-  3. Perform initial refresh **outside** `computeTimeoutH`.
-  4. Initial refresh and observer refresh both synchronize on `refreshLock`.
-- The `computeTimeoutH` callback never acquires `refreshLock`; it only calls `snapshotRef.get()`.
+
+### 8.1 Safe singleton install state machine
+
+```kotlin
+companion object {
+    @Volatile private var installed = false
+    private var instance: VolumeDialogAutohideDelayRuntimeState? = null
+    private val installLock = Any()
+
+    fun install(): VolumeDialogAutohideDelayRuntimeState {
+        if (installed) return checkNotNull(instance)
+
+        synchronized(installLock) {
+            if (installed) return checkNotNull(instance)
+
+            val candidate = instance ?: VolumeDialogAutohideDelayRuntimeState().also { instance = it }
+
+            // Registration is idempotent per candidate.
+            candidate.installObserver()
+
+            // Initial refresh outside computeTimeoutH.
+            candidate.initialize()
+
+            // LAST publication step.
+            installed = true
+
+            return candidate
+        }
+    }
+}
+```
+
+Invariants:
+
+- `installed = true` is written only after `instance != null`, observer registration, and initial refresh have completed.
+- `installed` is `@Volatile`; the write is the publication barrier.
+- Any caller that observes `installed == true` receives the same, fully initialized `instance`.
+- No caller receives a detached or unregistered `RuntimeState`.
+- Concurrent pre-publication callers wait on `installLock`.
 - `install()` is idempotent: repeated calls return the same instance and do not register duplicate observers.
+- If `initialize()` throws a fatal error, `installed` remains `false`, the same `instance` is retained, and a later `install()` can retry without duplicating the observer.
+
+### 8.2 Observer registration idempotence
+
+```kotlin
+internal class VolumeDialogAutohideDelayRuntimeState(...) {
+    private var observerRegistered = false
+
+    internal fun installObserver() {
+        if (!observerRegistered) {
+            ModuleHelper.observePreferenceChange(preferenceObserver)
+            observerRegistered = true
+        }
+    }
+}
+```
+
+- `observerRegistered` is per-instance and cold-path only.
+- It is never exposed to the hot `computeTimeoutH` callback.
+- A fatal initial refresh does not reset it, so retry cannot register the observer twice.
 
 ---
 
-## 8. OBSERVER
+## 9. OBSERVER
+
+Unchanged from B1 implementation.
 
 - Relevant keys: `system_volumedialogdelay_expanded`, `system_volumedialogdelay_collapsed`.
 - `key == null` → rebuild.
@@ -204,11 +279,13 @@ data class VolumeDialogAutohideDelaySnapshot(
 
 ---
 
-## 9. REFRESH FAILURE
+## 10. REFRESH FAILURE
+
+Unchanged from B1 implementation.
 
 ```kotlin
 private fun refreshSnapshotLocked() {
-    try {
+    return try {
         val source = refreshSource()
         val snapshot = VolumeDialogAutohideDelaySnapshot(
             expanded = source[EXPANDED_KEY] as? Int ?: 0,
@@ -230,32 +307,40 @@ private fun refreshSnapshotLocked() {
 
 ---
 
-## 10. EFFECT MODE SELECTION AND FAST EXECUTION
+## 11. EFFECT MODE SELECTION AND FAST EXECUTION
 
 - Callback entry: `thisObject = param.getThisObject()`.
 - Mode selected before any FAST `Field` operation.
+- Snapshot captured exactly once:
+  ```kotlin
+  val a = abi
+  val snapshot = snapshotRef.get()
+  ```
 - FAST eligibility:
   ```text
-  abi != null
+  a != null
   thisObject != null
-  thisObject.javaClass === abi.resolutionRootClass
-  snapshotRef.get() != null
+  thisObject.javaClass === a.resolutionRootClass
+  snapshot != null
   ```
 - If any requirement fails: `COMPLETE_LEGACY`.
-- FAST execution order:
-  1. `mHovering = mHoveringField.getBoolean(thisObject)`
+- FAST execution order (uses the captured `snapshot` argument):
+  1. `mHovering = a.mHoveringField.getBoolean(thisObject)`
   2. if `mHovering`: `returnAndSkip(16000)`
   3. `mSafetyWarning = readSafetyWarning(thisObject)` — exact legacy XposedHelpers block
   4. if `mSafetyWarning`: `opt = snapshot.expanded`; `returnAndSkip(if (opt > 0) opt else 5000)`
-  5. `mExpanded = mExpandedField.getBoolean(thisObject)`
+  5. `mExpanded = a.mExpandedField.getBoolean(thisObject)`
   6. `opt = if (mExpanded) snapshot.expanded else snapshot.collapsed`
   7. if `opt > 0`: `returnAndSkip(opt)`
   8. otherwise fall through
+- `processFast` does **not** call `snapshotRef.get()`.
 - No `MainModule.mPrefs` access inside FAST.
 
 ---
 
-## 11. COMPLETE LEGACY
+## 12. COMPLETE LEGACY
+
+Unchanged from B1 implementation.
 
 The complete legacy oracle is preserved in `VolumeDialogAutohideDelayEffect.processLegacy`:
 
@@ -286,7 +371,9 @@ if (opt > 0) param.returnAndSkip(opt)
 
 ---
 
-## 12. SAFETY ALIAS
+## 13. SAFETY ALIAS
+
+Unchanged from B1 implementation.
 
 - `mIsSafetyShowing` and `mSafetyWarning` are **not** resolved into the ABI.
 - The exact legacy block is retained:
@@ -306,7 +393,9 @@ if (opt > 0) param.returnAndSkip(opt)
 
 ---
 
-## 13. FAST FIELD FAILURE
+## 14. FAST FIELD FAILURE
+
+Unchanged from B1 implementation.
 
 - `IllegalAccessException` from `Field.getBoolean` is mapped to `IllegalAccessError` and rethrown.
 - `IllegalArgumentException` from an invalid receiver propagates; no legacy retry is attempted.
@@ -316,7 +405,9 @@ if (opt > 0) param.returnAndSkip(opt)
 
 ---
 
-## 14. HOT-PATH PROHIBITIONS
+## 15. HOT-PATH PROHIBITIONS
+
+Unchanged from B1 implementation.
 
 Eligible FAST callback must not perform:
 
@@ -332,15 +423,15 @@ Eligible FAST callback must not perform:
 
 Allowed:
 
-- `AtomicReference.get`
+- one `AtomicReference.get` per callback
 - `Field.getBoolean`
 - safety alias `XposedHelpers` calls
 
 ---
 
-## 15. TEST COVERAGE
+## 16. TEST COVERAGE
 
-### 15.1 Resolver
+### 16.1 Resolver
 
 - exact root resolves primitive `mHovering`/`mExpanded`
 - inherited primitive fields resolve
@@ -353,7 +444,7 @@ Allowed:
 - ordinary resolver failure returns `null`
 - fatal resolver failure propagates
 
-### 15.2 Runtime state / snapshot
+### 16.2 Runtime state / snapshot / singleton
 
 - initial snapshot `null` before initialization
 - one `getAll()` source builds both values
@@ -366,9 +457,14 @@ Allowed:
 - ordinary refresh failure clears previous snapshot
 - fatal refresh clears then rethrows
 - initial/observer refresh serialized
-- `install()` returns same process singleton
+- install returns same process singleton on sequential calls
+- **concurrent install callers all receive the same initialized instance**
+- **install publishes `installed = true` only after instance, observer registration, and initial refresh complete**
+- **install never returns a detached fallback state**
+- **initial refresh fatal after observer registration keeps the same state, does not duplicate the observer, and allows retry**
+- **a refresh waiting behind `refreshLock` captures the latest `PrefMap` generation**
 
-### 15.3 Effect FAST oracle
+### 16.3 Effect FAST oracle
 
 - hovering `true` → `16000`
 - hovering `true` does not touch safety
@@ -379,7 +475,16 @@ Allowed:
 - safety `false` / collapsed `> 0`
 - `opt <= 0` → original fallthrough
 
-### 15.4 Safety alias
+### 16.4 Effect snapshot capture
+
+- `process` captures `snapshotRef.get()` exactly once
+- `processFast` receives the captured `Snapshot` as an argument
+- `processFast` does not call `snapshotRef.get()`
+- `processFast` returns the value from the captured snapshot, not from a later publication
+- snapshot `null` → complete legacy
+- subclass runtime object → complete legacy
+
+### 16.5 Safety alias
 
 - primary `true`
 - primary `false`
@@ -387,14 +492,14 @@ Allowed:
 - primary missing field → fallback
 - fallback success
 
-### 15.5 Mode selection
+### 16.6 Mode selection
 
 - `abi == null` → complete legacy
 - `thisObject == null` → complete legacy
 - subclass runtime object → complete legacy
 - snapshot `null` → complete legacy
 
-### 15.6 Failure
+### 16.7 Failure
 
 - `IllegalAccessException` mapped to `IllegalAccessError`
 - `IllegalArgumentException` propagates and `returnAndSkip` does not happen
@@ -402,7 +507,7 @@ Allowed:
 
 ---
 
-## 16. EVIDENCE MATRIX
+## 17. EVIDENCE MATRIX
 
 | Item | Classification | Source / note |
 |---|---|---|
@@ -416,10 +521,16 @@ Allowed:
 | `VolumeDialogAutohideDelayRuntimeState` refresh serialization | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayRuntimeStateTest` |
 | `VolumeDialogAutohideDelayRuntimeState` refresh failure clears snapshot | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayRuntimeStateTest` |
 | `VolumeDialogAutohideDelayRuntimeState` install singleton | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayRuntimeStateTest` |
+| `VolumeDialogAutohideDelayRuntimeState` concurrent install publication | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayRuntimeStateTest` |
+| `VolumeDialogAutohideDelayRuntimeState` fatal-refresh retry without duplicate observer | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayRuntimeStateTest` |
+| `VolumeDialogAutohideDelayRuntimeState` installed published only after completion | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayRuntimeStateTest` |
+| `VolumeDialogAutohideDelayRuntimeState` refresh behind lock captures latest generation | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayRuntimeStateTest` |
 | `VolumeDialogAutohideDelayEffect` FAST oracle | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | `VolumeDialogAutohideDelayEffect` LEGACY oracle | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | `VolumeDialogAutohideDelayEffect` mode selection | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | `VolumeDialogAutohideDelayEffect` safety alias | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
+| `VolumeDialogAutohideDelayEffect` single snapshot capture | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
+| `VolumeDialogAutohideDelayEffect` `processFast` uses captured snapshot | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | `VolumeDialogAutohideDelayEffect` `IllegalAccessException` mapping | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | `VolumeDialogAutohideDelayEffect` `IllegalArgumentException` propagation | `RUNTIME_TESTED_COMPONENT` | `VolumeDialogAutohideDelayEffectTest` |
 | Real `computeTimeoutH` return type | `NOT_PROVEN` | no real ROM/device/binary evidence |
@@ -430,30 +541,31 @@ Allowed:
 | Real HyperOS field type for `mExpanded` | `NOT_PROVEN` | resolver enforces `Boolean.TYPE`; any other type is a miss |
 | Real safety-field prevalence (`mIsSafetyShowing` vs `mSafetyWarning`) | `NOT_PROVEN` | both field names are candidates |
 | Real preference observer callback execution | `NOT_RUNTIME_TESTED_CALLBACK` | no real callback timing/thread evidence |
-| Start gate / validation commands | `LOCAL_EXECUTION_EVIDENCE_ONLY` | executed locally during B1 |
+| Start gate / validation commands | `LOCAL_EXECUTION_EVIDENCE_ONLY` | executed locally during corrective |
 | Focused unit test results | `LOCAL_EXECUTION_EVIDENCE_ONLY` | executed with `python tools/verify.py` locally |
 
 ---
 
-## 17. VALIDATION
+## 18. VALIDATION
 
 | Command | Result | Evidence |
 |---|---|---|
 | `git diff --check` | pass | exit `0` |
 | `python tools/check_document_contracts.py` | pass | exit `0` |
 | `python tools/verify.py full` | pass | exit `0` |
-| Focused unit tests | pass | see section 15 |
+| Focused unit tests | pass | see section 16 |
 
 All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 
 ---
 
-## 18. SUBMISSION FIELDS
+## 19. SUBMISSION FIELDS
 
 | Field | Value |
 |---|---|
-| Base SHA | `222af8f2cf2012a76e82427279db5954a7fbaf7c` |
-| Final SHA | `5a9c61c26f6fa1eb69cba47b23d9039a26264021` |
+| Base SHA (corrective) | `10c562746d910fbfd825eed16d56b97c3795544f` |
+| B1 implementation SHA | `5a9c61c26f6fa1eb69cba47b23d9039a26264021` |
+| Final SHA | *(to be recorded after commit and push)* |
 | Branch | `devin/a14-architecture-c-r14.20.0` |
 | Production changed | `true` |
 | Tests changed | `true` |
@@ -461,4 +573,4 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 
 ---
 
-C5_B1_READY_FOR_INDEPENDENT_AUDIT
+C5_B1_CORRECTIVE_READY_FOR_INDEPENDENT_AUDIT

@@ -35,32 +35,37 @@ internal class VolumeDialogAutohideDelayEffect(
 
     /**
      * Testable entry point.
+     *
+     * Captures the snapshot exactly once for mode selection and, if FAST is
+     * selected, passes the same captured immutable snapshot through the entire
+     * FAST invocation.
      */
     internal fun process(thisObject: Any?, param: BeforeHookCallback) {
-        val useFast = isFastEligible(thisObject)
-        if (useFast) {
-            processFast(thisObject!!, param)
+        val a = abi
+        val snapshot = snapshotRef.get()
+
+        if (
+            a != null &&
+            thisObject != null &&
+            thisObject.javaClass === a.resolutionRootClass &&
+            snapshot != null
+        ) {
+            processFast(thisObject, a, snapshot, param)
         } else {
             processLegacy(thisObject, param)
         }
-    }
-
-    private fun isFastEligible(thisObject: Any?): Boolean {
-        val a = abi ?: return false
-        val snapshot = snapshotRef.get()
-        return thisObject != null &&
-            thisObject.javaClass === a.resolutionRootClass &&
-            snapshot != null
     }
 
     /**
      * FAST path: all field access uses frozen [Field] handles. No preference read
      * is performed inside this path.
      */
-    private fun processFast(thisObject: Any, param: BeforeHookCallback) {
-        val a = abi ?: error("processFast called without ABI")
-        val snapshot = snapshotRef.get() ?: error("processFast called without snapshot")
-
+    private fun processFast(
+        thisObject: Any,
+        a: VolumeDialogAutohideDelayAbi,
+        snapshot: VolumeDialogAutohideDelaySnapshot,
+        param: BeforeHookCallback,
+    ) {
         val mHovering = withLegacyIllegalAccessError { a.mHoveringField.getBoolean(thisObject) }
         if (mHovering) {
             param.returnAndSkip(16000)
