@@ -32,9 +32,12 @@ internal class StatusBarIconVisibilityEffect(
      * mid-callback.
      */
     fun before(param: BeforeHookCallback) {
-        val thisObject = param.getThisObject()
+        // Frozen accessor order from A0: getArg(0) first, then member.name, then thisObject.
+        // This must not change because REAL_METHOD_OVERLOAD_SET and zero-arg behavior are
+        // NOT_PROVEN; any failure/access before getArg(0) would infer unsupported semantics.
         val mobileIconState = param.getArg(0)
         val methodName = param.getMember().name
+        val thisObject = param.getThisObject()
         process(thisObject, mobileIconState, methodName)
     }
 

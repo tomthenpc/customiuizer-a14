@@ -109,4 +109,34 @@ public final class StatusBarIconVisibilityFixtures {
     public static class MStateTypedStatusBarMobileView {
         public DeclaredMobileIconState mState = null;
     }
+
+    /**
+     * StatusBarMobileView whose hook methods take Object, but mState is typed to a
+     * concrete state class. Used to test the mState fallback when parameter types are opaque.
+     */
+    public static class ObjectParamWithTypedMStateStatusBarMobileView {
+        public DeclaredMobileIconState mState = null;
+        public void applyMobileState(Object state) {}
+        public void updateState(Object state) {}
+    }
+
+    /**
+     * StatusBarMobileView whose candidate methods expose different concrete parameter types
+     * and whose mState type is Object. No safe MobileIconState root can be derived.
+     */
+    public static class AmbiguousParamStatusBarMobileView {
+        public Object mState = null;
+        public void applyMobileState(DeclaredMobileIconState state) {}
+        public void updateState(BaseMobileIconState state) {}
+    }
+
+    /**
+     * StatusBarMobileView whose candidate methods expose different concrete parameter types,
+     * but the mState type matches one of them. Tests conservative mState tie-break.
+     */
+    public static class MStateTieBreakStatusBarMobileView {
+        public DeclaredMobileIconState mState = null;
+        public void applyMobileState(DeclaredMobileIconState state) {}
+        public void updateState(BaseMobileIconState state) {}
+    }
 }
