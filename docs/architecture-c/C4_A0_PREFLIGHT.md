@@ -245,7 +245,7 @@ LEGACY_FALLBACK_REQUIRED = true
 Frozen behavior-preservation contract:
 
 - **Exact runtime class == resolution root**: FAST allowed, including for fields inherited from a superclass.
-- **Strict runtime subclass of resolution root**: complete legacy `XposedHelpers` fallback.
+- **Any runtime class != resolution root** (strict subclass, superclass, unrelated, or any other mismatch): complete legacy `XposedHelpers` fallback. Subclass field shadowing is the most important reason, but every mismatch must fall back.
 - **Subclass field shadowing**: preserved by the fallback, because legacy `XposedHelpers.findField` starts at `obj.getClass()` and sees the shadowing field first.
 - **Inherited field on exact resolution root**: FAST allowed, because the runtime class is exactly the root and the resolved `Field` points to the only matching field in the hierarchy.
 
@@ -261,10 +261,14 @@ There is no subclass below `R` that could shadow the field. `F` is the only matc
 **Case 2 — runtime class is a strict subclass of `R` (`S extends R`, `obj.javaClass === S`):**
 A strict subclass may declare a field with the same name, shadowing the field found by the `Resolver`. Legacy `findField` would return the subclass field, while `F` (resolved from `R`) would return the superclass field. Therefore the FAST path must not be used; the `Effect` must fall back to the complete legacy `XposedHelpers` path, which preserves subclass shadowing.
 
-**Case 3 — runtime class is a superclass of `R`:**
-This cannot happen if the resolution root was chosen correctly (it is the hook target or parameter type), but if it did, the object is not an instance of `R` and `Field.get`/`set` would throw `IllegalArgumentException`. This is a runtime failure, not a fallback scenario; the `Effect` must not begin the FAST path because the eligibility check fails.
+**Case 3 — runtime class is not equal to the resolution root (`obj.javaClass !== R`):**
+This covers a superclass of `R`, an unrelated class, a strict subclass of `R`, or any other mismatch. If the resolution root was chosen correctly, only `obj.javaClass === R` can happen for the hook target / parameter type, but the `Effect` must enforce the rule universally. Any mismatch means the frozen `Field` may resolve a different field in the hierarchy than the one the legacy runtime-class-first lookup would find. Therefore the FAST path must not be used; the `Effect` must fall back to the complete legacy `XposedHelpers` path before any fast operation begins.
 
-**Conclusion:** `FAST_PATH_ELIGIBILITY` is sound and behavior-preserving when defined as exact runtime-class equality with the resolution root. It does not require `obj.javaClass === field.declaringClass`; it allows inherited fields on the exact resolution root while correctly falling back for subclasses that might shadow.
+```text
+BEFORE_FAST_RUNTIME_CLASS_MISMATCH = LEGACY_FALLBACK
+```
+
+**Conclusion:** `FAST_PATH_ELIGIBILITY` is sound and behavior-preserving when defined as exact runtime-class equality with the resolution root. It does not require `obj.javaClass === field.declaringClass`; it allows inherited fields on the exact resolution root while correctly falling back for any runtime class that does not equal the resolution root.
 
 ---
 
