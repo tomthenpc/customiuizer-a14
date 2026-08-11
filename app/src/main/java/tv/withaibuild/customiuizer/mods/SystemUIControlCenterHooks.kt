@@ -38,6 +38,7 @@ import java.util.Comparator
 import java.lang.System
 import tv.withaibuild.customiuizer.utils.HookUtils
 import tv.withaibuild.customiuizer.mods.utils.ControlCenterPluginRuntime
+import tv.withaibuild.customiuizer.mods.volumedialogautohide.VolumeDialogAutohideDelayHook
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEntry
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureEvent
@@ -119,29 +120,7 @@ object SystemUIControlCenterHooks {
 
     @JvmStatic
     fun VolumeDialogAutohideDelayHook(classLoader: ClassLoader) {
-        ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.MiuiVolumeDialogImpl", classLoader, "computeTimeoutH", object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                val mHovering = XposedHelpers.getBooleanField(param.getThisObject(), "mHovering")
-                if (mHovering) {
-                    param.returnAndSkip(16000)
-                    return
-                }
-                val mSafetyWarning = try {
-                    XposedHelpers.getObjectField(param.getThisObject(), "mIsSafetyShowing") as Boolean
-                } catch (e: Throwable) {
-                    FatalErrors.rethrowIfFatal(e)
-                    XposedHelpers.getObjectField(param.getThisObject(), "mSafetyWarning") as Boolean
-                }
-                if (mSafetyWarning) {
-                    val opt = MainModule.mPrefs.getInt("system_volumedialogdelay_expanded", 0)
-                    param.returnAndSkip(if (opt > 0) opt else 5000)
-                    return
-                }
-                val mExpanded = XposedHelpers.getBooleanField(param.getThisObject(), "mExpanded")
-                val opt = MainModule.mPrefs.getInt(if (mExpanded) "system_volumedialogdelay_expanded" else "system_volumedialogdelay_collapsed", 0)
-                if (opt > 0) param.returnAndSkip(opt)
-            }
-        })
+        VolumeDialogAutohideDelayHook.install(classLoader)
     }
 
     internal data class VolumeBlurSnapshot(
