@@ -272,32 +272,53 @@ mBatteryPercentMarkView
 
 All in `SystemUIBatteryHooks.kt:296-434` (`captureBatteryBaseline`, `matchesBaseline`, `matchesTarget`, `restoreBatteryBaseline`, `applyBatteryStyle`).
 
-### 4.2 Declaring class expectation
+### 4.2 Legacy field resolution root
 
-```kotlin
-ModuleHelper.findAndHookMethod(
-    "com.android.systemui.statusbar.views.MiuiBatteryMeterView",
-    ...
-)
-```
-
-So the declaring class is expected to be `com.android.systemui.statusbar.views.MiuiBatteryMeterView` or a subclass. `XposedHelpers.findField` will search the class hierarchy (`getDeclaredField` on each superclass up to but not including `Object.java`) if the field is not declared directly.
-
-### 4.3 Field type expectation
-
-All three are expected to be assignable to `TextView`:
+Legacy field lookup is driven by the **runtime owner instance class**, not by a fixed target class:
 
 ```kotlin
 val digitView = XposedHelpers.getObjectField(owner, "mBatteryTextDigitView") as? TextView ?: return null
 ```
 
-### 4.4 Missing / wrong / null behavior
+`XposedHelpers.getObjectField` internally calls `findField(owner.getClass(), fieldName)` (`XposedHelpers.java:1362-1364`). `findField` then searches `owner.getClass()` and its superclasses up to (but not including) `Object.java` via `findFieldRecursiveImpl` (`XposedHelpers.java:556-568`).
+
+Therefore:
+
+```text
+LEGACY_FIELD_RESOLUTION_ROOT = RUNTIME_OWNER_CLASS
+FIELD_DECLARING_CLASS = NOT_PROVEN
+```
+
+The three fields may be declared on `MiuiBatteryMeterView` or on a subclass encountered at runtime. We must not assume the declaring class is `MiuiBatteryMeterView` unless ROM/repository evidence is provided.
+
+### 4.3 Field type expectation
+
+There is **no validation of the declared field type** in the legacy code.
+
+```text
+DECLARED_FIELD_TYPE_VALIDATION = NONE
+RUNTIME_VALUE_TYPE_POLICY = AS_SAFE_CAST_TEXTVIEW
+```
+
+The legacy value is:
+
+```kotlin
+val digitView = XposedHelpers.getObjectField(owner, "mBatteryTextDigitView") as? TextView ?: return null
+```
+
+This means:
+- The field may be declared as `TextView`, `View`, `Object`, or any supertype.
+- `Field.get(owner)` returns the runtime value.
+- The value is then cast with `as? TextView`.
+- If the runtime value is `null` or not a `TextView`, the helper short-circuits.
+
+### 4.4 Missing / wrong / null / inaccessible behavior
 
 | Case | Legacy behavior |
 |---|---|
-| Field does not exist | `XposedHelpers.getObjectField` -> `XposedHelpers.findField` -> `findFieldRecursiveImpl` -> throws `NoSuchFieldError`. This `Error` is not `OOM`/`ThreadDeath`/`VirtualMachineError`, so `MethodHook.afterHook` catches it as ordinary `Throwable`, `XposedHelpers.log(t)` records it, and the after callback returns. The view is not modified. |
+| Field does not exist on runtime owner class or its superclasses | `XposedHelpers.getObjectField` -> `XposedHelpers.findField` -> `findFieldRecursiveImpl` -> throws `NoSuchFieldError`. This `Error` is not `OOM`/`ThreadDeath`/`VirtualMachineError`, so `MethodHook.afterHook` catches it as ordinary `Throwable`, `XposedHelpers.log(t)` records it, and the after callback returns. The view is not modified. |
 | Field exists but value is `null` | `as? TextView` gives `null`; `?: return null` / `?: return false` / `?: return` short-circuits the helper. No exception. View not modified. |
-| Field exists but not `TextView` | `as? TextView` gives `null`; same short-circuit. No exception. View not modified. |
+| Field exists but value is not `TextView` | `as? TextView` gives `null`; same short-circuit. No exception. View not modified. |
 | Field exists but inaccessible | `findField` calls `setAccessible(true)`. If that or `Field.get` fails with `IllegalAccessException`, `getObjectField` throws `IllegalAccessError`; `afterHook` catches and logs. View not modified. |
 
 ### 4.5 `findField` cache
@@ -324,6 +345,11 @@ It is **not** a full hierarchy scan per callback after the first resolution.
 ```text
 FIELD_ABI = EXACT_3_FIELDS_ONLY
 FIELD_ALIASES = NONE_WITHOUT_EVIDENCE
+LEGACY_FIELD_RESOLUTION_ROOT = RUNTIME_OWNER_CLASS
+FIELD_DECLARING_CLASS = NOT_PROVEN
+TARGET_CLASS_ONLY_RESOLUTION = NOT_LEGACY_EQUIVALENT
+DECLARED_FIELD_TYPE_VALIDATION = NONE
+RUNTIME_VALUE_TYPE_POLICY = AS_SAFE_CAST_TEXTVIEW
 HOT_PATH_GENERIC_FIELD_LOOKUP = REMOVE_IN_B1
 ```
 
@@ -365,19 +391,24 @@ CURRENT_AFTER_CALLBACK_FAILURE_POLICY =
 The B1 cold resolver must not change the observable failure semantics:
 
 - Missing field **must not** become a SystemUI startup crash or process fatal.
-- Missing field **must not** cause the `StatusBarStyleBatteryIconHook` to throw at install time in a way that the legacy would not.
+- Missing field on the **target class** at cold resolve must **not** be treated as proof of unsupported ROM.
+- Missing field on the target class must fall back to the legacy `XposedHelpers.getObjectField(owner, fieldName)` path so that subclass-declared fields and runtime owner hierarchy lookup remain available.
 - Wrong type / null value **must remain** a silent no-op for the affected view.
+- After hook must still be installed even when the frozen target-class ABI is unavailable.
 
 ### 5.3 Recommended resolver failure policy
 
 ```text
-RESOLVER_FAILURE_POLICY = FEATURE_LOCAL_DISABLE
+RESOLVER_FAILURE_POLICY = FROZEN_ABI_WITH_LEGACY_FALLBACK
 ```
 
 Rationale:
 
-- `ModuleHelper.findAndHookMethod` already returns `null` and logs once when the target class is missing (`HookInstallerFacade.kt:27-40`).
-- For field-level failure (class exists but one or more child fields missing), the B1 resolver should resolve the three fields at install time. If any field is missing or of the wrong type, it should record the failure once and **not install the after hook** (or install an empty no-op). This preserves the legacy end-user observable behavior: Battery style is silently disabled for that ROM, no crash, no repeated exception logs on every `updateAll`.
+- A cold target-class field miss is **not equivalent** to a legacy runtime-owner field miss.
+- Legacy `XposedHelpers.getObjectField(owner, fieldName)` searches the **runtime owner class hierarchy**, which may find a field declared on a subclass or intermediate superclass.
+- If `MiuiBatteryMeterView` itself does not declare one of the three fields at cold resolve, we must not disable the feature. The field may still exist on a runtime subclass.
+- Therefore, when target-class resolution fails, the B1 resolver records the miss once and the effect uses the **existing legacy runtime-owner lookup** as a compatibility fallback.
+- `FEATURE_LOCAL_DISABLE` is rejected because it would turn a target-class field miss into an observable behavior change (Battery style permanently disabled) that the legacy does not have.
 - `STRICT` fail-fast is rejected because it would turn a legacy swallowed `NoSuchFieldError` into an install-time failure.
 - `DEFERRED/LAZY` resolve is unnecessary because `MiuiBatteryMeterView` is known at `findAndHookMethod` time; deferred resolution would re-introduce per-call reflection on the first `updateAll`.
 
@@ -399,10 +430,10 @@ These are **only** conceptual placeholders for B1.
 BatteryStyleResolver.resolve(classLoader) -> BatteryStyleAbi?
   1. XposedHelpers.findClass("com.android.systemui.statusbar.views.MiuiBatteryMeterView", classLoader)
   2. For each of [mBatteryTextDigitView, mBatteryPercentView, mBatteryPercentMarkView]:
-       - resolve Field via findFieldIfExists or guarded findField
-       - verify type is assignable to TextView
-  3. If any step fails, return null and log once.
-  4. Return BatteryStyleAbi with three frozen Field references.
+       - resolve Field via findFieldIfExists or guarded findField on the target class
+       - do NOT verify declared field type
+  3. If all three Fields resolve successfully, return BatteryStyleAbi with three frozen Field references.
+  4. If any step fails, return null and log once. The effect will fall back to legacy XposedHelpers.getObjectField(owner, fieldName) at runtime.
 ```
 
 The resolver must **not** hold:
@@ -417,10 +448,10 @@ It may hold `ClassLoader` only during resolution and then only the resolved meta
 ### 6.3 Failure strategy (reiterated)
 
 ```text
-RESOLVER_FAILURE_POLICY = FEATURE_LOCAL_DISABLE
+RESOLVER_FAILURE_POLICY = FROZEN_ABI_WITH_LEGACY_FALLBACK
 ```
 
-If resolution fails, `StatusBarStyleBatteryIconHook` should skip installing the after hook (equivalent to legacy disabled feature), preserving the no-crash observable semantics.
+If any of the three fields cannot be resolved on the target class at cold resolve, the resolver records the failure once and the effect retains the legacy `XposedHelpers.getObjectField(owner, fieldName)` path. The after hook is still installed; the feature is **not** disabled. This preserves both the fast frozen-ABI path when possible and the original runtime-owner hierarchy lookup when the target class is insufficient.
 
 ---
 
@@ -428,16 +459,16 @@ If resolution fails, `StatusBarStyleBatteryIconHook` should skip installing the 
 
 ### 7.1 Minimal scope
 
-The effect is **not** a Battery feature rewrite. It only replaces the three recurring `XposedHelpers.getObjectField(...)` calls with frozen `Field.get(...)` calls.
+The effect is **not** a Battery feature rewrite. It only provides an optimized path that replaces the three recurring `XposedHelpers.getObjectField(...)` calls with frozen `Field.get(...)` calls, while preserving the legacy `XposedHelpers.getObjectField(owner, fieldName)` fallback when the frozen ABI is unavailable.
 
 ### 7.2 Proposed effect boundary
 
 ```text
-BatteryStyleEffect(abi: BatteryStyleAbi) {
+BatteryStyleEffect(abi: BatteryStyleAbi?) {
     - readDigitView(parent)
     - readPercentView(parent)
     - readMarkView(parent)
-    - captureBatteryBaseline(parent)      // uses frozen Fields
+    - captureBatteryBaseline(parent)      // uses frozen Fields when abi present
     - matchesBaseline(parent, baseline)
     - matchesTarget(parent, baseline, style)
     - applyBatteryStyle(parent, baseline, style)
@@ -445,24 +476,37 @@ BatteryStyleEffect(abi: BatteryStyleAbi) {
 }
 ```
 
-Each method internally uses `abi.digitField.get(parent) as? TextView` etc.
+Access mode:
+
+```text
+FAST:
+  abi.digitField.get(parent) as? TextView
+  abi.percentField.get(parent) as? TextView
+  abi.markField.get(parent) as? TextView
+
+COMPATIBILITY FALLBACK:
+  XposedHelpers.getObjectField(owner, "mBatteryTextDigitView") as? TextView
+  XposedHelpers.getObjectField(owner, "mBatteryPercentView") as? TextView
+  XposedHelpers.getObjectField(owner, "mBatteryPercentMarkView") as? TextView
+```
 
 ### 7.3 Allocation policy
 
 - **No hot-path `Pair` / `Triple` / `List` / `Map` / `Sequence` / `Flow` / coroutine.**
 - **No per-`updateAll` child-view holder allocation.**
-- Each helper call may call `Field.get` up to 3 times, matching the legacy `getObjectField` count but removing the `ConcurrentHashMap` cache lookup.
+- Each helper call may call `Field.get` up to 3 times on the frozen-ABI path, matching the legacy `getObjectField` count but removing the `ConcurrentHashMap` cache lookup.
+- The fallback path uses existing `XposedHelpers.getObjectField`, preserving the original runtime-owner class hierarchy lookup.
 - The existing `BatteryBaseline` (capture on child change) and `BatteryViewState` are retained.
 
 ### 7.4 Helpers to migrate
 
 | Helper | Action in B1 |
 |---|---|
-| `captureBatteryBaseline` | Migrate 3 `getObjectField` to frozen `Field.get`. |
-| `matchesBaseline` | Migrate 3 `getObjectField` to frozen `Field.get`. |
-| `matchesTarget` | Migrate 3 `getObjectField` to frozen `Field.get`. |
-| `applyBatteryStyle` | Migrate 3 `getObjectField` to frozen `Field.get`. |
-| `restoreBatteryBaseline` | Migrate 3 `getObjectField` to frozen `Field.get`. |
+| `captureBatteryBaseline` | Use `abi?.xxxField.get` or fall back to `XposedHelpers.getObjectField`. |
+| `matchesBaseline` | Use `abi?.xxxField.get` or fall back to `XposedHelpers.getObjectField`. |
+| `matchesTarget` | Use `abi?.xxxField.get` or fall back to `XposedHelpers.getObjectField`. |
+| `applyBatteryStyle` | Use `abi?.xxxField.get` or fall back to `XposedHelpers.getObjectField`. |
+| `restoreBatteryBaseline` | Use `abi?.xxxField.get` or fall back to `XposedHelpers.getObjectField`. |
 | `reconcileBatteryView` | Keep control flow; call `effect` methods. |
 | `applyBatteryChildSwapIfNeeded` / `moveChildTo` / `restoreChildOrder` | Keep unchanged. |
 | `isBatteryStyleDefault` / `expectedTextSize` / `dipToPx` | Keep unchanged. |
@@ -514,7 +558,7 @@ reconcileBatteryView(parent, style, state):
 | G. steady default / unchanged | **6** | `matchesBaseline`(3) in baseline-resolution branch + `matchesBaseline`(3) in default branch. |
 | H. steady default / same children but OEM property drift | up to **9** | `matchesBaseline`(3) → false → `captureBatteryBaseline`(3) → then `matchesBaseline`(3) in default branch. |
 | I. child replacement + same custom style | up to **9** | `captureBatteryBaseline`(3) + `matchesTarget`(3) + `applyBatteryStyle`(3). |
-| J. swap order restoration | included in `applyBatteryStyle`/`restoreBatteryBaseline` counts; `restoreChildOrder` and `applyBatteryChildSwapIfNeeded` do not call `getObjectField`. |
+| J. swap order restoration | included in `applyBatteryStyle`/`restoreBatteryBaseline` counts; `restoreChildOrder` and `applyBatteryChildSwapIfNeeded` do not call `getObjectField`. `applyBatteryChildSwapIfNeeded` guarantees `percentView` index 0 and `markView` index 1. |
 | K. `battery4` right-margin routing | logic inside `matchesTarget`/`applyBatteryStyle`; `battery4` value is already in `BatteryStyle`. |
 
 ### 8.2 Identity short-circuit is observable
@@ -680,7 +724,14 @@ private fun restoreChildOrder(parent: ViewGroup, percentView: View, markView: Vi
 }
 ```
 
-`applyBatteryChildSwapIfNeeded` targets `[percent, mark, digit]` order.
+`applyBatteryChildSwapIfNeeded` only receives `percentView` and `markView`. Its contract is to ensure:
+
+```text
+percentView index = 0
+markView index = 1
+```
+
+It does **not** receive `digitView` and does **not** explicitly guarantee a specific index for `digitView`. Any observed `[percent, mark, digit]` order is a specific-layout consequence of the percent and mark indices, not a stated function contract.
 
 ### 11.6 `battery4` right-margin routing
 
@@ -748,22 +799,22 @@ C3 is **not** a UI feature rewrite. All text-size, typeface, padding, swap, rest
 
 These tests are **planned** for the B1 implementation phase. No test files are created in A0.
 
-1. Frozen Field ABI resolution success: all three fields resolve from `MiuiBatteryMeterView` class hierarchy.
-2. Missing field compatibility: resolver returns null and the after hook is not installed / is no-op.
-3. Frozen Field child access: `effect.readXxx(parent)` returns the same view as legacy `getObjectField`.
-4. Baseline capture equivalence: `effect.captureBatteryBaseline` produces the same `BatteryBaseline` as legacy.
-5. `matchesBaseline` equivalence.
-6. `matchesTarget` equivalence.
-7. Custom apply equivalence.
-8. Restore equivalence.
+1. Target-class frozen ABI success: all three fields resolve from the `MiuiBatteryMeterView` class hierarchy.
+2. Target-class field miss selects legacy fallback: resolver returns `null`, but the after hook is still installed and child access falls back to `XposedHelpers.getObjectField`.
+3. Subclass-declared exact field remains accessible through the legacy runtime-owner fallback.
+4. Declared field type `View`/`Object` with runtime `TextView` value remains supported (`as? TextView`).
+5. Runtime non-`TextView` value remains a silent no-op.
+6. Runtime `null` value remains a silent no-op.
+7. Successful frozen-ABI path contains no recurring `XposedHelpers.getObjectField` calls for the exact three fields (STRUCTURAL source test).
+8. Fallback path preserves ordinary after-callback `Throwable` logging / swallow semantics and fatal `Error` propagation.
 9. Identity `BatteryStyle` refresh still forces re-apply (new instance → apply even with same values).
 10. Child replacement recapture (new child identity → re-baseline).
 11. Swap idempotence (already swapped order, second apply zero mutation).
 12. `battery4` margin routing (right margin on percent vs mark).
-13. Ordinary effect exception follows legacy `afterHook` behavior (logged/swallowed, original result preserved).
-14. Fatal exception category preservation where feasible (OOM/ThreadDeath/VirtualMachineError propagate).
-15. No `MainModule.mPrefs` read in the migrated `updateAll` hot callback.
-16. No `XposedHelpers.getObjectField` calls for the three frozen fields in the migrated hot path (STRUCTURAL source test).
+13. `applyBatteryChildSwapIfNeeded` guarantees percent view index 0 and mark view index 1.
+14. No `MainModule.mPrefs` read in the migrated `updateAll` hot callback.
+15. Fatal exception category preservation where feasible (OOM/ThreadDeath/VirtualMachineError propagate).
+16. Frozen Field child access returns the same view as legacy `getObjectField` when ABI is available.
 
 **Test classification reminder:**
 - Source-substring / method-body absence test = **STRUCTURAL**.
@@ -809,9 +860,15 @@ The following are explicitly out of scope for C3:
 | `CONCURRENT_ACCESS` | `NOT_PROVEN` |
 | `FIELD_ABI` | `EXACT_3_FIELDS_ONLY` |
 | `FIELD_ALIASES` | `NONE_WITHOUT_EVIDENCE` |
-| `HOT_PATH_GENERIC_FIELD_LOOKUP` | `REMOVE_IN_B1` |
+| `LEGACY_FIELD_RESOLUTION_ROOT` | `RUNTIME_OWNER_CLASS` |
+| `FIELD_DECLARING_CLASS` | `NOT_PROVEN` |
+| `TARGET_CLASS_ONLY_RESOLUTION` | `NOT_LEGACY_EQUIVALENT` |
+| `DECLARED_FIELD_TYPE_VALIDATION` | `NONE` |
+| `RUNTIME_VALUE_TYPE_POLICY` | `AS_SAFE_CAST_TEXTVIEW` |
+| `RESOLVER_FAILURE_POLICY` | `FROZEN_ABI_WITH_LEGACY_FALLBACK` |
+| `HOT_PATH_GENERIC_FIELD_LOOKUP` | `REMOVE_ON_FROZEN_ABI_PATH` |
+| `COMPATIBILITY_FALLBACK` | `PRESERVE_LEGACY_RUNTIME_OWNER_LOOKUP` |
 | `HOT_PATH_PREF_READ` | `NONE / PRESERVE_NONE` |
-| `RESOLVER_FAILURE_POLICY` | `FEATURE_LOCAL_DISABLE` |
 | `EFFECT_SCOPE` | `MINIMAL` |
 | `BEHAVIOR_CHANGE_ALLOWED` | `false` |
 | `C1_TOUCH` | `false` |
@@ -840,6 +897,6 @@ Expected final state:
 
 ---
 
-C3_A0_BATTERY_STYLE_PREFLIGHT_READY_FOR_INDEPENDENT_AUDIT
+C3_A0_BATTERY_STYLE_ABI_CORRECTIVE_READY_FOR_INDEPENDENT_AUDIT
 
 STOP. Do not start B1 implementation. Do not create Resolver / ABI / Effect production classes.
