@@ -13,9 +13,9 @@
 | Check | Result | Evidence |
 |---|---|---|
 | Current branch | `devin/a14-architecture-c-r14.20.0` | `git branch --show-current` |
-| Local HEAD | `4c27065a56b2939983a9377f065aa5b53e0b05c5` | `git rev-parse HEAD` |
-| Remote HEAD | `4c27065a56b2939983a9377f065aa5b53e0b05c5` | `git rev-parse origin/devin/a14-architecture-c-r14.20.0` |
-| Merge-base against `4c27065a...` | `4c27065a56b2939983a9377f065aa5b53e0b05c5` | `git merge-base HEAD origin/devin/a14-architecture-c-r14.20.0` |
+| Local HEAD | `69eb63d01e8c6549523567789b0110308147f49e` | `git rev-parse HEAD` |
+| Remote HEAD | `69eb63d01e8c6549523567789b0110308147f49e` | `git rev-parse origin/devin/a14-architecture-c-r14.20.0` |
+| Merge-base against `4c27065a...` | `69eb63d01e8c6549523567789b0110308147f49e` | `git merge-base HEAD origin/devin/a14-architecture-c-r14.20.0` |
 | Worktree | clean | `git status --short` empty |
 | C1/C2/C3/C4 production changed | `false` | no modifications in those phases |
 | C5 production started | `false` | no Resolver/ABI/Effect/Hook production files created |
@@ -432,17 +432,17 @@ data class VolumeDialogAutohideDelaySnapshot(
 
 ### 7.4 Evidence
 
-| Item | Evidence |
-|---|---|
-| `PrefMap.getAll` returns a single generation-consistent `Map` | `STRUCTURAL` (`PrefMap.kt:118-119`) — it reads `snapshot.get()` once and wraps it unmodifiable. |
-| `PrefMap` typed getters each independently read `snapshot.get()` | `STRUCTURAL` (`PrefMap.kt:27-31`, `120-123`) — `getValue` calls `currentSnapshot()` per typed getter. |
-| `PrefMap.getInt` returns `defaultValue` on type mismatch | `STRUCTURAL` (`PrefMap.kt:120-123`) — it uses `value as? Int ?: defaultValue`. This does **not** prove `getInt` can never throw for other failure modes. |
-| `MainModule.mPrefs` is a non-null `public static final PrefMap` | `STRUCTURAL` (`MainModule.java:47`). It is not a valid snapshot-build failure case. |
-| `PrefMap` snapshot publication is `AtomicReference` | `STRUCTURAL` (`PrefMap.kt:25-48`). |
-| `PreferenceObserverRegistry` is process-scoped and isolates observer failures | `STRUCTURAL` (`PreferenceObserverRegistry.kt:58-168`). |
-| `PreferenceBootstrap.onPreferenceChanged` catches `Throwable` and logs | `STRUCTURAL` (`PreferenceBootstrap.kt:265-291`). |
-| `PreferenceBootstrap` uses `ModuleHelper::handlePreferenceChanged` as `changeDispatcher` | `STRUCTURAL` (`PreferenceBootstrap.kt:33`, `79`, `287`). |
-| Real preference observer callback execution | `NOT_RUNTIME_TESTED_CALLBACK`. |
+| Item | Classification | Source / note |
+|---|---|---|
+| `PrefMap.getAll` returns a single generation-consistent `Map` | `STRUCTURAL` | `PrefMap.kt:118-119` — reads `snapshot.get()` once and wraps it unmodifiable. |
+| `PrefMap` typed getters each independently read `snapshot.get()` | `STRUCTURAL` | `PrefMap.kt:27-31`, `120-123` — `getValue` calls `currentSnapshot()` per typed getter. |
+| `PrefMap.getInt` returns `defaultValue` on type mismatch | `STRUCTURAL` | `PrefMap.kt:120-123` — uses `value as? Int ?: defaultValue`. This does **not** prove `getInt` can never throw for other failure modes. |
+| `MainModule.mPrefs` is a non-null `public static final PrefMap` | `STRUCTURAL` | `MainModule.java:47`. It is not a valid snapshot-build failure case. |
+| `PrefMap` snapshot publication is `AtomicReference` | `STRUCTURAL` | `PrefMap.kt:25-48`. |
+| `PreferenceObserverRegistry` is process-scoped and isolates observer failures | `STRUCTURAL` | `PreferenceObserverRegistry.kt:58-168`. |
+| `PreferenceBootstrap.onPreferenceChanged` catches `Throwable` and logs | `STRUCTURAL` | `PreferenceBootstrap.kt:265-291`. |
+| `PreferenceBootstrap` uses `ModuleHelper::handlePreferenceChanged` as `changeDispatcher` | `STRUCTURAL` | `PreferenceBootstrap.kt:33`, `79`, `287`. |
+| Real preference observer callback execution | `NOT_RUNTIME_TESTED_CALLBACK` | no real callback timing/thread evidence. |
 
 ---
 
@@ -564,15 +564,15 @@ The observer is owned by the `VolumeDialogAutohideDelayRuntimeState` (a process-
 
 ### 9.3 Evidence
 
-| Item | Evidence |
-|---|---|
-| `PreferenceObserver` interface and registry | `STRUCTURAL` |
-| `canonicalPreferenceKey` removes `pref_key_` prefix | `STRUCTURAL` (`PreferenceKeys.kt:14-18`) |
-| `PreferenceObserverRegistry` rethrows OOM / ThreadDeath / VME / LinkageError | `STRUCTURAL` (`PreferenceObserverRegistry.kt:143-148`, `113-128`) |
-| `PreferenceObserverRegistry` logs ordinary observer failures | `STRUCTURAL` (`PreferenceObserverRegistry.kt:145-148`, `162-165`) |
-| `PreferenceBootstrap.onPreferenceChanged` wraps `changeDispatcher` in `catch (Throwable)` and logs | `STRUCTURAL` (`PreferenceBootstrap.kt:265-291`) |
-| `PreferenceBootstrap` uses `ModuleHelper::handlePreferenceChanged` as the dispatcher | `STRUCTURAL` (`PreferenceBootstrap.kt:79`, `287`) |
-| Real observer callback execution | `NOT_RUNTIME_TESTED_CALLBACK` |
+| Item | Classification | Source / note |
+|---|---|---|
+| `PreferenceObserver` interface and registry | `STRUCTURAL` | `PreferenceObserverRegistry.kt:28-34`. |
+| `canonicalPreferenceKey` removes `pref_key_` prefix | `STRUCTURAL` | `PreferenceKeys.kt:14-18`. |
+| `PreferenceObserverRegistry` rethrows OOM / ThreadDeath / VME / LinkageError | `STRUCTURAL` | `PreferenceObserverRegistry.kt:143-148`, `113-128`. |
+| `PreferenceObserverRegistry` logs ordinary observer failures | `STRUCTURAL` | `PreferenceObserverRegistry.kt:145-148`, `162-165`. |
+| `PreferenceBootstrap.onPreferenceChanged` wraps `changeDispatcher` in `catch (Throwable)` and logs | `STRUCTURAL` | `PreferenceBootstrap.kt:265-291`. |
+| `PreferenceBootstrap` uses `ModuleHelper::handlePreferenceChanged` as the dispatcher | `STRUCTURAL` | `PreferenceBootstrap.kt:79`, `287`. |
+| Real observer callback execution | `NOT_RUNTIME_TESTED_CALLBACK` | no real callback timing/thread evidence. |
 
 ---
 
@@ -667,7 +667,10 @@ No per-instance runtime cache is required. The `Effect` may be a single instance
 
 Conditional reduction summary:
 
-- **Preference reads:** removed from the callback entirely; replaced by a snapshot field read (or two `Int` field reads if the snapshot is not inlined).
+- **Preference reads:**
+  - `ELIGIBLE_FAST_CALLBACK_PREFMAP_READS = 0` — eligible FAST callbacks do not call `MainModule.mPrefs`; they consume the already-published snapshot.
+  - `COMPLETE_LEGACY_CALLBACK_PREFMAP_READS = 0–1` — complete-legacy callbacks preserve the original conditional `MainModule.mPrefs.getInt(key, 0)` call.
+  - `ALL_CALLBACKS_PREFMAP_READS_REMOVED = false` — C5 removes preference reads only from the FAST execution path, not from every possible callback invocation, because `snapshot == null` and other legacy conditions still execute the original oracle.
 - **Field-helper attempts for `mHovering` and `mExpanded`:** `XposedHelpers` cache map lookup and `Field` retrieval are removed; direct `Field.getBoolean` is used.
 - **Safety alias:** remains on the `XposedHelpers` path. Its `1–2` attempts per applicable callback are **not** eliminated under Strategy A.
 
@@ -744,34 +747,34 @@ Tests are specified, not implemented, in A0.
 
 ## 14. EVIDENCE / NOT PROVEN MATRIX
 
-| Item | Evidence |
-|---|---|
-| `BeforeHookCallback.returnAndSkip` semantics | `STRUCTURAL` (`HookerClassHelper.kt:73-77`) |
-| `MethodHook.intercept` proceed/skip/throw flow | `STRUCTURAL` (`HookerClassHelper.kt:167-201`) |
-| `MethodHook.beforeHook` fatal/ordinary catch | `STRUCTURAL` (`HookerClassHelper.kt:203-215`, `FatalErrors.kt:14-28`) |
-| `ModuleHelper.findAndHookMethod` → `XposedHelpers.findAndHookMethod` | `STRUCTURAL` (`ModuleHelper.kt:115-116`, `XposedHelpers.java:601-608`) |
-| `findMethodExact` cache key (no return type) | `STRUCTURAL` (`XposedHelpers.java:689-706`) |
-| `getParameterClasses` with zero parameter types | `STRUCTURAL` (`XposedHelpers.java:918-943`) |
-| `XposedHelpers.getBooleanField` primitive semantics | `STRUCTURAL` (`XposedHelpers.java:1385-1395`) |
-| `XposedHelpers.getObjectField` object semantics | `STRUCTURAL` (`XposedHelpers.java:1362-1372`) |
-| `XposedHelpers.findField` runtime-class-first lookup | `STRUCTURAL` (`XposedHelpers.java:556-572`) |
-| `PrefMap.getAll` returns a single generation-consistent `Map` | `STRUCTURAL` (`PrefMap.kt:118-119`) |
-| `PrefMap` typed getters may observe different snapshots | `STRUCTURAL` (`PrefMap.kt:27-31`, `120-123`) |
-| `PrefMap.getInt` returns `defaultValue` on type mismatch | `STRUCTURAL` (`PrefMap.kt:120-123`) |
-| `PrefMap` `AtomicReference` publication | `STRUCTURAL` (`PrefMap.kt:25-48`) |
-| `MainModule.mPrefs` is a non-null `public static final PrefMap` | `STRUCTURAL` (`MainModule.java:47`) |
-| `PreferenceObserverRegistry` fan-out and failure isolation | `STRUCTURAL` (`PreferenceObserverRegistry.kt:58-168`) |
-| `PreferenceObserverRegistry` rethrows OOM / ThreadDeath / VME / LinkageError | `STRUCTURAL` (`PreferenceObserverRegistry.kt:143-148`, `113-128`) |
-| `PreferenceBootstrap.onPreferenceChanged` catches `Throwable` and logs | `STRUCTURAL` (`PreferenceBootstrap.kt:265-291`) |
-| `REAL_COMPUTE_TIMEOUT_H_RETURN_TYPE` | `NOT_PROVEN` |
-| `REAL_COMPUTE_TIMEOUT_H_OVERLOAD_SET` | `NOT_PROVEN` |
-| `REAL_HYPEROS_FIELD_TYPE_FOR_MHOVERING` | `NOT_PROVEN` — resolver enforces `Boolean.TYPE`; any other type is a miss. |
-| `REAL_HYPEROS_FIELD_TYPE_FOR_MEXPANDED` | `NOT_PROVEN` — resolver enforces `Boolean.TYPE`; any other type is a miss. |
-| `REAL_MISAFETYSHOWING_VS_MSAFETYWARNING_PREVALENCE` | `NOT_PROVEN` |
-| `CALLBACK_THREAD` for `computeTimeoutH` | `NOT_PROVEN` |
-| `REAL_CALLBACK_FREQUENCY` | `NOT_PROVEN` |
-| Real preference observer callback execution | `NOT_RUNTIME_TESTED_CALLBACK` |
-| Start gate / validation commands | `LOCAL_EXECUTION_EVIDENCE_ONLY` |
+| Item | Classification | Source / note |
+|---|---|---|
+| `BeforeHookCallback.returnAndSkip` semantics | `STRUCTURAL` | `HookerClassHelper.kt:73-77`. |
+| `MethodHook.intercept` proceed/skip/throw flow | `STRUCTURAL` | `HookerClassHelper.kt:167-201`. |
+| `MethodHook.beforeHook` fatal/ordinary catch | `STRUCTURAL` | `HookerClassHelper.kt:203-215`, `FatalErrors.kt:14-28`. |
+| `ModuleHelper.findAndHookMethod` → `XposedHelpers.findAndHookMethod` | `STRUCTURAL` | `ModuleHelper.kt:115-116`, `XposedHelpers.java:601-608`. |
+| `findMethodExact` cache key (no return type) | `STRUCTURAL` | `XposedHelpers.java:689-706`. |
+| `getParameterClasses` with zero parameter types | `STRUCTURAL` | `XposedHelpers.java:918-943`. |
+| `XposedHelpers.getBooleanField` primitive semantics | `STRUCTURAL` | `XposedHelpers.java:1385-1395`. |
+| `XposedHelpers.getObjectField` object semantics | `STRUCTURAL` | `XposedHelpers.java:1362-1372`. |
+| `XposedHelpers.findField` runtime-class-first lookup | `STRUCTURAL` | `XposedHelpers.java:556-572`. |
+| `PrefMap.getAll` returns a single generation-consistent `Map` | `STRUCTURAL` | `PrefMap.kt:118-119`. |
+| `PrefMap` typed getters may observe different snapshots | `STRUCTURAL` | `PrefMap.kt:27-31`, `120-123`. |
+| `PrefMap.getInt` returns `defaultValue` on type mismatch | `STRUCTURAL` | `PrefMap.kt:120-123`. |
+| `PrefMap` `AtomicReference` publication | `STRUCTURAL` | `PrefMap.kt:25-48`. |
+| `MainModule.mPrefs` is a non-null `public static final PrefMap` | `STRUCTURAL` | `MainModule.java:47`. |
+| `PreferenceObserverRegistry` fan-out and failure isolation | `STRUCTURAL` | `PreferenceObserverRegistry.kt:58-168`. |
+| `PreferenceObserverRegistry` rethrows OOM / ThreadDeath / VME / LinkageError | `STRUCTURAL` | `PreferenceObserverRegistry.kt:143-148`, `113-128`. |
+| `PreferenceBootstrap.onPreferenceChanged` catches `Throwable` and logs | `STRUCTURAL` | `PreferenceBootstrap.kt:265-291`. |
+| `REAL_COMPUTE_TIMEOUT_H_RETURN_TYPE` | `NOT_PROVEN` | return type not part of `findAndHookMethod` lookup. |
+| `REAL_COMPUTE_TIMEOUT_H_OVERLOAD_SET` | `NOT_PROVEN` | only zero parameter types are supplied. |
+| `REAL_HYPEROS_FIELD_TYPE_FOR_MHOVERING` | `NOT_PROVEN` | resolver enforces `Boolean.TYPE`; any other type is a miss. |
+| `REAL_HYPEROS_FIELD_TYPE_FOR_MEXPANDED` | `NOT_PROVEN` | resolver enforces `Boolean.TYPE`; any other type is a miss. |
+| `REAL_MISAFETYSHOWING_VS_MSAFETYWARNING_PREVALENCE` | `NOT_PROVEN` | both field names are candidates. |
+| `CALLBACK_THREAD` for `computeTimeoutH` | `NOT_PROVEN` | source does not prove the invoking thread. |
+| `REAL_CALLBACK_FREQUENCY` | `NOT_PROVEN` | no real-device timing. |
+| Real preference observer callback execution | `NOT_RUNTIME_TESTED_CALLBACK` | no real callback timing/thread evidence. |
+| Start gate / validation commands | `LOCAL_EXECUTION_EVIDENCE_ONLY` | executed locally during this A0 corrective. |
 
 ---
 
@@ -838,7 +841,7 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 
 | Field | Value |
 |---|---|
-| Base SHA | `4c27065a56b2939983a9377f065aa5b53e0b05c5` |
+| Base SHA | `69eb63d01e8c6549523567789b0110308147f49e` |
 | Final SHA | *(to be recorded after commit and push)* |
 | Branch | `devin/a14-architecture-c-r14.20.0` |
 | Changed files | `docs/architecture-c/C5_VOLUME_DIALOG_AUTOHIDE_A0_PREFLIGHT.md` |
