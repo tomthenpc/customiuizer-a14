@@ -173,7 +173,8 @@ The `setSystemExpanded(true)` call is an observable, state-changing ROM method c
 | Original method failure | If `chain.proceed()` throws, the exception is captured in the same `catch` block and rethrown by `throwOrReturn`. | `SystemNotificationHooks.kt:62-67`. |
 | `FatalErrors.rethrowIfFatal` call | `NOT_PRESENT` in this callback. | Source inspection of `SystemNotificationHooks.kt:42-70`. |
 | Fatal error propagation | `throwOrReturn(Throwable, Object)` rethrows any non-null throwable, including `OutOfMemoryError` / `ThreadDeath` / `VirtualMachineError`, because it is inside the single `catch (t: Throwable)` block. | `XposedHelpers.java:109-112`. |
-| Original method execution on custom-work failure | `NOT_PROVEN` whether the original `setFeedbackIcon` runs if custom work throws after `setSystemExpanded(true)` has already succeeded.  In the legacy source the single `try` means it will not run. | Source control-flow analysis. |
+| Original method execution on custom-work failure | `chain.proceed()` is **not** called when custom work throws before it is reached, because the single `try` block is exited to `catch`.  The original `setFeedbackIcon` therefore does not execute in that control path. | Source control-flow analysis of `SystemNotificationHooks.kt:50-67`. |
+| Partial mutation inside `setSystemExpanded(true)` | `NOT_PROVEN` whether `setSystemExpanded(true)` may partially mutate ROM state before itself throwing.  If it does, that partial mutation is not rolled back by the legacy callback. | The legacy callback has no rollback logic. |
 
 **Failure-semantic freeze:**
 
@@ -221,7 +222,7 @@ The following ABI questions must be resolved in C6-A0 before any production code
 |---|---|---|
 | `ExpandableNotificationRow` exact declaration / root class | `NOT_PROVEN` | The hook uses the string class name `com.android.systemui.statusbar.notification.row.ExpandableNotificationRow`; whether this is the exact runtime declaration, a subclass root, or has subclasses is unknown. |
 | `mOnKeyguard` declaration root | `NOT_PROVEN` | Field may be declared in `ExpandableNotificationRow` or a superclass. |
-| `mOnKeyguard` primitive vs. reference type | `NOT_PROVEN` | Legacy code uses `getBooleanField`, which works for both `boolean` and `Boolean` via `Field.getBoolean`; a frozen ABI must pick one. |
+| `mOnKeyguard` primitive vs. reference type | `NOT_PROVEN` | Legacy code uses `XposedHelpers.getBooleanField`, which is a primitive-boolean reflective accessor using `Field.getBoolean`. The actual ROM field type (`boolean` primitive, `Boolean` object, or another type) and whether `Field.getBoolean` can read it are `NOT_PROVEN`; A0 must prove the real declaration. |
 | `mOnKeyguard` shadowing / subclass behavior | `NOT_PROVEN` | Subclasses may shadow or re-declare the field. |
 | `getEntry` declaration root | `NOT_PROVEN` | Method may be declared in `ExpandableNotificationRow` or a superclass. |
 | `getEntry` parameter shape | `NOT_PROVEN` | Legacy call uses zero arguments; overloads may exist. |
@@ -308,13 +309,13 @@ The following candidates were re-inspected at the exact base SHA.  Each is compa
 | **Callback frequency** | `NOT_PROVEN` | `NOT_PROVEN` | `NOT_PROVEN` | `NOT_PROVEN` | `NOT_PROVEN` | `NOT_PROVEN` |
 | **Per-callback preference reads** | 0 if keyguard, else 2 (`getString` + `getStringSet`) | 1 (`getStringAsInt`) | 2 (`getStringSet` × 2) | 0 in callback | 2 (`getBoolean` + `getStringAsInt`) | 0 in callback (volatile `drawerBlurModifierPct`) |
 | **Reflection / helper attempts (conditional)** | 1–5: `mOnKeyguard` always; `getEntry`, `mSbn`, `getPackageName` if not keyguard; `setSystemExpanded` if predicate true | 1–3: `mMaxStaticIcons` read always; `mMaxStaticIcons` / `mMaxIconsOnLockscreen` write if value differs | 4+ helper lookups + `List.contains/add/remove`: `getMiniWindowTargetPkg`, `getMAppMiniWindowManager`, `notificationSettingsManager`, `mAllowNotificationSlide` | `getObjectField` `mNotificationEntries`; per-item `getRepresentativeEntry`, `getImportance`; conditional `setObjectField` `mNotificationEntries` | `callMethod getState`, `getIntField state`, `getObjectField mContext` | 3 surfaces; `doFrame` uses `getAdditionalInstanceField` / `WeakReference.get` / `DrawerBlurScope` ThreadLocal; `applyBlur` / `setBlurRatio` use `getArgsArray` and arg mutation |
-| **Structurally proven per-callback allocation** | `none` | `none` | `none` in the hook; `List.add/remove` may resize the underlying `ArrayList` at the ROM implementation level | `ArrayList<Any>` when `arrayList.size != mNotificationEntries.size` | `none` in the hook; `HookUtils.perform*Vibration` allocation not proven | `ThreadLocal` `State` per thread (created once); `WeakReference` on cache miss; `getArgsArray` `Object[]` per `applyBlur`/`setBlurRatio` callback |
+| **Structurally proven per-callback allocation** | `none` | `none` | `none` in the hook; `List.add/remove` may resize the underlying `ArrayList` at the ROM implementation level | one `ArrayList<Any>` allocation when `mNotificationEntries.isNotEmpty()`; the `arrayList.size != mNotificationEntries.size` guard only controls whether the filtered list is written back to `mNotificationEntries` | `none` in the hook; `HookUtils.perform*Vibration` allocation not proven | `ThreadLocal` `State` per thread (created once); `WeakReference` on cache miss; `getArgsArray` `Object[]` per `applyBlur`/`setBlurRatio` callback |
 | **Lifecycle / ownership risk** | Low: borrows current row, no retained refs | Low: borrows `NotificationIconContainer` | Low–medium: mutates `mAllowNotificationSlide` list on the ROM object | Low: borrows `NotificationIconAreaController` and its list | Low: borrows `QSTileImpl` and `Context` | Medium: `WeakReference` target cache and `ThreadLocal` scope must be preserved; target may be re-discovered |
-| **Mutation risk** | Calls `setSystemExpanded(true)` conditionally | Writes `mMaxStaticIcons` and `mMaxIconsOnLockscreen` on every `resetViewStates` when value differs | Adds/removes package names from `mAllowNotificationSlide` | Replaces `mNotificationEntries` with a filtered `ArrayList` before original method | Calls external vibration helper (no ROM field write, but observable side effect) | Mutates blur ratio argument only; no ROM field write |
+| **Mutation risk** | Calls `setSystemExpanded(true)` conditionally | Writes `mMaxStaticIcons` and `mMaxIconsOnLockscreen` on every `resetViewStates` when value differs | Adds/removes package names from `mAllowNotificationSlide` | Creates a filtered `ArrayList<Any>` when `mNotificationEntries` is non-empty, then replaces `mNotificationEntries` only when `arrayList.size != mNotificationEntries.size` | Calls external vibration helper (no ROM field write, but observable side effect) | Mutates blur ratio argument only; no ROM field write |
 | **Failure-semantic complexity** | Medium: custom work and `chain.proceed()` share one `try`; custom-work failure skips original; side effect cannot be rolled back after `setSystemExpanded` | Medium: field writes before `chain.proceed`; if write fails, original skipped and rethrown; if second write fails after first, partial state remains | Medium: list mutation before `chain.proceed`; add/remove side effects persist if `chain.proceed()` throws | Medium: `before` callback with no local catch; reflection error propagates and original method is not explicitly guarded | Low: original `chain.proceed()` in its own `try`; custom work in a second `try` that logs and swallows exceptions | Medium: `doFrame` uses `try/finally` for `DrawerBlurScope`; `findBlurUtilsExt` swallows non-fatal `Throwable` via `FatalErrors.rethrowIfFatal`; arg mutation occurs before `chain.proceed(args)` |
-| **ABI stability** | Medium: single class, but requires method ABI for `getEntry`, `getPackageName`, `setSystemExpanded` and `Set<String>` snapshot | High: single class, two int fields; only `resetViewStates` overload set is unknown | Medium: single class, but multiple method/field lookups and `List<String>` field; two `Set<String>` snapshots | Medium: single class, but `getRepresentativeEntry` / `getImportance` / `mNotificationEntries` and `ArrayList` creation | High: single class, `click(View)`, `mContext`, `getState` / `state` | Low–medium: multiple target classes; `BlurUtilsExt` discovered dynamically by field-name and type fallback; no stable name-known field |
-| **Expected Architecture C benefit** | Remove up to 2 preference reads and up to 5 reflective helper attempts per callback; small immutable `Int + Set<String>` snapshot | Replace `getStringAsInt` with snapshot and field helpers with frozen `Field` reads/writes; benefit is smaller because the hook already writes fields | Remove 2 `getStringSet` and several helper calls; list mutation remains, so marginal benefit is limited | Reduce helper calls; but the `ArrayList` allocation and list filtering are the dominant cost, so marginal benefit is limited | Small: only a few helper calls; external vibration helper dominates | Limited: `drawerBlurModifierPct` already uses a volatile snapshot and `DrawerBlurScope` already uses `ThreadLocal` / `WeakReference`; frozen ABI cannot fully replace the dynamic `BlurUtilsExt` discovery and target lifecycle |
-| **Selection outcome** | **Selected** | Rejected: field writes on every callback, smaller marginal benefit | Rejected: list mutation and two `Set` snapshots, more complex lifecycle | Rejected: `ArrayList` allocation per callback and larger surface | Rejected: small feature, limited Architecture C reduction | Rejected: already has preference snapshot / volatile value / `ThreadLocal` / `WeakReference`; marginal benefit not enough |
+| **ABI stability** | Medium: single class, but requires method ABI for `getEntry`, `getPackageName`, `setSystemExpanded` and `Set<String>` snapshot | High: single class, two int fields; only `resetViewStates` overload set is unknown | Medium: single class, but multiple method/field lookups and `List<String>` field; two `Set<String>` snapshots | Medium: single class, but `getRepresentativeEntry` / `getImportance` / `mNotificationEntries` and conditional `ArrayList` creation | High: single class, `click(View)`, `mContext`, `getState` / `state` | Low–medium: multiple target classes; `BlurUtilsExt` discovered dynamically by field-name and type fallback; no stable name-known field |
+| **Expected Architecture C benefit** | Remove up to 2 preference reads and up to 5 reflective helper attempts per callback; small immutable `Int + Set<String>` snapshot | Replace `getStringAsInt` with snapshot and field helpers with frozen `Field` reads/writes; benefit is smaller because the hook already writes fields | Remove 2 `getStringSet` and several helper calls; list mutation remains, so marginal benefit is limited | Reduce helper calls; but the `ArrayList<Any>` allocation on every non-empty callback and the list filtering are the dominant costs, so marginal benefit is limited | Small: only a few helper calls; external vibration helper dominates | Limited: `drawerBlurModifierPct` already uses a volatile snapshot and `DrawerBlurScope` already uses `ThreadLocal` / `WeakReference`; frozen ABI cannot fully replace the dynamic `BlurUtilsExt` discovery and target lifecycle |
+| **Selection outcome** | **Selected** | Rejected: field writes on every callback, smaller marginal benefit | Rejected: list mutation and two `Set` snapshots, more complex lifecycle | Rejected: `ArrayList<Any>` allocated whenever `mNotificationEntries` is non-empty, plus a larger surface | Rejected: small feature, limited Architecture C reduction | Rejected: already has preference snapshot / volatile value / `ThreadLocal` / `WeakReference`; marginal benefit not enough |
 
 ### 7.3 Why `DrawerBlurRatioHook` was not selected
 
@@ -338,10 +339,13 @@ This document uses the allowed classification values exactly:
 | Real runtime frequency of `setFeedbackIcon` or any candidate callback | `NOT_RUNTIME_TESTED_CALLBACK` | No real-device timing or CI runtime trace |
 | Real callback execution of `ExpandNotificationsHook` on a device | `NOT_RUNTIME_TESTED_CALLBACK` | No runtime execution evidence |
 | Git start gate, diff checks, status checks | `LOCAL_EXECUTION_EVIDENCE_ONLY` | Commands run on local working tree |
-| GitHub CI status | `NONE` | No GitHub statuses present in this working tree |
-| GitHub workflow runs | `NONE` | No workflow runs queried or available in this working tree |
 
-No combined, decorated, or custom classification values are used.
+No combined, decorated, or custom classification values are used.  `NONE` is **not** used as an evidence classification.
+
+```text
+GITHUB_CI_STATUS = NONE
+GITHUB_WORKFLOW_RUNS = NONE
+```
 
 ---
 
@@ -351,9 +355,11 @@ No combined, decorated, or custom classification values are used.
 |---|---|---|
 | `git diff --check` | pass | exit code 0, no output |
 | `git status --short` | clean except for new doc | only `?? docs/architecture-c/C6_TARGET_SELECTION.md` |
-| `git diff --name-only e98a1566abd93e2160f57372e9c89d29c6652779..HEAD` | empty | `HEAD` is still the base SHA; the new file is untracked at this point |
+| `git diff --name-only 1e23ab90607a49aaeaa63bf2ef12e49ca7fa63da..HEAD` | `docs/architecture-c/C6_TARGET_SELECTION.md` only | post-commit check confirms only this corrective document changed |
 | `git diff -- app/src/main` | empty | exit code 0, no output |
 | `git diff -- app/src/test` | empty | exit code 0, no output |
+| `git diff 1e23ab90607a49aaeaa63bf2ef12e49ca7fa63da..HEAD -- app/src/main` | empty | no production source changes |
+| `git diff 1e23ab90607a49aaeaa63bf2ef12e49ca7fa63da..HEAD -- app/src/test` | empty | no test source changes |
 
 All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 
@@ -365,8 +371,9 @@ This is a documentation-only target-selection freeze.  No Android compilation or
 
 | Field | Value |
 |---|---|
-| Base SHA | `e98a1566abd93e2160f57372e9c89d29c6652779` |
-| Final SHA | *(to be recorded after commit and push)* |
+| Base SHA (original C6 selection) | `e98a1566abd93e2160f57372e9c89d29c6652779` |
+| Corrective base SHA | `1e23ab90607a49aaeaa63bf2ef12e49ca7fa63da` |
+| Final SHA | *(to be recorded after corrective commit and push)* |
 | Branch | `devin/a14-architecture-c-r14.20.0` |
 | Changed files | `docs/architecture-c/C6_TARGET_SELECTION.md` |
 | Production changed | `false` |
