@@ -453,7 +453,7 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 | Field | Value |
 |---|---|
 | Base SHA | `222af8f2cf2012a76e82427279db5954a7fbaf7c` |
-| Final SHA | *(to be recorded after commit and push)* |
+| Final SHA | `5a9c61c26f6fa1eb69cba47b23d9039a26264021` |
 | Branch | `devin/a14-architecture-c-r14.20.0` |
 | Production changed | `true` |
 | Tests changed | `true` |
