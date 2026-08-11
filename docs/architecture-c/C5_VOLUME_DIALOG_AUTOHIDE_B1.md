@@ -566,7 +566,7 @@ All validation results are `LOCAL_EXECUTION_EVIDENCE_ONLY`.
 | Base SHA (corrective) | `10c562746d910fbfd825eed16d56b97c3795544f` |
 | B1 implementation SHA | `5a9c61c26f6fa1eb69cba47b23d9039a26264021` |
 | Corrective commit SHA | `c4b15a32197f78990f14abfa15fcd76a6402a4c5` |
-| Final SHA | *(to be recorded after docs-only commit and push)* |
+| Final SHA | `7b2ad4b8e58309703aecd96a2df976c2139b0379` |
 | Branch | `devin/a14-architecture-c-r14.20.0` |
 | Production changed | `true` |
 | Tests changed | `true` |
