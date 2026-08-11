@@ -58,7 +58,7 @@ ModuleHelper.hookAllMethods(
 - All declared overloads named `applyMobileState` are hooked with the same `stateHook` callback.
 - All declared overloads named `updateState` are hooked with the same `stateHook` callback.
 - The single `before` callback assumes **arg0 exists** and is the `mobileIconState` object.
-- If a hooked overload has no parameters, `param.getArg(0)` returns `null` and the subsequent field access throws; the `MethodHook` adapter catches the non-fatal exception and the original method continues.
+- `ZERO_ARG_OVERLOAD_GETARG0_BEHAVIOR = NOT_PROVEN`. The repository only proves that `BeforeHookCallback.getArg(0)` delegates to `chain.getArg(0)`; the real libxposed behavior for an invalid or missing argument index is not proven here.
 
 ### 1.3 Overload evidence
 
@@ -153,11 +153,12 @@ Source: `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHoo
 | Access site | `SystemUIStatusBarHooks.kt:2544` |
 | Lookup starting runtime class | `mobileIconState.javaClass` |
 | Declaring owner | `REAL_HYPEROS_FIELD_OWNER = NOT_PROVEN` |
-| Expected type | `boolean` or `Boolean` |
-| Access semantics | `XposedHelpers.getBooleanField` → `Field.getBoolean(obj)` |
-| Null behavior | `mobileIconState == null` causes NPE in `findField`; caught |
-| Wrong-type behavior | `IllegalArgumentException` if field not boolean-compatible; caught |
-| Missing-field behavior | `NoSuchFieldError`; caught |
+| `REAL_HYPEROS_wifiAvailable_FIELD_TYPE` | **NOT_PROVEN**. The repository does not prove whether the actual HyperOS field is primitive `boolean` or `Boolean` object. |
+| Expected frozen fast-path semantics | **primitive `boolean` `Field.getBoolean(obj)` semantics**. `XposedHelpers.getBooleanField` ultimately calls `Field.getBoolean`. This is the only legacy access path; `Boolean` wrapper access is not declared equivalent. |
+| Resolver requirement | If a future `Resolver` cannot establish an ABI whose `Field.getBoolean` is semantically compatible with the legacy primitive-boolean read, it must **miss** and the callback must use the complete legacy `XposedHelpers.getBooleanField` path. |
+| Null behavior | `mobileIconState == null` causes NPE in `findField`; caught by `MethodHook.beforeHook`. |
+| Wrong-type behavior | `IllegalArgumentException` if the frozen `Field` is not primitive `boolean` or a `Boolean` wrapper that `getBoolean` can unbox; the runtime failure is non-fatal and handled by `MethodHook.beforeHook`. |
+| Missing-field behavior | `NoSuchFieldError`; caught, no mutation. |
 
 ### 3.3 `MobileIconState.subId` — READ
 
@@ -188,7 +189,7 @@ Source: `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHoo
 | Field | RW | Expected type |
 |---|---|---|
 | `StatusBarMobileView.mState` | R | `Object` (state or `null`) |
-| `MobileIconState.wifiAvailable` | R | `boolean` / `Boolean` |
+| `MobileIconState.wifiAvailable` | R | `boolean` primitive semantics (`REAL_HYPEROS_wifiAvailable_FIELD_TYPE = NOT_PROVEN`) |
 | `MobileIconState.subId` | R | `int` / `Integer` |
 | `MobileIconState.visible` | W | `boolean` / `Boolean` |
 | `MobileIconState.roaming` | W | `boolean` / `Boolean` |
@@ -239,22 +240,73 @@ Legacy `findField(R.javaClass, name)` returns the first matching field when walk
 
 Ordinary `Throwable` (including `Error` subtypes that are not `OutOfMemoryError`, `ThreadDeath`, or `VirtualMachineError`) is logged and swallowed; the adapter calls `chain.proceed()`. Fatal errors are rethrown immediately.
 
-### 5.2 Per-scenario contract
+### 5.2 Fast-execute fallback boundary
 
-| Scenario | Legacy result | Frozen ABI contract |
-|---|---|---|
-| Missing `mState` | `NoSuchFieldError` caught, original method proceeds, no mutation | Fast-path ineligible → fallback; fast path with missing field must not occur |
-| Missing `wifiAvailable` / `subId` / `visible` / `roaming` / `volte` / `speechHd` | `NoSuchFieldError` caught, no mutation (partial if earlier writes succeeded) | Same; fast path must write in same order to preserve partial mutation |
-| `subId as Int` `ClassCastException` | Caught, no mutation | Fast path use `Field.get(obj) as Int` to keep identical exception type, or treat equivalent `IllegalArgumentException` as non-fatal |
-| `Field.get/set IllegalAccessException` | `XposedHelpers` throws `IllegalAccessError` (non-fatal `Error`), caught | `Field` must be `setAccessible(true)` at resolve; any `IllegalAccessException` treated as ordinary, logged, fallback or continue |
-| `Field.get/set IllegalArgumentException` | Caught as ordinary `Throwable` | Prevented by exact-class eligibility; if it occurs, treat as ordinary and fall back |
-| Resolver expected miss | N/A | Return `null` ABI; effect uses legacy helpers |
-| Resolver unexpected ordinary `Throwable` | N/A | Log once, return `null` ABI, use legacy |
-| Fatal `Throwable` | Rethrown | Preserve fatal propagation; never catch `OutOfMemoryError`, `ThreadDeath`, `VirtualMachineError` |
+The legacy path does **not** retry a different field-access path after a field access has already failed. The future Architecture C `Effect` must mirror this distinction.
 
-### 5.3 Partial-mutation contract
+#### 5.2.1 `FALLBACK_ALLOWED_BEFORE_FAST_EXECUTE`
 
-The legacy callback may leave `visible` or `roaming` mutated if a later write throws. The Architecture C effect must not wrap writes in a transaction that rolls back earlier writes. Each write is an independent, non-atomic step.
+The following conditions may cause the callback to select the **complete existing legacy `XposedHelpers` path**, as long as the decision is made before any fast `Field.get` / `Field.set` / `as Int` operation begins:
+
+- Resolver expected miss (class or field not resolvable at install time).
+- Resolver ordinary non-fatal `Throwable` during install-time resolution.
+- Receiver runtime class does not satisfy `FAST_PATH_ELIGIBILITY` (e.g., `thisObject.javaClass !== resolvedStatusBarMobileViewClass` or `mobileIconState.javaClass !== resolvedMobileIconStateClass`).
+- Any ABI incompatibility detected before the first fast field operation, including a `wifiAvailable` `Field` that cannot be proven compatible with **primitive `boolean` `Field.getBoolean` semantics**.
+
+For these cases the `Effect` may use the complete legacy `XposedHelpers` path and the legacy `MethodHook.beforeHook` contract remains responsible for ordinary failures.
+
+#### 5.2.2 `FALLBACK_FORBIDDEN_AFTER_FAST_EXECUTE_BEGINS`
+
+Once the `Effect` has committed to the fast path and performed at least one fast operation, the following runtime failures must **not** be retried through `XposedHelpers`:
+
+- direct `Field.get` `IllegalAccessException`
+- direct `Field.set` `IllegalAccessException`
+- direct `Field.get` / `Field.set` `IllegalArgumentException`
+- `subId as Int` `ClassCastException`
+- any ordinary field-access or cast failure after one or more fast operations have started
+
+For these failures the `Effect` must:
+
+- **not** retry with `XposedHelpers.getObjectField` / `setObjectField` / `getBooleanField`;
+- **not** continue later mutations;
+- **preserve** any earlier successful partial mutations;
+- **allow the failure to terminate this `before` callback**;
+- let the existing `MethodHook.beforeHook` outer contract log the non-fatal exception and continue the original callback.
+
+### 5.3 IllegalAccessException legacy-compatible mapping
+
+`XposedHelpers.getObjectField` / `setObjectField` catch `IllegalAccessException`, log it, and rethrow `IllegalAccessError`. `IllegalAccessError` is an `Error` but is **not** one of the fatal `OutOfMemoryError` / `ThreadDeath` / `VirtualMachineError` categories, so `MethodHook.beforeHook` catches it, logs it, and the original callback proceeds.
+
+This exact mapping must be preserved for any fast `Field.get` / `Field.set` that throws `IllegalAccessException`:
+
+```text
+direct Field.get / Field.set IllegalAccessException
+    → wrap as IllegalAccessError
+    → throw
+    → MethodHook.beforeHook catches (non-fatal Error)
+    → XposedHelpers.log(...)
+    → original callback proceeds
+```
+
+The `Field` objects resolved by the future `Resolver` must be `setAccessible(true)` at resolve time, which is the same safety net used by `XposedHelpers.findField`. If `IllegalAccessException` still occurs at runtime, the mapping above must still be applied.
+
+### 5.4 Per-scenario contract
+
+| Scenario | Fallback timing | Legacy behavior | Architecture C contract |
+|---|---|---|---|
+| Resolver expected miss (class/field not found at install) | **Before fast** | N/A | Return `null` ABI. `Effect` uses complete legacy `XposedHelpers` path. |
+| Resolver unexpected ordinary `Throwable` | **Before fast** | N/A | Log once, return `null` ABI, `Effect` uses complete legacy path. |
+| Receiver runtime class not eligible | **Before fast** | Legacy uses runtime-class-first lookup. | Use complete legacy `XposedHelpers` path. No fast operation begins. |
+| `mState` missing / incompatible / `IllegalAccessException` / `IllegalArgumentException` | Before fast if Resolver detects; **forbidden after fast** | `NoSuchFieldError` / `IllegalArgumentException` caught; original proceeds. | If detected before fast, use legacy. If fast `Field.get` fails, do not retry, do not continue. No partial mutations to preserve for this read. |
+| `wifiAvailable` `Field` not compatible with primitive `boolean` `Field.getBoolean` | **Before fast** | `IllegalArgumentException` from `Field.getBoolean` caught. | `Resolver` must **miss** and force legacy path. If a fast `Field.getBoolean` fails at runtime, do not retry, do not continue. No prior mutations. |
+| `subId as Int` `ClassCastException` | **Forbidden after fast** | Caught; no mutation. | Use `Field.get(mobileIconState) as Int` to preserve `ClassCastException` semantics. Do not continue to `SubscriptionManager` calls or writes. No prior mutations. |
+| `visible` / `roaming` / `volte` / `speechHd` write missing or `IllegalArgumentException` | **Forbidden after fast** | `NoSuchFieldError` / `IllegalArgumentException` caught; earlier successful writes remain. | Fast `Field.set` fails; do not retry, do not continue to later writes. Preserve any earlier successful partial mutations. |
+| Fast `Field.get` / `Field.set` `IllegalAccessException` | **Forbidden after fast** | `XposedHelpers` maps to `IllegalAccessError` (non-fatal `Error`). | Map `IllegalAccessException` to `IllegalAccessError` and throw; `MethodHook.beforeHook` logs and original proceeds. |
+| Fatal `Throwable` (`OutOfMemoryError`, `ThreadDeath`, `VirtualMachineError`) | Any | Rethrown immediately. | Never catch; propagate. Never enter fallback. |
+
+### 5.5 Partial-mutation contract
+
+The legacy callback may leave `visible`, `roaming`, or `volte` mutated if a later write throws. The Architecture C `Effect` must not wrap writes in a transaction that rolls back earlier writes. Each write is an independent, non-atomic step, and a failure after fast execution begins must leave earlier successful writes intact.
 
 ---
 
@@ -330,6 +382,7 @@ val slotId = SubscriptionManager.getSlotIndex(subId)
 | `computeSignalIconHiding` | **RUNTIME_TESTED_COMPONENT** |
 | `StatusBarIconVisibilityRuntimeState` ownership | **STRUCTURAL** |
 | `REAL_METHOD_OVERLOAD_SET` | **NOT_PROVEN** |
+| `ZERO_ARG_OVERLOAD_GETARG0_BEHAVIOR` | **NOT_PROVEN** |
 | `REAL_applyMobileState callback` | **NOT_RUNTIME_TESTED_CALLBACK** |
 | `REAL_updateState callback` | **NOT_RUNTIME_TESTED_CALLBACK** |
 | `REAL_HYPEROS_FIELD_OWNER` | **NOT_PROVEN** |
@@ -371,6 +424,10 @@ The preflight contract can be fully frozen:
 
 - Hook surface, callback oracle, field ABI, and failure semantics are documented.
 - A behavior-preserving fast-path contract (`exact runtime class match` + mandatory legacy fallback) is defined and justified.
+- The fast-execute fallback boundary is frozen: fallback is allowed only before any fast operation; after fast execution begins, runtime field failures terminate the callback, preserve earlier partial mutations, and rely on `MethodHook.beforeHook` for log-and-continue.
+- `IllegalAccessException` is mapped to `IllegalAccessError` exactly as the legacy `XposedHelpers` path does.
+- `wifiAvailable` access semantics are frozen as primitive `boolean` `Field.getBoolean` semantics; the Resolver must miss if it cannot establish this ABI.
+- `ZERO_ARG_OVERLOAD_GETARG0_BEHAVIOR = NOT_PROVEN` and `REAL_METHOD_OVERLOAD_SET = NOT_PROVEN` are frozen without inferring `null`/NPE behavior.
 - Config/publication and ownership are already in a reusable frozen state.
 - `SubscriptionManager` is explicitly out of scope.
 - All real-device/runtime evidence gaps are labeled `NOT_PROVEN` or `NOT_RUNTIME_TESTED_CALLBACK`.
