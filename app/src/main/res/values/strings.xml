@@ -19,6 +19,9 @@
     <string name="about_contact_summary">Telegram: @Jinji_Kiko</string>
     <string name="about_donation_unavailable">Unable to load donation code</string>
     <string name="about_link_unavailable">No app can open this link</string>
+    <string name="about_notes_category">Notes</string>
+    <string name="about_restart_notes_title">Restart behavior</string>
+    <string name="about_compatibility_notes_title">Device compatibility</string>
     <string name="title_activity_main" translatable="false">@string/app_name</string>
 
     <string name="mods">Mods</string>

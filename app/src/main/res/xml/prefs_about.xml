@@ -38,4 +38,18 @@
 			android:persistent="false" />
 	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
 
+	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
+		android:title="@string/about_notes_category">
+		<tv.withaibuild.customiuizer.prefs.PreferenceEx
+			android:title="@string/about_restart_notes_title"
+			android:summary="@string/about_dynamic"
+			android:selectable="false"
+			android:persistent="false" />
+		<tv.withaibuild.customiuizer.prefs.PreferenceEx
+			android:title="@string/about_compatibility_notes_title"
+			android:summary="@string/about_unsupported"
+			android:selectable="false"
+			android:persistent="false" />
+	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
+
 </PreferenceScreen>

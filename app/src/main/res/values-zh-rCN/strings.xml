@@ -16,6 +16,9 @@
     <string name="about_contact_summary">Telegram：@Jinji_Kiko</string>
     <string name="about_donation_unavailable">无法加载赞赏码</string>
     <string name="about_link_unavailable">没有可打开此链接的应用</string>
+    <string name="about_notes_category">说明</string>
+    <string name="about_restart_notes_title">重启说明</string>
+    <string name="about_compatibility_notes_title">设备兼容</string>
     <string name="common_background_color">背景色</string>
     <string name="common_icon_color">图标颜色</string>
 

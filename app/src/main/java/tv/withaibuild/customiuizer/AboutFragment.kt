@@ -10,7 +10,6 @@ import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
-import android.widget.RelativeLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -25,15 +24,6 @@ class AboutFragment : SubFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         headLayoutId = R.layout.fragment_about_head
-        tailLayoutId = R.layout.fragment_about_tail
-    }
-
-    override fun fixStubLayout(view: View, postion: Int) {
-        if (postion == 2) {
-            val lp = view.layoutParams as? RelativeLayout.LayoutParams ?: return
-            lp.addRule(RelativeLayout.BELOW, android.R.id.list_container)
-            view.layoutParams = lp
-        }
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

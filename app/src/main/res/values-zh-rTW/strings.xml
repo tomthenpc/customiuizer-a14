@@ -16,6 +16,9 @@
     <string name="about_contact_summary">Telegram：@Jinji_Kiko</string>
     <string name="about_donation_unavailable">無法載入贊賞碼</string>
     <string name="about_link_unavailable">沒有可開啟此連結的應用程式</string>
+    <string name="about_notes_category">說明</string>
+    <string name="about_restart_notes_title">重啟說明</string>
+    <string name="about_compatibility_notes_title">裝置相容性</string>
     <string name="mods">模組</string>
     <string name="mods_actions">動作</string>
     <string name="enable_mod">啟用模組</string>
