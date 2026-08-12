@@ -74,6 +74,11 @@ object SystemUIStrongToastHooks {
                         val statusBarInsetPx = currentStatusBarInsetPx(strongToast)
                         val visualHeightPx = strongToastVisualHeightPx(strongToast)
                         layoutParams.height = if (dynamicIsland) {
+                            // HyperOS normally makes this Window exactly as wide as
+                            // strong_toast_width. A centered overshoot is then clipped by the
+                            // Window surface before ViewGroup clip flags can help. Keep the
+                            // capsule at ROM width, but give it a full-screen transparent host.
+                            layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT
                             resolveDynamicIslandWindowHeightPx(
                                 statusBarInsetPx,
                                 visualHeightPx,

@@ -11,6 +11,7 @@ import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastPresentationFea
 import tv.withaibuild.customiuizer.mods.utils.feature.SystemUiFeatures
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.lang.reflect.Proxy
+import java.io.File
 
 class StrongToastPresentationModeTest {
 
@@ -81,6 +82,21 @@ class StrongToastPresentationModeTest {
         assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 141, 0, 0))
         assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 141, -1, -1))
         assertEquals(104, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 0, 18, 36))
+    }
+
+    @Test
+    fun dynamicIslandWindow_usesFullWidthHostForHorizontalOvershoot() {
+        val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
+        assertTrue(source.contains("layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT"))
+    }
+
+    private fun source(path: String): String {
+        var directory = File(System.getProperty("user.dir")).absoluteFile
+        while (true) {
+            val candidate = File(directory, path)
+            if (candidate.isFile) return candidate.readText()
+            directory = directory.parentFile ?: error("Repository root not found for $path")
+        }
     }
 
     private fun fakePackageReadyParam(): io.github.libxposed.api.XposedModuleInterface.PackageReadyParam {
