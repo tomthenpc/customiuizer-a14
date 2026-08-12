@@ -80,6 +80,7 @@ No other fragment overrides `backupSettings`, `restoreSettings` or `doRestoreSet
 | **Root object type** | `Map<String, Any?>` (specifically a copy of `SharedPreferences.getAll()`) | `PreferenceFragmentBase.kt:590,626` |
 | **Supported value types** | Boolean, Int, Long, Float, String, Set<String> | `AppHelper.syncPrefsToAnother:278–287` |
 | **Filename generation** | `pengeek_backup_` + `SimpleDateFormat("MMddHHmmss", Locale.US).format(Date())` | `PreferenceFragmentBase.kt:574–575,689–691` |
+| **Formatter state** | `SimpleDateFormat` is held as a `companion` / `static` instance (`BACKUP_DATE_FORMAT`); this is a shared mutable formatter and is not thread-safe | `PreferenceFragmentBase.kt:574` |
 | **Timestamp semantics** | Local device wall-clock, month/day/hour/minute/second, US locale digits, no timezone, no milliseconds | `PreferenceFragmentBase.kt:574–575` |
 | **Stream ownership** | `contentResolver.openOutputStream/openInputStream` is handed to `ObjectOutputStream`/`ObjectInputStream`; `.use { }` closes the wrapper, which closes the underlying stream | `PreferenceFragmentBase.kt:588,625` |
 | **Close semantics** | `use` closes on success; if `ObjectOutputStream` constructor throws, the underlying `outputStream` may be leaked | `PreferenceFragmentBase.kt:588,625` |
@@ -799,13 +800,27 @@ If and only if `M1_AUTHORIZATION = YES` is granted, M1 should implement:
 
 1. **Backup default filename change:**
    - `BACKUP_DEFAULT_NAME = "r14bak_<MMddHHmmss>"`.
-   - Keep device local wall-clock semantics.
-   - Keep `Locale.US` numeric representation.
-   - No filename extension required.
-   - Prefer an immutable / thread-safe `SimpleDateFormat` (e.g. wrapped in a
-     `static final` or a `DateTimeFormatter` if API 26+ is acceptable; current
-     project base uses `SimpleDateFormat`, so a `private val` in the companion
-     object is sufficient).
+   - Timestamp semantics:
+     - device local wall-clock;
+     - `Locale.US` numeric representation;
+     - pattern `MMddHHmmss`;
+     - no filename extension required.
+   - **Current production defect:** `PreferenceFragmentBase.BACKUP_DATE_FORMAT`
+     is a `companion` / `static` `SimpleDateFormat` instance (`SimpleDateFormat`
+     is mutable and **not** thread-safe). M1 must **remove this shared mutable
+     formatter**, not merely change its prefix.
+   - **Formatter requirement (choose one):**
+     - **A. Preferred:** use an immutable / thread-safe `java.time.DateTimeFormatter`:
+       ```kotlin
+       DateTimeFormatter.ofPattern("MMddHHmmss", Locale.US)
+       ```
+       and format with the device-local current time.
+     - **B. Acceptable:** create a new local `SimpleDateFormat("MMddHHmmss", Locale.US)`
+       on every `backupSettings()` call, keeping the formatter thread-confined.
+   - **Prohibited:**
+     - shared / singleton / `static final` / `companion private val` `SimpleDateFormat`;
+     - any design that treats `SimpleDateFormat` as thread-safe because it is
+       held in an immutable reference.
 2. **Backup fatal-error fix:**
    - `PreferenceFragmentBase.backupSettings` catch block currently catches
      `Throwable` without `FatalErrors.rethrowIfFatal`.
