@@ -233,6 +233,90 @@ class BackupFormatV2Test {
         assertTrue(decoded.isEmpty())
     }
 
+    @Test
+    fun encodeAcceptsMaxKeyLength() {
+        val key = "k".repeat(BackupFormatV2.MAX_KEY_BYTES)
+        val encoded = BackupFormatV2.encode(linkedMapOf(key to "v"))
+        val decoded = BackupFormatV2.decode(encoded)
+        assertEquals("v", decoded[key])
+    }
+
+    @Test
+    fun encodeRejectsKeyTooLongByOne() {
+        val key = "k".repeat(BackupFormatV2.MAX_KEY_BYTES + 1)
+        try {
+            BackupFormatV2.encode(linkedMapOf(key to "v"))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("Key too long") == true)
+        }
+    }
+
+    @Test
+    fun encodeAcceptsMaxStringLength() {
+        val value = "v".repeat(BackupFormatV2.MAX_STRING_BYTES)
+        val encoded = BackupFormatV2.encode(linkedMapOf("key" to value))
+        val decoded = BackupFormatV2.decode(encoded)
+        assertEquals(value, decoded["key"])
+    }
+
+    @Test
+    fun encodeRejectsStringTooLongByOne() {
+        val value = "v".repeat(BackupFormatV2.MAX_STRING_BYTES + 1)
+        try {
+            BackupFormatV2.encode(linkedMapOf("key" to value))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("String too long") == true)
+        }
+    }
+
+    @Test
+    fun encodeAcceptsMaxSetItems() {
+        val set = LinkedHashSet<String>().apply {
+            repeat(BackupFormatV2.MAX_SET_ITEMS) { add("pkg$it") }
+        }
+        val encoded = BackupFormatV2.encode(linkedMapOf("key" to set))
+        val decoded = BackupFormatV2.decode(encoded)
+        @Suppress("UNCHECKED_CAST")
+        val result = decoded["key"] as Set<String>
+        assertEquals(BackupFormatV2.MAX_SET_ITEMS, result.size)
+    }
+
+    @Test
+    fun encodeRejectsSetTooLargeByOne() {
+        val set = LinkedHashSet<String>().apply {
+            repeat(BackupFormatV2.MAX_SET_ITEMS + 1) { add("pkg$it") }
+        }
+        try {
+            BackupFormatV2.encode(linkedMapOf("key" to set))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("StringSet too large") == true)
+        }
+    }
+
+    @Test
+    fun encodeAcceptsMaxEntryCount() {
+        val entries = linkedMapOf<String, Any?>()
+        repeat(BackupFormatV2.MAX_ENTRY_COUNT) { entries["pref_key_$it"] = true }
+        val encoded = BackupFormatV2.encode(entries)
+        val decoded = BackupFormatV2.decode(encoded)
+        assertEquals(BackupFormatV2.MAX_ENTRY_COUNT, decoded.size)
+    }
+
+    @Test
+    fun encodeRejectsEntryCountTooLargeByOne() {
+        val entries = linkedMapOf<String, Any?>()
+        repeat(BackupFormatV2.MAX_ENTRY_COUNT + 1) { entries["pref_key_$it"] = true }
+        try {
+            BackupFormatV2.encode(entries)
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("Entry count") == true)
+        }
+    }
+
     private fun payloadWithCrc(payload: ByteArray): ByteArray {
         val crc = java.util.zip.CRC32()
         crc.update(payload, 0, payload.size)

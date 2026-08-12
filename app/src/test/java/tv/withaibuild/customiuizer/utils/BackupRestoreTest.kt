@@ -567,9 +567,36 @@ class BackupRestoreTest {
         assertEquals("", prefs.getString("pref_key_miuizer_locale_applied", null))
     }
 
+    @Test
+    fun decodeLegacyBackupRejectsCustomReadObjectBeforeExecution() {
+        EvilSerializable.readObjectCalled = false
+
+        val map = HashMap<String, Any?>()
+        map["pref_key_evil"] = EvilSerializable()
+        val bytes = serialize(map)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertFalse("Custom readObject must not run", EvilSerializable.readObjectCalled)
+        }
+    }
+
     private fun serialize(obj: Any): ByteArray {
         val output = ByteArrayOutputStream()
         ObjectOutputStream(output).use { it.writeObject(obj) }
         return output.toByteArray()
+    }
+
+    class EvilSerializable : java.io.Serializable {
+        companion object {
+            @JvmField
+            var readObjectCalled = false
+        }
+
+        private fun readObject(s: java.io.ObjectInputStream) {
+            readObjectCalled = true
+        }
     }
 }

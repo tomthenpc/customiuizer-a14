@@ -7,8 +7,10 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.io.ObjectInputFilter
 import java.io.ObjectInputStream
 import java.io.ObjectStreamClass
+import java.io.UTFDataFormatException
 import java.io.OutputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -53,6 +55,17 @@ object BackupRestore {
 
     /** Legacy Java serialization stream header: 0xAC 0xED 0x00 0x05. */
     private val LEGACY_MAGIC = byteArrayOf(0xAC.toByte(), 0xED.toByte(), 0x00, 0x05)
+
+    /**
+     * Legacy deserialization graph limits.
+     *
+     * Evidence from a JDK 17 fixture (5 entries + 3-item HashSet):
+     *   maxDepth = 3, maxReferences = 23, maxArrayLength = 16.
+     * Limits provide headroom for the full corpus under MAX_FILE_SIZE.
+     */
+    const val LEGACY_MAX_DEPTH = 16L
+    const val LEGACY_MAX_REFERENCES = 100_000L
+    const val LEGACY_MAX_ARRAY_LENGTH = 4096L
 
     enum class Status { SUCCESS, PARTIAL_FAILURE, FAILURE }
 
@@ -197,7 +210,6 @@ object BackupRestore {
      * @throws BackupRestoreException if the file is not a recognized backup.
      */
     @JvmStatic
-    @Throws(IOException::class, ClassNotFoundException::class)
     fun decodeBackup(bytes: ByteArray): Map<*, *> {
         if (bytes.size < 4) {
             throw BackupRestoreException("Backup file too short")
@@ -208,33 +220,41 @@ object BackupRestore {
             ((bytes[2].toInt() and 0xFF) shl 8) or
             (bytes[3].toInt() and 0xFF)
 
-        if (firstFour == BackupFormatV2.MAGIC) {
-            return BackupFormatV2.decode(bytes)
+        val decoded = when {
+            firstFour == BackupFormatV2.MAGIC -> BackupFormatV2.decode(bytes)
+            bytes.size >= LEGACY_MAGIC.size &&
+                bytes[0] == LEGACY_MAGIC[0] &&
+                bytes[1] == LEGACY_MAGIC[1] &&
+                bytes[2] == LEGACY_MAGIC[2] &&
+                bytes[3] == LEGACY_MAGIC[3] -> decodeLegacyBackup(bytes)
+            else -> throw BackupRestoreException("Unrecognized backup format")
         }
 
-        if (bytes.size >= LEGACY_MAGIC.size &&
-            bytes[0] == LEGACY_MAGIC[0] &&
-            bytes[1] == LEGACY_MAGIC[1] &&
-            bytes[2] == LEGACY_MAGIC[2] &&
-            bytes[3] == LEGACY_MAGIC[3]
-        ) {
-            return decodeLegacyBackup(bytes)
-        }
-
-        throw BackupRestoreException("Unrecognized backup format")
+        postDecodeBoundsCheck(decoded)
+        return decoded
     }
 
     /**
-     * Decodes a legacy Java-serialized backup with a restricted `ObjectInputStream`.
+     * Decodes a legacy Java-serialized backup with fail-closed filtering.
      *
-     * The wire allowlist is the minimum proven historical class graph:
+     * Two layers of defense:
+     * 1. An `ObjectInputFilter` is installed on the stream to enforce graph
+     *    limits and an exact class allowlist.
+     * 2. `RestrictedObjectInputStream.resolveClass` and `resolveProxyClass`
+     *    reject any class not in the proven allowlist.
+     *
+     * Proven wire classes from a JDK 17 fixture:
      * - `java.util.HashMap`
      * - `java.util.HashSet`
-     * - `java.lang.String`
-     * - `java.lang.Boolean`, `Integer`, `Long`, `Float`
+     * - `java.util.Map$Entry` and `[Ljava.util.Map$Entry;`
+     * - `java.util.HashMap$Node` and `[Ljava.util.HashMap$Node;`
+     * - `java.util.HashMap$TreeNode` and `[Ljava.util.HashMap$TreeNode;`
+     * - `java.lang.Boolean`, `Integer`, `Long`, `Float`, `String`
+     * - `java.lang.Number`, `java.lang.Object`
      *
-     * Subclasses, `LinkedHashMap`, `LinkedHashSet`, `ArrayList`, `Date`, `Double`,
-     * and any application classes are rejected by overriding `resolveClass`.
+     * Any other concrete class, proxy, `LinkedHashMap`, `LinkedHashSet`,
+     * `ArrayList`, `Date`, `Double`, custom `Serializable` or application
+     * class is rejected before it can be instantiated.
      */
     @JvmStatic
     fun decodeLegacyBackup(bytes: ByteArray): Map<*, *> {
@@ -259,25 +279,59 @@ object BackupRestore {
     }
 
     /**
+     * Fail-closed `ObjectInputFilter` for the legacy reader.
+     *
+     * - Rejects unknown classes (exact allowlist only).
+     * - Rejects proxies.
+     * - Rejects graph overruns (depth, references, array length).
+     * - Returns `ALLOWED` for non-class checks within limits; never `UNDECIDED`.
+     */
+    private val legacyObjectInputFilter = ObjectInputFilter { info ->
+        if (info.depth() > LEGACY_MAX_DEPTH) {
+            return@ObjectInputFilter ObjectInputFilter.Status.REJECTED
+        }
+        if (info.arrayLength() > LEGACY_MAX_ARRAY_LENGTH) {
+            return@ObjectInputFilter ObjectInputFilter.Status.REJECTED
+        }
+        if (info.references() > LEGACY_MAX_REFERENCES) {
+            return@ObjectInputFilter ObjectInputFilter.Status.REJECTED
+        }
+
+        val serialClass = info.serialClass()
+        if (serialClass == null) {
+            return@ObjectInputFilter ObjectInputFilter.Status.ALLOWED
+        }
+
+        if (serialClass.isInterface) {
+            // Interfaces such as `java.util.Map$Entry` or `java.util.Map`
+            // only appear when required by the wire graph.
+            return@ObjectInputFilter when (serialClass.name) {
+                "java.util.Map",
+                "java.util.Map\$Entry" -> ObjectInputFilter.Status.ALLOWED
+                else -> ObjectInputFilter.Status.REJECTED
+            }
+        }
+
+        if (isLegacyClassAllowed(serialClass.name)) {
+            return@ObjectInputFilter ObjectInputFilter.Status.ALLOWED
+        }
+
+        ObjectInputFilter.Status.REJECTED
+    }
+
+    /**
      * `ObjectInputStream` subclass that refuses to resolve any class outside the
      * proven legacy backup allowlist. Proxy classes are always rejected.
      */
     private class RestrictedObjectInputStream(input: ByteArrayInputStream) : ObjectInputStream(input) {
 
-        private val allowedClassNames = setOf(
-            "java.util.HashMap",
-            "java.util.HashSet",
-            "java.lang.Boolean",
-            "java.lang.Integer",
-            "java.lang.Long",
-            "java.lang.Float",
-            "java.lang.String",
-            "[Ljava.lang.String;",
-        )
+        init {
+            setLegacyObjectInputFilter(this, legacyObjectInputFilter)
+        }
 
         override fun resolveClass(desc: ObjectStreamClass): Class<*> {
             val name = desc.name
-            if (!isAllowed(name)) {
+            if (!isLegacyClassAllowed(name)) {
                 throw java.io.InvalidClassException(name, "Legacy class not in allowlist: $name")
             }
             return super.resolveClass(desc)
@@ -286,12 +340,98 @@ object BackupRestore {
         override fun resolveProxyClass(interfaces: Array<String>): Class<*> {
             throw java.io.InvalidClassException("proxy", "Proxy classes not allowed in legacy backups")
         }
+    }
 
-        private fun isAllowed(name: String): Boolean {
-            return name in allowedClassNames ||
-                name == "java.lang.Object" ||
-                name.startsWith("java.util.HashMap$") ||
-                name.startsWith("java.util.HashSet$")
+    /**
+     * Installs an `ObjectInputFilter` on the stream using reflection.
+     *
+     * Direct `setObjectInputFilter` fails to compile with this project's
+     * Kotlin compiler/Android SDK stub, but the method is present at runtime
+     * (API 34+ and JVM test runtime). If reflection fails, the reader fails
+     * closed rather than falling back to unrestricted deserialization.
+     */
+    @JvmStatic
+    private fun setLegacyObjectInputFilter(stream: ObjectInputStream, filter: ObjectInputFilter) {
+        try {
+            val method = ObjectInputStream::class.java.getMethod("setObjectInputFilter", ObjectInputFilter::class.java)
+            method.isAccessible = true
+            method.invoke(stream, filter)
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            throw IOException("ObjectInputStream.setObjectInputFilter unavailable; legacy reader cannot continue", t)
+        }
+    }
+
+    /**
+     * Exact legacy wire class allowlist.
+     *
+     * Evidence from a JDK 17 ObjectOutputStream fixture using a HashMap
+     * containing all supported value types and a HashSet<String>.
+     */
+    @JvmStatic
+    private fun isLegacyClassAllowed(name: String): Boolean {
+        return when (name) {
+            "java.util.HashMap",
+            "java.util.HashSet",
+            "java.util.Map",
+            "java.util.Map\$Entry",
+            "[Ljava.util.Map\$Entry;",
+            "java.util.HashMap\$Node",
+            "[Ljava.util.HashMap\$Node;",
+            "java.util.HashMap\$TreeNode",
+            "[Ljava.util.HashMap\$TreeNode;",
+            "java.lang.Boolean",
+            "java.lang.Integer",
+            "java.lang.Long",
+            "java.lang.Float",
+            "java.lang.String",
+            "[Ljava.lang.String;",
+            "java.lang.Number",
+            "java.lang.Object" -> true
+            else -> false
+        }
+    }
+
+    /**
+     * Post-decode bounds check for both V2 and legacy formats.
+     *
+     * Defense in depth: the V2 decoder and legacy `ObjectInputFilter` already
+     * enforce most bounds, but this pass guarantees the decoded in-memory map
+     * also respects the final M2 constants before normalization.
+     */
+    @JvmStatic
+    private fun postDecodeBoundsCheck(raw: Map<*, *>) {
+        if (raw.size > BackupFormatV2.MAX_ENTRY_COUNT) {
+            throw BackupRestoreException("Decoded entry count ${raw.size} exceeds ${BackupFormatV2.MAX_ENTRY_COUNT}")
+        }
+        for ((rawKey, rawValue) in raw) {
+            if (rawKey !is String) {
+                continue // handled by normalization, but avoid null cast
+            }
+            val keyBytes = rawKey.toByteArray(Charsets.UTF_8)
+            if (keyBytes.size > BackupFormatV2.MAX_KEY_BYTES) {
+                throw BackupRestoreException("Decoded key length ${keyBytes.size} exceeds ${BackupFormatV2.MAX_KEY_BYTES}")
+            }
+            when (rawValue) {
+                is String -> {
+                    val stringBytes = rawValue.toByteArray(Charsets.UTF_8)
+                    if (stringBytes.size > BackupFormatV2.MAX_STRING_BYTES) {
+                        throw BackupRestoreException("Decoded string length ${stringBytes.size} exceeds ${BackupFormatV2.MAX_STRING_BYTES}")
+                    }
+                }
+                is Set<*> -> {
+                    if (rawValue.size > BackupFormatV2.MAX_SET_ITEMS) {
+                        throw BackupRestoreException("Decoded StringSet size ${rawValue.size} exceeds ${BackupFormatV2.MAX_SET_ITEMS}")
+                    }
+                    for (item in rawValue) {
+                        if (item !is String) continue
+                        val itemBytes = item.toByteArray(Charsets.UTF_8)
+                        if (itemBytes.size > BackupFormatV2.MAX_STRING_BYTES) {
+                            throw BackupRestoreException("Decoded set item length ${itemBytes.size} exceeds ${BackupFormatV2.MAX_STRING_BYTES}")
+                        }
+                    }
+                }
+            }
         }
     }
 
