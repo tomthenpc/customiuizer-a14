@@ -125,22 +125,26 @@ MainModule.onPackageReady
 - `FeatureInstallRegistry` 独立安装每个 `FeatureSpec`，不存在按 preference key 的互斥 (`FeatureInstallRegistry.kt:53-69`)。
 - 两套 feature 的 preference key 不同，UI 互相独立。
 
-最终 runtime policy 取决于 hook 注册顺序与 libxposed/LSPosed 的 `before` 链分发顺序：
+安装顺序（已知）：
 - `SystemUiFeatures.all()` 中 `StrongToastPresentationFeature`（id 246）在列表中位于 `DisableStrongToastFeature`（id 106）之前 (`SystemUiFeatures.kt:2293-2301` vs `2491-2499`)。
 - `FeatureInstallRegistry.installAll` 按列表顺序安装 (`FeatureInstallRegistry.kt:62-68`)。
-- 若两者均启用，新 `HIDE` 的 `before` hook 大概率先于旧 `Disable` 的 `before` hook 进入链。
-- 由于 `returnAndSkip(null)` 会直接设置 `BeforeHookCallback.skipped = true` 并返回结果、不调用 `chain.proceed()` (`HookerClassHelper.kt:73-77` 与 `167-201`)，先执行的 hook 会 short-circuit，后续 `before` 回调可能不会被调用。
-- 因此，若新 `HIDE` 注册在前，旧 `Disable` 的 `always` / `dnd` 条件**将不会运行**；若旧 `Disable` 注册在前（例如用户手动或通过其他 installer），旧实现条件决定结果。
+
+```text
+INSTALL_REGISTRATION_ORDER = NEW_THEN_LEGACY
+RUNTIME_INTERCEPTOR_DISPATCH_ORDER = NOT FROZEN BY CURRENT REPOSITORY EVIDENCE
+```
+
+两套 hook 注册在相同方法上，仍属于 duplicate / conflicting policy。实际运行时哪个 `before` 回调先执行并 short-circuit 取决于 libxposed/LSPosed 的 interceptor 调度顺序，该顺序未在仓库中证明。因此不能断言“新 HIDE 一定先执行并完全屏蔽旧 Disable”，只能确认两者存在策略冲突风险。
 
 ### A4. Duplicate hook / policy conflict
 
 两个实现都 hook `MIUIStrongToastControl.showCustomStrongToast`：
 
 - **Duplicate hook 存在**：`SystemUIStrongToastHooks.installHide` 与 `SystemUI.DisableStrongToastHook` 均使用 `ModuleHelper.hookAllMethods(..., "showCustomStrongToast", ...)` (`SystemUIStrongToastHooks.kt:75-84`; `SystemUI.kt:111-125`)。
-- **Hook 顺序重要**：如前所述，先注册的 `before` 回调若 `returnAndSkip`，可能直接终止链。
-- **一个 hook 可能使另一个失效**：若新 `HIDE` 注册在前，旧 `Disable` 的 DND-only 条件无法执行；若旧 `Disable` 注册在前且条件成立，新 `HIDE` 不会执行。
+- **Hook 顺序重要**：虽然安装注册顺序为 `NEW_THEN_LEGACY`，但 runtime interceptor dispatch 顺序未冻结；若新 HIDE 的 `before` 先执行并 `returnAndSkip`，旧 `Disable` 的 `before` 可能不会收到回调，反之亦然。
+- **一个 hook 可能使另一个失效**：根据实际 dispatch 顺序，任一 `returnAndSkip(null)` 都可能让另一个的条件逻辑无法生效。
 - **行为交叉 / 重复 policy**：两套 feature 同时启用时，两个 `before` 回调会读取不同 preference，可能产生“重复拦截”或“条件覆盖”。
-- **异常风险**：旧 `Disable` 每次调用都反射获取 `ZenModeController.isZenModeOn` (`SystemUI.kt:115-118`)。若新 `HIDE` 先 short-circuit，原方法不会执行，但旧 `before` 仍可能被 libxposed 调用并执行反射；若调用频次高，存在每次 show 都发生一次 `callMethod` 的潜在开销与 ROM 字段/方法缺失风险。
+- **异常风险**：旧 `Disable` 每次调用都反射获取 `ZenModeController` 并调用 `isZenModeOn` (`SystemUI.kt:115-118`)。若其中一套 hook 先 short-circuit，原方法不会执行，但另一套 `before` 仍可能被 libxposed 调用并执行反射；若调用频次高，存在每次 show 都发生一次 `callMethod` 的潜在开销与 ROM 字段/方法缺失风险。
 
 ### A5. DND-only policy
 
@@ -172,9 +176,9 @@ MainModule.onPackageReady
 | 仅新 HIDE | 2 | false | `MIUIStrongToastControl.showCustomStrongToast` 直接 return null。 |
 | 仅旧 | 0 | true | `showCustomStrongToast` 按 `always` / `dnd` 条件拦截。 |
 | 新 MATCH + 旧 | 1 | true | `getWindowParam().height` 被改；`showCustomStrongToast` 按旧条件拦截（两者 hook 不同方法，无直接冲突）。 |
-| 新 HIDE + 旧 | 2 | true | 两套 hook 同方法；注册顺序决定哪个条件生效；DND-only 大概率失效。 |
+| 新 HIDE + 旧 | 2 | true | 两套 hook 同方法；同方法 duplicate hook 造成策略冲突；DND-only 可能因 dispatch 顺序失效。 |
 
-关键风险：新 HIDE 与旧 `DisableStrongToast` 的 `before` hook 注册在同一方法，先注册者 short-circuit 后后者不执行，导致用户可见策略不一致。
+关键风险：新 HIDE 与旧 `DisableStrongToast` 的 `before` hook 注册在同一方法，存在 duplicate / conflicting policy。`INSTALL_REGISTRATION_ORDER = NEW_THEN_LEGACY` 是 repository 可证实的；`RUNTIME_INTERCEPTOR_DISPATCH_ORDER` 未冻结。
 
 ## 7. Legacy Width Hook Analysis
 
@@ -191,7 +195,7 @@ MainModule.onPackageReady
   - `strong_toast_width`、`strong_toast_width_window`（被旧 `TweakStrongToastHook` 引用）
   - `MIUIStrongToast.getWindowParam()` 返回 `WindowManager.LayoutParams`
   - `MIUIStrongToastControl.showCustomStrongToast()` 是入口/拦截点
-- 因此，对 ROM 内部 `View hierarchy / background / corner radius / animation` 的任何断言均标记为 `UNKNOWN`，除非能从模块代码推导。
+- 因此，对 ROM 内部 `View hierarchy / background / corner radius / animation` 的任何断言均标记为 `UNKNOWN`，除非能从模块代码直接推导。
 
 ## 9. Geometry Layer Model
 
@@ -222,20 +226,23 @@ MainModule.onPackageReady
 
 | 几何层 | `setThemeValueReplacement("strong_toast_height")` | `getWindowParam().height override` | 说明 |
 | --- | --- | --- | --- |
-| OUTER_WINDOW_GEOMETRY | **YES** | **YES** | 外层窗口高度。Theme 替换会影响 ROM 初始化 `LayoutParams` 时的默认值；`after` hook 再显式覆盖为 `targetHeightPx`。 |
-| CAPSULE_ROOT_GEOMETRY | **INDIRECT** | **INDIRECT** | 胶囊 root View 的高度很可能由 `strong_toast_height` 读取而来（资源名暗示），但无 ROM 代码证明；`getWindowParam().height` 仅当 root 使用 `match_parent` / 填充窗口时间接影响。 |
-| BACKGROUND_GEOMETRY | **INDIRECT** | **INDIRECT** | 背景 bounds 跟随 root View bounds；若背景是 shape/drawable 且直接引用 `strong_toast_height`，则资源替换会进一步影响。无 ROM 证据。 |
-| CORNER_GEOMETRY | **UNKNOWN** | **NO** | 圆角可能来自 shape corner radius 或 `ViewOutlineProvider`。若 corner radius 也读取 `strong_toast_height`，替换会改变；否则 `lp.height` 不直接改变圆角。 |
-| ANIMATION_GEOMETRY | **UNKNOWN** | **NO** | 动画可能读取 root 高度 / 窗口高度做 scale/translation。`lp.height` 不直接修改动画；但资源替换改变的整体 bounds 可能被动画读取。 |
+| OUTER_WINDOW_GEOMETRY | **UNKNOWN** | **YES** | `getWindowParam()` after hook 直接写 `WindowManager.LayoutParams.height`，因此 OUTER_WINDOW 受模块直接控制。`setThemeValueReplacement` 理论上可影响 ROM 初始化 `LayoutParams` 的 consumer，但仓库缺少 ROM 源码，无法证明该 consumer 就是 `getWindowParam()` 或 outer window，故标记 UNKNOWN。 |
+| CAPSULE_ROOT_GEOMETRY | **UNKNOWN** | **UNKNOWN** | 模块没有直接修改任何 capsule root View 的代码；root View 是否读取 `strong_toast_height` 或是否响应 outer window height 变化，均无 ROM 证据。 |
+| BACKGROUND_GEOMETRY | **UNKNOWN** | **UNKNOWN** | 模块没有直接修改背景 drawable；背景是否由 `strong_toast_height`、root bounds 或其它值驱动，均无证据。 |
+| CORNER_GEOMETRY | **UNKNOWN** | **UNKNOWN** | 模块没有直接修改 corner radius；圆角来源未知。 |
+| ANIMATION_GEOMETRY | **UNKNOWN** | **UNKNOWN** | 模块没有直接修改动画；动画是否读取上述几何层未知。 |
 
-关键发现：模块通过“全局 dimen 替换 + 显式 window height 覆盖”两条路径同时推高高度。若 ROM 把同一个 `strong_toast_height` 用于 CAPSULE_ROOT / BACKGROUND / CORNER 等多层，则会出现视觉上的“整体等比放大/圆角变大/边缘失真”。当前静态证据足以支撑这一**结构性怀疑**，但缺少 ROM 源码无法完成因果闭环。
+关键发现：
+- 仓库证据只能证明两件事：`setThemeValueReplacement("strong_toast_height", statusBarHeightDp)` 被调用，以及 `getWindowParam()` after hook 中 `WindowManager.LayoutParams.height` 被显式覆盖。
+- `setThemeValueReplacement` 会把新值写入 ROM 的 ThemeResources，但仓库缺少 ROM 消费者列表，因此不能证明 `strong_toast_height` 被 CAPSULE_ROOT / BACKGROUND / CORNER / ANIMATION 消费。
+- `getWindowParam().height override` 直接影响 OUTER_WINDOW，但对其它层的影响需由 ROM 的 layout/measure/draw/animation 实现决定，当前无法证明。
 
 ## 11. Current MATCH Implementation Analysis
 
 `SystemUIStrongToastHooks.installHeightMatch` 当前行为（`SystemUIStrongToastHooks.kt:43-72`）：
 
 1. 调用 `MainModule.resHooks.setThemeValueReplacement(..., "strong_toast_height", statusBarHeightDp)`。
-   - 该调用是进程级 ThemeResources 替换，**热路径上所有读取 `strong_toast_height` 的地方都会拿到新值**。
+   - 该调用是进程级 ThemeResources 替换，任何真正读取 `strong_toast_height` 的 ROM consumer 会拿到 replacement value。
 2. 调用 `ModuleHelper.findAndHookMethod(..., "getWindowParam", ..., after hook)`。
    - `after` 中从 `callback.getResult()` 取出 `WindowManager.LayoutParams`。
    - 从 `thisObject`（`MIUIStrongToast`，视为 `View`）读取 `resources.displayMetrics.densityDpi`。
@@ -248,10 +255,11 @@ MainModule.onPackageReady
 - 当 `system_statusbarheight` 未设置时，返回 `DEFAULT_DP = 27`；用户设值后返回该 dp 值（范围 11-80）。
 - 目标视觉高度 = 用户设置的状态栏高度。
 
-当前实现的副作用（从代码与视觉观察推导）：
-- 资源替换会一次性影响 ROM 中所有 `strong_toast_height` 消费者，不能精确区分“窗口高度”与“胶囊内容高度”。
-- 显式 `lp.height` 覆盖仅能控制 outer window，对 ROM 内部 root View / background / corner 是否同步放大无直接约束。
-- `getWindowParam()` after hook 每次调用都反射获取 `thisObject.resources.displayMetrics`，在每次显示 StrongToast 时执行一次（虽然量级低，但非 install-time resolve）。
+当前实现的可验证点：
+- `getWindowParam().height override` 直接设置 outer window 高度，这是仓库代码直接可证的。
+- `setThemeValueReplacement` 将 `strong_toast_height` 这一全局 dimen 替换为 status-bar 高度值，具体 consumer 集合未知。
+- 视觉观察到的 scaling/distortion/clipping 与当前 MATCH 实现相关，但不能在没有变量隔离的情况下归因到 `strong_toast_height` 替换或 `lp.height` 覆盖二者中的某一条。
+- `getWindowParam()` after hook 每次调用都反射获取 `thisObject.resources.displayMetrics`，在每次显示 StrongToast 时执行一次（量级低，但非 install-time resolve）。
 
 ## 12. Device Visual Observation
 
@@ -263,7 +271,12 @@ MainModule.onPackageReady
   - capsule 边缘失真
   - 部分边缘像 clipping
   - 整体比例发生变化
-- 这些现象指向 **CAPSULE_ROOT_GEOMETRY / BACKGROUND_GEOMETRY / CORNER_GEOMETRY 被同一资源驱动放大**，而非仅 OUTER_WINDOW_GEOMETRY 增高。
+
+英文表述（精确）：
+
+> The device observation is correlated with the current combined MATCH implementation, but attribution specifically to the `strong_toast_height` replacement is not proven.
+
+设备视觉观察不能完成归因，因为当前 MATCH 同时改变 `strong_toast_height` resource 与 outer `WindowManager.LayoutParams.height`，没有变量隔离。
 
 ## 13. Desired Geometry Contract
 
@@ -290,16 +303,17 @@ corner geometry 不得随目标高度无限制同比放大
 ### Candidate 1：继续替换 `strong_toast_height`
 
 - 优点：最小代码改动；一次资源替换即可让 ROM 所有相关消费者读取新高度。
-- 风险：无法精确控制哪一层消费该 dimen；已知会导致 CAPSULE_ROOT / BACKGROUND / CORNER 等层同步变化，产生视觉缩放/失真。
-- 已知副作用：圆角变大、边缘失真、clipping。
+- 风险：HIGH RISK / POORLY ISOLATED / UNKNOWN CONSUMER SET。`strong_toast_height` 的 consumer 集合当前未知，全局替换可能意外影响 CAPSULE_ROOT / BACKGROUND / CORNER / ANIMATION 等层。
 - 精确性：低，无法区分 WINDOW HEIGHT 与 VISUAL CAPSULE HEIGHT。
+- 结论：不推荐作为最终方向。
 
 ### Candidate 2：停止替换 `strong_toast_height`，仅修改 `WindowManager.LayoutParams.height`
 
 - 操作：移除 `setThemeValueReplacement`，保留 `getWindowParam()` after hook 的 `lp.height = targetHeightPx`。
 - 优点：最小 hook surface；不污染 ROM 资源系统；热路径仅一次 after hook；最容易验证（只需测量 window bounds）。
 - 风险：如果 ROM 内部 capsule root View 仍从 `strong_toast_height` 读取高度，则会出现 **“window 高了，capsule 没高”**（Invalid A）。
-- 精确性：中；可用于快速诊断资源替换是否为视觉缩放主因，但可能不满足最终 contract。
+- 精确性：作为诊断实验价值高，但不一定满足最终 contract。
+- 结论：**PREFERRED_DIAGNOSTIC_EXPERIMENT**，不是 PROVEN FIX / FINAL FIX。
 
 ### Candidate 3：精确修改 capsule root `LayoutParams.height`
 
@@ -331,17 +345,17 @@ corner geometry 不得随目标高度无限制同比放大
 
 ## 15. Preferred / Fallback / Rejected Direction
 
-### PREFERRED DIRECTION
+### PREFERRED DIAGNOSTIC EXPERIMENT
 
-**Candidate 2（停止 `strong_toast_height` 全局替换，仅保留 `getWindowParam().height` 显式覆盖）作为下一步诊断/验证步骤。**
+**Candidate 2：停止 `strong_toast_height` 全局替换，仅保留 `getWindowParam().height` 显式覆盖。**
 
-理由：
+这不是 proven fix，而是变量隔离实验。理由：
 - 当前静态证据下最小、最安全。
 - 只需删除/注释一行 `setThemeValueReplacement`，hook surface 最小。
-- 可立即通过 runtime dump 区分“视觉缩放是否由资源替换引起”。
-- 若验证显示仅 window 变高而 capsule 未变高，则资源替换是视觉放大的主因，再转向 Candidate 3；若仅 window 变高已满足 contract，则问题定位完成。
+- 可通过 runtime dump 区分“视觉缩放是否由 `strong_toast_height` 资源替换引起”。
+- 若验证显示仅 window 变高而 capsule 未变高，则 `strong_toast_height` 替换对视觉胶囊高度有因果作用；若 visual scaling 消失，则资源替换是 scaling 的主因；若 visual scaling 不变，则 `lp.height` override 本身也驱动了 scaling。三种结果都会为 ST1 提供明确方向。
 
-注意：Candidate 2 **本身不一定是最终修复**，因为存在 Invalid A 风险；但它是当前证据下最有价值的下一步。
+注意：Candidate 2 **不是 FINAL FIX DIRECTION**，它仅是下一步 diagnostic experiment。
 
 ### FALLBACK DIRECTION
 
@@ -353,8 +367,8 @@ corner geometry 不得随目标高度无限制同比放大
 
 ### REJECTED DIRECTIONS
 
-- **Candidate 1（继续 `strong_toast_height` 全局替换）**：当前视觉缩放已证明（至少结构性地）该 dimen 控制多个几何层，继续此方向无法避免 Invalid B。
-- **Candidate 4 / 5 / 6**：均依赖仓库中不存在的 ROM drawable / corner / animation 证据；在拿到 ROM 源码前无法评估其可行性，因此当前阶段不选为首选或 fallback，但保留在 ROM 证据补齐后复评。
+- **Candidate 1（继续 `strong_toast_height` 全局替换）**：HIGH RISK / POORLY ISOLATED / UNKNOWN CONSUMER SET；全局资源替换无法避免意外影响未识别的 geometry layer。
+- **Candidate 4 / 5 / 6**：均依赖仓库中不存在的 ROM drawable / corner / animation 证据；在拿到 ROM 源码或运行时 dump 前无法评估其可行性，因此当前阶段不选为首选或 fallback，但保留在证据补齐后复评。
 
 ## 16. Lifecycle / Concurrency / Retention / Cost
 
@@ -364,7 +378,7 @@ corner geometry 不得随目标高度无限制同比放大
 - `FeatureInstallState` 保证每个 `FeatureId` 在同一进程仅安装一次 (`FeatureInstallRegistry.kt:77-80`)。
 - `StrongToastPresentationFeature` 没有注册 `PreferenceObserver`；preference 变化后需要 SystemUI 重启生效（与 strings 提示一致：`A full reboot is required`）。
 - `SystemUIStrongToastHooks` 不持有 `Activity`、`View`、`Window` 或 `Context` 的长期引用；hook 回调内使用 `callback.getThisObject()` 的局部 View 引用获取 density。
-- `DisableStrongToastHook` 每次 show 都通过 `ModuleHelper.getDepInstance()` 获取 `ZenModeController` (`SystemUI.kt:115-117`)。`ReflectionCache` 对结果做 ClassLoader 级缓存，但 `callMethod(...)` 仍会在每次被调用时执行一次 Binder/同步调用（`isZenModeOn` 可能触发同步 Binder）。这属于每次 toast 显示的 hot path 开销。
+- `DisableStrongToastHook` 每次 show 都通过 `ModuleHelper.getDepInstance()` 获取 `ZenModeController` (`SystemUI.kt:115-117`)。`ReflectionCache` 对结果做 ClassLoader 级缓存。DND-only path performs a per-show reflective `ZenModeController.isZenModeOn` invocation. Whether that ROM method performs IPC/Binder work is not established by current repository evidence.
 
 ### 16.2 并发
 
@@ -379,7 +393,7 @@ corner geometry 不得随目标高度无限制同比放大
   - 一次 `StatusBarHeightConfig.dpToPx`。
   - 一次 `layoutParams.height` 赋值。
 - `setThemeValueReplacement` 在安装期替换一次 ThemeResources，之后所有 `Resources`/`Theme` 读取 `strong_toast_height` 时通过已安装的 `Resources` hook 拦截。热路径为一次 `SparseArray` 查找与一次 HashMap 查找 (`ResourceHooks.kt:155` 与 `ResourceHooks.kt:172`)。
-- 若 `DisableStrongToastHook` 与 `HIDE` 同时启用且注册顺序不利，旧 `Disable` 的 `before` 仍可能被 libxposed 调用，导致每次 show 都发生一次 `ZenModeController` 反射/同步调用，存在重复开销。
+- 若 `DisableStrongToastHook` 与 `HIDE` 同时启用，同方法 duplicate hook 可能导致每次 show 都发生一次 `ZenModeController` 反射调用，存在重复开销。IPC/Binder 成本未在仓库中证明。
 
 ### 16.4 失败语义
 
@@ -397,6 +411,9 @@ ST0 不进行实机测试，但为后续 ST2/ST3 定义必须采集的 runtime e
 - `SYSTEM_DEFAULT`
 - `MATCH_STATUS_BAR_HEIGHT`（stock 高度 / medium 增加 / large 增加）
 - `HIDE`
+
+并额外采集：
+- **Candidate 2 诊断实验**：单独移除 `strong_toast_height` 替换后的 `MATCH` 行为。
 
 ### 17.2 每组必须记录
 
@@ -438,6 +455,7 @@ translationX / translationY
 - `MATCH` 下 `WindowManager.LayoutParams.height` 是否等于 `StatusBarHeightConfig.configuredPx`。
 - `MATCH` 下 `scaleX/scaleY` 是否仍为 1.0。
 - `MATCH` 下 corner radius / background bounds 是否随高度同比变化。
+- **Candidate 2 实验后**：对比保留/移除 `strong_toast_height` 替换时的 visual scaling，确认资源替换的独立贡献。
 
 ### 17.6 ROM / 反编译证据补充
 
@@ -458,12 +476,15 @@ ST0_RESULT = HOLD
 
 NOTIFICATION_STRONG_TOAST = KEEP_SEPARATE_JUSTIFIED
 
-MATCH_HEIGHT_ROOT_CAUSE = STRUCTURAL_SUSPECT
+MATCH_HEIGHT_ROOT_CAUSE = NOT_PROVEN
 
 MATCH_HEIGHT_FIX_DIRECTION = NONE
 
+PREFERRED_DIAGNOSTIC_EXPERIMENT = REMOVE_STRONG_TOAST_HEIGHT_REPLACEMENT_AND_ISOLATE_WINDOW_HEIGHT
+
 PRODUCTION_CHANGE = NO
 TEST_CHANGE = NO
+TOOLS_CHANGE = NO
 
 ST1_AUTHORIZATION = NO
 ST2_AUTHORIZATION = NO
@@ -472,14 +493,17 @@ ST2_AUTHORIZATION = NO
 ### 18.1 结论说明
 
 - **NOTIFICATION_STRONG_TOAST = KEEP_SEPARATE_JUSTIFIED**：旧 `DisableStrongToastFeature` 的 DND-only 语义（`system_notif_disable_strong_toast_dnd`）是当前新 `StrongToastPresentationFeature` 未提供的独立能力；在将该语义迁移或明确放弃之前，不能安全移除旧实现。同时旧实现与 UI 位置（通知页）虽然错配，但这不是删除的充分条件；保留的核心理由是 DND-only 无法替代。
-- **MATCH_HEIGHT_ROOT_CAUSE = STRUCTURAL_SUSPECT**：当前 `strong_toast_height` 通过 `setThemeValueReplacement` 在 ThemeResources 层被替换，是一个单一 dimen 可能被 ROM 的 OUTER_WINDOW / CAPSULE_ROOT / BACKGROUND / CORNER 等多层同时消费；`getWindowParam().height` 显式覆盖只能控制 OUTER_WINDOW。视觉上的“整体比例变化 / 圆角变大 / 边缘失真”与资源替换的结构化副作用一致，但仓库缺少 ROM 源码无法完成最终因果闭环。
-- **MATCH_HEIGHT_FIX_DIRECTION = NONE**：候选方向中，Candidate 2 是当前最安全的诊断步骤，但不足以作为最终修复；Candidate 3/4/5/6 均依赖 ROM 源码或运行时 View dump 证据。在拿到这些证据前，不应硬选实现方向。
+- **MATCH_HEIGHT_ROOT_CAUSE = NOT_PROVEN**：
+  - `DEVICE_VISUAL_OBSERVATION = VALID`（任务描述中的视觉观察有效）。
+  - `CURRENT_MATCH_CORRELATION = VALID`（当前 MATCH 实现与视觉异常相关，因为 MATCH 同时改动了 `strong_toast_height` resource 与 `WindowManager.LayoutParams.height`）。
+  - `RESOURCE_CONSUMER_DEPENDENCY = NOT ESTABLISHED`（仓库缺少 ROM 源码，无法证明 `strong_toast_height` 被哪些 ROM geometry layer 消费）。
+  - `CAUSAL_ATTRIBUTION_TO_STRONG_TOAST_HEIGHT = NOT PROVEN`（没有变量隔离，无法把视觉异常中的 CAPSULE_ROOT / BACKGROUND / CORNER / ANIMATION 变化单独归因到 `strong_toast_height` 替换）。
+- **MATCH_HEIGHT_FIX_DIRECTION = NONE**：候选方向中，Candidate 2 是推荐的 diagnostic experiment，但不是 proven fix；Candidate 3/4/5/6 均依赖 ROM 源码或运行时 View dump 证据。在拿到这些证据前，不应硬选实现方向。
 
 ### 18.2 最小 Blocker
 
-1. 缺少 `MIUIStrongToast` / `MIUIStrongToastControl` 的 ROM 反编译源码 / smali，无法确认 `strong_toast_height` 在 ROM 中的真实消费者。
-2. 缺少运行时 View dump 证据，无法区分 `strong_toast_height` 替换 vs `getWindowParam().height` 覆盖各自的几何后果。
-3. 在决定修复方向前，需先通过 Candidate 2 的 runtime 验证确认资源替换是否为视觉缩放主因。
+1. `TARGET_ROM_GEOMETRY_DEPENDENCY_NOT_ESTABLISHED`：缺少 `MIUIStrongToast` / `MIUIStrongToastControl` 的 ROM 反编译源码 / smali，无法确认 `strong_toast_height` 在 ROM 中的真实消费者。
+2. `RUNTIME_VARIABLE_ISOLATION_NOT_PERFORMED`：未通过 Candidate 2 等实验区分 `strong_toast_height` 替换 vs `getWindowParam().height` 覆盖各自的几何后果。
 
 ---
 
