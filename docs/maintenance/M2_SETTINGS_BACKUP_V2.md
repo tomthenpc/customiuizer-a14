@@ -80,10 +80,20 @@ Same preference state → same payload → same CRC32.
 1. Copies current preferences.
 2. Removes `DROPPED_KEYS` and `NON_EXPORTABLE_KEYS`.
 3. Validates all values are supported types.
-4. Encodes to a `ByteArray` (full bounds / CRC check).
+4. `BackupFormatV2.encode` pre-computes the exact total encoded size,
+   validates every bound, then allocates a bounded `ByteArrayOutputStream` and
+   writes. No temporary payload larger than `MAX_FILE_SIZE` is created.
 5. Writes to SAF output stream.
 
 Unsupported value → `BackupFormatException`, backup FAILS (no partial file).
+
+`BackupFormatV2.encode` enforces:
+- `MAX_ENTRY_COUNT`
+- `MAX_KEY_BYTES`
+- `MAX_STRING_BYTES`
+- `MAX_SET_ITEMS`
+- total encoded size <= `MAX_FILE_SIZE` (preflight, before buffer allocation)
+- final encoded size == pre-computed size
 
 Dropped / non-exportable keys:
 
@@ -122,45 +132,44 @@ First 4 bytes:
 
 ### 8.1 Mechanism
 
-`BackupRestore.RestrictedObjectInputStream` with two layers:
+`LegacyBackupDecoder` — a focused restricted Java-serialization parser that
+replaces `ObjectInputStream` / `ObjectInputFilter`:
 
-1. `ObjectInputFilter` (set via reflection) for graph limits and class allowlist.
-2. `resolveClass` / `resolveProxyClass` override for fail-closed class loading.
+- Parses only the proven historical ObjectOutputStream wire subset.
+- Enforces graph, reference, and allocation bounds before any object is fully
+  instantiated or any custom `readObject` can run.
+- No reflection, no `setObjectInputFilter`, no per-stream hidden-API calls.
+- Runs on API 34 without depending on JDK 17 `ObjectInputFilter` availability.
 
-If `ObjectInputStream.setObjectInputFilter` is unavailable at runtime, the
-reader fails closed rather than falling back to unrestricted deserialization.
+`BackupRestore.decodeLegacyBackup` delegates to `LegacyBackupDecoder.decode` and
+re-throws fatal / format errors as `BackupRestoreException`.
 
 ### 8.2 Exact Wire Allowlist
 
-Evidence from a JDK 17 `ObjectOutputStream` fixture containing a `HashMap`
-with all supported value types and a `HashSet<String>`:
+Historical fixture evidence (host JDK 17 `ObjectOutputStream`):
 
 ```text
 java.util.HashMap
 java.util.HashSet
-java.util.Map
-java.util.Map$Entry
-[Ljava.util.Map$Entry;
-java.util.HashMap$Node
-[Ljava.util.HashMap$Node;
-java.util.HashMap$TreeNode
-[Ljava.util.HashMap$TreeNode;
 java.lang.Boolean
 java.lang.Integer
 java.lang.Long
 java.lang.Float
 java.lang.String
-[Ljava.lang.String;
-java.lang.Number
-java.lang.Object
+java.lang.Number   (super class only)
+java.lang.Object   (super class only)
 ```
 
-Everything else, including `LinkedHashMap`, `LinkedHashSet`, `ArrayList`,
-`Date`, `Double`, custom `Serializable`, and application classes, is rejected.
+The decoder explicitly rejects `LinkedHashMap`, `LinkedHashSet`, `ArrayList`,
+`Date`, `Double`, `Enum`, arrays, proxies, custom `Serializable`, and any
+application class before it can be instantiated.
 
-### 8.3 Graph Limits
+Android API 34 runtime evidence for the above wire graph is **not available**
+in this environment; the allowlist is based on the historical host fixture.
 
-Fixture evidence:
+### 8.3 Graph / Allocation Limits
+
+Historical host fixture evidence (5 entries + 3-item `HashSet`):
 
 ```text
 maxDepth       = 3
@@ -168,21 +177,55 @@ maxReferences  = 23
 maxArrayLength = 16
 ```
 
-Headroom limits:
+Decoder-enforced headroom limits:
 
 ```text
-LEGACY_MAX_DEPTH       = 16
-LEGACY_MAX_REFERENCES  = 100_000
-LEGACY_MAX_ARRAY_LENGTH = 4_096
+LEGACY_MAX_DEPTH        = 16
+LEGACY_MAX_REFERENCES   = 100_000
+LEGACY_MAX_ARRAY_LENGTH = 16_384
 ```
 
-`serialClass == null`: only graph limits checked, then `ALLOWED`.  
-`serialClass != null`: exact allowlist match → `ALLOWED`, otherwise `REJECTED`.  
-No `UNDECIDED` for unknown concrete classes.
+`LEGACY_MAX_ARRAY_LENGTH` is set to the next power-of-two headroom for a
+full 4 096-entry `HashMap` / `HashSet` table (`4 096 / 0.75 ≈ 8 192`;
+`16_384` provides margin). The bound is checked on the declared `HashMap` /
+`HashSet` capacity before `ObjectInputStream` would allocate a backing table.
 
-### 8.4 Proxy Policy
+Fail-closed class policy:
+- `serialClass == null` or interface-only: only graph / allocation limits apply.
+- Unknown concrete class → `InvalidClassException` / `BackupRestoreException`.
+- Proxy / enum → rejected.
+- `TC_ARRAY` → rejected (the historical wire graph contains no serialized arrays;
+  internal `Node[]` allocation is bounded by `LEGACY_MAX_ARRAY_LENGTH`).
 
-Always rejected by `resolveProxyClass`.
+### 8.4 Proxy / Enum / Array Policy
+
+- `TC_PROXYCLASSDESC` → `BackupRestoreException`.
+- `TC_ENUM` → `BackupRestoreException`.
+- `TC_ARRAY` → `BackupRestoreException`.
+- `TC_CLASS` / `TC_LONGSTRING` / unknown type code → `BackupRestoreException`.
+
+### 8.5 API 34 Runtime Evidence
+
+Per-stream `ObjectInputFilter` capability on Android 14 / API 34 was **not
+independently verified** in this environment. The corrective removes all
+`ObjectInputStream` / `ObjectInputFilter` dependence and uses a focused parser
+that is compatible with any Java 8+ runtime.
+
+The final legacy mechanism is `LegacyBackupDecoder` (no `ObjectInputStream`, no
+reflection, no hidden APIs). Host JDK 17 unit tests cover the normal, evil
+`readObject`, graph-limit, and array-capacity paths. An Android instrumentation
+test for API 34 is not available in this environment and is not included.
+
+### 8.6 Residual Limitations
+
+- The legacy parser supports only the proven historical wire graph. If an
+  Android device emits a different `ObjectOutputStream` layout (e.g. old-format
+  `HashMap` block with only `size`, or a `String[]` in a `HashSet`), the parser
+  will reject it until the layout is added to the allowed subset.
+- `TC_ARRAY` is rejected entirely because the historical wire graph contains no
+  serialized arrays. If Android evidence shows a required array, the policy must
+  be revisited.
+- Android API 34 runtime evidence is pending.
 
 ## 9. Post-Decode Bounds
 
@@ -232,16 +275,19 @@ V2:
 - unsupported version
 - unknown type / invalid boolean
 - negative / oversized lengths
-- exact and +1 boundaries
+- exact `MAX_FILE_SIZE` and `MAX_FILE_SIZE + 1` writer boundaries
 - malformed UTF-8
 
-Legacy:
+Legacy (host JDK 17 unit tests; API 34 instrumentation unavailable):
 - `HashMap` root with Boolean, Int, Long, Float, String, `HashSet<String>`
 - reject `LinkedHashMap`, `LinkedHashSet`, `ArrayList`, `Double`
-- reject custom `Serializable` with `readObject`
-- reject proxy if constructible
+- reject custom `Serializable` with `readObject` before execution
+- reject `TC_PROXYCLASSDESC` / `TC_ENUM` / `TC_ARRAY`
+- reject over `LEGACY_MAX_ARRAY_LENGTH` capacity
+- reject over `LEGACY_MAX_DEPTH` nested graph
 - wrong root
 - oversized input
+- `MAX_FILE_SIZE` bounds
 
 ## 13. M1 Regression Coverage
 
@@ -259,6 +305,7 @@ M2 changes do not alter:
 
 - `app/src/main/java/tv/withaibuild/customiuizer/utils/BackupFormatV2.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/utils/BackupRestore.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/utils/LegacyBackupDecoder.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/PreferenceFragmentBase.kt`
 - `app/src/test/java/tv/withaibuild/customiuizer/utils/BackupFormatV2Test.kt`
 - `app/src/test/java/tv/withaibuild/customiuizer/utils/BackupRestoreTest.kt`
@@ -267,5 +314,8 @@ M2 changes do not alter:
 ## 15. Authorization
 
 - M1 = PASS
-- M2 = PASS
+- M2_SELF_ASSESSMENT = PASS_CANDIDATE
 - M3_AUTHORIZATION = NO
+
+`M2` has not been independently audited; only an independent auditor may freeze
+it as `PASS`.

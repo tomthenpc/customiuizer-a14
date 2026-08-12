@@ -317,6 +317,41 @@ class BackupFormatV2Test {
         }
     }
 
+    @Test
+    fun encodeAcceptsExactMaxFileSize() {
+        // 31 full-size string entries plus one smaller entry to hit MAX_FILE_SIZE exactly.
+        val entries = linkedMapOf<String, Any?>()
+        val fullString = "a".repeat(BackupFormatV2.MAX_STRING_BYTES)
+        repeat(31) { entries["k" + it.toString().padStart(3, '0')] = fullString }
+        val perEntryOverhead = 2 + 4 + 1 + 4 // key-length + key + type tag + string-length
+        val lastKeyBytes = 8
+        val lastOverhead = 2 + lastKeyBytes + 1 + 4
+        val lastStringSize = BackupFormatV2.MAX_FILE_SIZE -
+            20L - // header + CRC
+            31L * (perEntryOverhead + BackupFormatV2.MAX_STRING_BYTES) -
+            lastOverhead
+        entries["last_key"] = "b".repeat(lastStringSize.toInt())
+
+        val encoded = BackupFormatV2.encode(entries)
+        assertEquals(BackupFormatV2.MAX_FILE_SIZE.toInt(), encoded.size)
+        val decoded = BackupFormatV2.decode(encoded)
+        assertEquals(32, decoded.size)
+        assertEquals(BackupFormatV2.MAX_STRING_BYTES, (decoded["k000"] as String).length)
+    }
+
+    @Test
+    fun encodeRejectsMaxFileSizePlusOne() {
+        val entries = linkedMapOf<String, Any?>()
+        val fullString = "a".repeat(BackupFormatV2.MAX_STRING_BYTES)
+        repeat(32) { entries["k" + it.toString().padStart(3, '0')] = fullString }
+        try {
+            BackupFormatV2.encode(entries)
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("encoded size") == true)
+        }
+    }
+
     private fun payloadWithCrc(payload: ByteArray): ByteArray {
         val crc = java.util.zip.CRC32()
         crc.update(payload, 0, payload.size)

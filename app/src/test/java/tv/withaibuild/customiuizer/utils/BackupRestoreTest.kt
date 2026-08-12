@@ -583,6 +583,50 @@ class BackupRestoreTest {
         }
     }
 
+    @Test
+    fun decodeLegacyBackupRejectsOversizedHashMapCapacity() {
+        val map = HashMap<String, String>()
+        repeat(4) { map["k$it"] = "v" }
+        val bytes = serialize(map).toMutableList()
+
+        // Locate the HashMap custom block: TC_BLOCKDATA (0x77) followed by length 8 (0x08).
+        val blockIndex = (0 until bytes.size - 1)
+            .first { i -> bytes[i] == 0x77.toByte() && bytes[i + 1] == 0x08.toByte() } + 2
+
+        // Patch the declared capacity to exceed LEGACY_MAX_ARRAY_LENGTH.
+        val cap = (BackupRestore.LEGACY_MAX_ARRAY_LENGTH + 1).toInt()
+        bytes[blockIndex] = (cap ushr 24).toByte()
+        bytes[blockIndex + 1] = (cap ushr 16 and 0xFF).toByte()
+        bytes[blockIndex + 2] = (cap ushr 8 and 0xFF).toByte()
+        bytes[blockIndex + 3] = (cap and 0xFF).toByte()
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes.toByteArray())
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected capacity bound", e.message?.contains("capacity") == true)
+        }
+    }
+
+    @Test
+    fun decodeLegacyBackupRejectsDeepGraph() {
+        val root = HashMap<String, Any?>()
+        var current = root
+        repeat(20) {
+            val next = HashMap<String, Any?>()
+            current["x"] = next
+            current = next
+        }
+        current["x"] = true
+
+        try {
+            BackupRestore.decodeLegacyBackup(serialize(root))
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected depth bound", e.message?.contains("depth") == true)
+        }
+    }
+
     private fun serialize(obj: Any): ByteArray {
         val output = ByteArrayOutputStream()
         ObjectOutputStream(output).use { it.writeObject(obj) }

@@ -60,24 +60,44 @@ object BackupFormatV2 {
     /**
      * Encodes a map of SharedPreferences entries into the V2 byte format.
      *
-     * The caller must have already filtered dropped / non-exportable keys and
-     * validated that all values are supported types.
+     * First computes the exact encoded size, validates all bounds and the final
+     * file size, then allocates a bounded `ByteArrayOutputStream` and writes.
+     * No temporary payload larger than `MAX_FILE_SIZE` is ever created.
      *
      * @throws BackupFormatException if a bound is exceeded or a value is unsupported.
      */
     @JvmStatic
     fun encode(entries: Map<String, Any?>): ByteArray {
-        val output = ByteArrayOutputStream()
+        if (entries.size > MAX_ENTRY_COUNT) {
+            throw BackupFormatException("Entry count ${entries.size} exceeds $MAX_ENTRY_COUNT")
+        }
+
+        // Total size preflight using Long to avoid overflow.
+        var totalSize = 16L // MAGIC + FORMAT_VERSION + APP_REVISION + ENTRY_COUNT
+        for (key in entries.keys) {
+            val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
+            if (keyBytes.size > MAX_KEY_BYTES) {
+                throw BackupFormatException("Key too long: ${keyBytes.size} > $MAX_KEY_BYTES")
+            }
+            if (keyBytes.size > 65535) {
+                throw BackupFormatException("Key length exceeds 16-bit limit")
+            }
+            totalSize += 2 + keyBytes.size // key length + bytes
+            totalSize += 1 // type tag
+            totalSize += measureValueSize(entries[key])
+        }
+        totalSize += 4 // CRC footer
+
+        if (totalSize > MAX_FILE_SIZE) {
+            throw BackupFormatException("V2 encoded size $totalSize exceeds $MAX_FILE_SIZE")
+        }
+
+        val output = ByteArrayOutputStream(totalSize.toInt())
         val data = DataOutputStream(output)
 
         data.writeInt(MAGIC)
         data.writeInt(FORMAT_VERSION)
         data.writeInt(BuildConfig.VERSION_CODE)
-
-        if (entries.size > MAX_ENTRY_COUNT) {
-            throw BackupFormatException("Entry count ${entries.size} exceeds $MAX_ENTRY_COUNT")
-        }
-
         data.writeInt(entries.size)
 
         for (key in entries.keys.sorted()) {
@@ -88,22 +108,13 @@ object BackupFormatV2 {
         data.flush()
 
         val payload = output.toByteArray()
-        if (payload.size > MAX_FILE_SIZE - 4) {
-            throw BackupFormatException("V2 payload ${payload.size} exceeds max file size")
-        }
-
         val crc = CRC32()
         crc.update(payload, 0, payload.size)
         val crcValue = crc.value.toInt()
 
-        val finalOutput = ByteArrayOutputStream(payload.size + 4)
-        finalOutput.write(payload)
-        finalOutput.write(crcValue ushr 24)
-        finalOutput.write(crcValue ushr 16 and 0xFF)
-        finalOutput.write(crcValue ushr 8 and 0xFF)
-        finalOutput.write(crcValue and 0xFF)
+        data.writeInt(crcValue)
 
-        return finalOutput.toByteArray()
+        return output.toByteArray()
     }
 
     /**
@@ -174,6 +185,41 @@ object BackupFormatV2 {
         }
         data.writeShort(keyBytes.size)
         data.write(keyBytes)
+    }
+
+    @JvmStatic
+    private fun measureValueSize(value: Any?): Long {
+        return when (value) {
+            is Boolean -> 1L
+            is Int -> 4L
+            is Long -> 8L
+            is Float -> 4L
+            is String -> {
+                val bytes = value.toByteArray(StandardCharsets.UTF_8)
+                if (bytes.size > MAX_STRING_BYTES) {
+                    throw BackupFormatException("String too long: ${bytes.size} > $MAX_STRING_BYTES")
+                }
+                4L + bytes.size
+            }
+            is Set<*> -> {
+                if (value.size > MAX_SET_ITEMS) {
+                    throw BackupFormatException("StringSet too large: ${value.size} > $MAX_SET_ITEMS")
+                }
+                var size = 4L // item count
+                for (item in value) {
+                    if (item !is String) {
+                        throw BackupFormatException("StringSet contains non-String member: ${item?.javaClass}")
+                    }
+                    val itemBytes = item.toByteArray(StandardCharsets.UTF_8)
+                    if (itemBytes.size > MAX_STRING_BYTES) {
+                        throw BackupFormatException("StringSet item too long: ${itemBytes.size} > $MAX_STRING_BYTES")
+                    }
+                    size += 4L + itemBytes.size
+                }
+                size
+            }
+            else -> throw BackupFormatException("Unsupported V2 value type: ${value?.javaClass}")
+        }
     }
 
     @JvmStatic

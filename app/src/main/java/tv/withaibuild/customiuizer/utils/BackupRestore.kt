@@ -3,14 +3,9 @@ package tv.withaibuild.customiuizer.utils
 import android.content.ComponentName
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.io.ObjectInputFilter
-import java.io.ObjectInputStream
-import java.io.ObjectStreamClass
-import java.io.UTFDataFormatException
 import java.io.OutputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -31,7 +26,7 @@ import tv.withaibuild.customiuizer.mods.utils.FatalErrors
  * M2 final format:
  * - Backup writes V2 (CUI2 / typed entries / CRC32).
  * - Restore auto-detects V2 or legacy Java serialization.
- * - Legacy reader is restricted by an `ObjectInputFilter` allowlist.
+ * - Legacy reader is a focused restricted decoder; no `ObjectInputStream` / `ObjectInputFilter`.
  */
 object BackupRestore {
 
@@ -61,11 +56,12 @@ object BackupRestore {
      *
      * Evidence from a JDK 17 fixture (5 entries + 3-item HashSet):
      *   maxDepth = 3, maxReferences = 23, maxArrayLength = 16.
-     * Limits provide headroom for the full corpus under MAX_FILE_SIZE.
+     * Headroom for a full 4096-entry HashMap/HashSet table (next power-of-two
+     * above 4096/0.75 is 8192). 16384 provides margin while staying small.
      */
     const val LEGACY_MAX_DEPTH = 16L
     const val LEGACY_MAX_REFERENCES = 100_000L
-    const val LEGACY_MAX_ARRAY_LENGTH = 4096L
+    const val LEGACY_MAX_ARRAY_LENGTH = 16_384L
 
     enum class Status { SUCCESS, PARTIAL_FAILURE, FAILURE }
 
@@ -203,9 +199,9 @@ object BackupRestore {
      * - First 4 bytes `AC ED 00 05` → legacy.
      * - Anything else → structural failure.
      *
-     * The legacy path uses an `ObjectInputFilter` allowlist and validates the root
-     * object. No unchecked `Map<String, Any?>` cast is performed before format
-     * detection.
+     * The legacy path uses the focused restricted decoder (no `ObjectInputStream` /
+     * `ObjectInputFilter`) and validates the root object. No unchecked
+     * `Map<String, Any?>` cast is performed before format detection.
      *
      * @throws BackupRestoreException if the file is not a recognized backup.
      */
@@ -235,39 +231,17 @@ object BackupRestore {
     }
 
     /**
-     * Decodes a legacy Java-serialized backup with fail-closed filtering.
+     * Decodes a legacy Java-serialized backup using the focused restricted decoder.
      *
-     * Two layers of defense:
-     * 1. An `ObjectInputFilter` is installed on the stream to enforce graph
-     *    limits and an exact class allowlist.
-     * 2. `RestrictedObjectInputStream.resolveClass` and `resolveProxyClass`
-     *    reject any class not in the proven allowlist.
-     *
-     * Proven wire classes from a JDK 17 fixture:
-     * - `java.util.HashMap`
-     * - `java.util.HashSet`
-     * - `java.util.Map$Entry` and `[Ljava.util.Map$Entry;`
-     * - `java.util.HashMap$Node` and `[Ljava.util.HashMap$Node;`
-     * - `java.util.HashMap$TreeNode` and `[Ljava.util.HashMap$TreeNode;`
-     * - `java.lang.Boolean`, `Integer`, `Long`, `Float`, `String`
-     * - `java.lang.Number`, `java.lang.Object`
-     *
-     * Any other concrete class, proxy, `LinkedHashMap`, `LinkedHashSet`,
-     * `ArrayList`, `Date`, `Double`, custom `Serializable` or application
-     * class is rejected before it can be instantiated.
+     * No `ObjectInputStream` / `ObjectInputFilter` is used; the decoder parses
+     * the proven historical ObjectOutputStream subset and rejects everything else
+     * before any application class can be instantiated or any custom `readObject`
+     * can run.
      */
     @JvmStatic
     fun decodeLegacyBackup(bytes: ByteArray): Map<*, *> {
         try {
-            ByteArrayInputStream(bytes).use { byteIn ->
-                RestrictedObjectInputStream(byteIn).use { input ->
-                    val root = input.readObject()
-                    if (root !is Map<*, *>) {
-                        throw BackupRestoreException("Legacy backup root is not a Map")
-                    }
-                    return root
-                }
-            }
+            return LegacyBackupDecoder.decode(bytes)
         } catch (e: BackupRestoreException) {
             throw e
         } catch (oom: OutOfMemoryError) {
@@ -278,119 +252,9 @@ object BackupRestore {
         }
     }
 
-    /**
-     * Fail-closed `ObjectInputFilter` for the legacy reader.
-     *
-     * - Rejects unknown classes (exact allowlist only).
-     * - Rejects proxies.
-     * - Rejects graph overruns (depth, references, array length).
-     * - Returns `ALLOWED` for non-class checks within limits; never `UNDECIDED`.
-     */
-    private val legacyObjectInputFilter = ObjectInputFilter { info ->
-        if (info.depth() > LEGACY_MAX_DEPTH) {
-            return@ObjectInputFilter ObjectInputFilter.Status.REJECTED
-        }
-        if (info.arrayLength() > LEGACY_MAX_ARRAY_LENGTH) {
-            return@ObjectInputFilter ObjectInputFilter.Status.REJECTED
-        }
-        if (info.references() > LEGACY_MAX_REFERENCES) {
-            return@ObjectInputFilter ObjectInputFilter.Status.REJECTED
-        }
-
-        val serialClass = info.serialClass()
-        if (serialClass == null) {
-            return@ObjectInputFilter ObjectInputFilter.Status.ALLOWED
-        }
-
-        if (serialClass.isInterface) {
-            // Interfaces such as `java.util.Map$Entry` or `java.util.Map`
-            // only appear when required by the wire graph.
-            return@ObjectInputFilter when (serialClass.name) {
-                "java.util.Map",
-                "java.util.Map\$Entry" -> ObjectInputFilter.Status.ALLOWED
-                else -> ObjectInputFilter.Status.REJECTED
-            }
-        }
-
-        if (isLegacyClassAllowed(serialClass.name)) {
-            return@ObjectInputFilter ObjectInputFilter.Status.ALLOWED
-        }
-
-        ObjectInputFilter.Status.REJECTED
-    }
-
-    /**
-     * `ObjectInputStream` subclass that refuses to resolve any class outside the
-     * proven legacy backup allowlist. Proxy classes are always rejected.
-     */
-    private class RestrictedObjectInputStream(input: ByteArrayInputStream) : ObjectInputStream(input) {
-
-        init {
-            setLegacyObjectInputFilter(this, legacyObjectInputFilter)
-        }
-
-        override fun resolveClass(desc: ObjectStreamClass): Class<*> {
-            val name = desc.name
-            if (!isLegacyClassAllowed(name)) {
-                throw java.io.InvalidClassException(name, "Legacy class not in allowlist: $name")
-            }
-            return super.resolveClass(desc)
-        }
-
-        override fun resolveProxyClass(interfaces: Array<String>): Class<*> {
-            throw java.io.InvalidClassException("proxy", "Proxy classes not allowed in legacy backups")
-        }
-    }
-
-    /**
-     * Installs an `ObjectInputFilter` on the stream using reflection.
-     *
-     * Direct `setObjectInputFilter` fails to compile with this project's
-     * Kotlin compiler/Android SDK stub, but the method is present at runtime
-     * (API 34+ and JVM test runtime). If reflection fails, the reader fails
-     * closed rather than falling back to unrestricted deserialization.
-     */
-    @JvmStatic
-    private fun setLegacyObjectInputFilter(stream: ObjectInputStream, filter: ObjectInputFilter) {
-        try {
-            val method = ObjectInputStream::class.java.getMethod("setObjectInputFilter", ObjectInputFilter::class.java)
-            method.isAccessible = true
-            method.invoke(stream, filter)
-        } catch (t: Throwable) {
-            FatalErrors.rethrowIfFatal(t)
-            throw IOException("ObjectInputStream.setObjectInputFilter unavailable; legacy reader cannot continue", t)
-        }
-    }
-
-    /**
-     * Exact legacy wire class allowlist.
-     *
-     * Evidence from a JDK 17 ObjectOutputStream fixture using a HashMap
-     * containing all supported value types and a HashSet<String>.
-     */
-    @JvmStatic
-    private fun isLegacyClassAllowed(name: String): Boolean {
-        return when (name) {
-            "java.util.HashMap",
-            "java.util.HashSet",
-            "java.util.Map",
-            "java.util.Map\$Entry",
-            "[Ljava.util.Map\$Entry;",
-            "java.util.HashMap\$Node",
-            "[Ljava.util.HashMap\$Node;",
-            "java.util.HashMap\$TreeNode",
-            "[Ljava.util.HashMap\$TreeNode;",
-            "java.lang.Boolean",
-            "java.lang.Integer",
-            "java.lang.Long",
-            "java.lang.Float",
-            "java.lang.String",
-            "[Ljava.lang.String;",
-            "java.lang.Number",
-            "java.lang.Object" -> true
-            else -> false
-        }
-    }
+    // Legacy reader is implemented in LegacyBackupDecoder (focused parser, no
+    // ObjectInputStream / ObjectInputFilter, so no per-stream reflection is
+    // required at Android runtime).
 
     /**
      * Post-decode bounds check for both V2 and legacy formats.
@@ -573,7 +437,7 @@ object BackupRestore {
      * - bounded input read (final M2 `MAX_FILE_SIZE`);
      * - V2 or legacy format detection;
      * - V2 decode with CRC32 and bounds;
-     * - restricted legacy `ObjectInputStream` with allowlist;
+     * - restricted legacy focused decoder (no `ObjectInputStream` / `ObjectInputFilter`);
      * - entry validation and tombstone filtering;
      * - app-selection sanitization;
      * - pre-restore snapshot capture;
