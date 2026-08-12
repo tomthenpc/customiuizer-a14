@@ -16,7 +16,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
-import androidx.preference.Preference
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
@@ -435,9 +434,10 @@ object SystemNotificationHooks {
                 override fun after(callback: AfterHookCallback) {
                     try {
                         val settings = callback.getThisObject() ?: return
-                        val block = XposedHelpers.getObjectField(settings, "mBlock") as? Preference
-                            ?: return
-                        block.isEnabled = true
+                        val block = XposedHelpers.getObjectField(settings, "mBlock") ?: return
+                        // Settings owns its own androidx.preference classes. Never cast that
+                        // object to the module APK's same-named class across ClassLoaders.
+                        XposedHelpers.callMethod(block, "setEnabled", true)
                     } catch (t: Throwable) {
                         FatalErrors.unwrapAndRethrowIfFatal(t)
                         XposedHelpers.log("UnlockSettingsNotificationControls", t)

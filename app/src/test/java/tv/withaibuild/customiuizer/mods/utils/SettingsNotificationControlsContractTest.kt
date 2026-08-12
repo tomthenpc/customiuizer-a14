@@ -18,7 +18,8 @@ class SettingsNotificationControlsContractTest {
         assertTrue(hooks.contains("com.android.settings.notification.app.AppNotificationSettings"))
         assertTrue(hooks.contains("\"setupBlock\""))
         assertFalse(hooks.contains("mHasNotifPermission"))
-        assertTrue(hooks.contains("block.isEnabled = true"))
+        assertTrue(hooks.contains("XposedHelpers.callMethod(block, \"setEnabled\", true)"))
+        assertFalse(hooks.contains("as? Preference"))
         assertTrue(hooks.contains("skipped = true\n                    result = HashSet<String>()"))
         assertTrue(feature.contains("UnlockSettingsNotificationControlsHook(lpparam)"))
     }
