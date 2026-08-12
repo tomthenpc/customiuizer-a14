@@ -545,26 +545,29 @@ Risks:
 | `C6_A0_RETAINED_LEGACY_MEMBERS` | `mSbn` read via `XposedHelpers.getObjectField`; `getPackageName` call via `XposedHelpers.callMethod` |
 | `C6_A0_EXACT_ROOT_POLICY` | `ExpandableNotificationRow` resolved at install time. At callback, `thisObject != null && thisObject.javaClass === resolutionRoot` is required before any FAST field or method access. |
 | `C6_A0_FAST_TO_LEGACY_RETRY` | `FORBIDDEN_AFTER_FAST_BOUNDARY` |
-| `C6_A0_COMPLETE_LEGACY_CONDITIONS` | `resolutionRoot` missing; any required FAST member missing/ambiguous; `thisObject == null`; `thisObject.javaClass !== resolutionRoot`; any other A0-rejected runtime shape. |
+| `C6_A0_COMPLETE_LEGACY_CONDITIONS` | ABI unavailable while hook target exists; `thisObject == null`; `thisObject.javaClass !== resolutionRoot`; any required FAST member missing/ambiguous; any other A0-rejected runtime shape. |
 
 ### 11.2 Resolver rules
 
-1. Resolve `resolutionRoot = XposedHelpers.findClass(..., classLoader)` for `com.android.systemui.statusbar.notification.row.ExpandableNotificationRow`.
-2. `mOnKeyguardField`:
+1. Resolve the hook target class through a path compatible with `ModuleHelper.hookAllMethods` → `XposedHelpers.findClassIfExists(..., classLoader)` for `com.android.systemui.statusbar.notification.row.ExpandableNotificationRow`.
+   - If the class is not found, `ModuleHelper.hookAllMethods` logs, records `TARGET_CLASS_MISSING`, and returns; **no `setFeedbackIcon` callback is installed**. FAST and `COMPLETE_LEGACY` dispatch are both `N/A`.
+   - `XposedHelpers.findClass(...)` (throwing) must **not** be used for the install-time class probe, because that would convert the legacy log-and-return failure into a thrown install failure.
+2. Only if the hook target class is found, the ABI resolver resolves `resolutionRoot` to the same class and proceeds to the FAST member checks below.
+3. `mOnKeyguardField`:
    - `findField(resolutionRoot, "mOnKeyguard")`.
    - Inspect type. Accept only `Boolean.TYPE`; reject `Boolean.class` or any other type.
    - Non-primitive-boolean type → resolver miss.
-3. `getEntryMethod`:
+4. `getEntryMethod`:
    - `findMethodBestMatch(resolutionRoot, "getEntry")` (zero arg).
    - If found and exactly one best match (no ambiguity), store it.
    - Miss or ambiguous → resolver miss.
-4. `setSystemExpandedMethod`:
+5. `setSystemExpandedMethod`:
    - `findMethodBestMatch(resolutionRoot, "setSystemExpanded", Boolean.class)`.
    - If found and exactly one best match, store it.
    - If `setSystemExpanded(boolean)` is found, the `Method` parameter type is `boolean`; `Method.invoke` with `Boolean.TRUE` will unbox correctly.
    - If `setSystemExpanded(Boolean)` is found, the argument is passed as `Boolean.TRUE`.
    - Miss or ambiguous → resolver miss.
-5. If any of the above three members is missing, the resolver returns `null` ABI and the Effect will always run `COMPLETE_LEGACY`.
+6. If any required FAST member is missing or incompatible, the resolver returns `null` ABI. Because the hook target class and `setFeedbackIcon` callback are already installed, the callback is still dispatched; the Effect selects `COMPLETE_LEGACY` before the FAST boundary.
 
 ### 11.3 Mode select (exact-root guard before any FAST work)
 
@@ -608,10 +611,12 @@ return result
 
 The Effect must run `COMPLETE_LEGACY` when any of the following is true:
 
-- The `C6NotificationAutoExpandAbi` is `null` (resolver returned `null` at install time).
+- The `C6NotificationAutoExpandAbi` is `null` (resolver returned `null` while the hook target class exists and the callback is installed).
 - `thisObject == null`.
 - `thisObject.javaClass !== resolutionRoot`.
 - The resolver could not resolve any required FAST member (`mOnKeyguard`, `getEntry`, or `setSystemExpanded`).
+
+If the hook target class itself is missing, `ModuleHelper.hookAllMethods` returns without installing the callback, so neither `COMPLETE_LEGACY` nor FAST dispatch is applicable.
 
 ### 12.2 No retry after FAST boundary
 
@@ -646,7 +651,7 @@ For each row:
 | Hook target class missing | `ModuleHelper.hookAllMethods` logs, records `TARGET_CLASS_MISSING`, and returns; no `setFeedbackIcon` callback is installed | Same as legacy; no callback is installed | `YES` | `N/A` | `N/A` |
 | ABI resolver miss (hook target exists) | The callback is installed and runs the legacy oracle | Resolver returns `null`; the Effect selects `COMPLETE_LEGACY` before the FAST boundary | `YES` | `COMPLETE_LEGACY` | `N/A` |
 | `mOnKeyguard` field missing | `NoSuchFieldError` | Resolver miss → `null` ABI | `NOT_APPLICABLE` | `COMPLETE_LEGACY` | `N/A` |
-| `mOnKeyguard` wrong type | `IllegalArgumentException` or `IllegalAccessError` | Resolver type check rejects → `null` ABI | `NOT_APPLICABLE` | `COMPLETE_LEGACY` | `N/A` |
+| `mOnKeyguard` wrong type | Legacy `Field.getBoolean` on a non-`boolean` field produces `IllegalArgumentException` | Resolver type check rejects → `null` ABI | `NOT_APPLICABLE` | `COMPLETE_LEGACY` | `N/A` |
 | `mOnKeyguard` `IllegalAccessException` | `IllegalAccessError` | `IllegalAccessError` | `YES` | `N/A` | `NO` |
 | `mOnKeyguard` `IllegalArgumentException` | `IllegalArgumentException` | `IllegalArgumentException` | `YES` | `N/A` | `NO` |
 | `thisObject` class mismatch | legacy handles runtime class first | exact-root guard → `COMPLETE_LEGACY` | `YES` | `COMPLETE_LEGACY` | `NO` |
@@ -821,7 +826,7 @@ No fixed per-callback operation count is claimed; actual savings are conditional
 | `C6_A0_FROZEN_FAST_MEMBERS` | `mOnKeyguard` Field (primitive `boolean` only); `getEntry` Method (zero-arg, Xposed-compatible wrapper); `setSystemExpanded` Method (one-arg, `Boolean.class` best-match, Xposed-compatible wrapper) |
 | `C6_A0_RETAINED_LEGACY_MEMBERS` | `mSbn` via `XposedHelpers.getObjectField`; `getPackageName` via `XposedHelpers.callMethod` |
 | `C6_A0_EXACT_ROOT_POLICY` | `ExpandableNotificationRow` resolved at install; callback requires `thisObject.javaClass === resolutionRoot` |
-| `C6_A0_COMPLETE_LEGACY_CONDITIONS` | ABI `null`; `thisObject == null`; class mismatch; any required FAST member missing/ambiguous; runtime shape not covered by the FAST contract |
+| `C6_A0_COMPLETE_LEGACY_CONDITIONS` | ABI unavailable while hook target exists; `thisObject == null`; class mismatch; any required FAST member missing/ambiguous; runtime shape not covered by the FAST contract |
 | `C6_A0_FAST_TO_LEGACY_RETRY` | `FORBIDDEN_AFTER_FAST_BOUNDARY` |
 | `C6_A0_RUNTIME_CALLBACK_EVIDENCE` | `NOT_RUNTIME_TESTED_CALLBACK` |
 | `C6_A0_PRODUCTION_NOT_STARTED` | `true` |
@@ -832,8 +837,9 @@ The preflight freezes a conservative, fail-closed ABI contract:
 - The `mOnKeyguard` field can be frozen with an exact-root, primitive `boolean` reader; `Boolean.class` is rejected.
 - `getEntry` and `setSystemExpanded` can be frozen as direct `Method` invocations with a small Xposed-compatible error-mapping wrapper, because they are called on the exact root object.
 - `mSbn` and `getPackageName` remain on the legacy `XposedHelpers` path because their runtime object classes cannot be pinned to the resolution root without per-row caches or unproven ROM assumptions.
-- The hook installation surface (`ModuleHelper.hookAllMethods`) is not changed.
-- `COMPLETE_LEGACY` is the only fallback; it is selected before any FAST work begins.
+- The hook installation surface (`ModuleHelper.hookAllMethods`) is not changed; it uses `findClassIfExists` and returns without installing a callback if the target class is missing.
+- If the hook target class is missing, no `setFeedbackIcon` callback is installed and neither FAST nor `COMPLETE_LEGACY` dispatch applies.
+- `COMPLETE_LEGACY` is the only fallback when the hook target class exists and the callback is installed; it is selected before any FAST work begins.
 - No retry or fallback is allowed after the FAST boundary.
 - No production, test, `Resolver`, `Abi`, `Effect`, `Snapshot`, `RuntimeState`, or `Hook` has been created or modified.
 
@@ -881,7 +887,7 @@ C6_A0_SELECTED_ABI_STRATEGY = CONSERVATIVE_PARTIAL_FAST
 C6_A0_FROZEN_FAST_MEMBERS = mOnKeyguard Field (primitive boolean only); getEntry Method; setSystemExpanded Method
 C6_A0_RETAINED_LEGACY_MEMBERS = mSbn getObjectField; getPackageName callMethod
 C6_A0_EXACT_ROOT_POLICY = ExpandableNotificationRow resolved at install; exact thisObject class match required
-C6_A0_COMPLETE_LEGACY_CONDITIONS = ABI null; thisObject null; class mismatch; any required FAST member missing/ambiguous; unknown runtime shape
+C6_A0_COMPLETE_LEGACY_CONDITIONS = ABI unavailable while hook target exists; thisObject null; class mismatch; any required FAST member missing/ambiguous; unknown runtime shape
 C6_A0_FAST_TO_LEGACY_RETRY = FORBIDDEN_AFTER_FAST_BOUNDARY
 C6_A0_RUNTIME_CALLBACK_EVIDENCE = NOT_RUNTIME_TESTED_CALLBACK
 C6_A0_PRODUCTION_NOT_STARTED = true
