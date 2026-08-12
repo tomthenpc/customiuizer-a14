@@ -66,10 +66,7 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun dynamicIslandScaleResolvers_areBoundedAcrossDeviceGeometry() {
-        assertEquals(0.68f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleX(0, 960))
-        assertEquals(0.56f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleX(92, 960))
-        assertEquals(0.82f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleX(900, 960))
+    fun dynamicIslandVerticalScaleResolver_isBoundedAcrossDeviceGeometry() {
         assertEquals(0.72f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(104, 0))
         assertEquals(0.62f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(82, 141))
         assertEquals(0.90f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(182, 141))
@@ -85,9 +82,11 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun dynamicIslandWindow_usesFullWidthHostForHorizontalOvershoot() {
+    fun dynamicIslandWindow_usesFullWidthHostWithoutFirstAttachHorizontalCollapse() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
         assertTrue(source.contains("layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT"))
+        assertTrue(source.contains("capsule.scaleX = 1f"))
+        assertFalse(source.contains("resolveDynamicIslandStartScaleX"))
     }
 
     private fun source(path: String): String {

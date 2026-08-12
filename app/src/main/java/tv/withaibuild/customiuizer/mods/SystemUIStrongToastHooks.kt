@@ -123,14 +123,6 @@ object SystemUIStrongToastHooks {
         return if (id != 0) resources.getDimensionPixelSize(id) else 0
     }
 
-    private fun currentTopCutoutWidthPx(view: View): Int {
-        val windowManager = view.context.getSystemService(WindowManager::class.java) ?: return 0
-        return windowManager.currentWindowMetrics.windowInsets.displayCutout
-            ?.boundingRectTop
-            ?.width()
-            ?: 0
-    }
-
     private fun installHide(lpparam: PackageReadyParam) {
         ModuleHelper.hookAllMethods(
             STRONG_TOAST_CONTROL_CLASS,
@@ -199,23 +191,19 @@ object SystemUIStrongToastHooks {
 
     private fun runDynamicIslandEntrance(view: View, capsule: View) {
         try {
-            val visualWidthPx = capsule.width
-                .takeIf { it > 0 }
-                ?: capsule.layoutParams?.width?.takeIf { it > 0 }
-                ?: strongToastDimensionPx(view, "strong_toast_width")
             val visualHeightPx = capsule.height
                 .takeIf { it > 0 }
                 ?: capsule.layoutParams?.height?.takeIf { it > 0 }
                 ?: strongToastVisualHeightPx(view)
-            capsule.pivotX = visualWidthPx / 2f
             // Anchor the capsule to its top edge. Overshoot may then expand only into the
             // explicitly reserved bottom safety area instead of crossing the window's top edge.
             capsule.pivotY = 0f
             capsule.alpha = 0f
-            capsule.scaleX = resolveDynamicIslandStartScaleX(
-                currentTopCutoutWidthPx(view),
-                visualWidthPx
-            )
+            // Keep both horizontal halves present from the first visible frame. HyperOS
+            // reuses the attached StrongToast for consecutive events, so a first-attach
+            // scaleX expansion looked like left-side clipping that mysteriously disappeared
+            // on later updates, especially next to status-bar notification icons.
+            capsule.scaleX = 1f
             capsule.scaleY = resolveDynamicIslandStartScaleY(
                 currentStatusBarInsetPx(view),
                 visualHeightPx
@@ -223,7 +211,6 @@ object SystemUIStrongToastHooks {
             capsule.translationY = 0f
             capsule.animate()
                 .alpha(1f)
-                .scaleX(1f)
                 .scaleY(1f)
                 .translationY(0f)
                 .setDuration(460L)
@@ -316,15 +303,6 @@ object SystemUIStrongToastHooks {
             visualHeightPx + topMarginPx.coerceAtLeast(0) +
                 bottomSafetyMarginPx.coerceAtLeast(0)
         )
-    }
-
-    @JvmStatic
-    internal fun resolveDynamicIslandStartScaleX(
-        cutoutWidthPx: Int,
-        visualWidthPx: Int
-    ): Float {
-        if (cutoutWidthPx <= 0 || visualWidthPx <= 0) return 0.68f
-        return (cutoutWidthPx.toFloat() / visualWidthPx).coerceIn(0.56f, 0.82f)
     }
 
     @JvmStatic
