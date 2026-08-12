@@ -61,7 +61,9 @@ class AppLocaleReconcileTest {
         val success = AppLocaleController.setUserLocale(fakePrefs, "en")
 
         assertFalse("setUserLocale should fail when commit fails", success)
-        assertNull(fakePrefs.getString(AppLocaleController.LOCALE_PREF_KEY, null))
+        // Android SharedPreferences.commit() first updates the in-memory map and then
+        // returns the disk-write status, so the value is visible even when commit() is false.
+        assertEquals("en", fakePrefs.getString(AppLocaleController.LOCALE_PREF_KEY, null))
     }
 
     @Test

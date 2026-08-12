@@ -317,7 +317,7 @@ object BackupRestore {
         val (entriesAfterValidation, validationCounts) = validateAndNormalizeEntries(rawRoot)
         val invalidSkipped = validationCounts.invalidSkipped
         val deprecatedIgnored = validationCounts.deprecatedIgnored
-        val restored = validationCounts.restored
+        var restored = validationCounts.restored
 
         val (sanitizedEntries, appSelectionsSanitized) = try {
             val sanitized = AppSelectionSanitizer.sanitizeRestoredEntries(
@@ -339,6 +339,8 @@ object BackupRestore {
                 commitConfirmedDurable = false,
             )
         }
+
+        restored = sanitizedEntries.size
 
         val snapshot = capturePreRestoreSnapshot(prefs)
 
@@ -370,10 +372,17 @@ object BackupRestore {
         }
 
         // Primary commit succeeded. Reconcile locale and launcher.
-        AppLocaleController.invalidateFastPath(prefs)
+        val localeReconciled = try {
+            AppLocaleController.invalidateFastPath(prefs)
+            true
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            false
+        }
 
         val launcherEnabled = prefs.getBoolean("pref_key_miuizer_launchericon", true)
-        val deviceReconciled = launcherReconciler?.invoke(launcherEnabled) ?: true
+        val launcherReconciled = launcherReconciler?.invoke(launcherEnabled) ?: true
+        val deviceReconciled = localeReconciled && launcherReconciled
 
         val status = if (deviceReconciled) Status.SUCCESS else Status.PARTIAL_FAILURE
 

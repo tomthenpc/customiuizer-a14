@@ -12,7 +12,8 @@ Production changes:
 Tests:
 - `BackupRestoreTest.kt`
 - `AppSelectionSanitizerTest.kt` (updated)
-- `FakeSharedPreferences.kt` (updated with commit sequence support)
+- `FakeSharedPreferences.kt` (updated with commit sequence / visible state / edit/apply failure seams)
+- `AppLocaleReconcileTest.kt` (updated to reflect real `commit()` in-memory mutation semantics)
 
 No V2, no ObjectInputFilter final codec, no CRC32, no startup/observer/background work.
 
@@ -40,6 +41,7 @@ bounded input read
 → clear + put + commit
 → if commit false: best-effort rollback from snapshot
 → if commit true: locale fast-path invalidate + launcher reconcile
+→ deviceReconciled = localeReconciled && launcherReconciled
 → result
 ```
 
@@ -59,6 +61,7 @@ bounded input read
 ### Commit and rollback
 
 - `SharedPreferences.commit()` result is checked.
+- `commit()` first applies to the in-memory map, then returns durability status.
 - `commit() == false` → `FAILURE`; best-effort rollback from `PRE_RESTORE_SNAPSHOT`.
 - Rollback success does not change the result from `FAILURE`.
 - No launcher/locale reconcile on commit failure.
@@ -71,6 +74,8 @@ bounded input read
   Default enabled if key absent.
 - Locale: `AppLocaleController.invalidateFastPath(prefs)` after commit success;
   source `pref_key_miuizer_locale_applied` never trusted.
+- `deviceReconciled` is true only when both locale and launcher reconciles succeed.
+  A failed side effect after durable commit produces `PARTIAL_FAILURE`, not rollback.
 
 ### Input bound
 
@@ -101,8 +106,10 @@ bounded input read
 - Root / entry validation.
 - Malformed, truncated, oversized input.
 - Commit success / partial failure (reconcile failure) / failure and rollback.
+- Commit false visible state history (in-memory mutation, rollback snapshot restoration).
 - Snapshot defensive copy.
-- App-selection sanitization count.
+- App-selection sanitization count and post-sanitizer `restored` count.
+- Locale reconcile failure as `PARTIAL_FAILURE`.
 
 ## Validation run
 

@@ -79,6 +79,7 @@ class BackupRestoreTest {
         assertFalse(normalized.containsKey("pref_key_system_notif_strong_toast_width"))
         assertEquals("keep", normalized["pref_key_valid"])
         assertEquals(2, counts.deprecatedIgnored)
+        // validateAndNormalizeEntries does not yet know sanitization; restored is adjusted later.
         assertEquals(1, counts.restored)
     }
 
@@ -144,18 +145,19 @@ class BackupRestoreTest {
         assertEquals(BackupRestore.Status.SUCCESS, result.status)
         assertTrue(result.commitSucceeded)
         assertTrue(result.deviceReconciled)
+        assertEquals(3, result.restored)
         assertEquals(true, prefs.getBoolean("pref_key_enabled", false))
         assertFalse(prefs.getBoolean("pref_key_miuizer_launchericon", true))
     }
 
     @Test
-    fun performRestoreReturnsFailureAndRollsBackOnPrimaryCommitFalse() {
+    fun performRestorePrimaryCommitFalseAndRollbackTrueUpdatesAndRestoresVisibleState() {
         val map = HashMap<String, Any?>()
-        map["pref_key_new"] = "should not persist"
+        map["pref_key_new"] = "restored in memory"
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences().apply {
-            put("pref_key_old", "value")
+            put("pref_key_old", "original")
             commitSequence = listOf(false, true).iterator()
         }
 
@@ -170,12 +172,52 @@ class BackupRestoreTest {
         assertFalse(result.commitSucceeded)
         assertTrue(result.rollbackAttempted)
         assertTrue(result.rollbackSucceeded)
-        assertEquals("value", prefs.getString("pref_key_old", null))
+
+        // Primary commit applies to in-memory map even though durability result is false.
+        val primaryState = prefs.commitSnapshot(0)
+        assertNull(primaryState["pref_key_old"])
+        assertEquals("restored in memory", primaryState["pref_key_new"])
+
+        // Rollback restores original snapshot.
+        val rollbackState = prefs.commitSnapshot(1)
+        assertEquals("original", rollbackState["pref_key_old"])
+        assertNull(rollbackState["pref_key_new"])
+
+        // Final live state is original.
+        assertEquals("original", prefs.getString("pref_key_old", null))
         assertNull(prefs.getString("pref_key_new", null))
     }
 
     @Test
-    fun performRestoreDoesNotReconcileLauncherWhenCommitFails() {
+    fun performRestorePrimaryCommitFalseAndRollbackFalseLeavesRestoredStateThenRollsBack() {
+        val map = HashMap<String, Any?>()
+        map["pref_key_new"] = "restored in memory"
+        val input = ByteArrayInputStream(serialize(map))
+
+        val prefs = FakeSharedPreferences().apply {
+            put("pref_key_old", "original")
+            commitSequence = listOf(false, false).iterator()
+        }
+
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.FAILURE, result.status)
+        assertFalse(result.commitSucceeded)
+        assertTrue(result.rollbackAttempted)
+        assertFalse(result.rollbackSucceeded)
+
+        // Both commits applied to in-memory map; rollback attempted even if durable result false.
+        assertEquals("original", prefs.getString("pref_key_old", null))
+        assertNull(prefs.getString("pref_key_new", null))
+    }
+
+    @Test
+    fun performRestoreDoesNotReconcileWhenCommitFails() {
         val map = HashMap<String, Any?>()
         map["pref_key_new"] = "should not persist"
         val input = ByteArrayInputStream(serialize(map))
@@ -220,6 +262,57 @@ class BackupRestoreTest {
     }
 
     @Test
+    fun performRestoreReturnsPartialFailureWhenLocaleReconcileFails() {
+        val map = HashMap<String, Any?>()
+        map["pref_key_miuizer_locale"] = "en"
+        val input = ByteArrayInputStream(serialize(map))
+
+        val prefs = FakeSharedPreferences().apply {
+            applyShouldThrow = true
+        }
+
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.PARTIAL_FAILURE, result.status)
+        assertTrue(result.commitSucceeded)
+        assertFalse(result.deviceReconciled)
+        // Locale choice is still persisted.
+        assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
+    }
+
+    @Test
+    fun performRestoreReconcilesBothLocaleAndLauncherWhenBothSucceed() {
+        val map = HashMap<String, Any?>()
+        map["pref_key_miuizer_locale"] = "en"
+        map["pref_key_miuizer_launchericon"] = true
+        val input = ByteArrayInputStream(serialize(map))
+
+        val prefs = FakeSharedPreferences()
+
+        var launcherCalled = false
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { enabled ->
+                launcherCalled = true
+                assertEquals(true, enabled)
+                true
+            },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertTrue(result.commitSucceeded)
+        assertTrue(result.deviceReconciled)
+        assertTrue(launcherCalled)
+    }
+
+    @Test
     fun performRestoreRejectsTruncatedInput() {
         val map = HashMap<String, Any?>()
         map["pref_key_enabled"] = true
@@ -257,7 +350,7 @@ class BackupRestoreTest {
     }
 
     @Test
-    fun performRestoreSanitizesAppSelections() {
+    fun performRestoreSanitizesAppSelectionsAndReportsRestoredCount() {
         val map = HashMap<String, Any?>()
         map["pref_key_system_clock_app"] = "com.missing|com.missing.Clock"
         map["pref_key_system_clock_app_user"] = 123
@@ -265,6 +358,7 @@ class BackupRestoreTest {
             add("com.present")
             add("com.missing")
         }
+        map["pref_key_valid"] = "keep"
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences()
@@ -278,6 +372,9 @@ class BackupRestoreTest {
 
         assertEquals(BackupRestore.Status.SUCCESS, result.status)
         assertEquals(2, result.appSelectionsSanitized)
+        // Only pref_key_system_blocktoasts_apps and pref_key_valid survive.
+        assertEquals(2, result.restored)
+        assertEquals("keep", prefs.getString("pref_key_valid", null))
         assertNull(prefs.getString("pref_key_system_clock_app", null))
         assertNull(prefs.getString("pref_key_system_clock_app_user", null))
         @Suppress("UNCHECKED_CAST")
