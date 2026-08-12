@@ -1,9 +1,9 @@
 # C6-B1 — Notification Auto-Expand Architecture C Production Implementation
 
-**Repository:** `tomthenpc/customiuizer-a14`  
-**Branch:** `devin/a14-architecture-c-r14.20.0`  
-**C6-A0 freeze / B1 base SHA:** `173b422fd6b98302039587e32684b026d8b28904`  
-**Scope:** `SystemNotificationHooks.ExpandNotificationsHook` → `com.android.systemui.statusbar.notification.row.ExpandableNotificationRow.setFeedbackIcon` → notification auto-expand  
+**Repository:** `tomthenpc/customiuizer-a14`
+**Branch:** `devin/a14-architecture-c-r14.20.0`
+**C6-A0 freeze / B1 base SHA:** `173b422fd6b98302039587e32684b026d8b28904`
+**Scope:** `SystemNotificationHooks.ExpandNotificationsHook` → `com.android.systemui.statusbar.notification.row.ExpandableNotificationRow.setFeedbackIcon` → notification auto-expand
 **Type:** B1 production implementation — resolver, ABI, snapshot, runtime state, effect, hook, tests, and documentation.
 
 ---
@@ -21,7 +21,7 @@
 | C6 target-selection changed | `false` | no edits to `C6_TARGET_SELECTION.md` |
 | C1-C5 changed | `false` | no edits |
 
-START PASS.  
+START PASS.
 `C6_A0 = PASS`, `C6_B1 = AUTHORIZED`, `C6_B2 = NOT AUTHORIZED`.
 
 ---
@@ -247,7 +247,7 @@ All new tests are under `app/src/test/java/tv/withaibuild/customiuizer/mods/noti
 | `NotificationAutoExpandEffectTest` | ABI null / snapshot null / subclass root → `COMPLETE_LEGACY`; exact root → `FAST`; `mOnKeyguard == true` short-circuit; blacklist mode 2; whitelist mode 3; other modes no expansion; malformed mode throws before `chain.proceed`; `getPackageName` failure; `setSystemExpanded` failure; `chain.proceed` rethrow; `setSystemExpanded` at most once; `InvocationTargetException` → `InvocationTargetError`; `IllegalAccessException` → `IllegalAccessError`. |
 | `NotificationAutoExpandHookTest` | Target class missing does not create runtime state. |
 
-Evidence classification for all component tests: `RUNTIME_TESTED_COMPONENT`.  
+Evidence classification for all component tests: `RUNTIME_TESTED_COMPONENT`.
 Callback evidence remains `C6_RUNTIME_CALLBACK_EVIDENCE = NOT_RUNTIME_TESTED_CALLBACK` because no real SystemUI `setFeedbackIcon` callback or device execution was performed.
 
 ---
