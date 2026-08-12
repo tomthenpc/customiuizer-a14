@@ -93,6 +93,7 @@ internal class SettingsDisableAnyNotificationFeature(
     override fun install(): FeatureInstallResult {
         SystemNotificationHooks.DisableAnyNotificationHook(lpparam)
         SystemNotificationHooks.DisableAnyNotificationBlockHook(lpparam)
+        SystemNotificationHooks.UnlockSettingsNotificationControlsHook(lpparam)
         return FeatureInstallResult.INSTALLED
     }
 }

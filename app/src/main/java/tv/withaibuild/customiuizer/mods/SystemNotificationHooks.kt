@@ -392,7 +392,9 @@ object SystemNotificationHooks {
                 var throwable: Throwable? = null
                 try {
 
-                    { skipped = true; result = HashSet<String>(); throwable = null }
+                    skipped = true
+                    result = HashSet<String>()
+                    throwable = null
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
@@ -403,6 +405,25 @@ object SystemNotificationHooks {
                 return XposedHelpers.throwOrReturn(throwable, result)
             }
         })
+    }
+
+    /**
+     * Android 14 Settings disables its master switch in BlockPreferenceController by calling
+     * these four local policy methods. HyperOS' NotificationFilterHelper hooks alone therefore
+     * cannot unlock the visible switch for a system app. Keep the override inside Settings and
+     * behind the existing "disable any notification" preference.
+     */
+    @JvmStatic
+    fun UnlockSettingsNotificationControlsHook(lpparam: PackageReadyParam) {
+        val controller = XposedHelpers.findClassIfExists(
+            "com.android.settings.notification.app.NotificationPreferenceController",
+            lpparam.classLoader
+        ) ?: return
+        val allow = HookerClassHelper.returnConstant(true)
+        ModuleHelper.hookAllMethods(controller, "isAppBlockable", allow)
+        ModuleHelper.hookAllMethods(controller, "isChannelBlockable", allow)
+        ModuleHelper.hookAllMethods(controller, "isChannelConfigurable", allow)
+        ModuleHelper.hookAllMethods(controller, "isChannelGroupBlockable", allow)
     }
 
     @JvmStatic

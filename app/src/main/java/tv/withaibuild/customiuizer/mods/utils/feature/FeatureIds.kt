@@ -1035,3 +1035,18 @@ data object DisableWindowBlursFeatureId : FeatureId {
     override val id = 247
     override val name = "disable_window_blurs"
 }
+
+data object LauncherRecentsCardStyleFeatureId : FeatureId {
+    override val id = 248
+    override val name = "launcher_recents_card_style"
+}
+
+data object AnimationScaleBridgeFeatureId : FeatureId {
+    override val id = 249
+    override val name = "animation_scale_bridge"
+}
+
+data object UpdaterServicesBridgeFeatureId : FeatureId {
+    override val id = 250
+    override val name = "updater_services_bridge"
+}

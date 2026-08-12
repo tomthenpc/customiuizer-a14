@@ -413,6 +413,10 @@
     <string name="system_removecleaner_title">Remove cleaner button</string>
     <string name="system_removecleaner_summ">Hide button that clears recent apps and cleans memory</string>
     <string name="system_recents_disable_wallpaperscale_title">Disable wallpaper scale</string>
+    <string name="system_recents_card_style_title">Task card header</string>
+    <string name="system_recents_card_style_summ">Adjusts the card header without adding work to recents scrolling; restart the launcher after changing</string>
+    <string name="system_recents_card_style_hide_title">Hide app name</string>
+    <string name="system_recents_card_style_immersive">iOS 7-style immersive card</string>
     <string name="system_clearalltasks_title">Clean all</string>
     <string name="system_clearalltasks_summ">Make cleaner button kill all running tasks</string>
     <string name="system_hidefromrecents_title">Hide from recents</string>
@@ -522,6 +526,8 @@
     <string name="launcher_renameapps_modified">Modified title</string>
     <string name="launcher_privacyapps">Hidden apps</string>
     <string name="launcher_privacyapps_fail">Required permissions are not granted</string>
+    <string name="animation_scale_bridge_unavailable">The system service bridge is unavailable. Confirm that the module is enabled, then fully reboot the device.</string>
+    <string name="animation_scale_write_failed">The system rejected the animation scale change.</string>
     <string name="launcher_privacyapps_gest_title">No hidden folder</string>
     <string name="launcher_privacyapps_gest_summ">Disable two-finger gesture that opens hidden apps folder and secret phone code is 233233</string>
     <string name="launcher_privacyapps_list_title">List of apps to hide</string>
@@ -653,6 +659,12 @@
     <string name="various_hide_report_ondetails_title">Hide report button on app details</string>
     <string name="various_disableapp_title">App state control</string>
     <string name="various_disableapp_summ">Allows to disable almost any app from its info page</string>
+    <string name="various_disable_update_services_title">Disable Xiaomi updater services</string>
+    <string name="various_disable_update_services_summ">Extracts only declared services from com.android.updater and restores every service to its previous state when disabled</string>
+    <string name="various_disable_update_services_confirm">Disable %1$d Xiaomi updater background services? Their current component states will be preserved for exact restoration.</string>
+    <string name="various_disable_update_services_unavailable">Xiaomi updater or its declared services were not found.</string>
+    <string name="various_disable_update_services_bridge_unavailable">The system service bridge is unavailable. Confirm that the module is enabled, then fully reboot the device.</string>
+    <string name="various_disable_update_services_failed">The updater service state change failed and was rolled back.</string>
     <string name="various_securitycenter_unlock_title">Unlock security center features</string>
     <string name="various_package_installer_cat_title">Unlock package installer features</string>
     <string name="various_apps_title">Show additional app details</string>

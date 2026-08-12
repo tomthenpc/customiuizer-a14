@@ -700,4 +700,15 @@
 		<item>3</item>
 		<item>2</item>
 	</string-array>
+
+	<string-array name="recents_card_styles">
+		<item>@string/array_system_default</item>
+		<item>@string/system_recents_card_style_hide_title</item>
+		<item>@string/system_recents_card_style_immersive</item>
+	</string-array>
+	<string-array name="recents_card_styles_val">
+		<item>0</item>
+		<item>1</item>
+		<item>2</item>
+	</string-array>
 </resources>

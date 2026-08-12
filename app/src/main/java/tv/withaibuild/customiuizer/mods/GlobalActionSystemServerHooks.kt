@@ -29,6 +29,198 @@ import tv.withaibuild.customiuizer.mods.utils.hasConfiguredToggle
 
 object GlobalActionSystemServerHooks {
 
+    private const val XIAOMI_UPDATER_PACKAGE = "com.android.updater"
+
+    @JvmStatic
+    fun setupAnimationScaleBridge(lpparam: XposedModuleInterface.SystemServerStartingParam) {
+        ModuleHelper.hookAllMethods(
+            "com.android.server.policy.BaseMiuiPhoneWindowManager",
+            lpparam.classLoader,
+            "initInternal",
+            object : MethodHook() {
+                override fun after(callback: AfterHookCallback) {
+                    val windowManager = callback.getThisObject() ?: return
+                    val context = XposedHelpers.getObjectField(windowManager, "mContext") as? Context
+                        ?: return
+                    val filter = IntentFilter(GlobalActions.SET_ANIMATION_SCALE_ACTION)
+                    ModuleHelper.registerModuleReceiver(
+                        context,
+                        "animationScaleBridgeReceiver",
+                        object : BroadcastReceiver() {
+                            override fun onReceive(context: Context, intent: Intent) {
+                                var handled = false
+                                ModuleHelper.guarded {
+                                    if (intent.action != GlobalActions.SET_ANIMATION_SCALE_ACTION) {
+                                        return@guarded
+                                    }
+                                    if (!ModuleHelper.isTrustedBroadcast(
+                                            this,
+                                            Helpers.modulePkg,
+                                            rejectionResultCode = GlobalActions.ACTION_FAILED
+                                        )
+                                    ) {
+                                        return@guarded
+                                    }
+                                    val type = intent.getIntExtra(
+                                        GlobalActions.EXTRA_ANIMATION_SCALE_TYPE,
+                                        -1
+                                    )
+                                    val value = intent.getFloatExtra(
+                                        GlobalActions.EXTRA_ANIMATION_SCALE_VALUE,
+                                        Float.NaN
+                                    )
+                                    val key = resolveAnimationScaleKey(type)
+                                    if (key != null && value.isFinite() && value in 0f..10f) {
+                                        handled = Settings.Global.putFloat(
+                                            context.contentResolver,
+                                            key,
+                                            value
+                                        )
+                                    }
+                                }
+                                if (isOrderedBroadcast) {
+                                    ModuleHelper.guarded {
+                                        resultCode = if (handled) {
+                                            GlobalActions.ACTION_HANDLED
+                                        } else {
+                                            GlobalActions.ACTION_FAILED
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        filter,
+                        Context.RECEIVER_EXPORTED,
+                        GlobalActions.BROADCAST_PERMISSION
+                    )
+                }
+            }
+        )
+    }
+
+    @JvmStatic
+    fun setupUpdaterServicesBridge(lpparam: XposedModuleInterface.SystemServerStartingParam) {
+        ModuleHelper.hookAllMethods(
+            "com.android.server.policy.BaseMiuiPhoneWindowManager",
+            lpparam.classLoader,
+            "initInternal",
+            object : MethodHook() {
+                override fun after(callback: AfterHookCallback) {
+                    val owner = callback.getThisObject() ?: return
+                    val context = XposedHelpers.getObjectField(owner, "mContext") as? Context ?: return
+                    ModuleHelper.registerModuleReceiver(
+                        context,
+                        "updaterServicesBridgeReceiver",
+                        object : BroadcastReceiver() {
+                            override fun onReceive(context: Context, intent: Intent) {
+                                var handled = false
+                                ModuleHelper.guarded {
+                                    if (intent.action != GlobalActions.SET_UPDATER_SERVICES_ACTION) return@guarded
+                                    if (!ModuleHelper.isTrustedBroadcast(
+                                            this,
+                                            Helpers.modulePkg,
+                                            rejectionResultCode = GlobalActions.ACTION_FAILED
+                                        )
+                                    ) return@guarded
+                                    val names = intent.getStringArrayExtra(
+                                        GlobalActions.EXTRA_UPDATER_SERVICE_NAMES
+                                    ) ?: return@guarded
+                                    val states = intent.getIntArrayExtra(
+                                        GlobalActions.EXTRA_UPDATER_SERVICE_STATES
+                                    ) ?: return@guarded
+                                    handled = applyUpdaterServiceStates(context, names, states)
+                                }
+                                if (isOrderedBroadcast) {
+                                    ModuleHelper.guarded {
+                                        resultCode = if (handled) {
+                                            GlobalActions.ACTION_HANDLED
+                                        } else {
+                                            GlobalActions.ACTION_FAILED
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        IntentFilter(GlobalActions.SET_UPDATER_SERVICES_ACTION),
+                        Context.RECEIVER_EXPORTED,
+                        GlobalActions.BROADCAST_PERMISSION
+                    )
+                }
+            }
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    private fun applyUpdaterServiceStates(
+        context: Context,
+        names: Array<String>,
+        states: IntArray
+    ): Boolean {
+        if (names.isEmpty() || names.size > 32 || names.size != states.size) return false
+        if (names.toSet().size != names.size || states.any { !isAllowedComponentState(it) }) return false
+        val packageManager = context.packageManager
+        val declared = try {
+            packageManager.getPackageInfo(
+                XIAOMI_UPDATER_PACKAGE,
+                PackageManager.GET_SERVICES or PackageManager.MATCH_DISABLED_COMPONENTS
+            ).services?.mapTo(HashSet()) { it.name } ?: emptySet()
+        } catch (t: Throwable) {
+            tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log(t)
+            return false
+        }
+        if (names.any { it !in declared }) return false
+
+        val components = names.map { ComponentName(XIAOMI_UPDATER_PACKAGE, it) }
+        val original = IntArray(components.size) { index ->
+            packageManager.getComponentEnabledSetting(components[index])
+        }
+        var changed = 0
+        return try {
+            for (index in components.indices) {
+                packageManager.setComponentEnabledSetting(
+                    components[index],
+                    states[index],
+                    PackageManager.DONT_KILL_APP
+                )
+                changed++
+            }
+            true
+        } catch (t: Throwable) {
+            tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log(t)
+            for (index in 0 until changed) {
+                try {
+                    packageManager.setComponentEnabledSetting(
+                        components[index],
+                        original[index],
+                        PackageManager.DONT_KILL_APP
+                    )
+                } catch (rollback: Throwable) {
+                    tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(rollback)
+                    XposedHelpers.log(rollback)
+                }
+            }
+            false
+        }
+    }
+
+    @JvmStatic
+    internal fun isAllowedComponentState(state: Int): Boolean =
+        state == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT ||
+            state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED ||
+            state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED ||
+            state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER ||
+            state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED
+
+    @JvmStatic
+    internal fun resolveAnimationScaleKey(type: Int): String? = when (type) {
+        0 -> Settings.Global.WINDOW_ANIMATION_SCALE
+        1 -> Settings.Global.TRANSITION_ANIMATION_SCALE
+        2 -> Settings.Global.ANIMATOR_DURATION_SCALE
+        else -> null
+    }
+
     @JvmStatic
     fun setupGlobalActions(lpparam: XposedModuleInterface.SystemServerStartingParam) {
         ModuleHelper.hookAllMethods("com.android.server.policy.BaseMiuiPhoneWindowManager", lpparam.classLoader, "initInternal", object : MethodHook() {

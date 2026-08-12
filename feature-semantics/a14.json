@@ -9114,6 +9114,28 @@
       "notes": ""
     },
     {
+      "featureId": "pref_key_system_recents_card_style",
+      "featureName": "pref_key_system_recents_card_style",
+      "preferenceKeys": [
+        "pref_key_system_recents_card_style"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "0",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": ""
+    },
+    {
       "featureId": "pref_key_system_recents_disable_wallpaperscale",
       "featureName": "pref_key_system_recents_disable_wallpaperscale",
       "preferenceKeys": [
@@ -14878,6 +14900,28 @@
       "notes": ""
     },
     {
+      "featureId": "pref_key_various_disable_update_services",
+      "featureName": "pref_key_various_disable_update_services",
+      "preferenceKeys": [
+        "pref_key_various_disable_update_services"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_various.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/res/xml/prefs_various.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_various.xml",
+      "notes": ""
+    },
+    {
       "featureId": "pref_key_various_disableapp",
       "featureName": "pref_key_various_disableapp",
       "preferenceKeys": [
@@ -18131,6 +18175,28 @@
       "hotReloadable": false,
       "confidence": "UNKNOWN",
       "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/Launcher.kt:251",
+      "notes": ""
+    },
+    {
+      "featureId": "system_recents_card_style",
+      "featureName": "system_recents_card_style",
+      "preferenceKeys": [
+        "system_recents_card_style"
+      ],
+      "xmlSource": "",
+      "defaultValue": "",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/LauncherPostAttachFeatures.kt",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/LauncherPostAttachFeatures.kt:installHook",
+      "targetPackage": "com.miui.home",
+      "installPhase": "UNKNOWN",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "Applies hook when enabled",
+      "disableEffect": "Restores default behavior",
+      "valueChangeEffect": "Updates applied hook behavior",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "UNKNOWN",
+      "evidence": "mPrefs call in LauncherPostAttachFeatures.kt",
       "notes": ""
     },
     {

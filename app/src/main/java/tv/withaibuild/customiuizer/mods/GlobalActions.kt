@@ -60,6 +60,12 @@ object GlobalActions {
      * whitelists instead, because the host processes do not inherit the module signature.
      */
     const val BROADCAST_PERMISSION = "tv.withaibuild.customiuizer.r14.permission.BROADCAST"
+    const val SET_ANIMATION_SCALE_ACTION = ACTION_PREFIX + "SetAnimationScale"
+    const val EXTRA_ANIMATION_SCALE_TYPE = "animation_scale_type"
+    const val EXTRA_ANIMATION_SCALE_VALUE = "animation_scale_value"
+    const val SET_UPDATER_SERVICES_ACTION = ACTION_PREFIX + "SetUpdaterServices"
+    const val EXTRA_UPDATER_SERVICE_NAMES = "updater_service_names"
+    const val EXTRA_UPDATER_SERVICE_STATES = "updater_service_states"
 
     /**
      * Result codes for actions the settings app sends as an ordered broadcast.

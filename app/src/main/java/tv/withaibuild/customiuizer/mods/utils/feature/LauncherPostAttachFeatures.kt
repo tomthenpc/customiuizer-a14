@@ -264,6 +264,15 @@ object LauncherPostAttachFeatures {
             factory = { LauncherHideStatusBarInRecentsFeature(lpparam, mPrefs) },
         ),
         LazyFeatureSpec(
+            id = LauncherRecentsCardStyleFeatureId,
+            name = "Launcher Recents Card Style",
+            preferenceKey = "system_recents_card_style",
+            target = FeatureTarget.LAUNCHER,
+            phase = InstallPhase.APPLICATION_ATTACHED,
+            enabled = { prefs -> LauncherRecentsCardStyleFeature.evaluateEnabled(prefs) },
+            factory = { LauncherRecentsCardStyleFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
             id = LauncherMultiWindowPlusFeatureId,
             name = "Launcher Multi Window Plus",
             preferenceKey = "system_fw_splitscreen",
@@ -948,6 +957,30 @@ internal class LauncherHideStatusBarInRecentsFeature(
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Launcher.HideStatusBarInRecentsHook(lpparam)
+}
+
+internal class LauncherRecentsCardStyleFeature(
+    lpparam: PackageReadyParam,
+    mPrefs: PrefMap
+) : BaseApplicationAttachedFeature(
+    lpparam,
+    mPrefs,
+    LauncherRecentsCardStyleFeatureId,
+    "Launcher Recents Card Style",
+    "system_recents_card_style",
+    FeatureTarget.LAUNCHER,
+) {
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean =
+            prefs.getStringAsInt("system_recents_card_style", 0) in 1..2
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
+    override fun installHook() = Launcher.RecentsCardStyleHook(
+        lpparam,
+        mPrefs.getStringAsInt("system_recents_card_style", 0)
+    )
 }
 
 internal class LauncherMultiWindowPlusFeature(

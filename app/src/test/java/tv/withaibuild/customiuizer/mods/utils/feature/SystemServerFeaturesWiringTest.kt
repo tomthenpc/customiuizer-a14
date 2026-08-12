@@ -56,8 +56,8 @@ class SystemServerFeaturesWiringTest {
         val features = SystemServerFeatures.all(fakeSystemServerStartingParam())
 
         assertEquals(
-            "All 51 system_server features should be present",
-            51,
+            "All 53 system_server features should be present",
+            53,
             features.size
         )
         val uniqueIds = features.map { it.id }.toSet()

@@ -145,6 +145,12 @@
 		android:defaultValue="false" />
 
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_disable_update_services"
+		android:title="@string/various_disable_update_services_title"
+		android:summary="@string/various_disable_update_services_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 		android:key="pref_key_various_hide_report_ondetails"
 		android:title="@string/various_hide_report_ondetails_title"
 		android:defaultValue="false" />

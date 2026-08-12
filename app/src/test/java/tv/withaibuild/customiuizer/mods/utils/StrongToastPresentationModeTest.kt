@@ -74,6 +74,14 @@ class StrongToastPresentationModeTest {
         assertEquals(0.90f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(182, 141))
     }
 
+    @Test
+    fun dynamicIslandWindow_keepsFullCapsuleAndBothVerticalMargins() {
+        assertEquals(177, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(82, 141, 18))
+        assertEquals(182, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(182, 141, 18))
+        assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 141, 0))
+        assertEquals(104, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 0, 18))
+    }
+
     private fun fakePackageReadyParam(): io.github.libxposed.api.XposedModuleInterface.PackageReadyParam {
         return Proxy.newProxyInstance(
             io.github.libxposed.api.XposedModuleInterface.PackageReadyParam::class.java.classLoader,

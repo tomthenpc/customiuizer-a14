@@ -861,6 +861,15 @@
 			android:title="@string/system_hidelsstatusbar_title"
 			android:defaultValue="false" />
 
+		<tv.withaibuild.customiuizer.prefs.ListPreferenceEx
+			android:key="pref_key_system_recents_card_style"
+			android:title="@string/system_recents_card_style_title"
+			android:summary="@string/system_recents_card_style_summ"
+			android:entries="@array/recents_card_styles"
+			android:entryValues="@array/recents_card_styles_val"
+			android:defaultValue="0"
+			miuizer:valueAsSummary="true" />
+
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 			android:key="pref_key_system_removecleaner"
 			android:title="@string/system_removecleaner_title"

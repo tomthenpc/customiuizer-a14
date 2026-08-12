@@ -2,6 +2,7 @@ package tv.withaibuild.customiuizer.mods.utils.feature
 
 import io.github.libxposed.api.XposedModuleInterface
 import tv.withaibuild.customiuizer.mods.Controls
+import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks
 import tv.withaibuild.customiuizer.mods.System as ModsSystem
 import tv.withaibuild.customiuizer.mods.SystemAudioHooks
 import tv.withaibuild.customiuizer.mods.SystemDisplayHooks
@@ -925,6 +926,24 @@ object SystemServerFeatures {
         lpparam: XposedModuleInterface.SystemServerStartingParam
     ): List<FeatureSpec> = listOf(
         LazyFeatureSpec(
+            id = AnimationScaleBridgeFeatureId,
+            name = "Animation Scale Bridge",
+            preferenceKey = null,
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { true },
+            factory = { AnimationScaleBridgeFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = UpdaterServicesBridgeFeatureId,
+            name = "Updater Services Bridge",
+            preferenceKey = null,
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { true },
+            factory = { UpdaterServicesBridgeFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
             id = TempHideOverlayAppFeatureId,
             name = "Temp Hide Overlay App",
             preferenceKey = "system_screenshot_overlay",
@@ -1383,5 +1402,29 @@ object SystemServerFeatures {
             enabled = { prefs -> DisableWindowBlursFeature.evaluateEnabled(prefs) },
             factory = { DisableWindowBlursFeature(lpparam) },
         ),
-    )
+)
+}
+
+internal class AnimationScaleBridgeFeature(
+    lpparam: XposedModuleInterface.SystemServerStartingParam
+) : BaseSystemServerFeature(
+    lpparam,
+    AnimationScaleBridgeFeatureId,
+    "Animation Scale Bridge",
+    null
+) {
+    override fun isEnabledCondition(prefs: PrefMap): Boolean = true
+    override fun installHook() = GlobalActionSystemServerHooks.setupAnimationScaleBridge(lpparam)
+}
+
+internal class UpdaterServicesBridgeFeature(
+    lpparam: XposedModuleInterface.SystemServerStartingParam
+) : BaseSystemServerFeature(
+    lpparam,
+    UpdaterServicesBridgeFeatureId,
+    "Updater Services Bridge",
+    null
+) {
+    override fun isEnabledCondition(prefs: PrefMap): Boolean = true
+    override fun installHook() = GlobalActionSystemServerHooks.setupUpdaterServicesBridge(lpparam)
 }

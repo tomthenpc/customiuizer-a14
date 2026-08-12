@@ -19,6 +19,7 @@ import io.github.libxposed.api.XposedInterface
 import miui.security.SecurityManager
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
+import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
@@ -33,6 +34,8 @@ import tv.withaibuild.customiuizer.utils.Helpers
  * application object is ready.
  */
 object Launcher {
+
+    private const val MIUI_HOME_PACKAGE = "com.miui.home"
 
     @JvmStatic
     fun HideNavBarHook(lpparam: PackageReadyParam) {
@@ -311,6 +314,42 @@ object Launcher {
         ModuleHelper.findAndHookMethod("com.miui.home.launcher.common.DeviceLevelUtils", lpparam.classLoader, "isHideStatusBarWhenEnterRecents", HookerClassHelper.returnConstant(true))
         ModuleHelper.findAndHookMethod("com.miui.home.launcher.DeviceConfig", lpparam.classLoader, "keepStatusBarShowingForBetterPerformance", HookerClassHelper.returnConstant(false))
     }
+
+    @JvmStatic
+    fun RecentsCardStyleHook(lpparam: PackageReadyParam, mode: Int) {
+        val boundedMode = resolveRecentsCardStyle(mode)
+        if (boundedMode == 0) return
+        ModuleHelper.findAndHookMethod(
+            "com.miui.home.recents.views.TaskView",
+            lpparam.classLoader,
+            "onFinishInflate",
+            object : MethodHook() {
+                override fun after(callback: AfterHookCallback) {
+                    val taskView = callback.getThisObject() as? View ?: return
+                    try {
+                        val resources = taskView.resources
+                        if (boundedMode == 1) {
+                            val titleId = resources.getIdentifier("title", "id", MIUI_HOME_PACKAGE)
+                            if (titleId != 0) taskView.findViewById<View>(titleId)?.visibility = View.GONE
+                        } else {
+                            val headerId = resources.getIdentifier(
+                                "task_view_header",
+                                "id",
+                                MIUI_HOME_PACKAGE
+                            )
+                            if (headerId != 0) taskView.findViewById<View>(headerId)?.visibility = View.GONE
+                        }
+                    } catch (t: Throwable) {
+                        tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log("RecentsCardStyle", t)
+                    }
+                }
+            }
+        )
+    }
+
+    @JvmStatic
+    internal fun resolveRecentsCardStyle(mode: Int): Int = if (mode in 0..2) mode else 0
 
     @JvmStatic
     fun DisableLauncherLogHook(lpparam: PackageReadyParam) {

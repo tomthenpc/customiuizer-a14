@@ -1,12 +1,16 @@
 package tv.withaibuild.customiuizer.subs
 
 import android.app.Activity
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.SeekBar
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.preference.Preference
 import miui.os.Build
@@ -14,6 +18,8 @@ import tv.withaibuild.customiuizer.CredentialsLauncher
 import tv.withaibuild.customiuizer.PrefsProvider
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.SubFragment
+import tv.withaibuild.customiuizer.mods.GlobalActions
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 import tv.withaibuild.customiuizer.prefs.SeekBarPreference
 import tv.withaibuild.customiuizer.qs.AutoRotateService
@@ -236,7 +242,7 @@ class System : SubFragment() {
                     override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {}
                     override fun onStartTrackingTouch(seekBar: SeekBar) {}
                     override fun onStopTrackingTouch(seekBar: SeekBar) {
-                        Helpers.setAnimationScale(0, seekBar.progress / 10f)
+                        requestAnimationScale(0, seekBar)
                     }
                 })
 
@@ -245,7 +251,7 @@ class System : SubFragment() {
                     override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {}
                     override fun onStartTrackingTouch(seekBar: SeekBar) {}
                     override fun onStopTrackingTouch(seekBar: SeekBar) {
-                        Helpers.setAnimationScale(1, seekBar.progress / 10f)
+                        requestAnimationScale(1, seekBar)
                     }
                 })
 
@@ -254,18 +260,10 @@ class System : SubFragment() {
                     override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {}
                     override fun onStartTrackingTouch(seekBar: SeekBar) {}
                     override fun onStopTrackingTouch(seekBar: SeekBar) {
-                        Helpers.setAnimationScale(2, seekBar.progress / 10f)
+                        requestAnimationScale(2, seekBar)
                     }
                 })
 
-                if (!checkAnimationPermission()) {
-                    listOf("pref_key_system_animationscale_window", "pref_key_system_animationscale_transition", "pref_key_system_animationscale_animator").forEach { key ->
-                        findPreference<Preference>(key)?.apply {
-                            isEnabled = false
-                            setSummary(R.string.launcher_privacyapps_fail)
-                        }
-                    }
-                }
             }
             "pref_key_system_detailednetspeed_cat" -> {}
             "pref_key_system_statusbarcontrols_cat" -> {
@@ -295,8 +293,33 @@ class System : SubFragment() {
         super.onActivityResult(requestCode, resultCode, data)
     }
 
-    private fun checkAnimationPermission(): Boolean {
-        val pm = activity?.packageManager ?: return false
-        return pm.checkPermission("android.permission.SET_ANIMATION_SCALE", Helpers.modulePkg) == PackageManager.PERMISSION_GRANTED
+    private fun requestAnimationScale(type: Int, seekBar: SeekBar) {
+        val context = context ?: return
+        val requestedValue = seekBar.progress / 10f
+        val intent = Intent(GlobalActions.SET_ANIMATION_SCALE_ACTION).apply {
+            setPackage("android")
+            putExtra(GlobalActions.EXTRA_ANIMATION_SCALE_TYPE, type)
+            putExtra(GlobalActions.EXTRA_ANIMATION_SCALE_VALUE, requestedValue)
+        }
+        val resultReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context, intent: Intent?) {
+                if (resultCode == GlobalActions.ACTION_HANDLED) return
+                seekBar.progress = (Helpers.getAnimationScale(type) * 10).roundToInt()
+                val message = if (resultCode == GlobalActions.ACTION_UNHANDLED) {
+                    R.string.animation_scale_bridge_unavailable
+                } else {
+                    R.string.animation_scale_write_failed
+                }
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+        }
+        ModuleHelper.sendOrderedBroadcastWithIdentity(
+            context,
+            intent,
+            null,
+            resultReceiver,
+            Handler(Looper.getMainLooper()),
+            GlobalActions.ACTION_UNHANDLED
+        )
     }
 }
