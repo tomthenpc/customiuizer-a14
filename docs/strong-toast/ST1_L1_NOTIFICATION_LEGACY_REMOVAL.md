@@ -74,7 +74,7 @@ PRODUCT_DECISION = DND_ONLY_SEMANTICS_INTENTIONALLY_DROPPED
 
 ## 5. 生成文件更新
 
-- `feature-semantics/a14.json` 通过 `tools/audit-feature-semantics.py --init` 重新生成。
+- `feature-semantics/a14.json` 从基线 `4717a961` 恢复后，仅删除被移除的旧通知 StrongToast 相关条目；未使用 `--init` 重新生成，未降级任何非相关条目的审核语义。
 - `docs/rom-intelligence/A14_PROCESS_MATRIX.*` 通过 `tools/extract_process_matrix.py` 重新生成。
 - 生成结果不再包含 `Disable Strong Toast` 或 `system_notif_disable_strong_toast`。
 
