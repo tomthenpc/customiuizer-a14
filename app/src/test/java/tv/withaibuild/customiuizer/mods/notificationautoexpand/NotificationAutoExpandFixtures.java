@@ -166,12 +166,14 @@ public final class NotificationAutoExpandFixtures {
     /** Row whose `getEntry()` returns an object with no `mSbn` field. */
     public static class EntryWithoutMbnRow extends BaseExpandableNotificationRow {
         public final EntryWithoutMbn entry;
+        public int getEntryCalls = 0;
 
         public EntryWithoutMbnRow(String packageName) {
             this.entry = new EntryWithoutMbn(packageName);
         }
 
         public Object getEntry() {
+            getEntryCalls++;
             return entry;
         }
 

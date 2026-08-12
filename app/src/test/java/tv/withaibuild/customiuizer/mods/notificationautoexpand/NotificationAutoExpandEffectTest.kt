@@ -3,6 +3,7 @@ package tv.withaibuild.customiuizer.mods.notificationautoexpand
 import io.github.libxposed.api.XposedInterface
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
@@ -228,7 +229,7 @@ class NotificationAutoExpandEffectTest {
     }
 
     @Test
-    fun fast_mSbnMissing_stopsBeforeProceed() {
+    fun fast_mSbnMissing_throwsNoSuchFieldErrorWithoutLegacyRetryOrProceed() {
         val row = NotificationAutoExpandFixtures.EntryWithoutMbnRow("com.example").apply {
             mOnKeyguard = false
         }
@@ -236,12 +237,27 @@ class NotificationAutoExpandEffectTest {
         val effect = fastEffectForRoot(row.javaClass)
         val chain = makeChain(row)
 
-        try {
+        val thrown = try {
             effect.intercept(chain)
-            fail("Expected failure from missing mSbn")
-        } catch (e: Throwable) {
-            assertEquals("chain.proceed must not be called", 0, chain.proceedCount)
+            null
+        } catch (e: NoSuchFieldError) {
+            e
         }
+
+        assertNotNull(
+            "missing mSbn must throw NoSuchFieldError",
+            thrown,
+        )
+        assertEquals(
+            "FAST mSbn failure must not retry through LEGACY getEntry",
+            1,
+            row.getEntryCalls,
+        )
+        assertEquals(
+            "chain.proceed must not be called after FAST mSbn failure",
+            0,
+            chain.proceedCount,
+        )
     }
 
     @Test
