@@ -147,8 +147,6 @@
     <string name="system_statusbarcontrols_dt_right_title">右端をダブルタップ時のアクション</string>
     <string name="system_notifimportance_title">通知の重要度を表示する</string>
     <string name="system_notif_disable_fold_title">通知の折りたたみを無効化する</string>
-    <string name="system_notif_disable_strong_toast_title">デバイスの通知を無効化する</string>
-    <string name="system_notif_disable_strong_toast_summ">以下のシナリオでは無効にする</string>
     <string name="system_morenotif_title">アプリごとの通知表示数制限を削除する</string>
     <string name="system_colorizenotiftitle_title">通知のタイトルをカラー化する</string>
     <string name="system_colorizenotiftitle_summ">アイコンの色をカードに適用します</string>

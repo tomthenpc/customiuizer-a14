@@ -154,8 +154,6 @@
     <string name="system_statusbarcontrols_dt_right_title">双击右上角动作</string>
     <string name="system_notifimportance_title">开放通知的重要程度</string>
     <string name="system_notif_disable_fold_title">禁止通知折叠为历史通知</string>
-    <string name="system_notif_disable_strong_toast_title">按场景屏蔽灵动额头</string>
-    <string name="system_notif_disable_strong_toast_summ">始终屏蔽，或仅在勿扰模式下屏蔽</string>
     <string name="system_morenotif_title">移除每个应用只显示10条通知的限制</string>
     <string name="system_colorizenotiftitle_title">着色通知卡片</string>
     <string name="system_colorizenotiftitle_summ">将图标颜色应用到通知卡片</string>

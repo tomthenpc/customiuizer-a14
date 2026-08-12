@@ -1171,25 +1171,6 @@ internal class DisableFoldNotificationsFeature(
     override fun installHook() = SystemUINotificationHooks.DisableFoldNotificationsHook(lpparam)
 }
 
-internal class DisableStrongToastFeature(
-    lpparam: PackageReadyParam,
-    mPrefs: PrefMap
-) : BaseSystemUiFeature(
-    lpparam,
-    mPrefs,
-    DisableStrongToastFeatureId,
-    "Disable Strong Toast",
-    "system_notif_disable_strong_toast"
-) {
-    companion object {
-        @JvmStatic
-        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("system_notif_disable_strong_toast")
-    }
-
-    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
-    override fun installHook() = SystemUI.DisableStrongToastHook(lpparam)
-}
-
 internal class ChargingInfoFeature(
     private val lpparam: PackageReadyParam
 ) : FeatureDefinition {
@@ -2487,15 +2468,6 @@ object SystemUiFeatures {
             phase = InstallPhase.PACKAGE_READY,
             enabled = { prefs -> DisableFoldNotificationsFeature.evaluateEnabled(prefs) },
             factory = { DisableFoldNotificationsFeature(lpparam, mPrefs) },
-        ),
-        LazyFeatureSpec(
-            id = DisableStrongToastFeatureId,
-            name = "Disable Strong Toast",
-            preferenceKey = "system_notif_disable_strong_toast",
-            target = FeatureTarget.SYSTEM_UI,
-            phase = InstallPhase.PACKAGE_READY,
-            enabled = { prefs -> DisableStrongToastFeature.evaluateEnabled(prefs) },
-            factory = { DisableStrongToastFeature(lpparam, mPrefs) },
         ),
         LazyFeatureSpec(
             id = ChargingInfoFeatureId,

@@ -589,33 +589,6 @@
 			android:title="@string/system_notif_disable_fold_title" />
 
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
-			android:key="pref_key_system_notif_disable_strong_toast"
-			android:title="@string/system_notif_disable_strong_toast_title"
-			android:summary="@string/system_notif_disable_strong_toast_summ" />
-
-		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
-			android:key="pref_key_system_notif_disable_strong_toast_always"
-			android:defaultValue="true"
-			miuizer:indentLevel="1"
-			android:title="@string/array_always" />
-
-		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
-			android:key="pref_key_system_notif_disable_strong_toast_dnd"
-			miuizer:indentLevel="1"
-			android:title="@string/system_statusbaricons_dnd_title" />
-
-<!--		<tv.withaibuild.customiuizer.prefs.SeekBarPreference-->
-<!--			android:key="pref_key_system_notif_strong_toast_width"-->
-<!--			android:title="@string/system_notif_strong_toast_width_title"-->
-<!--			android:defaultValue="100"-->
-<!--			miuizer:minValue="70"-->
-<!--			miuizer:maxValue="100"-->
-<!--			miuizer:stepValue="5"-->
-<!--			miuizer:format="%d%%"-->
-<!--			android:dependency="pref_key_system_notif_disable_strong_toast"-->
-<!--			miuizer:offtext="@string/array_default" />-->
-
-		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 			android:key="pref_key_system_morenotif"
 			android:title="@string/system_morenotif_title" />
 

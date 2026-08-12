@@ -107,25 +107,6 @@ object SystemUI {
     }
 
     @JvmStatic
-    fun DisableStrongToastHook(lpparam: PackageReadyParam) {
-        ModuleHelper.hookAllMethods("com.android.systemui.toast.MIUIStrongToastControl", lpparam.classLoader, "showCustomStrongToast", object : MethodHook() {
-            override fun before(param: BeforeHookCallback) {
-                var blockToast = MainModule.mPrefs.getBoolean("system_notif_disable_strong_toast_always", true)
-                if (!blockToast) {
-                    val dnd = MainModule.mPrefs.getBoolean("system_notif_disable_strong_toast_dnd", false)
-                    if (dnd) {
-                        val zenModeController = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.statusbar.policy.ZenModeController")
-                        blockToast = XposedHelpers.callMethod(zenModeController, "isZenModeOn") as Boolean
-                    }
-                }
-                if (blockToast) {
-                    param.returnAndSkip(null)
-                }
-            }
-        })
-    }
-
-    @JvmStatic
     fun TweakStrongToastHook(lpparam: PackageReadyParam) {
         val toastWidth = MainModule.mPrefs.getInt("system_notif_strong_toast_width", 100)
         if (toastWidth < 100) {

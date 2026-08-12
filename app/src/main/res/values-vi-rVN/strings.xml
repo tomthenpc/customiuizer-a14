@@ -147,8 +147,6 @@
     <string name="system_statusbarcontrols_dt_right_title">Thao tác nhấn đúp vào góc phải</string>
     <string name="system_notifimportance_title">Hiện thông báo quan trọng</string>
     <string name="system_notif_disable_fold_title">Tắt thông báo gập</string>
-    <string name="system_notif_disable_strong_toast_title">Tắt thông báo thiết bị</string>
-    <string name="system_notif_disable_strong_toast_summ">Vô hiệu hóa trong các trường hợp sau</string>
     <string name="system_morenotif_title">Xóa giới hạn số lượng thông báo cho mỗi ứng dụng</string>
     <string name="system_colorizenotiftitle_title">Tô màu thẻ thông báo</string>
     <string name="system_colorizenotiftitle_summ">Áp dụng màu của biểu tượng cho thẻ</string>
