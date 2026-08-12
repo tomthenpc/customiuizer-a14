@@ -146,19 +146,22 @@ re-throws fatal / format errors as `BackupRestoreException`.
 
 ### 8.2 Exact Wire Allowlist
 
-Historical fixture evidence (host JDK 17 `ObjectOutputStream`):
+Historical fixture evidence (host JDK 17 `ObjectOutputStream` / API 34 AOSP
+`ObjectStreamClass` constants):
 
-```text
-java.util.HashMap
-java.util.HashSet
-java.lang.Boolean
-java.lang.Integer
-java.lang.Long
-java.lang.Float
-java.lang.String
-java.lang.Number   (super class only)
-java.lang.Object   (super class only)
-```
+| Class | SUID | Flags | Fields | Superclass |
+|-------|------|-------|--------|------------|
+| `java.util.HashMap` | `362498820763181265` | `0x03` (`SC_SERIALIZABLE \| SC_WRITE_METHOD`) | `float loadFactor`, `int threshold` | none |
+| `java.util.HashSet` | `-5024744406713321676` | `0x03` | none | none |
+| `java.lang.Boolean` | `-3665804199014368530` | `0x02` (`SC_SERIALIZABLE`) | `boolean value` | none |
+| `java.lang.Integer` | `1360826667806852920` | `0x02` | `int value` | `java.lang.Number` |
+| `java.lang.Long` | `4290774380558885855` | `0x02` | `long value` | `java.lang.Number` |
+| `java.lang.Float` | `-2671257302660747028` | `0x02` | `float value` | `java.lang.Number` |
+| `java.lang.Number` | `-8742448824652078965` | `0x02` | none | none |
+
+`java.lang.String` is `TC_STRING`, not an object class descriptor.
+`java.lang.Object` never appears as a serializable class descriptor in the
+proven graph.
 
 The decoder explicitly rejects `LinkedHashMap`, `LinkedHashSet`, `ArrayList`,
 `Date`, `Double`, `Enum`, arrays, proxies, custom `Serializable`, and any
@@ -180,19 +183,31 @@ maxArrayLength = 16
 Decoder-enforced headroom limits:
 
 ```text
-LEGACY_MAX_DEPTH        = 16
-LEGACY_MAX_REFERENCES   = 100_000
-LEGACY_MAX_ARRAY_LENGTH = 16_384
+LEGACY_MAX_DEPTH            = 16    (nested object graph)
+LEGACY_MAX_DESCRIPTOR_DEPTH = 8     (class-descriptor superclass recursion)
+LEGACY_MAX_REFERENCES       = 100_000  (allocated wire handles)
+LEGACY_MAX_ARRAY_LENGTH     = 16_384
 ```
 
 `LEGACY_MAX_ARRAY_LENGTH` is set to the next power-of-two headroom for a
 full 4 096-entry `HashMap` / `HashSet` table (`4 096 / 0.75 ≈ 8 192`;
 `16_384` provides margin). The bound is checked on the declared `HashMap` /
-`HashSet` capacity before `ObjectInputStream` would allocate a backing table.
+`HashSet` capacity before the backing table is allocated.
 
-Fail-closed class policy:
-- `serialClass == null` or interface-only: only graph / allocation limits apply.
-- Unknown concrete class → `InvalidClassException` / `BackupRestoreException`.
+Handle allocation (`class descriptors`, `objects`, `strings`) is bounded in
+`LegacyBackupDecoder.assignHandle()`; the handle table cannot exceed
+`LEGACY_MAX_REFERENCES`.
+
+Class-descriptor recursion (`readNewClassDesc` → `superClassDesc`) is bounded
+separately from object depth.
+
+Fail-closed descriptor policy:
+- Unknown class name is rejected immediately after it is read, before fields,
+  class annotations, or superclass descriptors are parsed.
+- SUID, flags, field count, field names/types, and superclass relationship are
+  validated against the exact frozen schema for the class name.
+- `SC_EXTERNALIZABLE`, `SC_ENUM`, `SC_BLOCK_DATA`, or unknown flag bits are
+  rejected for every allowlisted class.
 - Proxy / enum → rejected.
 - `TC_ARRAY` → rejected (the historical wire graph contains no serialized arrays;
   internal `Node[]` allocation is bounded by `LEGACY_MAX_ARRAY_LENGTH`).
@@ -207,25 +222,30 @@ Fail-closed class policy:
 ### 8.5 API 34 Runtime Evidence
 
 Per-stream `ObjectInputFilter` capability on Android 14 / API 34 was **not
-independently verified** in this environment. The corrective removes all
-`ObjectInputStream` / `ObjectInputFilter` dependence and uses a focused parser
-that is compatible with any Java 8+ runtime.
+independently verified** in this environment. `LegacyBackupDecoder` removes all
+`ObjectInputStream` / `ObjectInputFilter` dependence and instead parses only the
+proven, frozen ObjectOutputStream wire subset.
 
-The final legacy mechanism is `LegacyBackupDecoder` (no `ObjectInputStream`, no
-reflection, no hidden APIs). Host JDK 17 unit tests cover the normal, evil
-`readObject`, graph-limit, and array-capacity paths. An Android instrumentation
-test for API 34 is not available in this environment and is not included.
+The decoder validates every class descriptor against the exact historical schema
+(SUID, flags, fields, superclass) and rejects any deviation before object data is
+read. Host JDK 17 unit tests cover the normal, evil `readObject`, graph-limit,
+descriptor-depth, handle-count, and array-capacity paths. An Android
+instrumentation test for API 34 is not available in this environment and is not
+included.
 
 ### 8.6 Residual Limitations
 
 - The legacy parser supports only the proven historical wire graph. If an
-  Android device emits a different `ObjectOutputStream` layout (e.g. old-format
-  `HashMap` block with only `size`, or a `String[]` in a `HashSet`), the parser
-  will reject it until the layout is added to the allowed subset.
+  Android device emits a different `ObjectOutputStream` layout, a different
+  `serialVersionUID`, or a different superclass chain, the parser rejects it.
+  Adding a new descriptor to the allowlist requires an explicit API 34 / AOSP
+  fixture and an independent audit.
 - `TC_ARRAY` is rejected entirely because the historical wire graph contains no
   serialized arrays. If Android evidence shows a required array, the policy must
   be revisited.
-- Android API 34 runtime evidence is pending.
+- The legacy stream must contain exactly one root object. Trailing bytes or
+  additional root objects are rejected.
+- Android API 34 runtime evidence is unavailable in this environment.
 
 ## 9. Post-Decode Bounds
 
@@ -280,11 +300,15 @@ V2:
 
 Legacy (host JDK 17 unit tests; API 34 instrumentation unavailable):
 - `HashMap` root with Boolean, Int, Long, Float, String, `HashSet<String>`
+- exact class-descriptor schema (SUID, flags, fields, superclass)
 - reject `LinkedHashMap`, `LinkedHashSet`, `ArrayList`, `Double`
 - reject custom `Serializable` with `readObject` before execution
-- reject `TC_PROXYCLASSDESC` / `TC_ENUM` / `TC_ARRAY`
+- reject `TC_PROXYCLASSDESC` / `TC_ENUM` / `TC_ARRAY` / unexpected class descriptor
 - reject over `LEGACY_MAX_ARRAY_LENGTH` capacity
 - reject over `LEGACY_MAX_DEPTH` nested graph
+- reject over `LEGACY_MAX_DESCRIPTOR_DEPTH` class-descriptor chain
+- reject over `LEGACY_MAX_REFERENCES` handle allocation
+- root-only / trailing-byte / second-root rejection
 - wrong root
 - oversized input
 - `MAX_FILE_SIZE` bounds

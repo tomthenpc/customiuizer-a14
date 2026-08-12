@@ -18,6 +18,12 @@ import org.junit.Test
 
 class BackupRestoreTest {
 
+    // Legacy ObjectOutputStream type codes used for raw malicious fixtures.
+    private val TC_NULL = 0x70
+    private val TC_CLASSDESC = 0x72
+    private val TC_OBJECT = 0x73
+    private val TC_ENDBLOCKDATA = 0x78
+
     @Test
     fun generateBackupFilenameHasCorrectPrefixAndTimestamp() {
         val filename = BackupRestore.generateBackupFilename()
@@ -624,6 +630,123 @@ class BackupRestoreTest {
             fail("Expected BackupRestoreException")
         } catch (e: BackupRestore.BackupRestoreException) {
             assertTrue("Expected depth bound", e.message?.contains("depth") == true)
+        }
+    }
+
+    @Test
+    fun decodeLegacyBackupContainsAllSupportedTypes() {
+        val map = HashMap<String, Any?>()
+        map["bool"] = true
+        map["int"] = 42
+        map["long"] = 1234567890123L
+        map["float"] = 3.14f
+        map["string"] = "hello"
+        map["set"] = HashSet<String>().apply { add("a"); add("b") }
+
+        val decoded = BackupRestore.decodeLegacyBackup(serialize(map)) as Map<String, Any?>
+
+        assertEquals(true, decoded["bool"])
+        assertEquals(42, decoded["int"])
+        assertEquals(1234567890123L, decoded["long"])
+        assertEquals(3.14f, decoded["float"])
+        assertEquals("hello", decoded["string"])
+        @Suppress("UNCHECKED_CAST")
+        val set = decoded["set"] as Set<String>
+        assertEquals(setOf("a", "b"), set)
+    }
+
+    @Test
+    fun decodeLegacyBackupRejectsTrailingByte() {
+        val map = HashMap<String, Any?>()
+        map["key"] = true
+        val bytes = serialize(map).toMutableList()
+        bytes.add(0x00)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes.toByteArray())
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected trailing bytes rejection", e.message?.contains("trailing") == true)
+        }
+    }
+
+    @Test
+    fun decodeLegacyBackupRejectsSecondRootObject() {
+        val map = HashMap<String, Any?>()
+        map["key"] = true
+
+        val output = ByteArrayOutputStream()
+        ObjectOutputStream(output).use { oos ->
+            oos.writeObject(map)
+            oos.writeObject(map)
+        }
+
+        try {
+            BackupRestore.decodeLegacyBackup(output.toByteArray())
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected trailing bytes rejection", e.message?.contains("trailing") == true)
+        }
+    }
+
+    @Test
+    fun decodeLegacyBackupRejectsDeepClassDescriptorChainWithoutStackOverflow() {
+        val output = ByteArrayOutputStream()
+        val data = java.io.DataOutputStream(output)
+
+        // Stream header.
+        data.writeByte(0xAC)
+        data.writeByte(0xED)
+        data.writeByte(0x00)
+        data.writeByte(0x05)
+
+        // Root TC_OBJECT.
+        data.writeByte(TC_OBJECT)
+
+        // Build a 20-level class-descriptor chain using java.lang.Number (an
+        // allowlisted descriptor with no instance data). Each descriptor's
+        // superclass is another TC_CLASSDESC, forcing superclass recursion.
+        val chainDepth = 20
+        val numberName = "java.lang.Number"
+        val numberSuid = -8742448824652078965L
+        val numberFlags = 0x02
+
+        repeat(chainDepth) { index ->
+            data.writeByte(TC_CLASSDESC)
+            data.writeUTF(numberName)
+            data.writeLong(numberSuid)
+            data.writeByte(numberFlags)
+            data.writeShort(0)
+            data.writeByte(TC_ENDBLOCKDATA)
+            if (index == chainDepth - 1) {
+                data.writeByte(TC_NULL)
+            }
+        }
+
+        try {
+            BackupRestore.decodeLegacyBackup(output.toByteArray())
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected descriptor depth bound", e.message?.contains("descriptor depth") == true)
+        }
+    }
+
+    @Test
+    fun decodeLegacyBackupRejectsHandleLimit() {
+        val map = HashMap<String, HashSet<String>>()
+        repeat(100) { i ->
+            val set = HashSet<String>()
+            repeat(BackupFormatV2.MAX_SET_ITEMS) { j ->
+                set.add(String.format("s%05d", i * BackupFormatV2.MAX_SET_ITEMS + j))
+            }
+            map["set$i"] = set
+        }
+
+        try {
+            BackupRestore.decodeLegacyBackup(serialize(map))
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected handle bound", e.message?.contains("handle") == true)
         }
     }
 

@@ -319,18 +319,7 @@ class BackupFormatV2Test {
 
     @Test
     fun encodeAcceptsExactMaxFileSize() {
-        // 31 full-size string entries plus one smaller entry to hit MAX_FILE_SIZE exactly.
-        val entries = linkedMapOf<String, Any?>()
-        val fullString = "a".repeat(BackupFormatV2.MAX_STRING_BYTES)
-        repeat(31) { entries["k" + it.toString().padStart(3, '0')] = fullString }
-        val perEntryOverhead = 2 + 4 + 1 + 4 // key-length + key + type tag + string-length
-        val lastKeyBytes = 8
-        val lastOverhead = 2 + lastKeyBytes + 1 + 4
-        val lastStringSize = BackupFormatV2.MAX_FILE_SIZE -
-            20L - // header + CRC
-            31L * (perEntryOverhead + BackupFormatV2.MAX_STRING_BYTES) -
-            lastOverhead
-        entries["last_key"] = "b".repeat(lastStringSize.toInt())
+        val (entries, _) = buildMaxFileSizeEntries()
 
         val encoded = BackupFormatV2.encode(entries)
         assertEquals(BackupFormatV2.MAX_FILE_SIZE.toInt(), encoded.size)
@@ -341,15 +330,33 @@ class BackupFormatV2Test {
 
     @Test
     fun encodeRejectsMaxFileSizePlusOne() {
-        val entries = linkedMapOf<String, Any?>()
-        val fullString = "a".repeat(BackupFormatV2.MAX_STRING_BYTES)
-        repeat(32) { entries["k" + it.toString().padStart(3, '0')] = fullString }
+        val (entries, lastStringSize) = buildMaxFileSizeEntries()
+        // Increase the last String by exactly one UTF-8 byte.
+        entries["last_key"] = "b".repeat((lastStringSize + 1).toInt())
+
         try {
             BackupFormatV2.encode(entries)
             fail("Expected BackupFormatException")
         } catch (e: BackupFormatV2.BackupFormatException) {
-            assertTrue(e.message?.contains("encoded size") == true)
+            assertTrue(e.message?.contains("V2 encoded size") == true)
+            assertTrue(e.message?.contains("exceeds") == true)
         }
+    }
+
+    private fun buildMaxFileSizeEntries(): Pair<MutableMap<String, Any?>, Long> {
+        // 31 full-size string entries plus one smaller entry to hit MAX_FILE_SIZE exactly.
+        val entries = linkedMapOf<String, Any?>()
+        val fullString = "a".repeat(BackupFormatV2.MAX_STRING_BYTES)
+        repeat(31) { entries["k" + it.toString().padStart(3, '0')] = fullString }
+        val perEntryOverhead = 2L + 4L + 1L + 4L // key-length + key + type tag + string-length
+        val lastKeyBytes = 8L
+        val lastOverhead = 2L + lastKeyBytes + 1L + 4L
+        val lastStringSize = BackupFormatV2.MAX_FILE_SIZE -
+            20L - // header + CRC
+            31L * (perEntryOverhead + BackupFormatV2.MAX_STRING_BYTES) -
+            lastOverhead
+        entries["last_key"] = "b".repeat(lastStringSize.toInt())
+        return Pair(entries, lastStringSize)
     }
 
     private fun payloadWithCrc(payload: ByteArray): ByteArray {

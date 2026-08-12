@@ -60,6 +60,7 @@ object BackupRestore {
      * above 4096/0.75 is 8192). 16384 provides margin while staying small.
      */
     const val LEGACY_MAX_DEPTH = 16L
+    const val LEGACY_MAX_DESCRIPTOR_DEPTH = 8L
     const val LEGACY_MAX_REFERENCES = 100_000L
     const val LEGACY_MAX_ARRAY_LENGTH = 16_384L
 
@@ -259,7 +260,7 @@ object BackupRestore {
     /**
      * Post-decode bounds check for both V2 and legacy formats.
      *
-     * Defense in depth: the V2 decoder and legacy `ObjectInputFilter` already
+     * Defense in depth: the V2 decoder and legacy focused parser already
      * enforce most bounds, but this pass guarantees the decoded in-memory map
      * also respects the final M2 constants before normalization.
      */
