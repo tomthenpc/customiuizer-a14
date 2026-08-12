@@ -51,9 +51,10 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun targetHeight_usesDisplayDensityWithFrameworkRounding() {
-        assertEquals(129, SystemUIStrongToastHooks.targetHeightPx(44, 469))
-        assertEquals(44, SystemUIStrongToastHooks.targetHeightPx(44, 160))
+    fun windowHeight_usesRuntimeInsetAndPreservesRomFallback() {
+        assertEquals(129, SystemUIStrongToastHooks.resolveWindowHeightPx(129, 208))
+        assertEquals(208, SystemUIStrongToastHooks.resolveWindowHeightPx(0, 208))
+        assertEquals(208, SystemUIStrongToastHooks.resolveWindowHeightPx(-1, 208))
     }
 
     private fun fakePackageReadyParam(): io.github.libxposed.api.XposedModuleInterface.PackageReadyParam {

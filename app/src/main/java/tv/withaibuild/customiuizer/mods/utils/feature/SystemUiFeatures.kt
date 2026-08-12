@@ -758,7 +758,7 @@ internal class StrongToastPresentationFeature(
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
-    override fun installHook() = SystemUIStrongToastHooks.install(lpparam, resolveMode(mPrefs), StatusBarHeightConfig.resolveHeightDp(mPrefs))
+    override fun installHook() = SystemUIStrongToastHooks.install(lpparam, resolveMode(mPrefs))
 }
 
 internal class MonitorDeviceInfoFeature(
