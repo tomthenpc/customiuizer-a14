@@ -710,7 +710,7 @@ No `OwnedSlot`, `GenerationOwner`, `WeakReference` cache, per-row cache, per-vie
 
 | Branch | Legacy operations | Strategy B FAST operations |
 |---|---|---|
-| `mOnKeyguard == true` | 1 `getBooleanField`, 0 pref reads | 1 `Field.getBoolean` or `get`+unbox, 0 pref reads |
+| `mOnKeyguard == true` | 1 `getBooleanField`, 0 pref reads | 1 `Field.getBoolean`, 0 pref reads |
 | `mOnKeyguard == false, predicate false` | `getBooleanField` + `getEntry` + `getObjectField(mSbn)` + `getPackageName` + 2 pref reads | `Field` read + `Method.invoke(getEntry)` + `getObjectField(mSbn)` + `callMethod(getPackageName)` + snapshot reads |
 | `mOnKeyguard == false, predicate true` | same + `setSystemExpanded` | same + `Method.invoke(setSystemExpanded)` |
 
