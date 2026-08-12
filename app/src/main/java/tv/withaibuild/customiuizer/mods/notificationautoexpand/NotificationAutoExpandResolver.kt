@@ -9,8 +9,12 @@ import java.lang.reflect.Method
  * Cold resolver for the Notification Auto-Expand frozen ABI.
  *
  * Reflection and class discovery happens once during hook installation. The output is an
- * immutable [NotificationAutoExpandAbi]. Hot paths must not perform any further discovery,
- * classloader lookups, or reflection resolution.
+ * immutable [NotificationAutoExpandAbi]. Hot paths must not perform any further discovery or
+ * resolution of the three frozen members (`mOnKeyguard`, `getEntry`, `setSystemExpanded`) and
+ * must not perform [ClassLoader] lookups or `findClass`/`findClassIfExists` calls.
+ *
+ * The retained LEGACY helpers `mSbn` and `getPackageName` remain dynamic and may use their
+ * normal XposedHelpers caching semantics; they are not resolved by this ABI.
  *
  * The resolver returns `null` (expected miss / ordinary failure) to select the complete
  * legacy XposedHelpers path. Fatal errors are propagated immediately.

@@ -156,7 +156,7 @@ data class NotificationAutoExpandSnapshot(
 | `snapshot == null` | `COMPLETE_LEGACY` | e.g. first callback races ahead of initial refresh. |
 | `thisObject == null` | `COMPLETE_LEGACY` | Exact-root policy cannot be verified. |
 | `thisObject.javaClass !== resolutionRoot` | `COMPLETE_LEGACY` | Subclass / proxy mismatch. |
-| `thisObject != null && thisObject.javaClass === resolutionRoot && snapshot != null` | FAST | Frozen field/method handles, no classloader lookups, no preference reads. |
+| 	hisObject != null && thisObject.javaClass === resolutionRoot && snapshot != null | FAST | Frozen field/method handles for mOnKeyguard/getEntry/setSystemExpanded; no classloader lookups; no preference reads. Retained LEGACY helpers still resolve mSbn and getPackageName dynamically. |
 
 No FAST→LEGACY retry is performed after the FAST boundary is crossed.
 
@@ -180,7 +180,7 @@ No FAST→LEGACY retry is performed after the FAST boundary is crossed.
 ```
 
 - `setSystemExpanded` is invoked at most once per callback.
-- No preference reads, no `findField`, no `findMethodBestMatch`, no HashMap/Set allocation in the normal FAST path.
+- No preference reads, no new `findClass`/`findClassIfExists` calls, no `ClassLoader` lookups, and no HashMap/Set allocation in the normal FAST path. The frozen `findField`/`findMethodBestMatch` work is done once at install; retained LEGACY `mSbn`/`getPackageName` helpers may use their normal XposedHelpers caches.
 
 ---
 
@@ -226,13 +226,13 @@ The legacy path replicates the original `SystemNotificationHooks.ExpandNotificat
 The FAST path is designed to avoid the following in a normal callback:
 
 - `MainModule.mPrefs` reads.
-- `XposedHelpers.findField` / `findMethodBestMatch` / `findClass`.
+- New `findClass`/`findClassIfExists` calls, `ClassLoader` lookups, or per-callback discovery of the three frozen members.
 - `ClassLoader` lookups.
 - `HashMap`, `Set`, or `ArrayList` creation.
 - Normal-path logging, timestamps, or diagnostic writes.
 - Allocation of callback-local objects beyond the temporary `entry`, `notification`, `pkgName`, `opt`, and `isSelected`.
 
-The only reflective calls are the pre-resolved `Field.getBoolean` and `Method.invoke` handles held in `NotificationAutoExpandAbi`.
+The pre-resolved Field.getBoolean and Method.invoke handles for the three frozen members are invoked directly. The retained LEGACY mSbn and getPackageName helpers remain dynamic and may perform their own XposedHelpers reflection; they are not resolved at install time.
 
 ---
 

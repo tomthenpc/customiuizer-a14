@@ -10,10 +10,16 @@ import java.util.concurrent.atomic.AtomicReference
  * Hot-path effect for the Notification Auto-Expand hook.
  *
  * The effect holds only an immutable [NotificationAutoExpandAbi] and a snapshot reference. It
- * never performs runtime member discovery, [ClassLoader] lookups, string-based field lookups, or
- * generic reflection. It does not retain runtime `ExpandableNotificationRow`, entry, notification,
- * [android.view.View], [android.content.Context], [android.app.Activity], or
+ * performs no per-callback ABI discovery, no [ClassLoader] lookups, no preference reads, and no
+ * `findClass`/`findClassIfExists` calls. It does not retain runtime `ExpandableNotificationRow`,
+ * entry, notification, [android.view.View], [android.content.Context], [android.app.Activity], or
  * [android.view.Window] instances beyond the hot method invocation.
+ *
+ * The FAST path uses the frozen `mOnKeyguard`, `getEntry`, and `setSystemExpanded` reflective
+ * handles. The LEGACY helpers `mSbn` (via [XposedHelpers.getObjectField]) and `getPackageName`
+ * (via [XposedHelpers.callMethod]) remain dynamic on FAST; they may use their normal cached
+ * `findField`/`findMethodBestMatch` semantics, but no fresh ABI discovery is performed for the
+ * three frozen members.
  *
  * Each callback selects exactly one execution mode at the start and keeps it for the entire
  * invocation: FAST uses the frozen [java.lang.reflect.Field] and [java.lang.reflect.Method]
@@ -45,7 +51,8 @@ internal class NotificationAutoExpandEffect(
     }
 
     /**
-     * FAST path: all field/method access uses frozen handles.
+     * FAST path: the three frozen members (`mOnKeyguard`, `getEntry`, `setSystemExpanded`) use
+     * frozen handles. `mSbn` and `getPackageName` remain dynamic LEGACY XposedHelpers helpers.
      */
     private fun processFast(
         thisObject: Any,

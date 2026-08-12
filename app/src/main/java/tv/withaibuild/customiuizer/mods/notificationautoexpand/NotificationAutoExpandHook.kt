@@ -1,16 +1,25 @@
 package tv.withaibuild.customiuizer.mods.notificationautoexpand
 
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
+import tv.withaibuild.customiuizer.mods.utils.HookDiagnostics
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
+import tv.withaibuild.customiuizer.mods.utils.PreferenceObserverRegistry
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 
 /**
  * Thin hook installer for the Notification Auto-Expand feature.
  *
- * Resolves the frozen ABI, installs the process-scoped runtime state, and wires the
- * [MethodHook] to the [NotificationAutoExpandEffect]. The original hook surface,
- * `ModuleHelper.hookAllMethods(..., "setFeedbackIcon", ...)`, is preserved.
+ * Performs a fail-safe target class probe before resolving the frozen ABI or creating
+ * process-scoped runtime state. If the target class is missing or the probe fails with an
+ * ordinary non-fatal error, installation is isolated with ModuleHelper-compatible
+ * diagnostics and no runtime state, observer, or callback is created.
+ *
+ * If the target class is found, it resolves the frozen ABI, installs the
+ * [NotificationAutoExpandRuntimeState] singleton, builds the
+ * [NotificationAutoExpandEffect], and wires the [MethodHook] to all `setFeedbackIcon` methods
+ * on `ExpandableNotificationRow` via [ModuleHelper.hookAllMethods].
  */
 internal object NotificationAutoExpandHook {
 
@@ -19,7 +28,24 @@ internal object NotificationAutoExpandHook {
 
     @JvmStatic
     fun install(classLoader: ClassLoader?) {
-        val resolutionRootClass = XposedHelpers.findClassIfExists(TARGET_CLASS, classLoader)
+        val resolutionRootClass = try {
+            XposedHelpers.findClassIfExists(TARGET_CLASS, classLoader)
+        } catch (t: Throwable) {
+            val toReport = FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("NotificationAutoExpandHook: target class probe failed for $TARGET_CLASS")
+            XposedHelpers.log(toReport)
+            HookDiagnostics.record(
+                PreferenceObserverRegistry.processName(),
+                HookDiagnostics.Kind.ALL_METHODS,
+                TARGET_CLASS,
+                HOOK_METHOD,
+                "",
+                HookDiagnostics.Status.INSTALL_FAILED,
+                toReport.javaClass.simpleName,
+            )
+            return
+        }
+
         if (resolutionRootClass == null) {
             // Preserve the legacy ModuleHelper diagnostics for a missing hook target class:
             // log and record TARGET_CLASS_MISSING, then return without installing a callback,
