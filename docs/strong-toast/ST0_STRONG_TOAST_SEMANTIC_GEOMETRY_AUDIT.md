@@ -144,7 +144,7 @@ RUNTIME_INTERCEPTOR_DISPATCH_ORDER = NOT FROZEN BY CURRENT REPOSITORY EVIDENCE
 - **Hook 顺序重要**：虽然安装注册顺序为 `NEW_THEN_LEGACY`，但 runtime interceptor dispatch 顺序未冻结；若新 HIDE 的 `before` 先执行并 `returnAndSkip`，旧 `Disable` 的 `before` 可能不会收到回调，反之亦然。
 - **一个 hook 可能使另一个失效**：根据实际 dispatch 顺序，任一 `returnAndSkip(null)` 都可能让另一个的条件逻辑无法生效。
 - **行为交叉 / 重复 policy**：两套 feature 同时启用时，两个 `before` 回调会读取不同 preference，可能产生“重复拦截”或“条件覆盖”。
-- **异常风险**：旧 `Disable` 每次调用都反射获取 `ZenModeController` 并调用 `isZenModeOn` (`SystemUI.kt:115-118`)。若其中一套 hook 先 short-circuit，原方法不会执行，但另一套 `before` 仍可能被 libxposed 调用并执行反射；若调用频次高，存在每次 show 都发生一次 `callMethod` 的潜在开销与 ROM 字段/方法缺失风险。
+- **异常风险**：旧 `Disable` 在 `showCustomStrongToast()` 每次调用时都会反射获取 `ZenModeController` 并调用 `isZenModeOn` (`SystemUI.kt:115-118`)。若其中一套 hook 先 short-circuit，原方法不会执行，但另一套 `before` 仍可能被 libxposed 调用并执行反射；存在每次 `showCustomStrongToast()` 调用都发生一次 `callMethod` 的潜在开销与 ROM 字段/方法缺失风险。
 
 ### A5. DND-only policy
 
@@ -259,7 +259,7 @@ RUNTIME_INTERCEPTOR_DISPATCH_ORDER = NOT FROZEN BY CURRENT REPOSITORY EVIDENCE
 - `getWindowParam().height override` 直接设置 outer window 高度，这是仓库代码直接可证的。
 - `setThemeValueReplacement` 将 `strong_toast_height` 这一全局 dimen 替换为 status-bar 高度值，具体 consumer 集合未知。
 - 视觉观察到的 scaling/distortion/clipping 与当前 MATCH 实现相关，但不能在没有变量隔离的情况下归因到 `strong_toast_height` 替换或 `lp.height` 覆盖二者中的某一条。
-- `getWindowParam()` after hook 每次调用都反射获取 `thisObject.resources.displayMetrics`，在每次显示 StrongToast 时执行一次（量级低，但非 install-time resolve）。
+- `getWindowParam()` after hook 在每次 `MIUIStrongToast.getWindowParam()` 被调用时执行（量级低，但非 install-time resolve）。`PER_TOAST_EXACT_CALL_COUNT = NOT_PROVEN`：仓库未证明 StrongToast 每次展示与 `getWindowParam()` 调用次数之间存在 1:1 映射。
 
 ## 12. Device Visual Observation
 
@@ -378,27 +378,54 @@ corner geometry 不得随目标高度无限制同比放大
 - `FeatureInstallState` 保证每个 `FeatureId` 在同一进程仅安装一次 (`FeatureInstallRegistry.kt:77-80`)。
 - `StrongToastPresentationFeature` 没有注册 `PreferenceObserver`；preference 变化后需要 SystemUI 重启生效（与 strings 提示一致：`A full reboot is required`）。
 - `SystemUIStrongToastHooks` 不持有 `Activity`、`View`、`Window` 或 `Context` 的长期引用；hook 回调内使用 `callback.getThisObject()` 的局部 View 引用获取 density。
-- `DisableStrongToastHook` 每次 show 都通过 `ModuleHelper.getDepInstance()` 获取 `ZenModeController` (`SystemUI.kt:115-117`)。`ReflectionCache` 对结果做 ClassLoader 级缓存。DND-only path performs a per-show reflective `ZenModeController.isZenModeOn` invocation. Whether that ROM method performs IPC/Binder work is not established by current repository evidence.
+- `DisableStrongToastHook` 的 `before` hook 在每次 `showCustomStrongToast()` 被调用时通过 `ModuleHelper.getDepInstance()` 获取 `ZenModeController` (`SystemUI.kt:115-117`)。`ReflectionCache` 对结果做 ClassLoader 级缓存。DND-only path performs a per-invocation reflective `ZenModeController.isZenModeOn` call. Whether that ROM method performs IPC/Binder work is not established by current repository evidence.
 
 ### 16.2 并发
 
 - 两套 feature 的 hook 注册在 `SystemUiInstaller` 的单线程安装路径完成 (`SystemUiInstaller.kt:23-53`)，并发风险低。
-- 运行时 `before`/`after` 回调跑在 ROM 调用线程（SystemUI 主线程）。`SystemUIStrongToastHooks` 的 `after` hook 中仅做赋值与异常捕获；`DisableStrongToastHook` 的 `before` 做两次 `mPrefs` 读取与一次 `callMethod`。
+- 运行时 `before`/`after` 回调跑在 ROM 调用线程。`HOOK_CALLBACK_THREAD = ROM_CALLER_THREAD`。`SYSTEMUI_MAIN_THREAD = NOT_PROVEN`（仓库缺少 ROM/runtime 证据）。`SystemUIStrongToastHooks` 的 `after` hook 中仅做赋值与异常捕获；`DisableStrongToastHook` 的 `before` 做两次 `mPrefs` 读取与一次 `callMethod`。
 
 ### 16.3 性能 / 热路径
 
-- `getWindowParam()` `after` hook 每次 StrongToast 显示都会执行：
+- `getWindowParam()` `after` hook 在每次 `MIUIStrongToast.getWindowParam()` 被调用时执行（`GET_WINDOW_PARAM_HOOK_COST = PER_GET_WINDOW_PARAM_INVOCATION`）：
   - 一次 `callback.getResult()`。
   - 一次 `callback.getThisObject()` 与 `resources.displayMetrics.densityDpi` 读取（反射/字段访问）。
   - 一次 `StatusBarHeightConfig.dpToPx`。
   - 一次 `layoutParams.height` 赋值。
-- `setThemeValueReplacement` 在安装期替换一次 ThemeResources，之后所有 `Resources`/`Theme` 读取 `strong_toast_height` 时通过已安装的 `Resources` hook 拦截。热路径为一次 `SparseArray` 查找与一次 HashMap 查找 (`ResourceHooks.kt:155` 与 `ResourceHooks.kt:172`)。
-- 若 `DisableStrongToastHook` 与 `HIDE` 同时启用，同方法 duplicate hook 可能导致每次 show 都发生一次 `ZenModeController` 反射调用，存在重复开销。IPC/Binder 成本未在仓库中证明。
+  - `PER_TOAST_EXACT_CALL_COUNT = NOT_PROVEN`：仓库未证明 StrongToast 每次展示与 `getWindowParam()` 调用次数之间存在 1:1 映射。
+- `setThemeValueReplacement` 在安装期把 `ThemeValue` 写入 `themeValueReplacements` 并触发 `tryInitThemeHook()` (`ResourceHooks.kt:442-471`)。真正的替换发生在 ROM 调用 `miui.content.res.ThemeResources.mergeThemeValues(...)` 时，hook 把新值写入 `ThemeValues.mIntegers` (`ResourceHooks.kt:225-298`)。因此该 StrongToast theme replacement 的应用时机是 **theme merge time**。
+- `ReplaceHook.intercept()` 中的 `SparseArray` / `resourceIdReplacements` 查找属于模块的**普通资源 ID 替换 / fake resource 路径**，不应归因于本次 `strong_toast_height` theme replacement。
+- 若 `DisableStrongToastHook` 与 `HIDE` 同时启用，同方法 duplicate hook 可能导致每次 `showCustomStrongToast()` 调用都发生一次 `ZenModeController` 反射调用，存在重复开销。IPC/Binder 成本未在仓库中证明。
 
 ### 16.4 失败语义
 
 - 若 `MIUIStrongToast` 或 `MIUIStrongToastControl` 类/方法在 ROM 中不存在，`ModuleHelper.hookAllMethods` / `findAndHookMethod` 会记录一次 TARGET_CLASS_MISSING / TARGET_MEMBER_MISSING 并返回，不会抛异常 (`ModuleHelper.kt:300-352`)。
 - `SystemUIStrongToastHooks` `after` hook 用 try/catch 包裹，`OutOfMemoryError` 重抛，其它异常记录日志 (`SystemUIStrongToastHooks.kt:65-68`)。
+
+### 16.5 Corrective 2 Evidence Freeze
+
+```text
+THEME_REPLACEMENT_INSTALL =
+REGISTER_THEME_VALUE_AND_INSTALL_MERGE_THEME_VALUES_HOOK
+
+THEME_REPLACEMENT_APPLICATION =
+THEME_RESOURCES_MERGE_TIME
+
+PER_RESOURCE_GETTER_REPLACEHOOK_COST =
+NOT_ATTRIBUTABLE_TO_STRONG_TOAST_THEME_REPLACEMENT
+
+GET_WINDOW_PARAM_HOOK_COST =
+PER_GET_WINDOW_PARAM_INVOCATION
+
+PER_TOAST_EXACT_CALL_COUNT =
+NOT_PROVEN
+
+HOOK_CALLBACK_THREAD =
+ROM_CALLER_THREAD
+
+SYSTEMUI_MAIN_THREAD =
+NOT_PROVEN
+```
 
 ## 17. Runtime Evidence Contract
 
