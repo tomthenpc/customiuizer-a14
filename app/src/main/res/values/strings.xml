@@ -173,8 +173,6 @@
     <string name="system_statusbarcontrols_dt_right_title">Double tap right corner action</string>
     <string name="system_notifimportance_title">Show notification importance</string>
     <string name="system_notif_disable_fold_title">Disable folding notifications</string>
-    <string name="system_notif_disable_strong_toast_title">Block status capsule by condition</string>
-    <string name="system_notif_disable_strong_toast_summ">Block it always or only while Do Not Disturb is active</string>
     <string name="system_morenotif_title">Remove the notification count limit per app</string>
     <string name="system_colorizenotiftitle_title">Colorize notification card</string>
     <string name="system_colorizenotiftitle_summ">Apply icon\'s color to card</string>

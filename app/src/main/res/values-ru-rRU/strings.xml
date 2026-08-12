@@ -143,7 +143,6 @@
     <string name="system_statusbarcontrols_dt_right_title">Действие двойного нажатия на правом углу</string>
     <string name="system_notifimportance_title">Показывать важные уведомления</string>
     <string name="system_notif_disable_fold_title">Отключить сворачивание уведомлений</string>
-    <string name="system_notif_disable_strong_toast_title">Отключить уведомления устройства</string>
     <string name="system_morenotif_title">Удалить ограничение количества уведомлений для приложения</string>
     <string name="system_colorizenotiftitle_title">Раскрасить заголовок уведомления</string>
     <string name="system_colorizenotiftitle_summ">Применить цвет значка к карте</string>

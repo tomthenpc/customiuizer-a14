@@ -1366,19 +1366,6 @@
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
     {
-      "featureIdInt": 106,
-      "featureIdName": "disable_strong_toast",
-      "name": "Disable Strong Toast",
-      "preferenceKey": "system_notif_disable_strong_toast",
-      "target": "SYSTEM_UI",
-      "phase": "PACKAGE_READY",
-      "installer": "SystemUiFeatures",
-      "installHook": "SystemUI.DisableStrongToastHook(lpparam)",
-      "enableCondition": "prefs.getBoolean(\"system_notif_disable_strong_toast\")",
-      "allowedProcess": "com.android.systemui",
-      "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
-    },
-    {
       "featureIdInt": 107,
       "featureIdName": "charging_info",
       "name": "Charging Info",

@@ -6,8 +6,10 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Bundle
@@ -26,12 +28,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
-import java.io.ObjectInputStream
-import java.io.ObjectOutputStream
-import java.text.SimpleDateFormat
 import java.util.Collections
-import java.util.Date
-import java.util.HashMap
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.coroutineContext
@@ -45,6 +42,7 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.AppLocaleController
 import tv.withaibuild.customiuizer.utils.AppSelectionSanitizer
+import tv.withaibuild.customiuizer.utils.BackupRestore
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
@@ -572,7 +570,7 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         intent.type = "application/octet-stream"
         intent.putExtra(
             Intent.EXTRA_TITLE,
-            "pengeek_backup_" + BACKUP_DATE_FORMAT.format(Date())
+            BackupRestore.generateBackupFilename()
         )
         startActivityForResult(intent, SAVE_BACKFILE)
     }
@@ -586,20 +584,20 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
             try {
                 val outputStream = getValidContext().contentResolver
                     .openOutputStream(data!!.data!!)
-                ObjectOutputStream(outputStream!!).use { output ->
-                    output.writeObject(AppHelper.appPrefs!!.all)
-                }
+                    ?: throw IllegalStateException("Backup output stream unavailable")
+                BackupRestore.performBackup(AppHelper.appPrefs!!, outputStream)
 
                 AlertDialog.Builder(getValidContext())
                     .setTitle(R.string.do_backup)
                     .setMessage(R.string.backup_ok)
                     .setPositiveButton(android.R.string.ok) { _, _ -> }
                     .show()
-            } catch (e: Throwable) {
-                e.printStackTrace()
+            } catch (t: Throwable) {
+                FatalErrors.rethrowIfFatal(t)
+                t.printStackTrace()
                 AlertDialog.Builder(getValidContext())
                     .setTitle(R.string.warning)
-                    .setMessage(getString(R.string.storage_cannot_backup) + "\n" + e.message)
+                    .setMessage(getString(R.string.storage_cannot_backup) + "\n" + t.message)
                     .setPositiveButton(android.R.string.ok) { _, _ -> }
                     .show()
             }
@@ -614,7 +612,6 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         startActivityForResult(intent, PICK_BACKFILE)
     }
 
-    @Suppress("UNCHECKED_CAST")
     open fun doRestoreSettings(uri: Uri?) {
         val validAct = activity as? AppCompatActivity ?: return
         val validUri = uri ?: return
@@ -622,35 +619,45 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
             try {
                 val inputStream = validAct.contentResolver.openInputStream(validUri)
                     ?: throw IllegalStateException("Backup input stream unavailable")
-                val entries = ObjectInputStream(inputStream).use { input ->
-                    input.readObject() as Map<String, Any?>
-                }
-                val installedPackages = AppSelectionSanitizer.queryInstalledPackageNames(
-                    validAct.packageManager,
-                )
-                val sanitizedEntries = AppSelectionSanitizer.sanitizeRestoredEntries(
-                    entries,
-                    installedPackages,
-                )
                 val prefs = AppHelper.appPrefs
                     ?: throw IllegalStateException("Preferences unavailable")
-                // Commit on the IO dispatcher so the success dialog cannot race a restart.
-                AppHelper.syncPrefsToAnother(sanitizedEntries, prefs, 1, null, true)
-                // The restored file describes another device; its language marker says nothing
-                // about the framework locale in force here.
-                AppLocaleController.invalidateFastPath(prefs)
+                val componentName = ComponentName(validAct, GateWayLauncher::class.java)
+                val result = BackupRestore.performRestore(
+                    inputStream,
+                    validAct.packageManager,
+                    prefs,
+                    componentName,
+                )
 
                 withContext(Dispatchers.Main) {
                     if (validAct.isFinishing || validAct.isDestroyed || !isAdded) return@withContext
-                    AlertDialog.Builder(validAct)
-                        .setTitle(R.string.do_restore)
-                        .setMessage(R.string.restore_ok)
-                        .setCancelable(false)
-                        .setPositiveButton(android.R.string.ok) { _, _ ->
-                            validAct.finish()
-                            validAct.startActivity(validAct.intent)
+                    when (result.status) {
+                        BackupRestore.Status.SUCCESS -> {
+                            AlertDialog.Builder(validAct)
+                                .setTitle(R.string.do_restore)
+                                .setMessage(R.string.restore_ok)
+                                .setCancelable(false)
+                                .setPositiveButton(android.R.string.ok) { _, _ ->
+                                    validAct.finish()
+                                    validAct.startActivity(validAct.intent)
+                                }
+                                .show()
                         }
-                        .show()
+                        BackupRestore.Status.PARTIAL_FAILURE -> {
+                            AlertDialog.Builder(validAct)
+                                .setTitle(R.string.warning)
+                                .setMessage(R.string.storage_cannot_restore)
+                                .setPositiveButton(android.R.string.ok) { _, _ -> }
+                                .show()
+                        }
+                        BackupRestore.Status.FAILURE -> {
+                            AlertDialog.Builder(validAct)
+                                .setTitle(R.string.warning)
+                                .setMessage(R.string.storage_cannot_restore)
+                                .setPositiveButton(android.R.string.ok) { _, _ -> }
+                                .show()
+                        }
+                    }
                 }
             } catch (t: Throwable) {
                 FatalErrors.rethrowIfFatal(t)
@@ -674,8 +681,6 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         @JvmField
         protected val MAP_KEYS: Map<Int, String>
 
-        private val BACKUP_DATE_FORMAT: SimpleDateFormat
-
         init {
             val map = HashMap<Int, String>()
             map[R.id.search_btn] = "search"
@@ -688,7 +693,6 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
             map[R.id.resetsettings] = "reset"
             map[R.id.about] = "about"
             MAP_KEYS = Collections.unmodifiableMap(map)
-            BACKUP_DATE_FORMAT = SimpleDateFormat("MMddHHmmss", Locale.US)
         }
     }
 }

@@ -436,10 +436,6 @@ data object DisableFoldNotificationsFeatureId : FeatureId {
     override val id = 105
     override val name = "disable_fold_notifications"
 }
-data object DisableStrongToastFeatureId : FeatureId {
-    override val id = 106
-    override val name = "disable_strong_toast"
-}
 data object ChargingInfoFeatureId : FeatureId {
     override val id = 107
     override val name = "charging_info"

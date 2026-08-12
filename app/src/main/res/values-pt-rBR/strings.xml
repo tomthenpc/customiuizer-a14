@@ -147,8 +147,6 @@
     <string name="system_statusbarcontrols_dt_right_title">Ação de toque duplo no canto direito</string>
     <string name="system_notifimportance_title">Mostrar importância da notificação</string>
     <string name="system_notif_disable_fold_title">Desativar notificações dobráveis</string>
-    <string name="system_notif_disable_strong_toast_title">Desativar notificações do dispositivo</string>
-    <string name="system_notif_disable_strong_toast_summ">Desative nos seguintes cenários</string>
     <string name="system_morenotif_title">Remover limite de contagem de notificações por app</string>
     <string name="system_colorizenotiftitle_title">Colorir cartão de notificação</string>
     <string name="system_colorizenotiftitle_summ">Aplique a cor do ícone ao cartão</string>

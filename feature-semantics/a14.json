@@ -8713,72 +8713,6 @@
       "notes": ""
     },
     {
-      "featureId": "pref_key_system_notif_disable_strong_toast",
-      "featureName": "pref_key_system_notif_disable_strong_toast",
-      "preferenceKeys": [
-        "pref_key_system_notif_disable_strong_toast"
-      ],
-      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
-      "installer": "UNKNOWN",
-      "targetPackage": "UNKNOWN",
-      "installPhase": "APP_UI_ONLY",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "UNKNOWN",
-      "disableEffect": "UNKNOWN",
-      "valueChangeEffect": "UNKNOWN",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "INFERRED",
-      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
-      "notes": ""
-    },
-    {
-      "featureId": "pref_key_system_notif_disable_strong_toast_always",
-      "featureName": "pref_key_system_notif_disable_strong_toast_always",
-      "preferenceKeys": [
-        "pref_key_system_notif_disable_strong_toast_always"
-      ],
-      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
-      "defaultValue": "true",
-      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
-      "installer": "UNKNOWN",
-      "targetPackage": "UNKNOWN",
-      "installPhase": "APP_UI_ONLY",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "UNKNOWN",
-      "disableEffect": "UNKNOWN",
-      "valueChangeEffect": "UNKNOWN",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "INFERRED",
-      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
-      "notes": ""
-    },
-    {
-      "featureId": "pref_key_system_notif_disable_strong_toast_dnd",
-      "featureName": "pref_key_system_notif_disable_strong_toast_dnd",
-      "preferenceKeys": [
-        "pref_key_system_notif_disable_strong_toast_dnd"
-      ],
-      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
-      "installer": "UNKNOWN",
-      "targetPackage": "UNKNOWN",
-      "installPhase": "APP_UI_ONLY",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "UNKNOWN",
-      "disableEffect": "UNKNOWN",
-      "valueChangeEffect": "UNKNOWN",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "INFERRED",
-      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
-      "notes": ""
-    },
-    {
       "featureId": "pref_key_system_notif_strong_toast_width",
       "featureName": "pref_key_system_notif_strong_toast_width",
       "preferenceKeys": [
@@ -17950,50 +17884,6 @@
       "hotReloadable": false,
       "confidence": "UNKNOWN",
       "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:237",
-      "notes": ""
-    },
-    {
-      "featureId": "system_notif_disable_strong_toast_always",
-      "featureName": "system_notif_disable_strong_toast_always",
-      "preferenceKeys": [
-        "system_notif_disable_strong_toast_always"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:before",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "UNKNOWN",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "Applies hook when enabled",
-      "disableEffect": "Restores default behavior",
-      "valueChangeEffect": "Updates applied hook behavior",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:113",
-      "notes": ""
-    },
-    {
-      "featureId": "system_notif_disable_strong_toast_dnd",
-      "featureName": "system_notif_disable_strong_toast_dnd",
-      "preferenceKeys": [
-        "system_notif_disable_strong_toast_dnd"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:before",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "UNKNOWN",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "Applies hook when enabled",
-      "disableEffect": "Restores default behavior",
-      "valueChangeEffect": "Updates applied hook behavior",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:115",
       "notes": ""
     },
     {

@@ -53,31 +53,42 @@ object AppSelectionSanitizer {
         return sanitized
     }
 
+    data class SanitizeResult(
+        val entries: Map<String, Any?>,
+        val changedPrimaryCount: Int,
+    )
+
     @JvmStatic
     internal fun sanitizeRestoredEntries(
         entries: Map<String, Any?>,
         installedPackages: Set<String>,
-    ): Map<String, Any?> {
-        if (installedPackages.isEmpty()) return entries
+    ): SanitizeResult {
+        if (installedPackages.isEmpty()) return SanitizeResult(entries, 0)
 
         val sanitized = LinkedHashMap(entries)
+        var changedPrimaryCount = 0
         for ((key, value) in entries) {
             when {
                 isMultiAppSelectionKey(key) && value is Set<*> -> {
                     val selected = LinkedHashSet<String>()
                     for (item in value) if (item is String) selected.add(item)
-                    sanitized[key] = sanitizeSelection(selected, installedPackages)
+                    val result = sanitizeSelection(selected, installedPackages)
+                    sanitized[key] = result
+                    if (result != selected || result.size != selected.size) {
+                        changedPrimaryCount++
+                    }
                 }
                 isSingleAppSelectionKey(key) && value is String -> {
                     val packageName = value.substringBefore('|')
                     if (packageName.isEmpty() || packageName !in installedPackages) {
                         sanitized.remove(key)
                         sanitized.remove(key + "_user")
+                        changedPrimaryCount++
                     }
                 }
             }
         }
-        return sanitized
+        return SanitizeResult(sanitized, changedPrimaryCount)
     }
 
     @JvmStatic

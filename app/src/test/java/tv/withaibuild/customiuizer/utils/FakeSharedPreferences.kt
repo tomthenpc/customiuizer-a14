@@ -9,6 +9,26 @@ class FakeSharedPreferences : SharedPreferences {
     /** Set to false to simulate a failing [commit]/[apply]. */
     var commitShouldSucceed = true
 
+    /** Optional sequence of commit results. If set, each call to [commit] consumes one value. */
+    var commitSequence: Iterator<Boolean>? = null
+
+    /** If true, [edit] throws the configured exception for ordinary failure tests. */
+    var editShouldThrow = false
+    var editThrowable: Throwable? = RuntimeException("edit failure")
+
+    /** If true, [FakeEditor.apply] throws the configured exception for ordinary failure tests. */
+    var applyShouldThrow = false
+    var applyThrowable: Throwable? = RuntimeException("apply failure")
+
+    /**
+     * Defensive snapshots of the in-memory preference map taken immediately after each
+     * commit/apply, regardless of whether the durability result is true or false.
+     *
+     * This mirrors Android `SharedPreferences` semantics where `commit()` first updates the
+     * in-memory map and then returns the disk-write status.
+     */
+    val commitSnapshots = mutableListOf<Map<String, Any?>>()
+
     fun put(key: String, value: Any?) {
         values[key] = value
     }
@@ -48,11 +68,20 @@ class FakeSharedPreferences : SharedPreferences {
 
     override fun contains(key: String): Boolean = values.containsKey(key)
 
-    override fun edit(): SharedPreferences.Editor = FakeEditor(values)
+    override fun edit(): SharedPreferences.Editor {
+        if (editShouldThrow) throw editThrowable ?: RuntimeException("edit failure")
+        return FakeEditor(values)
+    }
 
     override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {}
 
     override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {}
+
+    /** Returns a defensive copy of the snapshot taken after the [index]-th commit/apply. */
+    fun commitSnapshot(index: Int): Map<String, Any?> = commitSnapshots[index]
+
+    /** Returns the number of recorded commit/apply snapshots. */
+    fun commitSnapshotCount(): Int = commitSnapshots.size
 
     inner class FakeEditor(private val values: MutableMap<String, Any?>) : SharedPreferences.Editor {
 
@@ -109,12 +138,19 @@ class FakeSharedPreferences : SharedPreferences {
         }
 
         override fun commit(): Boolean {
-            if (!this@FakeSharedPreferences.commitShouldSucceed) return false
             applyStaged()
-            return true
+            val sequence = this@FakeSharedPreferences.commitSequence
+            return if (sequence != null && sequence.hasNext()) {
+                sequence.next()
+            } else {
+                this@FakeSharedPreferences.commitShouldSucceed
+            }
         }
 
         override fun apply() {
+            if (this@FakeSharedPreferences.applyShouldThrow) {
+                throw this@FakeSharedPreferences.applyThrowable ?: RuntimeException("apply failure")
+            }
             applyStaged()
         }
 
@@ -129,6 +165,21 @@ class FakeSharedPreferences : SharedPreferences {
             }
             staging.clear()
             clearOnApply = false
+            recordSnapshot()
+        }
+
+        private fun recordSnapshot() {
+            val snapshot = HashMap<String, Any?>(values.size * 4 / 3 + 1)
+            for ((key, value) in values) {
+                snapshot[key] = when (value) {
+                    is Set<*> -> HashSet<String>(value.size).apply {
+                        @Suppress("UNCHECKED_CAST")
+                        addAll(value as Set<String>)
+                    }
+                    else -> value
+                }
+            }
+            commitSnapshots.add(snapshot)
         }
     }
 

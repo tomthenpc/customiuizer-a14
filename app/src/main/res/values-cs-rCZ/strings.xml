@@ -144,7 +144,6 @@
     <string name="system_statusbarcontrols_dt_right_title">Akce dvojím poklepáním v pravém rohu</string>
     <string name="system_notifimportance_title">Zobrazit důležitost oznámení</string>
     <string name="system_notif_disable_fold_title">Zakázat skládání oznámení</string>
-    <string name="system_notif_disable_strong_toast_title">Zakázat oznámení zařízení</string>
     <string name="system_morenotif_title">Odstranit limit počtu oznámení na aplikaci</string>
     <string name="system_colorizenotiftitle_title">Vybarvení názvu oznámení</string>
     <string name="system_colorizenotiftitle_summ">Použít barvu ikony na kartu</string>
