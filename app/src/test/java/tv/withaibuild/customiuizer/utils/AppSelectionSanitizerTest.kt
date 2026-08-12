@@ -41,10 +41,11 @@ class AppSelectionSanitizerTest {
             "pref_key_controls_powerdt" to linkedSetOf("not", "an", "app-list"),
         )
 
-        val sanitized = AppSelectionSanitizer.sanitizeRestoredEntries(
+        val result = AppSelectionSanitizer.sanitizeRestoredEntries(
             restored,
             setOf("com.example.present"),
         )
+        val sanitized = result.entries
 
         assertEquals(
             linkedSetOf("com.example.present"),
@@ -54,6 +55,7 @@ class AppSelectionSanitizerTest {
         assertFalse(sanitized.containsKey("pref_key_system_clock_app"))
         assertFalse(sanitized.containsKey("pref_key_system_clock_app_user"))
         assertEquals(linkedSetOf("not", "an", "app-list"), sanitized["pref_key_controls_powerdt"])
+        assertTrue(result.changedPrimaryCount > 0)
     }
 
     @Test

@@ -9,6 +9,9 @@ class FakeSharedPreferences : SharedPreferences {
     /** Set to false to simulate a failing [commit]/[apply]. */
     var commitShouldSucceed = true
 
+    /** Optional sequence of commit results. If set, each call to [commit] consumes one value. */
+    var commitSequence: Iterator<Boolean>? = null
+
     fun put(key: String, value: Any?) {
         values[key] = value
     }
@@ -109,7 +112,13 @@ class FakeSharedPreferences : SharedPreferences {
         }
 
         override fun commit(): Boolean {
-            if (!this@FakeSharedPreferences.commitShouldSucceed) return false
+            val sequence = this@FakeSharedPreferences.commitSequence
+            val shouldSucceed = if (sequence != null && sequence.hasNext()) {
+                sequence.next()
+            } else {
+                this@FakeSharedPreferences.commitShouldSucceed
+            }
+            if (!shouldSucceed) return false
             applyStaged()
             return true
         }
