@@ -3,7 +3,24 @@
   "contractName": "CustoMIUIzer A14 feature effect and restart semantics",
   "romFamily": "HyperOS 1 / Android 14",
   "androidApi": 34,
-  "exclusions": [],
+  "exclusions": [
+    {
+      "preferenceKey": "pref_key_about_support",
+      "reason": "About-page category header; it does not persist state or install runtime behavior."
+    },
+    {
+      "preferenceKey": "pref_key_about_donate",
+      "reason": "Click-only app UI entry that opens the bundled donation image."
+    },
+    {
+      "preferenceKey": "pref_key_about_repository",
+      "reason": "Click-only app UI entry that opens the source repository."
+    },
+    {
+      "preferenceKey": "pref_key_about_contact",
+      "reason": "Click-only app UI entry that opens the maintainer contact link."
+    }
+  ],
   "entries": [
     {
       "featureId": "key_pkgname_0",

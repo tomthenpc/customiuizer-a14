@@ -50,6 +50,15 @@ python tools/verify.py full
 
 完整流程见 [BUILD_AND_VERIFICATION.md](docs/BUILD_AND_VERIFICATION.md)。
 
+## 支持与联系
+
+如果这个项目对你有帮助，可以通过微信赞赏支持后续开发与维护。
+
+<img src="app/src/main/res/drawable-nodpi/wechat_donation_code.png" alt="微信赞赏码" width="320">
+
+- 仓库主页：<https://github.com/tomthenpc/customiuizer-a14>
+- 联系方式（Telegram）：<https://t.me/Jinji_Kiko>
+
 ## 开发说明
 
 - 稳定与行为保持优先；兼容逻辑限制在 ROM / ClassLoader 边界；

@@ -38,7 +38,8 @@ object SystemUIStrongToastHooks {
         "com.android.systemui.toast.MIUIStrongToastControl"
     private const val MESSAGE_CONTAINER_ID = "cl_strong_toast_msg"
     private const val FOREHEAD_BOTTOM_ID = "strong_toast_bottom_view"
-    private const val CAPSULE_VERTICAL_MARGIN_DP = 6f
+    private const val CAPSULE_TOP_MARGIN_DP = 6f
+    private const val CAPSULE_BOTTOM_SAFETY_MARGIN_DP = 12f
     private val dynamicIslandInterpolator = OvershootInterpolator(0.72f)
 
     @JvmStatic
@@ -76,7 +77,8 @@ object SystemUIStrongToastHooks {
                             resolveDynamicIslandWindowHeightPx(
                                 statusBarInsetPx,
                                 visualHeightPx,
-                                dpToPx(strongToast, CAPSULE_VERTICAL_MARGIN_DP)
+                                dpToPx(strongToast, CAPSULE_TOP_MARGIN_DP),
+                                dpToPx(strongToast, CAPSULE_BOTTOM_SAFETY_MARGIN_DP)
                             )
                         } else {
                             resolveWindowHeightPx(
@@ -168,14 +170,42 @@ object SystemUIStrongToastHooks {
         try {
             val capsule = prepareDynamicIslandCapsule(view) ?: return
             capsule.animate().cancel()
-            val visualWidthPx = capsule.layoutParams?.width
-                ?.takeIf { it > 0 }
+            // onAttachedToWindow precedes the first layout pass. Hide the not-yet-laid-out
+            // capsule and defer exactly once so its real width and centered pivot are stable.
+            // Starting here made HyperOS draw a clipped left half on the first event while
+            // subsequent events reused the already measured View and appeared correct.
+            capsule.alpha = 0f
+            capsule.scaleX = 1f
+            capsule.scaleY = 1f
+            capsule.translationY = 0f
+            capsule.post {
+                if (!capsule.isAttachedToWindow) {
+                    resetDynamicIslandTransform(capsule)
+                    return@post
+                }
+                runDynamicIslandEntrance(view, capsule)
+            }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            resetDynamicIslandTransform(findDynamicIslandCapsule(view) ?: view)
+            XposedHelpers.log("StrongToastDynamicIsland", t)
+        }
+    }
+
+    private fun runDynamicIslandEntrance(view: View, capsule: View) {
+        try {
+            val visualWidthPx = capsule.width
+                .takeIf { it > 0 }
+                ?: capsule.layoutParams?.width?.takeIf { it > 0 }
                 ?: strongToastDimensionPx(view, "strong_toast_width")
-            val visualHeightPx = capsule.layoutParams?.height
-                ?.takeIf { it > 0 }
+            val visualHeightPx = capsule.height
+                .takeIf { it > 0 }
+                ?: capsule.layoutParams?.height?.takeIf { it > 0 }
                 ?: strongToastVisualHeightPx(view)
             capsule.pivotX = visualWidthPx / 2f
-            capsule.pivotY = visualHeightPx / 2f
+            // Anchor the capsule to its top edge. Overshoot may then expand only into the
+            // explicitly reserved bottom safety area instead of crossing the window's top edge.
+            capsule.pivotY = 0f
             capsule.alpha = 0f
             capsule.scaleX = resolveDynamicIslandStartScaleX(
                 currentTopCutoutWidthPx(view),
@@ -185,10 +215,7 @@ object SystemUIStrongToastHooks {
                 currentStatusBarInsetPx(view),
                 visualHeightPx
             )
-            capsule.translationY = -minOf(
-                view.resources.displayMetrics.density * 8f,
-                visualHeightPx * 0.08f
-            )
+            capsule.translationY = 0f
             capsule.animate()
                 .alpha(1f)
                 .scaleX(1f)
@@ -199,7 +226,7 @@ object SystemUIStrongToastHooks {
                 .start()
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
-            resetDynamicIslandTransform(findDynamicIslandCapsule(view) ?: view)
+            resetDynamicIslandTransform(capsule)
             XposedHelpers.log("StrongToastDynamicIsland", t)
         }
     }
@@ -216,8 +243,8 @@ object SystemUIStrongToastHooks {
         layoutParams.width = minOf(visualWidthPx, availableWidthPx)
         layoutParams.height = visualHeightPx
         if (layoutParams is ViewGroup.MarginLayoutParams) {
-            layoutParams.topMargin = dpToPx(root, CAPSULE_VERTICAL_MARGIN_DP)
-            layoutParams.bottomMargin = dpToPx(root, CAPSULE_VERTICAL_MARGIN_DP)
+            layoutParams.topMargin = dpToPx(root, CAPSULE_TOP_MARGIN_DP)
+            layoutParams.bottomMargin = dpToPx(root, CAPSULE_BOTTOM_SAFETY_MARGIN_DP)
         }
         if (layoutParams is LinearLayout.LayoutParams) {
             layoutParams.gravity = Gravity.CENTER_HORIZONTAL
@@ -231,7 +258,11 @@ object SystemUIStrongToastHooks {
         capsule.clipToOutline = true
 
         val rootLayout = root as? LinearLayout
-        rootLayout?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        rootLayout?.apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            clipChildren = false
+            clipToPadding = false
+        }
         findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE
         return capsule
     }
@@ -271,10 +302,15 @@ object SystemUIStrongToastHooks {
     internal fun resolveDynamicIslandWindowHeightPx(
         statusBarInsetPx: Int,
         visualHeightPx: Int,
-        verticalMarginPx: Int
+        topMarginPx: Int,
+        bottomSafetyMarginPx: Int
     ): Int {
         if (visualHeightPx <= 0) return statusBarInsetPx
-        return maxOf(statusBarInsetPx, visualHeightPx + verticalMarginPx.coerceAtLeast(0) * 2)
+        return maxOf(
+            statusBarInsetPx,
+            visualHeightPx + topMarginPx.coerceAtLeast(0) +
+                bottomSafetyMarginPx.coerceAtLeast(0)
+        )
     }
 
     @JvmStatic

@@ -75,11 +75,12 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun dynamicIslandWindow_keepsFullCapsuleAndBothVerticalMargins() {
-        assertEquals(177, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(82, 141, 18))
-        assertEquals(182, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(182, 141, 18))
-        assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 141, 0))
-        assertEquals(104, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 0, 18))
+    fun dynamicIslandWindow_keepsFullCapsuleAndOvershootSafetyArea() {
+        assertEquals(195, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(82, 141, 18, 36))
+        assertEquals(195, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(182, 141, 18, 36))
+        assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 141, 0, 0))
+        assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 141, -1, -1))
+        assertEquals(104, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 0, 18, 36))
     }
 
     private fun fakePackageReadyParam(): io.github.libxposed.api.XposedModuleInterface.PackageReadyParam {

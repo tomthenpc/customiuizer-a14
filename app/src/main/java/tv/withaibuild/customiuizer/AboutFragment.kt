@@ -1,8 +1,15 @@
 package tv.withaibuild.customiuizer
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
+import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -35,6 +42,18 @@ class AboutFragment : SubFragment() {
         findPreference<ListPreferenceEx>("pref_key_miuizer_locale")?.let { locale ->
             AppLocaleController.setupLocalePreference(locale, AppHelper.appPrefs)
             installLocaleChangeListener(locale)
+        }
+        findPreference<Preference>("pref_key_about_donate")?.setOnPreferenceClickListener {
+            showDonationDialog()
+            true
+        }
+        findPreference<Preference>("pref_key_about_repository")?.setOnPreferenceClickListener {
+            openLink(REPOSITORY_URL)
+            true
+        }
+        findPreference<Preference>("pref_key_about_contact")?.setOnPreferenceClickListener {
+            openLink(CONTACT_URL)
+            true
         }
 
         updateHeadViews(resources.configuration)
@@ -95,6 +114,56 @@ class AboutFragment : SubFragment() {
         dialog.show()
     }
 
+    private fun showDonationDialog() {
+        val context = requireContext()
+        val bitmap = BitmapFactory.decodeResource(
+            resources,
+            R.drawable.wechat_donation_code,
+            BitmapFactory.Options().apply {
+                inScaled = false
+                inSampleSize = DONATION_IMAGE_SAMPLE_SIZE
+            }
+        ) ?: run {
+            Toast.makeText(context, R.string.about_donation_unavailable, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val density = resources.displayMetrics.density
+        val padding = (16f * density + 0.5f).toInt()
+        val size = minOf(
+            (300f * density + 0.5f).toInt(),
+            resources.displayMetrics.widthPixels - padding * 2
+        )
+        val image = ImageView(context).apply {
+            contentDescription = getString(R.string.about_donate_image_description)
+            adjustViewBounds = true
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setImageBitmap(bitmap)
+        }
+        val container = FrameLayout(context).apply {
+            setPadding(padding, padding / 2, padding, 0)
+            addView(image, FrameLayout.LayoutParams(size, size, Gravity.CENTER))
+        }
+        val dialog = AlertDialog.Builder(context)
+            .setTitle(R.string.about_donate_title)
+            .setView(container)
+            .setPositiveButton(android.R.string.ok, null)
+            .create()
+        dialog.setOnDismissListener {
+            image.setImageDrawable(null)
+            if (!bitmap.isRecycled) bitmap.recycle()
+        }
+        dialog.show()
+    }
+
+    private fun openLink(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(requireContext(), R.string.about_link_unavailable, Toast.LENGTH_SHORT)
+                .show()
+        }
+    }
+
     private fun updateHeadViews(config: Configuration) {
         val root = view ?: return
         root.findViewById<View>(R.id.miuizer_icon)?.visibility =
@@ -108,5 +177,11 @@ class AboutFragment : SubFragment() {
         } catch (e: Throwable) {
             e.printStackTrace()
         }
+    }
+
+    private companion object {
+        const val REPOSITORY_URL = "https://github.com/tomthenpc/customiuizer-a14"
+        const val CONTACT_URL = "https://t.me/Jinji_Kiko"
+        const val DONATION_IMAGE_SAMPLE_SIZE = 2
     }
 }

@@ -9,6 +9,16 @@
     <string name="about_based_on">Based on open-source work by Mikanoshi and MonwF</string>
     <string name="about_dynamic">Generally, mods require soft reboot to be activated or deactivated, but those marked with ⟲ only require one soft reboot after their value was changed from default to custom one, subsequent changes are applied immediately.</string>
     <string name="about_unsupported">Mods marked with ⨯ are not supported on this device.</string>
+    <string name="about_support_category">Development and support</string>
+    <string name="about_donate_title">Support development</string>
+    <string name="about_donate_summary">View WeChat donation code</string>
+    <string name="about_donate_image_description">WeChat donation code</string>
+    <string name="about_repository_title">Repository</string>
+    <string name="about_repository_summary">Source code and releases</string>
+    <string name="about_contact_title">Contact</string>
+    <string name="about_contact_summary">Telegram: @Jinji_Kiko</string>
+    <string name="about_donation_unavailable">Unable to load donation code</string>
+    <string name="about_link_unavailable">No app can open this link</string>
     <string name="title_activity_main" translatable="false">@string/app_name</string>
 
     <string name="mods">Mods</string>

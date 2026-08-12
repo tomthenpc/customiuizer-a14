@@ -50,6 +50,15 @@ python tools/verify.py full
 
 See [BUILD_AND_VERIFICATION.md](docs/BUILD_AND_VERIFICATION.md) for the complete workflow.
 
+## Support and Contact
+
+If this project is useful to you, you can support its continued development and maintenance via WeChat.
+
+<img src="app/src/main/res/drawable-nodpi/wechat_donation_code.png" alt="WeChat donation code" width="320">
+
+- Repository: <https://github.com/tomthenpc/customiuizer-a14>
+- Contact (Telegram): <https://t.me/Jinji_Kiko>
+
 ## Development Notes
 
 - Stability and behavior preservation come first; compatibility logic stays at ROM and ClassLoader boundaries.

@@ -435,7 +435,6 @@ object SystemNotificationHooks {
                 override fun after(callback: AfterHookCallback) {
                     try {
                         val settings = callback.getThisObject() ?: return
-                        if (!XposedHelpers.getBooleanField(settings, "mHasNotifPermission")) return
                         val block = XposedHelpers.getObjectField(settings, "mBlock") as? Preference
                             ?: return
                         block.isEnabled = true

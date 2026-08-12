@@ -18,4 +18,24 @@
 			android:defaultValue="auto" />
 	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
 
+	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
+		android:title="@string/about_support_category"
+		android:key="pref_key_about_support">
+		<tv.withaibuild.customiuizer.prefs.PreferenceEx
+			android:key="pref_key_about_donate"
+			android:title="@string/about_donate_title"
+			android:summary="@string/about_donate_summary"
+			android:persistent="false" />
+		<tv.withaibuild.customiuizer.prefs.PreferenceEx
+			android:key="pref_key_about_repository"
+			android:title="@string/about_repository_title"
+			android:summary="@string/about_repository_summary"
+			android:persistent="false" />
+		<tv.withaibuild.customiuizer.prefs.PreferenceEx
+			android:key="pref_key_about_contact"
+			android:title="@string/about_contact_title"
+			android:summary="@string/about_contact_summary"
+			android:persistent="false" />
+	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
+
 </PreferenceScreen>
