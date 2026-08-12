@@ -40,6 +40,9 @@ object SystemUIStrongToastHooks {
     private const val FOREHEAD_BOTTOM_ID = "strong_toast_bottom_view"
     private const val CAPSULE_TOP_MARGIN_DP = 6f
     private const val CAPSULE_BOTTOM_SAFETY_MARGIN_DP = 12f
+    private const val CENTER_POP_START_SCALE_X = 0.52f
+    private const val CENTER_POP_START_ALPHA = 0.58f
+    private const val CENTER_POP_DURATION_MS = 520L
     private val dynamicIslandInterpolator = OvershootInterpolator(0.72f)
 
     @JvmStatic
@@ -53,7 +56,11 @@ object SystemUIStrongToastHooks {
             StrongToastPresentationMode.HIDE -> installHide(lpparam)
             StrongToastPresentationMode.DYNAMIC_ISLAND -> {
                 installHeightMatch(lpparam, dynamicIsland = true)
-                installDynamicIslandMotion(lpparam)
+                installDynamicIslandMotion(lpparam, centerPop = false)
+            }
+            StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP -> {
+                installHeightMatch(lpparam, dynamicIsland = true)
+                installDynamicIslandMotion(lpparam, centerPop = true)
             }
         }
     }
@@ -136,7 +143,10 @@ object SystemUIStrongToastHooks {
         )
     }
 
-    private fun installDynamicIslandMotion(lpparam: PackageReadyParam) {
+    private fun installDynamicIslandMotion(
+        lpparam: PackageReadyParam,
+        centerPop: Boolean
+    ) {
         ModuleHelper.hookAllMethods(
             STRONG_TOAST_CLASS,
             lpparam.classLoader,
@@ -144,7 +154,7 @@ object SystemUIStrongToastHooks {
             object : MethodHook() {
                 override fun after(callback: AfterHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
-                    startDynamicIslandEntrance(strongToast)
+                    startDynamicIslandEntrance(strongToast, centerPop)
                 }
             }
         )
@@ -156,6 +166,8 @@ object SystemUIStrongToastHooks {
                 override fun before(callback: BeforeHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
                     val capsule = findDynamicIslandCapsule(strongToast) ?: strongToast
+                    strongToast.animate().cancel()
+                    resetDynamicIslandHostTransform(strongToast)
                     capsule.animate().cancel()
                     resetDynamicIslandTransform(capsule)
                 }
@@ -163,9 +175,11 @@ object SystemUIStrongToastHooks {
         )
     }
 
-    private fun startDynamicIslandEntrance(view: View) {
+    private fun startDynamicIslandEntrance(view: View, centerPop: Boolean) {
         try {
             val capsule = prepareDynamicIslandCapsule(view) ?: return
+            view.animate().cancel()
+            resetDynamicIslandHostTransform(view)
             capsule.animate().cancel()
             // onAttachedToWindow precedes the first layout pass. Hide the not-yet-laid-out
             // capsule and defer exactly once so its real width and centered pivot are stable.
@@ -177,38 +191,59 @@ object SystemUIStrongToastHooks {
             capsule.translationY = 0f
             capsule.post {
                 if (!capsule.isAttachedToWindow) {
+                    resetDynamicIslandHostTransform(view)
                     resetDynamicIslandTransform(capsule)
                     return@post
                 }
-                runDynamicIslandEntrance(view, capsule)
+                runDynamicIslandEntrance(view, capsule, centerPop)
             }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
+            resetDynamicIslandHostTransform(view)
             resetDynamicIslandTransform(findDynamicIslandCapsule(view) ?: view)
             XposedHelpers.log("StrongToastDynamicIsland", t)
         }
     }
 
-    private fun runDynamicIslandEntrance(view: View, capsule: View) {
+    private fun runDynamicIslandEntrance(
+        view: View,
+        capsule: View,
+        centerPop: Boolean
+    ) {
         try {
             val visualHeightPx = capsule.height
                 .takeIf { it > 0 }
                 ?: capsule.layoutParams?.height?.takeIf { it > 0 }
                 ?: strongToastVisualHeightPx(view)
-            // Anchor the capsule to its top edge. Overshoot may then expand only into the
-            // explicitly reserved bottom safety area instead of crossing the window's top edge.
-            capsule.pivotY = 0f
-            capsule.alpha = 0f
-            // Keep both horizontal halves present from the first visible frame. HyperOS
-            // reuses the attached StrongToast for consecutive events, so a first-attach
-            // scaleX expansion looked like left-side clipping that mysteriously disappeared
-            // on later updates, especially next to status-bar notification icons.
-            capsule.scaleX = 1f
+            capsule.alpha = if (centerPop) CENTER_POP_START_ALPHA else 0f
+            if (centerPop) {
+                // HyperOS clips horizontal transforms applied directly to its message
+                // container against a stale outline. Scale the already full-width transparent
+                // host instead: the capsule expands symmetrically around the screen center
+                // while its own rounded outline and child layout remain untouched.
+                view.pivotX = view.width / 2f
+                view.scaleX = CENTER_POP_START_SCALE_X
+                capsule.pivotY = capsule.height / 2f
+                capsule.scaleX = 1f
+            } else {
+                // Keep both horizontal halves present from the first visible frame. HyperOS
+                // reuses the attached StrongToast for consecutive events, so a first-attach
+                // one-sided scaleX expansion looked like clipping on the first event only.
+                capsule.pivotY = 0f
+                capsule.scaleX = 1f
+            }
             capsule.scaleY = resolveDynamicIslandStartScaleY(
                 currentStatusBarInsetPx(view),
                 visualHeightPx
             )
             capsule.translationY = 0f
+            if (centerPop) {
+                view.animate()
+                    .scaleX(1f)
+                    .setDuration(CENTER_POP_DURATION_MS)
+                    .setInterpolator(dynamicIslandInterpolator)
+                    .start()
+            }
             capsule.animate()
                 .alpha(1f)
                 .scaleY(1f)
@@ -218,6 +253,8 @@ object SystemUIStrongToastHooks {
                 .start()
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
+            view.animate().cancel()
+            resetDynamicIslandHostTransform(view)
             resetDynamicIslandTransform(capsule)
             XposedHelpers.log("StrongToastDynamicIsland", t)
         }
@@ -278,6 +315,10 @@ object SystemUIStrongToastHooks {
         view.scaleX = 1f
         view.scaleY = 1f
         view.translationY = 0f
+    }
+
+    private fun resetDynamicIslandHostTransform(view: View) {
+        view.scaleX = 1f
     }
 
     @JvmStatic

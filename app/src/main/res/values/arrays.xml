@@ -692,12 +692,14 @@
 		<item>@string/array_system_default</item>
 		<item>@string/system_strong_toast_mode_match_height</item>
 		<item>@string/system_strong_toast_mode_dynamic_island</item>
+		<item>@string/system_strong_toast_mode_dynamic_island_center_pop</item>
 		<item>@string/system_strong_toast_mode_hide</item>
 	</string-array>
 	<string-array name="strong_toast_presentation_modes_val">
 		<item>0</item>
 		<item>1</item>
 		<item>3</item>
+		<item>4</item>
 		<item>2</item>
 	</string-array>
 

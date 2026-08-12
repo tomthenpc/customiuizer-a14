@@ -21,6 +21,7 @@ class StrongToastPresentationModeTest {
         assertEquals(StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT, StrongToastPresentationMode.fromPreference(1))
         assertEquals(StrongToastPresentationMode.HIDE, StrongToastPresentationMode.fromPreference(2))
         assertEquals(StrongToastPresentationMode.DYNAMIC_ISLAND, StrongToastPresentationMode.fromPreference(3))
+        assertEquals(StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP, StrongToastPresentationMode.fromPreference(4))
         assertEquals(StrongToastPresentationMode.SYSTEM_DEFAULT, StrongToastPresentationMode.fromPreference(-1))
         assertEquals(StrongToastPresentationMode.SYSTEM_DEFAULT, StrongToastPresentationMode.fromPreference(99))
     }
@@ -39,6 +40,9 @@ class StrongToastPresentationModeTest {
         }))
         assertTrue(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
             put("system_strong_toast_mode", "3")
+        }))
+        assertTrue(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
+            put("system_strong_toast_mode", "4")
         }))
     }
 
@@ -82,10 +86,17 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun dynamicIslandWindow_usesFullWidthHostWithoutFirstAttachHorizontalCollapse() {
+    fun dynamicIslandWindow_supportsSafeFullWidthEntranceStyles() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
         assertTrue(source.contains("layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT"))
         assertTrue(source.contains("capsule.scaleX = 1f"))
+        assertTrue(source.contains("view.pivotX = view.width / 2f"))
+        assertTrue(source.contains("CENTER_POP_START_SCALE_X = 0.52f"))
+        assertTrue(source.contains("CENTER_POP_START_ALPHA = 0.58f"))
+        assertTrue(source.contains("CENTER_POP_DURATION_MS = 520L"))
+        assertTrue(source.contains("view.scaleX = CENTER_POP_START_SCALE_X"))
+        assertTrue(source.contains("capsule.pivotY = capsule.height / 2f"))
+        assertTrue(source.contains("resetDynamicIslandHostTransform(strongToast)"))
         assertFalse(source.contains("resolveDynamicIslandStartScaleX"))
     }
 

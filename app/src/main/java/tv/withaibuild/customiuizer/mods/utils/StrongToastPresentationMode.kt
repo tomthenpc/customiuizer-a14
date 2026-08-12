@@ -10,7 +10,8 @@ enum class StrongToastPresentationMode(val preferenceValue: Int) {
     SYSTEM_DEFAULT(0),
     MATCH_STATUS_BAR_HEIGHT(1),
     HIDE(2),
-    DYNAMIC_ISLAND(3);
+    DYNAMIC_ISLAND(3),
+    DYNAMIC_ISLAND_CENTER_POP(4);
 
     companion object {
         @JvmStatic
@@ -18,6 +19,7 @@ enum class StrongToastPresentationMode(val preferenceValue: Int) {
             MATCH_STATUS_BAR_HEIGHT.preferenceValue -> MATCH_STATUS_BAR_HEIGHT
             HIDE.preferenceValue -> HIDE
             DYNAMIC_ISLAND.preferenceValue -> DYNAMIC_ISLAND
+            DYNAMIC_ISLAND_CENTER_POP.preferenceValue -> DYNAMIC_ISLAND_CENTER_POP
             else -> SYSTEM_DEFAULT
         }
     }
