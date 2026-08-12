@@ -173,8 +173,11 @@ protected by the `SharedPreferences` transaction.
 ### F. `SharedPreferences.commit() == false` still shows success
 `AppHelper.syncPrefsToAnother` calls `prefEdit.commit()` and ignores its return
 value. `doRestoreSettings` always shows `R.string.restore_ok` after the call returns.
-Therefore a disk write failure (`commit() == false`) will still be reported as a
-successful restore.
+`commit() == false` means **durable persistence was not confirmed**, but because
+`SharedPreferences.Editor.commit()` may have already updated the in-memory map,
+it does **not** prove that live preferences were unchanged. Treating this as a
+successful restore is a bug. M1 must map `commit() == false` to `FAILURE` and
+perform a best-effort rollback.
 
 ### G. Malformed / truncated / oversized / wrong-file behavior
 
@@ -432,20 +435,25 @@ not be counted separately.
 
 ## 13. Restore atomicity / commit semantics
 
-- The only atomic step is `SharedPreferences.Editor.commit()` in
-  `AppHelper.syncPrefsToAnother`.
-- `commit()` clears the entire file, writes all restored entries, and flushes to disk.
-- The return value is ignored.
-- Steps after `commit()` (`AppLocaleController.invalidateFastPath`, UI restart) are
-  not inside the `SharedPreferences` transaction.
+- The `SharedPreferences.Editor` operations are accumulated in one editor, so the
+  on-disk XML write is a single `SharedPreferences.commit()` call. That disk write
+  is atomic from the `SharedPreferences` perspective.
+- However, `SharedPreferences` itself does not provide a real rollback transaction.
+- `SharedPreferences.Editor.commit()` first applies changes to the in-memory map,
+  then attempts durable disk persistence, then returns the disk-write status as a
+  `Boolean`. Consequently `commit() == false` means **durable persistence was not
+  confirmed**, not that the in-memory preferences were never changed.
+- Steps after `commit()` (`AppLocaleController.invalidateFastPath`, UI restart,
+  side-effect reconcile) are not inside the `SharedPreferences` transaction.
 - Cross-pref synchronization: the `OnSharedPreferenceChangeListener` in
   `XposedServiceManager` sees `key == null` for bulk changes and schedules a full
   mirror pass (`XposedServiceManager.kt:221–225`), but this also is not atomic with
   the commit.
 
-Conclusion: **whole restore is not atomic**. A future pipeline should treat
-`SharedPreferences` commit as one step in a larger result, and side-effect reconcile
-must be explicitly accounted for.
+Conclusion: **whole restore is best-effort transactional recovery, not full
+atomicity**. A future pipeline should treat `SharedPreferences` commit as one step
+in a larger result, capture a pre-restore snapshot, and perform a best-effort
+rollback if the commit fails.
 
 ---
 
@@ -496,16 +504,23 @@ invalidSkipped         : Int   // number of keys/values skipped due to invalid t
 appSelectionsSanitized : Int   // number of primary app-selection keys changed/removed
 migrated               : Int   // number of keys migrated (renamed or type-converted)
 commitSucceeded        : Boolean
+commitConfirmedDurable : Boolean // same as current commit() return value
 deviceReconciled       : Boolean  // true if all local side effects succeeded
+rollbackAttempted      : Boolean
+rollbackSucceeded      : Boolean
 ```
 
 ### Semantics
-- `commitSucceeded == false` → `RESTORE_RESULT = FAILURE`.
+- `commitConfirmedDurable == false` (`commit() == false`) → `RESTORE_RESULT = FAILURE`.
+  `commit()` may have already updated the in-memory map, so a best-effort rollback
+  must be attempted from the pre-restore snapshot.
 - `commitSucceeded == true && deviceReconciled == false` → `PARTIAL_FAILURE`
   (prefs are persisted but launcher/locale/etc. did not reconcile).
 - `commitSucceeded == true && deviceReconciled == true` → `SUCCESS`.
 - No “success toast” may appear unless `commitSucceeded` is true and required
   reconciles are true.
+- If the rollback attempt also fails to persist, the result is still `FAILURE` and
+  the UI must not show success.
 
 M0 does **not** implement this model.
 
@@ -619,12 +634,17 @@ These normalized types are **not** part of the `ObjectInputStream` allowlist.
 Apply `MAX_FILE_SIZE` (proposed 2 MiB) before opening `ObjectInputStream`.
 
 ### Post-deserialization normalization
-1. Reject if the root object is not a `Map`.
-2. Reject if any key is not a `String`.
-3. Reject if any value is not in the allowed value class list.
-4. For `Set` values, create a new `LinkedHashSet<String>` and add only elements
-   that are non-null `String`s; reject if any element is not a `String`.
-5. Convert the root map to `LinkedHashMap<String, Any?>` for deterministic order.
+1. Reject (structural failure) if the root object is not a `Map<*, *>`.
+   Do not perform an unchecked `Map<String, Any?>` cast before this validation.
+2. For each entry of the validated `Map<*, *>`:
+   - If the key is not a `String`, skip the entire entry (`invalidSkipped += 1`)
+     and continue. This is an **entry-level** invalid input, not structural.
+   - If the value is not in the allowed value class list, skip the entire entry
+     (`invalidSkipped += 1`) and continue.
+3. For `Set` values, create a new `LinkedHashSet<String>` and add only elements
+   that are non-null `String`s. If any element is not a `String`, skip the entire
+   `StringSet` entry (`invalidSkipped += 1`) and continue.
+4. Convert the root map to `LinkedHashMap<String, Any?>` for deterministic order.
 
 ### Rejection / fatal behavior
 - Malformed or disallowed classes / values: throw a dedicated
@@ -858,7 +878,45 @@ explicitly deferred to **M2** (see below).
      restore result.
    - Do not perform startup cleanup, XML scan, or resident registry.
 
-4. **Restore result model:**
+4. **Restore transaction / pre-restore snapshot:**
+   - Before any destructive `SharedPreferences.Editor` mutation, capture a
+     `PRE_RESTORE_SNAPSHOT` of all existing preference entries.
+   - `StringSet` values in the snapshot must be **defensively copied** so the
+     snapshot is independent of any live references.
+   - The snapshot lives only for the duration of the user-initiated restore
+     cold path; do not keep a resident or global cache.
+
+   **Best-effort transactional recovery:**
+
+   - validated restore data
+     → prepare editor
+     → `clear()` + put validated entries
+     → `commit()`
+   - if `commit() == true`:
+     - `commitSucceeded = true`;
+     - proceed to launcher / locale side-effect reconcile;
+     - `RESTORE_RESULT = SUCCESS` if all required reconciles succeed,
+       otherwise `PARTIAL_FAILURE`.
+   - if `commit() == false`:
+     - `commitSucceeded = false`;
+     - `RESTORE_RESULT = FAILURE`;
+     - do **not** show restore-success UI;
+     - do **not** execute launcher / locale reconcile;
+     - attempt a best-effort rollback by writing the `PRE_RESTORE_SNAPSHOT`
+       back into the same `SharedPreferences` with `clear()` + put snapshot +
+       `commit()`;
+     - record `rollbackAttempted` and `rollbackSucceeded` in the result.
+
+   **Important:** `SharedPreferences.commit()` first updates the in-memory map
+   before attempting disk persistence, then returns the disk-write status. A
+   `false` return value means **durable persistence was not confirmed**, not that
+   the in-process preferences were never mutated. The M1 contract must not
+   pretend otherwise.
+
+   **Atomicity classification:** `RESTORE_ATOMICITY = BEST_EFFORT_TRANSACTIONAL_RECOVERY`.
+   This is not a database-level or file-system-level atomic transaction.
+
+5. **Restore result model:**
    - Implement an immutable `RestoreResult` with at least:
      - `restored`
      - `deprecatedIgnored`
@@ -866,12 +924,19 @@ explicitly deferred to **M2** (see below).
      - `appSelectionsSanitized`
      - `migrated`
      - `commitSucceeded`
+     - `commitConfirmedDurable`
      - `deviceReconciled`
-   - `commit() == false` must map to `RESTORE_RESULT = FAILURE`.
+     - `rollbackAttempted`
+     - `rollbackSucceeded`
+   - `commit() == false` (`commitConfirmedDurable == false`) maps to
+     `RESTORE_RESULT = FAILURE`.
+   - `RESTORE_RESULT = PARTIAL_FAILURE` is allowed only when
+     `commitSucceeded == true` but a required side-effect reconcile fails.
    - Do **not** show `R.string.restore_ok` or any success dialog unless
      `commitSucceeded` is true and required side-effect reconciles are true.
+   - If the rollback attempt also fails to persist, the result is still `FAILURE`.
 
-5. **Side-effect reconcile:**
+6. **Side-effect reconcile:**
    - After a successful restore commit, reconcile `pref_key_miuizer_launchericon`:
      call `PackageManager.setComponentEnabledSetting` to match the restored
      preference value.
@@ -882,13 +947,13 @@ explicitly deferred to **M2** (see below).
        treat the source-device applied marker as ground truth;
      - do not change the existing locale UX contract in M1.
 
-6. **AppSelectionSanitizer integration:**
+7. **AppSelectionSanitizer integration:**
    - Normalize and filter missing packages.
    - Maintain string-set element safety.
    - Report `appSelectionsSanitized` count per the M0 unit definition.
    - Do not expand to startup scan or resident observer.
 
-7. **M1 malformed legacy input hardening:**
+8. **M1 malformed legacy input hardening:**
    - Harden the **current** Java-serialization restore path against malformed
      input **without implementing the final M2 restricted codec or V2 format**.
      Any local guard added for M1 reliability must not be presented as the final
@@ -903,8 +968,11 @@ explicitly deferred to **M2** (see below).
    - input exceeds the bounded size limit;
    - `ObjectInputStream` decode fails;
    - stream is truncated or malformed;
-   - the file is not a valid legacy backup (e.g. root object is not a `Map`);
-   - the root object is not a `Map<String, ?>`.
+   - the file is not a valid legacy backup (e.g. root object is not a `Map<*, *>`).
+
+   Structural validation must not use an unchecked `Map<String, Any?>` cast as
+   format validation. A root that is not a `Map<*, *>` is a **structural**
+   failure, not an entry-level invalid input.
 
    On structural failure:
 
@@ -917,8 +985,8 @@ explicitly deferred to **M2** (see below).
 
    #### B. Entry-level invalid data
 
-   After the root `Map` has been successfully decoded, each entry is validated
-   before it enters the pipeline:
+   After the root `Map<*, *>` has been successfully decoded, each entry is
+   validated before it enters the pipeline:
 
    - key must be a non-null `String`;
    - value class must be one of `Boolean`, `Integer`, `Long`, `Float`, `String`,
@@ -944,7 +1012,7 @@ explicitly deferred to **M2** (see below).
    - The frozen `LinkageError` policy remains unchanged: `LinkageError` is not
      a fatal and is treated as an ordinary backup-corrupt failure.
 
-8. **M1 tests (only M1 scope):**
+9. **M1 tests (only M1 scope):**
    - Backup filename format and no shared `SimpleDateFormat`.
    - Backup fatal propagation (`FatalErrors.rethrowIfFatal`).
    - Dropped StrongToast keys ignored; width tombstone ignored.
@@ -952,7 +1020,7 @@ explicitly deferred to **M2** (see below).
    - Malformed / truncated / wrong legacy input.
    - Invalid `StringSet` elements.
    - App selection sanitation and count.
-   - `commit() == false` → failure.
+   - `commit() == false` → failure with best-effort snapshot rollback.
    - Launcher icon side-effect reconcile.
    - Success reported only after commit + required reconcile.
 
@@ -1005,7 +1073,7 @@ M0 and M1 do **not** authorize these changes.
      (e.g. launcher icon) fails.
    - On `commit() == false` the UI must not show restore success, must not
      execute side-effect reconciles that require a successful commit, and must
-     not alter existing live preferences.
+     perform a best-effort rollback from the pre-restore snapshot.
 5. **About category title for M4:** decide whether to reuse `@string/miuizer` or
    switch to `@string/settings` when the locale row is moved.
 
