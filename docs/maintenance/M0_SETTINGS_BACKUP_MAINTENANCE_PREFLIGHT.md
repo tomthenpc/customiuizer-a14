@@ -504,7 +504,7 @@ M0 does **not** implement this model.
 
 ---
 
-## 16. BACKUP_V2_DIRECTION
+## 16. BACKUP_V2_DIRECTION (M2 design direction)
 
 ### Evaluation of current Java serialization
 - **Compatibility:** poor forward/backward schema detection; no version header.
@@ -564,7 +564,7 @@ Type tags (M0 proposal):
 
 ---
 
-## 17. Restricted legacy reader direction
+## 17. Restricted legacy reader direction (M2 design direction)
 
 The legacy reader must remain available for M2, but it must be **restricted**:
 
@@ -798,6 +798,14 @@ AUDIT_FEATURE_SEMANTICS_INIT_USED = NO
 
 If and only if `M1_AUTHORIZATION = YES` is granted, M1 should implement:
 
+### M1 phase boundary
+
+M1 is **BACKUP RELIABILITY ONLY**. M1 must not implement the V2 binary format,
+MAGIC, typed writer/reader, or the final restricted legacy codec. Those are
+explicitly deferred to **M2** (see below).
+
+### M1 scope
+
 1. **Backup default filename change:**
    - `BACKUP_DEFAULT_NAME = "r14bak_<MMddHHmmss>"`.
    - Timestamp semantics:
@@ -805,22 +813,18 @@ If and only if `M1_AUTHORIZATION = YES` is granted, M1 should implement:
      - `Locale.US` numeric representation;
      - pattern `MMddHHmmss`;
      - no filename extension required.
-   - **Current production defect:** `PreferenceFragmentBase.BACKUP_DATE_FORMAT`
-     is a `companion` / `static` `SimpleDateFormat` instance (`SimpleDateFormat`
-     is mutable and **not** thread-safe). M1 must **remove this shared mutable
-     formatter**, not merely change its prefix.
-   - **Formatter requirement (choose one):**
-     - **A. Preferred:** use an immutable / thread-safe `java.time.DateTimeFormatter`:
-       ```kotlin
-       DateTimeFormatter.ofPattern("MMddHHmmss", Locale.US)
-       ```
-       and format with the device-local current time.
+   - Remove the current shared mutable `PreferenceFragmentBase.BACKUP_DATE_FORMAT`
+     `SimpleDateFormat` instance.
+   - Formatter contract (choose one):
+     - **A. Preferred:** use an immutable / thread-safe `java.time.DateTimeFormatter`
+       (`DateTimeFormatter.ofPattern("MMddHHmmss", Locale.US)`) with device-local
+       current time.
      - **B. Acceptable:** create a new local `SimpleDateFormat("MMddHHmmss", Locale.US)`
        on every `backupSettings()` call, keeping the formatter thread-confined.
-   - **Prohibited:**
-     - shared / singleton / `static final` / `companion private val` `SimpleDateFormat`;
-     - any design that treats `SimpleDateFormat` as thread-safe because it is
-       held in an immutable reference.
+   - **Prohibited:** shared / singleton / `static final` / `companion private val`
+     `SimpleDateFormat`; or any design that treats `SimpleDateFormat` as
+     thread-safe because it is held in an immutable reference.
+
 2. **Backup fatal-error fix:**
    - `PreferenceFragmentBase.backupSettings` catch block currently catches
      `Throwable` without `FatalErrors.rethrowIfFatal`.
@@ -832,25 +836,114 @@ If and only if `M1_AUTHORIZATION = YES` is granted, M1 should implement:
      }
      ```
      and then show the warning dialog.
-3. **Restore result model** (`RestoreResult`) and the typed pipeline from Section 17.
-4. **Side-effect reconcile** for `pref_key_miuizer_launchericon`:
-   - after a successful restore commit, call `PackageManager.setComponentEnabledSetting`
-     with the restored value.
-5. **Commit-failure handling:** check the return value of `SharedPreferences.commit()`
-   and map `false` to `RESTORE_RESULT = FAILURE`.
-6. **Tombstone filter** for `PROVEN_DROPPED_KEYS` and `NON_EXPORTABLE_KEYS`.
-7. **V2 backup writer** (MAGIC, FORMAT_VERSION, APP_REVISION, ENTRY_COUNT,
-   TYPED_ENTRIES, CRC32 footer).
-8. **Restricted legacy reader** using an `ObjectInputFilter` allowlist and the
-   post-deserialization validation from Section 17.
-9. Unit tests covering malformed/truncated legacy files, V2 round-trip,
-   commit-failure, launcher reconcile, and dropped-key tombstone.
+
+3. **Deprecated / derived key filtering (legacy restore):**
+   - Explicitly handle `DROPPED_KEYS`, `RENAMED_KEYS`, `TYPE_MIGRATIONS`, and
+     `NON_EXPORTABLE` / `DEVICE_DERIVED` keys.
+   - `DROPPED_KEYS` (e.g. `pref_key_system_notif_strong_toast_width` and the
+     `pref_key_system_notif_disable_strong_toast` family) must not be written
+     back into `SharedPreferences`.
+   - `NON_EXPORTABLE` / `DEVICE_DERIVED` keys (e.g.
+     `pref_key_miuizer_locale_applied`, `pref_key_miuizer_synced_from_lsposed`)
+     must not be taken as source-device truth; recompute or invalidate them on
+     restore.
+   - Record `deprecatedIgnored`, `migrated`, and `invalidSkipped` counts in the
+     restore result.
+   - Do not perform startup cleanup, XML scan, or resident registry.
+
+4. **Restore result model:**
+   - Implement an immutable `RestoreResult` with at least:
+     - `restored`
+     - `deprecatedIgnored`
+     - `invalidSkipped`
+     - `appSelectionsSanitized`
+     - `migrated`
+     - `commitSucceeded`
+     - `deviceReconciled`
+   - `commit() == false` must map to `RESTORE_RESULT = FAILURE`.
+   - Do **not** show `R.string.restore_ok` or any success dialog unless
+     `commitSucceeded` is true and required side-effect reconciles are true.
+
+5. **Side-effect reconcile:**
+   - After a successful restore commit, reconcile `pref_key_miuizer_launchericon`:
+     call `PackageManager.setComponentEnabledSetting` to match the restored
+     preference value.
+   - Locale semantics remain frozen:
+     - `pref_key_miuizer_locale` is a portable user choice;
+     - `pref_key_miuizer_locale_applied` is device-derived;
+     - restore must call `AppLocaleController.invalidateFastPath` and must not
+       treat the source-device applied marker as ground truth;
+     - do not change the existing locale UX contract in M1.
+
+6. **AppSelectionSanitizer integration:**
+   - Normalize and filter missing packages.
+   - Maintain string-set element safety.
+   - Report `appSelectionsSanitized` count per the M0 unit definition.
+   - Do not expand to startup scan or resident observer.
+
+7. **M1 malformed legacy input hardening:**
+   - Harden the **current** Java-serialization restore path against malformed
+     input **without implementing the final M2 restricted codec or V2 format**:
+     - bounded input consumption / oversized file rejection;
+     - null stream handling;
+     - root object validation (must be a `Map`);
+     - key/value type validation (only allowed primitive wrappers, `String`,
+       and `HashSet`);
+     - `StringSet` element validation (all elements must be non-null `String`);
+     - truncated / malformed / wrong-file handling;
+     - fatal `Throwable` propagation matching `FatalErrors`;
+     - unsupported value type → `invalidSkipped` / restore failure per the
+       frozen result semantics.
+   - Any very local guard added for M1 reliability must not be presented as the
+     final M2 `LEGACY_WIRE_ALLOWLIST` / `ObjectInputFilter` implementation and
+     must not alter the M2 contract.
+
+8. **M1 tests (only M1 scope):**
+   - Backup filename format and no shared `SimpleDateFormat`.
+   - Backup fatal propagation (`FatalErrors.rethrowIfFatal`).
+   - Dropped StrongToast keys ignored; width tombstone ignored.
+   - Device-derived keys ignored / reconciled.
+   - Malformed / truncated / wrong legacy input.
+   - Invalid `StringSet` elements.
+   - App selection sanitation and count.
+   - `commit() == false` → failure.
+   - Launcher icon side-effect reconcile.
+   - Success reported only after commit + required reconcile.
 
 M0 does **not** authorize these changes.
 
 ---
 
-## 24. Open questions / blockers
+## 24. M2 deferred implementation scope
+
+If and only if `M2_AUTHORIZATION = YES` is granted, M2 should implement:
+
+- **BACKUP V2 binary codec**:
+  - MAGIC;
+  - FORMAT_VERSION;
+  - APP_REVISION;
+  - ENTRY_COUNT;
+  - typed entries: BOOLEAN, INT, LONG, FLOAT, STRING, STRING_SET;
+  - CRC32 footer;
+  - final `MAX_FILE_SIZE`, `MAX_ENTRY_COUNT`, `MAX_KEY_BYTES`,
+    `MAX_STRING_BYTES`, `MAX_SET_ITEMS` bounds.
+- **V2 writer**.
+- **V2 reader**.
+- **Final restricted legacy reader**:
+  - `ObjectInputFilter` or equivalent minimum historical wire-class restriction;
+  - `LEGACY_WIRE_ALLOWLIST` = `java.util.HashMap`, `java.lang.String` keys,
+    `Boolean/Integer/Long/Float/String/HashSet` values;
+  - post-decode normalization to `LinkedHashMap` / `LinkedHashSet`.
+- **V2 round-trip tests**.
+- **Legacy ↔ current compatibility corpus**.
+- **CRC corruption tests**.
+- **Boundary / limit tests**.
+
+M0 and M1 do **not** authorize these changes.
+
+---
+
+## 25. Open questions / blockers
 
 1. **Legacy bounds:** the proposed `MAX_FILE_SIZE`, `MAX_ENTRY_COUNT`,
    `MAX_KEY_BYTES`, `MAX_STRING_BYTES`, and `MAX_SET_ITEMS` are not derived from
@@ -866,7 +959,7 @@ M0 does **not** authorize these changes.
 
 ---
 
-## 25. M0 conclusion
+## 26. M0 conclusion
 
 - The existing backup/restore implementation has been fully traced.
 - The legacy format is raw Java `ObjectOutputStream` of a `SharedPreferences.getAll()`
@@ -878,6 +971,8 @@ M0 does **not** authorize these changes.
   pipeline.
 - `pref_key_system_notif_strong_toast_width` is now classified as
   `DROPPED/TOMBSTONED`.
+- M1 is strictly scoped to backup reliability and side-effect reconcile; V2
+  codec and final restricted legacy reader are deferred to M2.
 - All `Pengeek` production references have been catalogued for M3 removal.
 - No production code was changed.
 - `audit-feature-semantics.py --validate` passes.
