@@ -16,12 +16,14 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.preference.Preference
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
+import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.notificationautoexpand.NotificationAutoExpandHook
@@ -424,6 +426,26 @@ object SystemNotificationHooks {
         ModuleHelper.hookAllMethods(controller, "isChannelBlockable", allow)
         ModuleHelper.hookAllMethods(controller, "isChannelConfigurable", allow)
         ModuleHelper.hookAllMethods(controller, "isChannelGroupBlockable", allow)
+
+        ModuleHelper.hookAllMethods(
+            "com.android.settings.notification.app.AppNotificationSettings",
+            lpparam.classLoader,
+            "setupBlock",
+            object : MethodHook() {
+                override fun after(callback: AfterHookCallback) {
+                    try {
+                        val settings = callback.getThisObject() ?: return
+                        if (!XposedHelpers.getBooleanField(settings, "mHasNotifPermission")) return
+                        val block = XposedHelpers.getObjectField(settings, "mBlock") as? Preference
+                            ?: return
+                        block.isEnabled = true
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log("UnlockSettingsNotificationControls", t)
+                    }
+                }
+            }
+        )
     }
 
     @JvmStatic

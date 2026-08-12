@@ -14,6 +14,10 @@ class SettingsNotificationControlsContractTest {
         assertTrue(hooks.contains("\"isChannelBlockable\""))
         assertTrue(hooks.contains("\"isChannelConfigurable\""))
         assertTrue(hooks.contains("\"isChannelGroupBlockable\""))
+        assertTrue(hooks.contains("com.android.settings.notification.app.AppNotificationSettings"))
+        assertTrue(hooks.contains("\"setupBlock\""))
+        assertTrue(hooks.contains("mHasNotifPermission"))
+        assertTrue(hooks.contains("block.isEnabled = true"))
         assertTrue(hooks.contains("skipped = true\n                    result = HashSet<String>()"))
         assertTrue(feature.contains("UnlockSettingsNotificationControlsHook(lpparam)"))
     }
