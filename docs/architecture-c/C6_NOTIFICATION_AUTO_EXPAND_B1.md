@@ -62,8 +62,9 @@ docs/architecture-c/C6_NOTIFICATION_AUTO_EXPAND_B1.md
 
 ```text
 Cold Resolve
-    NotificationAutoExpandResolver.resolve(classLoader)
-    → XposedHelpers.findClassIfExists("com.android.systemui.statusbar.notification.row.ExpandableNotificationRow", classLoader)
+    NotificationAutoExpandHook.install(classLoader)
+    → fail-safe XposedHelpers.findClassIfExists("com.android.systemui.statusbar.notification.row.ExpandableNotificationRow", classLoader)
+    → if root found: NotificationAutoExpandResolver.resolve(resolutionRootClass)
     → primitive-boolean mOnKeyguard, zero-argument getEntry, one-argument setSystemExpanded(Boolean.class)
     → NotificationAutoExpandAbi
 
@@ -101,15 +102,15 @@ Hot Execute
 
 | Member | FAST | Resolution |
 |---|---|---|
-| `resolutionRootClass` | class identity only | `XposedHelpers.findClassIfExists` / `findClass` probe |
+| `resolutionRootClass` | class identity only | `XposedHelpers.findClassIfExists` (findClassIfExists-compatible) probe |
 | `mOnKeyguard` | `Field.getBoolean(thisObject)` | `XposedHelpers.findField` + `type == Boolean.TYPE` |
 | `getEntry` | `Method.invoke(thisObject)` | `XposedHelpers.findMethodBestMatch(... "getEntry")` |
-| `setSystemExpanded` | `Method.invoke(thisObject, true)` | `XposedHelpers.findMethodBestMatch(... "setSystemExpanded", Boolean::class.java)` |
+| `setSystemExpanded` | `Method.invoke(thisObject, true)` | `XposedHelpers.findMethodBestMatch(... "setSystemExpanded", java.lang.Boolean::class.java)` |
 | `mSbn` | LEGACY only | `XposedHelpers.getObjectField(entry, "mSbn")` at hot-time |
 | `getPackageName` | LEGACY only | `XposedHelpers.callMethod(notification, "getPackageName")` at hot-time |
 
 - `mOnKeyguard` accepts only primitive `Boolean.TYPE`; wrapper `Boolean.class` is rejected.
-- `setSystemExpanded` is resolved with the boxed `Boolean::class.java` actual-argument type to match the legacy `XposedHelpers.callMethod(thisObject, "setSystemExpanded", true)` call.
+- `setSystemExpanded` is resolved with the boxed `java.lang.Boolean::class.java` actual-argument type to match the legacy `XposedHelpers.callMethod(thisObject, "setSystemExpanded", true)` call.
 - If any frozen member is missing or incompatible, `resolve` returns `null` and the callback selects `COMPLETE_LEGACY`.
 
 ---
@@ -153,10 +154,10 @@ data class NotificationAutoExpandSnapshot(
 |---|---|---|
 | Hook target class missing | N/A | `ModuleHelper.hookAllMethods` logs `TARGET_CLASS_MISSING`; no callback; no runtime state created. |
 | `abi == null` | `COMPLETE_LEGACY` | Callback installed; all work uses `XposedHelpers` helpers. |
-| `snapshot == null` | `COMPLETE_LEGACY` | e.g. first callback races ahead of initial refresh. |
+| `snapshot == null` | `COMPLETE_LEGACY` | Snapshot unavailable, e.g. after refresh failure or deliberate clear. |
 | `thisObject == null` | `COMPLETE_LEGACY` | Exact-root policy cannot be verified. |
 | `thisObject.javaClass !== resolutionRoot` | `COMPLETE_LEGACY` | Subclass / proxy mismatch. |
-| 	hisObject != null && thisObject.javaClass === resolutionRoot && snapshot != null | FAST | Frozen field/method handles for mOnKeyguard/getEntry/setSystemExpanded; no classloader lookups; no preference reads. Retained LEGACY helpers still resolve mSbn and getPackageName dynamically. |
+| `thisObject != null && thisObject.javaClass === resolutionRoot && snapshot != null` | FAST | Frozen `mOnKeyguard`/`getEntry`/`setSystemExpanded` handles; no classloader lookups; no preference reads. Retained LEGACY helpers still resolve `mSbn` and `getPackageName` dynamically. |
 
 No FAST→LEGACY retry is performed after the FAST boundary is crossed.
 
@@ -227,7 +228,7 @@ The FAST path is designed to avoid the following in a normal callback:
 
 - `MainModule.mPrefs` reads.
 - New `findClass`/`findClassIfExists` calls, `ClassLoader` lookups, or per-callback discovery of the three frozen members.
-- `ClassLoader` lookups.
+
 - `HashMap`, `Set`, or `ArrayList` creation.
 - Normal-path logging, timestamps, or diagnostic writes.
 - Allocation of callback-local objects beyond the temporary `entry`, `notification`, `pkgName`, `opt`, and `isSelected`.
@@ -242,10 +243,10 @@ All new tests are under `app/src/test/java/tv/withaibuild/customiuizer/mods/noti
 
 | Test class | Coverage |
 |---|---|
-| `NotificationAutoExpandResolverTest` | Primitive `mOnKeyguard` acceptance, wrapper rejection, missing members, `getEntry` zero-arg resolution, `setSystemExpanded` `Boolean.class` best-match, fatal class-loading propagation. |
-| `NotificationAutoExpandRuntimeStateTest` | Default `modeRaw = "1"`, raw string preservation, missing/wrong-type app set, copy-owned set, one `getAll` generation, relevant-key filtering, `null`-key rebuild, singleton publication, observer count, fatal refresh. |
-| `NotificationAutoExpandEffectTest` | ABI null / snapshot null / subclass root → `COMPLETE_LEGACY`; exact root → `FAST`; `mOnKeyguard == true` short-circuit; blacklist mode 2; whitelist mode 3; other modes no expansion; malformed mode throws before `chain.proceed`; `getPackageName` failure; `setSystemExpanded` failure; `chain.proceed` rethrow; `setSystemExpanded` at most once; `InvocationTargetException` → `InvocationTargetError`; `IllegalAccessException` → `IllegalAccessError`. |
-| `NotificationAutoExpandHookTest` | Target class missing does not create runtime state. |
+| `NotificationAutoExpandResolverTest` | Primitive `mOnKeyguard` acceptance, wrapper rejection, missing members, `getEntry` zero-arg resolution with overload disambiguation, `setSystemExpanded` exact `Boolean.class` / primitive `Boolean.TYPE` selection, fatal class-loading propagation. |
+| `NotificationAutoExpandRuntimeStateTest` | Default `modeRaw = "1"`, raw string preservation, malformed `modeRaw` preserved unparsed, missing/wrong-type app set, copy-owned set, one `getAll` generation per rebuild, relevant-key filtering, `null`-key rebuild, singleton publication, observer count, fatal refresh. |
+| `NotificationAutoExpandEffectTest` | ABI null / snapshot null / subclass root → `COMPLETE_LEGACY`; exact root → `FAST`; `mOnKeyguard == true` short-circuit; blacklist mode 2; whitelist mode 3; other modes no expansion; malformed mode throws before `chain.proceed`; real `getEntry` invocation failure; `mSbn` missing failure; `getPackageName` failure; `setSystemExpanded` failure; `chain.proceed` rethrow; `setSystemExpanded` at most once; `InvocationTargetException` → `InvocationTargetError`; `IllegalAccessException` → `IllegalAccessError`. |
+| `NotificationAutoExpandHookTest` | Target class missing; ordinary target probe failure isolated with `ALL_METHODS / INSTALL_FAILED` diagnostic; fatal probe failure propagation. |
 
 Evidence classification for all component tests: `RUNTIME_TESTED_COMPONENT`.
 Callback evidence remains `C6_RUNTIME_CALLBACK_EVIDENCE = NOT_RUNTIME_TESTED_CALLBACK` because no real SystemUI `setFeedbackIcon` callback or device execution was performed.

@@ -69,7 +69,7 @@ class NotificationAutoExpandHookTest {
         }
 
         assertEquals(
-            "Ordinary class-loading failure must not be swallowed by the pre-probe",
+            "Ordinary probe failure must be isolated; no exception must escape",
             null,
             thrown,
         )
@@ -84,9 +84,24 @@ class NotificationAutoExpandHookTest {
         }
         assertNotNull("Hook diagnostics must record the install failure", record)
         assertEquals(
-            "Probe failure must be recorded as ALL_METHODS / INSTALL_FAILED",
+            "Probe failure must be recorded as ALL_METHODS",
+            HookDiagnostics.Kind.ALL_METHODS,
+            record!!.kind,
+        )
+        assertEquals(
+            "Probe failure must be recorded with INSTALL_FAILED",
             HookDiagnostics.Status.INSTALL_FAILED,
-            record!!.status,
+            record.status,
+        )
+        assertEquals(
+            "Target class must be ExpandableNotificationRow",
+            "com.android.systemui.statusbar.notification.row.ExpandableNotificationRow",
+            record.targetClass,
+        )
+        assertEquals(
+            "Target member must be setFeedbackIcon",
+            "setFeedbackIcon",
+            record.targetMember,
         )
         assertEquals(
             "Exception type must identify the ordinary failure",

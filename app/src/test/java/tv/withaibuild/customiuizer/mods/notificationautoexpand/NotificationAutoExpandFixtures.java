@@ -144,6 +144,40 @@ public final class NotificationAutoExpandFixtures {
         public void setSystemExpanded(boolean expanded) {}
     }
 
+    /** Class where `getEntry()` throws, to test FAST `getEntry` failure boundary. */
+    public static class ThrowingGetEntryRow extends BaseExpandableNotificationRow {
+
+        public Object getEntry() {
+            throw new RuntimeException("simulated getEntry failure");
+        }
+
+        public void setSystemExpanded(boolean expanded) {}
+    }
+
+    /** Entry object without the `mSbn` field, to test retained LEGACY helper failure. */
+    public static class EntryWithoutMbn {
+        public final String packageName;
+
+        public EntryWithoutMbn(String packageName) {
+            this.packageName = packageName;
+        }
+    }
+
+    /** Row whose `getEntry()` returns an object with no `mSbn` field. */
+    public static class EntryWithoutMbnRow extends BaseExpandableNotificationRow {
+        public final EntryWithoutMbn entry;
+
+        public EntryWithoutMbnRow(String packageName) {
+            this.entry = new EntryWithoutMbn(packageName);
+        }
+
+        public Object getEntry() {
+            return entry;
+        }
+
+        public void setSystemExpanded(boolean expanded) {}
+    }
+
     /** Notification with a `getPackageName` that throws. */
     public static class ThrowingStatusBarNotification extends StatusBarNotification {
         public ThrowingStatusBarNotification(String packageName) {
@@ -184,6 +218,21 @@ public final class NotificationAutoExpandFixtures {
     public static class PrivateGetEntryRow extends BaseExpandableNotificationRow {
         private Object getEntry() {
             return new NotificationEntry("com.example");
+        }
+
+        public void setSystemExpanded(boolean expanded) {}
+    }
+
+    /** Class with both zero-arg and one-arg `getEntry` overloads. */
+    public static class OverloadedGetEntryRow extends BaseExpandableNotificationRow {
+        public final NotificationEntry entry = new NotificationEntry("com.example");
+
+        public Object getEntry() {
+            return entry;
+        }
+
+        public Object getEntry(String arg) {
+            return new NotificationEntry(arg);
         }
 
         public void setSystemExpanded(boolean expanded) {}

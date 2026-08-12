@@ -87,7 +87,36 @@ class NotificationAutoExpandResolverTest {
     }
 
     // -------------------------------------------------------------------------
-    // D. BOOLEAN.CLASS BEST-MATCH BEHAVIOR
+    // D. ZERO-ARG GET_ENTRY SELECTION
+    // -------------------------------------------------------------------------
+    @Test
+    fun resolve_getEntry_zeroArgSelected() {
+        val abi = NotificationAutoExpandResolver.resolve(
+            NotificationAutoExpandFixtures.OverloadedGetEntryRow::class.java,
+        ) ?: throw AssertionError("Resolver must resolve getEntry")
+
+        assertEquals(
+            "getEntry must resolve to the zero-argument overload",
+            0,
+            abi.getEntryMethod.parameterCount,
+        )
+    }
+
+    @Test
+    fun resolve_getEntry_exactRoot_hasZeroArgs() {
+        val abi = NotificationAutoExpandResolver.resolve(
+            NotificationAutoExpandFixtures.ExpandableNotificationRow::class.java,
+        ) ?: throw AssertionError("Resolver must resolve getEntry")
+
+        assertEquals(
+            "getEntry must be a zero-argument method",
+            0,
+            abi.getEntryMethod.parameterCount,
+        )
+    }
+
+    // -------------------------------------------------------------------------
+    // E. BOOLEAN.CLASS BEST-MATCH BEHAVIOR
     // -------------------------------------------------------------------------
     @Test
     fun resolve_setSystemExpandedWithBoxedBoolean_resolves() {
@@ -99,6 +128,11 @@ class NotificationAutoExpandResolverTest {
             "setSystemExpanded must resolve to a one-argument method",
             1,
             abi.setSystemExpandedMethod.parameterTypes.size,
+        )
+        assertEquals(
+            "setSystemExpanded must resolve to the exact boxed Boolean overload when present",
+            java.lang.Boolean::class.java,
+            abi.setSystemExpandedMethod.parameterTypes[0],
         )
     }
 
@@ -113,10 +147,15 @@ class NotificationAutoExpandResolverTest {
             1,
             abi.setSystemExpandedMethod.parameterTypes.size,
         )
+        assertEquals(
+            "setSystemExpanded must resolve to the primitive boolean overload when only that exists",
+            java.lang.Boolean.TYPE,
+            abi.setSystemExpandedMethod.parameterTypes[0],
+        )
     }
 
     // -------------------------------------------------------------------------
-    // E. ORDINARY RESOLUTION FAILURE
+    // F. ORDINARY RESOLUTION FAILURE
     // -------------------------------------------------------------------------
     @Test
     fun resolve_ordinaryClassLoadingFailure_returnsNull() {
@@ -131,7 +170,7 @@ class NotificationAutoExpandResolverTest {
     }
 
     // -------------------------------------------------------------------------
-    // F. FATAL RESOLUTION FAILURE
+    // G. FATAL RESOLUTION FAILURE
     // -------------------------------------------------------------------------
     @Test(expected = OutOfMemoryError::class)
     fun resolve_fatalClassLoadingFailure_propagates() {

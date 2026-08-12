@@ -184,18 +184,23 @@ class NotificationAutoExpandEffectTest {
     }
 
     @Test
-    fun fast_getEntryInvocationTargetException_propagatesAndProceedNotCalled() {
-        val row = NotificationAutoExpandFixtures.ThrowingPackageNameRow("com.example").apply {
+    fun fast_getEntryThrows_propagatesAndProceedNotCalled() {
+        val row = NotificationAutoExpandFixtures.ThrowingGetEntryRow().apply {
             mOnKeyguard = false
         }
-        val effect = fastEffect()
+        val effect = fastEffectForRoot(row.javaClass)
         val chain = makeChain(row)
 
         try {
             effect.intercept(chain)
-            fail("Expected InvocationTargetError from getPackageName failure")
+            fail("Expected InvocationTargetError from getEntry failure")
         } catch (e: XposedHelpers.InvocationTargetError) {
             assertEquals("chain.proceed must not be called", 0, chain.proceedCount)
+            val cause = e.cause
+            assertTrue(
+                "Cause must be the simulated getEntry failure",
+                cause is RuntimeException && cause.message == "simulated getEntry failure",
+            )
         }
     }
 
@@ -218,6 +223,23 @@ class NotificationAutoExpandEffectTest {
             effect.intercept(chain)
             fail("Expected InvocationTargetError from getPackageName failure")
         } catch (e: XposedHelpers.InvocationTargetError) {
+            assertEquals("chain.proceed must not be called", 0, chain.proceedCount)
+        }
+    }
+
+    @Test
+    fun fast_mSbnMissing_stopsBeforeProceed() {
+        val row = NotificationAutoExpandFixtures.EntryWithoutMbnRow("com.example").apply {
+            mOnKeyguard = false
+        }
+
+        val effect = fastEffectForRoot(row.javaClass)
+        val chain = makeChain(row)
+
+        try {
+            effect.intercept(chain)
+            fail("Expected failure from missing mSbn")
+        } catch (e: Throwable) {
             assertEquals("chain.proceed must not be called", 0, chain.proceedCount)
         }
     }

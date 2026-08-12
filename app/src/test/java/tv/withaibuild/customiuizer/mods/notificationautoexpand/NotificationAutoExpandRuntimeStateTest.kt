@@ -255,6 +255,54 @@ class NotificationAutoExpandRuntimeStateTest {
         assertNull("snapshot must be cleared after ordinary refresh failure", state.snapshotRef.get())
     }
 
+    @Test
+    fun initialize_malformedModeRaw_preservedUnparsed() {
+        MainModule.mPrefs.replaceSnapshot(
+            mapOf(
+                "system_expandnotifs" to "not-a-number",
+                "system_expandnotifs_apps" to setOf("com.example"),
+            ),
+        )
+
+        val state = NotificationAutoExpandRuntimeState()
+        state.initialize()
+
+        val snapshot = state.snapshotRef.get()
+        assertNotNull("Runtime state must publish a snapshot even when modeRaw is malformed", snapshot)
+        assertEquals(
+            "modeRaw must be preserved as the raw string; parsing is deferred to the callback",
+            "not-a-number",
+            snapshot!!.modeRaw,
+        )
+    }
+
+    @Test
+    fun onPreferenceChanged_oneSourceGenerationPerRebuild() {
+        val sourceCalls = java.util.concurrent.atomic.AtomicInteger(0)
+        val values = mapOf(
+            "system_expandnotifs" to "2",
+            "system_expandnotifs_apps" to setOf("com.example"),
+        )
+
+        val state = NotificationAutoExpandRuntimeState {
+            sourceCalls.incrementAndGet()
+            values
+        }
+        state.initialize()
+
+        assertEquals("initial refresh must capture one source generation", 1, sourceCalls.get())
+        assertNotNull(state.snapshotRef.get())
+
+        state.onPreferenceChanged("system_expandnotifs")
+        assertEquals("relevant preference change must capture exactly one more source generation", 2, sourceCalls.get())
+
+        state.onPreferenceChanged("system_expandnotifs_apps")
+        assertEquals("another relevant preference change must capture one more source generation", 3, sourceCalls.get())
+
+        state.onPreferenceChanged("system_other_key")
+        assertEquals("irrelevant preference change must not trigger a source capture", 3, sourceCalls.get())
+    }
+
     @Test(expected = OutOfMemoryError::class)
     fun initialize_fatalRefreshFailure_clearsThenRethrows() {
         val state = NotificationAutoExpandRuntimeState {
