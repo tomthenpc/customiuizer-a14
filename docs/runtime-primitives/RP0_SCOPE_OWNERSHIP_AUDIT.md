@@ -121,7 +121,7 @@ The registration and cleanup paths have different fatal semantics:
 
 `ReceiverRegistry.replaceModuleRegistration` is the non-receiver form for content observers and listeners (`ReceiverRegistry.kt:525-553`). It records a cleanup under a process key and runs the previous cleanup.
 
-**Classification:** `PROCESS_KEY_REPLACEMENT`. The generation is a monotonic token used for self-race detection, not an owner identity. The process-key cleanup paths currently swallow `Throwable` without fatal propagation. Main consumers: `SystemUIMonitorAndTileHooks` (5G / floating-time tile observers), `SystemUILockScreenHooks` (torch observer), and `Various.kt` (next-alarm observer).
+**Classification:** `PROCESS_KEY_REPLACEMENT`. The generation is a monotonic token used for self-race detection, not an owner identity. The process-key cleanup paths currently swallow `Throwable` without fatal propagation. In addition, cleanup is not an exact-once operation: `replaceModuleRegistration` installs the new `ModuleRegistration`, calls `runModuleCleanup(previous)`, and, if the cleanup throws, places the previous registration in `staleModuleRegistrations` for a later retry. `retryStaleModuleRegistrations` may invoke `runModuleCleanup` again, and bounded-queue eviction may also attempt cleanup. Therefore `PROCESS_KEY_CLEANUP_EXACT_ONCE` is `false`; successful cleanup normally runs once, but failed cleanup can be retried, and double-cleanup safety depends on the idempotency of the caller-supplied `Runnable`. Main consumers: `SystemUIMonitorAndTileHooks` (5G / floating-time tile observers), `SystemUILockScreenHooks` (torch observer), and `Various.kt` (next-alarm observer).
 
 ### 4. `DeviceInfoMonitor` / `DeviceInfoMonitorState`
 
@@ -197,8 +197,8 @@ The 5G and floating-time tiles create `ContentObserver`s inside `handleSetListen
 | Multiple owners may coexist under the same key | **no** (one generation per `displayId`; pending owners are separate identity keys) | yes (per key list) | no | — | no | no | no | no | no | no |
 | Same-owner replacement / reuse | yes (same owner reuses same display state; pending identity key refreshes weak ref) | yes (same owner/key replaces previous receiver) | yes | no | no | yes | yes (re-register disposes old) | no (work token) | yes (cleanup) | no (singleton) |
 | Re-attach without full dispose | yes (same owner re-attaches to same display; pending same-owner) | no | no | no | no | no | yes (view attach/detach) | no | no | no |
-| Release is exact-once | yes (OwnedRegistrations) | yes (active flag) | yes (atomic state) | — | yes (dispose) | yes (dispose) | yes (state machine) | yes (cancel job) | yes (cleanup) | yes (unregister) |
-| Double-release is harmless | yes | yes | yes | — | yes | yes | yes | yes | yes | yes |
+| Release is exact-once | yes (OwnedRegistrations) | yes (active flag) | no (state tracks install; failed cleanup retried; bounded queue may evict/retry) | — | yes (dispose) | yes (dispose) | yes (state machine) | yes (cancel job) | yes (cleanup) | yes (unregister) |
+| Double-release is harmless | yes | yes | caller-dependent / not guaranteed | — | yes | yes | yes | yes | yes | yes |
 | Failure/fatal semantics | `OwnedRegistrations` logs non-fatal, rethrows OOM/VME/ThreadDeath via `FatalErrors` | `WeakOwnerReceiver` logs; bounded stale queue | registration: OOM rethrown; cleanup / runModuleCleanup: catch Throwable, no fatal propagation | `CallbackGuard.guarded` / `FatalErrors` | `XposedHelpers.log` / `FatalErrors` | `CallbackGuard.guarded` | `FatalErrors` | `XposedHelpers.log`; OOM rethrown | `CallbackGuard.guarded` | `XposedHelpers.log`; OOM rethrown |
 | Thread model | main thread only | concurrent (CHM/COW) | concurrent (CHM/AtomicReference) | main/bg handlers | main + IO coroutines | main handler | main thread (View callbacks) | Default dispatcher (limited parallelism 1) | main thread | main/IO coroutines |
 | Existing primitive already covers | `WeakIdentityMap` + `OwnedRegistrations` + `StatusBarDisplayRegistry` | `ReceiverRegistry` owned path | `ReceiverRegistry` process-key path | `DeviceInfoMonitorState` | View scope + `Visualizer` | `SecondTicker` + `ScreenStateController` | `CustomTextIconTintRoute` + `DarkTintRegistrationState` | single coroutine + atomic generation | `ReceiverRegistry.replaceModuleRegistration` | `WeakReference` + `ScreenStateController` |
@@ -215,7 +215,7 @@ The corrected comparison reinforces the negative evidence:
 
 ## OwnedSlot justification or rejection
 
-After corrected review, no second production site agrees with any first site on ownership, stale-owner behavior, replace behavior, release behavior, double-release behavior, same-owner reclaim behavior, thread model, publication model, registration boundary, retention policy, and failure/fatal semantics. The corrected `ReceiverRegistry` cleanup fatal semantics (process-key cleanup swallows `Throwable`) and the structural stale-callback risk in `SystemUIMonitorAndTileHooks` are distinct issues; they do not create a second semantically-compatible `OwnedSlot` use.
+After re-evaluation, no second production site agrees with any first site on ownership, stale-owner behavior, replace behavior, release behavior, double-release behavior, same-owner reclaim behavior, thread model, publication model, registration boundary, retention policy, and failure/fatal semantics. The corrected `ReceiverRegistry` process-key cleanup does not guarantee exact-once or idempotent cleanup (`PROCESS_KEY_CLEANUP_EXACT_ONCE = false`), the cleanup paths swallow `Throwable`, and the structural stale-callback risk in `SystemUIMonitorAndTileHooks` are distinct issues; they do not create a second semantically-compatible `OwnedSlot` use.
 
 ```text
 OWNEDSLOT_CANDIDATE_JUSTIFIED = false
@@ -285,6 +285,7 @@ OWNERSHIP_DUPLICATION_EVIDENCE = STRUCTURAL
 STALE_CALLBACK_RISK = STRUCTURAL
 CALLBACK_RUNTIME_EVIDENCE = NOT_RUNTIME_TESTED_CALLBACK
 HOT_PATH_COST_EVIDENCE = NOT_PROVEN
+PROCESS_KEY_CLEANUP_EXACT_ONCE = false
 ```
 
 All claims about owner/registration semantics are derived from source structure and the existing unit tests in `app/src/test`. No device or live callback runtime evidence was collected; no runtime callback validation is claimed.
@@ -337,6 +338,7 @@ OWNERSHIP_DUPLICATION_EVIDENCE = STRUCTURAL
 STALE_CALLBACK_RISK = STRUCTURAL
 CALLBACK_RUNTIME_EVIDENCE = NOT_RUNTIME_TESTED_CALLBACK
 HOT_PATH_COST_EVIDENCE = NOT_PROVEN
+PROCESS_KEY_CLEANUP_EXACT_ONCE = false
 GITHUB_CI_STATUS = NONE
 GITHUB_WORKFLOW_RUNS = NONE
 ```
