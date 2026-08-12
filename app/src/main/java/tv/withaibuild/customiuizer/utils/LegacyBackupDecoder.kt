@@ -19,7 +19,7 @@ import java.util.HashSet
  * Supported historical wire graph:
  * - root: `java.util.HashMap`
  * - values: `java.lang.Boolean`, `Integer`, `Long`, `Float`, `String`
- * - set values: `java.util.HashSet<String>`
+ * - set values: `java.util.HashSet` of strings (preserved as `HashSet<Any?>`)
  * - super classes: `java.lang.Number`
  *
  * The decoder enforces the same bounds as V2:
@@ -343,56 +343,58 @@ object LegacyBackupDecoder {
             }
         }
 
-        private fun readHashMap(classDesc: ClassDesc): Map<String, Any?> {
+        private data class MapBlockMetadata(
+            val capacity: Int?,
+            val loadFactor: Float?,
+            val size: Int,
+        )
+
+        private data class SetBlockMetadata(
+            val capacity: Int?,
+            val loadFactor: Float?,
+            val size: Int,
+        )
+
+        private fun readHashMap(classDesc: ClassDesc): Map<Any?, Any?> {
             consumeSuperClassData(classDesc.superClass)
 
             // Default fields written by HashMap.defaultWriteObject(): loadFactor, threshold.
+            var defaultLoadFactor: Float? = null
             for (field in classDesc.allFields) {
                 when (field.name) {
-                    "loadFactor" -> input.readFloat()
+                    "loadFactor" -> { defaultLoadFactor = input.readFloat() }
                     "threshold" -> input.readInt()
                     else -> consumeField(field)
                 }
             }
+            validatePositiveNotNaN(defaultLoadFactor, "HashMap default loadFactor")
 
             // Custom writeObject block.
-            val (capacity, size) = readMapBlockHeader()
+            val meta = readMapBlockHeader()
+            validatePositiveNotNaN(meta.loadFactor, "HashMap custom loadFactor")
+            if (meta.capacity != null && meta.capacity < 0) {
+                throw BackupRestore.BackupRestoreException("HashMap explicit capacity ${meta.capacity} is negative")
+            }
 
-            if (size < 0) {
+            if (meta.size < 0) {
                 throw BackupRestore.BackupRestoreException("Negative HashMap size")
             }
-            if (size > BackupFormatV2.MAX_ENTRY_COUNT) {
-                throw BackupRestore.BackupRestoreException("HashMap size $size exceeds MAX_ENTRY_COUNT")
+            if (meta.size > BackupFormatV2.MAX_ENTRY_COUNT) {
+                throw BackupRestore.BackupRestoreException("HashMap size ${meta.size} exceeds MAX_ENTRY_COUNT")
             }
 
-            val effectiveCapacity = if (capacity >= 0) {
-                capacity
-            } else {
-                // Older format only wrote size; bound the table that HashMap.readObject would allocate.
-                Integer.highestOneBit((size / 0.75f).toInt()) * 2
-            }
+            val effectiveCapacity = meta.capacity ?: Integer.highestOneBit((meta.size / 0.75f).toInt()) * 2
             if (effectiveCapacity > BackupRestore.LEGACY_MAX_ARRAY_LENGTH) {
                 throw BackupRestore.BackupRestoreException("HashMap capacity $effectiveCapacity exceeds legacy array limit")
             }
 
-            val map = HashMap<String, Any?>(size)
-            repeat(size) {
+            // Preserve every safely-decoded entry. Entry-level validation is the
+            // responsibility of the shared M1 restore pipeline, not the decoder.
+            val map = HashMap<Any?, Any?>(meta.size)
+            repeat(meta.size) {
                 val key = readContent()
                 val value = readContent()
-                when {
-                    key !is String -> {
-                        // Non-String key: skip the entry. The value was already safely consumed.
-                    }
-                    else -> {
-                        val keyBytes = key.toByteArray(Charsets.UTF_8)
-                        if (keyBytes.size > BackupFormatV2.MAX_KEY_BYTES) {
-                            throw BackupRestore.BackupRestoreException("Legacy key too long: ${keyBytes.size}")
-                        }
-                        if (isSupportedValue(value)) {
-                            map[key] = value
-                        }
-                    }
-                }
+                map[key] = value
             }
 
             // End of HashMap custom writeObject.
@@ -404,7 +406,7 @@ object LegacyBackupDecoder {
             return map
         }
 
-        private fun readMapBlockHeader(): Pair<Int, Int> {
+        private fun readMapBlockHeader(): MapBlockMetadata {
             val blockType = input.readUnsignedByte()
             val blockLen = if (blockType == TC_BLOCKDATA) {
                 input.readUnsignedByte()
@@ -417,57 +419,49 @@ object LegacyBackupDecoder {
             return when (blockLen) {
                 4 -> {
                     // Legacy format: only size.
-                    Pair(-1, input.readInt())
+                    MapBlockMetadata(null, null, input.readInt())
                 }
                 8 -> {
                     // Newer format: capacity, size.
-                    Pair(input.readInt(), input.readInt())
+                    MapBlockMetadata(input.readInt(), null, input.readInt())
                 }
                 12 -> {
-                    // capacity, loadFactor, size — tolerate by skipping the float.
+                    // capacity, loadFactor, size.
                     val capacity = input.readInt()
-                    input.readFloat()
-                    Pair(capacity, input.readInt())
+                    val loadFactor = input.readFloat()
+                    MapBlockMetadata(capacity, loadFactor, input.readInt())
                 }
                 else -> throw BackupRestore.BackupRestoreException("Unsupported HashMap custom block length: $blockLen")
             }
         }
 
-        private fun readHashSet(classDesc: ClassDesc): Set<String>? {
+        private fun readHashSet(classDesc: ClassDesc): Set<Any?> {
             consumeSuperClassData(classDesc.superClass)
 
             // HashSet has no default fields; custom writeObject block follows.
-            val (capacity, size) = readSetBlockHeader()
+            val meta = readSetBlockHeader()
+            validatePositiveNotNaN(meta.loadFactor, "HashSet loadFactor")
+            if (meta.capacity != null && meta.capacity < 0) {
+                throw BackupRestore.BackupRestoreException("HashSet explicit capacity ${meta.capacity} is negative")
+            }
 
-            if (size < 0) {
+            if (meta.size < 0) {
                 throw BackupRestore.BackupRestoreException("Negative HashSet size")
             }
-            if (size > BackupFormatV2.MAX_SET_ITEMS) {
-                throw BackupRestore.BackupRestoreException("HashSet size $size exceeds MAX_SET_ITEMS")
+            if (meta.size > BackupFormatV2.MAX_SET_ITEMS) {
+                throw BackupRestore.BackupRestoreException("HashSet size ${meta.size} exceeds MAX_SET_ITEMS")
             }
 
-            val effectiveCapacity = if (capacity >= 0) {
-                capacity
-            } else {
-                Integer.highestOneBit((size / 0.75f).toInt()) * 2
-            }
+            val effectiveCapacity = meta.capacity ?: Integer.highestOneBit((meta.size / 0.75f).toInt()) * 2
             if (effectiveCapacity > BackupRestore.LEGACY_MAX_ARRAY_LENGTH) {
                 throw BackupRestore.BackupRestoreException("HashSet capacity $effectiveCapacity exceeds legacy array limit")
             }
 
-            val set = HashSet<String>(size)
-            var allStrings = true
-            repeat(size) {
-                val element = readContent()
-                if (element is String) {
-                    val elementBytes = element.toByteArray(Charsets.UTF_8)
-                    if (elementBytes.size > BackupFormatV2.MAX_STRING_BYTES) {
-                        throw BackupRestore.BackupRestoreException("HashSet item too long: ${elementBytes.size}")
-                    }
-                    set.add(element)
-                } else {
-                    allStrings = false
-                }
+            // Preserve every safely-decoded element. StringSet validation is the
+            // responsibility of the shared M1 restore pipeline, not the decoder.
+            val set = HashSet<Any?>(meta.size)
+            repeat(meta.size) {
+                set.add(readContent())
             }
 
             // End of HashSet custom writeObject.
@@ -476,10 +470,10 @@ object LegacyBackupDecoder {
                 throw BackupRestore.BackupRestoreException("Expected TC_ENDBLOCKDATA after HashSet entries, got $endTc")
             }
 
-            return if (allStrings) set else null
+            return set
         }
 
-        private fun readSetBlockHeader(): Pair<Int, Int> {
+        private fun readSetBlockHeader(): SetBlockMetadata {
             val blockType = input.readUnsignedByte()
             val blockLen = if (blockType == TC_BLOCKDATA) {
                 input.readUnsignedByte()
@@ -492,19 +486,26 @@ object LegacyBackupDecoder {
             return when (blockLen) {
                 4 -> {
                     // Legacy format: only size.
-                    Pair(-1, input.readInt())
+                    SetBlockMetadata(null, null, input.readInt())
                 }
                 12 -> {
                     // Newer format: capacity, loadFactor, size.
                     val capacity = input.readInt()
-                    input.readFloat()
-                    Pair(capacity, input.readInt())
+                    val loadFactor = input.readFloat()
+                    SetBlockMetadata(capacity, loadFactor, input.readInt())
                 }
                 8 -> {
                     // capacity, size (no loadFactor)
-                    Pair(input.readInt(), input.readInt())
+                    SetBlockMetadata(input.readInt(), null, input.readInt())
                 }
                 else -> throw BackupRestore.BackupRestoreException("Unsupported HashSet custom block length: $blockLen")
+            }
+        }
+
+        private fun validatePositiveNotNaN(value: Float?, name: String) {
+            if (value == null) return
+            if (value.isNaN() || value <= 0f) {
+                throw BackupRestore.BackupRestoreException("$name must be positive and finite: $value")
             }
         }
 
@@ -627,14 +628,6 @@ object LegacyBackupDecoder {
                     throw BackupRestore.BackupRestoreException("Could not skip $count bytes in legacy stream")
                 }
                 remaining -= skipped
-            }
-        }
-
-        private fun isSupportedValue(value: Any?): Boolean {
-            return when (value) {
-                is Boolean, is Int, is Long, is Float, is String -> true
-                is Set<*> -> value.all { it is String }
-                else -> false
             }
         }
 

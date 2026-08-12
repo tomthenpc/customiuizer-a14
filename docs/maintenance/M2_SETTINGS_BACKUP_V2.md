@@ -247,6 +247,46 @@ included.
   additional root objects are rejected.
 - Android API 34 runtime evidence is unavailable in this environment.
 
+### 8.7 Raw Safe Invalid Entry Policy
+
+`LegacyBackupDecoder.readHashMap` returns `HashMap<Any?, Any?>` and **does not**
+silently drop:
+
+- non-`String` keys;
+- values that are not final `SharedPreferences` types but were safely decoded;
+- `HashSet` elements that are not `String`.
+
+Every safely-decoded key and value is preserved in the raw map and handed to the
+shared `BackupRestore.validateAndNormalizeEntries` for entry-level
+classification. The decoder is still responsible for preventing **unsafe**
+objects from being instantiated (custom `Serializable`, disallowed classes, etc.),
+but it does not perform `SharedPreferences`-specific policy.
+
+`BackupRestore.validateAndNormalizeEntries` now produces:
+
+- `invalidSkipped++` for a non-`String` key;
+- `invalidSkipped++` for an unsupported value (e.g. a nested `HashMap`);
+- `invalidSkipped++` for a `StringSet` whose members are not all `String`.
+
+### 8.8 HashMap / HashSet Serialized Metadata Validation
+
+The decoder treats collection metadata as structural data and fails closed on
+malformed values:
+
+- `HashMap` class-data `loadFactor` must be `> 0` and not `NaN`.
+- `HashMap` custom-block `loadFactor` (12-byte variant), if present, must be `> 0`
+  and not `NaN`.
+- `HashMap` / `HashSet` explicit `capacity`, if present, must be `>= 0`.
+  A genuinely absent `capacity` (4-byte legacy variant) is represented as `null`
+  and derived from `size`; a negative explicit `capacity` is a malformed stream.
+- `HashSet` custom-block `loadFactor` (12-byte variant), if present, must be `> 0`
+  and not `NaN`.
+- `threshold` is read as a historical serialized field but is not used as restore
+  state.
+
+Explicit-capacity `null` (field absent in older wire) and an explicit negative
+value are distinguished; only the latter is treated as an attack.
+
 ## 9. Post-Decode Bounds
 
 After V2 or legacy decode, `postDecodeBoundsCheck` verifies:
@@ -299,7 +339,7 @@ V2:
 - malformed UTF-8
 
 Legacy (host JDK 17 unit tests; API 34 instrumentation unavailable):
-- `HashMap` root with Boolean, Int, Long, Float, String, `HashSet<String>`
+- `HashMap` root with Boolean, Int, Long, Float, String, `HashSet`
 - exact class-descriptor schema (SUID, flags, fields, superclass)
 - reject `LinkedHashMap`, `LinkedHashSet`, `ArrayList`, `Double`
 - reject custom `Serializable` with `readObject` before execution
@@ -312,6 +352,10 @@ Legacy (host JDK 17 unit tests; API 34 instrumentation unavailable):
 - wrong root
 - oversized input
 - `MAX_FILE_SIZE` bounds
+- raw invalid entries preserved and counted by `validateAndNormalizeEntries`
+  (non-`String` key, malformed `StringSet`, nested `HashMap` value)
+- `HashMap` / `HashSet` metadata validation
+  (positive finite `loadFactor`, non-negative explicit `capacity`)
 
 ## 13. M1 Regression Coverage
 

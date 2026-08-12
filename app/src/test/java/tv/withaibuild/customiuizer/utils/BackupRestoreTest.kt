@@ -750,6 +750,215 @@ class BackupRestoreTest {
         }
     }
 
+    @Test
+    fun performRestoreLegacyCountsNonStringKeyAsInvalidSkipped() {
+        val map = HashMap<Any?, Any?>()
+        map[123] = "bad-key"
+        map["valid"] = true
+
+        val prefs = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            ByteArrayInputStream(serialize(map)),
+            prefs,
+            emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertEquals(1, result.invalidSkipped)
+        assertEquals(1, result.restored)
+        assertTrue(prefs.getBoolean("valid", false))
+        assertNull(prefs.getString("123", null))
+    }
+
+    @Test
+    fun performRestoreLegacyCountsMalformedSetAsInvalidSkipped() {
+        val map = HashMap<Any?, Any?>()
+        val set = HashSet<Any?>()
+        set.add("com.ok")
+        set.add(123)
+        map["bad_set"] = set
+        map["valid"] = true
+
+        val prefs = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            ByteArrayInputStream(serialize(map)),
+            prefs,
+            emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertEquals(1, result.invalidSkipped)
+        assertEquals(1, result.restored)
+        assertNull(prefs.getStringSet("bad_set", null))
+        assertTrue(prefs.getBoolean("valid", false))
+    }
+
+    @Test
+    fun performRestoreLegacyCountsNestedMapAsInvalidSkipped() {
+        val map = HashMap<Any?, Any?>()
+        val nested = HashMap<String, Any?>()
+        nested["x"] = true
+        map["bad_value"] = nested
+        map["valid"] = true
+
+        val prefs = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            ByteArrayInputStream(serialize(map)),
+            prefs,
+            emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertEquals(1, result.invalidSkipped)
+        assertEquals(1, result.restored)
+        assertNull(prefs.getString("bad_value", null))
+        assertTrue(prefs.getBoolean("valid", false))
+    }
+
+    @Test
+    fun legacyHashMapRejectsNaNLoadFactor() {
+        val map = HashMap<String, Any?>()
+        map["key"] = true
+        val bytes = patchHashMapLoadFactor(serialize(map), Float.NaN)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected loadFactor validation", e.message?.contains("loadFactor") == true)
+        }
+    }
+
+    @Test
+    fun legacyHashMapRejectsZeroOrNegativeLoadFactor() {
+        val map = HashMap<String, Any?>()
+        map["key"] = true
+        val bytes = patchHashMapLoadFactor(serialize(map), -0.5f)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected loadFactor validation", e.message?.contains("loadFactor") == true)
+        }
+    }
+
+    @Test
+    fun legacyHashMapRejectsNegativeExplicitCapacity() {
+        val map = HashMap<String, Any?>()
+        map["key"] = true
+        val bytes = patchHashMapCapacity(serialize(map), -1)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected negative capacity rejection", e.message?.contains("capacity") == true)
+        }
+    }
+
+    @Test
+    fun legacyHashSetRejectsNegativeCapacity() {
+        val set = HashSet<String>()
+        set.add("x")
+        val bytes = patchHashSetCapacity(serialize(set), -1)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected negative capacity rejection", e.message?.contains("capacity") == true)
+        }
+    }
+
+    @Test
+    fun legacyHashSetRejectsNaNLoadFactor() {
+        val set = HashSet<String>()
+        set.add("x")
+        val bytes = patchHashSetLoadFactor(serialize(set), Float.NaN)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected loadFactor validation", e.message?.contains("loadFactor") == true)
+        }
+    }
+
+    @Test
+    fun legacyHashSetRejectsZeroOrNegativeLoadFactor() {
+        val set = HashSet<String>()
+        set.add("x")
+        val bytes = patchHashSetLoadFactor(serialize(set), 0f)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected loadFactor validation", e.message?.contains("loadFactor") == true)
+        }
+    }
+
+    private fun findFirstClassDataEnd(bytes: List<Byte>): Int {
+        for (i in 0 until bytes.size - 1) {
+            if (bytes[i] == TC_ENDBLOCKDATA.toByte() && bytes[i + 1] == TC_NULL.toByte()) {
+                return i + 2
+            }
+        }
+        throw IllegalArgumentException("Class data end not found in serialized fixture")
+    }
+
+    private fun patchHashMapLoadFactor(bytes: ByteArray, newLoadFactor: Float): ByteArray {
+        val list = bytes.toMutableList()
+        val end = findFirstClassDataEnd(list)
+        val bits = java.lang.Float.floatToIntBits(newLoadFactor)
+        list[end] = (bits ushr 24).toByte()
+        list[end + 1] = (bits ushr 16).toByte()
+        list[end + 2] = (bits ushr 8).toByte()
+        list[end + 3] = bits.toByte()
+        return list.toByteArray()
+    }
+
+    private fun patchHashMapCapacity(bytes: ByteArray, newCapacity: Int): ByteArray {
+        val list = bytes.toMutableList()
+        val end = findFirstClassDataEnd(list)
+        // JDK 17 HashMap custom block: TC_BLOCKDATA(1) + len(1) + capacity(4) + size(4)
+        val capIndex = end + 8 + 2
+        list[capIndex] = (newCapacity ushr 24).toByte()
+        list[capIndex + 1] = (newCapacity ushr 16).toByte()
+        list[capIndex + 2] = (newCapacity ushr 8).toByte()
+        list[capIndex + 3] = newCapacity.toByte()
+        return list.toByteArray()
+    }
+
+    private fun patchHashSetCapacity(bytes: ByteArray, newCapacity: Int): ByteArray {
+        val list = bytes.toMutableList()
+        val end = findFirstClassDataEnd(list)
+        // JDK 17 HashSet custom block: TC_BLOCKDATA(1) + len(1) + capacity(4) + loadFactor(4) + size(4)
+        val capIndex = end + 2
+        list[capIndex] = (newCapacity ushr 24).toByte()
+        list[capIndex + 1] = (newCapacity ushr 16).toByte()
+        list[capIndex + 2] = (newCapacity ushr 8).toByte()
+        list[capIndex + 3] = newCapacity.toByte()
+        return list.toByteArray()
+    }
+
+    private fun patchHashSetLoadFactor(bytes: ByteArray, newLoadFactor: Float): ByteArray {
+        val list = bytes.toMutableList()
+        val end = findFirstClassDataEnd(list)
+        // JDK 17 HashSet custom block: TC_BLOCKDATA(1) + len(1) + capacity(4) + loadFactor(4) + size(4)
+        val lfIndex = end + 6
+        val bits = java.lang.Float.floatToIntBits(newLoadFactor)
+        list[lfIndex] = (bits ushr 24).toByte()
+        list[lfIndex + 1] = (bits ushr 16).toByte()
+        list[lfIndex + 2] = (bits ushr 8).toByte()
+        list[lfIndex + 3] = bits.toByte()
+        return list.toByteArray()
+    }
+
     private fun serialize(obj: Any): ByteArray {
         val output = ByteArrayOutputStream()
         ObjectOutputStream(output).use { it.writeObject(obj) }
