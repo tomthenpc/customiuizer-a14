@@ -24,6 +24,7 @@ import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
+import tv.withaibuild.customiuizer.mods.notificationautoexpand.NotificationAutoExpandHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.lang.reflect.InvocationHandler
@@ -41,32 +42,7 @@ object SystemNotificationHooks {
 
     @JvmStatic
     fun ExpandNotificationsHook(lpparam: PackageReadyParam) {
-        val feedbackMethod = "setFeedbackIcon"
-        ModuleHelper.hookAllMethods("com.android.systemui.statusbar.notification.row.ExpandableNotificationRow", lpparam.classLoader, feedbackMethod, object : MethodHook() {
-            override fun intercept(chain: XposedInterface.Chain): Any? {
-                var result: Any? = null
-                var throwable: Throwable? = null
-                val thisObject = chain.thisObject
-                try {
-
-                    val mOnKeyguard = XposedHelpers.getBooleanField(thisObject, "mOnKeyguard")
-                    if (!mOnKeyguard) {
-                        val notification = XposedHelpers.getObjectField(XposedHelpers.callMethod(thisObject, "getEntry"), "mSbn")
-                        val pkgName = XposedHelpers.callMethod(notification, "getPackageName") as String
-                        val opt = Integer.parseInt(MainModule.mPrefs.getString("system_expandnotifs", "1") ?: "1")
-                        val isSelected = MainModule.mPrefs.getStringSet("system_expandnotifs_apps")?.contains(pkgName) ?: false
-                        if ((opt == 2 && !isSelected) || (opt == 3 && isSelected))
-                            XposedHelpers.callMethod(thisObject, "setSystemExpanded", true)
-                    }
-
-                    result = chain.proceed()
-                } catch (t: Throwable) {
-                    throwable = t
-                    result = null
-                }
-                return XposedHelpers.throwOrReturn(throwable, result)
-            }
-        })
+        NotificationAutoExpandHook.install(lpparam.classLoader)
     }
 
     @JvmStatic
