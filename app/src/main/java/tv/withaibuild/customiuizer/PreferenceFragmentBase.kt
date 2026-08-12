@@ -28,9 +28,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
-import java.io.ObjectOutputStream
 import java.util.Collections
-import java.util.HashMap
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlin.coroutines.coroutineContext
@@ -587,11 +585,7 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
                 val outputStream = getValidContext().contentResolver
                     .openOutputStream(data!!.data!!)
                     ?: throw IllegalStateException("Backup output stream unavailable")
-                outputStream.use { raw ->
-                    ObjectOutputStream(raw).use { output ->
-                        output.writeObject(AppHelper.appPrefs!!.all)
-                    }
-                }
+                BackupRestore.performBackup(AppHelper.appPrefs!!, outputStream)
 
                 AlertDialog.Builder(getValidContext())
                     .setTitle(R.string.do_backup)

@@ -13,6 +13,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class BackupRestoreTest {
@@ -334,7 +335,7 @@ class BackupRestoreTest {
 
     @Test
     fun performRestoreRejectsOversizedInput() {
-        val huge = ByteArray(BackupRestore.M1_LEGACY_MAX_BYTES.toInt() + 1)
+        val huge = ByteArray(BackupFormatV2.MAX_FILE_SIZE.toInt() + 1)
         val input = ByteArrayInputStream(huge)
 
         val prefs = FakeSharedPreferences()
@@ -353,8 +354,8 @@ class BackupRestoreTest {
     fun performRestoreSanitizesAppSelectionsAndReportsRestoredCount() {
         val map = HashMap<String, Any?>()
         map["pref_key_system_clock_app"] = "com.missing|com.missing.Clock"
-        map["pref_key_system_clock_app_user"] = 123
-        map["pref_key_system_blocktoasts_apps"] = LinkedHashSet<String>().apply {
+        map["pref_key_system_clock_app_user"] = "123"
+        map["pref_key_system_blocktoasts_apps"] = HashSet<String>().apply {
             add("com.present")
             add("com.missing")
         }
@@ -429,6 +430,141 @@ class BackupRestoreTest {
         assertEquals("value", prefs.getString("string", null))
         @Suppress("UNCHECKED_CAST")
         assertEquals(setOf("a"), prefs.getStringSet("set", emptySet()) as Set<String>)
+    }
+
+    @Test
+    fun decodeLegacyBackupRejectsLinkedHashMap() {
+        val map = LinkedHashMap<String, Any?>()
+        map["pref_key_test"] = true
+        val bytes = serialize(map)
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue(e.cause is java.io.InvalidClassException)
+        }
+    }
+
+    @Test
+    fun performRestoreDetectsV2AndSucceeds() {
+        val entries = linkedMapOf(
+            "pref_key_enabled" to true,
+            "pref_key_miuizer_launchericon" to false,
+        )
+        val input = ByteArrayInputStream(BackupFormatV2.encode(entries))
+
+        val prefs = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertTrue(result.commitSucceeded)
+        assertEquals(2, result.restored)
+        assertTrue(prefs.getBoolean("pref_key_enabled", false))
+        assertFalse(prefs.getBoolean("pref_key_miuizer_launchericon", true))
+    }
+
+    @Test
+    fun performRestoreDetectsLegacyJavaSerialization() {
+        val map = HashMap<String, Any?>()
+        map["pref_key_enabled"] = true
+        val input = ByteArrayInputStream(serialize(map))
+
+        val prefs = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertTrue(result.commitSucceeded)
+        assertTrue(prefs.getBoolean("pref_key_enabled", false))
+    }
+
+    @Test
+    fun performRestoreRejectsUnrecognizedFormat() {
+        val input = ByteArrayInputStream(byteArrayOf(0x01, 0x02, 0x03, 0x04, 0x05, 0x06))
+
+        val prefs = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.FAILURE, result.status)
+        assertFalse(result.commitSucceeded)
+    }
+
+    @Test
+    fun performBackupWritesV2AndFiltersDroppedAndNonExportable() {
+        val prefs = FakeSharedPreferences().apply {
+            put("pref_key_enabled", true)
+            put("pref_key_string", "value")
+            put("pref_key_system_notif_disable_strong_toast", true)
+            put("pref_key_miuizer_locale_applied", "zh")
+        }
+
+        val output = ByteArrayOutputStream()
+        val success = BackupRestore.performBackup(prefs, output)
+
+        assertTrue(success)
+
+        val decoded = BackupFormatV2.decode(output.toByteArray())
+        assertEquals(2, decoded.size)
+        assertTrue(decoded.containsKey("pref_key_enabled"))
+        assertTrue(decoded.containsKey("pref_key_string"))
+        assertFalse(decoded.containsKey("pref_key_system_notif_disable_strong_toast"))
+        assertFalse(decoded.containsKey("pref_key_miuizer_locale_applied"))
+    }
+
+    @Test
+    fun performBackupFailsOnUnsupportedValueType() {
+        val prefs = FakeSharedPreferences().apply {
+            put("pref_key_double", 1.5)
+        }
+
+        try {
+            BackupRestore.performBackup(prefs, ByteArrayOutputStream())
+            fail("Expected BackupFormatV2.BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("Unsupported") == true)
+        }
+    }
+
+    @Test
+    fun performRestoreV2IgnoresDroppedAndDeviceDerivedKeys() {
+        val entries = linkedMapOf(
+            "pref_key_enabled" to true,
+            "pref_key_system_notif_disable_strong_toast" to true,
+            "pref_key_miuizer_locale" to "en",
+            "pref_key_miuizer_locale_applied" to "zh",
+        )
+        val input = ByteArrayInputStream(BackupFormatV2.encode(entries))
+
+        val prefs = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertEquals(2, result.deprecatedIgnored)
+        assertEquals(2, result.restored)
+        assertTrue(prefs.getBoolean("pref_key_enabled", false))
+        assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
+        assertNull(prefs.getString("pref_key_system_notif_disable_strong_toast", null))
+        // Device-derived marker gets local reconcile marker, not source value.
+        assertEquals("", prefs.getString("pref_key_miuizer_locale_applied", null))
     }
 
     private fun serialize(obj: Any): ByteArray {
