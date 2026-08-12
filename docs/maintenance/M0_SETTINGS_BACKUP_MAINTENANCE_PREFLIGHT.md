@@ -312,8 +312,15 @@ For each dropped/renamed/migrated key:
 
 | Category | Keys |
 |----------|------|
-| **PROVEN_DROPPED_KEYS** | `pref_key_system_notif_disable_strong_toast`, `pref_key_system_notif_disable_strong_toast_always`, `pref_key_system_notif_disable_strong_toast_dnd` (and short forms), `pref_key_system_notif_strong_toast_width` |
+| **PROVEN_DROPPED_KEYS** | `pref_key_system_notif_disable_strong_toast`, `pref_key_system_notif_disable_strong_toast_always`, `pref_key_system_notif_disable_strong_toast_dnd`, `pref_key_system_notif_strong_toast_width` |
 | **PROVEN_RENAMED_KEYS** | *(none identified)* |
+
+The short-form names `system_notif_disable_strong_toast`,
+`system_notif_disable_strong_toast_always`, `system_notif_disable_strong_toast_dnd`,
+and `system_notif_strong_toast_width` are module / `PrefMap` lookup names. They
+are **not** `SharedPreferences` storage keys and are not expected to appear in
+legacy backups of `AppHelper.appPrefs`. M1 tombstone filtering operates on the
+`pref_key_*` storage keys.
 | **PROVEN_TYPE_MIGRATIONS** | *(none identified)* |
 | **PROVEN_NON_EXPORTABLE_KEYS** | `pref_key_miuizer_locale_applied`, `pref_key_miuizer_synced_from_lsposed` (device/runtime derived) |
 | **UNRESOLVED_KEYS** | *(none)* |
@@ -883,20 +890,59 @@ explicitly deferred to **M2** (see below).
 
 7. **M1 malformed legacy input hardening:**
    - Harden the **current** Java-serialization restore path against malformed
-     input **without implementing the final M2 restricted codec or V2 format**:
-     - bounded input consumption / oversized file rejection;
-     - null stream handling;
-     - root object validation (must be a `Map`);
-     - key/value type validation (only allowed primitive wrappers, `String`,
-       and `HashSet`);
-     - `StringSet` element validation (all elements must be non-null `String`);
-     - truncated / malformed / wrong-file handling;
-     - fatal `Throwable` propagation matching `FatalErrors`;
-     - unsupported value type → `invalidSkipped` / restore failure per the
-       frozen result semantics.
-   - Any very local guard added for M1 reliability must not be presented as the
-     final M2 `LEGACY_WIRE_ALLOWLIST` / `ObjectInputFilter` implementation and
-     must not alter the M2 contract.
+     input **without implementing the final M2 restricted codec or V2 format**.
+     Any local guard added for M1 reliability must not be presented as the final
+     M2 `LEGACY_WIRE_ALLOWLIST` / `ObjectInputFilter` implementation and must not
+     alter the M2 contract.
+
+   #### A. Structural / container failure
+
+   If any of the following occurs, the restore is a **FAILURE**:
+
+   - input stream is unavailable / `null`;
+   - input exceeds the bounded size limit;
+   - `ObjectInputStream` decode fails;
+   - stream is truncated or malformed;
+   - the file is not a valid legacy backup (e.g. root object is not a `Map`);
+   - the root object is not a `Map<String, ?>`.
+
+   On structural failure:
+
+   - `commitSucceeded = false`;
+   - `RESTORE_RESULT = FAILURE`;
+   - **do not** call `SharedPreferences.Editor.clear()`;
+   - **do not** commit any preference writes;
+   - **do not** execute launcher or locale side-effect reconciles;
+   - **do not** show a restore-success dialog.
+
+   #### B. Entry-level invalid data
+
+   After the root `Map` has been successfully decoded, each entry is validated
+   before it enters the pipeline:
+
+   - key must be a non-null `String`;
+   - value class must be one of `Boolean`, `Integer`, `Long`, `Float`, `String`,
+     or `HashSet`;
+   - for `Set` values, **every** element must be a non-null `String`;
+   - unsupported value type or malformed entry is an `invalidSkipped` unit.
+
+   For an invalid entry:
+
+   - skip the **entire** preference entry (do not write a partial or malformed
+     `StringSet`);
+   - `invalidSkipped += 1`;
+   - continue processing the remaining valid entries.
+
+   Valid entries then proceed through:
+   `normalize → migrate → tombstone filter → sanitize → transaction → commit`.
+
+   #### C. Fatal `Throwable`
+
+   - Preserve `FatalErrors.rethrowIfFatal(t)` behavior.
+   - `OutOfMemoryError`, `VirtualMachineError`, and `ThreadDeath` must
+     propagate.
+   - The frozen `LinkageError` policy remains unchanged: `LinkageError` is not
+     a fatal and is treated as an ordinary backup-corrupt failure.
 
 8. **M1 tests (only M1 scope):**
    - Backup filename format and no shared `SimpleDateFormat`.
@@ -952,8 +998,14 @@ M0 and M1 do **not** authorize these changes.
    confirm whether it is dead or written by an older build.
 3. **Restore process semantics:** should a successful restore also force a process
    exit for locale, or is `finish + startActivity` the intended contract?
-4. **Commit failure policy:** should `commit() == false` be treated as `FAILURE`
-   (no partial result) or `PARTIAL_FAILURE`? M0 recommends `FAILURE`.
+4. **COMMIT_FAILURE_POLICY = FROZEN:**
+   - `commitSucceeded == false` → `RESTORE_RESULT = FAILURE`.
+   - `RESTORE_RESULT = PARTIAL_FAILURE` is only allowed when
+     `commitSucceeded == true` but a required device-side reconciliation
+     (e.g. launcher icon) fails.
+   - On `commit() == false` the UI must not show restore success, must not
+     execute side-effect reconciles that require a successful commit, and must
+     not alter existing live preferences.
 5. **About category title for M4:** decide whether to reuse `@string/miuizer` or
    switch to `@string/settings` when the locale row is moved.
 
