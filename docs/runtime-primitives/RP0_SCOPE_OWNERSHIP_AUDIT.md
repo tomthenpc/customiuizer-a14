@@ -113,9 +113,15 @@ For a given key it:
 
 `ReceiverRegistry.registerModuleReceiver` uses `moduleReceivers: ConcurrentHashMap<String, ModuleReceiverRegistration>` with a monotonic `moduleReceiverGeneration` (`ReceiverRegistry.kt:70-158`). For a single process key it atomically installs a new registration, unregisters the previous receiver, self-unregisters on concurrent replacement, and queues failed unregisters in a bounded stale queue.
 
+The registration and cleanup paths have different fatal semantics:
+
+- **Registration** (`ReceiverRegistry.kt:127-157`): `OutOfMemoryError` is explicitly rethrown (`catch (oom: OutOfMemoryError) { throw oom }`). Any other `Throwable` is logged via `XposedHelpers.log`, the map entry is rolled back, and `registerModuleReceiver` returns `false`.
+- **Unregistration cleanup** (`ReceiverRegistry.kt:189-196`): `releaseModuleRegistration` wraps `context.unregisterReceiver(receiver)` in `try/catch (Throwable)`, returns `false` on any failure, and **does not** rethrow `OutOfMemoryError`, `ThreadDeath`, or `VirtualMachineError`.
+- **Process-key cleanup** (`ReceiverRegistry.kt:555-562`): `runModuleCleanup` wraps `reg.cleanup.run()` in `try/catch (Throwable)`, returns `false` on any failure, and **does not** rethrow fatal errors.
+
 `ReceiverRegistry.replaceModuleRegistration` is the non-receiver form for content observers and listeners (`ReceiverRegistry.kt:525-553`). It records a cleanup under a process key and runs the previous cleanup.
 
-**Classification:** `PROCESS_KEY_REPLACEMENT`. The generation is a monotonic token used for self-race detection, not an owner identity. Main consumers: `SystemUIMonitorAndTileHooks` (5G / floating-time tile observers), `SystemUILockScreenHooks` (torch observer), and `Various.kt` (next-alarm observer).
+**Classification:** `PROCESS_KEY_REPLACEMENT`. The generation is a monotonic token used for self-race detection, not an owner identity. The process-key cleanup paths currently swallow `Throwable` without fatal propagation. Main consumers: `SystemUIMonitorAndTileHooks` (5G / floating-time tile observers), `SystemUILockScreenHooks` (torch observer), and `Various.kt` (next-alarm observer).
 
 ### 4. `DeviceInfoMonitor` / `DeviceInfoMonitorState`
 
@@ -193,7 +199,7 @@ The 5G and floating-time tiles create `ContentObserver`s inside `handleSetListen
 | Re-attach without full dispose | yes (same owner re-attaches to same display; pending same-owner) | no | no | no | no | no | yes (view attach/detach) | no | no | no |
 | Release is exact-once | yes (OwnedRegistrations) | yes (active flag) | yes (atomic state) | — | yes (dispose) | yes (dispose) | yes (state machine) | yes (cancel job) | yes (cleanup) | yes (unregister) |
 | Double-release is harmless | yes | yes | yes | — | yes | yes | yes | yes | yes | yes |
-| Failure/fatal semantics | `OwnedRegistrations` logs non-fatal, rethrows OOM/VME/ThreadDeath via `FatalErrors` | `WeakOwnerReceiver` logs; bounded stale queue | bounded stale queue; OOM rethrown | `CallbackGuard.guarded` / `FatalErrors` | `XposedHelpers.log` / `FatalErrors` | `CallbackGuard.guarded` | `FatalErrors` | `XposedHelpers.log`; OOM rethrown | `CallbackGuard.guarded` | `XposedHelpers.log`; OOM rethrown |
+| Failure/fatal semantics | `OwnedRegistrations` logs non-fatal, rethrows OOM/VME/ThreadDeath via `FatalErrors` | `WeakOwnerReceiver` logs; bounded stale queue | registration: OOM rethrown; cleanup / runModuleCleanup: catch Throwable, no fatal propagation | `CallbackGuard.guarded` / `FatalErrors` | `XposedHelpers.log` / `FatalErrors` | `CallbackGuard.guarded` | `FatalErrors` | `XposedHelpers.log`; OOM rethrown | `CallbackGuard.guarded` | `XposedHelpers.log`; OOM rethrown |
 | Thread model | main thread only | concurrent (CHM/COW) | concurrent (CHM/AtomicReference) | main/bg handlers | main + IO coroutines | main handler | main thread (View callbacks) | Default dispatcher (limited parallelism 1) | main thread | main/IO coroutines |
 | Existing primitive already covers | `WeakIdentityMap` + `OwnedRegistrations` + `StatusBarDisplayRegistry` | `ReceiverRegistry` owned path | `ReceiverRegistry` process-key path | `DeviceInfoMonitorState` | View scope + `Visualizer` | `SecondTicker` + `ScreenStateController` | `CustomTextIconTintRoute` + `DarkTintRegistrationState` | single coroutine + atomic generation | `ReceiverRegistry.replaceModuleRegistration` | `WeakReference` + `ScreenStateController` |
 
@@ -209,7 +215,7 @@ The corrected comparison reinforces the negative evidence:
 
 ## OwnedSlot justification or rejection
 
-After corrected review, no second production site agrees with any first site on ownership, stale-owner behavior, replace behavior, release behavior, double-release behavior, same-owner reclaim behavior, thread model, publication model, registration boundary, retention policy, and failure/fatal semantics.
+After corrected review, no second production site agrees with any first site on ownership, stale-owner behavior, replace behavior, release behavior, double-release behavior, same-owner reclaim behavior, thread model, publication model, registration boundary, retention policy, and failure/fatal semantics. The corrected `ReceiverRegistry` cleanup fatal semantics (process-key cleanup swallows `Throwable`) and the structural stale-callback risk in `SystemUIMonitorAndTileHooks` are distinct issues; they do not create a second semantically-compatible `OwnedSlot` use.
 
 ```text
 OWNEDSLOT_CANDIDATE_JUSTIFIED = false
@@ -221,7 +227,13 @@ RP1_AUTHORIZATION = NO
 
 ## Lifecycle risks
 
-- **Stale-owner risk:** If the owner is GC-ed but the registration/observer is not released, the framework callback may still fire against a dead object. All audited sites use `WeakReference` to the owner and either self-unregister (`WeakOwnerReceiver`), expunge (`WeakIdentityMap`), or check `isActive` before acting (`SecondTicker`, `DeviceInfoMonitorState`).
+- **Stale-owner risk:** If the owner is GC-ed but the registration/observer is not released, the framework callback may still fire against a dead object. Most audited sites use `WeakReference` to the owner and either self-unregister (`WeakOwnerReceiver`), expunge (`WeakIdentityMap`), or check `isActive` before acting (`SecondTicker`, `DeviceInfoMonitorState`).
+- **Stale-callback risk (structural):** `SystemUIMonitorAndTileHooks` is a negative exception. The `ContentObserver` created in `handleSetListening` (`SystemUIMonitorAndTileHooks.kt:110-117`, `:134-140`) closes over the hook `param` and its callback calls `param.getThisObject()`. There is no `WeakReference` owner guard, no `generation`/`isCurrent` guard, and `replaceModuleRegistration` unregisters the old observer when `mListening` becomes `false` but does not invalidate an `onChange` callback already queued on the `Handler`. No runtime evidence of a queued-callback bug was collected.
+
+```text
+STALE_CALLBACK_RISK = STRUCTURAL
+CALLBACK_RUNTIME_EVIDENCE = NOT_RUNTIME_TESTED_CALLBACK
+```
 - **Stale-work risk:** Handlers or coroutines may deliver results from a superseded work item. `DeviceInfoMonitorState`, `AudioVisualizer`, and `LockScreenAlbumArtController` use monotonic generation ids to drop stale work.
 - **Registration cleanup ownership:** Each site has a clearly defined cleanup owner: `OwnedRegistrations.cleanupAll` for display state, `ReceiverRegistry` unregistration for receivers, `DarkTintRegistrationState.dispose` for dark-tint listeners, `SecondTicker.dispose` for the ticker, `viewScope.cancel` for `AudioVisualizer`, and explicit `unregisterTick` / `unregisterReceiver` for `WeatherDataController`.
 - **Handler / Runnable retention:** `SecondTicker` keeps a `Handler` on the main looper. It removes callbacks in `stop()` and removes the `ScreenStateController` listener in `dispose()`. `DeviceInfoMonitor` uses handlers bound to the `NetworkSpeedController` background looper and removes messages when stopping.
@@ -252,7 +264,7 @@ RP1_AUTHORIZATION = NO
 - `SecondTicker` posts a single `Runnable` per second; it does not allocate per tick (reuses the same `Runnable`).
 - `DeviceInfoMonitor` ticks on the `NetworkSpeedController` background looper and publishes via `Handler` to the main thread; the generation check is a volatile long comparison.
 - `AudioVisualizer` uses `Choreographer` frame callbacks and a `Visualizer` data-capture listener; the generation check is inside a `Mutex`.
-- Introducing a generic `OwnedSlot` abstraction would add at minimum one allocation per registration, one indirection per lookup, and one extra state object per owner. On the SystemUI main thread and per-second ticker this is measurable and not justified by a duplication that does not exist.
+- A generic `OwnedSlot` abstraction could introduce allocation, indirection, and extra state objects per owner. The actual hot-path cost of such an abstraction has not been measured. The duplication that would justify it has not been demonstrated.
 
 ## Fatal cleanup semantics
 
@@ -270,7 +282,9 @@ The `OwnedRegistrations` cleanup loop catches `Throwable` and calls `FatalErrors
 
 ```text
 OWNERSHIP_DUPLICATION_EVIDENCE = STRUCTURAL
+STALE_CALLBACK_RISK = STRUCTURAL
 CALLBACK_RUNTIME_EVIDENCE = NOT_RUNTIME_TESTED_CALLBACK
+HOT_PATH_COST_EVIDENCE = NOT_PROVEN
 ```
 
 All claims about owner/registration semantics are derived from source structure and the existing unit tests in `app/src/test`. No device or live callback runtime evidence was collected; no runtime callback validation is claimed.
@@ -278,8 +292,8 @@ All claims about owner/registration semantics are derived from source structure 
 ## GITHUB status / workflow state
 
 ```text
-GITHUB_CI_STATUS = NO_CI_ENTRIES
-GITHUB_WORKFLOW_RUNS = NO_WORKFLOW_RUNS
+GITHUB_CI_STATUS = NONE
+GITHUB_WORKFLOW_RUNS = NONE
 ```
 
 `gh run list --repo tomthenpc/customiuizer-a14 --branch devin/a14-runtime-primitives-r14.20.0` returned no entries, and `gh api .../check-runs` returned `{"total_count":0,"check_runs":[]}` for the branch HEAD.
@@ -290,13 +304,24 @@ Post-corrective checks performed:
 
 | Check | Expected | Result |
 |-------|----------|--------|
-| Remote branch HEAD | matches final commit | to verify after push |
-| Source-freeze ancestry | `e926ce9591b4de42867f0f37c1c4d2a4999c2a7a` | to verify after push |
-| Changed-file scope | only `docs/runtime-primitives/RP0_SCOPE_OWNERSHIP_AUDIT.md` | to verify after push |
-| Worktree | clean | to verify after push |
-| Production changed | `false` | to verify after push |
-| Tests changed | `false` | to verify after push |
-| Architecture C docs changed | `false` | to verify after push |
+| SOURCE_FREEZE_ANCESTOR | `true` | `true` |
+| MERGE_BASE | `e926ce9591b4de42867f0f37c1c4d2a4999c2a7a` | `e926ce9591b4de42867f0f37c1c4d2a4999c2a7a` |
+| CHANGED_FILE_SCOPE | `docs/runtime-primitives/RP0_SCOPE_OWNERSHIP_AUDIT.md` only | `docs/runtime-primitives/RP0_SCOPE_OWNERSHIP_AUDIT.md` only |
+| Worktree | clean | clean |
+| PRODUCTION_CHANGED | `false` | `false` |
+| TESTS_CHANGED | `false` | `false` |
+| ARCHITECTURE_C_DOCS_CHANGED | `false` | `false` |
+
+```text
+SOURCE_FREEZE_ANCESTOR = true
+MERGE_BASE = e926ce9591b4de42867f0f37c1c4d2a4999c2a7a
+CHANGED_FILE_SCOPE = docs/runtime-primitives/RP0_SCOPE_OWNERSHIP_AUDIT.md only
+PRODUCTION_CHANGED = false
+TESTS_CHANGED = false
+ARCHITECTURE_C_DOCS_CHANGED = false
+```
+
+The exact local HEAD, remote HEAD, and 40-character final SHA are reported in the post-push RP0 return; they are not frozen inside the committed document.
 
 ## Contract state (frozen)
 
@@ -309,9 +334,11 @@ RP1_STARTED = false
 PRODUCTION_STARTED = false
 ARCHITECTURE_C_REOPEN = NO
 OWNERSHIP_DUPLICATION_EVIDENCE = STRUCTURAL
+STALE_CALLBACK_RISK = STRUCTURAL
 CALLBACK_RUNTIME_EVIDENCE = NOT_RUNTIME_TESTED_CALLBACK
-GITHUB_CI_STATUS = NO_CI_ENTRIES
-GITHUB_WORKFLOW_RUNS = NO_WORKFLOW_RUNS
+HOT_PATH_COST_EVIDENCE = NOT_PROVEN
+GITHUB_CI_STATUS = NONE
+GITHUB_WORKFLOW_RUNS = NONE
 ```
 
 No production code, tests, Architecture C documentation, or runtime primitive were created or modified. Only this audit document was corrected.
