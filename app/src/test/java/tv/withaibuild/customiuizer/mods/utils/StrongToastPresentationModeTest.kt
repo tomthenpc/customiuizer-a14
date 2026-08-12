@@ -19,6 +19,7 @@ class StrongToastPresentationModeTest {
         assertEquals(StrongToastPresentationMode.SYSTEM_DEFAULT, StrongToastPresentationMode.fromPreference(0))
         assertEquals(StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT, StrongToastPresentationMode.fromPreference(1))
         assertEquals(StrongToastPresentationMode.HIDE, StrongToastPresentationMode.fromPreference(2))
+        assertEquals(StrongToastPresentationMode.DYNAMIC_ISLAND, StrongToastPresentationMode.fromPreference(3))
         assertEquals(StrongToastPresentationMode.SYSTEM_DEFAULT, StrongToastPresentationMode.fromPreference(-1))
         assertEquals(StrongToastPresentationMode.SYSTEM_DEFAULT, StrongToastPresentationMode.fromPreference(99))
     }
@@ -34,6 +35,9 @@ class StrongToastPresentationModeTest {
         }))
         assertTrue(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
             put("system_strong_toast_mode", "2")
+        }))
+        assertTrue(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
+            put("system_strong_toast_mode", "3")
         }))
     }
 
@@ -51,10 +55,23 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun windowHeight_usesRuntimeInsetAndPreservesRomFallback() {
-        assertEquals(129, SystemUIStrongToastHooks.resolveWindowHeightPx(129, 208))
-        assertEquals(208, SystemUIStrongToastHooks.resolveWindowHeightPx(0, 208))
-        assertEquals(208, SystemUIStrongToastHooks.resolveWindowHeightPx(-1, 208))
+    fun windowHeight_usesRuntimeInsetWithoutClippingRomVisual() {
+        assertEquals(141, SystemUIStrongToastHooks.resolveWindowHeightPx(82, 141, 208))
+        assertEquals(141, SystemUIStrongToastHooks.resolveWindowHeightPx(104, 141, 208))
+        assertEquals(141, SystemUIStrongToastHooks.resolveWindowHeightPx(135, 141, 208))
+        assertEquals(182, SystemUIStrongToastHooks.resolveWindowHeightPx(182, 141, 208))
+        assertEquals(208, SystemUIStrongToastHooks.resolveWindowHeightPx(0, 141, 208))
+        assertEquals(129, SystemUIStrongToastHooks.resolveWindowHeightPx(129, 0, 208))
+    }
+
+    @Test
+    fun dynamicIslandScaleResolvers_areBoundedAcrossDeviceGeometry() {
+        assertEquals(0.68f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleX(0, 960))
+        assertEquals(0.56f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleX(92, 960))
+        assertEquals(0.82f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleX(900, 960))
+        assertEquals(0.72f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(104, 0))
+        assertEquals(0.62f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(82, 141))
+        assertEquals(0.90f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(182, 141))
     }
 
     private fun fakePackageReadyParam(): io.github.libxposed.api.XposedModuleInterface.PackageReadyParam {

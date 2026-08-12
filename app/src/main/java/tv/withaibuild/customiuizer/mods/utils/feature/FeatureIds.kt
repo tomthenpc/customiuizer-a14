@@ -1030,3 +1030,8 @@ data object StrongToastPresentationFeatureId : FeatureId {
     override val id = 246
     override val name = "strong_toast_presentation"
 }
+
+data object DisableWindowBlursFeatureId : FeatureId {
+    override val id = 247
+    override val name = "disable_window_blurs"
+}

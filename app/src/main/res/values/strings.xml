@@ -310,6 +310,8 @@
     <string name="system_screenanim_duration_title">Turning off animation</string>
     <string name="system_screenanim_duration_summ">Configure animation length</string>
     <string name="system_screenanim_desc">Very low values will practically disable animation</string>
+    <string name="system_disable_window_blurs_title">Disable window-level blur</string>
+    <string name="system_disable_window_blurs_summ">Works without Developer options; when off, Android controls blur normally</string>
     <string name="system_blur_title">Background blur</string>
     <string name="system_recents_blur_summ">Background blur intensity in recent apps</string>
     <string name="system_drawer_blur_summ">Background blur intensity in notification drawer</string>
@@ -504,6 +506,8 @@
     <string name="launcher_fixlaunch_title">Fix app info</string>
     <string name="launcher_fixlaunch_summ">Always open MIUI-styled app info from long press menu</string>
     <string name="launcher_folderblur">Background blur</string>
+    <string name="launcher_folderblur_disable">Disable folder background blur</string>
+    <string name="launcher_folderblur_disable_summ">Use a clear background instead of adding blur to the HyperOS default</string>
     <string name="launcher_closefolder_title">Auto close folders</string>
     <string name="launcher_closefolder_summ">Close app\'s folder after launch</string>
     <string name="launcher_titles">App titles</string>
@@ -990,8 +994,9 @@
     <string name="system_show_step_count_title">Show step count</string>
     <string name="system_cc_switch_ccandnotification_title">Switch control center and notification drawer</string>
     <string name="system_strong_toast_title">HyperOS status capsule</string>
-    <string name="system_strong_toast_summ">A full reboot is required. Hide mode is device-verified; match-height mode applies after reboot, while corner-radius matching is still under development.</string>
+    <string name="system_strong_toast_summ">A full reboot is required. Match-height keeps the ROM capsule corners intact. Dynamic Island reuses HyperOS events with an event-scoped spring entrance and no resident service.</string>
     <string name="system_strong_toast_mode_match_height">Match status bar height</string>
+    <string name="system_strong_toast_mode_dynamic_island">Dynamic Island (lightweight)</string>
     <string name="system_strong_toast_mode_hide">Hide status capsule</string>
 
     <!-- Locale change confirmation -->

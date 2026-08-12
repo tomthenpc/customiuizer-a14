@@ -9,13 +9,15 @@ package tv.withaibuild.customiuizer.mods.utils
 enum class StrongToastPresentationMode(val preferenceValue: Int) {
     SYSTEM_DEFAULT(0),
     MATCH_STATUS_BAR_HEIGHT(1),
-    HIDE(2);
+    HIDE(2),
+    DYNAMIC_ISLAND(3);
 
     companion object {
         @JvmStatic
         fun fromPreference(value: Int): StrongToastPresentationMode = when (value) {
             MATCH_STATUS_BAR_HEIGHT.preferenceValue -> MATCH_STATUS_BAR_HEIGHT
             HIDE.preferenceValue -> HIDE
+            DYNAMIC_ISLAND.preferenceValue -> DYNAMIC_ISLAND
             else -> SYSTEM_DEFAULT
         }
     }

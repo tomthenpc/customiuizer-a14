@@ -294,6 +294,8 @@
     <string name="system_screenanim_duration_title">关闭动画</string>
     <string name="system_screenanim_duration_summ">配置动画长度</string>
     <string name="system_screenanim_desc">值过低等同于禁用动画</string>
+    <string name="system_disable_window_blurs_title">关闭窗口级模糊</string>
+    <string name="system_disable_window_blurs_summ">无需开启开发者模式；关闭本项后仍由系统原生设置控制</string>
     <string name="system_blur_title">背景模糊</string>
     <string name="system_recents_blur_summ">最近任务的背景模糊度</string>
     <string name="system_drawer_blur_summ">通知中心的背景模糊度</string>
@@ -478,6 +480,8 @@
     <string name="launcher_fixlaunch_title">修复应用信息</string>
     <string name="launcher_fixlaunch_summ">长按菜单始终打开系统样式应用信息</string>
     <string name="launcher_folderblur">背景模糊</string>
+    <string name="launcher_folderblur_disable">关闭文件夹背景模糊</string>
+    <string name="launcher_folderblur_disable_summ">使用清晰背景，不在 HyperOS 默认模糊上继续叠加</string>
     <string name="launcher_closefolder_title">自动关闭文件夹</string>
     <string name="launcher_closefolder_summ">启动后关闭应用的文件夹</string>
     <string name="launcher_titles">应用标题</string>
@@ -961,7 +965,8 @@
     <string name="system_cc_freeform_when_longclick_title">长按磁贴时以小窗打开</string>
     <string name="system_show_step_count_title">显示步数</string>
     <string name="system_strong_toast_title">灵动额头</string>
-    <string name="system_strong_toast_summ">修改后需完整重启；隐藏模式已通过实机验证，匹配高度模式可生效但圆角尺寸仍在适配。</string>
+    <string name="system_strong_toast_summ">修改后需完整重启；匹配高度会保留系统胶囊完整圆角。动态岛复用 HyperOS 事件，仅在展示时执行软弹动画，无常驻服务。</string>
     <string name="system_strong_toast_mode_match_height">匹配状态栏高度</string>
+    <string name="system_strong_toast_mode_dynamic_island">动态岛（轻量）</string>
     <string name="system_strong_toast_mode_hide">隐藏灵动额头</string>
 </resources>

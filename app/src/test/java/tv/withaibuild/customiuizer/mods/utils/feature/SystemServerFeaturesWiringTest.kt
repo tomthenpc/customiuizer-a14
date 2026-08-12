@@ -56,8 +56,8 @@ class SystemServerFeaturesWiringTest {
         val features = SystemServerFeatures.all(fakeSystemServerStartingParam())
 
         assertEquals(
-            "All 50 preference-guarded system_server features should be present",
-            50,
+            "All 51 system_server features should be present",
+            51,
             features.size
         )
         val uniqueIds = features.map { it.id }.toSet()
@@ -163,6 +163,17 @@ class SystemServerFeaturesWiringTest {
         assertTrue(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 38) }))
         assertTrue(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 40) }))
         assertFalse(feature.isEnabled(PrefMap().apply { put("system_statusbarheight", 11) }))
+    }
+
+    @Test
+    fun disableWindowBlursPolicy_isAlwaysInstalledFromDefaultOffState() {
+        val feature = DisableWindowBlursFeature(fakeSystemServerStartingParam())
+
+        assertEquals(DisableWindowBlursFeatureId, feature.id)
+        assertEquals("system_disable_window_blurs", feature.preferenceKey)
+        assertEquals(FeatureTarget.SYSTEM_SERVER, feature.target)
+        assertTrue(feature.isEnabled(PrefMap()))
+        assertTrue(feature.isEnabled(PrefMap().apply { put("system_disable_window_blurs", true) }))
     }
 
     @Test

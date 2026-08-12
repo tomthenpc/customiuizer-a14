@@ -106,6 +106,16 @@ class PreferenceObserverKeyContractTest {
     }
 
     @Test
+    fun folderBlurDisableOverridesOpacity() {
+        assertEquals(0f, LauncherFolderHooks.resolveFolderBlurRatio(true, 80), 0.001f)
+        assertEquals(0.8f, LauncherFolderHooks.resolveFolderBlurRatio(false, 80), 0.001f)
+        assertEquals(1f, LauncherFolderHooks.resolveFolderBlurRatio(false, 120), 0.001f)
+        assertFalse(LauncherFolderHooks.resolveFolderBlurOverrideEnabled(false, 0))
+        assertTrue(LauncherFolderHooks.resolveFolderBlurOverrideEnabled(true, 0))
+        assertTrue(LauncherFolderHooks.resolveFolderBlurOverrideEnabled(false, 80))
+    }
+
+    @Test
     fun batterySpecificKeyRefreshes() {
         MainModule.mPrefs.put("system_statusbar_batterystyle_fontsize", 20)
         SystemUIBatteryHooks.installBatteryStyleSnapshot()

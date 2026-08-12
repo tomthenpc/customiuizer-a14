@@ -45,12 +45,13 @@
 		android:key="pref_key_system_statusbar_mobile_digital_signal_fontsize"
 		android:title="@string/launcher_titlefontsize_title"
 		android:dependency="pref_key_system_statusbar_mobile_digital_signal"
-		android:defaultValue="26"
-		miuizer:minValue="14"
+		android:defaultValue="0"
+		miuizer:minValue="0"
 		miuizer:maxValue="40"
 		miuizer:stepValue="1"
 		miuizer:displayDividerValue="2"
 		miuizer:format="%s dip"
+		miuizer:offtext="@string/array_default"
 		miuizer:indentLevel="1" />
 
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx

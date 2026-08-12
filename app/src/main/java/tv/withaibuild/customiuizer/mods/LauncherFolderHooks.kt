@@ -25,6 +25,7 @@ object LauncherFolderHooks {
 
     private const val PREF_FOLDER_WIDTH = "launcher_folderwidth"
     private const val PREF_FOLDER_BLUR = "launcher_folderblur_opacity"
+    private const val PREF_FOLDER_BLUR_DISABLED = "launcher_folderblur_disable"
 
     /**
      * Folder state read from layout and blur callbacks.
@@ -38,6 +39,9 @@ object LauncherFolderHooks {
 
     @Volatile
     private var folderBlurRatio = 0f
+
+    @Volatile
+    private var folderBlurOverrideEnabled = false
 
     @Volatile
     private var folderPreferenceObserverRegistered = false
@@ -55,7 +59,10 @@ object LauncherFolderHooks {
 
     private fun refreshFolderPreferences() {
         folderWidthEnabled = MainModule.mPrefs.getBoolean(PREF_FOLDER_WIDTH)
-        folderBlurRatio = MainModule.mPrefs.getInt(PREF_FOLDER_BLUR, 0) / 100f
+        val disabled = MainModule.mPrefs.getBoolean(PREF_FOLDER_BLUR_DISABLED)
+        val opacityPercent = MainModule.mPrefs.getInt(PREF_FOLDER_BLUR, 0)
+        folderBlurRatio = resolveFolderBlurRatio(disabled, opacityPercent)
+        folderBlurOverrideEnabled = resolveFolderBlurOverrideEnabled(disabled, opacityPercent)
     }
 
     @JvmStatic
@@ -65,7 +72,12 @@ object LauncherFolderHooks {
         folderPreferenceObserverRegistered = true
         ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
             override fun onChange(key: String?) = ModuleHelper.guarded {
-                if (key == null || key == PREF_FOLDER_WIDTH || key == PREF_FOLDER_BLUR) {
+                if (
+                    key == null ||
+                    key == PREF_FOLDER_WIDTH ||
+                    key == PREF_FOLDER_BLUR ||
+                    key == PREF_FOLDER_BLUR_DISABLED
+                ) {
                     refreshFolderPreferences()
                 }
             }
@@ -313,6 +325,30 @@ object LauncherFolderHooks {
         val BlurUtils = XposedHelpers.findClassIfExists("com.miui.home.launcher.common.BlurUtils", lpparam.classLoader)
         if (BlurUtils != null) {
             installFolderPreferenceSnapshot()
+            ModuleHelper.hookAllMethods(BlurUtils, "fastBlurWhenOpenOrCloseFolder", object : MethodHook() {
+                override fun intercept(chain: XposedInterface.Chain): Any? {
+                    if (!folderBlurOverrideEnabled) {
+                        return XposedHelpers.proceedOrThrow(chain, null)
+                    }
+                    try {
+                        val launcher = chain.getArg(0) as? Activity
+                        val withAnimation = chain.getArg(1) as? Boolean
+                        if (launcher != null && withAnimation != null) {
+                            XposedHelpers.callStaticMethod(
+                                BlurUtils,
+                                "fastBlur",
+                                folderBlurRatio,
+                                launcher.window,
+                                withAnimation
+                            )
+                            return null
+                        }
+                    } catch (t: Throwable) {
+                        XposedHelpers.log(t)
+                    }
+                    return XposedHelpers.proceedOrThrow(chain, null)
+                }
+            })
             ModuleHelper.hookAllMethods(BlurUtils, "getLauncherBlur", object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var skipped = false
@@ -321,7 +357,7 @@ object LauncherFolderHooks {
                     try {
 
                         val isFolderShowing = XposedHelpers.callMethod(chain.getArg(0), "isFolderShowing") as Boolean
-                        if (isFolderShowing) {
+                        if (folderBlurOverrideEnabled && isFolderShowing) {
                             skipped = true
                             result = folderBlurRatio
                             throwable = null
@@ -332,53 +368,6 @@ object LauncherFolderHooks {
                     } catch (t: Throwable) {
                         throwable = t
                         result = null
-                    }
-                    return XposedHelpers.throwOrReturn(throwable, result)
-                }
-            })
-
-            ModuleHelper.findAndHookMethod("com.miui.home.launcher.FolderCling", lpparam.classLoader, "open", object : MethodHook() {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    var result: Any? = null
-                    var throwable: Throwable? = null
-                    try {
-                        result = chain.proceed()
-                    } catch (t: Throwable) {
-                        throwable = t
-                        result = null
-                    }
-                    try {
-                        val thisObject = chain.getThisObject()
-
-                        val launcher = XposedHelpers.getObjectField(thisObject, "mLauncher") as Activity
-
-                        XposedHelpers.callStaticMethod(BlurUtils, "fastBlur", folderBlurRatio, launcher.window, true)
-
-                    } catch (t: Throwable) {
-                        XposedHelpers.log(t)
-                    }
-                    return XposedHelpers.throwOrReturn(throwable, result)
-                }
-            })
-
-            ModuleHelper.findAndHookMethod("com.miui.home.launcher.FolderCling", lpparam.classLoader, "close", Boolean::class.javaPrimitiveType!!, object : MethodHook() {
-                override fun intercept(chain: XposedInterface.Chain): Any? {
-                    var result: Any? = null
-                    var throwable: Throwable? = null
-                    try {
-                        result = chain.proceed()
-                    } catch (t: Throwable) {
-                        throwable = t
-                        result = null
-                    }
-                    try {
-                        val thisObject = chain.getThisObject()
-
-                        val launcher = XposedHelpers.getObjectField(thisObject, "mLauncher") as Activity
-                        XposedHelpers.callStaticMethod(BlurUtils, "fastBlur", 0f, launcher.window, chain.getArg(0))
-
-                    } catch (t: Throwable) {
-                        XposedHelpers.log(t)
                     }
                     return XposedHelpers.throwOrReturn(throwable, result)
                 }
@@ -398,11 +387,9 @@ object LauncherFolderHooks {
                         val thisObject = chain.getThisObject()
 
                         val isFolderShowing = XposedHelpers.callMethod(thisObject, "isFolderShowing") as Boolean
-                        if (isFolderShowing) {
-                            val blurPct = MainModule.mPrefs.getInt("launcher_folderblur_opacity", 0)
-                            val blurRatio = blurPct / 100f
+                        if (folderBlurOverrideEnabled && isFolderShowing) {
                             val launcher = thisObject as Activity
-                            XposedHelpers.callStaticMethod(BlurUtils, "fastBlur", blurRatio, launcher.window, true)
+                            XposedHelpers.callStaticMethod(BlurUtils, "fastBlur", folderBlurRatio, launcher.window, true)
                         }
 
                     } catch (t: Throwable) {
@@ -413,6 +400,14 @@ object LauncherFolderHooks {
             })
         }
     }
+
+    @JvmStatic
+    internal fun resolveFolderBlurRatio(disabled: Boolean, opacityPercent: Int): Float =
+        if (disabled) 0f else opacityPercent.coerceIn(0, 100) / 100f
+
+    @JvmStatic
+    internal fun resolveFolderBlurOverrideEnabled(disabled: Boolean, opacityPercent: Int): Boolean =
+        disabled || opacityPercent > 0
 
     @JvmStatic
     fun CloseFolderOrDrawerOnLaunchShortcutMenuHook(lpparam: PackageReadyParam) {

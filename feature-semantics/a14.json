@@ -2954,6 +2954,28 @@
       "notes": ""
     },
     {
+      "featureId": "pref_key_launcher_folderblur_disable",
+      "featureName": "pref_key_launcher_folderblur_disable",
+      "preferenceKeys": [
+        "pref_key_launcher_folderblur_disable"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_launcher.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/res/xml/prefs_launcher.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_launcher.xml",
+      "notes": ""
+    },
+    {
       "featureId": "pref_key_launcher_folderblur_opacity",
       "featureName": "pref_key_launcher_folderblur_opacity",
       "preferenceKeys": [
@@ -9250,6 +9272,28 @@
       "featureName": "pref_key_system_scramblepin",
       "preferenceKeys": [
         "pref_key_system_scramblepin"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": ""
+    },
+    {
+      "featureId": "pref_key_system_disable_window_blurs",
+      "featureName": "pref_key_system_disable_window_blurs",
+      "preferenceKeys": [
+        "pref_key_system_disable_window_blurs"
       ],
       "xmlSource": "app/src/main/res/xml/prefs_system.xml",
       "defaultValue": "false",

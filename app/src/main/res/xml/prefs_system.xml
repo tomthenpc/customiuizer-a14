@@ -93,6 +93,12 @@
 			miuizer:note="@string/system_screenanim_desc"
 			miuizer:dynamic="true" />
 
+		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+			android:key="pref_key_system_disable_window_blurs"
+			android:title="@string/system_disable_window_blurs_title"
+			android:summary="@string/system_disable_window_blurs_summ"
+			android:defaultValue="false" />
+
 	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
 
 	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx

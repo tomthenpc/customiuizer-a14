@@ -895,6 +895,24 @@ internal class StatusBarHeightInsetsFeature(
     override fun installHook() = SystemStatusBarInsetsHooks.StatusBarInsetsHeightHook(lpparam)
 }
 
+/** Always installed because the default-off switch must still be available after a restart. */
+internal class DisableWindowBlursFeature(
+    lpparam: XposedModuleInterface.SystemServerStartingParam
+) : BaseSystemServerFeature(
+    lpparam,
+    DisableWindowBlursFeatureId,
+    "Disable Window Blurs",
+    "system_disable_window_blurs"
+) {
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(@Suppress("UNUSED_PARAMETER") prefs: PrefMap): Boolean = true
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
+    override fun installHook() = SystemDisplayHooks.DisableWindowBlursHook(lpparam)
+}
+
 
 /**
  * All preference-guarded features that belong in system_server.
@@ -1355,6 +1373,15 @@ object SystemServerFeatures {
             phase = InstallPhase.SYSTEM_SERVER_STARTING,
             enabled = { prefs -> StatusBarHeightInsetsFeature.evaluateEnabled(prefs) },
             factory = { StatusBarHeightInsetsFeature(lpparam) },
+        ),
+        LazyFeatureSpec(
+            id = DisableWindowBlursFeatureId,
+            name = "Disable Window Blurs",
+            preferenceKey = "system_disable_window_blurs",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { prefs -> DisableWindowBlursFeature.evaluateEnabled(prefs) },
+            factory = { DisableWindowBlursFeature(lpparam) },
         ),
     )
 }

@@ -1063,7 +1063,9 @@ internal class LauncherFolderBlurFeature(
 ) {
     companion object {
         @JvmStatic
-        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getInt("launcher_folderblur_opacity", 0) > 0
+        fun evaluateEnabled(prefs: PrefMap): Boolean =
+            prefs.getBoolean("launcher_folderblur_disable") ||
+                prefs.getInt("launcher_folderblur_opacity", 0) > 0
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)

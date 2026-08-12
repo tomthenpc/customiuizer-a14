@@ -52,6 +52,20 @@ class UiHotPathPreferenceSnapshotTest {
     }
 
     @Test
+    fun folderBlurInterceptsLauncherOpenCloseEntry() {
+        val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/LauncherFolderHooks.kt")
+        val body = hookBody(
+            "app/src/main/java/tv/withaibuild/customiuizer/mods/LauncherFolderHooks.kt",
+            "\"fastBlurWhenOpenOrCloseFolder\"",
+        )
+
+        assertFalse(body.contains("MainModule.mPrefs"))
+        assertTrue(body.contains("folderBlurRatio"))
+        assertTrue(body.contains("\"fastBlur\""))
+        assertFalse("do not depend on FolderCling open/close ABI", source.contains("\"com.miui.home.launcher.FolderCling\""))
+    }
+
+    @Test
     fun batteryUpdateAllReadsOneSnapshotAndAvoidsHotPathAllocation() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIBatteryHooks.kt")
         val body = hookBody(

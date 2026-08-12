@@ -26,6 +26,12 @@
 			miuizer:format="%d%%"
 			miuizer:offtext="@string/array_default" />
 
+		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+			android:key="pref_key_launcher_folderblur_disable"
+			android:title="@string/launcher_folderblur_disable"
+			android:summary="@string/launcher_folderblur_disable_summ"
+			android:defaultValue="false" />
+
 		<tv.withaibuild.customiuizer.prefs.SeekBarPreference
 			android:key="pref_key_launcher_folder_cols"
 			android:title="@string/launcher_folder_cols_title"

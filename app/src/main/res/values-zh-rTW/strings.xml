@@ -259,6 +259,8 @@
     <string name="system_screenanim_duration_title">關閉動畫</string>
     <string name="system_screenanim_duration_summ">配置動畫長度</string>
     <string name="system_screenanim_desc">值過低等同於禁用動畫</string>
+    <string name="system_disable_window_blurs_title">關閉視窗層級模糊</string>
+    <string name="system_disable_window_blurs_summ">無需開啟開發人員選項；關閉本項後仍由系統原生設定控制</string>
     <string name="system_blur_title">背景模糊</string>
     <string name="system_recents_blur_summ">最近應用的背景模糊度</string>
     <string name="system_drawer_blur_summ">通知抽屜的背景模糊度</string>
@@ -428,6 +430,8 @@
     <string name="launcher_fixlaunch_title">修復應用訊息</string>
     <string name="launcher_fixlaunch_summ">長按功能表始終開啟MIUI樣式應用訊息</string>
     <string name="launcher_folderblur">背景模糊</string>
+    <string name="launcher_folderblur_disable">關閉資料夾背景模糊</string>
+    <string name="launcher_folderblur_disable_summ">使用清晰背景，不在 HyperOS 預設模糊上繼續疊加</string>
     <string name="launcher_closefolder_title">自動關閉資料夾</string>
     <string name="launcher_closefolder_summ">啟動後關閉應用的資料夾</string>
     <string name="launcher_titles">應用標題</string>
@@ -808,7 +812,8 @@
     <string name="system_cc_enable_style_switch_title">強制開啟控制中心樣式切換</string>
     <string name="system_cc_collapse_after_clicked_title">單擊開關後自動收起</string>
     <string name="system_strong_toast_title">靈動額頭</string>
-    <string name="system_strong_toast_summ">修改後需完整重啟；隱藏模式已通過實機驗證，符合高度模式可生效但圓角尺寸仍在適配。</string>
+    <string name="system_strong_toast_summ">修改後需完整重啟；符合高度會保留系統膠囊完整圓角。動態島沿用 HyperOS 事件，只在顯示時執行軟彈動畫，無常駐服務。</string>
     <string name="system_strong_toast_mode_match_height">符合狀態列高度</string>
+    <string name="system_strong_toast_mode_dynamic_island">動態島（輕量）</string>
     <string name="system_strong_toast_mode_hide">隱藏靈動額頭</string>
 </resources>

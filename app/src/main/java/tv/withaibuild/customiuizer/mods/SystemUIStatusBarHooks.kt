@@ -58,6 +58,7 @@ import java.util.ArrayList
 import java.util.HashSet
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.roundToInt
 
 /**
  * Status bar content hooks.
@@ -77,6 +78,12 @@ internal fun resolveNetSpeedLineSpacing(
 
     return baseSpacing * adjustment / 100f
 }
+
+internal fun resolveDigitalSignalCustomTextSizeDp(rawValue: Int): Float? =
+    rawValue.takeIf { it > 0 }?.coerceIn(14, 40)?.times(0.5f)
+
+internal fun resolveDigitalSignalLineSpacing(textSizeDp: Float): Float =
+    if (textSizeDp > 8.5f) 0.85f else 0.9f
 
 internal fun resolveNetSpeedTypefaceStyle(baseStyle: Int, bold: Boolean): Int =
     if (bold) baseStyle or Typeface.BOLD else baseStyle and Typeface.BOLD.inv()
@@ -852,16 +859,39 @@ object SystemUIStatusBarHooks {
     private fun initDigitalSignalView(mContext: Context, digitalTextView: TextView) {
         val res = mContext.resources
         val styleId = res.getIdentifier("TextAppearance.StatusBar.Clock", "style", "com.android.systemui")
-        digitalTextView.setTextAppearance(styleId)
+        if (styleId != 0) digitalTextView.setTextAppearance(styleId)
         val subKey = "mobile_digital_signal"
-        val fontSize = MainModule.mPrefs.getInt("system_statusbar_${subKey}_fontsize", 26) * 0.5f
-        if (MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_in2rows")) {
-            digitalTextView.maxLines = 2
-            digitalTextView.setLineSpacing(0f, if (fontSize > 8.5f) 0.85f else 0.9f)
+        val customTextSizeDp = resolveDigitalSignalCustomTextSizeDp(
+            MainModule.mPrefs.getInt("system_statusbar_${subKey}_fontsize", 0)
+        )
+        if (customTextSizeDp != null) {
+            digitalTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, customTextSizeDp)
         }
-        digitalTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, fontSize)
+        val dualRows = MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_in2rows")
+        digitalTextView.includeFontPadding = false
+        digitalTextView.gravity = Gravity.CENTER_VERTICAL
+        digitalTextView.layoutParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            Gravity.CENTER_VERTICAL
+        )
+        if (dualRows) {
+            digitalTextView.maxLines = 2
+            val textSizeDp = digitalTextView.textSize / res.displayMetrics.density
+            digitalTextView.setLineSpacing(0f, resolveDigitalSignalLineSpacing(textSizeDp))
+            val minTextSizePx = HookUtils.dp2px(6f).roundToInt().coerceAtLeast(1)
+            val maxTextSizePx = digitalTextView.textSize.roundToInt().coerceAtLeast(minTextSizePx)
+            digitalTextView.setAutoSizeTextTypeUniformWithConfiguration(
+                minTextSizePx,
+                maxTextSizePx,
+                1,
+                TypedValue.COMPLEX_UNIT_PX
+            )
+        } else {
+            digitalTextView.maxLines = 1
+        }
         if (MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_bold")) {
-            digitalTextView.typeface = Typeface.DEFAULT_BOLD
+            digitalTextView.typeface = Typeface.create(digitalTextView.typeface, Typeface.BOLD)
         }
         var leftMargin = MainModule.mPrefs.getInt("system_statusbar_${subKey}_leftmargin", 8)
         leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()

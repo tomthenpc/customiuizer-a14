@@ -1,9 +1,11 @@
 package tv.withaibuild.customiuizer.mods
 
 import android.animation.ObjectAnimator
+import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.res.Resources
 import android.os.Handler
+import android.provider.Settings
 import android.view.View
 import io.github.libxposed.api.XposedInterface
 import miui.os.Build
@@ -24,6 +26,81 @@ import java.lang.ref.WeakReference
  * off, dim timeout, drawer blur, forced dark mode and wallpaper scale.
  */
 object SystemDisplayHooks {
+
+    private const val PREF_DISABLE_WINDOW_BLURS = "system_disable_window_blurs"
+    private const val DISABLE_WINDOW_BLURS_SETTING = "disable_window_blurs"
+
+    @Volatile
+    private var forceWindowBlursDisabled = false
+
+    @JvmStatic
+    internal fun resolveWindowBlursDisabled(moduleDisabled: Boolean, systemDisabled: Boolean): Boolean =
+        moduleDisabled || systemDisabled
+
+    private fun applyWindowBlurPolicy(controller: Any) {
+        val context = XposedHelpers.getObjectField(controller, "mContext") as? Context ?: return
+        val systemDisabled = Settings.Global.getInt(
+            context.contentResolver,
+            DISABLE_WINDOW_BLURS_SETTING,
+            0
+        ) == 1
+        XposedHelpers.setBooleanField(
+            controller,
+            "mBlurDisabledSetting",
+            resolveWindowBlursDisabled(forceWindowBlursDisabled, systemDisabled)
+        )
+        XposedHelpers.callMethod(controller, "updateBlurEnabled")
+    }
+
+    /**
+     * Adds a module policy layer to Android 14's existing BlurController.
+     *
+     * The platform keeps ownership of power-save, thermal, tunnel-mode and developer-setting
+     * state. This hook only ORs the module switch into the native disabled state, so turning the
+     * module switch off returns control to Android after the preference reaches system_server.
+     * Preference changes reuse the project's existing remote-preference channel; no thread,
+     * poller or ContentObserver is added.
+     */
+    @JvmStatic
+    fun DisableWindowBlursHook(lpparam: SystemServerStartingParam) {
+        forceWindowBlursDisabled = MainModule.mPrefs.getBoolean(PREF_DISABLE_WINDOW_BLURS)
+
+        ModuleHelper.findAndHookMethod(
+            "com.android.server.wm.BlurController",
+            lpparam.classLoader,
+            "getBlurDisabledSetting",
+            object : MethodHook() {
+                override fun after(callback: HookerClassHelper.AfterHookCallback) {
+                    val systemDisabled = callback.getResult() as? Boolean ?: return
+                    callback.setResult(resolveWindowBlursDisabled(forceWindowBlursDisabled, systemDisabled))
+                }
+            }
+        )
+
+        ModuleHelper.hookAllConstructors(
+            "com.android.server.wm.BlurController",
+            lpparam.classLoader,
+            object : MethodHook() {
+                override fun after(callback: HookerClassHelper.AfterHookCallback) {
+                    val controller = callback.getThisObject() ?: return
+                    try {
+                        applyWindowBlurPolicy(controller)
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log("DisableWindowBlurs", t)
+                    }
+                    val controllerRef = WeakReference(controller)
+                    ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
+                        override fun onChange(key: String?) = ModuleHelper.guarded {
+                            if (key != null && key != PREF_DISABLE_WINDOW_BLURS) return@guarded
+                            forceWindowBlursDisabled = MainModule.mPrefs.getBoolean(PREF_DISABLE_WINDOW_BLURS)
+                            controllerRef.get()?.let(::applyWindowBlurPolicy)
+                        }
+                    }, controller)
+                }
+            }
+        )
+    }
 
     @JvmStatic
     fun ScreenAnimHook(lpparam: SystemServerStartingParam) {
