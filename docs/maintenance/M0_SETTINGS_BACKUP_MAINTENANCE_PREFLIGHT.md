@@ -239,17 +239,37 @@ Evidence:
 
 ### `pref_key_system_notif_strong_toast_width` / `system_notif_strong_toast_width`
 
-- `app/src/main/res/xml/prefs_system.xml` does **not** contain this key.
-- `SystemUI.kt:111` still references `system_notif_strong_toast_width` inside
-  `TweakStrongToastHook`, but **that hook is never installed**: `MainModule.java` and
-  `SystemUiFeatures` have no reference to `TweakStrongToastHook`.
-- `feature-semantics/a14.json` still lists the key with `xmlSource: prefs_system.xml`,
-  but the XML has been changed; the metadata is stale.
-- The related `docs/strong-toast/` documents classify it as `DEAD_LEGACY`.
+Re-audited evidence:
 
-M0 classification: **UNRESOLVED_LEGACY_KEY** — code still holds a dead reference,
-so it is not proven safe to tombstone as `DROPPED` without an explicit removal
-decision.
+- **Current XML:** `app/src/main/res/xml/prefs_system.xml` contains **no**
+  `pref_key_system_notif_strong_toast_width` key. Git history (`f381c73d`)
+  shows the old commented `SeekBarPreference` block was removed along with the
+  `pref_key_system_notif_disable_strong_toast` family.
+- **Current production references:** `app/src/main/java/**/*.kt` and `**/*.java`
+  contain **no live call** to `TweakStrongToastHook`.
+- **MainModule installation path:** `MainModule.java` has no call to
+  `TweakStrongToastHook` (verified by `git log -S` and current source).
+- **SystemUiFeatures registration:** `SystemUiFeatures.kt` registers
+  `StrongToastPresentationFeature` for `system_strong_toast_mode` only.
+  `TweakStrongToastHook` is **not** in the `SystemUiFeatures.all()` catalog.
+- **TweakStrongToastHook reachability:** `SystemUiInstaller.install()` calls
+  `SystemUiFeatures.all(lpparam, mPrefs)`, then `registry.installAll(...)`.
+  Because the hook is absent from the feature catalog, it is unreachable at
+  runtime.
+- **Git history / removal history:** `ST1_L1_NOTIFICATION_LEGACY_REMOVAL.md`
+  and `ST0_STRONG_TOAST_SEMANTIC_GEOMETRY_AUDIT.md` explicitly classify
+  `TweakStrongToastHook` / `system_notif_strong_toast_width` as **DEAD_LEGACY**.
+- **feature-semantics state:** `feature-semantics/a14.json` still contains
+  `pref_key_system_notif_strong_toast_width` with `xmlSource: prefs_system.xml`,
+  but this is stale metadata; the XML has already been changed.
+
+M0 classification: **DROPPED/TOMBSTONED**.
+
+- The only possible wire-data key is the old `SharedPreferences` storage key
+  `pref_key_system_notif_strong_toast_width`. The short form
+  `system_notif_strong_toast_width` is a dead `PrefMap` lookup name; it is
+  **not a `SharedPreferences` key** and cannot appear in a legacy backup of
+  `AppHelper.appPrefs`.
 
 ### Proven current keys (not dropped)
 - `pref_key_system_strong_toast_mode` / `system_strong_toast_mode` is live in
@@ -291,11 +311,11 @@ For each dropped/renamed/migrated key:
 
 | Category | Keys |
 |----------|------|
-| **PROVEN_DROPPED_KEYS** | `pref_key_system_notif_disable_strong_toast`, `pref_key_system_notif_disable_strong_toast_always`, `pref_key_system_notif_disable_strong_toast_dnd` (and short forms) |
+| **PROVEN_DROPPED_KEYS** | `pref_key_system_notif_disable_strong_toast`, `pref_key_system_notif_disable_strong_toast_always`, `pref_key_system_notif_disable_strong_toast_dnd` (and short forms), `pref_key_system_notif_strong_toast_width` |
 | **PROVEN_RENAMED_KEYS** | *(none identified)* |
 | **PROVEN_TYPE_MIGRATIONS** | *(none identified)* |
 | **PROVEN_NON_EXPORTABLE_KEYS** | `pref_key_miuizer_locale_applied`, `pref_key_miuizer_synced_from_lsposed` (device/runtime derived) |
-| **UNRESOLVED_KEYS** | `pref_key_system_notif_strong_toast_width` / `system_notif_strong_toast_width` |
+| **UNRESOLVED_KEYS** | *(none)* |
 
 ---
 
@@ -551,8 +571,23 @@ The legacy reader must remain available for M2, but it must be **restricted**:
 - **New reader:** V2 + restricted legacy.
 - Legacy must not call unrestricted `ObjectInputStream.readObject()`.
 
-### Required allowlist (M0 proposal)
-- Root: `java.util.HashMap`, `java.util.LinkedHashMap`
+### Legacy wire graph evidence
+
+- The legacy writer is `ObjectOutputStream.writeObject(AppHelper.appPrefs!!.all)`.
+- Android's `SharedPreferencesImpl.getAll()` returns `new HashMap<String, Object>(mMap)`
+  (verified across API 21 / Pie / main AOSP source; also on API 34 via `android.jar`
+  behavior). `mMap` itself is initialized as `new HashMap<>()`.
+- `SharedPreferencesImpl.Editor.putStringSet()` stores `new HashSet(values)`.
+- `git log -S 'LinkedHashMap' -- '**/PreferenceFragmentBase*'` and
+  `git log -S 'LinkedHashSet' -- '**/PreferenceFragmentBase*'` returned **no**
+  matches; the legacy writer has never explicitly serialized a `LinkedHashMap`
+  or `LinkedHashSet`.
+- `AppSelectionSanitizer.sanitizeRestoredEntries` creates `LinkedHashMap` and
+  `LinkedHashSet` **after** `readObject()`; these are post-decode normalized
+  internal types, not wire types.
+
+### `LEGACY_WIRE_ALLOWLIST` (minimum proven historical wire graph)
+- Root: `java.util.HashMap`
 - Key type: `java.lang.String`
 - Value classes:
   - `java.lang.Boolean`
@@ -561,9 +596,16 @@ The legacy reader must remain available for M2, but it must be **restricted**:
   - `java.lang.Float`
   - `java.lang.String`
   - `java.util.HashSet`
-  - `java.util.LinkedHashSet`
-- Container interfaces `java.util.Map` and `java.util.Set` may be allowed only
-  as supertypes of the concrete classes above.
+- `java.util.Map` and `java.util.Set` may be allowed only as supertypes of the
+  concrete classes above.
+
+### `POST_DECODE_NORMALIZED_INTERNAL_TYPES`
+After the restricted legacy reader has validated every key/value, the internal
+pipeline may convert the decoded data into:
+- `LinkedHashMap<String, Any?>` for deterministic iteration and tombstone ordering.
+- `LinkedHashSet<String>` for sanitized string sets.
+
+These normalized types are **not** part of the `ObjectInputStream` allowlist.
 
 ### Max input size
 Apply `MAX_FILE_SIZE` (proposed 2 MiB) before opening `ObjectInputStream`.
@@ -577,10 +619,18 @@ Apply `MAX_FILE_SIZE` (proposed 2 MiB) before opening `ObjectInputStream`.
 5. Convert the root map to `LinkedHashMap<String, Any?>` for deterministic order.
 
 ### Rejection / fatal behavior
-- Malformed or disallowed classes: throw a dedicated `BackupFormatException`
-  (ordinary failure, not fatal).
-- `OutOfMemoryError`, `VirtualMachineError`, `ThreadDeath`, `LinkageError`: propagate.
-- Do **not** catch these inside the “backup corrupt” handler.
+- Malformed or disallowed classes / values: throw a dedicated
+  `BackupFormatException` (ordinary failure, not fatal).
+- `OutOfMemoryError`, `VirtualMachineError`, `ThreadDeath`: **propagate**
+  (matches the project-wide `FatalErrors.rethrowIfFatal` policy).
+- `LinkageError` (e.g. `NoClassDefFoundError` during `ObjectInputStream.readObject()`):
+  **treated as an ordinary backup-corrupt failure**, matching the existing
+  `FatalErrors` policy which does **not** list `LinkageError` as fatal.
+  - Rationale: a missing class in a legacy backup is an input error, not a
+    JVM-fatal condition. It should be reported through the same "backup corrupt"
+    path as `ClassNotFoundException`.
+- Do **not** catch `OutOfMemoryError`, `VirtualMachineError`, or `ThreadDeath`
+  inside the “backup corrupt” handler.
 
 ### Unified pipeline
 All decoded data (V2 or legacy) must flow through the same pipeline:
@@ -612,7 +662,7 @@ the preference file is committed. If a side effect fails, the result must report
 
 | File | Symbol / location | String | Runtime purpose | Safe rename? | M3 action |
 |------|-------------------|--------|-----------------|--------------|-----------|
-| `PreferenceFragmentBase.kt:575` | Backup filename | `pengeek_backup_` | Default backup file name prefix | Yes | Rename to `customiuizer_backup_` |
+| `PreferenceFragmentBase.kt:575` | Backup filename | `pengeek_backup_` | Default backup file name prefix | Yes | Rename to `r14bak_` (M1 default name) |
 | `AppHelper.kt:62,67,72,77` | Log methods | `[Pengeek]`, `[Pengeek][$mod]` | Logcat prefix for settings-app logs | Yes | Replace with `[CustoMIUIzer]` or module-specific prefix |
 | `mods/utils/XposedHelpers.java:387,395,399,407` | Log methods | `[Pengeek]`, `[Pengeek][$mod]` | Logcat prefix for module logs | Yes | Replace with `[CustoMIUIzer]` |
 | `utils/BitmapCachedLoader.kt:171` | `TAG` | `Pengeek.IconLoader` | Log tag for icon loader | Yes | Rename to `CustoMIUIzer.IconLoader` |
@@ -747,18 +797,38 @@ AUDIT_FEATURE_SEMANTICS_INIT_USED = NO
 
 If and only if `M1_AUTHORIZATION = YES` is granted, M1 should implement:
 
-1. **Restore result model** (`RestoreResult`) and the typed pipeline from Section 17.
-2. **Side-effect reconcile** for `pref_key_miuizer_launchericon`:
+1. **Backup default filename change:**
+   - `BACKUP_DEFAULT_NAME = "r14bak_<MMddHHmmss>"`.
+   - Keep device local wall-clock semantics.
+   - Keep `Locale.US` numeric representation.
+   - No filename extension required.
+   - Prefer an immutable / thread-safe `SimpleDateFormat` (e.g. wrapped in a
+     `static final` or a `DateTimeFormatter` if API 26+ is acceptable; current
+     project base uses `SimpleDateFormat`, so a `private val` in the companion
+     object is sufficient).
+2. **Backup fatal-error fix:**
+   - `PreferenceFragmentBase.backupSettings` catch block currently catches
+     `Throwable` without `FatalErrors.rethrowIfFatal`.
+   - M1 must change it to:
+     ```kotlin
+     catch (t: Throwable) {
+         FatalErrors.rethrowIfFatal(t)
+         ...
+     }
+     ```
+     and then show the warning dialog.
+3. **Restore result model** (`RestoreResult`) and the typed pipeline from Section 17.
+4. **Side-effect reconcile** for `pref_key_miuizer_launchericon`:
    - after a successful restore commit, call `PackageManager.setComponentEnabledSetting`
      with the restored value.
-3. **Commit-failure handling:** check the return value of `SharedPreferences.commit()`
+5. **Commit-failure handling:** check the return value of `SharedPreferences.commit()`
    and map `false` to `RESTORE_RESULT = FAILURE`.
-4. **Tombstone filter** for `PROVEN_DROPPED_KEYS` and `NON_EXPORTABLE_KEYS`.
-5. **V2 backup writer** (MAGIC, FORMAT_VERSION, APP_REVISION, ENTRY_COUNT,
+6. **Tombstone filter** for `PROVEN_DROPPED_KEYS` and `NON_EXPORTABLE_KEYS`.
+7. **V2 backup writer** (MAGIC, FORMAT_VERSION, APP_REVISION, ENTRY_COUNT,
    TYPED_ENTRIES, CRC32 footer).
-6. **Restricted legacy reader** using an `ObjectInputFilter` allowlist and the
+8. **Restricted legacy reader** using an `ObjectInputFilter` allowlist and the
    post-deserialization validation from Section 17.
-7. Unit tests covering malformed/truncated legacy files, V2 round-trip,
+9. Unit tests covering malformed/truncated legacy files, V2 round-trip,
    commit-failure, launcher reconcile, and dropped-key tombstone.
 
 M0 does **not** authorize these changes.
@@ -770,16 +840,13 @@ M0 does **not** authorize these changes.
 1. **Legacy bounds:** the proposed `MAX_FILE_SIZE`, `MAX_ENTRY_COUNT`,
    `MAX_KEY_BYTES`, `MAX_STRING_BYTES`, and `MAX_SET_ITEMS` are not derived from
    real device measurements; they need empirical validation.
-2. **`pref_key_system_notif_strong_toast_width` classification:** unresolved between
-   `DEAD_LEGACY` and `DROPPED`. Requires a human decision before building a
-   tombstone list.
-3. **`pref_key_miuizer_synced_from_lsposed`:** no production writer is visible;
+2. **`pref_key_miuizer_synced_from_lsposed`:** no production writer is visible;
    confirm whether it is dead or written by an older build.
-4. **Restore process semantics:** should a successful restore also force a process
+3. **Restore process semantics:** should a successful restore also force a process
    exit for locale, or is `finish + startActivity` the intended contract?
-5. **Commit failure policy:** should `commit() == false` be treated as `FAILURE`
+4. **Commit failure policy:** should `commit() == false` be treated as `FAILURE`
    (no partial result) or `PARTIAL_FAILURE`? M0 recommends `FAILURE`.
-6. **About category title for M4:** decide whether to reuse `@string/miuizer` or
+5. **About category title for M4:** decide whether to reuse `@string/miuizer` or
    switch to `@string/settings` when the locale row is moved.
 
 ---
@@ -792,7 +859,10 @@ M0 does **not** authorize these changes.
 - Restore is not atomic, `commit()` result is ignored, and the launcher icon
   side effect is not reconciled.
 - A minimal V2 format and restricted legacy reader have been proposed with
-  explicit bounds and a unified pipeline.
+  explicit bounds, a wire-only `HashMap`/`HashSet` allowlist, and a unified
+  pipeline.
+- `pref_key_system_notif_strong_toast_width` is now classified as
+  `DROPPED/TOMBSTONED`.
 - All `Pengeek` production references have been catalogued for M3 removal.
 - No production code was changed.
 - `audit-feature-semantics.py --validate` passes.
