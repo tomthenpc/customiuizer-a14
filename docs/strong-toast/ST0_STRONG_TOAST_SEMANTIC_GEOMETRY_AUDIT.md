@@ -144,7 +144,7 @@ RUNTIME_INTERCEPTOR_DISPATCH_ORDER = NOT FROZEN BY CURRENT REPOSITORY EVIDENCE
 - **Hook 顺序重要**：虽然安装注册顺序为 `NEW_THEN_LEGACY`，但 runtime interceptor dispatch 顺序未冻结；若新 HIDE 的 `before` 先执行并 `returnAndSkip`，旧 `Disable` 的 `before` 可能不会收到回调，反之亦然。
 - **一个 hook 可能使另一个失效**：根据实际 dispatch 顺序，任一 `returnAndSkip(null)` 都可能让另一个的条件逻辑无法生效。
 - **行为交叉 / 重复 policy**：两套 feature 同时启用时，两个 `before` 回调会读取不同 preference，可能产生“重复拦截”或“条件覆盖”。
-- **异常风险**：旧 `Disable` 在 `showCustomStrongToast()` 每次调用时都会反射获取 `ZenModeController` 并调用 `isZenModeOn` (`SystemUI.kt:115-118`)。若其中一套 hook 先 short-circuit，原方法不会执行，但另一套 `before` 仍可能被 libxposed 调用并执行反射；存在每次 `showCustomStrongToast()` 调用都发生一次 `callMethod` 的潜在开销与 ROM 字段/方法缺失风险。
+- **异常风险**：旧 `Disable` 的 `before` hook 仅在 DND-only 路径才会反射获取 `ZenModeController` 并调用 `isZenModeOn`，条件是 `system_notif_disable_strong_toast_always == false` 且 `system_notif_disable_strong_toast_dnd == true` (`SystemUI.kt:113-118`)。若其中一套 hook 先 short-circuit，原方法不会执行，但另一套 `before` 仍可能被 libxposed 调用并执行判断；如果 legacy before hook 被实际调度到，legacy interceptor 才产生 `ZenModeController` 依赖查找与 `isZenModeOn` 反射调用开销。`LEGACY_INTERCEPTOR_COST = PER_REACHED_SHOW_CUSTOM_STRONG_TOAST_CALLBACK`；`DND_POLICY_COST = CONDITIONAL_ALWAYS_FALSE_AND_DND_TRUE`。
 
 ### A5. DND-only policy
 
@@ -378,12 +378,12 @@ corner geometry 不得随目标高度无限制同比放大
 - `FeatureInstallState` 保证每个 `FeatureId` 在同一进程仅安装一次 (`FeatureInstallRegistry.kt:77-80`)。
 - `StrongToastPresentationFeature` 没有注册 `PreferenceObserver`；preference 变化后需要 SystemUI 重启生效（与 strings 提示一致：`A full reboot is required`）。
 - `SystemUIStrongToastHooks` 不持有 `Activity`、`View`、`Window` 或 `Context` 的长期引用；hook 回调内使用 `callback.getThisObject()` 的局部 View 引用获取 density。
-- `DisableStrongToastHook` 的 `before` hook 在每次 `showCustomStrongToast()` 被调用时通过 `ModuleHelper.getDepInstance()` 获取 `ZenModeController` (`SystemUI.kt:115-117`)。`ReflectionCache` 对结果做 ClassLoader 级缓存。DND-only path performs a per-invocation reflective `ZenModeController.isZenModeOn` call. Whether that ROM method performs IPC/Binder work is not established by current repository evidence.
+- `DisableStrongToastHook` 的 `before` hook 在 `showCustomStrongToast()` 被调用时先检查 `system_notif_disable_strong_toast_always`；仅当该值为 `false` 且 `system_notif_disable_strong_toast_dnd == true` 时，才通过 `ModuleHelper.getDepInstance()` 获取 `ZenModeController` 并反射调用 `isZenModeOn` (`SystemUI.kt:113-118`)。`ReflectionCache` 对 `ZenModeController` 实例做 ClassLoader 级缓存。`DND_DEPENDENCY_LOOKUP = CONDITIONAL`；`DND_IS_ZEN_MODE_ON_CALL = CONDITIONAL`。Whether that ROM method performs IPC/Binder work is not established by current repository evidence.
 
 ### 16.2 并发
 
 - 两套 feature 的 hook 注册在 `SystemUiInstaller` 的单线程安装路径完成 (`SystemUiInstaller.kt:23-53`)，并发风险低。
-- 运行时 `before`/`after` 回调跑在 ROM 调用线程。`HOOK_CALLBACK_THREAD = ROM_CALLER_THREAD`。`SYSTEMUI_MAIN_THREAD = NOT_PROVEN`（仓库缺少 ROM/runtime 证据）。`SystemUIStrongToastHooks` 的 `after` hook 中仅做赋值与异常捕获；`DisableStrongToastHook` 的 `before` 做两次 `mPrefs` 读取与一次 `callMethod`。
+- 运行时 `before`/`after` 回调跑在 ROM 调用线程。`HOOK_CALLBACK_THREAD = ROM_CALLER_THREAD`。`SYSTEMUI_MAIN_THREAD = NOT_PROVEN`（仓库缺少 ROM/runtime 证据）。`SystemUIStrongToastHooks` 的 `after` hook 中仅做赋值与异常捕获；`DisableStrongToastHook` 的 `before` 做两次 `mPrefs` 读取，仅在 DND-only 条件满足时才调用一次 `callMethod` (`SystemUI.kt:113-118`)。
 
 ### 16.3 性能 / 热路径
 
@@ -395,7 +395,7 @@ corner geometry 不得随目标高度无限制同比放大
   - `PER_TOAST_EXACT_CALL_COUNT = NOT_PROVEN`：仓库未证明 StrongToast 每次展示与 `getWindowParam()` 调用次数之间存在 1:1 映射。
 - `setThemeValueReplacement` 在安装期把 `ThemeValue` 写入 `themeValueReplacements` 并触发 `tryInitThemeHook()` (`ResourceHooks.kt:442-471`)。真正的替换发生在 ROM 调用 `miui.content.res.ThemeResources.mergeThemeValues(...)` 时，hook 把新值写入 `ThemeValues.mIntegers` (`ResourceHooks.kt:225-298`)。因此该 StrongToast theme replacement 的应用时机是 **theme merge time**。
 - `ReplaceHook.intercept()` 中的 `SparseArray` / `resourceIdReplacements` 查找属于模块的**普通资源 ID 替换 / fake resource 路径**，不应归因于本次 `strong_toast_height` theme replacement。
-- 若 `DisableStrongToastHook` 与 `HIDE` 同时启用，同方法 duplicate hook 可能导致每次 `showCustomStrongToast()` 调用都发生一次 `ZenModeController` 反射调用，存在重复开销。IPC/Binder 成本未在仓库中证明。
+- 若 `DisableStrongToastHook` 与 `HIDE` 同时启用，同方法 duplicate hook 可能造成 duplicate policy。当 legacy feature 被配置为 DND-only 拦截时，runtime dispatch 把控制流交给 legacy `before` hook 后才会产生 `ZenModeController` 依赖查找与 `isZenModeOn` 调用；新 `HIDE` 或其它 hook 是否先 short-circuit 而阻止 legacy `before` 被调度到，未由仓库证据冻结。
 
 ### 16.4 失败语义
 
@@ -425,6 +425,18 @@ ROM_CALLER_THREAD
 
 SYSTEMUI_MAIN_THREAD =
 NOT_PROVEN
+
+LEGACY_INTERCEPTOR_COST =
+PER_REACHED_SHOW_CUSTOM_STRONG_TOAST_CALLBACK
+
+DND_POLICY_COST =
+CONDITIONAL_ALWAYS_FALSE_AND_DND_TRUE
+
+DND_DEPENDENCY_LOOKUP =
+CONDITIONAL
+
+DND_IS_ZEN_MODE_ON_CALL =
+CONDITIONAL
 ```
 
 ## 17. Runtime Evidence Contract
@@ -508,6 +520,26 @@ MATCH_HEIGHT_ROOT_CAUSE = NOT_PROVEN
 MATCH_HEIGHT_FIX_DIRECTION = NONE
 
 PREFERRED_DIAGNOSTIC_EXPERIMENT = REMOVE_STRONG_TOAST_HEIGHT_REPLACEMENT_AND_ISOLATE_WINDOW_HEIGHT
+
+THEME_REPLACEMENT_APPLICATION = THEME_RESOURCES_MERGE_TIME
+
+PER_RESOURCE_GETTER_REPLACEHOOK_COST = NOT_ATTRIBUTABLE_TO_STRONG_TOAST_THEME_REPLACEMENT
+
+GET_WINDOW_PARAM_HOOK_COST = PER_GET_WINDOW_PARAM_INVOCATION
+
+PER_TOAST_EXACT_CALL_COUNT = NOT_PROVEN
+
+HOOK_CALLBACK_THREAD = ROM_CALLER_THREAD
+
+SYSTEMUI_MAIN_THREAD = NOT_PROVEN
+
+LEGACY_INTERCEPTOR_COST = PER_REACHED_SHOW_CUSTOM_STRONG_TOAST_CALLBACK
+
+DND_POLICY_COST = CONDITIONAL_ALWAYS_FALSE_AND_DND_TRUE
+
+DND_DEPENDENCY_LOOKUP = CONDITIONAL
+
+DND_IS_ZEN_MODE_ON_CALL = CONDITIONAL
 
 PRODUCTION_CHANGE = NO
 TEST_CHANGE = NO
