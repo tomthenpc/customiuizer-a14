@@ -442,9 +442,9 @@ object BackupRestore {
      * - entry validation and tombstone filtering;
      * - app-selection sanitization;
      * - pre-restore snapshot capture;
-     * - `SharedPreferences` clear + put + commit;
+     * - `SharedPreferences` clear + put + stage locale reconcile marker + commit;
      * - best-effort rollback on commit failure;
-     * - launcher and locale side-effect reconcile only after durable commit.
+     * - launcher side-effect reconcile only after durable commit.
      */
     @JvmStatic
     fun performRestore(
@@ -516,6 +516,7 @@ object BackupRestore {
         val primaryEditor = prefs.edit()
         primaryEditor.clear()
         putSupportedPreferenceEntries(primaryEditor, sanitizedEntries)
+        AppLocaleController.stageReconcileMarker(primaryEditor)
         val primaryCommit = primaryEditor.commit()
 
         if (!primaryCommit) {
@@ -540,20 +541,11 @@ object BackupRestore {
             )
         }
 
-        // Primary commit succeeded. Reconcile locale and launcher.
-        val localeReconciled = try {
-            AppLocaleController.invalidateFastPath(prefs)
-            true
-        } catch (t: Throwable) {
-            FatalErrors.rethrowIfFatal(t)
-            false
-        }
-
+        // Primary commit succeeded. The locale reconcile marker is already durable
+        // because it was staged into the same transaction. Reconcile launcher only.
         val launcherEnabled = prefs.getBoolean("pref_key_miuizer_launchericon", true)
         val launcherReconciled = launcherReconciler?.invoke(launcherEnabled) ?: true
-        val deviceReconciled = localeReconciled && launcherReconciled
-
-        val status = if (deviceReconciled) Status.SUCCESS else Status.PARTIAL_FAILURE
+        val status = if (launcherReconciled) Status.SUCCESS else Status.PARTIAL_FAILURE
 
         RestoreResult(
             status = status,
@@ -563,7 +555,7 @@ object BackupRestore {
             appSelectionsSanitized = appSelectionsSanitized,
             commitSucceeded = true,
             commitConfirmedDurable = true,
-            deviceReconciled = deviceReconciled,
+            deviceReconciled = launcherReconciled,
             rollbackAttempted = false,
             rollbackSucceeded = false,
         )

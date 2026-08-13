@@ -199,6 +199,19 @@ object AppLocaleController {
     }
 
     /**
+     * Stages the local force-reconcile marker into an existing [SharedPreferences.Editor].
+     *
+     * This is used during restore so that the reconcile marker is written in the same
+     * primary transaction as the restored preference set, rather than in a separate
+     * asynchronous [apply]. The staged value is always locally generated and never
+     * taken from a source backup.
+     */
+    @JvmStatic
+    fun stageReconcileMarker(editor: SharedPreferences.Editor) {
+        editor.putString(APPLIED_LOCALE_PREF_KEY, RECONCILE_MARKER)
+    }
+
+    /**
      * Record what is now in force, so the next start can take the fast path.
      *
      * Writes only on an actual change: this runs on every start of an install that uses

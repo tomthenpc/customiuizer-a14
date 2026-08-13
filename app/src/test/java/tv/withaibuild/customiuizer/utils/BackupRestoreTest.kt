@@ -155,6 +155,8 @@ class BackupRestoreTest {
         assertEquals(3, result.restored)
         assertEquals(true, prefs.getBoolean("pref_key_enabled", false))
         assertFalse(prefs.getBoolean("pref_key_miuizer_launchericon", true))
+        assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
+        assertEquals("", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
     }
 
     @Test
@@ -165,6 +167,7 @@ class BackupRestoreTest {
 
         val prefs = FakeSharedPreferences().apply {
             put("pref_key_old", "original")
+            put(AppLocaleController.APPLIED_LOCALE_PREF_KEY, "original-marker")
             commitSequence = listOf(false, true).iterator()
         }
 
@@ -184,25 +187,29 @@ class BackupRestoreTest {
         val primaryState = prefs.commitSnapshot(0)
         assertNull(primaryState["pref_key_old"])
         assertEquals("restored in memory", primaryState["pref_key_new"])
+        assertEquals("", primaryState[AppLocaleController.APPLIED_LOCALE_PREF_KEY])
 
         // Rollback restores original snapshot.
         val rollbackState = prefs.commitSnapshot(1)
         assertEquals("original", rollbackState["pref_key_old"])
         assertNull(rollbackState["pref_key_new"])
+        assertEquals("original-marker", rollbackState[AppLocaleController.APPLIED_LOCALE_PREF_KEY])
 
         // Final live state is original.
         assertEquals("original", prefs.getString("pref_key_old", null))
         assertNull(prefs.getString("pref_key_new", null))
+        assertEquals("original-marker", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
     }
 
     @Test
-    fun performRestorePrimaryCommitFalseAndRollbackFalseLeavesRestoredStateThenRollsBack() {
+    fun performRestorePrimaryCommitFalseAndRollbackFalseRestoresOriginalReconcileMarker() {
         val map = HashMap<String, Any?>()
         map["pref_key_new"] = "restored in memory"
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences().apply {
             put("pref_key_old", "original")
+            put(AppLocaleController.APPLIED_LOCALE_PREF_KEY, "original-marker")
             commitSequence = listOf(false, false).iterator()
         }
 
@@ -218,9 +225,10 @@ class BackupRestoreTest {
         assertTrue(result.rollbackAttempted)
         assertFalse(result.rollbackSucceeded)
 
-        // Both commits applied to in-memory map; rollback attempted even if durable result false.
+        // Both commits applied to in-memory map; rollback attempted even if durability result false.
         assertEquals("original", prefs.getString("pref_key_old", null))
         assertNull(prefs.getString("pref_key_new", null))
+        assertEquals("original-marker", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
     }
 
     @Test
@@ -269,13 +277,15 @@ class BackupRestoreTest {
     }
 
     @Test
-    fun performRestoreReturnsPartialFailureWhenLocaleReconcileFails() {
+    fun performRestorePrimaryCommitFalseRestoresOriginalReconcileMarker() {
         val map = HashMap<String, Any?>()
         map["pref_key_miuizer_locale"] = "en"
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences().apply {
-            applyShouldThrow = true
+            put("pref_key_miuizer_locale", "zh-CN")
+            put(AppLocaleController.APPLIED_LOCALE_PREF_KEY, "zh-CN")
+            commitSequence = listOf(false, true).iterator()
         }
 
         val result = BackupRestore.performRestore(
@@ -285,11 +295,25 @@ class BackupRestoreTest {
             launcherReconciler = { true },
         )
 
-        assertEquals(BackupRestore.Status.PARTIAL_FAILURE, result.status)
-        assertTrue(result.commitSucceeded)
-        assertFalse(result.deviceReconciled)
-        // Locale choice is still persisted.
-        assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
+        assertEquals(BackupRestore.Status.FAILURE, result.status)
+        assertFalse(result.commitSucceeded)
+        assertTrue(result.rollbackAttempted)
+        assertTrue(result.rollbackSucceeded)
+        assertEquals(1, result.restored)
+
+        // Primary commit in-memory state contains the local reconcile marker.
+        val primaryState = prefs.commitSnapshot(0)
+        assertEquals("en", primaryState["pref_key_miuizer_locale"])
+        assertEquals("", primaryState[AppLocaleController.APPLIED_LOCALE_PREF_KEY])
+
+        // Rollback restores the original snapshot, including its original marker.
+        val rollbackState = prefs.commitSnapshot(1)
+        assertEquals("zh-CN", rollbackState["pref_key_miuizer_locale"])
+        assertEquals("zh-CN", rollbackState[AppLocaleController.APPLIED_LOCALE_PREF_KEY])
+
+        // Final live state is the original snapshot.
+        assertEquals("zh-CN", prefs.getString("pref_key_miuizer_locale", null))
+        assertEquals("zh-CN", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
     }
 
     @Test
@@ -317,6 +341,82 @@ class BackupRestoreTest {
         assertTrue(result.commitSucceeded)
         assertTrue(result.deviceReconciled)
         assertTrue(launcherCalled)
+        assertEquals(2, result.restored)
+        assertEquals("", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
+    }
+
+    @Test
+    fun performRestorePrimaryCommitSnapshotContainsReconcileMarker() {
+        val map = HashMap<String, Any?>()
+        map["pref_key_miuizer_locale"] = "en"
+        val input = ByteArrayInputStream(serialize(map))
+
+        val prefs = FakeSharedPreferences()
+
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertTrue(result.commitSucceeded)
+        assertEquals(1, result.restored)
+        assertEquals(1, prefs.commitSnapshotCount())
+        assertEquals("en", prefs.commitSnapshot(0)["pref_key_miuizer_locale"])
+        assertEquals("", prefs.commitSnapshot(0)[AppLocaleController.APPLIED_LOCALE_PREF_KEY])
+        assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
+        assertEquals("", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
+    }
+
+    @Test
+    fun performRestoreAutoLocaleAfterExplicitLocalLeavesReconcileMarker() {
+        val map = HashMap<String, Any?>()
+        map["pref_key_miuizer_locale"] = "auto"
+        val input = ByteArrayInputStream(serialize(map))
+
+        val prefs = FakeSharedPreferences().apply {
+            put("pref_key_miuizer_locale", "en")
+            put(AppLocaleController.APPLIED_LOCALE_PREF_KEY, "en")
+        }
+
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertTrue(result.commitSucceeded)
+        assertEquals(1, result.restored)
+        assertEquals("auto", prefs.getString("pref_key_miuizer_locale", null))
+        assertEquals("", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
+    }
+
+    @Test
+    fun performRestoreDoesNotCallApplyForLocaleMarker() {
+        val map = HashMap<String, Any?>()
+        map["pref_key_miuizer_locale"] = "en"
+        val input = ByteArrayInputStream(serialize(map))
+
+        val prefs = FakeSharedPreferences().apply {
+            // If the restore path uses apply() for the marker, this will throw.
+            applyShouldThrow = true
+        }
+
+        val result = BackupRestore.performRestore(
+            input,
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertTrue(result.commitSucceeded)
+        assertEquals(1, prefs.commitSnapshotCount())
+        assertEquals("", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
     }
 
     @Test
@@ -408,9 +508,10 @@ class BackupRestoreTest {
 
         assertEquals(BackupRestore.Status.SUCCESS, result.status)
         assertEquals(2, result.deprecatedIgnored)
+        assertEquals(1, result.restored)
         assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
-        // Source marker ignored; invalidateFastPath writes the local reconcile marker.
-        assertEquals("", prefs.getString("pref_key_miuizer_locale_applied", null))
+        // Source marker ignored; stageReconcileMarker writes the local reconcile marker.
+        assertEquals("", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
         assertNull(prefs.getString("pref_key_miuizer_synced_from_lsposed", null))
     }
 
@@ -570,7 +671,7 @@ class BackupRestoreTest {
         assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
         assertNull(prefs.getString("pref_key_system_notif_disable_strong_toast", null))
         // Device-derived marker gets local reconcile marker, not source value.
-        assertEquals("", prefs.getString("pref_key_miuizer_locale_applied", null))
+        assertEquals("", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
     }
 
     @Test

@@ -309,9 +309,8 @@ bounded input read (MAX_FILE_SIZE)
 → validateAndNormalizeEntries
 → AppSelectionSanitizer
 → PRE_RESTORE_SNAPSHOT
-→ clear + puts + commit
+→ clear + puts + stage locale reconcile marker + commit
 → rollback on commit(false)
-→ locale reconcile
 → launcher reconcile
 → RestoreResult
 ```
@@ -365,7 +364,7 @@ M2 changes do not alter:
 - best-effort rollback
 - restored count after sanitizer
 - tombstone / device-derived filtering
-- locale partial failure
+- locale reconcile marker staged into the primary `commit`
 - launcher partial failure
 - fatal propagation
 
