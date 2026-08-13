@@ -21,6 +21,7 @@ import tv.withaibuild.customiuizer.SubFragment
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
 import tv.withaibuild.customiuizer.prefs.SeekBarPreference
 import tv.withaibuild.customiuizer.qs.AutoRotateService
 import tv.withaibuild.customiuizer.utils.AppHelper
@@ -95,6 +96,23 @@ class System : SubFragment() {
             "pref_key_system_cat_toasts" -> findPreference<Preference>("pref_key_system_blocktoasts_apps")?.setOnPreferenceClickListener(openAppsEdit)
 
             "pref_key_system_cat_statusbar" -> {
+                val strongToastMode = findPreference<ListPreferenceEx>("pref_key_system_strong_toast_mode")
+                val strongToastPosition = findPreference<ListPreferenceEx>("pref_key_system_strong_toast_position")
+                val strongToastBottomOffset = findPreference<Preference>("pref_key_system_strong_toast_bottom_offset")
+                fun updateStrongToastGeometryVisibility(mode: String?, position: String?) {
+                    val dynamicIsland = mode == "3" || mode == "4"
+                    strongToastPosition?.isVisible = dynamicIsland
+                    strongToastBottomOffset?.isVisible = dynamicIsland && position == "1"
+                }
+                updateStrongToastGeometryVisibility(strongToastMode?.value, strongToastPosition?.value)
+                strongToastMode?.setOnPreferenceChangeListener { _, newValue ->
+                    updateStrongToastGeometryVisibility(newValue as? String, strongToastPosition?.value)
+                    true
+                }
+                strongToastPosition?.setOnPreferenceChangeListener { _, newValue ->
+                    updateStrongToastGeometryVisibility(strongToastMode?.value, newValue as? String)
+                    true
+                }
                 findPreference<Preference>("pref_key_system_statusbarcolor_apps")?.setOnPreferenceClickListener(openAppsEdit)
                 findPreference<Preference>("pref_key_system_detailednetspeed_cat")?.setOnPreferenceClickListener { openSystemSubFragment(it, false, R.xml.prefs_system_detailednetspeed); true }
                 findPreference<Preference>("pref_key_system_statusbar_batterytempandcurrent_cat")?.setOnPreferenceClickListener { openSystemSubFragment(it, true, R.xml.prefs_system_statusbar_batterytempandcurrent); true }

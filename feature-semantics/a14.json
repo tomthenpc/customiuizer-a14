@@ -8652,28 +8652,6 @@
       "notes": ""
     },
     {
-      "featureId": "pref_key_system_notif_strong_toast_width",
-      "featureName": "pref_key_system_notif_strong_toast_width",
-      "preferenceKeys": [
-        "pref_key_system_notif_strong_toast_width"
-      ],
-      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
-      "installer": "UNKNOWN",
-      "targetPackage": "UNKNOWN",
-      "installPhase": "APP_UI_ONLY",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "UNKNOWN",
-      "disableEffect": "UNKNOWN",
-      "valueChangeEffect": "UNKNOWN",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "INFERRED",
-      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
-      "notes": ""
-    },
-    {
       "featureId": "pref_key_system_notifafterunlock",
       "featureName": "pref_key_system_notifafterunlock",
       "preferenceKeys": [
@@ -14812,6 +14790,94 @@
       "notes": ""
     },
     {
+      "featureId": "pref_key_various_clear_update_state",
+      "featureName": "pref_key_various_clear_update_state",
+      "preferenceKeys": [
+        "pref_key_various_clear_update_state"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_various.xml",
+      "defaultValue": "",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/subs/Various.kt",
+      "installer": "GlobalActionSystemServerHooks.setupUpdaterServicesBridge",
+      "targetPackage": "android",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "ONE_SHOT",
+      "enableEffect": "Clears Updater user data and stale global update-version state once",
+      "disableEffect": "No persistent state",
+      "valueChangeEffect": "Runs only after explicit confirmation",
+      "restartTarget": "NONE",
+      "hotReloadable": true,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "Various sends an authenticated one-shot request to the system_server maintenance bridge",
+      "notes": "Does not download, install, enable, or disable updater components"
+    },
+    {
+      "featureId": "pref_key_various_disable_miui_daemon",
+      "featureName": "pref_key_various_disable_miui_daemon",
+      "preferenceKeys": [
+        "pref_key_various_disable_miui_daemon"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_various.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/subs/Various.kt",
+      "installer": "GlobalActionSystemServerHooks.setupUpdaterServicesBridge",
+      "targetPackage": "android",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "ONE_SHOT",
+      "enableEffect": "Sets the system com.miui.daemon application to DISABLED_USER",
+      "disableEffect": "Restores the application enabled state captured before disabling",
+      "valueChangeEffect": "Applies immediately through the authenticated system_server bridge",
+      "restartTarget": "NONE",
+      "hotReloadable": true,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "Various persists the prior state and requests verified package-level state changes",
+      "notes": "Existing component overrides are preserved"
+    },
+    {
+      "featureId": "pref_key_various_block_notification_permission_prompts",
+      "featureName": "pref_key_various_block_notification_permission_prompts",
+      "preferenceKeys": [
+        "pref_key_various_block_notification_permission_prompts"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_various.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/installers/PermissionControllerInstaller.kt",
+      "installer": "PermissionControllerInstaller.install",
+      "targetPackage": "com.android.permissioncontroller|com.google.android.permissioncontroller",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "CAPTURED_AT_INSTALL",
+      "enableEffect": "Finishes notification-only system permission requests without granting them",
+      "disableEffect": "Preserves the native permission prompt",
+      "valueChangeEffect": "Applies after PermissionController restarts",
+      "restartTarget": "REBOOT",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "PermissionControllerInstaller routes the captured preference to PermissionControllerHooks",
+      "notes": "Mixed requests and application-defined rationale dialogs are preserved"
+    },
+    {
+      "featureId": "pref_key_various_block_location_permission_prompts",
+      "featureName": "pref_key_various_block_location_permission_prompts",
+      "preferenceKeys": [
+        "pref_key_various_block_location_permission_prompts"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_various.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/installers/PermissionControllerInstaller.kt",
+      "installer": "PermissionControllerInstaller.install",
+      "targetPackage": "com.android.permissioncontroller|com.google.android.permissioncontroller",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "CAPTURED_AT_INSTALL",
+      "enableEffect": "Finishes location-only system permission requests without granting them",
+      "disableEffect": "Preserves the native permission prompt",
+      "valueChangeEffect": "Applies after PermissionController restarts",
+      "restartTarget": "REBOOT",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "PermissionPromptPolicy accepts only foreground and background location permissions",
+      "notes": "Mixed requests and application-defined rationale dialogs are preserved"
+    },
+    {
       "featureId": "pref_key_various_disableapp",
       "featureName": "pref_key_various_disableapp",
       "preferenceKeys": [
@@ -17823,28 +17889,6 @@
       "hotReloadable": false,
       "confidence": "UNKNOWN",
       "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:237",
-      "notes": ""
-    },
-    {
-      "featureId": "system_notif_strong_toast_width",
-      "featureName": "system_notif_strong_toast_width",
-      "preferenceKeys": [
-        "system_notif_strong_toast_width"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:TweakStrongToastHook",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "UNKNOWN",
-      "runtimeReadMode": "UNKNOWN",
-      "enableEffect": "Applies hook when enabled",
-      "disableEffect": "Restores default behavior",
-      "valueChangeEffect": "Updates applied hook behavior",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "UNKNOWN",
-      "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:130",
       "notes": ""
     },
     {
@@ -22314,50 +22358,6 @@
       "notes": "Paired with the StrongToastView window LayoutParams height hook"
     },
     {
-      "featureId": "theme_com_android_systemui_dimen_strong_toast_width",
-      "featureName": "strong_toast_width",
-      "preferenceKeys": [
-        "theme:com.android.systemui:dimen:strong_toast_width"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:TweakStrongToastHook",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "UNKNOWN",
-      "runtimeReadMode": "RESOURCE_REPLACEMENT",
-      "enableEffect": "Replaces or injects the resource value",
-      "disableEffect": "No resource replacement",
-      "valueChangeEffect": "Resource replacement value is updated",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:133",
-      "notes": ""
-    },
-    {
-      "featureId": "theme_com_android_systemui_dimen_strong_toast_width_window",
-      "featureName": "strong_toast_width_window",
-      "preferenceKeys": [
-        "theme:com.android.systemui:dimen:strong_toast_width_window"
-      ],
-      "xmlSource": "",
-      "defaultValue": "",
-      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt",
-      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:TweakStrongToastHook",
-      "targetPackage": "com.android.systemui",
-      "installPhase": "UNKNOWN",
-      "runtimeReadMode": "RESOURCE_REPLACEMENT",
-      "enableEffect": "Replaces or injects the resource value",
-      "disableEffect": "No resource replacement",
-      "valueChangeEffect": "Resource replacement value is updated",
-      "restartTarget": "UNKNOWN",
-      "hotReloadable": false,
-      "confidence": "INFERRED",
-      "evidence": "setThemeValueReplacement at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUI.kt:132",
-      "notes": ""
-    },
-    {
       "featureId": "theme_com_android_systemui_integer_config_lockscreendisplaytimeout",
       "featureName": "config_lockScreenDisplayTimeout",
       "preferenceKeys": [
@@ -23216,6 +23216,50 @@
       "notes": ""
     },
     {
+      "featureId": "pref_key_system_strong_toast_position",
+      "featureName": "pref_key_system_strong_toast_position",
+      "preferenceKeys": [
+        "pref_key_system_strong_toast_position"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "0",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "Selects the screen edge for Dynamic Island modes",
+      "disableEffect": "Keeps the top screen edge",
+      "valueChangeEffect": "Persists the position for the next SystemUI start",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": "Only visible for the two Dynamic Island presentation modes"
+    },
+    {
+      "featureId": "pref_key_system_strong_toast_bottom_offset",
+      "featureName": "pref_key_system_strong_toast_bottom_offset",
+      "preferenceKeys": [
+        "pref_key_system_strong_toast_bottom_offset"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "0",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "Adds a user-selected offset above the runtime bottom safe inset",
+      "disableEffect": "Uses only the runtime navigation and mandatory-gesture safe inset",
+      "valueChangeEffect": "Persists the offset for the next SystemUI start",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": "Only visible for bottom-positioned Dynamic Island modes"
+    },
+    {
       "featureId": "system_strong_toast_mode",
       "featureName": "system_strong_toast_mode",
       "preferenceKeys": [
@@ -23236,6 +23280,50 @@
       "confidence": "CODE_VERIFIED",
       "evidence": "StrongToastPresentationFeature routes the preference to SystemUIStrongToastHooks",
       "notes": "HyperOS 1 MIUIStrongToast used by charging and system-state capsules; app notifications are outside this hook"
+    },
+    {
+      "featureId": "system_strong_toast_position",
+      "featureName": "system_strong_toast_position",
+      "preferenceKeys": [
+        "system_strong_toast_position"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "0",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt",
+      "installer": "StrongToastPresentationFeature.installHook",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "CAPTURED_AT_INSTALL",
+      "enableEffect": "Moves Dynamic Island modes to the bottom screen edge",
+      "disableEffect": "Keeps Dynamic Island modes at the top screen edge",
+      "valueChangeEffect": "Applies after SystemUI restarts",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "StrongToastPresentationFeature routes the bounded position to SystemUIStrongToastHooks",
+      "notes": "Top is value 0 and is the fallback for missing or unknown values"
+    },
+    {
+      "featureId": "system_strong_toast_bottom_offset",
+      "featureName": "system_strong_toast_bottom_offset",
+      "preferenceKeys": [
+        "system_strong_toast_bottom_offset"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "0",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt",
+      "installer": "StrongToastPresentationFeature.installHook",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "CAPTURED_AT_INSTALL",
+      "enableEffect": "Adds up to 80 dp above the measured runtime bottom safe inset",
+      "disableEffect": "Uses only the measured runtime bottom safe inset",
+      "valueChangeEffect": "Applies after SystemUI restarts",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "StrongToastPresentationFeature clamps and routes the offset to SystemUIStrongToastHooks",
+      "notes": "Ignored by top-positioned and non-Dynamic-Island modes"
     }
   ]
 }

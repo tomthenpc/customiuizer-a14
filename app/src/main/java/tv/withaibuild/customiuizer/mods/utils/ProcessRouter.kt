@@ -38,6 +38,12 @@ object ProcessRouter {
         "com.miui.packageinstaller",
     )
 
+    /** AOSP and Google A14 PermissionController package names. */
+    private val permissionControllerPackages = setOf(
+        "com.android.permissioncontroller",
+        "com.google.android.permissioncontroller",
+    )
+
     /**
      * Resolve a package/process pair to a canonical [ProcessScope].
      *
@@ -64,6 +70,11 @@ object ProcessRouter {
         in mediaPackages -> ProcessScope.MEDIA
         "com.android.incallui" -> ProcessScope.PHONE
         in packageInstallerPackages -> ProcessScope.PACKAGE_INSTALLER
+        in permissionControllerPackages -> if (packageName == actualProcessName) {
+            ProcessScope.PERMISSION_CONTROLLER
+        } else {
+            ProcessScope.UNSUPPORTED
+        }
         in inputMethodExactPackages -> ProcessScope.INPUT_METHOD
         else -> when {
             packageName.startsWith("com.android.networkstack") -> ProcessScope.NETWORK_STACK

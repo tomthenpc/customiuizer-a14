@@ -5,6 +5,8 @@ com.android.settings
 com.android.systemui
 com.miui.miwallpaper
 com.miui.packageinstaller
+com.android.permissioncontroller
+com.google.android.permissioncontroller
 com.miui.powerkeeper
 com.miui.securitycenter
 com.miui.home

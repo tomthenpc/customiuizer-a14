@@ -7,9 +7,11 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.provider.Settings
 import android.widget.Toast
 import io.github.libxposed.api.XposedInterface
@@ -20,6 +22,7 @@ import miui.process.ForegroundInfo
 import miui.process.ProcessManager
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
+import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
@@ -30,6 +33,7 @@ import tv.withaibuild.customiuizer.mods.utils.hasConfiguredToggle
 object GlobalActionSystemServerHooks {
 
     private const val XIAOMI_UPDATER_PACKAGE = "com.android.updater"
+    private const val MIUI_DAEMON_PACKAGE = "com.miui.daemon"
 
     @JvmStatic
     fun setupAnimationScaleBridge(lpparam: XposedModuleInterface.SystemServerStartingParam) {
@@ -100,6 +104,7 @@ object GlobalActionSystemServerHooks {
 
     @JvmStatic
     fun setupUpdaterServicesBridge(lpparam: XposedModuleInterface.SystemServerStartingParam) {
+        installMiuiDaemonPersistentStartBlocker(lpparam)
         ModuleHelper.hookAllMethods(
             "com.android.server.policy.BaseMiuiPhoneWindowManager",
             lpparam.classLoader,
@@ -115,20 +120,34 @@ object GlobalActionSystemServerHooks {
                             override fun onReceive(context: Context, intent: Intent) {
                                 var handled = false
                                 ModuleHelper.guarded {
-                                    if (intent.action != GlobalActions.SET_UPDATER_SERVICES_ACTION) return@guarded
                                     if (!ModuleHelper.isTrustedBroadcast(
                                             this,
                                             Helpers.modulePkg,
                                             rejectionResultCode = GlobalActions.ACTION_FAILED
                                         )
                                     ) return@guarded
-                                    val names = intent.getStringArrayExtra(
-                                        GlobalActions.EXTRA_UPDATER_SERVICE_NAMES
-                                    ) ?: return@guarded
-                                    val states = intent.getIntArrayExtra(
-                                        GlobalActions.EXTRA_UPDATER_SERVICE_STATES
-                                    ) ?: return@guarded
-                                    handled = applyUpdaterServiceStates(context, names, states)
+                                    handled = when (intent.action) {
+                                        GlobalActions.SET_UPDATER_SERVICES_ACTION -> {
+                                            val names = intent.getStringArrayExtra(
+                                                GlobalActions.EXTRA_UPDATER_SERVICE_NAMES
+                                            ) ?: return@guarded
+                                            val states = intent.getIntArrayExtra(
+                                                GlobalActions.EXTRA_UPDATER_SERVICE_STATES
+                                            ) ?: return@guarded
+                                            applyUpdaterServiceStates(context, names, states)
+                                        }
+                                        GlobalActions.CLEAR_UPDATER_STATE_ACTION ->
+                                            clearUpdaterState(context)
+                                        GlobalActions.SET_MIUI_DAEMON_STATE_ACTION ->
+                                            applyMiuiDaemonState(
+                                                context,
+                                                intent.getIntExtra(
+                                                    GlobalActions.EXTRA_APPLICATION_STATE,
+                                                    -1
+                                                )
+                                            )
+                                        else -> false
+                                    }
                                 }
                                 if (isOrderedBroadcast) {
                                     ModuleHelper.guarded {
@@ -141,13 +160,158 @@ object GlobalActionSystemServerHooks {
                                 }
                             }
                         },
-                        IntentFilter(GlobalActions.SET_UPDATER_SERVICES_ACTION),
+                        IntentFilter(GlobalActions.SET_UPDATER_SERVICES_ACTION).apply {
+                            addAction(GlobalActions.CLEAR_UPDATER_STATE_ACTION)
+                            addAction(GlobalActions.SET_MIUI_DAEMON_STATE_ACTION)
+                        },
                         Context.RECEIVER_EXPORTED,
                         GlobalActions.BROADCAST_PERMISSION
                     )
                 }
             }
         )
+    }
+
+    /**
+     * HyperOS asks ActivityManagerService to start persistent applications even when the package
+     * has been set to DISABLED_USER. Intercept the exact cold-path registration point instead of
+     * repeatedly killing the process. The ROM's startPersistentApps() explicitly accepts a null
+     * result from addAppLocked(), so no synthetic ProcessRecord is needed.
+     */
+    private fun installMiuiDaemonPersistentStartBlocker(
+        lpparam: XposedModuleInterface.SystemServerStartingParam
+    ) {
+        ModuleHelper.findAndHookMethod(
+            "com.android.server.am.ActivityManagerService",
+            lpparam.classLoader,
+            "addAppLocked",
+            ApplicationInfo::class.java,
+            String::class.java,
+            Boolean::class.javaPrimitiveType!!,
+            String::class.java,
+            Int::class.javaPrimitiveType!!,
+            object : MethodHook() {
+                override fun before(callback: BeforeHookCallback) {
+                    val info = callback.getArgs().firstOrNull() as? ApplicationInfo ?: return
+                    if (info.packageName != MIUI_DAEMON_PACKAGE) return
+                    try {
+                        val activityManager = callback.getThisObject() ?: return
+                        val context = XposedHelpers.getObjectField(activityManager, "mContext") as? Context
+                            ?: return
+                        if (context.packageManager.getApplicationEnabledSetting(MIUI_DAEMON_PACKAGE) ==
+                            PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER
+                        ) {
+                            callback.returnAndSkip(null)
+                        }
+                    } catch (t: Throwable) {
+                        tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log("MiuiDaemonPersistentStartBlocker", t)
+                    }
+                }
+            }
+        )
+    }
+
+    private fun clearUpdaterState(context: Context): Boolean {
+        if (!isSystemApplication(context.packageManager, XIAOMI_UPDATER_PACKAGE)) return false
+        return try {
+            val activityManager = XposedHelpers.callStaticMethod(ActivityManager::class.java, "getService")
+                ?: return false
+            val userId = XposedHelpers.callStaticMethod(ActivityManager::class.java, "getCurrentUser") as? Int
+                ?: return false
+            val accepted = XposedHelpers.callMethod(
+                activityManager,
+                "clearApplicationUserData",
+                XIAOMI_UPDATER_PACKAGE,
+                false,
+                null,
+                userId
+            ) as? Boolean ?: false
+            if (!accepted) return false
+            val resolver = context.contentResolver
+            Settings.Global.putString(resolver, "miui_new_version", null) &&
+                Settings.Global.putInt(resolver, "miui_update_ready", 0)
+        } catch (t: Throwable) {
+            tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log(t)
+            false
+        }
+    }
+
+    private fun applyMiuiDaemonState(context: Context, state: Int): Boolean {
+        if (!isAllowedComponentState(state) ||
+            !isSystemApplication(context.packageManager, MIUI_DAEMON_PACKAGE)
+        ) return false
+        val packageManager = context.packageManager
+        val originalState = try {
+            packageManager.getApplicationEnabledSetting(MIUI_DAEMON_PACKAGE)
+        } catch (t: Throwable) {
+            tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+            return false
+        }
+        return try {
+            packageManager.setApplicationEnabledSetting(MIUI_DAEMON_PACKAGE, state, 0)
+            if (packageManager.getApplicationEnabledSetting(MIUI_DAEMON_PACKAGE) != state) {
+                return false
+            }
+            if (state == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER) {
+                stopMiuiDaemon(context)
+            }
+            true
+        } catch (t: Throwable) {
+            tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log(t)
+            try {
+                packageManager.setApplicationEnabledSetting(MIUI_DAEMON_PACKAGE, originalState, 0)
+            } catch (rollback: Throwable) {
+                tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(rollback)
+                XposedHelpers.log(rollback)
+            }
+            false
+        }
+    }
+
+    private fun stopMiuiDaemon(context: Context) {
+        val activityManagerService = XposedHelpers.callStaticMethod(
+            ActivityManager::class.java,
+            "getService"
+        ) ?: return
+        val userId = XposedHelpers.callStaticMethod(ActivityManager::class.java, "getCurrentUser") as? Int
+            ?: return
+        XposedHelpers.callMethod(
+            activityManagerService,
+            "forceStopPackage",
+            MIUI_DAEMON_PACKAGE,
+            userId
+        )
+
+        val appUid = context.packageManager.getApplicationInfo(
+            MIUI_DAEMON_PACKAGE,
+            PackageManager.MATCH_DISABLED_COMPONENTS
+        ).uid
+        val running = context.getSystemService(ActivityManager::class.java)
+            ?.runningAppProcesses
+            ?: return
+        for (process in running) {
+            if (process.uid == appUid &&
+                (process.processName == MIUI_DAEMON_PACKAGE ||
+                    process.processName.startsWith("$MIUI_DAEMON_PACKAGE:"))
+            ) {
+                Process.killProcess(process.pid)
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun isSystemApplication(packageManager: PackageManager, packageName: String): Boolean {
+        return try {
+            packageManager.getApplicationInfo(
+                packageName,
+                PackageManager.MATCH_DISABLED_COMPONENTS
+            ).flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+        } catch (_: PackageManager.NameNotFoundException) {
+            false
+        }
     }
 
     @Suppress("DEPRECATION")

@@ -64,8 +64,11 @@ object GlobalActions {
     const val EXTRA_ANIMATION_SCALE_TYPE = "animation_scale_type"
     const val EXTRA_ANIMATION_SCALE_VALUE = "animation_scale_value"
     const val SET_UPDATER_SERVICES_ACTION = ACTION_PREFIX + "SetUpdaterServices"
+    const val CLEAR_UPDATER_STATE_ACTION = ACTION_PREFIX + "ClearUpdaterState"
+    const val SET_MIUI_DAEMON_STATE_ACTION = ACTION_PREFIX + "SetMiuiDaemonState"
     const val EXTRA_UPDATER_SERVICE_NAMES = "updater_service_names"
     const val EXTRA_UPDATER_SERVICE_STATES = "updater_service_states"
+    const val EXTRA_APPLICATION_STATE = "application_state"
 
     /**
      * Result codes for actions the settings app sends as an ordered broadcast.

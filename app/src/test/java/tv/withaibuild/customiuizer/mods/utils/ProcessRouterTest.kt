@@ -16,6 +16,15 @@ class ProcessRouterTest {
         assertEquals(ProcessScope.GUARD_PROVIDER, ProcessRouter.resolve("com.miui.guardprovider", "com.miui.guardprovider"))
         assertEquals(ProcessScope.PHONE, ProcessRouter.resolve("com.android.incallui", "com.android.incallui"))
         assertEquals(ProcessScope.PACKAGE_INSTALLER, ProcessRouter.resolve("com.miui.packageinstaller", "com.miui.packageinstaller"))
+        assertEquals(ProcessScope.PERMISSION_CONTROLLER, ProcessRouter.resolve("com.android.permissioncontroller", null))
+        assertEquals(ProcessScope.PERMISSION_CONTROLLER, ProcessRouter.resolve("com.google.android.permissioncontroller", null))
+        assertEquals(
+            ProcessScope.UNSUPPORTED,
+            ProcessRouter.resolve(
+                "com.google.android.permissioncontroller",
+                "com.google.android.permissioncontroller:remote"
+            )
+        )
     }
 
     @Test

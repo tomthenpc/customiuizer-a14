@@ -35,6 +35,7 @@ Kotlin。
 - `app/src/main/java/tv/withaibuild/customiuizer/installers/LauncherInstaller.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/installers/MediaInstaller.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/installers/PackageInstallerRouter.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/PermissionControllerInstaller.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/installers/PhoneInstaller.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/installers/PowerKeeperInstaller.kt`
 - `app/src/main/java/tv/withaibuild/customiuizer/installers/SecurityCenterInstaller.kt`

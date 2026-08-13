@@ -1018,15 +1018,38 @@
     <string name="system_show_step_count_title">Show step count</string>
     <string name="system_cc_switch_ccandnotification_title">Switch control center and notification drawer</string>
     <string name="system_strong_toast_title">HyperOS status capsule</string>
-    <string name="system_strong_toast_summ">A full reboot is required. Match-height keeps the ROM capsule corners intact. Dynamic Island reuses HyperOS events with an event-scoped spring entrance and no resident service.</string>
+    <string name="system_strong_toast_summ">A full reboot is required. Dynamic Island follows HyperOS event eligibility, supports the lock screen and consecutive-event feedback, and adds directional swipe-to-dismiss without a resident service.</string>
     <string name="system_strong_toast_mode_match_height">Match status bar height</string>
     <string name="system_strong_toast_mode_dynamic_island">Dynamic Island (vertical spring)</string>
     <string name="system_strong_toast_mode_dynamic_island_center_pop">Dynamic Island (center pop)</string>
     <string name="system_strong_toast_mode_hide">Hide status capsule</string>
+    <string name="system_strong_toast_position_title">Dynamic Island position</string>
+    <string name="system_strong_toast_position_summ">Top islands swipe up to dismiss. Bottom islands rise above the navigation area and swipe down to dismiss.</string>
+    <string name="system_strong_toast_position_top">Top</string>
+    <string name="system_strong_toast_position_bottom">Bottom</string>
+    <string name="system_strong_toast_bottom_offset_title">Extra distance from bottom</string>
+    <string name="system_strong_toast_bottom_offset_summ">Adds to the runtime navigation and mandatory-gesture safe inset. Leave at 0 unless the ROM still overlaps bottom content.</string>
 
     <!-- Locale change confirmation -->
     <string name="dialog_change_locale_title">更改界面语言</string>
     <string name="dialog_change_locale_message">更改界面语言后需要重新打开应用才能生效。确认保存并退出应用吗？</string>
     <string name="dialog_change_locale_confirm">确认并退出</string>
     <string name="dialog_change_locale_save_failed">保存语言设置失败，请重试</string>
+    <string name="various_clear_update_state_title">Clear HyperOS update reminder</string>
+    <string name="various_clear_update_state_summ">One-time action: clears Updater data and the cached system-update version shown in Settings</string>
+    <string name="various_clear_update_state_confirm">Clear the HyperOS Updater data and the cached update reminder? This does not install, download, or re-enable update services.</string>
+    <string name="various_clear_update_state_success">HyperOS update state cleared.</string>
+    <string name="various_clear_update_state_failed">Unable to clear the HyperOS update state.</string>
+    <string name="various_disable_miui_daemon_title">Force-disable System Quality Service</string>
+    <string name="various_disable_miui_daemon_summ">Disables the persistent com.miui.daemon application; may remove diagnostics, performance tuning, rescue, and quality-reporting functions</string>
+    <string name="various_disable_miui_daemon_confirm">Force-disable the persistent System Quality Service (com.miui.daemon)? Existing per-component states are left untouched and the previous application state is saved for restoration.</string>
+    <string name="various_disable_miui_daemon_success">System Quality Service state updated.</string>
+    <string name="various_disable_miui_daemon_failed">Unable to update the System Quality Service state.</string>
+    <string name="various_disable_miui_daemon_unavailable">The system com.miui.daemon package was not found.</string>
+    <string name="various_block_notification_permission_prompts_title">Dismiss notification permission prompts</string>
+    <string name="various_block_notification_permission_prompts_summ">Closes the Android system prompt without granting notification permission; restart PermissionController or reboot after changing</string>
+    <string name="various_block_location_permission_prompts_title">Dismiss location permission prompts</string>
+    <string name="various_block_location_permission_prompts_summ">Closes the Android system prompt without granting foreground or background location; restart PermissionController or reboot after changing</string>
+    <string name="various_permission_scope_unavailable">Add PermissionController to this module’s scope, then reboot.</string>
+    <string name="various_permission_scope_failed">PermissionController scope request was not approved.</string>
 </resources>

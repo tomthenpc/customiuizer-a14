@@ -16,7 +16,9 @@ import tv.withaibuild.customiuizer.SubFragment
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+import tv.withaibuild.customiuizer.prefs.PreferenceEx
 import tv.withaibuild.customiuizer.utils.AppHelper
+import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
 class Various : SubFragment() {
 
@@ -25,6 +27,18 @@ class Various : SubFragment() {
         const val UPDATE_SERVICES_PREF = "pref_key_various_disable_update_services"
         const val UPDATE_SERVICE_NAMES_SNAPSHOT = "internal_updater_service_names"
         const val UPDATE_SERVICE_STATES_SNAPSHOT = "internal_updater_service_states"
+        const val CLEAR_UPDATE_PREF = "pref_key_various_clear_update_state"
+        const val MIUI_DAEMON_PACKAGE = "com.miui.daemon"
+        const val MIUI_DAEMON_PREF = "pref_key_various_disable_miui_daemon"
+        const val MIUI_DAEMON_STATE_SNAPSHOT = "internal_miui_daemon_application_state"
+        const val BLOCK_NOTIFICATION_PROMPTS_PREF =
+            "pref_key_various_block_notification_permission_prompts"
+        const val BLOCK_LOCATION_PROMPTS_PREF =
+            "pref_key_various_block_location_permission_prompts"
+        val PERMISSION_CONTROLLER_PACKAGES = listOf(
+            "com.android.permissioncontroller",
+            "com.google.android.permissioncontroller"
+        )
     }
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
@@ -48,6 +62,9 @@ class Various : SubFragment() {
         }
 
         setupUpdaterServiceControl()
+        setupUpdaterStateCleaner()
+        setupMiuiDaemonControl()
+        setupPermissionControllerScopeRequests()
 
         try {
             val act = activity ?: throw Throwable()
@@ -59,6 +76,169 @@ class Various : SubFragment() {
             pref?.setUnsupported(true)
             pref?.setSummary(R.string.various_miuiinstaller_error)
         }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun setupPermissionControllerScopeRequests() {
+        val packageManager = context?.packageManager ?: return
+        val installedTargets = PERMISSION_CONTROLLER_PACKAGES.filter { packageName ->
+            try {
+                packageManager.getApplicationInfo(
+                    packageName,
+                    PackageManager.MATCH_DISABLED_COMPONENTS
+                )
+                true
+            } catch (_: PackageManager.NameNotFoundException) {
+                false
+            }
+        }
+        if (installedTargets.isEmpty()) return
+        for (key in listOf(BLOCK_NOTIFICATION_PROMPTS_PREF, BLOCK_LOCATION_PROMPTS_PREF)) {
+            val preference = findPreference<CheckBoxPreferenceEx>(key) ?: continue
+            preference.setOnPreferenceChangeListener { _, newValue ->
+                if (newValue != true) return@setOnPreferenceChangeListener true
+                val requested = XposedServiceManager.requestApi102Scope(installedTargets) {
+                        success, message ->
+                    if (!success) {
+                        AppHelper.log("PermissionScope", message ?: "scope request rejected")
+                        Toast.makeText(
+                            context,
+                            R.string.various_permission_scope_failed,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+                if (!requested) {
+                    Toast.makeText(
+                        context,
+                        R.string.various_permission_scope_unavailable,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                true
+            }
+        }
+    }
+
+    private fun setupUpdaterStateCleaner() {
+        val preference = findPreference<PreferenceEx>(CLEAR_UPDATE_PREF) ?: return
+        preference.setOnPreferenceClickListener {
+            val activity = activity ?: return@setOnPreferenceClickListener false
+            AlertDialog.Builder(activity)
+                .setTitle(R.string.various_clear_update_state_title)
+                .setMessage(R.string.various_clear_update_state_confirm)
+                .setPositiveButton(android.R.string.ok) { _, _ ->
+                    requestMaintenanceAction(
+                        preference,
+                        Intent(GlobalActions.CLEAR_UPDATER_STATE_ACTION).setPackage("android"),
+                        R.string.various_clear_update_state_success,
+                        R.string.various_clear_update_state_failed
+                    )
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+            true
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun setupMiuiDaemonControl() {
+        val preference = findPreference<CheckBoxPreferenceEx>(MIUI_DAEMON_PREF) ?: return
+        val context = context ?: return
+        val originalState = try {
+            val info = context.packageManager.getApplicationInfo(
+                MIUI_DAEMON_PACKAGE,
+                PackageManager.MATCH_DISABLED_COMPONENTS
+            )
+            if (info.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM == 0) {
+                throw PackageManager.NameNotFoundException()
+            }
+            context.packageManager.getApplicationEnabledSetting(MIUI_DAEMON_PACKAGE)
+        } catch (_: PackageManager.NameNotFoundException) {
+            preference.isChecked = false
+            preference.setUnsupported(true)
+            preference.setSummary(R.string.various_disable_miui_daemon_unavailable)
+            return
+        }
+        preference.setOnPreferenceChangeListener { _, value ->
+            val disable = value == true
+            val targetState = if (disable) {
+                PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER
+            } else {
+                AppHelper.appPrefs?.getInt(MIUI_DAEMON_STATE_SNAPSHOT, Int.MIN_VALUE)
+                    ?.takeIf { it != Int.MIN_VALUE }
+                    ?: return@setOnPreferenceChangeListener false
+            }
+            val runAction = {
+                val intent = Intent(GlobalActions.SET_MIUI_DAEMON_STATE_ACTION).apply {
+                    setPackage("android")
+                    putExtra(GlobalActions.EXTRA_APPLICATION_STATE, targetState)
+                }
+                requestMaintenanceAction(
+                    preference,
+                    intent,
+                    R.string.various_disable_miui_daemon_success,
+                    R.string.various_disable_miui_daemon_failed
+                ) {
+                    AppHelper.appPrefs?.edit()?.apply {
+                        putBoolean(MIUI_DAEMON_PREF, disable)
+                        if (disable) {
+                            putInt(MIUI_DAEMON_STATE_SNAPSHOT, originalState)
+                        } else {
+                            remove(MIUI_DAEMON_STATE_SNAPSHOT)
+                        }
+                    }?.apply()
+                    preference.isChecked = disable
+                }
+            }
+            if (disable) {
+                val activity = activity ?: return@setOnPreferenceChangeListener false
+                AlertDialog.Builder(activity)
+                    .setTitle(R.string.various_disable_miui_daemon_title)
+                    .setMessage(R.string.various_disable_miui_daemon_confirm)
+                    .setPositiveButton(android.R.string.ok) { _, _ -> runAction() }
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .show()
+            } else {
+                runAction()
+            }
+            false
+        }
+    }
+
+    private fun requestMaintenanceAction(
+        preference: Preference,
+        intent: Intent,
+        successMessage: Int,
+        failedMessage: Int,
+        onSuccess: (() -> Unit)? = null
+    ) {
+        val context = context ?: return
+        preference.isEnabled = false
+        val resultReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent?) {
+                preference.isEnabled = true
+                if (resultCode == GlobalActions.ACTION_HANDLED) {
+                    onSuccess?.invoke()
+                    Toast.makeText(context, successMessage, Toast.LENGTH_LONG).show()
+                    return
+                }
+                val message = if (resultCode == GlobalActions.ACTION_UNHANDLED) {
+                    R.string.various_disable_update_services_bridge_unavailable
+                } else {
+                    failedMessage
+                }
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+        }
+        ModuleHelper.sendOrderedBroadcastWithIdentity(
+            context,
+            intent,
+            null,
+            resultReceiver,
+            Handler(Looper.getMainLooper()),
+            GlobalActions.ACTION_UNHANDLED
+        )
     }
 
     @Suppress("DEPRECATION")

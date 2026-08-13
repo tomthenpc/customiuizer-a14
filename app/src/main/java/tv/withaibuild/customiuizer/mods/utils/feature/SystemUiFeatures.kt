@@ -27,6 +27,7 @@ import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
+import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.utils.PrefMap
 
@@ -753,12 +754,28 @@ internal class StrongToastPresentationFeature(
             )
 
         @JvmStatic
+        fun resolvePosition(prefs: PrefMap): StrongToastPosition =
+            StrongToastPosition.fromPreference(
+                prefs.getStringAsInt("system_strong_toast_position", 0)
+            )
+
+        @JvmStatic
+        fun resolveBottomOffsetDp(prefs: PrefMap): Int =
+            prefs.getInt("system_strong_toast_bottom_offset", 0)
+                .coerceIn(0, SystemUIStrongToastHooks.MAX_BOTTOM_OFFSET_DP)
+
+        @JvmStatic
         fun evaluateEnabled(prefs: PrefMap): Boolean =
             resolveMode(prefs) != StrongToastPresentationMode.SYSTEM_DEFAULT
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
-    override fun installHook() = SystemUIStrongToastHooks.install(lpparam, resolveMode(mPrefs))
+    override fun installHook() = SystemUIStrongToastHooks.install(
+        lpparam,
+        resolveMode(mPrefs),
+        resolvePosition(mPrefs),
+        resolveBottomOffsetDp(mPrefs)
+    )
 }
 
 internal class MonitorDeviceInfoFeature(

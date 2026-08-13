@@ -118,6 +118,17 @@ object XposedServiceManager {
 
     private const val LOG_TAG = "XposedService"
 
+    @JvmStatic
+    fun requestApi102Scope(
+        packages: List<String>,
+        callback: (Boolean, String?) -> Unit,
+    ): Boolean {
+        val boundService = service ?: return false
+        if (boundService.apiVersion < XposedService.API_102) return false
+        Api102ScopeRequester.request(boundService, packages, callback)
+        return true
+    }
+
     private var initialized = false
 
     /** [SystemClock.elapsedRealtime] at [init], or [NOT_STARTED]. */

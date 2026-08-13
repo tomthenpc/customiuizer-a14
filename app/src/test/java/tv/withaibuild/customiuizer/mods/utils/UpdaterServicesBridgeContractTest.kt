@@ -28,6 +28,13 @@ class UpdaterServicesBridgeContractTest {
         assertTrue(bridge.contains("original[index]"))
         assertTrue(screen.contains("UPDATE_SERVICE_STATES_SNAPSHOT"))
         assertTrue(screen.contains("setPackage(\"android\")"))
+        assertTrue(bridge.contains("Settings.Global.putString(resolver, \"miui_new_version\", null)"))
+        assertTrue(bridge.contains("Process.killProcess(process.pid)"))
+        assertTrue(bridge.contains("setApplicationEnabledSetting(MIUI_DAEMON_PACKAGE, originalState, 0)"))
+        assertTrue(bridge.contains("\"com.android.server.am.ActivityManagerService\""))
+        assertTrue(bridge.contains("\"addAppLocked\""))
+        assertTrue(bridge.contains("COMPONENT_ENABLED_STATE_DISABLED_USER"))
+        assertTrue(bridge.contains("callback.returnAndSkip(null)"))
     }
 
     private fun source(path: String): String {

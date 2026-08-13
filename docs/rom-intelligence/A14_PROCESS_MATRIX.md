@@ -6,8 +6,10 @@ This matrix is generated from source (`tools/extract_process_matrix.py`). It rec
 
 - `android`
 - `com.android.incallui`
+- `com.android.permissioncontroller`
 - `com.android.settings`
 - `com.android.systemui`
+- `com.google.android.permissioncontroller`
 - `com.miui.gallery`
 - `com.miui.guardprovider`
 - `com.miui.home`
@@ -25,11 +27,13 @@ This matrix is generated from source (`tools/extract_process_matrix.py`). It rec
 | `android` | `AndroidPackageInstaller` |  |
 | `com.android.incallui` | `PhoneInstaller` |  |
 | `com.android.packageinstaller` | `PackageInstallerRouter` |  |
+| `com.android.permissioncontroller` | `PermissionControllerInstaller` |  |
 | `com.android.settings` | `SettingsInstaller` | Explicitly denies `com.android.settings:remote` |
 | `com.android.systemui` | `SystemUiInstaller` | ReflectionCache + SystemUIInitializer hook; post-init prefs |
 | `com.baidu.input` | `InputMethodInstaller` |  |
 | `com.baidu.input_mi` | `InputMethodInstaller` |  |
 | `com.google.android.inputmethod` | `InputMethodInstaller` |  |
+| `com.google.android.permissioncontroller` | `PermissionControllerInstaller` |  |
 | `com.iflytek.inputmethod` | `InputMethodInstaller` |  |
 | `com.iflytek.inputmethod.miui` | `InputMethodInstaller` |  |
 | `com.miui.gallery` | `MediaInstaller` |  |
@@ -293,4 +297,8 @@ This matrix is generated from source (`tools/extract_process_matrix.py`). It rec
 | 243 | Generic App No Overscroll | `system_nooverscroll` | ANY | APPLICATION_ATTACHED | GenericAppFeatures | `SystemWindowHooks.NoOverscrollAppHook(lpparam)` | com.miui.home + selected packages |  |
 | 244 | Generic App Volume Media Player | `controls_volumemedia_up` | ANY | APPLICATION_ATTACHED | GenericAppFeatures | `Controls.VolumeMediaPlayerHook(lpparam)` | com.miui.home + selected packages |  |
 | 245 | Status Bar Height Insets | `system_statusbarheight` | SYSTEM_SERVER | SYSTEM_SERVER_STARTING | SystemServerFeatures | `SystemStatusBarInsetsHooks.StatusBarInsetsHeightHook(lp...` | system_server |  |
-| 246 | Strong Toast Presentation | `system_strong_toast_mode` | SYSTEM_UI | PACKAGE_READY | SystemUiFeatures | `SystemUIStrongToastHooks.install(lpparam, resolveMode(m...` | com.android.systemui | miui.systemui.plugin (ClassLoader extracted at runtime) |
+| 246 | Strong Toast Presentation | `system_strong_toast_mode` | SYSTEM_UI | PACKAGE_READY | SystemUiFeatures | `SystemUIStrongToastHooks.install( lpparam, resolveMode(...` | com.android.systemui | miui.systemui.plugin (ClassLoader extracted at runtime) |
+| 247 | Disable Window Blurs | `system_disable_window_blurs` | SYSTEM_SERVER | SYSTEM_SERVER_STARTING | SystemServerFeatures | `SystemDisplayHooks.DisableWindowBlursHook(lpparam)` | system_server |  |
+| 248 | Launcher Recents Card Style | `system_recents_card_style` | LAUNCHER | APPLICATION_ATTACHED | LauncherPostAttachFeatures | `Launcher.RecentsCardStyleHook( lpparam, mPrefs.getStrin...` | com.miui.home | third-party launchers (unless selected app sets) |
+| 249 | Animation Scale Bridge | `null` | SYSTEM_SERVER | SYSTEM_SERVER_STARTING | SystemServerFeatures | `GlobalActionSystemServerHooks.setupAnimationScaleBridge...` | system_server |  |
+| 250 | Updater Services Bridge | `null` | SYSTEM_SERVER | SYSTEM_SERVER_STARTING | SystemServerFeatures | `GlobalActionSystemServerHooks.setupUpdaterServicesBridg...` | system_server |  |

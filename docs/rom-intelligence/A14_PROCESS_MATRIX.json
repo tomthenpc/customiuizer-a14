@@ -763,7 +763,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "Controls.NavBarButtonsHook(lpparam)",
-      "enableCondition": "prefs.getInt(\"controls_navbarleft_action\", 1) > 1 ||",
+      "enableCondition": "prefs.getInt(\"controls_navbarleft_action\", 1) > 1 || prefs.getInt(\"controls_navbarleftlong_action\", 1) > 1 || prefs.getInt(\"controls_navbarright_action\", 1) > 1 || prefs.getInt(\"controls_navbarrightlong_action\", 1) > 1",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -802,7 +802,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemClockHooks.StatusBarClockTweakHook(lpparam)",
-      "enableCondition": "prefs.getBoolean(\"system_statusbar_clocktweak\") ||",
+      "enableCondition": "prefs.getBoolean(\"system_statusbar_clocktweak\") || prefs.getBoolean(\"system_cc_clocktweak\") || prefs.getBoolean(\"system_cc_hidedate\") || prefs.getBoolean(\"system_drawer_hidedate\") || prefs.getBoolean(\"system_statusbaricons_clock\") || prefs.getString(\"system_cc_dateformat\", \"\").isNotEmpty() || prefs.getString(\"system_drawer_dateformat\", \"\").isNotEmpty()",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -841,7 +841,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemClockHooks.CCClockCenterAlignHook(lpparam)",
-      "enableCondition": "prefs.getBoolean(\"system_cc_clock_centeralign\") ||",
+      "enableCondition": "prefs.getBoolean(\"system_cc_clock_centeralign\") || (!prefs.getBoolean(\"system_drawer_hidedate\") && prefs.getBoolean(\"system_drawer_date_centeralign\"))",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1075,7 +1075,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUIStatusBarHooks.MobileNetworkTypeHook(lpparam)",
-      "enableCondition": "prefs.getBoolean(\"system_4gtolte\") ||",
+      "enableCondition": "prefs.getBoolean(\"system_4gtolte\") || (prefs.getBoolean(\"system_statusbar_mobiletype_single\") && prefs.getString(\"system_statusbar_mobile_showname\", \"\").isNotEmpty())",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1101,7 +1101,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUIStatusBarHooks.MonitorDeviceInfoHook(lpparam, mPrefs)",
-      "enableCondition": "prefs.getBoolean(\"system_statusbar_batterytempandcurrent\") ||",
+      "enableCondition": "prefs.getBoolean(\"system_statusbar_batterytempandcurrent\") || prefs.getBoolean(\"system_statusbar_showdevicetemperature\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1114,7 +1114,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUIStatusBarHooks.StatusBarClockPositionHook(lpparam)",
-      "enableCondition": "prefs.getStringAsInt(\"system_statusbar_clock_position\", 1) > 1 &&",
+      "enableCondition": "prefs.getStringAsInt(\"system_statusbar_clock_position\", 1) > 1 && !prefs.getBoolean(\"system_statusbar_dualrows\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1140,7 +1140,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUILockScreenHooks.LockScreenTopMarginHook(lpparam)",
-      "enableCondition": "prefs.getBoolean(\"system_statusbar_topmargin\") &&",
+      "enableCondition": "prefs.getBoolean(\"system_statusbar_topmargin\") && prefs.getBoolean(\"system_statusbar_topmargin_unset_lockscreen\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1309,7 +1309,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUIStatusBarHooks.NetSpeedStyleHook(lpparam)",
-      "enableCondition": "prefs.getStringAsInt(\"system_detailednetspeed_style\", 1) > 1 ||",
+      "enableCondition": "prefs.getStringAsInt(\"system_detailednetspeed_style\", 1) > 1 || prefs.getBoolean(\"system_netspeed_boldfont\") || prefs.getBoolean(\"system_netspeed_use_clock_style\") || prefs.getInt(\"system_netspeed_fontsize\", 13) > 13 || prefs.getInt(\"system_netspeed_fixedcontent_width\", 10) > 10 || prefs.getInt(\"system_netspeed_leftmargin\", 0) > 0 || prefs.getInt(\"system_netspeed_rightmargin\", 0) > 0 || prefs.getInt(\"system_netspeed_verticaloffset\", 8) != 8 || prefs.getStringAsInt(\"system_detailednetspeed_align\", 1) > 1",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1426,7 +1426,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemStatusBarIconHooks.HideIconsBattery2Hook(lpparam)",
-      "enableCondition": "prefs.getBoolean(\"system_statusbaricons_battery3\") ||",
+      "enableCondition": "prefs.getBoolean(\"system_statusbaricons_battery3\") || prefs.getBoolean(\"system_statusbaricons_battery4\") || prefs.getBoolean(\"system_statusbaricons_battery2\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1465,7 +1465,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUIStatusBarHooks.HideIconsSignalHook(lpparam)",
-      "enableCondition": "prefs.getBoolean(\"system_statusbaricons_signal\") ||",
+      "enableCondition": "prefs.getBoolean(\"system_statusbaricons_signal\") || prefs.getBoolean(\"system_statusbaricons_sim1\") || prefs.getBoolean(\"system_statusbaricons_sim2\") || prefs.getBoolean(\"system_statusbaricons_sim_nodata\") || prefs.getBoolean(\"system_statusbaricons_roaming\") || prefs.getBoolean(\"system_statusbaricons_volte\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1491,7 +1491,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemStatusBarIconHooks.HideIconsSelectiveAlarmHook(lpparam)",
-      "enableCondition": "!prefs.getBoolean(\"system_statusbaricons_alarm\") &&",
+      "enableCondition": "!prefs.getBoolean(\"system_statusbaricons_alarm\") && prefs.getInt(\"system_statusbaricons_alarmn\", 0) > 0",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1504,7 +1504,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUILockScreenHooks.ReplaceShortcutAppHook(lpparam)",
-      "enableCondition": "prefs.getString(\"system_shortcut_app\", \"\").isNotEmpty() ||",
+      "enableCondition": "prefs.getString(\"system_shortcut_app\", \"\").isNotEmpty() || prefs.getString(\"system_calendar_app\", \"\").isNotEmpty() || prefs.getString(\"system_clock_app\", \"\").isNotEmpty()",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1582,7 +1582,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUIStatusBarHooks.HideMobileNetworkIndicatorHook(lpparam)",
-      "enableCondition": "prefs.getStringAsInt(\"system_mobiletypeicon\", 1) > 1 ||",
+      "enableCondition": "prefs.getStringAsInt(\"system_mobiletypeicon\", 1) > 1 || prefs.getBoolean(\"system_networkindicator_mobile\") || prefs.getBoolean(\"system_statusbar_mobiletype_show_wificonnected\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1608,7 +1608,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUIStatusBarHooks.HideIconsHook(lpparam)",
-      "enableCondition": "prefs.getBoolean(\"system_statusbaricons_wifi\") ||",
+      "enableCondition": "prefs.getBoolean(\"system_statusbaricons_wifi\") || prefs.getBoolean(\"system_statusbaricons_dualwifi\") || prefs.getBoolean(\"system_statusbaricons_alarm\") || prefs.getBoolean(\"system_statusbaricons_profile\") || prefs.getBoolean(\"system_statusbaricons_sound\") || prefs.getBoolean(\"system_statusbaricons_dnd\") || prefs.getBoolean(\"system_statusbaricons_secondspace\") || prefs.getBoolean(\"system_statusbaricons_headset\") || prefs.getBoolean(\"system_statusbaricons_nfc\") || prefs.getBoolean(\"system_statusbaricons_vpn\") || prefs.getBoolean(\"system_statusbaricons_airplane\") || prefs.getBoolean(\"system_statusbaricons_hotspot\") || prefs.getBoolean(\"system_statusbaricons_nosims\") || prefs.getBoolean(\"system_statusbaricons_gps\") || prefs.getBoolean(\"system_statusbaricons_btbattery\") || prefs.getBoolean(\"system_statusbaricons_ble_unlock\") || prefs.getBoolean(\"system_statusbaricons_bluetoothicn\") || prefs.getBoolean(\"system_statusbaricons_volte\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1621,7 +1621,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUIStatusBarHooks.HideIconsFromSystemManager(lpparam)",
-      "enableCondition": "prefs.getBoolean(\"system_statusbaricons_privacy\") ||",
+      "enableCondition": "prefs.getBoolean(\"system_statusbaricons_privacy\") || prefs.getBoolean(\"system_statusbaricons_mute\") || prefs.getBoolean(\"system_statusbaricons_speaker\") || prefs.getBoolean(\"system_statusbaricons_record\") || prefs.getBoolean(\"system_statusbaricons_wireless_headset\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -1738,7 +1738,7 @@
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
       "installHook": "SystemUIStatusBarHooks.DualRowSignalHook(lpparam)",
-      "enableCondition": "!prefs.getBoolean(\"system_statusbar_mobile_digital_signal\") &&",
+      "enableCondition": "!prefs.getBoolean(\"system_statusbar_mobile_digital_signal\") && prefs.getBoolean(\"system_statusbar_dualsimin2rows\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     },
@@ -2479,7 +2479,7 @@
       "phase": "APPLICATION_ATTACHED",
       "installer": "LauncherPostAttachFeatures",
       "installHook": "LauncherFolderHooks.FolderBlurHook(lpparam)",
-      "enableCondition": "prefs.getInt(\"launcher_folderblur_opacity\", 0) > 0",
+      "enableCondition": "prefs.getBoolean(\"launcher_folderblur_disable\") || prefs.getInt(\"launcher_folderblur_opacity\", 0) > 0",
       "allowedProcess": "com.miui.home",
       "deniedProcess": "third-party launchers (unless selected app sets)"
     },
@@ -3180,17 +3180,71 @@
       "target": "SYSTEM_UI",
       "phase": "PACKAGE_READY",
       "installer": "SystemUiFeatures",
-      "installHook": "SystemUIStrongToastHooks.install(lpparam, resolveMode(mPrefs), StatusBarHeightConfig.resolveHeightDp(mPrefs))",
+      "installHook": "SystemUIStrongToastHooks.install( lpparam, resolveMode(mPrefs), resolvePosition(mPrefs), resolveBottomOffsetDp(mPrefs) )",
       "enableCondition": "resolveMode(prefs) != StrongToastPresentationMode.SYSTEM_DEFAULT",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
+    },
+    {
+      "featureIdInt": 247,
+      "featureIdName": "disable_window_blurs",
+      "name": "Disable Window Blurs",
+      "preferenceKey": "system_disable_window_blurs",
+      "target": "SYSTEM_SERVER",
+      "phase": "SYSTEM_SERVER_STARTING",
+      "installer": "SystemServerFeatures",
+      "installHook": "SystemDisplayHooks.DisableWindowBlursHook(lpparam)",
+      "enableCondition": "{ prefs -> DisableWindowBlursFeature.evaluateEnabled(prefs) }",
+      "allowedProcess": "system_server",
+      "deniedProcess": ""
+    },
+    {
+      "featureIdInt": 248,
+      "featureIdName": "launcher_recents_card_style",
+      "name": "Launcher Recents Card Style",
+      "preferenceKey": "system_recents_card_style",
+      "target": "LAUNCHER",
+      "phase": "APPLICATION_ATTACHED",
+      "installer": "LauncherPostAttachFeatures",
+      "installHook": "Launcher.RecentsCardStyleHook( lpparam, mPrefs.getStringAsInt(\"system_recents_card_style\", 0) )",
+      "enableCondition": "prefs.getStringAsInt(\"system_recents_card_style\", 0) in 1..2",
+      "allowedProcess": "com.miui.home",
+      "deniedProcess": "third-party launchers (unless selected app sets)"
+    },
+    {
+      "featureIdInt": 249,
+      "featureIdName": "animation_scale_bridge",
+      "name": "Animation Scale Bridge",
+      "preferenceKey": "null",
+      "target": "SYSTEM_SERVER",
+      "phase": "SYSTEM_SERVER_STARTING",
+      "installer": "SystemServerFeatures",
+      "installHook": "GlobalActionSystemServerHooks.setupAnimationScaleBridge(lpparam)",
+      "enableCondition": "{ true }",
+      "allowedProcess": "system_server",
+      "deniedProcess": ""
+    },
+    {
+      "featureIdInt": 250,
+      "featureIdName": "updater_services_bridge",
+      "name": "Updater Services Bridge",
+      "preferenceKey": "null",
+      "target": "SYSTEM_SERVER",
+      "phase": "SYSTEM_SERVER_STARTING",
+      "installer": "SystemServerFeatures",
+      "installHook": "GlobalActionSystemServerHooks.setupUpdaterServicesBridge(lpparam)",
+      "enableCondition": "{ true }",
+      "allowedProcess": "system_server",
+      "deniedProcess": ""
     }
   ],
   "scope": [
     "android",
     "com.android.incallui",
+    "com.android.permissioncontroller",
     "com.android.settings",
     "com.android.systemui",
+    "com.google.android.permissioncontroller",
     "com.miui.gallery",
     "com.miui.guardprovider",
     "com.miui.home",
@@ -3223,6 +3277,8 @@
     "com.android.settings": "SettingsInstaller",
     "com.miui.packageinstaller": "PackageInstallerRouter",
     "com.android.packageinstaller": "PackageInstallerRouter",
+    "com.android.permissioncontroller": "PermissionControllerInstaller",
+    "com.google.android.permissioncontroller": "PermissionControllerInstaller",
     "com.miui.home": "LauncherInstaller"
   }
 }

@@ -6,10 +6,6 @@ import android.content.Context
 import android.content.DialogInterface
 import android.content.res.Resources
 import android.os.PowerManager
-import android.view.View
-import android.view.ViewGroup
-import android.view.WindowManager
-import android.widget.RelativeLayout
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
@@ -20,15 +16,13 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.util.ArrayList
-import tv.withaibuild.customiuizer.utils.HookUtils
 
 /**
  * SystemUI hooks that belong to no larger surface.
  *
  * The status bar, control centre, lock screen, notification shade and screenshot
- * hooks live in their own `SystemUI*Hooks` objects. What is left here is the power
- * menu, the MIUI strong toast and the charge animation — three unrelated surfaces,
- * none of which shares state with anything else.
+ * hooks live in their own `SystemUI*Hooks` objects. What remains here is the power
+ * menu and the charge animation; neither surface shares runtime state.
  */
 object SystemUI {
 
@@ -104,32 +98,6 @@ object SystemUI {
                 }
             }
         })
-    }
-
-    @JvmStatic
-    fun TweakStrongToastHook(lpparam: PackageReadyParam) {
-        val toastWidth = MainModule.mPrefs.getInt("system_notif_strong_toast_width", 100)
-        if (toastWidth < 100) {
-            MainModule.resHooks.setThemeValueReplacement("com.android.systemui", "dimen", "strong_toast_width_window", Math.ceil(3.37 * toastWidth))
-            MainModule.resHooks.setThemeValueReplacement("com.android.systemui", "dimen", "strong_toast_width", Math.ceil(3.2 * toastWidth))
-            ModuleHelper.hookAllMethods("com.android.systemui.toast.MIUIStrongToast", lpparam.classLoader, "showCustomStrongToast", object : MethodHook() {
-                override fun after(param: AfterHookCallback) {
-                    val mStrongToastBottomView = XposedHelpers.getObjectField(param.getThisObject(), "mStrongToastBottomView") as View
-                    mStrongToastBottomView.visibility = View.GONE
-                    val mRLLeft = XposedHelpers.getObjectField(param.getThisObject(), "mRLLeft") as RelativeLayout
-                    val layoutParams = mRLLeft.layoutParams as ViewGroup.MarginLayoutParams
-                    layoutParams.leftMargin = 0
-                    mRLLeft.layoutParams = layoutParams
-                }
-            })
-            ModuleHelper.findAndHookMethod("com.android.systemui.toast.MIUIStrongToast", lpparam.classLoader, "getWindowParam", object : MethodHook() {
-                override fun after(param: AfterHookCallback) {
-                    val lp = param.getResult() as WindowManager.LayoutParams
-                    lp.width = HookUtils.dp2px(3.2f * toastWidth).toInt()
-                    param.setResult(lp)
-                }
-            })
-        }
     }
 
     @JvmStatic

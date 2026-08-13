@@ -150,6 +150,30 @@
 		android:summary="@string/various_disable_update_services_summ"
 		android:defaultValue="false" />
 
+	<tv.withaibuild.customiuizer.prefs.PreferenceEx
+		android:key="pref_key_various_clear_update_state"
+		android:title="@string/various_clear_update_state_title"
+		android:summary="@string/various_clear_update_state_summ"
+		android:persistent="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_disable_miui_daemon"
+		android:title="@string/various_disable_miui_daemon_title"
+		android:summary="@string/various_disable_miui_daemon_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_block_notification_permission_prompts"
+		android:title="@string/various_block_notification_permission_prompts_title"
+		android:summary="@string/various_block_notification_permission_prompts_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_block_location_permission_prompts"
+		android:title="@string/various_block_location_permission_prompts_title"
+		android:summary="@string/various_block_location_permission_prompts_summ"
+		android:defaultValue="false" />
+
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 		android:key="pref_key_various_hide_report_ondetails"
 		android:title="@string/various_hide_report_ondetails_title"

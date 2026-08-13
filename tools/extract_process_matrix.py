@@ -102,15 +102,31 @@ def extract_class_body(text: str, class_name: str) -> str:
     return text[start : i - 1]
 
 
+def extract_rhs(text: str, start: int) -> str:
+    """Extract a possibly multiline Kotlin expression after an equals sign."""
+    parts: list[str] = []
+    balance = 0
+    for line in text[start:].splitlines():
+        stripped = line.strip()
+        if not stripped and not parts:
+            continue
+        parts.append(stripped)
+        balance += sum(stripped.count(ch) for ch in "({[")
+        balance -= sum(stripped.count(ch) for ch in ")}]")
+        if balance <= 0 and not stripped.endswith(("||", "&&", ",", "(")):
+            break
+    return " ".join(parts).strip()
+
+
 def parse_install_hooks(text: str) -> dict[str, str]:
     hooks: dict[str, str] = {}
     # Find all internal class definitions in this file
     for m in re.finditer(r"internal class (\w+)\s*\(", text):
         cls = m.group(1)
         body = extract_class_body(text, cls)
-        hm = re.search(r"override fun installHook\(\)\s*=\s*([^\n]+)", body)
+        hm = re.search(r"override fun installHook\(\)\s*=\s*", body)
         if hm:
-            hooks[cls] = hm.group(1).strip()
+            hooks[cls] = extract_rhs(body, hm.end())
         else:
             hooks[cls] = "(default base install)"
     return hooks
@@ -121,9 +137,9 @@ def parse_evaluate_enabled(text: str) -> dict[str, str]:
     for m in re.finditer(r"internal class (\w+)\s*\(", text):
         cls = m.group(1)
         body = extract_class_body(text, cls)
-        em = re.search(r"fun evaluateEnabled\([^)]*\):\s*Boolean\s*=\s*([^\n]+)", body)
+        em = re.search(r"fun evaluateEnabled\([^)]*\):\s*Boolean\s*=\s*", body)
         if em:
-            conds[cls] = em.group(1).strip()
+            conds[cls] = extract_rhs(body, em.end())
     return conds
 
 
@@ -151,6 +167,8 @@ def parse_main_module_routing() -> dict[str, str]:
         "com.android.settings": "SettingsInstaller",
         "com.miui.packageinstaller": "PackageInstallerRouter",
         "com.android.packageinstaller": "PackageInstallerRouter",
+        "com.android.permissioncontroller": "PermissionControllerInstaller",
+        "com.google.android.permissioncontroller": "PermissionControllerInstaller",
         "com.miui.home": "LauncherInstaller",
     }
     # Any package with enabled CommonPackageFeatures also runs the common registry.

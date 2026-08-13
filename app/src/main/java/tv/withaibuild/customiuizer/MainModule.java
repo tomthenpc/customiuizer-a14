@@ -23,6 +23,7 @@ import tv.withaibuild.customiuizer.installers.InputMethodInstaller;
 import tv.withaibuild.customiuizer.installers.LauncherInstaller;
 import tv.withaibuild.customiuizer.installers.MediaInstaller;
 import tv.withaibuild.customiuizer.installers.PackageInstallerRouter;
+import tv.withaibuild.customiuizer.installers.PermissionControllerInstaller;
 import tv.withaibuild.customiuizer.installers.PhoneInstaller;
 import tv.withaibuild.customiuizer.installers.PowerKeeperInstaller;
 import tv.withaibuild.customiuizer.installers.SecurityCenterInstaller;
@@ -191,6 +192,10 @@ public class MainModule extends XposedModule {
 
         if (scope == ProcessScope.PACKAGE_INSTALLER) {
             PackageInstallerRouter.install(lpparam, mPrefs);
+        }
+
+        if (scope == ProcessScope.PERMISSION_CONTROLLER) {
+            PermissionControllerInstaller.install(lpparam, mPrefs);
         }
 
         final boolean isLauncherPkg = scope == ProcessScope.LAUNCHER;

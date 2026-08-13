@@ -32,7 +32,7 @@ class InstallerJvmAbiTest(
     }
 
     companion object {
-        const val EXPECTED_INSTALLER_FILE_COUNT = 12
+        const val EXPECTED_INSTALLER_FILE_COUNT = 13
 
         private val packageReadyParam: Class<*>
             get() = Class.forName("io.github.libxposed.api.XposedModuleInterface\$PackageReadyParam")
@@ -91,6 +91,12 @@ class InstallerJvmAbiTest(
             ),
             MethodAbi(
                 "tv.withaibuild.customiuizer.installers.PackageInstallerRouter",
+                "install",
+                listOf(packageReadyParam, prefMap),
+                Void.TYPE,
+            ),
+            MethodAbi(
+                "tv.withaibuild.customiuizer.installers.PermissionControllerInstaller",
                 "install",
                 listOf(packageReadyParam, prefMap),
                 Void.TYPE,
