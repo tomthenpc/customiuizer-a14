@@ -1636,26 +1636,81 @@ object SystemUIStatusBarHooks {
     private var sampledRxBytes = -1L
 
     private fun sampleTrafficBytes() {
-        var tx = -1L
-        var rx = -1L
+        var tx = 0L
+        var rx = 0L
+        var sampled = false
 
         try {
             val list = NetworkInterface.getNetworkInterfaces()
             while (list != null && list.hasMoreElements()) {
                 val iface = list.nextElement()
                 if (iface.isUp && !iface.isVirtual && !iface.isLoopback && !iface.isPointToPoint && "" != iface.name) {
-                    tx += TrafficStats.getTxBytes(iface.name)
-                    rx += TrafficStats.getRxBytes(iface.name)
+                    val ifaceTx = TrafficStats.getTxBytes(iface.name)
+                    val ifaceRx = TrafficStats.getRxBytes(iface.name)
+                    // TrafficStats returns UNSUPPORTED (-1) for interfaces it cannot account
+                    // for. Accumulating that would silently corrupt the running total.
+                    if (ifaceTx < 0 || ifaceRx < 0) continue
+                    tx += ifaceTx
+                    rx += ifaceRx
+                    sampled = true
                 }
             }
         } catch (t: Throwable) {
             XposedHelpers.log(t)
+            sampled = false
+        }
+
+        if (!sampled) {
+            // No interface could be accounted for individually; fall back to the
+            // process-wide counters rather than publishing a synthetic total.
             tx = TrafficStats.getTotalTxBytes()
             rx = TrafficStats.getTotalRxBytes()
         }
 
         sampledTxBytes = tx
         sampledRxBytes = rx
+    }
+
+    /** Result of turning one traffic sample into a speed plus the next baseline. */
+    @VisibleForTesting
+    internal data class NetSpeedDelta(
+        val txSpeed: Long,
+        val rxSpeed: Long,
+        val txTotal: Long,
+        val rxTotal: Long,
+    )
+
+    /**
+     * Converts a cumulative traffic sample into per-second speeds and the baseline for the
+     * next sample.
+     *
+     * An unavailable sample (`TrafficStats.UNSUPPORTED`) must never be stored as a baseline:
+     * the following successful sample would subtract a negative total and report the entire
+     * cumulative byte counter as a single interval of traffic. Such a sample re-baselines
+     * instead, which the existing zero-baseline rule already reports as 0.
+     */
+    @VisibleForTesting
+    internal fun computeNetSpeedDelta(
+        newTxBytes: Long,
+        newRxBytes: Long,
+        prevTxTotal: Long,
+        prevRxTotal: Long,
+        elapsedNanos: Long,
+    ): NetSpeedDelta {
+        if (newTxBytes < 0 || newRxBytes < 0) return NetSpeedDelta(0L, 0L, 0L, 0L)
+
+        var txDelta = newTxBytes - prevTxTotal
+        var rxDelta = newRxBytes - prevRxTotal
+        if (txDelta < 0 || prevTxTotal == 0L) txDelta = 0
+        if (rxDelta < 0 || prevRxTotal == 0L) rxDelta = 0
+
+        val elapsedSeconds = elapsedNanos / 1_000_000_000.0
+        return NetSpeedDelta(
+            txSpeed = Math.round(txDelta / elapsedSeconds),
+            rxSpeed = Math.round(rxDelta / elapsedSeconds),
+            txTotal = newTxBytes,
+            rxTotal = newRxBytes,
+        )
     }
 
     /**
@@ -1762,17 +1817,17 @@ object SystemUIStatusBarHooks {
                         measureTime = nanoTime
                         if (newTime > 12_000_000_000L || newTime == 0L) newTime = 4_000_000_000L
                         sampleTrafficBytes()
-                        val newTxBytes = sampledTxBytes
-                        val newRxBytes = sampledRxBytes
-                        var newTxBytesFixed = newTxBytes - txBytesTotal
-                        var newRxBytesFixed = newRxBytes - rxBytesTotal
-                        if (newTxBytesFixed < 0 || txBytesTotal == 0L) newTxBytesFixed = 0
-                        if (newRxBytesFixed < 0 || rxBytesTotal == 0L) newRxBytesFixed = 0
-                        val elapsedSeconds = newTime / 1_000_000_000.0
-                        txSpeed = Math.round(newTxBytesFixed / elapsedSeconds)
-                        rxSpeed = Math.round(newRxBytesFixed / elapsedSeconds)
-                        txBytesTotal = newTxBytes
-                        rxBytesTotal = newRxBytes
+                        val delta = computeNetSpeedDelta(
+                            sampledTxBytes,
+                            sampledRxBytes,
+                            txBytesTotal,
+                            rxBytesTotal,
+                            newTime,
+                        )
+                        txSpeed = delta.txSpeed
+                        rxSpeed = delta.rxSpeed
+                        txBytesTotal = delta.txTotal
+                        rxBytesTotal = delta.rxTotal
                     } else {
                         txSpeed = 0
                         rxSpeed = 0
