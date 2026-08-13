@@ -145,6 +145,28 @@ def _is_inside_for_loop(
 
 def _extract_direct_spec(text: str, class_name: str) -> dict[str, str] | None:
     """Return id/target/phase dict if class_name is a FeatureDefinition in text."""
+    cls_match = re.search(
+        rf"\binternal class\s+{re.escape(class_name)}\b",
+        text,
+    )
+    if not cls_match:
+        return None
+
+    # Find the opening brace that begins the class body.
+    brace_open = text.find("{", cls_match.end())
+    if brace_open == -1:
+        return None
+
+    # The superclass/interface list is after the last ':' before the body '{'.
+    # Kotlin class headers may have parameter type colons (e.g. 'private val x: T'),
+    # so we use the final ':' that separates the header from the supertypes.
+    supertype_colon = text.rfind(":", cls_match.start(), brace_open)
+    if supertype_colon == -1:
+        return None
+    supertype_region = text[supertype_colon:brace_open]
+    if "FeatureDefinition" not in supertype_region:
+        return None
+
     body = extract_class_body(text, class_name)
     if not body:
         return None
@@ -641,6 +663,24 @@ fun other() {
         specs = _direct_specs_from_text(source, "same.kt")
         # The parser sees two `val thing` declarations with different classes and must
         # not fabricate a spec for the registered `thing` in `one()`.
+        self._assert_no_spec(specs)
+
+    def test_lookalike_with_feature_fields_but_not_feature_definition_is_rejected(self) -> None:
+        source = '''
+internal class LookalikeFeatureId : FeatureId { override val id = 99 override val name = "" }
+internal class Lookalike(
+    private val lp: Any
+) : NotFeature {
+    override val id = LookalikeFeatureId
+    override val target = FeatureTarget.SYSTEM_SERVER
+    override val phase = InstallPhase.SYSTEM_SERVER_STARTING
+}
+fun install() {
+    val registry = FeatureInstallRegistry()
+    registry.register(Lookalike(lp))
+}
+'''
+        specs = _direct_specs_from_text(source, "lookalike.kt")
         self._assert_no_spec(specs)
 
     def test_package_permissions_feature_is_reachable_in_repository(self) -> None:
