@@ -22,6 +22,6 @@ class ShadeExpansionTracker(private val threshold: Float) {
         return changed
     }
 
-    /** Current side of the threshold, exposed for tests and diagnostics. */
+    /** Current side of the threshold, exposed for diagnostics. */
     fun currentState(): State = lastState
 }

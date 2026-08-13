@@ -18,7 +18,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.annotation.VisibleForTesting
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
@@ -282,7 +281,6 @@ object SystemClockHooks {
      * decision uses the cached [ClockStyleSnapshot] and reads no [PrefMap] values,
      * so it reacts to preference changes through the observer refresh path.
      */
-    @VisibleForTesting
     internal fun shouldSuppressDarkChange(clockName: String?): Boolean {
         if (clockName != "clock") return false
         val snapshot = currentClockStyleSnapshot() ?: return false
@@ -297,7 +295,6 @@ object SystemClockHooks {
      * when [ccClockTweak] is enabled. This matches the install-time feature
      * gating so disabled features do not mutate views at runtime.
      */
-    @VisibleForTesting
     internal fun shouldRefreshClockStyle(
         clockName: String?,
         statusbarClockTweak: Boolean,
@@ -417,7 +414,6 @@ object SystemClockHooks {
      * detached [ColorStateList] / [Drawable] / [Typeface] values are enough to
      * restore the original appearance.
      */
-    @VisibleForTesting
     internal data class ClockOriginalStyleState(
         val textSizePx: Float,
         val typeface: Typeface?,
@@ -525,7 +521,6 @@ object SystemClockHooks {
      * [LayoutParams] type does not support margins/gravity). The caller must not
      * record the snapshot as completed so the next call can retry.
      */
-    @VisibleForTesting
     internal fun applyClockStyle(
         mClock: TextView,
         clockName: String,
@@ -669,7 +664,6 @@ object SystemClockHooks {
      * [WeakReference] to the controller so that a garbage-collected controller
      * does not keep the ticker (and its associated screen-state listener) alive.
      */
-    @VisibleForTesting
     internal fun initSecondTicker(
         clockController: Any,
         statusbarClockTweak: Boolean,
@@ -735,7 +729,6 @@ object SystemClockHooks {
     /**
      * Returns the [SecondTicker] currently stored on [clockController], or null.
      */
-    @VisibleForTesting
     internal fun activeSecondTicker(clockController: Any): Any? {
         return XposedHelpers.getAdditionalInstanceField(clockController, "secondTicker")
     }

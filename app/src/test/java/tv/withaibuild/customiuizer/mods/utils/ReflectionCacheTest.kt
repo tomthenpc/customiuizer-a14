@@ -9,6 +9,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.lang.reflect.Method
 
 /**
  * A fake [com.android.systemui.Dependency] stand-in used to exercise the four
@@ -31,6 +32,28 @@ private class FakeDependency {
 }
 
 /**
+ * Resolves a named fake dependency class. The resolver is under test control:
+ * [className] can point to the fake or a missing class, and [throwOnResolve] can
+ * inject failures before the method is returned.
+ */
+private class FakeDependencyMethodResolver : DependencyMethodResolver {
+    var className: String = FakeDependency::class.java.name
+    var throwOnResolve: Throwable? = null
+
+    override fun resolve(classLoader: ClassLoader?): Method? {
+        throwOnResolve?.let { throw it }
+        val depClass = try {
+            XposedHelpers.findClassIfExists(className, classLoader)
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            null
+        }
+        return depClass?.getDeclaredMethod("get", Class::class.java)?.apply { isAccessible = true }
+    }
+}
+
+/**
  * Tests for [ReflectionCache].
  *
  * The cache must distinguish CLASS_MISSING, METHOD_MISSING, DEPENDENCY_NOT_READY
@@ -39,16 +62,21 @@ private class FakeDependency {
  */
 class ReflectionCacheTest {
 
+    private lateinit var cache: ReflectionCache
+    private lateinit var resolver: FakeDependencyMethodResolver
+
     @Before
     fun setUp() {
-        ReflectionCache.clearForTests()
+        resolver = FakeDependencyMethodResolver()
+        cache = ReflectionCache(resolver)
     }
 
     @After
     fun tearDown() {
-        ReflectionCache.dependencyClassName = "com.android.systemui.Dependency"
         FakeDependency.ready = false
-        ReflectionCache.clearForTests()
+        resolver.throwOnResolve = null
+        resolver.className = FakeDependency::class.java.name
+        cache.clear()
     }
 
     @Test
@@ -56,10 +84,10 @@ class ReflectionCacheTest {
         val loader = object : ClassLoader(javaClass.classLoader) {}
         val className = "does.not.exist.Class"
 
-        assertNull(ReflectionCache.getDepInstance(loader, className))
-        assertNull(ReflectionCache.getDepInstance(loader, className))
+        assertNull(cache.getDepInstance(loader, className))
+        assertNull(cache.getDepInstance(loader, className))
 
-        val state = ReflectionCache.loaderStateForTest(loader)
+        val state = cache.loaderState(loader)
         assertNotNull(state)
         assertTrue(
             "missing class must be cached as ClassMissing",
@@ -70,12 +98,12 @@ class ReflectionCacheTest {
     @Test
     fun getDepInstance_missingMethod_cachesMethodMissingPerLoader() {
         val loader = object : ClassLoader(javaClass.classLoader) {}
-        ReflectionCache.dependencyClassName = "does.not.exist.Dependency"
+        resolver.className = "does.not.exist.Dependency"
 
-        assertNull(ReflectionCache.getDepInstance(loader, "java.lang.String"))
-        assertNull(ReflectionCache.getDepInstance(loader, "java.lang.Runnable"))
+        assertNull(cache.getDepInstance(loader, "java.lang.String"))
+        assertNull(cache.getDepInstance(loader, "java.lang.Runnable"))
 
-        val state = ReflectionCache.loaderStateForTest(loader)
+        val state = cache.loaderState(loader)
         assertNotNull(state)
         assertTrue(
             "first missing dependency method must be cached as MethodMissing",
@@ -90,16 +118,16 @@ class ReflectionCacheTest {
     @Test
     fun getDepInstance_dependencyNotReady_retriesAfterSafeLifecycle() {
         val loader = object : ClassLoader(javaClass.classLoader) {}
-        ReflectionCache.dependencyClassName = FakeDependency::class.java.name
+        resolver.className = FakeDependency::class.java.name
         val className = "java.lang.String"
 
         FakeDependency.ready = false
 
         // Not ready is cached within the current lifecycle.
-        assertNull(ReflectionCache.getDepInstance(loader, className))
-        assertNull(ReflectionCache.getDepInstance(loader, className))
+        assertNull(cache.getDepInstance(loader, className))
+        assertNull(cache.getDepInstance(loader, className))
 
-        val state = ReflectionCache.loaderStateForTest(loader)
+        val state = cache.loaderState(loader)
         assertTrue(
             "null Dependency.get result must be cached as DependencyNotReady",
             state!!.classResults[className] is DepResult.DependencyNotReady
@@ -108,32 +136,32 @@ class ReflectionCacheTest {
         // Make the dependency ready, but without a lifecycle signal the cached
         // negative result must still be returned.
         FakeDependency.ready = true
-        assertNull(ReflectionCache.getDepInstance(loader, className))
+        assertNull(cache.getDepInstance(loader, className))
 
         // A safe lifecycle allows retry.
-        ReflectionCache.onSafeLifecycle(loader)
-        val found = ReflectionCache.getDepInstance(loader, className)
+        cache.onSafeLifecycle(loader)
+        val found = cache.getDepInstance(loader, className)
         assertSame(FakeDependency.INSTANCE, found)
 
         // Found results are stable and returned without reflection on the hot path.
-        assertSame(found, ReflectionCache.getDepInstance(loader, className))
+        assertSame(found, cache.getDepInstance(loader, className))
     }
 
     @Test
     fun getDepInstance_dependencyFound_idempotent() {
         val loader = object : ClassLoader(javaClass.classLoader) {}
-        ReflectionCache.dependencyClassName = FakeDependency::class.java.name
+        resolver.className = FakeDependency::class.java.name
         FakeDependency.ready = true
 
-        val r1 = ReflectionCache.getDepInstance(loader, "java.lang.Runnable")
-        val r2 = ReflectionCache.getDepInstance(loader, "java.lang.Runnable")
-        val r3 = ReflectionCache.getDepInstance(loader, "java.lang.Runnable")
+        val r1 = cache.getDepInstance(loader, "java.lang.Runnable")
+        val r2 = cache.getDepInstance(loader, "java.lang.Runnable")
+        val r3 = cache.getDepInstance(loader, "java.lang.Runnable")
 
         assertNotNull(r1)
         assertSame(r1, r2)
         assertSame(r2, r3)
 
-        val state = ReflectionCache.loaderStateForTest(loader)
+        val state = cache.loaderState(loader)
         assertTrue(
             "positive result must be cached as DependencyFound",
             state!!.classResults["java.lang.Runnable"] is DepResult.DependencyFound
@@ -144,28 +172,28 @@ class ReflectionCacheTest {
     fun getDepInstance_isolatedPerClassLoader() {
         val loader1 = object : ClassLoader(javaClass.classLoader) {}
         val loader2 = object : ClassLoader(javaClass.classLoader) {}
-        ReflectionCache.dependencyClassName = FakeDependency::class.java.name
+        resolver.className = FakeDependency::class.java.name
         FakeDependency.ready = true
 
-        val r1 = ReflectionCache.getDepInstance(loader1, "java.lang.Runnable")
-        val r2 = ReflectionCache.getDepInstance(loader2, "java.lang.Runnable")
+        val r1 = cache.getDepInstance(loader1, "java.lang.Runnable")
+        val r2 = cache.getDepInstance(loader2, "java.lang.Runnable")
 
         assertNotNull(r1)
         assertNotNull(r2)
-        assertEquals(r1, ReflectionCache.getDepInstance(loader1, "java.lang.Runnable"))
-        assertEquals(r2, ReflectionCache.getDepInstance(loader2, "java.lang.Runnable"))
+        assertEquals(r1, cache.getDepInstance(loader1, "java.lang.Runnable"))
+        assertEquals(r2, cache.getDepInstance(loader2, "java.lang.Runnable"))
     }
 
     @Test
     fun loaderCache_isBounded() {
-        ReflectionCache.dependencyClassName = "does.not.exist.Dependency"
+        resolver.className = "does.not.exist.Dependency"
 
         for (i in 0 until 100) {
             val loader = object : ClassLoader(javaClass.classLoader) {}
-            ReflectionCache.getDepInstance(loader, "java.lang.Runnable")
+            cache.getDepInstance(loader, "java.lang.Runnable")
         }
 
-        val loaders = ReflectionCache.loaderCountForTest()
+        val loaders = cache.loaderCount()
         assertTrue(
             "global loader cache must stay within ${ReflectionCache.MAX_LOADERS}, was $loaders",
             loaders <= ReflectionCache.MAX_LOADERS
@@ -175,13 +203,13 @@ class ReflectionCacheTest {
     @Test(expected = OutOfMemoryError::class)
     fun getDepInstance_dependencyMethodOom_doesNotPolluteState() {
         val loader = object : ClassLoader(javaClass.classLoader) {}
-        ReflectionCache.dependencyClassName = FakeDependency::class.java.name
-        ReflectionCache.dependencyMethodThrowableForTest = OutOfMemoryError("OOM in getDeclaredMethod")
+        resolver.className = FakeDependency::class.java.name
+        resolver.throwOnResolve = OutOfMemoryError("OOM in getDeclaredMethod")
 
         try {
-            ReflectionCache.getDepInstance(loader, "java.lang.String")
+            cache.getDepInstance(loader, "java.lang.String")
         } finally {
-            val state = ReflectionCache.loaderStateForTest(loader)
+            val state = cache.loaderState(loader)
             assertNotNull(state)
             assertFalse(
                 "dependencyMethodResolved must not be set after OOM",
@@ -197,13 +225,13 @@ class ReflectionCacheTest {
     @Test
     fun classResultCache_isBounded() {
         val loader = object : ClassLoader(javaClass.classLoader) {}
-        ReflectionCache.dependencyClassName = "does.not.exist.Dependency"
+        resolver.className = "does.not.exist.Dependency"
 
         for (i in 0 until 100) {
-            ReflectionCache.getDepInstance(loader, "does.not.exist.Class$i")
+            cache.getDepInstance(loader, "does.not.exist.Class$i")
         }
 
-        val state = ReflectionCache.loaderStateForTest(loader)
+        val state = cache.loaderState(loader)
         assertNotNull(state)
         assertTrue(
             "per-loader class cache must stay within ${ReflectionCache.MAX_CLASSES_PER_LOADER}, was ${state!!.classResults.size}",

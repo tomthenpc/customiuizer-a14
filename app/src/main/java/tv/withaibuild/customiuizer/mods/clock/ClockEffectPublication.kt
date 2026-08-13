@@ -40,8 +40,8 @@ internal class ClockEffectPublication(
     }
 
     /**
-     * Number of times the slow calibration path has run.  Visible only for tests; not used by hot
-     * production code.
+     * Number of times the slow calibration path has run. Diagnostic counter; not read by the hot
+     * production path.
      */
     internal var calibrationAttempts: Int = 0
         private set

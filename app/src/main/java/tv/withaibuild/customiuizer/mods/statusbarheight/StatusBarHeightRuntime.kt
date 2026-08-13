@@ -31,14 +31,14 @@ internal class StatusBarHeightRuntime {
     /** Last generation for which a traversal was requested, to coalesce duplicates. */
     val lastRefreshGeneration: AtomicLong = AtomicLong(-1L)
 
-    /** Test-only: return a defensive copy of the current identity snapshot. */
-    fun knownSnapshotForTest(): Array<WeakReference<Any>?> = knownOwners.copyOf()
+    /** Return a defensive copy of the current identity snapshot. */
+    fun knownSnapshot(): Array<WeakReference<Any>?> = knownOwners.copyOf()
 
-    /** Test-only: return the count of non-null entries in the current snapshot. */
-    fun knownCountForTest(): Int = knownOwners.count { it != null && it.get() != null }
+    /** Return the count of non-null entries in the current snapshot. */
+    fun knownCount(): Int = knownOwners.count { it != null && it.get() != null }
 
-    /** Test-only: return the latest ref. */
-    fun latestRefForTest(): WeakReference<Any>? = latestKnownStatusBar
+    /** Return the latest status bar reference. */
+    fun latestRef(): WeakReference<Any>? = latestKnownStatusBar
 
     /**
      * Check whether [owner] is already known as a status bar.

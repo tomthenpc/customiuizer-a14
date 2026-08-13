@@ -10,7 +10,7 @@ class StatusBarInsetsGeometryTest {
 
     @After
     fun tearDown() {
-        StatusBarHeightConfig.resetForTest()
+        StatusBarHeightConfig.reset()
     }
 
     @Test

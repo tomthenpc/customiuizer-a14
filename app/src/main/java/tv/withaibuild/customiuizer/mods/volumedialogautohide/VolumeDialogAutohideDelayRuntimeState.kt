@@ -137,16 +137,16 @@ internal class VolumeDialogAutohideDelayRuntimeState @JvmOverloads internal cons
         }
 
         /**
-         * Returns whether the process singleton has been published. For tests only.
+         * Returns whether the process singleton has been published.
          */
         @JvmStatic
         internal fun isInstalled(): Boolean = installed
 
         /**
-         * Resets the install state. For tests only.
+         * Resets the install state.
          */
         @JvmStatic
-        internal fun resetForTest() {
+        internal fun reset() {
             synchronized(installLock) {
                 installed = false
                 instance = null

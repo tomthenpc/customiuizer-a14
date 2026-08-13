@@ -123,7 +123,7 @@ object SystemStatusBarInsetsHooks {
     }
 
     @JvmStatic
-    internal fun resetDiagnosticsForTest() {
+    internal fun resetDiagnostics() {
         synchronized(loggedCritical) { loggedCritical.clear() }
         synchronized(loggedRejection) {
             loggedRejection.clear()
@@ -139,8 +139,8 @@ object SystemStatusBarInsetsHooks {
     }
 
     @JvmStatic
-    internal fun resetForTest() {
-        resetDiagnosticsForTest()
+    internal fun reset() {
+        resetDiagnostics()
         statusBarHeightAbi = null
         statusBarHeightEffect = null
         hookInstalled = false
@@ -148,17 +148,17 @@ object SystemStatusBarInsetsHooks {
     }
 
     @JvmStatic
-    internal fun criticalKeyCountForTest(): Int {
+    internal fun criticalKeyCount(): Int {
         synchronized(loggedCritical) { return loggedCritical.size }
     }
 
     @JvmStatic
-    internal fun rejectionKeyCountForTest(): Int {
+    internal fun rejectionKeyCount(): Int {
         synchronized(loggedRejection) { return loggedRejection.size }
     }
 
     @JvmStatic
-    internal fun liveKeyCountForTest(): Int {
+    internal fun liveKeyCount(): Int {
         synchronized(loggedLiveKeys) { return loggedLiveKeys.size }
     }
 

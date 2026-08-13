@@ -115,6 +115,16 @@ def check_observer_key_contract() -> int:
     return run(cmd)
 
 
+def check_main_source_cleanliness(changed: bool = False, staged: bool = False) -> int:
+    """Ensure app/src/main contains no test-only implementation seams."""
+    cmd = [sys.executable, str(REPO_ROOT / "tools" / "check_main_source_cleanliness.py")]
+    if changed:
+        cmd.append("--changed")
+    elif staged:
+        cmd.append("--staged")
+    return run(cmd)
+
+
 def read_build_gradle() -> str:
     build_file = REPO_ROOT / "app" / "build.gradle.kts"
     if build_file.exists():
@@ -196,6 +206,9 @@ def fast(tests: list[str] | None, changed: bool = False, staged: bool = False) -
     code = check_observer_key_contract()
     if code != 0:
         return code
+    code = check_main_source_cleanliness(changed=changed, staged=staged)
+    if code != 0:
+        return code
     code = check_invariants(changed=changed, staged=staged)
     if code != 0:
         return code
@@ -226,6 +239,9 @@ def full() -> int:
     if code != 0:
         return code
     code = check_observer_key_contract()
+    if code != 0:
+        return code
+    code = check_main_source_cleanliness()
     if code != 0:
         return code
     code = check_invariants()

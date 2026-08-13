@@ -49,7 +49,6 @@ import tv.withaibuild.customiuizer.mods.utils.releaseRegistrationSilently
 import tv.withaibuild.customiuizer.mods.utils.StepCounterController
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
-import androidx.annotation.VisibleForTesting
 import tv.withaibuild.customiuizer.utils.HookUtils
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.lang.ref.WeakReference
@@ -103,7 +102,6 @@ internal fun formatNetSpeedValue(value: Float): String {
  * current View resources.  The [id] is a per-process monotonic value used by each NetworkSpeedView
  * to skip redundant style setters when the same snapshot is applied repeatedly.
  */
-@VisibleForTesting
 internal data class NetSpeedTextStyleSnapshot(
     val id: Long,
     val speedStyle: Int,
@@ -124,7 +122,6 @@ internal data class NetSpeedTextStyleSnapshot(
  * resource unit strings are read from the provided [Resources] each tick because they may depend
  * on the current configuration. The snapshot itself holds no View, Context or controller.
  */
-@VisibleForTesting
 internal data class DetailedNetSpeedFormatSnapshot(
     val id: Long,
     val hideLow: Boolean,
@@ -141,7 +138,6 @@ internal data class DetailedNetSpeedFormatSnapshot(
  * hide-icon hot paths (`checkSlot`, `HideIconsSignalHook`, `HideIconsFromSystemManager`).
  * It holds no View, Context, Resources or controller.
  */
-@VisibleForTesting
 internal data class StatusBarIconVisibilitySnapshot(
     val id: Long,
     val hideHeadset: Boolean,
@@ -1672,7 +1668,6 @@ object SystemUIStatusBarHooks {
     }
 
     /** Result of turning one traffic sample into a speed plus the next baseline. */
-    @VisibleForTesting
     internal data class NetSpeedDelta(
         val txSpeed: Long,
         val rxSpeed: Long,
@@ -1689,7 +1684,6 @@ object SystemUIStatusBarHooks {
      * cumulative byte counter as a single interval of traffic. Such a sample re-baselines
      * instead, which the existing zero-baseline rule already reports as 0.
      */
-    @VisibleForTesting
     internal fun computeNetSpeedDelta(
         newTxBytes: Long,
         newRxBytes: Long,
@@ -1720,7 +1714,6 @@ object SystemUIStatusBarHooks {
      * not access [MainModule.mPrefs], [Context], [View] or reflection. The original implementation
      * only ever divided once by 1024 (KB -> MB), so this preserves the same unit boundaries.
      */
-    @VisibleForTesting
     internal fun humanReadableByteCount(bytes: Long, snapshot: DetailedNetSpeedFormatSnapshot, modRes: Resources): String {
         try {
             val unitSuffix = if (snapshot.hideSecUnit) "" else modRes.getString(R.string.Bs)
@@ -1744,7 +1737,6 @@ object SystemUIStatusBarHooks {
      *
      * All formatting uses the [snapshot]; [modRes] is only used to resolve module unit strings.
      */
-    @VisibleForTesting
     internal fun formatDetailedNetSpeedText(
         txSpeed: Long,
         rxSpeed: Long,
@@ -1846,7 +1838,6 @@ object SystemUIStatusBarHooks {
         })
     }
 
-    @VisibleForTesting
     internal class NetSpeedTypefaceState(var base: Typeface? = null, var target: Typeface? = null)
 
     /**
@@ -1856,7 +1847,6 @@ object SystemUIStatusBarHooks {
      * LayoutParams instance; only the primitive/value fields required to restore
      * the original appearance are kept.
      */
-    @VisibleForTesting
     internal data class NetSpeedOriginalStyleState(
         val parentTranslationY: Float,
         val parentPaddingStart: Int,
@@ -1979,7 +1969,6 @@ object SystemUIStatusBarHooks {
      * styling hot path. The snapshot is published atomically, so hot-path readers never see a
      * partially-constructed snapshot.
      */
-    @VisibleForTesting
     internal fun buildNetSpeedTextStyleSnapshot(prefs: PrefMap): NetSpeedTextStyleSnapshot {
         val state = netSpeedRuntimeState?.styleState ?: error("Net speed style state not installed")
         return buildNetSpeedTextStyleSnapshot(prefs, state.idGenerator)
@@ -2018,7 +2007,6 @@ object SystemUIStatusBarHooks {
      * speed text hot path.  The [lowLevelBytes] value is pre-multiplied by 1024 to match the
      * threshold used in [updateText].
      */
-    @VisibleForTesting
     internal fun buildDetailedNetSpeedFormatSnapshot(prefs: PrefMap): DetailedNetSpeedFormatSnapshot {
         val state = netSpeedRuntimeState?.detailedState ?: error("Detailed net speed state not installed")
         return buildDetailedNetSpeedFormatSnapshot(prefs, state.idGenerator)
@@ -2052,7 +2040,6 @@ object SystemUIStatusBarHooks {
      * This is the only place the `system_statusbaricons_*` keys are read for the three hide-icon
      * hot paths. The snapshot contains one [Boolean] per relevant key.
      */
-    @VisibleForTesting
     internal fun buildStatusBarIconVisibilitySnapshot(prefs: PrefMap): StatusBarIconVisibilitySnapshot {
         val state = iconVisibilityRuntimeState ?: error("Status bar icon visibility state not installed")
         return buildStatusBarIconVisibilitySnapshot(prefs, state.idGenerator)
@@ -2132,7 +2119,6 @@ object SystemUIStatusBarHooks {
      *   [speedView]; when the same [snapshot] has already been fully applied, [typefaceOnly] = false
      *   returns early and touches no setters.
      */
-    @VisibleForTesting
     internal fun applyNetSpeedTextStyle(speedView: LinearLayout, snapshot: NetSpeedTextStyleSnapshot, typefaceOnly: Boolean) {
         if (speedView.tag as? String == "slot_text_icon") return
 
@@ -2309,7 +2295,6 @@ object SystemUIStatusBarHooks {
      * and must survive for the lifetime of the view.  This ensures the next full apply re-applies
      * the custom NetworkSpeed style while still being able to restore the true stock baseline.
      */
-    @VisibleForTesting
     internal fun onNetworkSpeedTextAppearanceChanged(
         textView: TextView,
         parentLayout: LinearLayout? = textView.parent as? LinearLayout,
@@ -2333,7 +2318,6 @@ object SystemUIStatusBarHooks {
      * NetworkSpeed custom style is still applied afterwards, so the captured baseline is the
      * clock-styled appearance while the final visible state is the custom NetworkSpeed style.
      */
-    @VisibleForTesting
     internal fun onNetworkSpeedViewInflated(speedView: LinearLayout) {
         if (speedView.tag as? String == "slot_text_icon") return
         if (speedView.getTag(viewInitedTag) != null) return
@@ -2526,7 +2510,6 @@ object SystemUIStatusBarHooks {
     }
 
     /** Result of [computeSignalIconHiding] for applying to the [mobileIconState] object. */
-    @VisibleForTesting
     internal data class SignalIconHidingResult(
         val visible: Boolean? = null,
         val roaming: Boolean? = null,
@@ -2540,7 +2523,6 @@ object SystemUIStatusBarHooks {
      * Pure function: it reads only the supplied primitives and the [snapshot]. It does not
      * access [MainModule.mPrefs], [View] or reflection.
      */
-    @VisibleForTesting
     internal fun computeSignalIconHiding(
         wifiAvailable: Boolean,
         subId: Int,
@@ -2572,7 +2554,6 @@ object SystemUIStatusBarHooks {
      * Pure function: it matches the [slotName] against the fixed slot set using [when] and
      * reads only the [snapshot]. It does not touch [MainModule.mPrefs].
      */
-    @VisibleForTesting
     internal fun checkSlot(slotName: String?, snapshot: StatusBarIconVisibilitySnapshot): Boolean {
         return when (slotName) {
             "headset" -> snapshot.hideHeadset
@@ -2601,7 +2582,6 @@ object SystemUIStatusBarHooks {
      *
      * Pure function: it matches the fixed slot set with [when] and reads only the [snapshot].
      */
-    @VisibleForTesting
     internal fun shouldHideSystemManagerIcon(slotName: String, snapshot: StatusBarIconVisibilitySnapshot): Boolean {
         return when (slotName) {
             "stealth" -> snapshot.hidePrivacy

@@ -33,15 +33,15 @@ class StatusBarWindowStateHotPathTest {
 
     @Before
     fun setUp() {
-        SystemStatusBarInsetsHooks.resetForTest()
-        StatusBarHeightConfig.resetForTest()
+        SystemStatusBarInsetsHooks.reset()
+        StatusBarHeightConfig.reset()
         setStatusBarHeightEffect(makeTestEffect())
     }
 
     @After
     fun tearDown() {
-        SystemStatusBarInsetsHooks.resetForTest()
-        StatusBarHeightConfig.resetForTest()
+        SystemStatusBarInsetsHooks.reset()
+        StatusBarHeightConfig.reset()
     }
 
     @Test
@@ -254,17 +254,17 @@ class StatusBarWindowStateHotPathTest {
 
         // Establish latest = b, then layout a again.
         runtime.markLatestIfKnown(b)
-        assertSame(b, runtime.latestRefForTest()?.get())
+        assertSame(b, runtime.latestRef()?.get())
 
-        val snapshotBefore = runtime.knownSnapshotForTest()
+        val snapshotBefore = runtime.knownSnapshot()
         val refAIndex = snapshotBefore.indexOfFirst { it === refA }
         assertTrue(refAIndex >= 0)
 
         val chain = FakeChain(argList = listOf(a))
         SystemStatusBarInsetsHooks.onLayoutWindowLw(chain)
 
-        assertSame(a, runtime.latestRefForTest()?.get())
-        assertSame(refA, runtime.latestRefForTest())
+        assertSame(a, runtime.latestRef()?.get())
+        assertSame(refA, runtime.latestRef())
         assertSame(refA, snapshotBefore[refAIndex])
     }
 

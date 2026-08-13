@@ -49,20 +49,78 @@ internal class LoaderState {
 }
 
 /**
+ * Resolves the Dependency `get(Class)` method for a given [ClassLoader].
+ *
+ * The default implementation locates `com.android.systemui.Dependency` and
+ * returns its `get(Class)` method.  Tests can supply a custom resolver to avoid
+ * touching the real framework.
+ */
+internal interface DependencyMethodResolver {
+    fun resolve(classLoader: ClassLoader?): Method?
+}
+
+/**
+ * Default resolver for the SystemUI `Dependency.get(Class)` method.
+ */
+internal class SystemUIDependencyMethodResolver : DependencyMethodResolver {
+    override fun resolve(classLoader: ClassLoader?): Method? {
+        return try {
+            val depClass = XposedHelpers.findClassIfExists("com.android.systemui.Dependency", classLoader)
+            depClass?.getDeclaredMethod("get", Class::class.java)?.apply { isAccessible = true }
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            XposedHelpers.log(t)
+            null
+        }
+    }
+}
+
+/**
  * Class/method/dependency cache for hook setup.
  *
  * The cache is keyed by [ClassLoader] and then by class name.  Once a result is
  * cached, the hot path is a single map lookup and a `when` branch, with no
  * reflection and no short-lived key object allocation.
  */
-object ReflectionCache {
+class ReflectionCache @JvmOverloads internal constructor(
+    private val dependencyMethodResolver: DependencyMethodResolver = SystemUIDependencyMethodResolver(),
+) {
 
-    internal const val MAX_LOADERS = 4
-    internal const val MAX_CLASSES_PER_LOADER = 64
+    companion object {
+        internal const val MAX_LOADERS = 4
+        internal const val MAX_CLASSES_PER_LOADER = 64
 
-    /** Name of the SystemUI Dependency class.  Overridable in tests. */
-    @JvmField
-    internal var dependencyClassName: String = "com.android.systemui.Dependency"
+        private val DEFAULT = ReflectionCache()
+
+        /**
+         * Returns a SystemUI [Dependency] instance for [className] in [classLoader].
+         *
+         * Positive results are cached and returned without reflection on subsequent
+         * calls.  Missing class/method results are cached per class loader.  A null
+         * result from [Dependency.get] is stored as [DepResult.DependencyNotReady]
+         * against the current lifecycle; it is retried only after a safe lifecycle
+         * boundary has been signalled via [onSafeLifecycle].
+         */
+        @JvmStatic
+        fun getDepInstance(classLoader: ClassLoader?, className: String): Any? =
+            DEFAULT.getDepInstance(classLoader, className)
+
+        /**
+         * Signals that a safe lifecycle boundary has been reached.
+         *
+         * Dependency lookups that returned null or failed to find the Dependency
+         * class before this boundary are now eligible for retry.  Callers should
+         * invoke this from safe lifecycle points such as
+         * [com.android.systemui.SystemUIInitializer.init] or Application init.
+         *
+         * @param classLoader the loader to refresh, or `null` to refresh all loaders.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun onSafeLifecycle(classLoader: ClassLoader? = null) =
+            DEFAULT.onSafeLifecycle(classLoader)
+    }
 
     private val lifecycle = AtomicLong(0L)
 
@@ -74,16 +132,7 @@ object ReflectionCache {
         }
     )
 
-    /**
-     * Returns a SystemUI [Dependency] instance for [className] in [classLoader].
-     *
-     * Positive results are cached and returned without reflection on subsequent
-     * calls.  Missing class/method results are cached per class loader.  A null
-     * result from [Dependency.get] is stored as [DepResult.DependencyNotReady]
-     * against the current lifecycle; it is retried only after a safe lifecycle
-     * boundary has been signalled via [onSafeLifecycle].
-     */
-    @JvmStatic
+    @JvmName("getDepInstanceInstance")
     fun getDepInstance(classLoader: ClassLoader?, className: String): Any? {
         val loaderState = loaderStates[classLoader]
         if (loaderState != null) {
@@ -92,18 +141,7 @@ object ReflectionCache {
         return resolveNewLoader(classLoader, className)
     }
 
-    /**
-     * Signals that a safe lifecycle boundary has been reached.
-     *
-     * Dependency lookups that returned null or failed to find the Dependency
-     * class before this boundary are now eligible for retry.  Callers should
-     * invoke this from safe lifecycle points such as
-     * [com.android.systemui.SystemUIInitializer.init] or Application init.
-     *
-     * @param classLoader the loader to refresh, or `null` to refresh all loaders.
-     */
-    @JvmStatic
-    @JvmOverloads
+    @JvmName("onSafeLifecycleInstance")
     fun onSafeLifecycle(classLoader: ClassLoader? = null) {
         lifecycle.incrementAndGet()
         if (classLoader == null) {
@@ -218,8 +256,8 @@ object ReflectionCache {
             return loaderState.dependencyMethod
         }
 
-        val depClass = try {
-            XposedHelpers.findClassIfExists(dependencyClassName, classLoader)
+        val method = try {
+            dependencyMethodResolver.resolve(classLoader)
         } catch (oom: OutOfMemoryError) {
             throw oom
         } catch (t: Throwable) {
@@ -227,39 +265,17 @@ object ReflectionCache {
             null
         }
 
-        val method = if (depClass != null) {
-            try {
-                if (dependencyMethodThrowableForTest != null) throw dependencyMethodThrowableForTest!!
-                depClass.getDeclaredMethod("get", Class::class.java).apply { isAccessible = true }
-            } catch (oom: OutOfMemoryError) {
-                throw oom
-            } catch (t: Throwable) {
-                XposedHelpers.log(t)
-                null
-            }
-        } else null
-
         loaderState.dependencyMethod = method
         loaderState.dependencyMethodResolved = true
         return method
     }
 
-    // --- test-only helpers --------------------------------------------------
+    internal fun loaderState(classLoader: ClassLoader?): LoaderState? = loaderStates[classLoader]
 
-    /** Optional throwable to inject before resolving the Dependency.get method. Tests only. */
-    @JvmField
-    internal var dependencyMethodThrowableForTest: Throwable? = null
+    internal fun loaderCount(): Int = loaderStates.size
 
-    @JvmStatic
-    internal fun loaderStateForTest(classLoader: ClassLoader?): LoaderState? = loaderStates[classLoader]
-
-    @JvmStatic
-    internal fun loaderCountForTest(): Int = loaderStates.size
-
-    @JvmStatic
-    internal fun clearForTests() {
+    internal fun clear() {
         lifecycle.set(0L)
         loaderStates.clear()
-        dependencyMethodThrowableForTest = null
     }
 }

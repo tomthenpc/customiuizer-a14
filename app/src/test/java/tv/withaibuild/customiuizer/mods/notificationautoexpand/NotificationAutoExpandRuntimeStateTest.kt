@@ -24,15 +24,15 @@ class NotificationAutoExpandRuntimeStateTest {
     @Before
     fun setUp() {
         MainModule.mPrefs.clear()
-        NotificationAutoExpandRuntimeState.resetForTest()
-        PreferenceObserverRegistry.resetForTest()
+        NotificationAutoExpandRuntimeState.reset()
+        PreferenceObserverRegistry.reset()
     }
 
     @After
     fun tearDown() {
         MainModule.mPrefs.clear()
-        NotificationAutoExpandRuntimeState.resetForTest()
-        PreferenceObserverRegistry.resetForTest()
+        NotificationAutoExpandRuntimeState.reset()
+        PreferenceObserverRegistry.reset()
     }
 
     @Test

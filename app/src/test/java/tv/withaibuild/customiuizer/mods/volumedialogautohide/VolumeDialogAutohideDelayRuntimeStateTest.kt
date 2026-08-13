@@ -27,15 +27,15 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
     @Before
     fun setUp() {
         MainModule.mPrefs.clear()
-        VolumeDialogAutohideDelayRuntimeState.resetForTest()
-        PreferenceObserverRegistry.resetForTest()
+        VolumeDialogAutohideDelayRuntimeState.reset()
+        PreferenceObserverRegistry.reset()
     }
 
     @After
     fun tearDown() {
         MainModule.mPrefs.clear()
-        VolumeDialogAutohideDelayRuntimeState.resetForTest()
-        PreferenceObserverRegistry.resetForTest()
+        VolumeDialogAutohideDelayRuntimeState.reset()
+        PreferenceObserverRegistry.reset()
     }
 
     @Test

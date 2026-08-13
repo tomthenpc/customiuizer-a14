@@ -19,15 +19,15 @@ class NotificationAutoExpandHookTest {
 
     @Before
     fun setUp() {
-        NotificationAutoExpandRuntimeState.resetForTest()
-        PreferenceObserverRegistry.resetForTest()
+        NotificationAutoExpandRuntimeState.reset()
+        PreferenceObserverRegistry.reset()
         HookDiagnostics.reset()
     }
 
     @After
     fun tearDown() {
-        NotificationAutoExpandRuntimeState.resetForTest()
-        PreferenceObserverRegistry.resetForTest()
+        NotificationAutoExpandRuntimeState.reset()
+        PreferenceObserverRegistry.reset()
         HookDiagnostics.reset()
     }
 

@@ -9,6 +9,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import tv.withaibuild.customiuizer.utils.PrefMap
+import java.lang.reflect.Method
 import java.lang.reflect.Proxy
 
 /**
@@ -70,10 +71,8 @@ class FatalBoundaryTest {
 
     @After
     fun tearDown() {
-        ReflectionCache.dependencyClassName = "com.android.systemui.Dependency"
         FakeDependency.ready = false
         FakeDependency.throwOom = false
-        ReflectionCache.clearForTests()
     }
 
     @Test
@@ -295,33 +294,46 @@ class FatalBoundaryTest {
 
     @Test
     fun reflectionCache_classLookupOom_doesNotCacheClassMissing() {
-        ReflectionCache.dependencyClassName = "does.not.exist.Dependency"
+        val cache = ReflectionCache()
         val loader = OomClassLoader()
 
         try {
-            ReflectionCache.getDepInstance(loader, "boom.Oom")
+            cache.getDepInstance(loader, "boom.Oom")
             fail("OutOfMemoryError must propagate")
         } catch (oom: OutOfMemoryError) {
-            val state = ReflectionCache.loaderStateForTest(loader)
+            val state = cache.loaderState(loader)
             assertNull("OOM must not be cached as ClassMissing", state?.classResults?.get("boom.Oom"))
         }
     }
 
     @Test
     fun reflectionCache_invocationTargetOom_unwrapsAndRethrows() {
-        ReflectionCache.dependencyClassName = FakeDependency::class.java.name
+        val cache = ReflectionCache(FakeDependencyMethodResolver())
         FakeDependency.throwOom = true
         val loader = FatalBoundaryTest::class.java.classLoader
 
         try {
-            ReflectionCache.getDepInstance(loader, "java.lang.String")
+            cache.getDepInstance(loader, "java.lang.String")
             fail("OutOfMemoryError must propagate")
         } catch (oom: OutOfMemoryError) {
-            val state = ReflectionCache.loaderStateForTest(loader)
+            val state = cache.loaderState(loader)
             assertFalse(
                 "OOM must not be cached as DependencyNotReady",
                 state?.classResults?.get("java.lang.String") is DepResult.DependencyNotReady
             )
+        }
+    }
+
+    private class FakeDependencyMethodResolver : DependencyMethodResolver {
+        override fun resolve(classLoader: ClassLoader?): Method? {
+            val depClass = try {
+                XposedHelpers.findClassIfExists(FakeDependency::class.java.name, classLoader)
+            } catch (oom: OutOfMemoryError) {
+                throw oom
+            } catch (t: Throwable) {
+                null
+            }
+            return depClass?.getDeclaredMethod("get", Class::class.java)?.apply { isAccessible = true }
         }
     }
 }

@@ -42,8 +42,8 @@ internal object CustomTextIconTintRoute {
      *
      * The [route] string is used only for diagnostics ("left" / "right").
      * [classLoader] is used to look up the ROM `DarkIconDispatcher` plugin instance.
-     * A non-null [darkIconDispatcher] is used directly, which is useful for tests and
-     * callers that already have the dispatcher.
+     * A non-null [darkIconDispatcher] is used directly by callers that already have
+     * the dispatcher.
      */
     @JvmOverloads
     fun register(
@@ -103,9 +103,9 @@ internal object CustomTextIconTintRoute {
     }
 
     /**
-     * Test-only accessor: the number of View registrations currently tracked in memory.
+     * The number of View registrations currently tracked in memory.
      */
-    fun trackedCount(): Int = synchronized(registrations) { registrations.size }
+    fun trackedRegistrationCount(): Int = synchronized(registrations) { registrations.size }
 
     private fun findLiveRegistration(view: View): DarkTintRegistration? {
         return registrations.find { it.viewRef.get() === view && !it.state.isDisposed }

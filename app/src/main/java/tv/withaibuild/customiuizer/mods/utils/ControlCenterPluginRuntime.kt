@@ -18,7 +18,7 @@ import tv.withaibuild.customiuizer.mods.utils.gesture.PhysicalGestureArbiter
 import tv.withaibuild.customiuizer.mods.utils.gesture.StatusBarGestureEffectExecutor
 
 /**
- * Outcome of a [ControlCenterPluginRuntime.bind] transaction.
+ * Outcome of a [ControlCenterPluginRuntimeEngine.bind] transaction.
  */
 sealed class ControlCenterBindResult {
     object Installed : ControlCenterBindResult()
@@ -49,35 +49,45 @@ enum class InstallState {
 }
 
 /**
- * Single owner for the SystemUI control-center plugin lifecycle.
+ * Runtime engine for the SystemUI control-center plugin lifecycle.
  *
- * Only one `PluginFactory.createPlugin` hook is installed, regardless of whether the
- * control-center UI modifications, the status-bar gestures, or both are enabled.
+ * The engine owns the [PhysicalGestureArbiter], the [GestureConfigPublisher], the
+ * [ControlCenterGestureRuntimeHolder] and the state of the active plugin ClassLoader.
+ * The production singleton [ControlCenterPluginRuntime] wraps a default engine.
  */
-internal object ControlCenterPluginRuntime {
+open class ControlCenterPluginRuntimeEngine(
+    val configPublisher: GestureConfigPublisher = GestureConfigPublisher(resolve = { GestureConfigResolver.resolve(MainModule.mPrefs) }),
+    val arbiter: PhysicalGestureArbiter = PhysicalGestureArbiter(),
+    private val dependenciesResolver: ControlCenterGestureDependenciesResolver = ControlCenterGestureDependenciesResolver(),
+    private val effectExecutor: StatusBarGestureEffectExecutor = StatusBarGestureEffectExecutor(),
+) {
 
-    private val arbiter = PhysicalGestureArbiter()
+    private val _runtimeHolder: ControlCenterGestureRuntimeHolder
 
-    val configPublisher = GestureConfigPublisher(resolve = { GestureConfigResolver.resolve(MainModule.mPrefs) })
-
-    private val runtimeHolder = ControlCenterGestureRuntimeHolder(
-        configPublisher = configPublisher,
-        effectExecutor = StatusBarGestureEffectExecutor(),
-        arbiter = arbiter,
-        dependenciesResolver = ControlCenterGestureDependenciesResolver(),
-        installHooks = { classLoader, machine -> installHooks(classLoader, machine) },
-    )
+    init {
+        val installHooks: (ClassLoader, GestureMachine) -> Unit = { classLoader, machine ->
+            onInstallGestureHooks(classLoader, machine)
+        }
+        _runtimeHolder = ControlCenterGestureRuntimeHolder(
+            configPublisher = configPublisher,
+            effectExecutor = effectExecutor,
+            arbiter = arbiter,
+            dependenciesResolver = dependenciesResolver,
+            installHooks = installHooks,
+        )
+    }
 
     private var activeLoader: ClassLoader? = null
     private var activeLease: RuntimeLease? = null
     private var installState = InstallState.IDLE
     private var lastFailure: Throwable? = null
+    private var hooked = false
 
     /** Expose the shared arbiter so status-bar and control-center gestures share one authority. */
     fun arbiter(): PhysicalGestureArbiter = arbiter
 
-    /** Expose the runtime holder for diagnostics and tests. */
-    fun runtimeHolder(): ControlCenterGestureRuntimeHolder = runtimeHolder
+    /** Expose the runtime holder for diagnostics. */
+    internal fun runtimeHolder(): ControlCenterGestureRuntimeHolder = _runtimeHolder
 
     /** Active plugin ClassLoader, or null if no plugin is currently bound. */
     fun activeLoader(): ClassLoader? = activeLoader
@@ -101,36 +111,6 @@ internal object ControlCenterPluginRuntime {
      * - The active loader is only published after the gesture hooks and the control-center UI
      *   hooks both succeed; fatal failures during install do not leave a half-state.
      */
-    private val defaultInstallPluginHooks: (ClassLoader) -> Unit = { SystemUIControlCenterHooks.initControlCenter(it) }
-    private val defaultInstallHooks: (ClassLoader, GestureMachine) -> Unit = { classLoader, machine ->
-        installControlCenterGestureHooks(
-            classLoader,
-            machine,
-            activeLease ?: error("bind() must create an active lease before installing hooks"),
-        )
-    }
-    private val defaultInstallCreatePluginHook: (ClassLoader, MethodHook) -> Unit = { classLoader, hook ->
-        ModuleHelper.hookAllMethods(
-            "com.android.systemui.shared.plugins.PluginInstance\$PluginFactory",
-            classLoader,
-            "createPlugin",
-            hook,
-        )
-    }
-
-    var installPluginHooks: (ClassLoader) -> Unit = defaultInstallPluginHooks
-    var installHooks: (ClassLoader, GestureMachine) -> Unit = defaultInstallHooks
-    var installCreatePluginHook: (ClassLoader, MethodHook) -> Unit = defaultInstallCreatePluginHook
-
-    /** Reset all mutable seams and runtime state. For tests only. */
-    fun resetForTests() {
-        clear()
-        hooked = false
-        installPluginHooks = defaultInstallPluginHooks
-        installHooks = defaultInstallHooks
-        installCreatePluginHook = defaultInstallCreatePluginHook
-    }
-
     fun bind(loader: ClassLoader): ControlCenterBindResult {
         if (activeLoader === loader) {
             return when (installState) {
@@ -153,8 +133,8 @@ internal object ControlCenterPluginRuntime {
         lastFailure = null
 
         return try {
-            runtimeHolder.bind(loader)
-            installPluginHooks(loader)
+            _runtimeHolder.bind(loader)
+            onInstallPluginHooks(loader)
             installState = InstallState.INSTALLED
             activeLoader = loader
             ControlCenterBindResult.Installed
@@ -188,12 +168,10 @@ internal object ControlCenterPluginRuntime {
         if (activeLease == null) {
             activeLease = RuntimeLease().apply { invalidate() }
         }
-        runtimeHolder.unbind()
+        _runtimeHolder.unbind()
         activeLoader = null
         arbiter.releaseAll()
     }
-
-    private var hooked = false
 
     /**
      * Install a single `PluginFactory.createPlugin` hook on [lpparam.classLoader] if it has
@@ -207,7 +185,7 @@ internal object ControlCenterPluginRuntime {
         if (installState == InstallState.FAILED_PARTIAL) return
 
         try {
-            installCreatePluginHook(
+            onInstallCreatePluginHook(
                 classLoader,
                 object : MethodHook() {
                     override fun before(param: BeforeHookCallback) {
@@ -226,13 +204,49 @@ internal object ControlCenterPluginRuntime {
         }
     }
 
+    /**
+     * Installs the control-center UI hooks.
+     *
+     * Overridable so tests can substitute a no-op or a failure.
+     */
+    protected open fun onInstallPluginHooks(classLoader: ClassLoader) {
+        SystemUIControlCenterHooks.initControlCenter(classLoader)
+    }
+
+    /**
+     * Installs the `PluginFactory.createPlugin` hook.
+     *
+     * Overridable so tests can observe or replace the installer.
+     */
+    protected open fun onInstallCreatePluginHook(classLoader: ClassLoader, hook: MethodHook) {
+        ModuleHelper.hookAllMethods(
+            "com.android.systemui.shared.plugins.PluginInstance\$PluginFactory",
+            classLoader,
+            "createPlugin",
+            hook,
+        )
+    }
+
+    /**
+     * Installs the control-center gesture hooks.
+     *
+     * Overridable so tests can substitute a no-op.
+     */
+    protected open fun onInstallGestureHooks(classLoader: ClassLoader, machine: GestureMachine) {
+        installControlCenterGestureHooks(
+            classLoader,
+            machine,
+            activeLease ?: error("bind() must create an active lease before installing hooks"),
+        )
+    }
+
     data class ControlCenterGestureHooks(
         val handleMotionEvent: MethodHook,
         val onAttachedToWindow: MethodHook,
         val onDetachedFromWindow: MethodHook,
     )
 
-    internal fun installControlCenterGestureHooks(
+    internal open fun installControlCenterGestureHooks(
         classLoader: ClassLoader,
         controlCenterMachine: GestureMachine,
         lease: RuntimeLease,
@@ -287,4 +301,24 @@ internal object ControlCenterPluginRuntime {
         ModuleHelper.findAndHookMethod("miui.systemui.controlcenter.windowview.ControlCenterWindowViewImpl", classLoader, "onDetachedFromWindow", onDetachedHook)
         return ControlCenterGestureHooks(controlCenterHook, onAttachedHook, onDetachedHook)
     }
+}
+
+/**
+ * Single owner for the SystemUI control-center plugin lifecycle.
+ *
+ * Only one `PluginFactory.createPlugin` hook is installed, regardless of whether the
+ * control-center UI modifications, the status-bar gestures, or both are enabled.
+ */
+internal object ControlCenterPluginRuntime {
+
+    private val engine = ControlCenterPluginRuntimeEngine()
+
+    /** Shared gesture configuration publisher. */
+    val configPublisher get() = engine.configPublisher
+
+    /** Shared physical gesture arbiter. */
+    fun arbiter(): PhysicalGestureArbiter = engine.arbiter
+
+    /** Install the `PluginFactory.createPlugin` hook if needed. */
+    fun hookIfNeeded(lpparam: PackageReadyParam) = engine.hookIfNeeded(lpparam.classLoader)
 }

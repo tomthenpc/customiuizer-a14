@@ -101,17 +101,6 @@ internal class DarkTintRegistrationState(
         return true
     }
 
-    /**
-     * Reset to a clean state so the same owner can be re-registered.
-     * This is only used after a confirmed terminal dispose in tests or in an explicit
-     * "replace" path where the caller knows the old registration is gone.
-     */
-    fun reset() {
-        registered = false
-        released = false
-        disposed = false
-    }
-
     override fun toString(): String {
         return "DarkTintRegistrationState(owner=$owner, route=$route, registered=$registered, released=$released, disposed=$disposed)"
     }

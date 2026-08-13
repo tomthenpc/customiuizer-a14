@@ -97,23 +97,6 @@ class DarkTintRegistrationStateTest {
     }
 
     @Test
-    fun resetAllowsReRegistrationAfterRelease() {
-        val state = DarkTintRegistrationState("owner", "test")
-        var releaseCalls = 0
-        var registerCalls = 0
-
-        state.register(registerFn = { registerCalls++; true })
-        state.release { releaseCalls++ }
-        state.reset()
-
-        val ok = state.register(registerFn = { registerCalls++; true })
-        assertTrue(ok)
-        assertEquals(2, registerCalls)
-        assertEquals(1, releaseCalls)
-        assertTrue(state.isActive)
-    }
-
-    @Test
     fun disposeWithoutRegisterStillCallsDisposeFn() {
         val state = DarkTintRegistrationState("owner", "test")
         var disposeCalls = 0

@@ -2,6 +2,7 @@ package tv.withaibuild.customiuizer.mods.utils
 
 import io.github.libxposed.api.XposedInterface
 import org.junit.After
+import org.junit.Before
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotSame
@@ -10,6 +11,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
+import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureConfig
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureConfigPublisher
 import tv.withaibuild.customiuizer.mods.utils.gesture.GestureDependenciesResolver
@@ -22,21 +24,26 @@ import java.util.ArrayList
 
 class ControlCenterPluginRuntimeTest {
 
+    private lateinit var engine: TestableEngine
+
+    @Before
+    fun setUp() {
+        engine = TestableEngine()
+    }
+
     @After
     fun tearDown() {
-        ControlCenterPluginRuntime.resetForTests()
+        engine.clear()
     }
 
     @Test
     fun sameLoaderIsIdempotent() {
         val loader = testLoader
-        ControlCenterPluginRuntime.installPluginHooks = { }
-        ControlCenterPluginRuntime.installHooks = { _, _ -> }
 
-        ControlCenterPluginRuntime.bind(loader)
-        val first = ControlCenterPluginRuntime.runtimeHolder().activeRuntime()
-        val firstResult = ControlCenterPluginRuntime.bind(loader)
-        val second = ControlCenterPluginRuntime.runtimeHolder().activeRuntime()
+        engine.bind(loader)
+        val first = engine.runtimeHolder().activeRuntime()
+        val firstResult = engine.bind(loader)
+        val second = engine.runtimeHolder().activeRuntime()
 
         assertSame(first, second)
         assertTrue(firstResult is ControlCenterBindResult.AlreadyInstalled)
@@ -46,14 +53,12 @@ class ControlCenterPluginRuntimeTest {
     fun newLoaderClearsOldMachine() {
         val loader1 = newIsolatedClassLoader()
         val loader2 = newIsolatedClassLoader()
-        ControlCenterPluginRuntime.installPluginHooks = { }
-        ControlCenterPluginRuntime.installHooks = { _, _ -> }
 
-        ControlCenterPluginRuntime.bind(loader1)
-        val first = ControlCenterPluginRuntime.runtimeHolder().activeRuntime()
+        engine.bind(loader1)
+        val first = engine.runtimeHolder().activeRuntime()
 
-        ControlCenterPluginRuntime.bind(loader2)
-        val second = ControlCenterPluginRuntime.runtimeHolder().activeRuntime()
+        engine.bind(loader2)
+        val second = engine.runtimeHolder().activeRuntime()
 
         assertNotSame(first, second)
         assertSame(loader2, second?.classLoader)
@@ -63,37 +68,33 @@ class ControlCenterPluginRuntimeTest {
     fun newLoaderReleasesOldLoaderReference() {
         val loader1 = newIsolatedClassLoader()
         val loader2 = newIsolatedClassLoader()
-        ControlCenterPluginRuntime.installPluginHooks = { }
-        ControlCenterPluginRuntime.installHooks = { _, _ -> }
 
-        ControlCenterPluginRuntime.bind(loader1)
-        ControlCenterPluginRuntime.bind(loader2)
+        engine.bind(loader1)
+        engine.bind(loader2)
 
-        assertSame(loader2, ControlCenterPluginRuntime.activeLoader())
+        assertSame(loader2, engine.activeLoader())
     }
 
     @Test
     fun explicitClearNullsAllReferences() {
         val loader = testLoader
-        ControlCenterPluginRuntime.installPluginHooks = { }
-        ControlCenterPluginRuntime.installHooks = { _, _ -> }
 
-        ControlCenterPluginRuntime.bind(loader)
-        ControlCenterPluginRuntime.clear()
+        engine.bind(loader)
+        engine.clear()
 
-        assertNull(ControlCenterPluginRuntime.activeLoader())
-        assertNull(ControlCenterPluginRuntime.runtimeHolder().activeRuntime())
-        assertEquals(0, ControlCenterPluginRuntime.arbiter().heldTokenCount())
-        assertFalse(ControlCenterPluginRuntime.activeLease()!!.active)
+        assertNull(engine.activeLoader())
+        assertNull(engine.runtimeHolder().activeRuntime())
+        assertEquals(0, engine.arbiter().heldTokenCount())
+        assertFalse(engine.activeLease()!!.active)
     }
 
     @Test
     fun createPluginHookInstalledOnlyOnce() {
         var hookCount = 0
-        ControlCenterPluginRuntime.installCreatePluginHook = { _, _ -> hookCount++ }
+        engine.installCreatePluginHookCapture = { _, _ -> hookCount++ }
 
-        ControlCenterPluginRuntime.hookIfNeeded(testLoader)
-        ControlCenterPluginRuntime.hookIfNeeded(testLoader)
+        engine.hookIfNeeded(testLoader)
+        engine.hookIfNeeded(testLoader)
 
         assertEquals(1, hookCount)
     }
@@ -101,14 +102,13 @@ class ControlCenterPluginRuntimeTest {
     @Test(expected = OutOfMemoryError::class)
     fun fatalInstallFailureDoesNotPublishHalfState() {
         val loader = testLoader
-        ControlCenterPluginRuntime.installPluginHooks = { throw OutOfMemoryError("fatal install") }
-        ControlCenterPluginRuntime.installHooks = { _, _ -> }
+        engine.installPluginHooksFailure = OutOfMemoryError("fatal install")
 
         try {
-            ControlCenterPluginRuntime.bind(loader)
+            engine.bind(loader)
         } finally {
-            assertNull(ControlCenterPluginRuntime.activeLoader())
-            assertNull(ControlCenterPluginRuntime.runtimeHolder().activeRuntime())
+            assertNull(engine.activeLoader())
+            assertNull(engine.runtimeHolder().activeRuntime())
         }
     }
 
@@ -116,34 +116,28 @@ class ControlCenterPluginRuntimeTest {
     fun ordinaryPartialFailureIsNotSilent() {
         val loader = testLoader
         val failure = RuntimeException("partial install")
-        ControlCenterPluginRuntime.installPluginHooks = { throw failure }
-        ControlCenterPluginRuntime.installHooks = { _, _ -> }
+        engine.installPluginHooksFailure = failure
 
-        val result = ControlCenterPluginRuntime.bind(loader)
+        val result = engine.bind(loader)
 
         assertTrue(result is ControlCenterBindResult.Failed)
         assertEquals(failure, (result as ControlCenterBindResult.Failed).reason)
-        assertEquals(InstallState.FAILED_PARTIAL, ControlCenterPluginRuntime.installState())
-        assertSame(failure, ControlCenterPluginRuntime.lastFailure())
+        assertEquals(InstallState.FAILED_PARTIAL, engine.installState())
+        assertSame(failure, engine.lastFailure())
     }
 
     @Test
     fun sameLoaderDoesNotRetryAfterFailedPartial() {
         val loader = testLoader
-        var pluginHookCalls = 0
-        ControlCenterPluginRuntime.installPluginHooks = {
-            pluginHookCalls++
-            throw RuntimeException("partial install")
-        }
-        ControlCenterPluginRuntime.installHooks = { _, _ -> }
+        engine.installPluginHooksFailure = RuntimeException("partial install")
 
-        val first = ControlCenterPluginRuntime.bind(loader)
+        val first = engine.bind(loader)
         assertTrue(first is ControlCenterBindResult.Failed)
 
-        val second = ControlCenterPluginRuntime.bind(loader)
+        val second = engine.bind(loader)
         assertTrue(second is ControlCenterBindResult.NoRetry)
 
-        assertEquals(1, pluginHookCalls)
+        assertEquals(1, engine.installPluginCalls)
     }
 
     @Test
@@ -151,35 +145,33 @@ class ControlCenterPluginRuntimeTest {
         val loader1 = newIsolatedClassLoader()
         val loader2 = newIsolatedClassLoader()
 
-        ControlCenterPluginRuntime.installPluginHooks = { throw RuntimeException("partial install") }
-        ControlCenterPluginRuntime.installHooks = { _, _ -> }
+        engine.installPluginHooksFailure = RuntimeException("partial install")
 
-        val first = ControlCenterPluginRuntime.bind(loader1)
+        val first = engine.bind(loader1)
         assertTrue(first is ControlCenterBindResult.Failed)
 
-        ControlCenterPluginRuntime.installPluginHooks = { }
-        val second = ControlCenterPluginRuntime.bind(loader2)
+        engine.installPluginHooksFailure = null
+        val second = engine.bind(loader2)
 
         assertTrue(second is ControlCenterBindResult.Installed)
-        assertSame(loader2, ControlCenterPluginRuntime.activeLoader())
-        assertEquals(InstallState.INSTALLED, ControlCenterPluginRuntime.installState())
+        assertSame(loader2, engine.activeLoader())
+        assertEquals(InstallState.INSTALLED, engine.installState())
     }
 
     @Test
     fun clearInvalidatesLeaseAndCallbackNoOps() {
         var pluginHookCalls = 0
-        var capturedHook: HookerClassHelper.MethodHook? = null
-        ControlCenterPluginRuntime.installPluginHooks = { pluginHookCalls++ }
-        ControlCenterPluginRuntime.installHooks = { _, _ -> }
-        ControlCenterPluginRuntime.installCreatePluginHook = { _, hook ->
+        var capturedHook: MethodHook? = null
+        engine.installPluginHooksAction = { pluginHookCalls++ }
+        engine.installCreatePluginHookCapture = { _, hook ->
             capturedHook = hook
         }
 
-        ControlCenterPluginRuntime.hookIfNeeded(testLoader)
-        ControlCenterPluginRuntime.bind(testLoader)
+        engine.hookIfNeeded(testLoader)
+        engine.bind(testLoader)
         assertEquals(1, pluginHookCalls)
 
-        ControlCenterPluginRuntime.clear()
+        engine.clear()
 
         val hook = capturedHook ?: error("createPlugin hook was not installed")
         val callback = fakeBeforeHookCallback(thisObject = Any(), args = arrayOf(Any(), true))
@@ -187,51 +179,45 @@ class ControlCenterPluginRuntimeTest {
 
         // The stale hook must not trigger a new bind after clear().
         assertEquals(1, pluginHookCalls)
-        assertNull(ControlCenterPluginRuntime.activeLoader())
+        assertNull(engine.activeLoader())
     }
 
     @Test
     fun installHooksSuccessButInstallPluginHooksFailsDoesNotRepeatInstall() {
         val loader = testLoader
-        var gestureInstallCount = 0
-        var pluginHookCalls = 0
 
-        ControlCenterPluginRuntime.installHooks = { _, _ -> gestureInstallCount++ }
-        ControlCenterPluginRuntime.installPluginHooks = {
-            pluginHookCalls++
-            throw RuntimeException("ui hooks failed")
-        }
+        engine.installPluginHooksFailure = RuntimeException("ui hooks failed")
 
-        ControlCenterPluginRuntime.bind(loader)
+        engine.bind(loader)
 
-        assertEquals(1, gestureInstallCount)
-        assertEquals(1, pluginHookCalls)
-        assertEquals(InstallState.FAILED_PARTIAL, ControlCenterPluginRuntime.installState())
-        assertNull(ControlCenterPluginRuntime.runtimeHolder().activeRuntime())
+        assertEquals(1, engine.installGestureCalls)
+        assertEquals(1, engine.installPluginCalls)
+        assertEquals(InstallState.FAILED_PARTIAL, engine.installState())
+        assertNull(engine.runtimeHolder().activeRuntime())
     }
 
     @Test
     fun hookIfNeededOrdinaryFailureSetsFailedPartial() {
         val failure = RuntimeException("hook install failed")
-        ControlCenterPluginRuntime.installCreatePluginHook = { _, _ -> throw failure }
+        engine.installCreatePluginHookFailure = failure
 
-        ControlCenterPluginRuntime.hookIfNeeded(testLoader)
+        engine.hookIfNeeded(testLoader)
 
-        assertEquals(InstallState.FAILED_PARTIAL, ControlCenterPluginRuntime.installState())
-        assertSame(failure, ControlCenterPluginRuntime.lastFailure())
+        assertEquals(InstallState.FAILED_PARTIAL, engine.installState())
+        assertSame(failure, engine.lastFailure())
     }
 
     @Test(expected = OutOfMemoryError::class)
     fun hookIfNeededFatalFailureRethrows() {
-        ControlCenterPluginRuntime.installCreatePluginHook = { _, _ -> throw OutOfMemoryError("fatal") }
-        ControlCenterPluginRuntime.hookIfNeeded(testLoader)
+        engine.installCreatePluginHookFailure = OutOfMemoryError("fatal")
+        engine.hookIfNeeded(testLoader)
     }
 
     @Test
     fun handleMotionEventGuardsArgsAndTypes() {
         val machine = newGestureMachine()
         val lease = RuntimeLease()
-        val hooks = ControlCenterPluginRuntime.installControlCenterGestureHooks(
+        val hooks = engine.installControlCenterGestureHooks(
             testLoader,
             machine,
             lease,
@@ -258,12 +244,12 @@ class ControlCenterPluginRuntimeTest {
         val activeLease = RuntimeLease()
         val inactiveLease = RuntimeLease().apply { invalidate() }
 
-        val activeHooks = ControlCenterPluginRuntime.installControlCenterGestureHooks(
+        val activeHooks = engine.installControlCenterGestureHooks(
             testLoader,
             machine,
             activeLease,
         )
-        val inactiveHooks = ControlCenterPluginRuntime.installControlCenterGestureHooks(
+        val inactiveHooks = engine.installControlCenterGestureHooks(
             testLoader,
             machine,
             inactiveLease,
@@ -314,5 +300,35 @@ class ControlCenterPluginRuntimeTest {
             override fun proceedWith(p0: Any, p1: Array<Any>): Any? = error("not used in test")
         }
         return BeforeHookCallback(chain)
+    }
+
+    private open class TestableEngine : ControlCenterPluginRuntimeEngine() {
+        var installPluginCalls = 0
+        var installPluginHooksAction: ((ClassLoader) -> Unit)? = null
+        var installPluginHooksFailure: Throwable? = null
+
+        var installCreatePluginCalls = 0
+        var installCreatePluginHookCapture: ((ClassLoader, MethodHook) -> Unit)? = null
+        var installCreatePluginHookFailure: Throwable? = null
+
+        var installGestureCalls = 0
+        var installGestureFailure: Throwable? = null
+
+        override fun onInstallPluginHooks(classLoader: ClassLoader) {
+            installPluginCalls++
+            installPluginHooksAction?.invoke(classLoader)
+            installPluginHooksFailure?.let { throw it }
+        }
+
+        override fun onInstallCreatePluginHook(classLoader: ClassLoader, hook: MethodHook) {
+            installCreatePluginCalls++
+            installCreatePluginHookCapture?.invoke(classLoader, hook)
+            installCreatePluginHookFailure?.let { throw it }
+        }
+
+        override fun onInstallGestureHooks(classLoader: ClassLoader, machine: GestureMachine) {
+            installGestureCalls++
+            installGestureFailure?.let { throw it }
+        }
     }
 }

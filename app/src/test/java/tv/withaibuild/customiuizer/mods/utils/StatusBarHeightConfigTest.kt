@@ -17,7 +17,7 @@ class StatusBarHeightConfigTest {
 
     @After
     fun tearDown() {
-        StatusBarHeightConfig.resetForTest()
+        StatusBarHeightConfig.reset()
     }
 
     @Test

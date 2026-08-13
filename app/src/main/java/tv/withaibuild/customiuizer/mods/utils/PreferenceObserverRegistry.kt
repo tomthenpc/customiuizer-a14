@@ -48,9 +48,9 @@ object PreferenceObserverRegistry {
         ?: ModuleHelper.currentPackageName
         ?: Process.myPid().toString()
 
-    /** Resets the process-scoped and owned observer sets. For tests only. */
+    /** Resets the process-scoped and owned observer sets. */
     @JvmStatic
-    internal fun resetForTest() {
+    internal fun reset() {
         observers.clear()
         observerOwners.clear()
     }

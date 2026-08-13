@@ -19,7 +19,7 @@ class StatusBarHeightArchitectureCRuntimeTest {
         runtime.rememberStatusBar(owner)
 
         assertTrue(runtime.isKnownStatusBar(owner))
-        assertEquals(1, runtime.knownCountForTest())
+        assertEquals(1, runtime.knownCount())
     }
 
     @Test
@@ -31,7 +31,7 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val second = runtime.rememberStatusBar(owner)
 
         assertSame(first, second)
-        assertEquals(1, runtime.knownCountForTest())
+        assertEquals(1, runtime.knownCount())
     }
 
     @Test
@@ -40,9 +40,9 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val owner = Any()
 
         val first = runtime.rememberStatusBar(owner)
-        val snapshotAfterFirst = runtime.knownSnapshotForTest()
+        val snapshotAfterFirst = runtime.knownSnapshot()
         val second = runtime.rememberStatusBar(owner)
-        val snapshotAfterSecond = runtime.knownSnapshotForTest()
+        val snapshotAfterSecond = runtime.knownSnapshot()
 
         assertSame(first, second)
         assertSame(first, snapshotAfterFirst[0])
@@ -56,7 +56,7 @@ class StatusBarHeightArchitectureCRuntimeTest {
 
         owners.forEach { runtime.rememberStatusBar(it) }
 
-        assertEquals(4, runtime.knownCountForTest())
+        assertEquals(4, runtime.knownCount())
         assertFalse(runtime.isKnownStatusBar(owners[0]))
         assertTrue(owners.drop(1).all { runtime.isKnownStatusBar(it) })
     }
@@ -67,7 +67,7 @@ class StatusBarHeightArchitectureCRuntimeTest {
         var owner: Any? = Any()
         val ref = runtime.rememberStatusBar(owner!!)
 
-        assertEquals(1, runtime.knownCountForTest())
+        assertEquals(1, runtime.knownCount())
 
         ref.clear()
         owner = null
@@ -77,7 +77,7 @@ class StatusBarHeightArchitectureCRuntimeTest {
 
         // The new owner is retained, and the dead ref is compacted away.
         assertTrue(runtime.isKnownStatusBar(newOwner))
-        assertEquals(1, runtime.knownCountForTest())
+        assertEquals(1, runtime.knownCount())
     }
 
     @Test
@@ -95,7 +95,7 @@ class StatusBarHeightArchitectureCRuntimeTest {
     fun markLatestIfKnown_unknown_returnsFalse() {
         val runtime = StatusBarHeightRuntime()
         assertFalse(runtime.markLatestIfKnown(Any()))
-        assertNull(runtime.latestRefForTest())
+        assertNull(runtime.latestRef())
     }
 
     @Test
@@ -105,7 +105,7 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val ref = runtime.rememberStatusBar(owner)
 
         assertTrue(runtime.markLatestIfKnown(owner))
-        assertSame(ref, runtime.latestRefForTest())
+        assertSame(ref, runtime.latestRef())
     }
 
     @Test
@@ -118,7 +118,7 @@ class StatusBarHeightArchitectureCRuntimeTest {
             assertTrue(runtime.markLatestIfKnown(owner))
         }
 
-        assertSame(ref, runtime.latestRefForTest())
+        assertSame(ref, runtime.latestRef())
     }
 
     @Test
@@ -130,13 +130,13 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val refB = runtime.rememberStatusBar(b)
 
         assertTrue(runtime.markLatestIfKnown(a))
-        assertSame(refA, runtime.latestRefForTest())
+        assertSame(refA, runtime.latestRef())
 
         assertTrue(runtime.markLatestIfKnown(b))
-        assertSame(refB, runtime.latestRefForTest())
+        assertSame(refB, runtime.latestRef())
 
         assertSame(refA, runtime.rememberStatusBar(a))
-        assertSame(refA, runtime.latestRefForTest())
+        assertSame(refA, runtime.latestRef())
     }
 
     @Test
@@ -145,12 +145,12 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val owner = Any()
         val ref = runtime.rememberStatusBar(owner)
 
-        val snapshot = runtime.knownSnapshotForTest()
+        val snapshot = runtime.knownSnapshot()
         repeat(10) {
             runtime.markLatestIfKnown(owner)
         }
 
-        assertSame(ref, runtime.latestRefForTest())
+        assertSame(ref, runtime.latestRef())
         assertSame(ref, snapshot[0])
     }
 
@@ -162,8 +162,8 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val ref = runtime.rememberStatusBar(owner)
         runtime.rememberStatusBar(owner)
 
-        assertSame(ref, runtime.latestRefForTest())
-        assertSame(owner, runtime.latestRefForTest()?.get())
+        assertSame(ref, runtime.latestRef())
+        assertSame(owner, runtime.latestRef()?.get())
     }
 
     @Test
@@ -172,17 +172,17 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val owner = Any()
         runtime.rememberStatusBar(owner)
 
-        val before = runtime.knownSnapshotForTest()
+        val before = runtime.knownSnapshot()
         runtime.resetKnownStatusBars()
 
         assertFalse(runtime.isKnownStatusBar(owner))
-        assertEquals(0, runtime.knownCountForTest())
-        assertNull(runtime.latestRefForTest())
+        assertEquals(0, runtime.knownCount())
+        assertNull(runtime.latestRef())
         assertFalse(runtime.typeMatchObserved)
         assertEquals(4096, runtime.fallbackProbeBudget.get())
         assertEquals(-1L, runtime.lastRefreshGeneration.get())
 
-        val after = runtime.knownSnapshotForTest()
+        val after = runtime.knownSnapshot()
         assertNotSame(before, after)
         assertTrue(after.all { it == null })
     }
@@ -192,8 +192,8 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val runtime = StatusBarHeightRuntime()
         runtime.rememberStatusBar(Any())
 
-        val first = runtime.knownSnapshotForTest()
-        val second = runtime.knownSnapshotForTest()
+        val first = runtime.knownSnapshot()
+        val second = runtime.knownSnapshot()
 
         assertNotSame(first, second)
     }
@@ -229,7 +229,7 @@ class StatusBarHeightArchitectureCRuntimeTest {
         val owner = Any()
         runtime.rememberStatusBar(owner)
 
-        val snapshot = runtime.knownSnapshotForTest()
+        val snapshot = runtime.knownSnapshot()
         assertNotNull(snapshot[0])
         assertEquals("WeakReference", snapshot[0]!!.javaClass.simpleName)
         assertSame(owner, snapshot[0]!!.get())

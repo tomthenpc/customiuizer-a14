@@ -21,8 +21,8 @@ class StatusBarHeightArchitectureCH1Test {
 
     @After
     fun tearDown() {
-        SystemStatusBarInsetsHooks.resetDiagnosticsForTest()
-        StatusBarHeightConfig.resetForTest()
+        SystemStatusBarInsetsHooks.resetDiagnostics()
+        StatusBarHeightConfig.reset()
     }
 
     @Test

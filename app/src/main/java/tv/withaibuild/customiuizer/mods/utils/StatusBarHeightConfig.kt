@@ -259,10 +259,10 @@ object StatusBarHeightConfig {
     }
 
     /**
-     * Reset for tests. Not used in production.
+     * Resets the configuration to defaults.
      */
     @JvmStatic
-    internal fun resetForTest() {
+    internal fun reset() {
         synchronized(this) {
             state = State(
                 rawPreferenceDp = DEFAULT_SENTINEL,

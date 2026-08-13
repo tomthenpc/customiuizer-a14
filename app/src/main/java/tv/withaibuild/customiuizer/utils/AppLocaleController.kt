@@ -60,20 +60,6 @@ object AppLocaleController {
     )
 
     /**
-     * Seam for unit tests. Production code leaves this null so the locale is applied
-     * through the framework's `LocaleManager` - see [setFrameworkApplicationLocales].
-     */
-    @JvmField
-    var applicationLocaleApplier: ((LocaleListCompat) -> Unit)? = null
-
-    /**
-     * Seam for unit tests. Production code leaves this null so the current locale is read
-     * from the same place [apply] writes it.
-     */
-    @JvmField
-    var applicationLocaleProvider: (() -> LocaleListCompat)? = null
-
-    /**
      * Normalize a raw user selection or a persisted value.
      *
      * - `null`, empty, or unknown values -> `auto`
@@ -184,12 +170,19 @@ object AppLocaleController {
      * [APPLIED_LOCALE_PREF_KEY] for why that shortcut is safe.
      *
      * [context] is required in production: without it there is no way to reach the
-     * framework locale service, and the call cannot do anything. Only the unit-test seams
-     * may leave it null.
+     * framework locale service, and the call cannot do anything.
+     *
+     * [applier] and [provider] are pluggable back-ends; the default uses the framework's
+     * `LocaleManager`. Tests may supply deterministic replacements.
      */
     @JvmStatic
     @JvmOverloads
-    fun apply(prefs: SharedPreferences?, context: Context? = null): Boolean {
+    fun apply(
+        prefs: SharedPreferences?,
+        context: Context? = null,
+        applier: ((LocaleListCompat) -> Unit)? = null,
+        provider: (() -> LocaleListCompat)? = null,
+    ): Boolean {
         val tag = getUserLocale(prefs)
 
         // Fast path for a feature that is switched off. `auto` with nothing ever applied
@@ -200,7 +193,7 @@ object AppLocaleController {
         if (tag == AUTO && !hasAppliedLocale(prefs)) return false
 
         val targetLocaleList = toLocaleListCompat(tag)
-        val currentLocaleList = getCurrentApplicationLocales(context)
+        val currentLocaleList = getCurrentApplicationLocales(context, provider)
         val effective = getEffectiveLocale(tag)
         val currentDefault = Locale.getDefault()
 
@@ -214,7 +207,6 @@ object AppLocaleController {
         var applied = true
         if (appLocaleChanged) {
             Log.i(TAG, "Applying locale: tag=$tag")
-            val applier = applicationLocaleApplier
             applied = when {
                 applier != null -> {
                     applier(targetLocaleList)
@@ -425,8 +417,10 @@ object AppLocaleController {
      * nothing is set and re-apply on every start.
      */
     @JvmStatic
-    private fun getCurrentApplicationLocales(context: Context?): LocaleListCompat = try {
-        val provider = applicationLocaleProvider
+    private fun getCurrentApplicationLocales(
+        context: Context?,
+        provider: (() -> LocaleListCompat)? = null,
+    ): LocaleListCompat = try {
         when {
             provider != null -> provider()
             context != null -> {

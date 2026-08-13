@@ -34,15 +34,15 @@ class StatusBarHeightLiveTest {
 
     @Before
     fun setUp() {
-        StatusBarHeightConfig.resetForTest()
-        SystemStatusBarInsetsHooks.resetForTest()
+        StatusBarHeightConfig.reset()
+        SystemStatusBarInsetsHooks.reset()
         setStatusBarHeightEffect(makeLiveEffect())
     }
 
     @After
     fun tearDown() {
-        StatusBarHeightConfig.resetForTest()
-        SystemStatusBarInsetsHooks.resetForTest()
+        StatusBarHeightConfig.reset()
+        SystemStatusBarInsetsHooks.reset()
     }
 
     @Test
@@ -286,7 +286,7 @@ class StatusBarHeightLiveTest {
         SystemStatusBarInsetsHooks.onLayoutWindowLw(chain1)
         SystemStatusBarInsetsHooks.onSetFrames(chain2)
 
-        val liveCount = SystemStatusBarInsetsHooks.liveKeyCountForTest()
+        val liveCount = SystemStatusBarInsetsHooks.liveKeyCount()
 
         // Re-run with the same generation: no new diagnostic keys.
         val chain3 = FakeChain(target = Any(), args = arrayOf(win))
@@ -297,7 +297,7 @@ class StatusBarHeightLiveTest {
         SystemStatusBarInsetsHooks.onLayoutWindowLw(chain3)
         SystemStatusBarInsetsHooks.onSetFrames(chain4)
 
-        assertEquals("live diagnostic keys must not grow for the same generation", liveCount, SystemStatusBarInsetsHooks.liveKeyCountForTest())
+        assertEquals("live diagnostic keys must not grow for the same generation", liveCount, SystemStatusBarInsetsHooks.liveKeyCount())
     }
 
     @Test

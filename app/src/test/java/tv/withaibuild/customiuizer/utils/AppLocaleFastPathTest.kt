@@ -34,28 +34,29 @@ class AppLocaleFastPathTest {
         appliedLocaleLists.clear()
         currentApplicationLocales = LocaleListCompat.getEmptyLocaleList()
         providerQueries = 0
-
-        AppLocaleController.applicationLocaleApplier = { appliedLocaleLists.add(it) }
-        AppLocaleController.applicationLocaleProvider = {
-            providerQueries++
-            currentApplicationLocales
-        }
     }
 
     @After
     fun tearDown() {
         Locale.setDefault(originalDefaultLocale)
-        AppLocaleController.applicationLocaleApplier = null
-        AppLocaleController.applicationLocaleProvider = null
         appliedLocaleLists.clear()
     }
 
     private fun markerValue(): String? =
         fakePrefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null)
 
+    private fun runApply(
+        prefs: FakeSharedPreferences = fakePrefs,
+        applier: ((LocaleListCompat) -> Unit)? = { appliedLocaleLists.add(it) },
+    ): Boolean = AppLocaleController.apply(
+        prefs,
+        applier = applier,
+        provider = { providerQueries++; currentApplicationLocales },
+    )
+
     @Test
     fun untouchedInstallNeverQueriesTheFrameworkLocale() {
-        val changed = AppLocaleController.apply(fakePrefs)
+        val changed = runApply()
 
         assertFalse(changed)
         assertEquals("the framework locale must not be read at all", 0, providerQueries)
@@ -65,7 +66,7 @@ class AppLocaleFastPathTest {
 
     @Test
     fun untouchedInstallStaysOnTheFastPathAcrossRestarts() {
-        repeat(5) { AppLocaleController.apply(fakePrefs) }
+        repeat(5) { runApply() }
 
         assertEquals(0, providerQueries)
     }
@@ -74,7 +75,7 @@ class AppLocaleFastPathTest {
     fun explicitLocaleIsAppliedAndRecorded() {
         AppLocaleController.setUserLocale(fakePrefs, "zh-CN")
 
-        val changed = AppLocaleController.apply(fakePrefs)
+        val changed = runApply()
 
         assertTrue(changed)
         assertEquals(1, appliedLocaleLists.size)
@@ -85,11 +86,11 @@ class AppLocaleFastPathTest {
     fun explicitLocaleStillReconcilesOnEveryStart() {
         // The chosen trade-off: the cost is paid only while the feature is switched on.
         AppLocaleController.setUserLocale(fakePrefs, "en")
-        AppLocaleController.apply(fakePrefs)
+        runApply()
         currentApplicationLocales = appliedLocaleLists.last() ?: LocaleListCompat.getEmptyLocaleList()
         val queriesAfterFirstStart = providerQueries
 
-        AppLocaleController.apply(fakePrefs)
+        runApply()
 
         assertTrue("an explicit locale keeps reconciling", providerQueries > queriesAfterFirstStart)
     }
@@ -97,12 +98,12 @@ class AppLocaleFastPathTest {
     @Test
     fun revertingToAutoClearsTheFrameworkLocaleAndTheMarker() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
-        AppLocaleController.apply(fakePrefs)
+        runApply()
         currentApplicationLocales = appliedLocaleLists.last() ?: LocaleListCompat.getEmptyLocaleList()
         appliedLocaleLists.clear()
 
         AppLocaleController.setUserLocale(fakePrefs, "auto")
-        val changed = AppLocaleController.apply(fakePrefs)
+        val changed = runApply()
 
         assertTrue("switching back to auto must clear the framework locale", changed)
         assertEquals(1, appliedLocaleLists.size)
@@ -113,15 +114,15 @@ class AppLocaleFastPathTest {
     @Test
     fun revertingToAutoRestoresTheFastPath() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
-        AppLocaleController.apply(fakePrefs)
+        runApply()
         AppLocaleController.setUserLocale(fakePrefs, "auto")
-        AppLocaleController.apply(fakePrefs)
+        runApply()
 
         currentApplicationLocales = LocaleListCompat.getEmptyLocaleList()
         val queriesBefore = providerQueries
         appliedLocaleLists.clear()
 
-        AppLocaleController.apply(fakePrefs)
+        runApply()
 
         assertEquals("back to zero cost", queriesBefore, providerQueries)
         assertTrue(appliedLocaleLists.isEmpty())
@@ -134,7 +135,7 @@ class AppLocaleFastPathTest {
         fakePrefs.put(AppLocaleController.LOCALE_PREF_KEY, "zh-CN")
         currentApplicationLocales = AppLocaleController.toLocaleListCompat("zh-CN")
 
-        val changed = AppLocaleController.apply(fakePrefs)
+        val changed = runApply()
 
         assertFalse("nothing to apply", changed)
         assertEquals("but the marker must be backfilled", "zh-CN", markerValue())
@@ -142,7 +143,7 @@ class AppLocaleFastPathTest {
         // Without that backfill this switch would take the fast path and leave the user
         // stuck in Chinese for good.
         AppLocaleController.setUserLocale(fakePrefs, "auto")
-        val reverted = AppLocaleController.apply(fakePrefs)
+        val reverted = runApply()
 
         assertTrue(reverted)
         assertTrue(appliedLocaleLists.last()?.isEmpty ?: false)
@@ -156,7 +157,7 @@ class AppLocaleFastPathTest {
         currentApplicationLocales = AppLocaleController.toLocaleListCompat("zh-CN")
         AppLocaleController.invalidateFastPath(fakePrefs)
 
-        val changed = AppLocaleController.apply(fakePrefs)
+        val changed = runApply()
 
         assertTrue("the restored auto setting must reach the framework", changed)
         assertTrue(appliedLocaleLists.last()?.isEmpty ?: false)
@@ -168,7 +169,7 @@ class AppLocaleFastPathTest {
         AppLocaleController.invalidateFastPath(fakePrefs)
         fakePrefs.put(AppLocaleController.LOCALE_PREF_KEY, "en")
 
-        AppLocaleController.apply(fakePrefs)
+        runApply()
 
         assertEquals("en", markerValue())
     }
@@ -176,13 +177,16 @@ class AppLocaleFastPathTest {
     @Test
     fun aFailedFrameworkWriteDoesNotDropTheMarker() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
-        AppLocaleController.apply(fakePrefs)
+        runApply()
         currentApplicationLocales = appliedLocaleLists.last() ?: LocaleListCompat.getEmptyLocaleList()
 
         // No applier and no Context: apply() cannot reach the framework and bails out.
-        AppLocaleController.applicationLocaleApplier = null
         AppLocaleController.setUserLocale(fakePrefs, "auto")
-        AppLocaleController.apply(fakePrefs)
+        AppLocaleController.apply(
+            fakePrefs,
+            applier = null,
+            provider = { providerQueries++; currentApplicationLocales },
+        )
 
         assertEquals(
             "the marker must survive so the next start retries the clear",

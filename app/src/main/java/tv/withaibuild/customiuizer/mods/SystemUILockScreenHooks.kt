@@ -80,14 +80,13 @@ object SystemUILockScreenHooks {
         })
     }
 
-    /** Test-only accessors for the volatile swipe suppression snapshots. */
-    internal fun setSwipeSuppressionForTest(right: Boolean, left: Boolean) {
+    internal fun setSwipeSuppression(right: Boolean, left: Boolean) {
         swipeRightOff = right
         swipeLeftOff = left
     }
 
-    internal fun getSwipeRightOffForTest() = swipeRightOff
-    internal fun getSwipeLeftOffForTest() = swipeLeftOff
+    internal fun isSwipeRightOff() = swipeRightOff
+    internal fun isSwipeLeftOff() = swipeLeftOff
 
     @JvmStatic
     fun LockScreenTopMarginHook(lpparam: PackageReadyParam) {

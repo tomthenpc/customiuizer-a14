@@ -24,18 +24,19 @@ class AppLocaleReconcileTest {
         originalDefaultLocale = Locale.getDefault()
         appliedLocaleLists.clear()
         currentApplicationLocales = LocaleListCompat.getEmptyLocaleList()
-
-        AppLocaleController.applicationLocaleApplier = { appliedLocaleLists.add(it) }
-        AppLocaleController.applicationLocaleProvider = { currentApplicationLocales }
     }
 
     @After
     fun tearDown() {
         Locale.setDefault(originalDefaultLocale)
-        AppLocaleController.applicationLocaleApplier = null
-        AppLocaleController.applicationLocaleProvider = null
         appliedLocaleLists.clear()
     }
+
+    private fun runApply(): Boolean = AppLocaleController.apply(
+        fakePrefs,
+        applier = { appliedLocaleLists.add(it) },
+        provider = { currentApplicationLocales },
+    )
 
     @Test
     fun setUserLocaleSavesNormalized() {
@@ -81,7 +82,7 @@ class AppLocaleReconcileTest {
     fun applyAppliesWhenDifferentFromCurrent() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
 
-        val changed = AppLocaleController.apply(fakePrefs)
+        val changed = runApply()
 
         assertTrue("apply should change locale when target differs", changed)
         assertEquals(Locale.ENGLISH, Locale.getDefault())
@@ -94,14 +95,14 @@ class AppLocaleReconcileTest {
         AppLocaleController.setUserLocale(fakePrefs, "en")
 
         // First apply: app locale changed, applier invoked.
-        AppLocaleController.apply(fakePrefs)
+        runApply()
 
         // Simulate the system having now adopted the target locale.
         currentApplicationLocales = appliedLocaleLists.last() ?: LocaleListCompat.getEmptyLocaleList()
         appliedLocaleLists.clear()
 
         // Second apply: nothing changed, applier must not be called again.
-        val changedAgain = AppLocaleController.apply(fakePrefs)
+        val changedAgain = runApply()
 
         assertFalse("second apply should not re-apply", changedAgain)
         assertTrue("applier should not be called again", appliedLocaleLists.isEmpty())
@@ -110,7 +111,7 @@ class AppLocaleReconcileTest {
     @Test
     fun applyDoesNothingWhenAlreadyMatching() {
         // Current application locales equal the target (both empty for auto).
-        val changed = AppLocaleController.apply(fakePrefs)
+        val changed = runApply()
 
         assertFalse(changed)
         assertTrue(appliedLocaleLists.isEmpty())
@@ -123,10 +124,10 @@ class AppLocaleReconcileTest {
         // to, demonstrating that auto still derives from the system.
         Locale.setDefault(Locale.ENGLISH)
         AppLocaleController.setUserLocale(fakePrefs, "en")
-        AppLocaleController.apply(fakePrefs)
+        runApply()
 
         AppLocaleController.setUserLocale(fakePrefs, "auto")
-        AppLocaleController.apply(fakePrefs)
+        runApply()
 
         // In a JVM without Android Resources the system locale falls back to the
         // current default, so the test simply checks the process completes and the
@@ -180,7 +181,7 @@ class AppLocaleReconcileTest {
     fun stateTransitionMatrixThroughApply() {
         // auto -> zh-CN
         assertTrue(AppLocaleController.setUserLocale(fakePrefs, "zh-CN"))
-        assertTrue(AppLocaleController.apply(fakePrefs))
+        assertTrue(runApply())
         assertEquals(Locale.SIMPLIFIED_CHINESE, Locale.getDefault())
 
         // Simulate the system now reporting the new list.
@@ -189,12 +190,12 @@ class AppLocaleReconcileTest {
 
         // zh-CN -> en
         assertTrue(AppLocaleController.setUserLocale(fakePrefs, "en"))
-        assertTrue(AppLocaleController.apply(fakePrefs))
+        assertTrue(runApply())
         assertEquals(Locale.ENGLISH, Locale.getDefault())
 
         // en -> auto
         assertTrue(AppLocaleController.setUserLocale(fakePrefs, "auto"))
-        assertTrue(AppLocaleController.apply(fakePrefs))
+        assertTrue(runApply())
         assertEquals("auto", AppLocaleController.getUserLocale(fakePrefs))
 
         // After auto apply the default locale is the system locale; we only

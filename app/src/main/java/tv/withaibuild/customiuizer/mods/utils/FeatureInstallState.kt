@@ -59,7 +59,7 @@ object FeatureInstallState {
     @JvmStatic
     fun set(featureId: FeatureId, state: FeatureState) = set(featureId.id, state)
 
-    /** Reset all state.  Intended for tests and module reload. */
+    /** Reset all state.  Intended for module reload and diagnostics. */
     @JvmStatic
     fun reset() = synchronized(states) { states.clear() }
 }

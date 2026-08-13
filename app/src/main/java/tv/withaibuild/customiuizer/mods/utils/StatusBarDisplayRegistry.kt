@@ -207,8 +207,7 @@ class StatusBarDisplayRegistry<O : Any, R : Any>(
         }
 
     /**
-     * @deprecated use [allStatesSnapshot] on the main thread. Kept for tests that already rely on
-     * the old name.
+     * @deprecated use [allStatesSnapshot] on the main thread.
      */
     @Suppress("unused")
     fun allStates(): Collection<StatusBarDisplayState<O, R>> = allStatesSnapshot()

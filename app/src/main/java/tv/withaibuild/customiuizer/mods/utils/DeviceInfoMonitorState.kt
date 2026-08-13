@@ -132,7 +132,7 @@ internal class DeviceInfoMonitorState {
     }
 
     /**
-     * Last published state for tests and diagnostics. Returns the current pair of
+     * Last published state for diagnostics. Returns the current pair of
      * `(show, text)` for [type].
      */
     fun getLastPublished(type: Int): Pair<Boolean, String> {

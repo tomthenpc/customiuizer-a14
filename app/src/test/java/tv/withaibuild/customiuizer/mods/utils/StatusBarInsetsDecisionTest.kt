@@ -24,8 +24,8 @@ class StatusBarInsetsDecisionTest {
 
     @After
     fun tearDown() {
-        Insets.resetDiagnosticsForTest()
-        StatusBarHeightConfig.resetForTest()
+        Insets.resetDiagnostics()
+        StatusBarHeightConfig.reset()
     }
 
     @Test
@@ -197,7 +197,7 @@ class StatusBarInsetsDecisionTest {
 
         assertEquals(1, chain.proceedCount)
         assertFalse(chain.calledWithArgs)
-        assertEquals(1, Insets.rejectionKeyCountForTest())
+        assertEquals(1, Insets.rejectionKeyCount())
     }
 
     @Test
@@ -266,12 +266,12 @@ class StatusBarInsetsDecisionTest {
             hook.intercept(fakeChain(source(type = 1, id = index), fakeRect(bottom = 104)))
         }
 
-        assertEquals(1, Insets.criticalKeyCountForTest())
+        assertEquals(1, Insets.criticalKeyCount())
 
         StatusBarHeightConfig.reconfigure(PrefMap().apply { put("system_statusbarheight", 44) })
         hook.intercept(fakeChain(source(type = 1, id = 0), fakeRect(bottom = 104)))
 
-        assertEquals(2, Insets.criticalKeyCountForTest())
+        assertEquals(2, Insets.criticalKeyCount())
     }
 
     @Test
@@ -284,8 +284,8 @@ class StatusBarInsetsDecisionTest {
             hook.intercept(fakeChain(source(type = 2, id = index), fakeRect(bottom = 104)))
         }
 
-        assertEquals(0, Insets.rejectionKeyCountForTest())
-        assertEquals(0, Insets.criticalKeyCountForTest())
+        assertEquals(0, Insets.rejectionKeyCount())
+        assertEquals(0, Insets.criticalKeyCount())
     }
 
     private fun callback(info: InsetsTypeInfo) =
