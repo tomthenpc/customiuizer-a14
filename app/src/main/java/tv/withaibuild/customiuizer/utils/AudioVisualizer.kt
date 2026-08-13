@@ -27,6 +27,7 @@ import androidx.palette.graphics.Palette
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -200,7 +201,7 @@ class AudioVisualizer @JvmOverloads constructor(
     private val accel = AccelerateInterpolator()
     private val decel = DecelerateInterpolator()
 
-    private val viewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val viewScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate + ModuleHelper.coroutineFailureHandler)
     private var randomizeColorJob: Job? = null
     private var paletteGenerationJob: Job? = null
 
@@ -573,6 +574,7 @@ class AudioVisualizer @JvmOverloads constructor(
         }
         viewScope.launch {
             releaseVisualizer(visualizer)
+            viewScope.cancel()
         }
         resetBandsToBaseline()
         animate().cancel()
@@ -582,7 +584,6 @@ class AudioVisualizer @JvmOverloads constructor(
         paletteGenerationJob?.cancel()
         mArt = null
         mProcessedArt = null
-        viewScope.cancel()
         val callback = onDisposed
         onDisposed = null
         callback?.invoke(this)
@@ -667,19 +668,21 @@ class AudioVisualizer @JvmOverloads constructor(
     }
 
     private suspend fun linkVisualizer(generation: Long) = withContext(Dispatchers.IO) {
-        val candidate = createAndEnableVisualizer(resolveMediaAudioSessionIds())
+        val candidate = createAndEnableVisualizer(resolveMediaAudioSessionIds()) ?: return@withContext
 
-        visualizerMutex.withLock {
-            if (detached || !mDisplaying || generation != visualizerGeneration) {
-                releaseVisualizer(candidate)
-                return@withLock
+        withContext(NonCancellable) {
+            visualizerMutex.withLock {
+                if (detached || !mDisplaying || generation != visualizerGeneration) {
+                    releaseVisualizer(candidate)
+                    return@withLock
+                }
+                val previous = synchronized(visualizerLock) {
+                    val current = mVisualizer
+                    mVisualizer = candidate
+                    current
+                }
+                if (previous !== candidate) releaseVisualizer(previous)
             }
-            val previous = synchronized(visualizerLock) {
-                val current = mVisualizer
-                mVisualizer = candidate
-                current
-            }
-            if (previous !== candidate) releaseVisualizer(previous)
         }
     }
 
@@ -765,7 +768,7 @@ class AudioVisualizer @JvmOverloads constructor(
         postInvalidateOnAnimation()
     }
 
-    private suspend fun releaseVisualizer(visualizer: Visualizer?) = withContext(Dispatchers.IO) {
+    private suspend fun releaseVisualizer(visualizer: Visualizer?) = withContext(Dispatchers.IO + NonCancellable) {
         if (visualizer == null) return@withContext
         try {
             visualizer.enabled = false

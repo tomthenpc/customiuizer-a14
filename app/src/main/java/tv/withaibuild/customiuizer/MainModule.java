@@ -166,7 +166,7 @@ public class MainModule extends XposedModule {
             MediaInstaller.install(lpparam, mPrefs);
         }
         if (scope == ProcessScope.SYSTEM_UI) {
-            SystemUiBootstrapCoordinator.install(lpparam, mPrefs, this::initPrefs);
+            SystemUiBootstrapCoordinator.install(lpparam, mPrefs, this::initPrefs, prefReady);
         }
 
         if (scope == ProcessScope.GUARD_PROVIDER) {

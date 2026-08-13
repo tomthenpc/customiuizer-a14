@@ -20,7 +20,7 @@ class SystemUiInstallerTest {
 
         assertTrue(
             "MainModule must delegate SystemUI bootstrap to SystemUiBootstrapCoordinator",
-            section.contains("SystemUiBootstrapCoordinator.install(lpparam, mPrefs, this::initPrefs);")
+            section.contains("SystemUiBootstrapCoordinator.install(lpparam, mPrefs, this::initPrefs, prefReady);")
         )
     }
 

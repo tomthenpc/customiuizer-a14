@@ -33,6 +33,51 @@ class AudioVisualizerLifecycleContractTest {
         assertTrue(source.contains("ModuleHelper.unregisterPreferenceObserver(this)"))
     }
 
+    @Test
+    fun disposeReleasesVisualizerBeforeCancellingOwnerScope() {
+        val source = source()
+        val disposeBlock = source.section("internal fun dispose() {", "callback?.invoke(this)")
+
+        val mVisualizerNulled = disposeBlock.indexOf("mVisualizer = null")
+        val releaseLaunch = disposeBlock.indexOf("viewScope.launch {")
+        val releaseCall = disposeBlock.indexOf("releaseVisualizer(visualizer)")
+        val cancelCall = disposeBlock.indexOf("viewScope.cancel()")
+
+        assertTrue("mVisualizer owner reference must be cleared before release launch", mVisualizerNulled < releaseLaunch)
+        assertTrue("releaseVisualizer must be launched before the scope is cancelled", releaseCall < cancelCall)
+        assertTrue("viewScope.cancel() must live inside the release launch block", releaseLaunch < cancelCall)
+    }
+
+    @Test
+    fun releaseVisualizerRunsOutsideCancellableOwnerScope() {
+        val source = source()
+
+        val releaseFun = source.section(
+            "private suspend fun releaseVisualizer(visualizer: Visualizer?) = withContext(",
+            "    }"
+        )
+
+        assertTrue(
+            "releaseVisualizer must use NonCancellable to survive owner-scope cancellation",
+            releaseFun.contains("NonCancellable")
+        )
+    }
+
+    @Test
+    fun linkVisualizerPublicationIsGuardedAgainstOwnerScopeCancellation() {
+        val source = source()
+
+        val linkFun = source.section(
+            "private suspend fun linkVisualizer(generation: Long) = withContext(Dispatchers.IO) {",
+            "    }"
+        )
+
+        assertTrue(
+            "linkVisualizer must guard candidate publication/release with NonCancellable",
+            linkFun.contains("withContext(NonCancellable)")
+        )
+    }
+
     private fun source(): String {
         val relativePath = "app/src/main/java/tv/withaibuild/customiuizer/utils/AudioVisualizer.kt"
         var directory = File(java.lang.System.getProperty("user.dir").orEmpty()).absoluteFile
@@ -42,5 +87,13 @@ class AudioVisualizerLifecycleContractTest {
             directory = directory.parentFile
                 ?: error("Repository root not found while locating $relativePath")
         }
+    }
+
+    private fun String.section(start: String, end: String): String {
+        val startIndex = indexOf(start)
+        check(startIndex >= 0) { "Could not find section start '$start'" }
+        val endIndex = indexOf(end, startIndex + start.length)
+        check(endIndex > startIndex) { "Could not find section end '$end' after '$start'" }
+        return substring(startIndex, endIndex + end.length)
     }
 }

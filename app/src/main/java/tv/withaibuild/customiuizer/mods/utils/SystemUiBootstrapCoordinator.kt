@@ -31,7 +31,7 @@ object SystemUiBootstrapCoordinator {
     private val restartThresholdMs = 10000L
 
     @JvmStatic
-    fun install(lpparam: PackageReadyParam, mPrefs: PrefMap, preferenceInit: Supplier<Boolean>) {
+    fun install(lpparam: PackageReadyParam, mPrefs: PrefMap, preferenceInit: Supplier<Boolean>, prefReady: Boolean) {
         var coordinatorState = State.UNINITIALIZED
         ReflectionCache.onSafeLifecycle(lpparam.classLoader)
         coordinatorState = State.HOOK_INSTALLED
@@ -41,6 +41,7 @@ object SystemUiBootstrapCoordinator {
         val fastRebootReceiverReady = booleanArrayOf(false)
         val statusBarSetupDone = booleanArrayOf(false)
         val preferenceWatchDone = booleanArrayOf(false)
+        val globalActionStatusBarDone = booleanArrayOf(false)
 
         val initStatusBarHook = object : HookerClassHelper.MethodHook() {
             private var isHooked = false
@@ -81,6 +82,7 @@ object SystemUiBootstrapCoordinator {
                     if (!preferenceWatchDone[0]) {
                         preferenceWatchDone[0] = preferenceInit.get()
                     }
+                    evaluateGlobalActionStatusBarIfReady(lpparam, preferenceWatchDone[0], globalActionStatusBarDone)
                     if (fastRebootReceiverReady[0] && statusBarSetupDone[0] && preferenceWatchDone[0]) {
                         isHooked = true
                         coordinatorState = State.PREFERENCE_READY
@@ -115,7 +117,7 @@ object SystemUiBootstrapCoordinator {
         } else {
             XposedHelpers.log("SystemUiBootstrapCoordinator: SystemUI context not ready at package ready, deferring FastReboot receiver")
         }
-        if (hasConfiguredGlobalActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)
+        evaluateGlobalActionStatusBarIfReady(lpparam, prefReady, globalActionStatusBarDone)
 
         // 3. The 10s restart check is only allowed to skip the non-essential hooks below.
         var skipNonEssential = false
@@ -138,5 +140,34 @@ object SystemUiBootstrapCoordinator {
         }
 
         SystemUiInstaller.install(lpparam, mPrefs)
+    }
+}
+
+/**
+ * Pure gate helper for the SystemUI global-action status-bar setup.
+ *
+ * The status-bar hooks must not be evaluated before the preference snapshot is
+ * stable, otherwise the one-time GlobalActionConfig cache is built from a
+ * transient or empty snapshot and remains frozen for the process lifetime.
+ */
+internal fun shouldSetupGlobalActionStatusBar(prefReady: Boolean, alreadyDone: Boolean): Boolean =
+    !alreadyDone && prefReady
+
+/**
+ * One-shot evaluator for the SystemUI global-action status-bar setup.
+ *
+ * Called from both [PackageReadyParam] and the deferred [SystemUIInitializer.init]
+ * path.  The exact condition and call site are preserved so that the status-bar
+ * hooks are installed at the same moment as before, but only after the
+ * preference snapshot is stable.
+ */
+internal fun evaluateGlobalActionStatusBarIfReady(
+    lpparam: PackageReadyParam,
+    shouldEvaluate: Boolean,
+    globalActionStatusBarDone: BooleanArray,
+) {
+    if (shouldSetupGlobalActionStatusBar(shouldEvaluate, globalActionStatusBarDone[0])) {
+        if (hasConfiguredGlobalActions()) GlobalActionSystemServerHooks.setupStatusBar(lpparam)
+        globalActionStatusBarDone[0] = true
     }
 }
