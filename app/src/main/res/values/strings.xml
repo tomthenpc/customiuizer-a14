@@ -424,10 +424,10 @@
     <string name="system_removecleaner_title">Remove cleaner button</string>
     <string name="system_removecleaner_summ">Hide button that clears recent apps and cleans memory</string>
     <string name="system_recents_disable_wallpaperscale_title">Disable wallpaper scale</string>
-    <string name="system_recents_card_style_title">Task card header</string>
-    <string name="system_recents_card_style_summ">Adjusts the card header without adding work to recents scrolling; restart the launcher after changing</string>
+    <string name="system_recents_card_style_title">Recent task card style</string>
+    <string name="system_recents_card_style_summ">Uses the launcher\'s native layout geometry without adding work to scrolling; restart the launcher after changing</string>
     <string name="system_recents_card_style_hide_title">Hide app name</string>
-    <string name="system_recents_card_style_immersive">iOS 7-style immersive card</string>
+    <string name="system_recents_card_style_immersive">iOS-style stacked cards</string>
     <string name="system_clearalltasks_title">Clean all</string>
     <string name="system_clearalltasks_summ">Make cleaner button kill all running tasks</string>
     <string name="system_hidefromrecents_title">Hide from recents</string>

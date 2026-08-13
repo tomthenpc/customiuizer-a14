@@ -36,6 +36,7 @@ import tv.withaibuild.customiuizer.utils.Helpers
 object Launcher {
 
     private const val MIUI_HOME_PACKAGE = "com.miui.home"
+    private const val RECENTS_STACK_OVERLAP_RATIO = 0.32f
 
     @JvmStatic
     fun HideNavBarHook(lpparam: PackageReadyParam) {
@@ -319,6 +320,10 @@ object Launcher {
     fun RecentsCardStyleHook(lpparam: PackageReadyParam, mode: Int) {
         val boundedMode = resolveRecentsCardStyle(mode)
         if (boundedMode == 0) return
+        if (boundedMode == 2) {
+            installRecentsStackedCards(lpparam)
+            return
+        }
         ModuleHelper.findAndHookMethod(
             "com.miui.home.recents.views.TaskView",
             lpparam.classLoader,
@@ -328,17 +333,8 @@ object Launcher {
                     val taskView = callback.getThisObject() as? View ?: return
                     try {
                         val resources = taskView.resources
-                        if (boundedMode == 1) {
-                            val titleId = resources.getIdentifier("title", "id", MIUI_HOME_PACKAGE)
-                            if (titleId != 0) taskView.findViewById<View>(titleId)?.visibility = View.GONE
-                        } else {
-                            val headerId = resources.getIdentifier(
-                                "task_view_header",
-                                "id",
-                                MIUI_HOME_PACKAGE
-                            )
-                            if (headerId != 0) taskView.findViewById<View>(headerId)?.visibility = View.GONE
-                        }
+                        val titleId = resources.getIdentifier("title", "id", MIUI_HOME_PACKAGE)
+                        if (titleId != 0) taskView.findViewById<View>(titleId)?.visibility = View.GONE
                     } catch (t: Throwable) {
                         tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
                         XposedHelpers.log("RecentsCardStyle", t)
@@ -348,8 +344,52 @@ object Launcher {
         )
     }
 
+    private fun installRecentsStackedCards(lpparam: PackageReadyParam) {
+        val horizontalAlgorithm = XposedHelpers.findClassIfExists(
+            "com.miui.home.recents.views.TaskStackViewsAlgorithmHorizontal",
+            lpparam.classLoader
+        ) ?: run {
+            XposedHelpers.log("RecentsCardStyle", "Horizontal recents algorithm is unavailable")
+            return
+        }
+        val horizontalGap = XposedHelpers.findFieldIfExists(horizontalAlgorithm, "mHorizontalGap")
+            ?: run {
+                XposedHelpers.log("RecentsCardStyle", "Horizontal recents gap field is unavailable")
+                return
+            }
+
+        val gapHook = ModuleHelper.findAndHookMethod(
+            horizontalAlgorithm,
+            "calculateGap",
+            Int::class.javaPrimitiveType!!,
+            Int::class.javaPrimitiveType!!,
+            object : MethodHook() {
+                override fun after(callback: AfterHookCallback) {
+                    val algorithm = callback.getThisObject() ?: return
+                    val taskViewWidth = callback.getArgs().getOrNull(1) as? Int ?: return
+                    horizontalGap.setFloat(algorithm, resolveRecentsStackGap(taskViewWidth))
+                }
+            }
+        ) ?: return
+
+        val styleHook = ModuleHelper.findAndHookMethod(
+            "com.miui.home.launcher.RecentsAndFSGestureUtils",
+            lpparam.classLoader,
+            "getTaskStackViewLayoutStyle",
+            Context::class.java,
+            HookerClassHelper.returnConstant(1)
+        )
+        if (styleHook == null) {
+            gapHook.unhook()
+        }
+    }
+
     @JvmStatic
     internal fun resolveRecentsCardStyle(mode: Int): Int = if (mode in 0..2) mode else 0
+
+    @JvmStatic
+    internal fun resolveRecentsStackGap(taskViewWidth: Int): Float =
+        if (taskViewWidth > 0) -taskViewWidth * RECENTS_STACK_OVERLAP_RATIO else 0f
 
     @JvmStatic
     fun DisableLauncherLogHook(lpparam: PackageReadyParam) {

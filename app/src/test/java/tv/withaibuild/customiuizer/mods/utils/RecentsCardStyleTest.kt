@@ -24,6 +24,13 @@ class RecentsCardStyleTest {
     }
 
     @Test
+    fun stackedCardsUseBoundedProportionalOverlap() {
+        assertEquals(0f, Launcher.resolveRecentsStackGap(-1), 0f)
+        assertEquals(0f, Launcher.resolveRecentsStackGap(0), 0f)
+        assertEquals(-320f, Launcher.resolveRecentsStackGap(1000), 0.001f)
+    }
+
+    @Test
     fun featureOnlyEnablesForCustomModes() {
         assertFalse(LauncherRecentsCardStyleFeature.evaluateEnabled(PrefMap()))
         assertTrue(LauncherRecentsCardStyleFeature.evaluateEnabled(PrefMap().apply {
