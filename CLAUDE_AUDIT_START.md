@@ -83,7 +83,33 @@ git fetch origin
 
 旧分支名只记录来源。不要切回旧分支或以旧审计文档覆盖当前源码事实。
 
-## 6. 高价值方向
+## 6. 已完成的两轮与当前起点
+
+当前分支已经完成两轮实质工作，不要重复实现：
+
+| Commit | 已完成内容 |
+| --- | --- |
+| `3c4dbccd` | 修复详细网速采样把 `TrafficStats.UNSUPPORTED` 写入基线并在下一次产生累计流量假尖峰；新增非空洞回归测试 |
+| `3bd62d55` | 将“关闭窗口级模糊”从“系统 → 屏幕”移到更符合真实作用域的“系统 → 其它” |
+| `bc35eaba` | 补充窗口级模糊开关对 HyperOS 音量面板、关机菜单和音量模糊滑块的副作用说明 |
+
+上述 Final SHA 的完整门禁已通过，证据等级是静态与单元测试，未扩大为设备证明。
+
+已核对而未采纳的候选包括：`ReceiverRegistry.registerModuleReceiver` 的“累积泄漏”、
+`bindStepView` 的 attach listener“叠加”、以及 `AudioVisualizer` frame-parking 握手的非 volatile
+竞态；当前代码证据不支持这些判断。只有出现新的调用链、测试、日志或设备证据时才重新打开，
+不要把旧误报换个表述再次提交。
+
+仍可自主深入的候选包括：
+
+- `DetailedNetSpeedHook` 周期采样中的同步 Connectivity Binder 调用及其安全的事件化替代；
+- `AudioVisualizer.maxDb` 长时间只增不衰减造成的可见动态范围问题；
+- 音量面板出现时状态栏高度暂时回到 ROM 默认值的真实 WM/relayout 路径；这项已有静态假说，
+  但尚缺 before/during `dumpsys window` 或等价设备证据。
+
+这些只是当前线索，不要求优先处理，也不限制发现更高价值的新问题。
+
+## 7. 高价值方向
 
 以下是起点而不是限制，可根据证据调整顺序：
 
@@ -102,7 +128,42 @@ git fetch origin
 明确的热路径和操作成本实施低风险优化，但只能报告静态/测试证据，不能声称已测得提速、省电
 或 PSS 降低。
 
-## 7. 工作方式
+## 8. Telegram Air v2.11.5 开放参考
+
+将 [Telegram Air v2.11.5](https://github.com/Ajaxy/telegram-tt/releases/tag/air_v2.11.5)
+作为额外的高质量实现参考。固定研究 [tag `air_v2.11.5`](https://github.com/Ajaxy/telegram-tt/tree/air_v2.11.5)
+和提交 `d915b1b9ae856eb9eae737d1816d9c05df66b1d3`，不要用持续变化的 `master` 替代该基线。
+
+Telegram Air 是 Telegram Web A/Tauri 客户端，不是 Android/Xposed 上游。目标不是移植其产品功能或
+前端框架，而是理解它在大规模实时客户端中采用的底层机制，并把适合当前 A14 调用链的思想或
+实现重新落成直接、低开销的 Kotlin/Java 代码。可以自由阅读整个 tag，下面只是高信号入口：
+
+- `src/util/schedulers.ts`、`src/lib/teact/heavyAnimation.ts`：同一 tick/frame 合并工作、空闲期
+  执行、重动画期间推迟非关键任务、引用计数结束令牌和超时兜底；
+- `src/global/cache.ts`：写入节流、完全空闲后持久化、生命周期关键点强制 flush、注册与注销闭环，
+  以及只保存有价值数据的明确上限；
+- `src/util/PostMessageConnector.ts`、`src/api/gramjs/worker/connector.ts`：跨线程请求按 tick 批处理、
+  request state 完成即清理、callback 可取消、初始化前队列和失败传播；
+- `src/util/launchMediaWorkers.ts`、`src/util/dcBandwithManager.ts`：懒初始化、有界 worker/并发数、
+  按活跃字节而不只按任务数限流、优先队列与显式 release；
+- `src/util/signals.ts`、`src/util/callbacks.ts`、`src/util/audioPlayer.ts`：订阅返回取消函数、按 owner
+  清理 effect、多消费者共享实例并在最后一个 owner 离开时释放；
+- `src/util/primitives/LimitedMap.ts`、`src/util/memoized.ts`：简单可解释的有界缓存和只保留最后一次
+  结果，避免通用缓存框架的常驻成本；
+- `src/global/shared/sharedState.worker.ts`：不可变快照、增量 diff、避免回环广播和发送失败时剔除
+  stale consumer。
+
+可吸收方向不局限于这些文件。例如，可将 frame/tick 合并映射到 `Choreographer`/`Handler` 高频
+回调，将 worker/request ownership 映射到进程内 controller 与注册表，将活跃字节限流映射到备份、
+图像、音频或批量反射任务，将 idle flush 映射到非关键磁盘工作。也可以在研究后证明某个做法不适合
+SystemUI、Launcher 或 system_server 并放弃它。
+
+每次实际吸收前先找到本项目真实成本或缺陷，再选择最小充分实现；不为了“像 Telegram”而引入
+Node/Tauri/前端依赖或新通用框架。两边均为 GPL-3.0 系列许可；若直接翻译或实质改编具体代码，
+在相关源码或长期文档中记录 `Ajaxy/telegram-tt`、固定 tag/commit、原文件和 GPL 来源。只借鉴通用
+思想时也在最终报告列出参考关系，方便后续审查 provenance。
+
+## 9. 工作方式
 
 1. 先确认干净基线并运行一次完整门禁，区分原有失败与新改动。
 2. 用 `git diff main...HEAD`、真实 Feature/installer/Hook 调用链、测试和日志定位候选。
@@ -131,7 +192,7 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 
 可以使用额外的静态分析、基准、测试脚本或设备日志工具，只要结果可复现且不会伪装证据等级。
 
-## 8. 每批完成标准
+## 10. 每批完成标准
 
 - 问题有真实入口、触发条件、影响和证据；
 - 改动直接解决根因，没有顺手增加功能或无关重排；
@@ -142,7 +203,7 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 - 静态、测试、日志、设备证据清楚分级；
 - 工作区没有未解释修改。
 
-## 9. 汇报
+## 11. 汇报
 
 自由选择最有用的文档形式；可以维护一个简洁工作日志，也可以直接更新相关长期文档和任务记录。
 最终回复至少包括：
