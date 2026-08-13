@@ -847,6 +847,20 @@ class BackupRestoreTest {
     }
 
     @Test
+    fun legacyHashMapRejectsPositiveInfinityLoadFactor() {
+        val map = HashMap<String, Any?>()
+        map["key"] = true
+        val bytes = patchHashMapLoadFactor(serialize(map), Float.POSITIVE_INFINITY)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected loadFactor validation", e.message?.contains("loadFactor") == true)
+        }
+    }
+
+    @Test
     fun legacyHashMapRejectsNegativeExplicitCapacity() {
         val map = HashMap<String, Any?>()
         map["key"] = true
@@ -893,6 +907,20 @@ class BackupRestoreTest {
         val set = HashSet<String>()
         set.add("x")
         val bytes = patchHashSetLoadFactor(serialize(set), 0f)
+
+        try {
+            BackupRestore.decodeLegacyBackup(bytes)
+            fail("Expected BackupRestoreException")
+        } catch (e: BackupRestore.BackupRestoreException) {
+            assertTrue("Expected loadFactor validation", e.message?.contains("loadFactor") == true)
+        }
+    }
+
+    @Test
+    fun legacyHashSetRejectsPositiveInfinityLoadFactor() {
+        val set = HashSet<String>()
+        set.add("x")
+        val bytes = patchHashSetLoadFactor(serialize(set), Float.POSITIVE_INFINITY)
 
         try {
             BackupRestore.decodeLegacyBackup(bytes)

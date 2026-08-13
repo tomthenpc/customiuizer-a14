@@ -504,7 +504,7 @@ object LegacyBackupDecoder {
 
         private fun validatePositiveNotNaN(value: Float?, name: String) {
             if (value == null) return
-            if (value.isNaN() || value <= 0f) {
+            if (!value.isFinite() || value <= 0f) {
                 throw BackupRestore.BackupRestoreException("$name must be positive and finite: $value")
             }
         }
