@@ -59,7 +59,7 @@ object StatusBarHeightConfig {
 
     /** Current published configuration.  A single volatile reference to an immutable [State]. */
     @Volatile
-    private var state = State(
+    internal var state = State(
         rawPreferenceDp = DEFAULT_SENTINEL,
         enabled = false,
         configuredDp = DEFAULT_DP,
@@ -256,23 +256,5 @@ object StatusBarHeightConfig {
         generation.incrementAndGet()
 
         return ReconfigureResult(true, previous, newState)
-    }
-
-    /**
-     * Resets the configuration to defaults.
-     */
-    @JvmStatic
-    internal fun reset() {
-        synchronized(this) {
-            state = State(
-                rawPreferenceDp = DEFAULT_SENTINEL,
-                enabled = false,
-                configuredDp = DEFAULT_DP,
-                configuredPx = -1,
-                densityDpi = -1,
-                density = -1.0f,
-            )
-            generation.set(0L)
-        }
     }
 }

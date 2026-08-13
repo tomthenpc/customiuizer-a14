@@ -76,7 +76,6 @@ class ReflectionCacheTest {
         FakeDependency.ready = false
         resolver.throwOnResolve = null
         resolver.className = FakeDependency::class.java.name
-        cache.clear()
     }
 
     @Test
@@ -87,7 +86,7 @@ class ReflectionCacheTest {
         assertNull(cache.getDepInstance(loader, className))
         assertNull(cache.getDepInstance(loader, className))
 
-        val state = cache.loaderState(loader)
+        val state = cache.loaderStates[loader]
         assertNotNull(state)
         assertTrue(
             "missing class must be cached as ClassMissing",
@@ -103,7 +102,7 @@ class ReflectionCacheTest {
         assertNull(cache.getDepInstance(loader, "java.lang.String"))
         assertNull(cache.getDepInstance(loader, "java.lang.Runnable"))
 
-        val state = cache.loaderState(loader)
+        val state = cache.loaderStates[loader]
         assertNotNull(state)
         assertTrue(
             "first missing dependency method must be cached as MethodMissing",
@@ -127,7 +126,7 @@ class ReflectionCacheTest {
         assertNull(cache.getDepInstance(loader, className))
         assertNull(cache.getDepInstance(loader, className))
 
-        val state = cache.loaderState(loader)
+        val state = cache.loaderStates[loader]
         assertTrue(
             "null Dependency.get result must be cached as DependencyNotReady",
             state!!.classResults[className] is DepResult.DependencyNotReady
@@ -161,7 +160,7 @@ class ReflectionCacheTest {
         assertSame(r1, r2)
         assertSame(r2, r3)
 
-        val state = cache.loaderState(loader)
+        val state = cache.loaderStates[loader]
         assertTrue(
             "positive result must be cached as DependencyFound",
             state!!.classResults["java.lang.Runnable"] is DepResult.DependencyFound
@@ -193,7 +192,7 @@ class ReflectionCacheTest {
             cache.getDepInstance(loader, "java.lang.Runnable")
         }
 
-        val loaders = cache.loaderCount()
+        val loaders = cache.loaderStates.size
         assertTrue(
             "global loader cache must stay within ${ReflectionCache.MAX_LOADERS}, was $loaders",
             loaders <= ReflectionCache.MAX_LOADERS
@@ -209,7 +208,7 @@ class ReflectionCacheTest {
         try {
             cache.getDepInstance(loader, "java.lang.String")
         } finally {
-            val state = cache.loaderState(loader)
+            val state = cache.loaderStates[loader]
             assertNotNull(state)
             assertFalse(
                 "dependencyMethodResolved must not be set after OOM",
@@ -231,7 +230,7 @@ class ReflectionCacheTest {
             cache.getDepInstance(loader, "does.not.exist.Class$i")
         }
 
-        val state = cache.loaderState(loader)
+        val state = cache.loaderStates[loader]
         assertNotNull(state)
         assertTrue(
             "per-loader class cache must stay within ${ReflectionCache.MAX_CLASSES_PER_LOADER}, was ${state!!.classResults.size}",

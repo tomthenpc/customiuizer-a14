@@ -30,7 +30,7 @@ object PreferenceObserverRegistry {
     }
 
     /** Process-scoped observers. Owned by module singletons, never collected. */
-    private val observers = CopyOnWriteArraySet<PreferenceObserver>()
+    internal val observers = CopyOnWriteArraySet<PreferenceObserver>()
 
     /**
      * Observers whose lifetime is bound to a hooked object.
@@ -40,20 +40,13 @@ object PreferenceObserverRegistry {
      * recreated hook target (theme change, density change, panel rebuild) drops its old
      * observer instead of pinning the dead instance for the life of the process.
      */
-    private val observerOwners = CopyOnWriteArrayList<WeakReference<PreferenceObserver>>()
+    internal val observerOwners = CopyOnWriteArrayList<WeakReference<PreferenceObserver>>()
     private const val PREF_OBSERVER_FIELD = "customiuizer_prefObserver"
 
     /** Process name for diagnostics, falling back to the package or PID. */
     internal fun processName(): String = HookDiagnostics.currentProcessName
         ?: ModuleHelper.currentPackageName
         ?: Process.myPid().toString()
-
-    /** Resets the process-scoped and owned observer sets. */
-    @JvmStatic
-    internal fun reset() {
-        observers.clear()
-        observerOwners.clear()
-    }
 
     fun observePreferenceChange(prefObserver: PreferenceObserver?) {
         if (prefObserver != null) observers.add(prefObserver)

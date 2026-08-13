@@ -20,10 +20,16 @@ import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightRefreshCa
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightResolver
 import tv.withaibuild.customiuizer.mods.statusbarheight.StatusBarHeightRuntime
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
+import tv.withaibuild.customiuizer.mods.utils.StatusBarInsetsTestAccess
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.io.File
+import java.lang.ref.WeakReference
 import java.lang.reflect.Executable
+
+private fun StatusBarHeightRuntime.latestRef(): WeakReference<Any>? = latestKnownStatusBar
+
+private fun StatusBarHeightRuntime.knownSnapshot(): Array<WeakReference<Any>?> = knownOwners.copyOf()
 
 /**
  * Behavioral tests for the WMS hot paths in [SystemStatusBarInsetsHooks]:
@@ -33,15 +39,15 @@ class StatusBarWindowStateHotPathTest {
 
     @Before
     fun setUp() {
-        SystemStatusBarInsetsHooks.reset()
-        StatusBarHeightConfig.reset()
+        StatusBarInsetsTestAccess.resetState()
+        StatusBarInsetsTestAccess.resetConfig()
         setStatusBarHeightEffect(makeTestEffect())
     }
 
     @After
     fun tearDown() {
-        SystemStatusBarInsetsHooks.reset()
-        StatusBarHeightConfig.reset()
+        StatusBarInsetsTestAccess.resetState()
+        StatusBarInsetsTestAccess.resetConfig()
     }
 
     @Test

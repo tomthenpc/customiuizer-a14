@@ -8,6 +8,24 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.lang.ref.WeakReference
+
+private fun StatusBarHeightRuntime.knownCount(): Int =
+    knownOwners.count { it != null && it.get() != null }
+
+private fun StatusBarHeightRuntime.knownSnapshot(): Array<WeakReference<Any>?> =
+    knownOwners.copyOf()
+
+private fun StatusBarHeightRuntime.latestRef(): WeakReference<Any>? =
+    latestKnownStatusBar
+
+private fun StatusBarHeightRuntime.resetKnownStatusBars() {
+    knownOwners = arrayOfNulls(StatusBarHeightRuntime.MAX_TRACKED)
+    latestKnownStatusBar = null
+    typeMatchObserved = false
+    fallbackProbeBudget.set(StatusBarHeightRuntime.MAX_FALLBACK_PROBES)
+    lastRefreshGeneration.set(-1L)
+}
 
 class StatusBarHeightArchitectureCRuntimeTest {
 

@@ -472,33 +472,19 @@ class ResourceHooksTest {
         var hookInstaller: ((ResourceGetterKind, HookerClassHelper.MethodHook) -> Boolean)? = null
         var themeHookInstaller: (() -> Boolean)? = null
         var logSink: ((Throwable) -> Unit)? = null
-        val replacements = HashMap<Int, ResourceHooks.ResourceValue>()
-        val fakes = HashMap<Int, Int>()
 
         override fun resolveModuleResources(): Resources? = moduleRes
 
-        override fun installResourceHook(
+        internal override fun installResourceHook(
             kind: ResourceGetterKind,
             hook: HookerClassHelper.MethodHook,
         ): HookerClassHelper.CustomMethodUnhooker? =
             if (hookInstaller?.invoke(kind, hook) == true) TestUnhooker() else null
 
-        override fun installThemeHook(): HookerClassHelper.CustomMethodUnhooker? =
+        internal override fun installThemeHook(): HookerClassHelper.CustomMethodUnhooker? =
             if (themeHookInstaller?.invoke() == true) TestUnhooker() else null
 
         override fun logThrowable(t: Throwable) = logSink?.invoke(t) ?: super.logThrowable(t)
-
-        override fun getResourceReplacement(resId: Int): ResourceValue? = replacements[resId]
-
-        override fun setResourceReplacement(resId: Int, type: ReplacementType, value: Any?) {
-            replacements[resId] = ResourceHooks.ResourceValue(type, value)
-        }
-
-        override fun getFakeResourceId(resId: Int): Int = fakes[resId] ?: 0
-
-        override fun setFakeResourceId(resId: Int, modResId: Int) {
-            fakes[resId] = modResId
-        }
 
         fun setResourceIdReplacement(resId: Int, type: ReplacementType, value: Any?) {
             setResourceReplacement(resId, type, value)

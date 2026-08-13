@@ -8,7 +8,6 @@ import android.content.res.Resources
 import android.os.LocaleList
 import android.os.Process
 import android.util.Log
-import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import java.util.Locale
 import tv.withaibuild.customiuizer.R
@@ -161,6 +160,18 @@ object AppLocaleController {
         return if (index >= 0) displayEntries[index].toString() else systemDefaultLabel
     }
 
+    /** Gateway for the framework locale service; keeps the production implementation unit-testable. */
+    internal interface AppLocaleGateway {
+        fun getCurrentLocales(): LocaleListCompat
+        fun setLocales(locales: LocaleListCompat): Boolean
+    }
+
+    /** Production gateway backed by [Context.getSystemService]. */
+    private class ContextAppLocaleGateway(private val context: Context) : AppLocaleGateway {
+        override fun getCurrentLocales(): LocaleListCompat = getCurrentApplicationLocales(context)
+        override fun setLocales(locales: LocaleListCompat): Boolean = setFrameworkApplicationLocales(context, locales)
+    }
+
     /**
      * Apply the stored user locale if it differs from the current runtime state.
      *
@@ -171,17 +182,20 @@ object AppLocaleController {
      *
      * [context] is required in production: without it there is no way to reach the
      * framework locale service, and the call cannot do anything.
-     *
-     * [applier] and [provider] are pluggable back-ends; the default uses the framework's
-     * `LocaleManager`. Tests may supply deterministic replacements.
      */
     @JvmStatic
-    @JvmOverloads
     fun apply(
         prefs: SharedPreferences?,
-        context: Context? = null,
-        applier: ((LocaleListCompat) -> Unit)? = null,
-        provider: (() -> LocaleListCompat)? = null,
+        context: Context,
+    ): Boolean = apply(prefs, ContextAppLocaleGateway(context))
+
+    /**
+     * Core reconcile logic, parameterized by a [AppLocaleGateway] so unit tests can avoid
+     * an Android framework dependency while still exercising the same state machine.
+     */
+    internal fun apply(
+        prefs: SharedPreferences?,
+        gateway: AppLocaleGateway,
     ): Boolean {
         val tag = getUserLocale(prefs)
 
@@ -193,7 +207,7 @@ object AppLocaleController {
         if (tag == AUTO && !hasAppliedLocale(prefs)) return false
 
         val targetLocaleList = toLocaleListCompat(tag)
-        val currentLocaleList = getCurrentApplicationLocales(context, provider)
+        val currentLocaleList = gateway.getCurrentLocales()
         val effective = getEffectiveLocale(tag)
         val currentDefault = Locale.getDefault()
 
@@ -207,17 +221,7 @@ object AppLocaleController {
         var applied = true
         if (appLocaleChanged) {
             Log.i(TAG, "Applying locale: tag=$tag")
-            applied = when {
-                applier != null -> {
-                    applier(targetLocaleList)
-                    true
-                }
-                context != null -> setFrameworkApplicationLocales(context, targetLocaleList)
-                else -> {
-                    Log.e(TAG, "apply() without a Context: the locale cannot be applied")
-                    return false
-                }
-            }
+            applied = gateway.setLocales(targetLocaleList)
         }
 
         // Keep the marker in step with what is now in force. This also runs when nothing
@@ -302,7 +306,8 @@ object AppLocaleController {
             return false
         }
         return try {
-            manager.applicationLocales = LocaleList.forLanguageTags(locales.toLanguageTags())
+            val localeArray = Array(locales.size()) { locales.get(it) }
+            manager.applicationLocales = LocaleList(*localeArray)
             true
         } catch (t: Throwable) {
             FatalErrors.rethrowIfFatal(t)
@@ -345,9 +350,9 @@ object AppLocaleController {
     /** Map a user tag to the [LocaleListCompat] that AppCompat expects. */
     @JvmStatic
     fun toLocaleListCompat(tag: String): LocaleListCompat = try {
-        when (normalizeLocaleTag(tag)) {
+        when (val normalized = normalizeLocaleTag(tag)) {
             "auto" -> LocaleListCompat.getEmptyLocaleList()
-            else -> LocaleListCompat.forLanguageTags(normalizeLocaleTag(tag))
+            else -> LocaleListCompat.forLanguageTags(normalized)
         }
     } catch (t: Throwable) {
         FatalErrors.rethrowIfFatal(t)
@@ -417,38 +422,26 @@ object AppLocaleController {
      * nothing is set and re-apply on every start.
      */
     @JvmStatic
-    private fun getCurrentApplicationLocales(
-        context: Context?,
-        provider: (() -> LocaleListCompat)? = null,
-    ): LocaleListCompat = try {
-        when {
-            provider != null -> provider()
-            context != null -> {
-                val manager = context.getSystemService(LocaleManager::class.java)
-                if (manager == null) LocaleListCompat.getEmptyLocaleList()
-                else LocaleListCompat.wrap(manager.applicationLocales)
-            }
-            else -> AppCompatDelegate.getApplicationLocales() ?: LocaleListCompat.getEmptyLocaleList()
-        }
+    private fun getCurrentApplicationLocales(context: Context): LocaleListCompat = try {
+        val manager = context.getSystemService(LocaleManager::class.java)
+        if (manager == null) LocaleListCompat.getEmptyLocaleList()
+        else LocaleListCompat.wrap(manager.applicationLocales)
     } catch (t: Throwable) {
         FatalErrors.rethrowIfFatal(t)
         Log.w(TAG, "getCurrentApplicationLocales failed: ${t.message}; returning empty list")
         LocaleListCompat.getEmptyLocaleList()
     }
 
-    /** Compare two [LocaleListCompat] by their language tags. */
+    /** Compare two [LocaleListCompat] by their contained locales. */
     @JvmStatic
     private fun areLocaleListsEqual(a: LocaleListCompat, b: LocaleListCompat): Boolean {
         if (a.isEmpty && b.isEmpty) return true
-        return toLanguageTags(a) == toLanguageTags(b)
+        val size = a.size()
+        if (size != b.size()) return false
+        for (i in 0 until size) {
+            if (a.get(i) != b.get(i)) return false
+        }
+        return true
     }
 
-    /** Return the language tags string, or `null` if it cannot be read. */
-    @JvmStatic
-    private fun toLanguageTags(list: LocaleListCompat): String? = try {
-        list.toLanguageTags()
-    } catch (t: Throwable) {
-        FatalErrors.rethrowIfFatal(t)
-        null
-    }
 }

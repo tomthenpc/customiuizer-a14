@@ -90,8 +90,8 @@ internal class VolumeDialogAutohideDelayRuntimeState @JvmOverloads internal cons
         private const val COLLAPSED_KEY = "system_volumedialogdelay_collapsed"
 
         @Volatile
-        private var installed: Boolean = false
-        private var instance: VolumeDialogAutohideDelayRuntimeState? = null
+        internal var installed: Boolean = false
+        internal var instance: VolumeDialogAutohideDelayRuntimeState? = null
         private val installLock = Any()
 
         /**
@@ -106,12 +106,11 @@ internal class VolumeDialogAutohideDelayRuntimeState @JvmOverloads internal cons
          * guaranteed to receive the unique, initialized process instance.
          */
         @JvmStatic
-        fun install(): VolumeDialogAutohideDelayRuntimeState =
-            install(VolumeDialogAutohideDelayRuntimeState())
+        fun install(): VolumeDialogAutohideDelayRuntimeState = install(VolumeDialogAutohideDelayRuntimeState())
 
         /**
-         * Test seam: installs a provided [VolumeDialogAutohideDelayRuntimeState]
-         * using the same publication invariants as [install].
+         * Installs a provided [VolumeDialogAutohideDelayRuntimeState] using the same
+         * publication invariants as [install].
          */
         @JvmStatic
         internal fun install(runtimeState: VolumeDialogAutohideDelayRuntimeState): VolumeDialogAutohideDelayRuntimeState {
@@ -124,32 +123,13 @@ internal class VolumeDialogAutohideDelayRuntimeState @JvmOverloads internal cons
                     return checkNotNull(instance) { "installed=true but instance is null" }
                 }
 
-                val candidate = instance ?: runtimeState.also {
-                    instance = it
-                }
+                instance = runtimeState
 
-                candidate.installObserver()
-                candidate.initialize()
+                runtimeState.installObserver()
+                runtimeState.initialize()
 
                 installed = true
-                return candidate
-            }
-        }
-
-        /**
-         * Returns whether the process singleton has been published.
-         */
-        @JvmStatic
-        internal fun isInstalled(): Boolean = installed
-
-        /**
-         * Resets the install state.
-         */
-        @JvmStatic
-        internal fun reset() {
-            synchronized(installLock) {
-                installed = false
-                instance = null
+                return runtimeState
             }
         }
     }

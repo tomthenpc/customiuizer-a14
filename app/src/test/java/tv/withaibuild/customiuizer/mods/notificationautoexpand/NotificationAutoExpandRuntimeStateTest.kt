@@ -24,15 +24,19 @@ class NotificationAutoExpandRuntimeStateTest {
     @Before
     fun setUp() {
         MainModule.mPrefs.clear()
-        NotificationAutoExpandRuntimeState.reset()
-        PreferenceObserverRegistry.reset()
+        NotificationAutoExpandRuntimeState.installed = false
+        NotificationAutoExpandRuntimeState.instance = null
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
     }
 
     @After
     fun tearDown() {
         MainModule.mPrefs.clear()
-        NotificationAutoExpandRuntimeState.reset()
-        PreferenceObserverRegistry.reset()
+        NotificationAutoExpandRuntimeState.installed = false
+        NotificationAutoExpandRuntimeState.instance = null
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
     }
 
     @Test
@@ -210,7 +214,7 @@ class NotificationAutoExpandRuntimeStateTest {
 
         val installed = NotificationAutoExpandRuntimeState.install()
 
-        assertTrue(NotificationAutoExpandRuntimeState.isInstalled())
+        assertTrue(NotificationAutoExpandRuntimeState.installed)
         assertEquals(1, processScopedObserverCount())
         assertEquals("2", installed.snapshotRef.get()!!.modeRaw)
     }
@@ -234,7 +238,7 @@ class NotificationAutoExpandRuntimeStateTest {
             fail("Expected OutOfMemoryError from initial refresh")
         } catch (e: OutOfMemoryError) {
             assertNull("snapshot must be cleared after fatal refresh", runtimeState.snapshotRef.get())
-            assertFalse(NotificationAutoExpandRuntimeState.isInstalled())
+            assertFalse(NotificationAutoExpandRuntimeState.installed)
         }
 
         val installed = NotificationAutoExpandRuntimeState.install(runtimeState)

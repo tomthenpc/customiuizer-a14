@@ -19,15 +19,19 @@ class NotificationAutoExpandHookTest {
 
     @Before
     fun setUp() {
-        NotificationAutoExpandRuntimeState.reset()
-        PreferenceObserverRegistry.reset()
+        NotificationAutoExpandRuntimeState.installed = false
+        NotificationAutoExpandRuntimeState.instance = null
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
         HookDiagnostics.reset()
     }
 
     @After
     fun tearDown() {
-        NotificationAutoExpandRuntimeState.reset()
-        PreferenceObserverRegistry.reset()
+        NotificationAutoExpandRuntimeState.installed = false
+        NotificationAutoExpandRuntimeState.instance = null
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
         HookDiagnostics.reset()
     }
 
@@ -46,7 +50,7 @@ class NotificationAutoExpandHookTest {
 
         assertFalse(
             "Runtime state must not be installed when target class is missing",
-            NotificationAutoExpandRuntimeState.isInstalled(),
+            NotificationAutoExpandRuntimeState.installed,
         )
     }
 
@@ -75,7 +79,7 @@ class NotificationAutoExpandHookTest {
         )
         assertFalse(
             "Runtime state must not be installed when the target probe fails ordinarily",
-            NotificationAutoExpandRuntimeState.isInstalled(),
+            NotificationAutoExpandRuntimeState.installed,
         )
 
         val record = HookDiagnostics.snapshot().find {
@@ -131,7 +135,7 @@ class NotificationAutoExpandHookTest {
         assertTrue("Fatal class-loading failure must propagate", thrown is OutOfMemoryError)
         assertFalse(
             "Runtime state must not be installed after a fatal failure",
-            NotificationAutoExpandRuntimeState.isInstalled(),
+            NotificationAutoExpandRuntimeState.installed,
         )
     }
 }

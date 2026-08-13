@@ -31,7 +31,8 @@ class LockScreenSwipeLiveStateTest {
     fun setUp() {
         savedPrefs = MainModule.mPrefs.getAll()
         MainModule.mPrefs.clear()
-        SystemUILockScreenHooks.setSwipeSuppression(false, false)
+        SystemUILockScreenHooks.swipeRightOff = false
+        SystemUILockScreenHooks.swipeLeftOff = false
     }
 
     @After
@@ -42,7 +43,8 @@ class LockScreenSwipeLiveStateTest {
         } else {
             MainModule.mPrefs.clear()
         }
-        SystemUILockScreenHooks.setSwipeSuppression(false, false)
+        SystemUILockScreenHooks.swipeRightOff = false
+        SystemUILockScreenHooks.swipeLeftOff = false
     }
 
     @Test
@@ -138,28 +140,31 @@ class LockScreenSwipeLiveStateTest {
     @Test
     fun unrelatedKeyDoesNotRefreshSwipeState() {
         MainModule.mPrefs.put(rightOffKey, true)
-        SystemUILockScreenHooks.setSwipeSuppression(false, false)
+        SystemUILockScreenHooks.swipeRightOff = false
+        SystemUILockScreenHooks.swipeLeftOff = false
 
         SystemUILockScreenHooks.onSwipeSuppressionPreferenceChanged("system_lockscreenshortcuts_left_tapaction")
 
-        assertFalse(SystemUILockScreenHooks.isSwipeRightOff())
+        assertFalse(SystemUILockScreenHooks.swipeRightOff)
     }
 
     @Test
     fun nullKeyRefreshesBothSwipeStates() {
         MainModule.mPrefs.put(rightOffKey, true)
         MainModule.mPrefs.put(leftOffKey, true)
-        SystemUILockScreenHooks.setSwipeSuppression(false, false)
+        SystemUILockScreenHooks.swipeRightOff = false
+        SystemUILockScreenHooks.swipeLeftOff = false
 
         SystemUILockScreenHooks.onSwipeSuppressionPreferenceChanged(null)
 
-        assertTrue(SystemUILockScreenHooks.isSwipeRightOff())
-        assertTrue(SystemUILockScreenHooks.isSwipeLeftOff())
+        assertTrue(SystemUILockScreenHooks.swipeRightOff)
+        assertTrue(SystemUILockScreenHooks.swipeLeftOff)
     }
 
     @Test
     fun setTranslationRightAndLeftDirectionsAreIndependent() {
-        SystemUILockScreenHooks.setSwipeSuppression(true, false)
+        SystemUILockScreenHooks.swipeRightOff = true
+        SystemUILockScreenHooks.swipeLeftOff = false
 
         val rightSwipe = newCallback(
             target = FakeKeyguardMoveHelper(mCurrentScreen = 1),
@@ -179,7 +184,8 @@ class LockScreenSwipeLiveStateTest {
 
     @Test
     fun setTranslationLeftOffSuppression() {
-        SystemUILockScreenHooks.setSwipeSuppression(false, true)
+        SystemUILockScreenHooks.swipeRightOff = false
+        SystemUILockScreenHooks.swipeLeftOff = true
 
         val leftSwipe = newCallback(
             target = FakeKeyguardMoveHelper(mCurrentScreen = 1),
@@ -193,7 +199,8 @@ class LockScreenSwipeLiveStateTest {
 
     @Test
     fun setTranslationNonCurrentScreenIsNotSuppressed() {
-        SystemUILockScreenHooks.setSwipeSuppression(true, true)
+        SystemUILockScreenHooks.swipeRightOff = true
+        SystemUILockScreenHooks.swipeLeftOff = true
 
         val callback = newCallback(
             target = FakeKeyguardMoveHelper(mCurrentScreen = 0),
@@ -207,7 +214,8 @@ class LockScreenSwipeLiveStateTest {
 
     @Test
     fun originalReturnSemanticsArePreservedWhenSuppressionIsActive() {
-        SystemUILockScreenHooks.setSwipeSuppression(true, false)
+        SystemUILockScreenHooks.swipeRightOff = true
+        SystemUILockScreenHooks.swipeLeftOff = false
 
         val endMotion = newCallback(target = FakeKeyguardMoveHelper(mCurrentScreen = 1, mTranslation = 0.0f))
         val down = newCallback()
@@ -227,7 +235,8 @@ class LockScreenSwipeLiveStateTest {
 
     @Test
     fun endMotionSkipsWhenVelocityTranslationProductIsZero() {
-        SystemUILockScreenHooks.setSwipeSuppression(true, false)
+        SystemUILockScreenHooks.swipeRightOff = true
+        SystemUILockScreenHooks.swipeLeftOff = false
 
         val belowThreshold = newCallback(target = FakeKeyguardMoveHelper(mCurrentScreen = 1, mTranslation = 0.0f))
 
@@ -239,7 +248,8 @@ class LockScreenSwipeLiveStateTest {
 
     @Test
     fun fatalErrorPropagatesFromSetTranslationCallback() {
-        SystemUILockScreenHooks.setSwipeSuppression(true, false)
+        SystemUILockScreenHooks.swipeRightOff = true
+        SystemUILockScreenHooks.swipeLeftOff = false
         val error = OutOfMemoryError("setTranslation OOM")
         val callback = newCallback(
             target = FakeKeyguardMoveHelper(mCurrentScreen = 1),
@@ -257,7 +267,8 @@ class LockScreenSwipeLiveStateTest {
 
     @Test
     fun fatalErrorPropagatesFromEndMotionCallback() {
-        SystemUILockScreenHooks.setSwipeSuppression(true, false)
+        SystemUILockScreenHooks.swipeRightOff = true
+        SystemUILockScreenHooks.swipeLeftOff = false
         val error = OutOfMemoryError("endMotion OOM")
         val callback = newCallback(thisThrow = error)
 
@@ -271,18 +282,20 @@ class LockScreenSwipeLiveStateTest {
 
     @Test
     fun concurrentVisibilityOfSwipeRightOff() {
-        SystemUILockScreenHooks.setSwipeSuppression(false, false)
+        SystemUILockScreenHooks.swipeRightOff = false
+        SystemUILockScreenHooks.swipeLeftOff = false
 
         val latch = java.util.concurrent.CountDownLatch(1)
         Thread {
-            SystemUILockScreenHooks.setSwipeSuppression(true, false)
+            SystemUILockScreenHooks.swipeRightOff = true
+        SystemUILockScreenHooks.swipeLeftOff = false
             latch.countDown()
         }.start()
 
         var seen = false
         val deadline = java.lang.System.currentTimeMillis() + 5_000
         while (java.lang.System.currentTimeMillis() < deadline) {
-            if (SystemUILockScreenHooks.isSwipeRightOff()) {
+            if (SystemUILockScreenHooks.swipeRightOff) {
                 seen = true
                 break
             }

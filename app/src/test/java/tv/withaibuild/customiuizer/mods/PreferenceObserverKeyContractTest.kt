@@ -18,7 +18,8 @@ class PreferenceObserverKeyContractTest {
 
     @Before
     fun setUp() {
-        PreferenceObserverRegistry.reset()
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
         MainModule.mPrefs.clear()
         setObserverRegisteredFlag(SystemUILockScreenHooks, "swipeSuppressionObserverRegistered", false)
         setObserverRegisteredFlag(LauncherFolderHooks, "folderPreferenceObserverRegistered", false)
@@ -27,7 +28,8 @@ class PreferenceObserverKeyContractTest {
 
     @After
     fun tearDown() {
-        PreferenceObserverRegistry.reset()
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
         MainModule.mPrefs.clear()
     }
 

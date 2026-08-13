@@ -36,12 +36,34 @@ class MainSourceCleanlinessTest(unittest.TestCase):
             path = self.write_main(f"assets/{name}", "binary-content")
             self.assertEqual(gate._scan_file(path), [], f"{name} must be allow-listed")
 
-    def test_allowed_prefs_provider_ignored(self) -> None:
+    def test_prefs_provider_legitimate_test_uri_passes(self) -> None:
+        # PrefsProvider is no longer allow-listed wholesale; only its real Open With
+        # URI and asset names are safe because they do not match the forbidden
+        # test-only implementation patterns.
         path = self.write_main(
             "java/tv/withaibuild/customiuizer/PrefsProvider.kt",
             'val route = "test/*"\n',
         )
         self.assertEqual(gate._scan_file(path), [])
+
+    def test_prefs_provider_reset_for_test_is_flagged(self) -> None:
+        path = self.write_main(
+            "java/tv/withaibuild/customiuizer/PrefsProvider.kt",
+            "internal fun resetForTest() {}\n",
+        )
+        issues = gate._scan_file(path)
+        self.assertEqual(len(issues), 1)
+        self.assertIn("forbidden-test-symbol", issues[0])
+        self.assertIn("resetForTest", issues[0])
+
+    def test_prefs_provider_junit_import_is_flagged(self) -> None:
+        path = self.write_main(
+            "java/tv/withaibuild/customiuizer/PrefsProvider.kt",
+            "import org.junit.Test\n",
+        )
+        issues = gate._scan_file(path)
+        self.assertEqual(len(issues), 1)
+        self.assertIn("test-dependency-reference", issues[0])
 
     def test_fortest_method_name_is_flagged(self) -> None:
         path = self.write_main(

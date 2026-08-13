@@ -17,7 +17,15 @@ class StatusBarHeightConfigTest {
 
     @After
     fun tearDown() {
-        StatusBarHeightConfig.reset()
+        StatusBarHeightConfig.generation.set(0L)
+        StatusBarHeightConfig.state = StatusBarHeightConfig.State(
+            rawPreferenceDp = StatusBarHeightConfig.DEFAULT_SENTINEL,
+            enabled = false,
+            configuredDp = StatusBarHeightConfig.DEFAULT_DP,
+            configuredPx = -1,
+            densityDpi = -1,
+            density = -1.0f,
+        )
     }
 
     @Test

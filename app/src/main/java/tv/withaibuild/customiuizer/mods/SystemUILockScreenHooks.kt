@@ -49,10 +49,10 @@ object SystemUILockScreenHooks {
      * the preference actually changes.
      */
     @Volatile
-    private var swipeRightOff = false
+    internal var swipeRightOff = false
 
     @Volatile
-    private var swipeLeftOff = false
+    internal var swipeLeftOff = false
 
     @Volatile
     private var swipeSuppressionObserverRegistered = false
@@ -79,14 +79,6 @@ object SystemUILockScreenHooks {
             }
         })
     }
-
-    internal fun setSwipeSuppression(right: Boolean, left: Boolean) {
-        swipeRightOff = right
-        swipeLeftOff = left
-    }
-
-    internal fun isSwipeRightOff() = swipeRightOff
-    internal fun isSwipeLeftOff() = swipeLeftOff
 
     @JvmStatic
     fun LockScreenTopMarginHook(lpparam: PackageReadyParam) {

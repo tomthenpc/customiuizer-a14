@@ -54,7 +54,7 @@ class CustomTextIconTintRouteTest {
         assertEquals(1, dispatcher.removeCount)
         // Normal detach must NOT remove the listener so re-attach can re-register.
         assertEquals(0, view.listenerRemoveCount)
-        assertEquals(1, CustomTextIconTintRoute.trackedRegistrationCount())
+        assertEquals(1, CustomTextIconTintRoute.registrations.size)
     }
 
     @Test
@@ -88,7 +88,7 @@ class CustomTextIconTintRouteTest {
         assertFalse(view in dispatcher.registered)
         assertEquals(1, dispatcher.removeCount)
         assertEquals(1, view.listenerRemoveCount)
-        assertEquals(0, CustomTextIconTintRoute.trackedRegistrationCount())
+        assertEquals(0, CustomTextIconTintRoute.registrations.size)
 
         view.attached = true
         view.dispatchOnAttachStateChangeListenerAttached()
@@ -113,7 +113,7 @@ class CustomTextIconTintRouteTest {
         assertTrue(dispatcher.registered.isEmpty())
         assertEquals(2, dispatcher.removeCount)
         assertEquals(2, view1.listenerRemoveCount + view2.listenerRemoveCount)
-        assertEquals(0, CustomTextIconTintRoute.trackedRegistrationCount())
+        assertEquals(0, CustomTextIconTintRoute.registrations.size)
     }
 
     @Test
@@ -121,14 +121,14 @@ class CustomTextIconTintRouteTest {
         val view = FakeView(context, attached = true)
 
         CustomTextIconTintRoute.register(view, classLoader, "test", null)
-        assertEquals(1, CustomTextIconTintRoute.trackedRegistrationCount())
+        assertEquals(1, CustomTextIconTintRoute.registrations.size)
 
         view.simulateDetach()
         view.dispatchOnAttachStateChangeListenerDetaches()
 
         CustomTextIconTintRoute.releaseAll()
 
-        assertEquals(0, CustomTextIconTintRoute.trackedRegistrationCount())
+        assertEquals(0, CustomTextIconTintRoute.registrations.size)
         assertEquals(1, view.listenerRemoveCount)
     }
 
@@ -138,14 +138,14 @@ class CustomTextIconTintRouteTest {
         val view = FakeView(context, attached = true)
 
         CustomTextIconTintRoute.register(view, classLoader, "test", dispatcher)
-        assertEquals(1, CustomTextIconTintRoute.trackedRegistrationCount())
+        assertEquals(1, CustomTextIconTintRoute.registrations.size)
 
         view.simulateDetach()
         view.dispatchOnAttachStateChangeListenerDetaches()
 
         CustomTextIconTintRoute.releaseAll()
 
-        assertEquals(0, CustomTextIconTintRoute.trackedRegistrationCount())
+        assertEquals(0, CustomTextIconTintRoute.registrations.size)
         assertEquals(1, view.listenerRemoveCount)
     }
 
@@ -163,7 +163,7 @@ class CustomTextIconTintRouteTest {
         assertEquals(2, view.listenerAddCount)
         assertEquals(1, view.listenerRemoveCount)
         assertTrue(view in dispatcher2.registered)
-        assertEquals(1, CustomTextIconTintRoute.trackedRegistrationCount())
+        assertEquals(1, CustomTextIconTintRoute.registrations.size)
     }
 
     @Test

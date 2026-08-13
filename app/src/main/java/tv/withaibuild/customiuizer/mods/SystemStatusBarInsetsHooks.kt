@@ -76,37 +76,37 @@ object SystemStatusBarInsetsHooks {
 
     /** Process-scoped frozen ABI for the status bar height feature. */
     @Volatile
-    private var statusBarHeightAbi: StatusBarHeightAbi? = null
+    internal var statusBarHeightAbi: StatusBarHeightAbi? = null
 
     /** Hot-path effect holding frozen Class/Field/Method references. */
     @Volatile
-    private var statusBarHeightEffect: StatusBarHeightEffect? = null
+    internal var statusBarHeightEffect: StatusBarHeightEffect? = null
 
-    private var hookInstalled: Boolean = false
+    internal var hookInstalled: Boolean = false
 
     /** Process-scoped runtime state: identity, weak owner refs, fallback budget and refresh. */
-    private val statusBarHeightRuntime = StatusBarHeightRuntime()
+    internal val statusBarHeightRuntime = StatusBarHeightRuntime()
 
     /** Bounded set of critical diagnostic keys whose first hit has already been logged. */
-    private val loggedCritical = LinkedHashSet<String>()
+    internal val loggedCritical = LinkedHashSet<String>()
 
     /** Bounded set of aggregated rejection keys whose first hit has already been logged. */
-    private val loggedRejection = LinkedHashSet<String>()
+    internal val loggedRejection = LinkedHashSet<String>()
 
     /** Bounded log keys for [STATUS_BAR_HEIGHT_LIVE_TAG] lifecycle events. */
-    private val loggedLiveKeys = LinkedHashSet<String>()
+    internal val loggedLiveKeys = LinkedHashSet<String>()
 
     /** True once [loggedRejection] is full, so the hot path can skip key construction entirely. */
     @Volatile
-    private var rejectionLoggingExhausted = false
+    internal var rejectionLoggingExhausted = false
 
     /**
      * Per-display "already logged for this generation" stamps. They let the hot path skip the
      * whole diagnostic prelude (string keys, Rect copies, extra reflection) without a lock.
      */
-    private val layoutLogStamps = AtomicLongArray(StatusBarHeightRuntime.MAX_TRACKED)
-    private val windowFrameLogStamps = AtomicLongArray(StatusBarHeightRuntime.MAX_TRACKED)
-    private val clientFrameLogStamps = AtomicLongArray(StatusBarHeightRuntime.MAX_TRACKED)
+    internal val layoutLogStamps = AtomicLongArray(StatusBarHeightRuntime.MAX_TRACKED)
+    internal val windowFrameLogStamps = AtomicLongArray(StatusBarHeightRuntime.MAX_TRACKED)
+    internal val clientFrameLogStamps = AtomicLongArray(StatusBarHeightRuntime.MAX_TRACKED)
 
     /**
      * Returns true at most once per (display, generation) pair. The stamp is `generation + 1`
@@ -116,50 +116,6 @@ object SystemStatusBarInsetsHooks {
         val slot = if (displayId in 0 until StatusBarHeightRuntime.MAX_TRACKED) displayId else StatusBarHeightRuntime.MAX_TRACKED - 1
         val stamp = StatusBarHeightConfig.generation.get() + 1
         return stamps.getAndSet(slot, stamp) != stamp
-    }
-
-    private fun clearLiveLogStamps(stamps: AtomicLongArray) {
-        for (i in 0 until stamps.length()) stamps.set(i, 0L)
-    }
-
-    @JvmStatic
-    internal fun resetDiagnostics() {
-        synchronized(loggedCritical) { loggedCritical.clear() }
-        synchronized(loggedRejection) {
-            loggedRejection.clear()
-            rejectionLoggingExhausted = false
-        }
-        synchronized(loggedLiveKeys) { loggedLiveKeys.clear() }
-        clearLiveLogStamps(layoutLogStamps)
-        clearLiveLogStamps(windowFrameLogStamps)
-        clearLiveLogStamps(clientFrameLogStamps)
-        statusSourceLogStamp.set(0L)
-        reflectionFailureLogStamp.set(0L)
-        invalidShapeLogStamp.set(0L)
-    }
-
-    @JvmStatic
-    internal fun reset() {
-        resetDiagnostics()
-        statusBarHeightAbi = null
-        statusBarHeightEffect = null
-        hookInstalled = false
-        statusBarHeightRuntime.resetKnownStatusBars()
-    }
-
-    @JvmStatic
-    internal fun criticalKeyCount(): Int {
-        synchronized(loggedCritical) { return loggedCritical.size }
-    }
-
-    @JvmStatic
-    internal fun rejectionKeyCount(): Int {
-        synchronized(loggedRejection) { return loggedRejection.size }
-    }
-
-    @JvmStatic
-    internal fun liveKeyCount(): Int {
-        synchronized(loggedLiveKeys) { return loggedLiveKeys.size }
     }
 
     @JvmStatic
@@ -798,9 +754,9 @@ object SystemStatusBarInsetsHooks {
      * path touches before deciding not to log, so no key string, no `Rect` copy and no extra
      * reflection are produced once a generation has been reported.
      */
-    private val statusSourceLogStamp = AtomicLong(0L)
-    private val reflectionFailureLogStamp = AtomicLong(0L)
-    private val invalidShapeLogStamp = AtomicLong(0L)
+    internal val statusSourceLogStamp = AtomicLong(0L)
+    internal val reflectionFailureLogStamp = AtomicLong(0L)
+    internal val invalidShapeLogStamp = AtomicLong(0L)
 
     private fun claimGenerationStamp(stamp: AtomicLong): Boolean {
         val value = StatusBarHeightConfig.generation.get() + 1

@@ -15,7 +15,7 @@ internal class StatusBarHeightRuntime {
 
     /** Bounded identity snapshot.  Always a fixed-length array of length [MAX_TRACKED]. */
     @Volatile
-    private var knownOwners = arrayOfNulls<WeakReference<Any>>(MAX_TRACKED)
+    internal var knownOwners = arrayOfNulls<WeakReference<Any>?>(MAX_TRACKED)
 
     /** Weak reference to the most recently laid-out status bar WindowState for traversal. */
     @Volatile
@@ -30,15 +30,6 @@ internal class StatusBarHeightRuntime {
 
     /** Last generation for which a traversal was requested, to coalesce duplicates. */
     val lastRefreshGeneration: AtomicLong = AtomicLong(-1L)
-
-    /** Return a defensive copy of the current identity snapshot. */
-    fun knownSnapshot(): Array<WeakReference<Any>?> = knownOwners.copyOf()
-
-    /** Return the count of non-null entries in the current snapshot. */
-    fun knownCount(): Int = knownOwners.count { it != null && it.get() != null }
-
-    /** Return the latest status bar reference. */
-    fun latestRef(): WeakReference<Any>? = latestKnownStatusBar
 
     /**
      * Check whether [owner] is already known as a status bar.
@@ -128,18 +119,6 @@ internal class StatusBarHeightRuntime {
         knownOwners = next
         latestKnownStatusBar = newRef
         return newRef
-    }
-
-    /**
-     * Forget all known status bars.  Used by tests and process reinitialization.
-     */
-    @Synchronized
-    fun resetKnownStatusBars() {
-        knownOwners = arrayOfNulls(MAX_TRACKED)
-        latestKnownStatusBar = null
-        typeMatchObserved = false
-        fallbackProbeBudget.set(MAX_FALLBACK_PROBES)
-        lastRefreshGeneration.set(-1L)
     }
 
     companion object {

@@ -91,12 +91,78 @@ open class ResourceHooks {
     }
 
     /**
-     * Per-getter install state.  One lock per state, fixed array of four entries.
+     * Per-getter install state with bounded retry counting.  This small state machine is
+     * extracted so it can be unit-tested independently; it has no framework dependencies.
      */
-    private class GetterInstallState {
-        val lock = Any()
-        var status = HookStatus.FAILED
-        var attempts = 0
+    internal class GetterInstaller(private val maxAttempts: Int = MAX_HOOK_ATTEMPTS) {
+        private val lock = Any()
+        var status: HookStatus = HookStatus.FAILED
+            private set
+        var attempts: Int = 0
+            private set
+
+        /**
+         * Attempts [installer] once and updates [status] / [attempts].
+         * Returns null on success, or the captured [Throwable] on failure.
+         * [OutOfMemoryError] is rethrown without consuming an attempt.
+         */
+        fun install(installer: () -> HookerClassHelper.CustomMethodUnhooker?): Throwable? {
+            synchronized(lock) {
+                when (status) {
+                    HookStatus.HOOKED -> return null
+                    HookStatus.FAILED -> if (attempts >= maxAttempts) return null
+                    HookStatus.PENDING -> return null
+                }
+                status = HookStatus.PENDING
+            }
+
+            var error: Throwable? = null
+            try {
+                val unhooker = installer()
+                if (unhooker == null) {
+                    error = IllegalStateException("installer returned null")
+                }
+            } catch (oom: OutOfMemoryError) {
+                synchronized(lock) { status = HookStatus.FAILED }
+                throw oom
+            } catch (t: Throwable) {
+                error = t
+            }
+
+            synchronized(lock) {
+                if (error == null) {
+                    status = HookStatus.HOOKED
+                    attempts = 0
+                } else {
+                    attempts++
+                    status = HookStatus.FAILED
+                }
+            }
+
+            return error
+        }
+    }
+
+    /**
+     * Pure module-value resolution for a single resource getter kind.
+     * Extracted because the density/theme dispatch is shared production logic and is
+     * testable without a live Resources hook.
+     */
+    internal object ResourceReplacementResolver {
+        fun resolveModuleValue(
+            kind: ResourceGetterKind,
+            chain: XposedInterface.Chain,
+            moduleRes: Resources,
+            modResId: Int,
+        ): Any? {
+            return if (kind == ResourceGetterKind.GET_DRAWABLE_FOR_DENSITY) {
+                val density = chain.getArg(1) as Int
+                val theme = chain.getArg(2) as Resources.Theme?
+                kind.getValue(moduleRes, modResId, density, theme)
+            } else {
+                kind.getValue(moduleRes, modResId)
+            }
+        }
     }
 
     private val themeValueReplacements = ConcurrentHashMap<String, ThemeValue>()
@@ -105,29 +171,27 @@ open class ResourceHooks {
      * Replacement tables read by [ReplaceHook].
      *
      * The hook sits on `Resources.getText/getString/getLayout/getDrawableForDensity`, so it runs on
-     * every resource read of the hooked process. Sparse containers keep the lookup free of key
-     * boxing, and the tables are published copy-on-write: registration happens on hook setup and
-     * preference changes, reads happen on every UI thread of the target process.
+     * every resource read of the hooked process. The tables are published copy-on-write so readers
+     * on the UI thread never observe a partially updated map.
      */
     private val replacementsLock = Any()
 
     @Volatile
-    private var fakes = SparseIntArray()
+    private var fakes = emptyMap<Int, Int>()
 
     @Volatile
-    private var resourceIdReplacements = SparseArray<ResourceValue>()
+    private var resourceIdReplacements = emptyMap<Int, ResourceValue>()
 
-    private val getterStates =
-        Array(ResourceGetterKind.entries.size) { GetterInstallState() }
-    private val themeHookState = GetterInstallState()
+    private val getterInstallers =
+        Array(ResourceGetterKind.entries.size) { GetterInstaller() }
+    private val themeHookInstaller = GetterInstaller()
 
     private val lastFailureLogTimes =
         LongArray(ResourceFailureDomain.entries.size) { -1L }
 
     /**
      * Resolves the module [Resources] to use for replacement values.
-     *
-     * Pluggable back-end; the default uses the running module context.
+     * This is a protected cold-path back-end: the hot path only calls it after a table hit.
      */
     protected open fun resolveModuleResources(): Resources? {
         val context = ModuleHelper.findContext() ?: return null
@@ -136,8 +200,7 @@ open class ResourceHooks {
 
     /**
      * Installs a hook on the given [Resources] getter.
-     *
-     * Pluggable back-end; the default uses the real framework installer.
+     * Internal back-end so tests can substitute a fake installer without changing hot paths.
      */
     internal open fun installResourceHook(
         kind: ResourceGetterKind,
@@ -147,84 +210,47 @@ open class ResourceHooks {
 
     /**
      * Installs the theme value merge hook.
-     *
-     * Pluggable back-end; the default uses the real framework installer.
      */
-    protected open fun installThemeHook(): HookerClassHelper.CustomMethodUnhooker? = doInitThemeHook()
+    internal open fun installThemeHook(): HookerClassHelper.CustomMethodUnhooker? = doInitThemeHook()
 
     /**
      * Logs a thrown [Throwable] from the hot path.
-     *
-     * Pluggable back-end; the default writes to the Xposed log.
      */
     protected open fun logThrowable(t: Throwable) = XposedHelpers.log(t)
 
-    /** Reads the current [ResourceValue] replacement for [resId], if any. */
-    internal open fun getResourceReplacement(resId: Int): ResourceValue? = resourceIdReplacements[resId]
-
-    /** Publishes a new [ResourceValue] replacement for [resId]. */
-    protected open fun setResourceReplacement(resId: Int, type: ReplacementType, value: Any?) {
-        val rv = ResourceValue(type, value)
-        synchronized(replacementsLock) {
-            val updated = resourceIdReplacements.clone()
-            updated.put(resId, rv)
-            resourceIdReplacements = updated
-        }
-    }
-
-    /** Reads the current fake (module) resource id for [resId], if any. */
-    protected open fun getFakeResourceId(resId: Int): Int = fakes[resId]
-
-    /** Publishes a new fake (module) resource id for [resId]. */
-    protected open fun setFakeResourceId(resId: Int, modResId: Int) {
-        synchronized(replacementsLock) {
-            val updated = fakes.clone()
-            updated.put(resId, modResId)
-            fakes = updated
-        }
-    }
-
-    /** Resets the per-domain exception throttle. */
-    protected open fun resetThrottling() {
-        lastFailureLogTimes.fill(-1L)
-    }
-
     /**
      * Hot-path hook implementation.  Bound to a fixed [kind] so it never calls
-     * `chain.executable.name` or `chain.getArgs()`.
+     * `chain.executable.name` or `chain.getArgs()`.  It reads the replacement tables directly.
      */
     private inner class ReplaceHook(private val kind: ResourceGetterKind) : HookerClassHelper.MethodHook() {
         @Throws(Throwable::class)
         override fun intercept(chain: XposedInterface.Chain): Any? {
-            var skipValue: Any? = null
-            var shouldSkip = false
             try {
                 val resId = chain.getArg(0) as Int
-                val replacement = getResourceReplacement(resId)
+                var moduleRes: Resources? = null
+                fun moduleResources(): Resources? {
+                    if (moduleRes == null) moduleRes = resolveModuleResources()
+                    return moduleRes
+                }
+
+                val replacement = resourceIdReplacements[resId]
                 if (replacement != null) {
                     if (replacement.mType == ReplacementType.OBJECT) {
-                        skipValue = replacement.mValue
-                        shouldSkip = true
+                        return replacement.mValue
                     } else if (kind.supportsIdReplacement) {
-                        val moduleRes = resolveModuleResources()
-                        if (moduleRes != null) {
-                            val value = resolveModuleValue(chain, moduleRes, replacement.mValue as Int)
-                            if (value != null) {
-                                skipValue = value
-                                shouldSkip = true
-                            }
+                        val res = moduleResources()
+                        if (res != null) {
+                            val value = ResourceReplacementResolver.resolveModuleValue(kind, chain, res, replacement.mValue as Int)
+                            if (value != null) return value
                         }
                     }
                 } else {
-                    val modResId = getFakeResourceId(resId)
+                    val modResId = fakes[resId] ?: 0
                     if (modResId != 0) {
-                        val moduleRes = resolveModuleResources()
-                        if (moduleRes != null) {
-                            val value = resolveModuleValue(chain, moduleRes, modResId)
-                            if (value != null) {
-                                skipValue = value
-                                shouldSkip = true
-                            }
+                        val res = moduleResources()
+                        if (res != null) {
+                            val value = ResourceReplacementResolver.resolveModuleValue(kind, chain, res, modResId)
+                            if (value != null) return value
                         }
                     }
                 }
@@ -232,17 +258,7 @@ open class ResourceHooks {
                 if (t is OutOfMemoryError) throw t
                 logThrottled(t, failureDomain())
             }
-            return if (shouldSkip) skipValue else chain.proceed()
-        }
-
-        private fun resolveModuleValue(chain: XposedInterface.Chain, moduleRes: Resources, modResId: Int): Any? {
-            return if (kind == ResourceGetterKind.GET_DRAWABLE_FOR_DENSITY) {
-                val density = chain.getArg(1) as Int
-                val theme = chain.getArg(2) as Resources.Theme?
-                kind.getValue(moduleRes, modResId, density, theme)
-            } else {
-                kind.getValue(moduleRes, modResId)
-            }
+            return chain.proceed()
         }
 
         private fun failureDomain() = when (kind) {
@@ -341,6 +357,26 @@ open class ResourceHooks {
         )
     }
 
+    /** Publishes a new [ResourceValue] replacement for [resId]. */
+    internal open fun setResourceReplacement(resId: Int, type: ReplacementType, value: Any?) {
+        val rv = ResourceValue(type, value)
+        synchronized(replacementsLock) {
+            resourceIdReplacements = resourceIdReplacements.toMutableMap().apply { put(resId, rv) }
+        }
+    }
+
+    /** Publishes a new fake (module) resource id for [resId]. */
+    internal open fun setFakeResourceId(resId: Int, modResId: Int) {
+        synchronized(replacementsLock) {
+            fakes = fakes.toMutableMap().apply { put(resId, modResId) }
+        }
+    }
+
+    /** Resets the per-domain exception throttle. */
+    internal open fun resetThrottling() {
+        lastFailureLogTimes.fill(-1L)
+    }
+
     private fun initResourceIdHook(pkg: String, type: String, name: String, resourceType: ReplacementType, replaceValue: Any?) {
         val mContext = ModuleHelper.findContext()
         if (mContext != null) {
@@ -355,50 +391,20 @@ open class ResourceHooks {
         }
     }
 
-    private fun doInstallGetter(kind: ResourceGetterKind) {
-        val state = getterStates[kind.ordinal]
-
-        synchronized(state.lock) {
-            when (state.status) {
-                HookStatus.HOOKED -> return
-                HookStatus.FAILED -> if (state.attempts >= MAX_HOOK_ATTEMPTS) return
-                HookStatus.PENDING -> return
-            }
-            state.status = HookStatus.PENDING
-        }
-
-        val hook = ReplaceHook(kind)
-        var installed = false
-        var error: Throwable? = null
-        try {
-            val unhooker = installResourceHook(kind, hook)
-            installed = unhooker != null
-            if (!installed) {
-                error = IllegalStateException("findAndHookMethod returned null for Resources.${kind.methodName}")
-            }
-        } catch (oom: OutOfMemoryError) {
-            synchronized(state.lock) {
-                state.status = HookStatus.FAILED
-            }
-            throw oom
-        } catch (t: Throwable) {
-            error = t
-        }
-
-        synchronized(state.lock) {
-            if (installed && error == null) {
-                state.status = HookStatus.HOOKED
-                state.attempts = 0
-            } else {
-                state.attempts++
-                state.status = HookStatus.FAILED
-            }
-        }
-
+    internal fun installGetter(kind: ResourceGetterKind) {
+        val error = getterInstallers[kind.ordinal].install { installResourceHook(kind, ReplaceHook(kind)) }
         if (error != null) {
             XposedHelpers.log("Failed to hook Resources.${kind.methodName}: $error")
         }
     }
+
+    internal fun createReplaceHook(kind: ResourceGetterKind): HookerClassHelper.MethodHook = ReplaceHook(kind)
+
+    internal fun getterStatus(kind: ResourceGetterKind): HookStatus = getterInstallers[kind.ordinal].status
+    internal fun getterAttemptCount(kind: ResourceGetterKind): Int = getterInstallers[kind.ordinal].attempts
+
+    internal fun themeHookStatus(): HookStatus = themeHookInstaller.status
+    internal fun themeHookAttemptCount(): Int = themeHookInstaller.attempts
 
     private fun applyHooks(type: String) {
         when (type) {
@@ -497,60 +503,14 @@ open class ResourceHooks {
         }
     }
 
+    internal fun tryInitThemeHook() = doTryInitThemeHook()
+
     private fun doTryInitThemeHook() {
-        val state = themeHookState
-
-        synchronized(state.lock) {
-            when (state.status) {
-                HookStatus.HOOKED -> return
-                HookStatus.FAILED -> if (state.attempts >= MAX_HOOK_ATTEMPTS) return
-                HookStatus.PENDING -> return
-            }
-            state.status = HookStatus.PENDING
-        }
-
-        var installed = false
-        var error: Throwable? = null
-        try {
-            val unhooker = installThemeHook()
-            installed = unhooker != null
-            if (!installed) {
-                error = IllegalStateException("initThemeHook returned null")
-            }
-        } catch (oom: OutOfMemoryError) {
-            synchronized(state.lock) {
-                state.status = HookStatus.FAILED
-            }
-            throw oom
-        } catch (t: Throwable) {
-            error = t
-        }
-
-        synchronized(state.lock) {
-            if (installed && error == null) {
-                state.status = HookStatus.HOOKED
-                state.attempts = 0
-            } else {
-                state.attempts++
-                state.status = HookStatus.FAILED
-            }
-        }
-
+        val error = themeHookInstaller.install { installThemeHook() }
         if (error != null) {
             XposedHelpers.log("Failed to hook ThemeResources.mergeThemeValues: $error")
         }
     }
-
-    internal fun createReplaceHook(kind: ResourceGetterKind): HookerClassHelper.MethodHook = ReplaceHook(kind)
-
-    internal fun getterStatus(kind: ResourceGetterKind): HookStatus = getterStates[kind.ordinal].status
-    internal fun getterAttemptCount(kind: ResourceGetterKind): Int = getterStates[kind.ordinal].attempts
-
-    internal fun themeHookStatus(): HookStatus = themeHookState.status
-    internal fun themeHookAttemptCount(): Int = themeHookState.attempts
-
-    internal fun installGetter(kind: ResourceGetterKind) = doInstallGetter(kind)
-    internal fun tryInitThemeHook() = doTryInitThemeHook()
 
     companion object {
         @JvmStatic

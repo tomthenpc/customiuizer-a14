@@ -14,7 +14,7 @@ package tv.withaibuild.customiuizer.mods.utils
  */
 object FeatureInstallState {
 
-    private val states = HashMap<Int, FeatureState>()
+    internal val states = HashMap<Int, FeatureState>()
 
     /** Initialize a feature without overwriting state recorded by an earlier registry. */
     @JvmStatic
@@ -59,7 +59,4 @@ object FeatureInstallState {
     @JvmStatic
     fun set(featureId: FeatureId, state: FeatureState) = set(featureId.id, state)
 
-    /** Reset all state.  Intended for module reload and diagnostics. */
-    @JvmStatic
-    fun reset() = synchronized(states) { states.clear() }
 }

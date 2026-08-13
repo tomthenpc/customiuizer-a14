@@ -96,8 +96,8 @@ internal class NotificationAutoExpandRuntimeState @JvmOverloads internal constru
         private const val APPS_KEY = "system_expandnotifs_apps"
 
         @Volatile
-        private var installed: Boolean = false
-        private var instance: NotificationAutoExpandRuntimeState? = null
+        internal var installed: Boolean = false
+        internal var instance: NotificationAutoExpandRuntimeState? = null
         private val installLock = Any()
 
         /**
@@ -112,11 +112,10 @@ internal class NotificationAutoExpandRuntimeState @JvmOverloads internal constru
          * initialized process instance.
          */
         @JvmStatic
-        fun install(): NotificationAutoExpandRuntimeState =
-            install(NotificationAutoExpandRuntimeState())
+        fun install(): NotificationAutoExpandRuntimeState = install(NotificationAutoExpandRuntimeState())
 
         /**
-         * Test seam: installs a provided [NotificationAutoExpandRuntimeState] using the same
+         * Installs a provided [NotificationAutoExpandRuntimeState] using the same
          * publication invariants as [install].
          */
         @JvmStatic
@@ -130,32 +129,13 @@ internal class NotificationAutoExpandRuntimeState @JvmOverloads internal constru
                     return checkNotNull(instance) { "installed=true but instance is null" }
                 }
 
-                val candidate = instance ?: runtimeState.also {
-                    instance = it
-                }
+                instance = runtimeState
 
-                candidate.installObserver()
-                candidate.initialize()
+                runtimeState.installObserver()
+                runtimeState.initialize()
 
                 installed = true
-                return candidate
-            }
-        }
-
-        /**
-         * Returns whether the process singleton has been published.
-         */
-        @JvmStatic
-        internal fun isInstalled(): Boolean = installed
-
-        /**
-         * Resets the install state.
-         */
-        @JvmStatic
-        internal fun reset() {
-            synchronized(installLock) {
-                installed = false
-                instance = null
+                return runtimeState
             }
         }
     }

@@ -34,7 +34,7 @@ internal object CustomTextIconTintRoute {
         fun release(reason: String)
     }
 
-    private val registrations = mutableListOf<DarkTintRegistration>()
+    internal val registrations = mutableListOf<DarkTintRegistration>()
 
     /**
      * Register [view] with the ROM [DarkIconDispatcher] when attached, release the
@@ -102,11 +102,6 @@ internal object CustomTextIconTintRoute {
         }
     }
 
-    /**
-     * The number of View registrations currently tracked in memory.
-     */
-    fun trackedRegistrationCount(): Int = synchronized(registrations) { registrations.size }
-
     private fun findLiveRegistration(view: View): DarkTintRegistration? {
         return registrations.find { it.viewRef.get() === view && !it.state.isDisposed }
     }
@@ -121,7 +116,7 @@ internal object CustomTextIconTintRoute {
         }
     }
 
-    private class DarkTintRegistration(
+    internal class DarkTintRegistration(
         view: View,
         private val classLoader: ClassLoader,
         val route: String,

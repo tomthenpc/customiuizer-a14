@@ -575,7 +575,7 @@ class ChargingInfoHotPathTest {
 
     @Test
     fun chargingInfo_installIsIdempotentThroughFeatureInstallRegistry() {
-        FeatureInstallState.reset()
+        FeatureInstallState.states.clear()
         val registry = FeatureInstallRegistry()
         var installCount = 0
 

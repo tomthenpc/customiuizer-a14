@@ -301,7 +301,7 @@ class FatalBoundaryTest {
             cache.getDepInstance(loader, "boom.Oom")
             fail("OutOfMemoryError must propagate")
         } catch (oom: OutOfMemoryError) {
-            val state = cache.loaderState(loader)
+            val state = cache.loaderStates[loader]
             assertNull("OOM must not be cached as ClassMissing", state?.classResults?.get("boom.Oom"))
         }
     }
@@ -316,7 +316,7 @@ class FatalBoundaryTest {
             cache.getDepInstance(loader, "java.lang.String")
             fail("OutOfMemoryError must propagate")
         } catch (oom: OutOfMemoryError) {
-            val state = cache.loaderState(loader)
+            val state = cache.loaderStates[loader]
             assertFalse(
                 "OOM must not be cached as DependencyNotReady",
                 state?.classResults?.get("java.lang.String") is DepResult.DependencyNotReady

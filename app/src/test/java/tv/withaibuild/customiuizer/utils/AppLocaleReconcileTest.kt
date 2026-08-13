@@ -14,29 +14,37 @@ import org.junit.Test
 class AppLocaleReconcileTest {
 
     private lateinit var fakePrefs: FakeSharedPreferences
+    private lateinit var gateway: TestGateway
     private var originalDefaultLocale: Locale = Locale.getDefault()
-    private val appliedLocaleLists = ArrayList<LocaleListCompat?>()
-    private var currentApplicationLocales: LocaleListCompat = LocaleListCompat.getEmptyLocaleList()
 
     @Before
     fun setUp() {
         fakePrefs = FakeSharedPreferences()
+        gateway = TestGateway()
         originalDefaultLocale = Locale.getDefault()
-        appliedLocaleLists.clear()
-        currentApplicationLocales = LocaleListCompat.getEmptyLocaleList()
     }
 
     @After
     fun tearDown() {
         Locale.setDefault(originalDefaultLocale)
-        appliedLocaleLists.clear()
     }
 
-    private fun runApply(): Boolean = AppLocaleController.apply(
-        fakePrefs,
-        applier = { appliedLocaleLists.add(it) },
-        provider = { currentApplicationLocales },
-    )
+    private fun runApply(): Boolean = AppLocaleController.apply(fakePrefs, gateway)
+
+    private fun appliedLocaleLists(): List<LocaleListCompat> = gateway.appliedLists
+
+    private class TestGateway : AppLocaleController.AppLocaleGateway {
+        var storedLocales: LocaleListCompat = LocaleListCompat.getEmptyLocaleList()
+        val appliedLists = ArrayList<LocaleListCompat>()
+
+        override fun getCurrentLocales(): LocaleListCompat = storedLocales
+
+        override fun setLocales(locales: LocaleListCompat): Boolean {
+            storedLocales = locales
+            appliedLists.add(locales)
+            return true
+        }
+    }
 
     @Test
     fun setUserLocaleSavesNormalized() {
@@ -50,8 +58,8 @@ class AppLocaleReconcileTest {
     fun setUserLocaleDoesNotApplyImmediately() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
 
-        // The applier is only invoked during apply(), never from setUserLocale.
-        assertTrue("applier should not be called from setUserLocale", appliedLocaleLists.isEmpty())
+        // The framework is only touched during apply(), never from setUserLocale.
+        assertTrue("gateway should not be called from setUserLocale", appliedLocaleLists().isEmpty())
         assertEquals(Locale.getDefault(), originalDefaultLocale)
     }
 
@@ -86,26 +94,26 @@ class AppLocaleReconcileTest {
 
         assertTrue("apply should change locale when target differs", changed)
         assertEquals(Locale.ENGLISH, Locale.getDefault())
-        assertEquals(1, appliedLocaleLists.size)
-        assertNotNull(appliedLocaleLists[0])
+        assertEquals(1, appliedLocaleLists().size)
+        assertNotNull(appliedLocaleLists()[0])
     }
 
     @Test
     fun applyIsIdempotentAfterFirstApply() {
         AppLocaleController.setUserLocale(fakePrefs, "en")
 
-        // First apply: app locale changed, applier invoked.
+        // First apply: app locale changed, framework setter invoked.
         runApply()
 
         // Simulate the system having now adopted the target locale.
-        currentApplicationLocales = appliedLocaleLists.last() ?: LocaleListCompat.getEmptyLocaleList()
-        appliedLocaleLists.clear()
+        gateway.storedLocales = appliedLocaleLists().last()
+        gateway.appliedLists.clear()
 
-        // Second apply: nothing changed, applier must not be called again.
+        // Second apply: nothing changed, framework must not be called again.
         val changedAgain = runApply()
 
         assertFalse("second apply should not re-apply", changedAgain)
-        assertTrue("applier should not be called again", appliedLocaleLists.isEmpty())
+        assertTrue("framework setter should not be called again", appliedLocaleLists().isEmpty())
     }
 
     @Test
@@ -114,7 +122,7 @@ class AppLocaleReconcileTest {
         val changed = runApply()
 
         assertFalse(changed)
-        assertTrue(appliedLocaleLists.isEmpty())
+        assertTrue(appliedLocaleLists().isEmpty())
     }
 
     @Test
@@ -185,8 +193,8 @@ class AppLocaleReconcileTest {
         assertEquals(Locale.SIMPLIFIED_CHINESE, Locale.getDefault())
 
         // Simulate the system now reporting the new list.
-        currentApplicationLocales = appliedLocaleLists.last() ?: LocaleListCompat.getEmptyLocaleList()
-        appliedLocaleLists.clear()
+        gateway.storedLocales = appliedLocaleLists().last()
+        gateway.appliedLists.clear()
 
         // zh-CN -> en
         assertTrue(AppLocaleController.setUserLocale(fakePrefs, "en"))

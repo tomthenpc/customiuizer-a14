@@ -37,14 +37,15 @@ TEXT_EXTENSIONS = {
 }
 
 # Explicitly allowed paths.  These are the real user-facing Open With sample
-# assets and the ContentProvider that serves them.
+# assets.  PrefsProvider.kt is NOT exempt: its legitimate "test/*" URI and
+# asset names do not match the forbidden test-only implementation patterns and
+# therefore need no whole-file exemption.
 ALLOWED_PATHS = {
     "app/src/main/assets/test0.png",
     "app/src/main/assets/test1.mp3",
     "app/src/main/assets/test2.mp4",
     "app/src/main/assets/test3.txt",
     "app/src/main/assets/test4.zip",
-    "app/src/main/java/tv/withaibuild/customiuizer/PrefsProvider.kt",
 }
 
 # Test-only symbol names that must not appear in production source.

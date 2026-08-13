@@ -14,6 +14,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.SystemStatusBarInsetsHooks
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
+import tv.withaibuild.customiuizer.mods.utils.StatusBarInsetsTestAccess
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.lang.reflect.Executable
 
@@ -21,8 +22,8 @@ class StatusBarHeightArchitectureCH1Test {
 
     @After
     fun tearDown() {
-        SystemStatusBarInsetsHooks.resetDiagnostics()
-        StatusBarHeightConfig.reset()
+        StatusBarInsetsTestAccess.resetDiagnostics()
+        StatusBarInsetsTestAccess.resetConfig()
     }
 
     @Test

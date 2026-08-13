@@ -122,9 +122,9 @@ class ReflectionCache @JvmOverloads internal constructor(
             DEFAULT.onSafeLifecycle(classLoader)
     }
 
-    private val lifecycle = AtomicLong(0L)
+    internal val lifecycle = AtomicLong(0L)
 
-    private val loaderStates: MutableMap<ClassLoader?, LoaderState> = Collections.synchronizedMap(
+    internal val loaderStates: MutableMap<ClassLoader?, LoaderState> = Collections.synchronizedMap(
         object : LinkedHashMap<ClassLoader?, LoaderState>(MAX_LOADERS, 0.75f, true) {
             override fun removeEldestEntry(eldest: Map.Entry<ClassLoader?, LoaderState>?): Boolean {
                 return size > MAX_LOADERS
@@ -268,14 +268,5 @@ class ReflectionCache @JvmOverloads internal constructor(
         loaderState.dependencyMethod = method
         loaderState.dependencyMethodResolved = true
         return method
-    }
-
-    internal fun loaderState(classLoader: ClassLoader?): LoaderState? = loaderStates[classLoader]
-
-    internal fun loaderCount(): Int = loaderStates.size
-
-    internal fun clear() {
-        lifecycle.set(0L)
-        loaderStates.clear()
     }
 }

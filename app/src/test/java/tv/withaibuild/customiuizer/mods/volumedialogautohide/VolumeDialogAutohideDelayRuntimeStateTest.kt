@@ -27,15 +27,19 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
     @Before
     fun setUp() {
         MainModule.mPrefs.clear()
-        VolumeDialogAutohideDelayRuntimeState.reset()
-        PreferenceObserverRegistry.reset()
+        VolumeDialogAutohideDelayRuntimeState.installed = false
+        VolumeDialogAutohideDelayRuntimeState.instance = null
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
     }
 
     @After
     fun tearDown() {
         MainModule.mPrefs.clear()
-        VolumeDialogAutohideDelayRuntimeState.reset()
-        PreferenceObserverRegistry.reset()
+        VolumeDialogAutohideDelayRuntimeState.installed = false
+        VolumeDialogAutohideDelayRuntimeState.instance = null
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
     }
 
     @Test
@@ -243,7 +247,7 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
 
         assertTrue(
             "installed flag must be published after successful init",
-            VolumeDialogAutohideDelayRuntimeState.isInstalled(),
+            VolumeDialogAutohideDelayRuntimeState.installed,
         )
     }
 
@@ -267,7 +271,7 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
         } catch (e: OutOfMemoryError) {
             assertNull("snapshot must be cleared after fatal refresh", runtimeState.snapshotRef.get())
             assertEquals("observer must be registered before fatal is rethrown", 1, processScopedObserverCount())
-            assertFalse(VolumeDialogAutohideDelayRuntimeState.isInstalled())
+            assertFalse(VolumeDialogAutohideDelayRuntimeState.installed)
         }
 
         val installed = VolumeDialogAutohideDelayRuntimeState.install(runtimeState)
@@ -293,7 +297,7 @@ class VolumeDialogAutohideDelayRuntimeStateTest {
 
         val installed = VolumeDialogAutohideDelayRuntimeState.install(runtimeState)
 
-        assertTrue(VolumeDialogAutohideDelayRuntimeState.isInstalled())
+        assertTrue(VolumeDialogAutohideDelayRuntimeState.installed)
         assertSame(runtimeState, installed)
         assertEquals(1, processScopedObserverCount())
         assertEquals(777, installed.snapshotRef.get()!!.expanded)
