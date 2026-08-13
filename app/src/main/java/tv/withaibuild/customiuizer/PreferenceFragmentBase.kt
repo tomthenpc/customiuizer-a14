@@ -134,10 +134,10 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
                 openSubFragment(
                     AboutFragment(),
                     null,
-                    AppHelper.SettingsType.Preference,
+                    AppHelper.SettingsType.Edit,
                     AppHelper.ActionBarType.HomeUp,
                     R.string.app_about,
-                    R.xml.prefs_about
+                    0
                 )
                 return true
             }

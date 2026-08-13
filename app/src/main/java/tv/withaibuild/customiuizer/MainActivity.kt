@@ -100,6 +100,8 @@ class MainActivity : AppCompatActivity() {
                     finish()
                 } else if (fragment is SubFragment) {
                     fragment.finish()
+                } else if (fragment is AboutFragment) {
+                    supportFragmentManager.popBackStackImmediate()
                 }
                 true
             }

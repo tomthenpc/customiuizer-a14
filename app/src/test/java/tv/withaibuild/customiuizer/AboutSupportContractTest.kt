@@ -1,5 +1,6 @@
 package tv.withaibuild.customiuizer
 
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
@@ -8,14 +9,14 @@ class AboutSupportContractTest {
     @Test
     fun supportEntries_areColdPathAndUseCanonicalLinks() {
         val fragment = source("app/src/main/java/tv/withaibuild/customiuizer/AboutFragment.kt")
-        val preferences = source("app/src/main/res/xml/prefs_about.xml")
+        val layout = source("app/src/main/res/layout/fragment_about.xml")
 
-        assertTrue(preferences.contains("pref_key_about_donate"))
-        assertTrue(preferences.contains("pref_key_about_repository"))
-        assertTrue(preferences.contains("pref_key_about_contact"))
-        assertTrue(preferences.contains("android:summary=\"@string/about_dynamic\""))
-        assertTrue(preferences.contains("android:summary=\"@string/about_unsupported\""))
-        assertTrue(!fragment.contains("fragment_about_tail"))
+        assertTrue(layout.contains("about_donate_title"))
+        assertTrue(layout.contains("about_repository_title"))
+        assertTrue(layout.contains("about_contact_title"))
+        assertTrue(layout.contains("about_dynamic"))
+        assertTrue(layout.contains("about_unsupported"))
+        assertFalse(fragment.contains("fragment_about_tail"))
         assertTrue(fragment.contains("inSampleSize = DONATION_IMAGE_SAMPLE_SIZE"))
         assertTrue(fragment.contains("image.setImageDrawable(null)"))
         assertTrue(fragment.contains("bitmap.recycle()"))

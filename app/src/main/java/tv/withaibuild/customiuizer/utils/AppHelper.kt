@@ -16,7 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.mods.GlobalActions
-import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
+
 
 object AppHelper {
     const val prefsName = "customiuizer_prefs"
@@ -113,11 +113,6 @@ object AppHelper {
     fun getBooleanOfAppPrefs(key: String?, defValue: Boolean = false): Boolean {
         if (key == null) return defValue
         return appPrefs?.getBoolean(prefixKey(key), defValue) ?: defValue
-    }
-
-    @JvmStatic
-    fun setupLocalePreference(localePref: ListPreferenceEx?) {
-        AppLocaleController.setupLocalePreference(localePref, appPrefs)
     }
 
     @JvmStatic

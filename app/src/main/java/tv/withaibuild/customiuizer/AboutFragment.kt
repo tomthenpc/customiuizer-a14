@@ -1,111 +1,191 @@
 package tv.withaibuild.customiuizer
 
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import androidx.preference.Preference
-import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
+import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.AppLocaleController
 import java.util.Locale
 
-class AboutFragment : SubFragment() {
+class AboutFragment : Fragment() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        headLayoutId = R.layout.fragment_about_head
-    }
+    private var localeDialog: AlertDialog? = null
+    private var confirmationDialog: AlertDialog? = null
+    private var donateDialog: AlertDialog? = null
+
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? = inflater.inflate(R.layout.fragment_about, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        findPreference<ListPreferenceEx>("pref_key_miuizer_locale")?.let { locale ->
-            AppLocaleController.setupLocalePreference(locale, AppHelper.appPrefs)
-            installLocaleChangeListener(locale)
-        }
-        findPreference<Preference>("pref_key_about_donate")?.setOnPreferenceClickListener {
-            showDonationDialog()
-            true
-        }
-        findPreference<Preference>("pref_key_about_repository")?.setOnPreferenceClickListener {
-            openLink(REPOSITORY_URL)
-            true
-        }
-        findPreference<Preference>("pref_key_about_contact")?.setOnPreferenceClickListener {
-            openLink(CONTACT_URL)
-            true
-        }
+        initActionBar()
+        bindRowClicks(view)
+        updateHeadViews(view, resources.configuration)
+        updateLanguageRow(view)
+    }
 
-        updateHeadViews(resources.configuration)
+    override fun onResume() {
+        super.onResume()
+        val view = view ?: return
+        updateLanguageRow(view)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        if (view == null) return
-        updateHeadViews(newConfig)
+        val view = view ?: return
+        updateHeadViews(view, newConfig)
     }
 
-    private fun installLocaleChangeListener(localePref: ListPreferenceEx) {
-        val prefs = AppHelper.appPrefs ?: return
+    override fun onDestroyView() {
+        super.onDestroyView()
+        localeDialog?.dismiss()
+        localeDialog = null
+        confirmationDialog?.dismiss()
+        confirmationDialog = null
+        donateDialog?.dismiss()
+        donateDialog = null
+    }
 
-        localePref.onPreferenceChangeListener = Preference.OnPreferenceChangeListener { _, newValue ->
-            val newTag = newValue as? String ?: return@OnPreferenceChangeListener false
-            val currentTag = AppLocaleController.getUserLocale(prefs)
-
-            // Same value: let the ListPreference dialog close normally.
-            if (newTag == currentTag) return@OnPreferenceChangeListener true
-
-            showLocaleChangeConfirmation(newTag, localePref)
-            // Always block the ListPreference from persisting automatically; the
-            // confirmation dialog is the only path that may write and exit.
-            false
+    private fun initActionBar() {
+        val act = activity as? AppCompatActivity ?: return
+        act.supportActionBar?.apply {
+            setTitle(R.string.app_about)
+            setDisplayHomeAsUpEnabled(true)
         }
     }
 
-    private fun showLocaleChangeConfirmation(newTag: String, localePref: ListPreferenceEx) {
-        val prefs = AppHelper.appPrefs ?: return
+    private fun bindRowClicks(view: View) {
+        view.findViewById<View>(R.id.about_language_row).setOnClickListener {
+            showLocaleSelector()
+        }
+        view.findViewById<View>(R.id.about_donate_row).setOnClickListener {
+            showDonationDialog()
+        }
+        view.findViewById<View>(R.id.about_repository_row).setOnClickListener {
+            openLink(REPOSITORY_URL)
+        }
+        view.findViewById<View>(R.id.about_contact_row).setOnClickListener {
+            openLink(CONTACT_URL)
+        }
+    }
 
-        val dialog = AlertDialog.Builder(requireContext())
-            .setTitle(R.string.dialog_change_locale_title)
-            .setMessage(R.string.dialog_change_locale_message)
-            .setNegativeButton(android.R.string.cancel) { _, _ -> /* dismiss only */ }
-            .setPositiveButton(R.string.dialog_change_locale_confirm) { _, _ ->
-                val success = AppLocaleController.setUserLocale(prefs, newTag)
-                if (!success) {
-                    Toast.makeText(
-                        requireContext(),
-                        R.string.dialog_change_locale_save_failed,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    return@setPositiveButton
-                }
-                // Persist and exit. The locale is applied on the next process start
-                // (MainApplication.apply), and the process is killed so the user gets a
-                // clean cold start.
-                AppLocaleController.exitApplicationAfterLocaleSave(requireActivity())
+    private fun updateHeadViews(view: View, config: Configuration) {
+        view.findViewById<View>(R.id.miuizer_icon)?.visibility =
+            if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) View.GONE else View.VISIBLE
+
+        view.findViewById<TextView>(R.id.about_version)?.text =
+            String.format(Locale.US, getString(R.string.about_version), BuildConfig.VERSION_NAME ?: "")
+    }
+
+    private fun updateLanguageRow(view: View) {
+        val summary = AppLocaleController.getUserLocaleSummary(requireContext(), AppHelper.appPrefs)
+        view.findViewById<TextView>(R.id.about_language_summary)?.text = summary
+    }
+
+    private fun showLocaleSelector() {
+        val context = context ?: return
+        val prefs = AppHelper.appPrefs ?: return
+        val currentTag = AppLocaleController.getUserLocaleForUi(prefs)
+
+        val (displayEntries, entryValues) = try {
+            AppLocaleController.buildLocaleDisplayData(context)
+        } catch (t: Throwable) {
+            // UI is already degraded; log and do nothing.
+            return
+        }
+
+        var selectedIndex = entryValues.indexOf(currentTag)
+        if (selectedIndex < 0) selectedIndex = 0
+
+        val dialog = AlertDialog.Builder(context)
+            .setTitle(R.string.miuizer_locale_title)
+            .setSingleChoiceItems(displayEntries, selectedIndex) { _, which ->
+                selectedIndex = which
             }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                onLocaleSelected(entryValues, selectedIndex)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
             .setOnDismissListener {
-                // If the dialog is dismissed without confirming, restore the persisted
-                // value so the summary and ListPreference selection stay in sync.
-                localePref.value = AppLocaleController.getUserLocale(prefs)
+                localeDialog = null
             }
             .create()
 
+        localeDialog = dialog
         dialog.show()
     }
 
+    private fun onLocaleSelected(entryValues: Array<String>, index: Int) {
+        if (index < 0 || index >= entryValues.size) return
+        val newTag = entryValues[index]
+
+        val prefs = AppHelper.appPrefs ?: return
+        val currentTag = AppLocaleController.getUserLocaleForUi(prefs)
+
+        // Same value: no confirmation and no write.
+        if (newTag == currentTag) return
+
+        showLocaleChangeConfirmation(newTag)
+    }
+
+    private fun showLocaleChangeConfirmation(newTag: String) {
+        val context = context ?: return
+
+        val dialog = AlertDialog.Builder(context)
+            .setTitle(R.string.dialog_change_locale_title)
+            .setMessage(R.string.dialog_change_locale_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.dialog_change_locale_confirm) { _, _ ->
+                applyLocale(newTag)
+            }
+            .setOnDismissListener {
+                confirmationDialog = null
+            }
+            .create()
+
+        confirmationDialog = dialog
+        dialog.show()
+    }
+
+    private fun applyLocale(newTag: String) {
+        val prefs = AppHelper.appPrefs ?: run {
+            showToast(R.string.dialog_change_locale_save_failed)
+            return
+        }
+
+        val success = AppLocaleController.setUserLocale(prefs, newTag)
+        if (!success) {
+            showToast(R.string.dialog_change_locale_save_failed)
+            return
+        }
+
+        val act = activity as? AppCompatActivity ?: return
+        if (act.isFinishing || act.isDestroyed || !isAdded) return
+        AppLocaleController.exitApplicationAfterLocaleSave(act)
+    }
+
     private fun showDonationDialog() {
-        val context = requireContext()
+        val context = context ?: return
         val bitmap = BitmapFactory.decodeResource(
             resources,
             R.drawable.wechat_donation_code,
@@ -114,15 +194,17 @@ class AboutFragment : SubFragment() {
                 inSampleSize = DONATION_IMAGE_SAMPLE_SIZE
             }
         ) ?: run {
-            Toast.makeText(context, R.string.about_donation_unavailable, Toast.LENGTH_SHORT).show()
+            showToast(R.string.about_donation_unavailable)
             return
         }
+
         val density = resources.displayMetrics.density
         val padding = (16f * density + 0.5f).toInt()
         val size = minOf(
             (300f * density + 0.5f).toInt(),
             resources.displayMetrics.widthPixels - padding * 2
         )
+
         val image = ImageView(context).apply {
             contentDescription = getString(R.string.about_donate_image_description)
             adjustViewBounds = true
@@ -133,15 +215,19 @@ class AboutFragment : SubFragment() {
             setPadding(padding, padding / 2, padding, 0)
             addView(image, FrameLayout.LayoutParams(size, size, Gravity.CENTER))
         }
+
         val dialog = AlertDialog.Builder(context)
             .setTitle(R.string.about_donate_title)
             .setView(container)
             .setPositiveButton(android.R.string.ok, null)
+            .setOnDismissListener {
+                image.setImageDrawable(null)
+                if (!bitmap.isRecycled) bitmap.recycle()
+                donateDialog = null
+            }
             .create()
-        dialog.setOnDismissListener {
-            image.setImageDrawable(null)
-            if (!bitmap.isRecycled) bitmap.recycle()
-        }
+
+        donateDialog = dialog
         dialog.show()
     }
 
@@ -149,24 +235,13 @@ class AboutFragment : SubFragment() {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(requireContext(), R.string.about_link_unavailable, Toast.LENGTH_SHORT)
-                .show()
+            showToast(R.string.about_link_unavailable)
         }
     }
 
-    private fun updateHeadViews(config: Configuration) {
-        val root = view ?: return
-        root.findViewById<View>(R.id.miuizer_icon)?.visibility =
-            if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) View.GONE else View.VISIBLE
-
-        val versionView = root.findViewById<TextView>(R.id.about_version)
-        if (versionView != null) try {
-            val validContext = getValidContext()
-            val versionName = validContext.packageManager.getPackageInfo(validContext.packageName, 0).versionName
-            versionView.text = String.format(Locale.US, getString(R.string.about_version), versionName)
-        } catch (e: Throwable) {
-            e.printStackTrace()
-        }
+    private fun showToast(messageRes: Int) {
+        val context = context ?: return
+        Toast.makeText(context, messageRes, Toast.LENGTH_SHORT).show()
     }
 
     private companion object {

@@ -12,7 +12,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import java.util.Locale
 import tv.withaibuild.customiuizer.R
-import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 
 /**
  * Single owner for the application locale setting.
@@ -111,6 +111,50 @@ object AppLocaleController {
             return false
         }
         return true
+    }
+
+    /**
+     * Read the normalized user locale for the About UI and repair an invalid persisted value.
+     *
+     * This is a cold-path helper: it only runs when the user opens the About screen, not on
+     * every application start, so the one-off [apply] write for invalid legacy values does not
+     * affect the fast path. The View layer must not call this during repeated bind/measure
+     * passes; call it once per screen creation or resume.
+     */
+    @JvmStatic
+    fun getUserLocaleForUi(prefs: SharedPreferences?): String {
+        prefs ?: return AUTO
+        val raw = prefs.getString(LOCALE_PREF_KEY, null) ?: return AUTO
+        val normalized = normalizeLocaleTag(raw)
+        if (raw != normalized) {
+            Log.w(TAG, "Invalid persisted locale '$raw'; repairing to '$normalized'")
+            prefs.edit().putString(LOCALE_PREF_KEY, normalized).apply()
+        }
+        return normalized
+    }
+
+    /**
+     * Return a human-readable summary of the current user locale for the About row.
+     */
+    @JvmStatic
+    fun getUserLocaleSummary(context: Context, prefs: SharedPreferences?): String =
+        getUserLocaleSummary(context.getString(R.string.array_system_default), prefs)
+
+    /**
+     * Testable overload of [getUserLocaleSummary] that does not require an Android [Context].
+     */
+    @JvmStatic
+    fun getUserLocaleSummary(systemDefaultLabel: String, prefs: SharedPreferences?): String {
+        val tag = getUserLocaleForUi(prefs)
+        val (displayEntries, entryValues) = try {
+            buildLocaleDisplayData(systemDefaultLabel)
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            Log.e(TAG, "Cannot build locale display data", t)
+            return systemDefaultLabel
+        }
+        val index = entryValues.indexOf(tag)
+        return if (index >= 0) displayEntries[index].toString() else systemDefaultLabel
     }
 
     /**
@@ -251,6 +295,7 @@ object AppLocaleController {
             manager.applicationLocales = LocaleList.forLanguageTags(locales.toLanguageTags())
             true
         } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
             Log.e(TAG, "LocaleManager rejected the locale list", t)
             false
         }
@@ -270,15 +315,18 @@ object AppLocaleController {
         "auto" -> try {
             systemLocaleProvider()
         } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
             Log.w(TAG, "system locale provider failed: ${t.message}; falling back to JVM default")
             Locale.getDefault()
         }
         else -> try {
             Locale.forLanguageTag(tag)
         } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
             try {
                 systemLocaleProvider()
-            } catch (_: Throwable) {
+            } catch (t2: Throwable) {
+                FatalErrors.rethrowIfFatal(t2)
                 Locale.getDefault()
             }
         }
@@ -292,6 +340,7 @@ object AppLocaleController {
             else -> LocaleListCompat.forLanguageTags(normalizeLocaleTag(tag))
         }
     } catch (t: Throwable) {
+        FatalErrors.rethrowIfFatal(t)
         Log.w(TAG, "toLocaleListCompat failed: ${t.message}; returning empty list")
         LocaleListCompat.getEmptyLocaleList()
     }
@@ -302,6 +351,7 @@ object AppLocaleController {
         val sysLocales = Resources.getSystem().configuration.locales
         if (sysLocales.isEmpty) Locale.getDefault() else sysLocales[0]
     } catch (t: Throwable) {
+        FatalErrors.rethrowIfFatal(t)
         Log.w(TAG, "getSystemLocale failed: ${t.message}; falling back to JVM default")
         Locale.getDefault()
     }
@@ -342,70 +392,6 @@ object AppLocaleController {
         return sb.toString()
     }
 
-    /**
-     * Prepare the language [ListPreferenceEx] with stable entries and values.
-     *
-     * - Sets stable [entries] and [entryValues] before any value is restored.
-     * - Disables the preference's own persistence so only [setUserLocale] writes.
-     * - Defensively falls back to `auto` if the current persisted value is missing from the
-     *   supported set.
-     *
-     * The caller (usually [AboutFragment]) is responsible for installing the
-     * [androidx.preference.Preference.OnPreferenceChangeListener] that shows the
-     * confirmation dialog and exits the application.
-     */
-    @JvmStatic
-    fun setupLocalePreference(pref: ListPreferenceEx?, prefs: SharedPreferences?) {
-        if (pref == null) return
-
-        // Disable the preference's own persistence before anything that can fail.
-        // The XML declares a one-item placeholder entry list so the real languages can
-        // be built at runtime; if setup bails out after that placeholder is still in
-        // place, a persisting ListPreference would write the placeholder over the
-        // user's stored language. setUserLocale is the only writer.
-        pref.isPersistent = false
-
-        if (prefs == null) {
-            Log.e(TAG, "No preferences available; leaving the locale preference disabled")
-            pref.isEnabled = false
-            return
-        }
-
-        val (displayEntries, entryValues) = try {
-            buildLocaleDisplayData(pref.context)
-        } catch (t: Throwable) {
-            Log.e(TAG, "Cannot build locale display data", t)
-            pref.isEnabled = false
-            return
-        }
-
-        if (displayEntries.size != entryValues.size) {
-            Log.e(TAG, "Locale display data mismatch: entries=${displayEntries.size}, values=${entryValues.size}")
-            return
-        }
-
-        pref.entries = displayEntries
-        pref.entryValues = entryValues
-        pref.isPersistent = false
-
-        val current = getUserLocale(prefs)
-        val safeValue = if (entryValues.contains(current)) current else "auto"
-        if (safeValue != current) {
-            Log.e(TAG, "Invalid persisted locale '$current'; falling back to 'auto'")
-            // Repair the persisted value. The
-            // application will apply this value on the next start through [apply].
-            prefs.edit().putString(LOCALE_PREF_KEY, safeValue).apply()
-        }
-
-        pref.value = safeValue
-
-        // The value must resolve to a non-null entry for the summary.
-        if (pref.entry.isNullOrEmpty()) {
-            Log.e(TAG, "Locale preference summary resolved to empty for value: $safeValue")
-            pref.value = "auto"
-        }
-    }
-
     /** Exit the settings application after a successful locale save. */
     @JvmStatic
     fun exitApplicationAfterLocaleSave(activity: Activity) {
@@ -433,6 +419,7 @@ object AppLocaleController {
             else -> AppCompatDelegate.getApplicationLocales() ?: LocaleListCompat.getEmptyLocaleList()
         }
     } catch (t: Throwable) {
+        FatalErrors.rethrowIfFatal(t)
         Log.w(TAG, "getCurrentApplicationLocales failed: ${t.message}; returning empty list")
         LocaleListCompat.getEmptyLocaleList()
     }
@@ -449,6 +436,7 @@ object AppLocaleController {
     private fun toLanguageTags(list: LocaleListCompat): String? = try {
         list.toLanguageTags()
     } catch (t: Throwable) {
+        FatalErrors.rethrowIfFatal(t)
         null
     }
 }
