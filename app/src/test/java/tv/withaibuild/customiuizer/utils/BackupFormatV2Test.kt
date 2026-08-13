@@ -2,9 +2,11 @@ package tv.withaibuild.customiuizer.utils
 
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.nio.charset.StandardCharsets
 import java.util.LinkedHashSet
+import tv.withaibuild.customiuizer.BuildConfig
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -56,6 +58,93 @@ class BackupFormatV2Test {
         @Suppress("UNCHECKED_CAST")
         val set = decoded["pref_key_set"] as Set<String>
         assertEquals(listOf("a", "b"), set.toList())
+    }
+
+    @Test
+    fun encodeHeaderLayoutIsBigEndian() {
+        val entries = linkedMapOf("pref_key_bool" to true)
+        val encoded = BackupFormatV2.encode(entries)
+
+        val input = DataInputStream(ByteArrayInputStream(encoded))
+        assertEquals(BackupFormatV2.MAGIC, input.readInt())
+        assertEquals(BackupFormatV2.FORMAT_VERSION, input.readInt())
+        assertEquals(BuildConfig.VERSION_CODE, input.readInt())
+        assertEquals(1, input.readInt())
+    }
+
+    @Test
+    fun decodeRejectsCrcHeaderMutation() {
+        val entries = linkedMapOf("pref_key_test" to "value")
+        val encoded = BackupFormatV2.encode(entries).copyOf()
+
+        // Mutate a byte inside the CRC-covered header (not the magic).
+        encoded[5] = (encoded[5].toInt() xor 1).toByte()
+
+        try {
+            BackupFormatV2.decode(encoded)
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("CRC") == true)
+        }
+    }
+
+    @Test
+    fun decodeRejectsCrcFooterMutation() {
+        val entries = linkedMapOf("pref_key_test" to "value")
+        val encoded = BackupFormatV2.encode(entries).copyOf()
+
+        // Mutate one of the final four CRC bytes.
+        encoded[encoded.size - 1] = (encoded[encoded.size - 1].toInt() xor 1).toByte()
+
+        try {
+            BackupFormatV2.decode(encoded)
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("CRC") == true)
+        }
+    }
+
+    @Test
+    fun decodeRejectsUnknownTypeTag() {
+        val output = ByteArrayOutputStream()
+        val data = DataOutputStream(output)
+        data.writeInt(BackupFormatV2.MAGIC)
+        data.writeInt(BackupFormatV2.FORMAT_VERSION)
+        data.writeInt(0)
+        data.writeInt(1)
+        data.writeShort(4)
+        data.write("test".toByteArray(StandardCharsets.UTF_8))
+        data.writeByte(99)
+        data.flush()
+
+        try {
+            BackupFormatV2.decode(payloadWithCrc(output.toByteArray()))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("Unknown") == true)
+        }
+    }
+
+    @Test
+    fun decodeRejectsInvalidBooleanValue() {
+        val output = ByteArrayOutputStream()
+        val data = DataOutputStream(output)
+        data.writeInt(BackupFormatV2.MAGIC)
+        data.writeInt(BackupFormatV2.FORMAT_VERSION)
+        data.writeInt(0)
+        data.writeInt(1)
+        data.writeShort(4)
+        data.write("test".toByteArray(StandardCharsets.UTF_8))
+        data.writeByte(BackupFormatV2.TYPE_BOOLEAN)
+        data.writeByte(2)
+        data.flush()
+
+        try {
+            BackupFormatV2.decode(payloadWithCrc(output.toByteArray()))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("boolean") == true)
+        }
     }
 
     @Test
