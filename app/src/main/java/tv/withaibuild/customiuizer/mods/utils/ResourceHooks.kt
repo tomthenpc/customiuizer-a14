@@ -10,7 +10,7 @@ import io.github.libxposed.api.XposedInterface
 import miui.content.res.ThemeValues
 import java.util.concurrent.ConcurrentHashMap
 
-open class ResourceHooks {
+class ResourceHooks {
 
     internal class ResourceValue(val mType: ReplacementType, val mValue: Any?)
 
@@ -82,7 +82,7 @@ open class ResourceHooks {
      * Fixed failure domains for per-callback logging.  Keeps the throttle state to a small
      * `LongArray` indexed by the domain ordinal instead of an unbounded `Map<String, Long>`.
      */
-    private enum class ResourceFailureDomain {
+    internal enum class ResourceFailureDomain {
         GET_TEXT,
         GET_STRING,
         GET_LAYOUT,
@@ -171,16 +171,18 @@ open class ResourceHooks {
      * Replacement tables read by [ReplaceHook].
      *
      * The hook sits on `Resources.getText/getString/getLayout/getDrawableForDensity`, so it runs on
-     * every resource read of the hooked process. The tables are published copy-on-write so readers
-     * on the UI thread never observe a partially updated map.
+     * every resource read of the hooked process. Sparse containers keep the lookup free of key
+     * boxing, and the tables are published copy-on-write using [SparseArray.clone]: registration
+     * happens on hook setup and preference changes, reads happen on every UI thread of the target
+     * process.
      */
     private val replacementsLock = Any()
 
     @Volatile
-    private var fakes = emptyMap<Int, Int>()
+    private var fakes = SparseIntArray()
 
     @Volatile
-    private var resourceIdReplacements = emptyMap<Int, ResourceValue>()
+    private var resourceIdReplacements = SparseArray<ResourceValue>()
 
     private val getterInstallers =
         Array(ResourceGetterKind.entries.size) { GetterInstaller() }
@@ -189,34 +191,20 @@ open class ResourceHooks {
     private val lastFailureLogTimes =
         LongArray(ResourceFailureDomain.entries.size) { -1L }
 
-    /**
-     * Resolves the module [Resources] to use for replacement values.
-     * This is a protected cold-path back-end: the hot path only calls it after a table hit.
-     */
-    protected open fun resolveModuleResources(): Resources? {
+    private fun resolveModuleResources(): Resources? {
         val context = ModuleHelper.findContext() ?: return null
         return ModuleHelper.getModuleRes(context)
     }
 
-    /**
-     * Installs a hook on the given [Resources] getter.
-     * Internal back-end so tests can substitute a fake installer without changing hot paths.
-     */
-    internal open fun installResourceHook(
+    private fun installResourceHook(
         kind: ResourceGetterKind,
         hook: HookerClassHelper.MethodHook,
     ): HookerClassHelper.CustomMethodUnhooker? =
         ModuleHelper.findAndHookMethod(Resources::class.java, kind.methodName, *kind.paramTypes, hook)
 
-    /**
-     * Installs the theme value merge hook.
-     */
-    internal open fun installThemeHook(): HookerClassHelper.CustomMethodUnhooker? = doInitThemeHook()
+    private fun installThemeHook(): HookerClassHelper.CustomMethodUnhooker? = doInitThemeHook()
 
-    /**
-     * Logs a thrown [Throwable] from the hot path.
-     */
-    protected open fun logThrowable(t: Throwable) = XposedHelpers.log(t)
+    private fun logThrowable(t: Throwable) = XposedHelpers.log(t)
 
     /**
      * Hot-path hook implementation.  Bound to a fixed [kind] so it never calls
@@ -245,7 +233,7 @@ open class ResourceHooks {
                         }
                     }
                 } else {
-                    val modResId = fakes[resId] ?: 0
+                    val modResId = fakes[resId]
                     if (modResId != 0) {
                         val res = moduleResources()
                         if (res != null) {
@@ -358,23 +346,22 @@ open class ResourceHooks {
     }
 
     /** Publishes a new [ResourceValue] replacement for [resId]. */
-    internal open fun setResourceReplacement(resId: Int, type: ReplacementType, value: Any?) {
+    private fun setResourceReplacement(resId: Int, type: ReplacementType, value: Any?) {
         val rv = ResourceValue(type, value)
         synchronized(replacementsLock) {
-            resourceIdReplacements = resourceIdReplacements.toMutableMap().apply { put(resId, rv) }
+            val updated = resourceIdReplacements.clone()
+            updated.put(resId, rv)
+            resourceIdReplacements = updated
         }
     }
 
     /** Publishes a new fake (module) resource id for [resId]. */
-    internal open fun setFakeResourceId(resId: Int, modResId: Int) {
+    private fun setFakeResourceId(resId: Int, modResId: Int) {
         synchronized(replacementsLock) {
-            fakes = fakes.toMutableMap().apply { put(resId, modResId) }
+            val updated = fakes.clone()
+            updated.put(resId, modResId)
+            fakes = updated
         }
-    }
-
-    /** Resets the per-domain exception throttle. */
-    internal open fun resetThrottling() {
-        lastFailureLogTimes.fill(-1L)
     }
 
     private fun initResourceIdHook(pkg: String, type: String, name: String, resourceType: ReplacementType, replaceValue: Any?) {
@@ -391,20 +378,12 @@ open class ResourceHooks {
         }
     }
 
-    internal fun installGetter(kind: ResourceGetterKind) {
+    private fun installGetter(kind: ResourceGetterKind) {
         val error = getterInstallers[kind.ordinal].install { installResourceHook(kind, ReplaceHook(kind)) }
         if (error != null) {
             XposedHelpers.log("Failed to hook Resources.${kind.methodName}: $error")
         }
     }
-
-    internal fun createReplaceHook(kind: ResourceGetterKind): HookerClassHelper.MethodHook = ReplaceHook(kind)
-
-    internal fun getterStatus(kind: ResourceGetterKind): HookStatus = getterInstallers[kind.ordinal].status
-    internal fun getterAttemptCount(kind: ResourceGetterKind): Int = getterInstallers[kind.ordinal].attempts
-
-    internal fun themeHookStatus(): HookStatus = themeHookInstaller.status
-    internal fun themeHookAttemptCount(): Int = themeHookInstaller.attempts
 
     private fun applyHooks(type: String) {
         when (type) {
@@ -503,7 +482,7 @@ open class ResourceHooks {
         }
     }
 
-    internal fun tryInitThemeHook() = doTryInitThemeHook()
+    private fun tryInitThemeHook() = doTryInitThemeHook()
 
     private fun doTryInitThemeHook() {
         val error = themeHookInstaller.install { installThemeHook() }

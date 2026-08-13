@@ -14,7 +14,7 @@ class FeatureInstallRegistryTest {
 
     @Before
     fun reset() {
-        FeatureInstallState.states.clear()
+        FeatureInstallState.reset()
         HookDiagnostics.reset()
         HookDiagnostics.currentProcessName = "test"
     }
