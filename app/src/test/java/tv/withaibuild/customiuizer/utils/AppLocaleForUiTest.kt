@@ -85,13 +85,35 @@ class AppLocaleForUiTest {
     }
 
     @Test
-    fun setUserLocaleReturnsFalseWhenCommitFails() {
+    fun setUserLocaleReturnsFalseAndRestoresPreviousValue() {
+        val fakePrefs = FakeSharedPreferences()
+        fakePrefs.put(AppLocaleController.LOCALE_PREF_KEY, "zh-CN")
+        fakePrefs.commitShouldSucceed = false
+
+        val success = AppLocaleController.setUserLocale(fakePrefs, "en")
+
+        assertFalse(success)
+        assertEquals("zh-CN", fakePrefs.getString(AppLocaleController.LOCALE_PREF_KEY, null))
+    }
+
+    @Test
+    fun setUserLocaleReturnsFalseAndRestoresMissingKey() {
         val fakePrefs = FakeSharedPreferences()
         fakePrefs.commitShouldSucceed = false
 
         val success = AppLocaleController.setUserLocale(fakePrefs, "en")
 
         assertFalse(success)
+        assertNull(fakePrefs.getString(AppLocaleController.LOCALE_PREF_KEY, null))
+    }
+
+    @Test
+    fun setUserLocaleSavesNewValueWhenCommitSucceeds() {
+        val fakePrefs = FakeSharedPreferences()
+
+        val success = AppLocaleController.setUserLocale(fakePrefs, "en")
+
+        assertTrue(success)
         assertEquals("en", fakePrefs.getString(AppLocaleController.LOCALE_PREF_KEY, null))
     }
 }

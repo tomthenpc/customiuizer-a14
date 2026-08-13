@@ -99,15 +99,33 @@ object AppLocaleController {
      *
      * The only persisted source of truth is [LOCALE_PREF_KEY]. The application exits
      * after a successful commit and the next start applies the new locale.
+     *
+     * If the commit fails, the previous UI-visible value is restored before returning
+     * false. Android SharedPreferences updates the in-memory map before reporting the
+     * disk result, so this rollback is required to keep the UI from showing a change
+     * that did not actually survive.
      */
     @JvmStatic
     fun setUserLocale(prefs: SharedPreferences, tag: String): Boolean {
         val normalized = normalizeLocaleTag(tag)
+        val hadPrevious = prefs.contains(LOCALE_PREF_KEY)
+        val previousValue = if (hadPrevious) prefs.getString(LOCALE_PREF_KEY, null) else null
+
         val written = prefs.edit()
             .putString(LOCALE_PREF_KEY, normalized)
             .commit()
+
         if (!written) {
-            Log.e(TAG, "setUserLocale commit failed for tag: $normalized")
+            Log.e(TAG, "setUserLocale commit failed for tag: $normalized; rolling back UI-visible state")
+            val rollback = prefs.edit()
+            if (hadPrevious && previousValue != null) {
+                rollback.putString(LOCALE_PREF_KEY, previousValue)
+            } else {
+                rollback.remove(LOCALE_PREF_KEY)
+            }
+            if (!rollback.commit()) {
+                Log.e(TAG, "setUserLocale rollback commit also failed")
+            }
             return false
         }
         return true

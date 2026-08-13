@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="settings_title">设置</string>
     <string name="app_about">关于</string>
     <string name="about_version">版本：%1$s</string>
         <string name="about_maintainer">维护：tomthenpc</string>

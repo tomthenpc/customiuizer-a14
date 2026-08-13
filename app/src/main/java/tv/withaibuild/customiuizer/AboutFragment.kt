@@ -15,10 +15,12 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.AppLocaleController
 import java.util.Locale
@@ -110,7 +112,8 @@ class AboutFragment : Fragment() {
         val (displayEntries, entryValues) = try {
             AppLocaleController.buildLocaleDisplayData(context)
         } catch (t: Throwable) {
-            // UI is already degraded; log and do nothing.
+            FatalErrors.rethrowIfFatal(t)
+            Log.e("AboutFragment", "Cannot build locale display data", t)
             return
         }
 

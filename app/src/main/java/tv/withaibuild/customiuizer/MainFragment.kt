@@ -211,7 +211,7 @@ class MainFragment : PreferenceFragmentBase() {
         super.onActivityCreated(savedInstanceState)
 
         val actionBar: ActionBar? = getActionBar()
-        actionBar?.setTitle(R.string.app_name)
+        actionBar?.setTitle(R.string.settings_title)
 
         val view = this.view ?: return
 

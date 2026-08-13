@@ -25,7 +25,7 @@ class AboutSupportContractTest {
     }
 
     private fun source(path: String): String {
-        var directory = File(System.getProperty("user.dir")).absoluteFile
+        var directory = File(System.getProperty("user.dir") ?: "").absoluteFile
         while (true) {
             val candidate = File(directory, path)
             if (candidate.isFile) return candidate.readText()

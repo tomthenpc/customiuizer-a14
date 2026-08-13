@@ -10,6 +10,7 @@ class AboutMigrationTest {
     private val aboutFragment = source("app/src/main/java/tv/withaibuild/customiuizer/AboutFragment.kt")
     private val appLocaleController = source("app/src/main/java/tv/withaibuild/customiuizer/utils/AppLocaleController.kt")
     private val mainActivity = source("app/src/main/java/tv/withaibuild/customiuizer/MainActivity.kt")
+    private val mainFragment = source("app/src/main/java/tv/withaibuild/customiuizer/MainFragment.kt")
     private val preferenceFragmentBase = source("app/src/main/java/tv/withaibuild/customiuizer/PreferenceFragmentBase.kt")
     private val buildGradle = source("app/build.gradle.kts")
 
@@ -49,7 +50,7 @@ class AboutMigrationTest {
 
     @Test
     fun prefsAboutXmlIsRemoved() {
-        val prefsAbout = File(System.getProperty("user.dir")).absoluteFile.let { root ->
+        val prefsAbout = File(System.getProperty("user.dir") ?: "").absoluteFile.let { root ->
             var dir: File? = root
             while (dir != null) {
                 val candidate = File(dir, "app/src/main/res/xml/prefs_about.xml")
@@ -66,8 +67,20 @@ class AboutMigrationTest {
         assertFalse("build.gradle.kts must not add Compose dependencies", buildGradle.contains("androidx.compose"))
     }
 
+    @Test
+    fun aboutFragmentGuardsFatalThrowableInLocalePath() {
+        assertTrue("AboutFragment must call FatalErrors.rethrowIfFatal in the locale dialog path", aboutFragment.contains("FatalErrors.rethrowIfFatal"))
+        assertTrue("AboutFragment must build locale display data from context", aboutFragment.contains("buildLocaleDisplayData(context)"))
+    }
+
+    @Test
+    fun mainFragmentUsesSettingsTitleForActionBar() {
+        assertFalse("MainFragment must not set the ActionBar title to app_name", mainFragment.contains("actionBar?.setTitle(R.string.app_name)"))
+        assertTrue("MainFragment must set the ActionBar title to settings_title", mainFragment.contains("actionBar?.setTitle(R.string.settings_title)"))
+    }
+
     private fun source(path: String): String {
-        var directory = File(System.getProperty("user.dir")).absoluteFile
+        var directory = File(System.getProperty("user.dir") ?: "").absoluteFile
         while (true) {
             val candidate = File(directory, path)
             if (candidate.isFile) return candidate.readText()
