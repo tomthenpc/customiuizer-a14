@@ -672,16 +672,21 @@ class AudioVisualizer @JvmOverloads constructor(
 
         withContext(NonCancellable) {
             visualizerMutex.withLock {
-                if (detached || !mDisplaying || generation != visualizerGeneration) {
+                val (previous, shouldReleaseCandidate) = synchronized(visualizerLock) {
+                    if (detached || !mDisplaying || generation != visualizerGeneration) {
+                        null to true
+                    } else {
+                        val current = mVisualizer
+                        mVisualizer = candidate
+                        current to false
+                    }
+                }
+
+                if (shouldReleaseCandidate) {
                     releaseVisualizer(candidate)
-                    return@withLock
+                } else if (previous !== candidate) {
+                    releaseVisualizer(previous)
                 }
-                val previous = synchronized(visualizerLock) {
-                    val current = mVisualizer
-                    mVisualizer = candidate
-                    current
-                }
-                if (previous !== candidate) releaseVisualizer(previous)
             }
         }
     }
@@ -816,10 +821,10 @@ class AudioVisualizer @JvmOverloads constructor(
         val shouldDisplay = viewAttached && mPlaying
         if (shouldDisplay) {
             if (!mDisplaying) {
+                val generation = ++visualizerGeneration
                 mDisplaying = true
                 startFrameScheduler()
                 resetBandsToBaseline()
-                val generation = ++visualizerGeneration
                 viewScope.launch { linkVisualizer(generation) }
                 randomizeColorJob?.cancel()
                 randomizeColorJob = viewScope.launch { runRandomizeColor() }
