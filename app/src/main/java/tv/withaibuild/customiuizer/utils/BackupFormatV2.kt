@@ -6,6 +6,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
 import java.util.LinkedHashMap
@@ -342,8 +343,12 @@ object BackupFormatV2 {
         val decoder = StandardCharsets.UTF_8.newDecoder()
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT)
-        val buffer = decoder.decode(ByteBuffer.wrap(bytes))
-        return buffer.toString()
+        return try {
+            val buffer = decoder.decode(ByteBuffer.wrap(bytes))
+            buffer.toString()
+        } catch (e: CharacterCodingException) {
+            throw BackupFormatException("Malformed or unmappable UTF-8")
+        }
     }
 
     /**

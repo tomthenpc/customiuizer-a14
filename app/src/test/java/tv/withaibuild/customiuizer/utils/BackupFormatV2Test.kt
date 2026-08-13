@@ -165,6 +165,54 @@ class BackupFormatV2Test {
     }
 
     @Test
+    fun decodeRejectsMalformedUtf8Key() {
+        val output = ByteArrayOutputStream()
+        val data = DataOutputStream(output)
+        data.writeInt(BackupFormatV2.MAGIC)
+        data.writeInt(BackupFormatV2.FORMAT_VERSION)
+        data.writeInt(0)
+        data.writeInt(1)
+        data.writeShort(2)
+        // Invalid multi-byte sequence: 0xC0 0x80 is an overlong encoding of U+0000.
+        data.write(byteArrayOf(0xC0.toByte(), 0x80.toByte()))
+        data.writeByte(BackupFormatV2.TYPE_STRING)
+        data.writeInt(1)
+        data.write(byteArrayOf('x'.code.toByte()))
+        data.flush()
+
+        try {
+            BackupFormatV2.decode(payloadWithCrc(output.toByteArray()))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("UTF-8") == true)
+        }
+    }
+
+    @Test
+    fun decodeRejectsMalformedUtf8StringValue() {
+        val output = ByteArrayOutputStream()
+        val data = DataOutputStream(output)
+        data.writeInt(BackupFormatV2.MAGIC)
+        data.writeInt(BackupFormatV2.FORMAT_VERSION)
+        data.writeInt(0)
+        data.writeInt(1)
+        data.writeShort(3)
+        data.write("key".toByteArray(StandardCharsets.UTF_8))
+        data.writeByte(BackupFormatV2.TYPE_STRING)
+        data.writeInt(2)
+        // Invalid multi-byte sequence.
+        data.write(byteArrayOf(0xC0.toByte(), 0x80.toByte()))
+        data.flush()
+
+        try {
+            BackupFormatV2.decode(payloadWithCrc(output.toByteArray()))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("UTF-8") == true)
+        }
+    }
+
+    @Test
     fun decodeRejectsNegativeStringLength() {
         val entries = linkedMapOf("pref_key_test" to "value")
         val encoded = BackupFormatV2.encode(entries).copyOf()
