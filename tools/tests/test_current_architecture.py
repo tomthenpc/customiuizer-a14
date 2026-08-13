@@ -364,7 +364,7 @@ class CurrentArchitectureTest(unittest.TestCase):
         self.assertIn("object FeatureInstallState", text)
         self.assertIn("private val states = HashMap<Int, FeatureState>()", text)
         self.assertIn("synchronized(states)", text)
-        for m in ["initialize", "beginInstall", "get", "set", "reset"]:
+        for m in ["initialize", "beginInstall", "get", "set"]:
             self.assertRegex(text, rf"@JvmStatic\s*\n\s*fun\s+{m}\s*\(")
 
     def test_preference_bootstrap_initializes_snapshot_before_install(self) -> None:

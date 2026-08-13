@@ -16,6 +16,7 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallResult
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallState
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallStateTestAccess
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.mods.utils.feature.ChargingInfoFeature
@@ -575,7 +576,7 @@ class ChargingInfoHotPathTest {
 
     @Test
     fun chargingInfo_installIsIdempotentThroughFeatureInstallRegistry() {
-        FeatureInstallState.reset()
+        FeatureInstallStateTestAccess.clear()
         val registry = FeatureInstallRegistry()
         var installCount = 0
 

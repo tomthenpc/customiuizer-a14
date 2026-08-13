@@ -40,7 +40,7 @@ class ResourceHooksTest {
         hooks = ResourceHooks()
         setField("resourceIdReplacements", FakeSparseArray<ResourceHooks.ResourceValue>())
         setField("fakes", FakeSparseIntArray())
-        setField("lastFailureLogTimes", LongArray(ResourceHooks.ResourceFailureDomain.entries.size) { -1L })
+        setField("lastFailureLogTimes", LongArray(resourceFailureDomainCount()) { -1L })
     }
 
     @After
@@ -234,21 +234,21 @@ class ResourceHooksTest {
         val hook = createReplaceHook(ResourceHooks.ResourceGetterKind.GET_TEXT)
 
         // First exception should log (update timestamp).
-        setLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT, -1L)
+        setLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT), -1L)
         hook.intercept(chain)
-        val first = getLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT)
+        val first = getLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT))
         assertTrue("first exception should log", first >= 0)
 
         // Second exception within throttle window should not update.
-        setLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT, first + 100)
+        setLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT), first + 100)
         hook.intercept(chain)
-        val second = getLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT)
+        val second = getLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT))
         assertEquals("second exception within window must not re-log", first + 100, second)
 
         // After clearing the throttle window, the next exception logs again.
-        setLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT, -1L)
+        setLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT), -1L)
         hook.intercept(chain)
-        val third = getLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT)
+        val third = getLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT))
         assertTrue("third exception after clear should log again", third >= first)
         assertNotEquals("third call must not leave the pre-call value", first + 100, third)
     }
@@ -260,27 +260,27 @@ class ResourceHooksTest {
         val hookString = createReplaceHook(ResourceHooks.ResourceGetterKind.GET_STRING)
 
         // GET_TEXT and GET_STRING are in different fixed domains, so each logs once.
-        setLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT, -1L)
-        setLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_STRING, -1L)
+        setLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT), -1L)
+        setLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_STRING), -1L)
         hookText.intercept(chain)
         hookString.intercept(chain)
-        val firstText = getLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT)
-        val firstString = getLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_STRING)
+        val firstText = getLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT))
+        val firstString = getLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_STRING))
         assertTrue("GET_TEXT logged", firstText >= 0)
         assertTrue("GET_STRING logged", firstString >= 0)
 
         // Same kind again within window does not log; different domain is unchanged.
-        setLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT, firstText + 100)
+        setLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT), firstText + 100)
         hookText.intercept(fakeChain(resId = 0, throwRuntimeOnGetArg = true))
         assertEquals(
             "same kind within throttle window must not re-log",
             firstText + 100,
-            getLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_TEXT)
+            getLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_TEXT))
         )
         assertEquals(
             "GET_STRING domain must not be touched by GET_TEXT",
             firstString,
-            getLastFailureLogTime(ResourceHooks.ResourceFailureDomain.GET_STRING)
+            getLastFailureLogTime(domainOrdinal(ResourceHooks.ResourceGetterKind.GET_STRING))
         )
     }
 
@@ -512,20 +512,34 @@ class ResourceHooksTest {
         }
     }
 
-    private fun getLastFailureLogTime(domain: ResourceHooks.ResourceFailureDomain): Long {
-        val field = ResourceHooks::class.java.getDeclaredField("lastFailureLogTimes")
-        field.isAccessible = true
+    private fun resourceFailureDomainCount(): Int {
+        val clazz = ResourceHooks::class.java.declaredClasses.single { it.simpleName == "ResourceFailureDomain" }
         @Suppress("UNCHECKED_CAST")
-        val array = field.get(hooks) as LongArray
-        return array[domain.ordinal]
+        val constants = clazz.enumConstants as Array<Enum<*>>
+        return constants.size
     }
 
-    private fun setLastFailureLogTime(domain: ResourceHooks.ResourceFailureDomain, value: Long) {
+    private fun domainOrdinal(kind: ResourceHooks.ResourceGetterKind): Int {
+        val hook = createReplaceHook(kind)
+        val method = hook.javaClass.getDeclaredMethod("failureDomain")
+        method.isAccessible = true
+        return (method.invoke(hook) as Enum<*>).ordinal
+    }
+
+    private fun getLastFailureLogTime(domainOrdinal: Int): Long {
         val field = ResourceHooks::class.java.getDeclaredField("lastFailureLogTimes")
         field.isAccessible = true
         @Suppress("UNCHECKED_CAST")
         val array = field.get(hooks) as LongArray
-        array[domain.ordinal] = value
+        return array[domainOrdinal]
+    }
+
+    private fun setLastFailureLogTime(domainOrdinal: Int, value: Long) {
+        val field = ResourceHooks::class.java.getDeclaredField("lastFailureLogTimes")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val array = field.get(hooks) as LongArray
+        array[domainOrdinal] = value
     }
 
     private class FakeContext(res: Resources) : ContextWrapper(null) {

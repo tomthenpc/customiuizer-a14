@@ -82,7 +82,7 @@ class ResourceHooks {
      * Fixed failure domains for per-callback logging.  Keeps the throttle state to a small
      * `LongArray` indexed by the domain ordinal instead of an unbounded `Map<String, Long>`.
      */
-    internal enum class ResourceFailureDomain {
+    private enum class ResourceFailureDomain {
         GET_TEXT,
         GET_STRING,
         GET_LAYOUT,
@@ -215,18 +215,13 @@ class ResourceHooks {
         override fun intercept(chain: XposedInterface.Chain): Any? {
             try {
                 val resId = chain.getArg(0) as Int
-                var moduleRes: Resources? = null
-                fun moduleResources(): Resources? {
-                    if (moduleRes == null) moduleRes = resolveModuleResources()
-                    return moduleRes
-                }
 
                 val replacement = resourceIdReplacements[resId]
                 if (replacement != null) {
                     if (replacement.mType == ReplacementType.OBJECT) {
                         return replacement.mValue
                     } else if (kind.supportsIdReplacement) {
-                        val res = moduleResources()
+                        val res = resolveModuleResources()
                         if (res != null) {
                             val value = ResourceReplacementResolver.resolveModuleValue(kind, chain, res, replacement.mValue as Int)
                             if (value != null) return value
@@ -235,7 +230,7 @@ class ResourceHooks {
                 } else {
                     val modResId = fakes[resId]
                     if (modResId != 0) {
-                        val res = moduleResources()
+                        val res = resolveModuleResources()
                         if (res != null) {
                             val value = ResourceReplacementResolver.resolveModuleValue(kind, chain, res, modResId)
                             if (value != null) return value

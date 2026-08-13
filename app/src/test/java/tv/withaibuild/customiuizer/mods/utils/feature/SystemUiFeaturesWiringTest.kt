@@ -8,6 +8,7 @@ import org.junit.Test
 import tv.withaibuild.customiuizer.installers.SystemUiInstaller
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallRegistry
 import tv.withaibuild.customiuizer.mods.utils.FeatureInstallState
+import tv.withaibuild.customiuizer.mods.utils.FeatureInstallStateTestAccess
 import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.utils.PrefMap
@@ -30,7 +31,7 @@ class SystemUiFeaturesWiringTest {
         assertTrue("install() must be static", Modifier.isStatic(install.modifiers))
 
         // 2. Registry probe: all SystemUi features can be registered and installAll() works.
-        FeatureInstallState.reset()
+        FeatureInstallStateTestAccess.clear()
         val registry = FeatureInstallRegistry()
         val lpparam = fakePackageReadyParam()
         val mPrefs = PrefMap()

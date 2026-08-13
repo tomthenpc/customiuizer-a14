@@ -16,10 +16,6 @@ object FeatureInstallState {
 
     private val states = HashMap<Int, FeatureState>()
 
-    /** Reset all state. Intended for module reload and diagnostics. */
-    @JvmStatic
-    fun reset() = synchronized(states) { states.clear() }
-
     /** Initialize a feature without overwriting state recorded by an earlier registry. */
     @JvmStatic
     fun initialize(featureId: FeatureId) {
