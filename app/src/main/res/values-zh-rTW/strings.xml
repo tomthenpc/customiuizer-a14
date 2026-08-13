@@ -273,7 +273,7 @@
     <string name="system_screenanim_duration_summ">配置動畫長度</string>
     <string name="system_screenanim_desc">值過低等同於禁用動畫</string>
     <string name="system_disable_window_blurs_title">關閉視窗層級模糊</string>
-    <string name="system_disable_window_blurs_summ">無需開啟開發人員選項；關閉本項後仍由系統原生設定控制</string>
+    <string name="system_disable_window_blurs_summ">無需開啟開發人員選項；關閉本項後仍由系統原生設定控制。開啟期間 HyperOS 的音量面板與關機選單將沒有獨立背景，下方的音量模糊滑桿也會失效</string>
     <string name="system_blur_title">背景模糊</string>
     <string name="system_recents_blur_summ">最近應用的背景模糊度</string>
     <string name="system_drawer_blur_summ">通知抽屜的背景模糊度</string>

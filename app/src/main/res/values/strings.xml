@@ -322,7 +322,7 @@
     <string name="system_screenanim_duration_summ">Configure animation length</string>
     <string name="system_screenanim_desc">Very low values will practically disable animation</string>
     <string name="system_disable_window_blurs_title">Disable window-level blur</string>
-    <string name="system_disable_window_blurs_summ">Works without Developer options; when off, Android controls blur normally</string>
+    <string name="system_disable_window_blurs_summ">Works without Developer options; when off, Android controls blur normally. While on, HyperOS draws the volume panel and power menu without their own background, and the volume blur sliders below have no effect</string>
     <string name="system_blur_title">Background blur</string>
     <string name="system_recents_blur_summ">Background blur intensity in recent apps</string>
     <string name="system_drawer_blur_summ">Background blur intensity in notification drawer</string>
