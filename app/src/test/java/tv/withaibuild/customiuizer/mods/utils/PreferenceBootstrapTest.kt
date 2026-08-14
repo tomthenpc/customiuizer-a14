@@ -398,6 +398,73 @@ class PreferenceBootstrapTest {
     }
 
     @Test
+    fun listenerCallback_throwsVirtualMachineError_propagates() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 12)
+
+        val throwingFake = object : SharedPreferences by fake {
+            override fun contains(key: String): Boolean = throw InternalError("contains vm error")
+        }
+
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { throwingFake }
+        assertTrue(bootstrap.bootstrap())
+
+        val listener = getListener(bootstrap)
+        try {
+            listener?.onSharedPreferenceChanged(throwingFake, "pref_key_system_statusbarheight")
+            assertTrue("InternalError from the listener callback must propagate", false)
+        } catch (e: InternalError) {
+            // Expected: the live listener path must not swallow fatal VM errors.
+        }
+        assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
+    }
+
+    @Test
+    fun listenerCallback_throwsThreadDeath_propagates() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 12)
+
+        val throwingFake = object : SharedPreferences by fake {
+            override fun contains(key: String): Boolean = throw ThreadDeath()
+        }
+
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { throwingFake }
+        assertTrue(bootstrap.bootstrap())
+
+        val listener = getListener(bootstrap)
+        try {
+            listener?.onSharedPreferenceChanged(throwingFake, "pref_key_system_statusbarheight")
+            assertTrue("ThreadDeath from the listener callback must propagate", false)
+        } catch (e: ThreadDeath) {
+            // Expected: the live listener path must not swallow fatal thread errors.
+        }
+        assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
+    }
+
+    @Test
+    fun listenerCallback_throwsRuntimeException_isolated() {
+        val fake = FakeSharedPreferences()
+        fake.put("pref_key_system_statusbarheight", 12)
+
+        val throwingFake = object : SharedPreferences by fake {
+            override fun contains(key: String): Boolean = throw RuntimeException("transient read failure")
+        }
+
+        val prefs = PrefMap()
+        val bootstrap = PreferenceBootstrap.create(prefs) { throwingFake }
+        assertTrue(bootstrap.bootstrap())
+
+        val listener = getListener(bootstrap)
+        // Non-fatal errors must be isolated by the listener boundary and not propagate.
+        listener?.onSharedPreferenceChanged(throwingFake, "pref_key_system_statusbarheight")
+
+        assertEquals(PreferenceBootstrap.State.LOADED, bootstrap.getState())
+        assertEquals(12, prefs.getInt("system_statusbarheight", 11))
+    }
+
+    @Test
     fun prefMap_replaceSnapshot_isAtomic() {
         val prefs = PrefMap()
 
