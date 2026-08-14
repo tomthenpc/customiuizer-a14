@@ -14218,6 +14218,50 @@
       "notes": ""
     },
     {
+      "featureId": "pref_key_system_volume_mode_button_hide_dnd",
+      "featureName": "pref_key_system_volume_mode_button_hide_dnd",
+      "preferenceKeys": [
+        "pref_key_system_volume_mode_button_hide_dnd"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": ""
+    },
+    {
+      "featureId": "pref_key_system_volume_mode_button_hide_mute",
+      "featureName": "pref_key_system_volume_mode_button_hide_mute",
+      "preferenceKeys": [
+        "pref_key_system_volume_mode_button_hide_mute"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": ""
+    },
+    {
       "featureId": "pref_key_system_volumeblur_collapsed",
       "featureName": "pref_key_system_volumeblur_collapsed",
       "preferenceKeys": [
@@ -22025,6 +22069,50 @@
       "hotReloadable": false,
       "confidence": "CODE_VERIFIED",
       "evidence": "immutable ColorStateList captured by VolumeModeButtonColorsHook",
+      "notes": ""
+    },
+    {
+      "featureId": "system_volume_mode_button_hide_dnd",
+      "featureName": "system_volume_mode_button_hide_dnd",
+      "preferenceKeys": [
+        "system_volume_mode_button_hide_dnd"
+      ],
+      "xmlSource": "",
+      "defaultValue": "",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:initControlCenter",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "SYSTEMUI_INIT",
+      "runtimeReadMode": "INSTALL_TIME_SNAPSHOT",
+      "enableEffect": "Hides the DND shortcut in the volume panel",
+      "disableEffect": "Shows the DND shortcut on the next volume shortcut state update",
+      "valueChangeEffect": "Hides or shows the DND shortcut on the next volume shortcut state update",
+      "restartTarget": "NONE",
+      "hotReloadable": true,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "VolumeModeButtonVisibilitySnapshot is refreshed by the process-owned observer and read by updateState",
+      "notes": ""
+    },
+    {
+      "featureId": "system_volume_mode_button_hide_mute",
+      "featureName": "system_volume_mode_button_hide_mute",
+      "preferenceKeys": [
+        "system_volume_mode_button_hide_mute"
+      ],
+      "xmlSource": "",
+      "defaultValue": "",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:initControlCenter",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "SYSTEMUI_INIT",
+      "runtimeReadMode": "INSTALL_TIME_SNAPSHOT",
+      "enableEffect": "Hides the Mute shortcut in the volume panel",
+      "disableEffect": "Shows the Mute shortcut on the next volume shortcut state update",
+      "valueChangeEffect": "Hides or shows the Mute shortcut on the next volume shortcut state update",
+      "restartTarget": "NONE",
+      "hotReloadable": true,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "VolumeModeButtonVisibilitySnapshot is refreshed by the process-owned observer and read by updateState",
       "notes": ""
     },
     {

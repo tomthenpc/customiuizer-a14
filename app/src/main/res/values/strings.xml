@@ -238,6 +238,10 @@
     <string name="system_volumebar_blur_mtk_title">Enable volume bar blur support for MTK devices</string>
     <string name="system_volume_mode_button_colors_title">Silent and DND shortcut colors</string>
     <string name="system_volume_mode_button_colors_summ">Customize the background and icon colors of the two shortcuts at the bottom of the volume panel. Restart System UI after changing colors.</string>
+    <string name="system_volume_mode_button_hide_mute_title">Hide Mute shortcut</string>
+    <string name="system_volume_mode_button_hide_mute_summ">Removes the silent/Mute button from the volume panel.</string>
+    <string name="system_volume_mode_button_hide_dnd_title">Hide DND shortcut</string>
+    <string name="system_volume_mode_button_hide_dnd_summ">Removes the Do Not Disturb button from the volume panel.</string>
     <string name="system_volumedialogdelay_collapsed_title">Volume dialog autohide delay</string>
     <string name="system_volumedialogdelay_collapsed_summ">Collapsed</string>
     <string name="system_volumedialogdelay_expanded_summ">Expanded</string>

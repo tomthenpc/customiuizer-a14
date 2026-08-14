@@ -35,7 +35,7 @@ class VolumeModeButtonColorsContractTest {
     }
 
     private fun source(path: String): String {
-        var directory = File(System.getProperty("user.dir")).absoluteFile
+        var directory = File(System.getProperty("user.dir").orEmpty()).absoluteFile
         while (true) {
             val candidate = File(directory, path)
             if (candidate.isFile) return candidate.readText()

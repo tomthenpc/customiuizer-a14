@@ -202,13 +202,21 @@ object SystemUIControlCenterHooks {
         val iconTint: ColorStateList
     )
 
+    internal data class VolumeModeButtonVisibilitySnapshot(
+        val hideMute: Boolean,
+        val hideDnd: Boolean
+    )
+
     @Volatile
     private var volumeModeButtonColorSnapshot: VolumeModeButtonColorSnapshot? = null
+
+    @Volatile
+    private var volumeModeButtonVisibilitySnapshot: VolumeModeButtonVisibilitySnapshot? = null
 
     private fun volumeModeButtonColorStateList(color: Int): ColorStateList =
         ColorStateList.valueOf(color) ?: ColorStateList(arrayOf(IntArray(0)), intArrayOf(color))
 
-    private var volumeModeButtonColorObserverRegistered = false
+    private var volumeModeButtonObserverRegistered = false
 
     private const val VOLUME_MODE_BUTTON_COLORS_ENABLED_KEY =
         "system_volume_mode_button_colors"
@@ -216,6 +224,18 @@ object SystemUIControlCenterHooks {
         "system_volume_mode_button_background_color"
     private const val VOLUME_MODE_BUTTON_ICON_COLOR_KEY =
         "system_volume_mode_button_icon_color"
+
+    private const val VOLUME_MODE_BUTTON_HIDE_MUTE_KEY =
+        "system_volume_mode_button_hide_mute"
+    private const val VOLUME_MODE_BUTTON_HIDE_DND_KEY =
+        "system_volume_mode_button_hide_dnd"
+
+    private const val VOLUME_MODE_BUTTON_ROLE_FIELD = "customiuizer_volumeModeButtonRole"
+    private const val VOLUME_MODE_BUTTON_ROOT_FIELD = "customiuizer_volumeModeButtonRoot"
+
+    private enum class VolumeModeButtonRole {
+        MUTE, DND, UNKNOWN
+    }
 
     internal fun refreshVolumeModeButtonColorSnapshot() {
         val enabled = MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_COLORS_ENABLED_KEY, false)
@@ -251,17 +271,48 @@ object SystemUIControlCenterHooks {
         return volumeModeButtonColorSnapshot!!
     }
 
-    internal fun installVolumeModeButtonColorSnapshot() {
-        refreshVolumeModeButtonColorSnapshot()
-        if (!volumeModeButtonColorObserverRegistered) {
-            volumeModeButtonColorObserverRegistered = true
-            ModuleHelper.observePreferenceChange(volumeModeButtonColorPreferenceObserver)
+    internal fun refreshVolumeModeButtonVisibilitySnapshot() {
+        volumeModeButtonVisibilitySnapshot = VolumeModeButtonVisibilitySnapshot(
+            hideMute = MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_HIDE_MUTE_KEY, false),
+            hideDnd = MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_HIDE_DND_KEY, false)
+        )
+    }
+
+    internal fun onVolumeModeButtonVisibilityPreferenceChanged(key: String?) {
+        if (key == null ||
+            key == VOLUME_MODE_BUTTON_HIDE_MUTE_KEY ||
+            key == VOLUME_MODE_BUTTON_HIDE_DND_KEY
+        ) {
+            refreshVolumeModeButtonVisibilitySnapshot()
         }
     }
 
-    private val volumeModeButtonColorPreferenceObserver = object : ModuleHelper.PreferenceObserver {
+    internal fun getVolumeModeButtonVisibilitySnapshot(): VolumeModeButtonVisibilitySnapshot {
+        if (volumeModeButtonVisibilitySnapshot == null) refreshVolumeModeButtonVisibilitySnapshot()
+        return volumeModeButtonVisibilitySnapshot!!
+    }
+
+    internal fun installVolumeModeButtonColorSnapshot() {
+        refreshVolumeModeButtonColorSnapshot()
+        installVolumeModeButtonObserver()
+    }
+
+    internal fun installVolumeModeButtonVisibilitySnapshot() {
+        refreshVolumeModeButtonVisibilitySnapshot()
+        installVolumeModeButtonObserver()
+    }
+
+    private val volumeModeButtonPreferenceObserver = object : ModuleHelper.PreferenceObserver {
         override fun onChange(key: String?) = ModuleHelper.guarded {
             onVolumeModeButtonColorPreferenceChanged(key)
+            onVolumeModeButtonVisibilityPreferenceChanged(key)
+        }
+    }
+
+    private fun installVolumeModeButtonObserver() {
+        if (!volumeModeButtonObserverRegistered) {
+            volumeModeButtonObserverRegistered = true
+            ModuleHelper.observePreferenceChange(volumeModeButtonPreferenceObserver)
         }
     }
 
@@ -287,7 +338,10 @@ object SystemUIControlCenterHooks {
         if (MainModule.mPrefs.getBoolean("system_volumetimer")) {
             VolumeTimerValuesRes(loader)
         }
-        if (MainModule.mPrefs.getBoolean("system_volume_mode_button_colors")) {
+        if (MainModule.mPrefs.getBoolean("system_volume_mode_button_colors") ||
+            MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_HIDE_MUTE_KEY) ||
+            MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_HIDE_DND_KEY)
+        ) {
             VolumeModeButtonColorsHook(loader)
         }
         if (MainModule.mPrefs.getBoolean("system_cc_tile_roundedrect")) {
@@ -426,6 +480,8 @@ object SystemUIControlCenterHooks {
             || MainModule.mPrefs.getBoolean("system_volumebar_blur_mtk")
             || MainModule.mPrefs.getBoolean("system_volumetimer")
             || MainModule.mPrefs.getBoolean("system_volume_mode_button_colors")
+            || MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_HIDE_MUTE_KEY)
+            || MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_HIDE_DND_KEY)
             || MainModule.mPrefs.getBoolean("system_cc_tile_roundedrect")
             || MainModule.mPrefs.getBoolean("system_cc_volume_showpct")
             || MainModule.mPrefs.getBoolean("system_qs_hideoperator")
@@ -441,16 +497,39 @@ object SystemUIControlCenterHooks {
     }
 
     /**
-     * Styles the ROM-owned silent and DND shortcuts at their state-update boundary. Colors are
-     * captured once when the plugin ClassLoader is installed, keeping preference and resource
-     * lookups out of the volume panel's hot update path.
+     * Styles and/or hides the ROM-owned silent and DND shortcuts at their state-update boundary.
+     * Colors and visibility are captured once when the plugin ClassLoader is installed, keeping
+     * preference and resource lookups out of the volume panel's hot update path.
      */
     @JvmStatic
     fun VolumeModeButtonColorsHook(pluginLoader: ClassLoader) {
         installVolumeModeButtonColorSnapshot()
+        installVolumeModeButtonVisibilitySnapshot()
 
         val helperClassName =
             "com.android.systemui.miui.volume.MiuiRingerModeLayout\$RingerButtonHelper"
+
+        val applyVisibility = { helper: Any ->
+            ModuleHelper.guarded {
+                val snapshot = volumeModeButtonVisibilitySnapshot ?: return@guarded
+                val role = XposedHelpers.getAdditionalInstanceField(
+                    helper,
+                    VOLUME_MODE_BUTTON_ROLE_FIELD
+                ) as? VolumeModeButtonRole ?: return@guarded
+                val shouldHide = when (role) {
+                    VolumeModeButtonRole.MUTE -> snapshot.hideMute
+                    VolumeModeButtonRole.DND -> snapshot.hideDnd
+                    VolumeModeButtonRole.UNKNOWN -> false
+                }
+                if (!shouldHide) return@guarded
+                val rootRef = XposedHelpers.getAdditionalInstanceField(
+                    helper,
+                    VOLUME_MODE_BUTTON_ROOT_FIELD
+                ) as? WeakReference<View>
+                rootRef?.get()?.visibility = View.GONE
+            }
+        }
+
         val applyColors = { helper: Any ->
             ModuleHelper.guarded {
                 val snapshot = volumeModeButtonColorSnapshot ?: return@guarded
@@ -464,25 +543,87 @@ object SystemUIControlCenterHooks {
                 }
             }
         }
+
+        val constructorHook = object : MethodHook() {
+            override fun after(callback: AfterHookCallback) {
+                callback.getThisObject()?.let { helper ->
+                    bindVolumeModeButtonRole(helper)
+                    applyColors(helper)
+                    applyVisibility(helper)
+                }
+            }
+        }
+
+        val updateStateHook = object : MethodHook() {
+            override fun after(callback: AfterHookCallback) {
+                callback.getThisObject()?.let { helper ->
+                    applyColors(helper)
+                    applyVisibility(helper)
+                }
+            }
+        }
+
         ModuleHelper.hookAllConstructors(
             helperClassName,
             pluginLoader,
-            object : MethodHook() {
-                override fun after(callback: AfterHookCallback) {
-                    callback.getThisObject()?.let(applyColors)
-                }
-            }
+            constructorHook
         )
         ModuleHelper.hookAllMethods(
             helperClassName,
             pluginLoader,
             "updateState",
-            object : MethodHook() {
-                override fun after(callback: AfterHookCallback) {
-                    callback.getThisObject()?.let(applyColors)
+            updateStateHook
+        )
+    }
+
+    private fun bindVolumeModeButtonRole(helper: Any) {
+        ModuleHelper.guarded {
+            val standardView = XposedHelpers.getObjectField(helper, "mStandardView") as? View
+                ?: return@guarded
+            val (role, root) = classifyVolumeModeButton(helper, standardView)
+            XposedHelpers.setAdditionalInstanceField(helper, VOLUME_MODE_BUTTON_ROLE_FIELD, role)
+            if (root != null) {
+                XposedHelpers.setAdditionalInstanceField(
+                    helper,
+                    VOLUME_MODE_BUTTON_ROOT_FIELD,
+                    WeakReference(root)
+                )
+            }
+        }
+    }
+
+    private fun classifyVolumeModeButton(
+        helper: Any,
+        anchor: View
+    ): Pair<VolumeModeButtonRole, View?> {
+        val rawMode = ModuleHelper.getObjectFieldSilently(helper, "mRingerMode")
+        val mode = if (rawMode is Int) rawMode else null
+
+        var current: View? = anchor
+        var depth = 0
+        while (current != null && depth < 8) {
+            val id = current.id
+            if (id != View.NO_ID) {
+                val entryName = try {
+                    current.resources?.getResourceEntryName(id)
+                } catch (t: Throwable) {
+                    null
+                }
+                when (entryName) {
+                    "miui_ringer_standard_btn" -> return VolumeModeButtonRole.MUTE to current
+                    "miui_ringer_dnd_btn" -> return VolumeModeButtonRole.DND to current
                 }
             }
-        )
+            current = current.parent as? View
+            depth++
+        }
+
+        val role = when (mode) {
+            4 -> VolumeModeButtonRole.MUTE
+            1 -> VolumeModeButtonRole.DND
+            else -> VolumeModeButtonRole.UNKNOWN
+        }
+        return role to if (role == VolumeModeButtonRole.UNKNOWN) null else anchor
     }
 
     @JvmStatic

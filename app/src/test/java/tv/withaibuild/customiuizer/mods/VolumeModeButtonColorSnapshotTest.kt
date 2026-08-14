@@ -25,6 +25,9 @@ class VolumeModeButtonColorSnapshotTest {
     fun setUp() {
         savedPrefs = MainModule.mPrefs.getAll()
         MainModule.mPrefs.clear()
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
+        setVolumeModeButtonObserverRegistered(false)
         SystemUIControlCenterHooks.refreshVolumeModeButtonColorSnapshot()
     }
 
@@ -36,7 +39,16 @@ class VolumeModeButtonColorSnapshotTest {
         } else {
             MainModule.mPrefs.clear()
         }
+        PreferenceObserverRegistry.observers.clear()
+        PreferenceObserverRegistry.observerOwners.clear()
+        setVolumeModeButtonObserverRegistered(false)
         SystemUIControlCenterHooks.refreshVolumeModeButtonColorSnapshot()
+    }
+
+    private fun setVolumeModeButtonObserverRegistered(value: Boolean) {
+        val field = SystemUIControlCenterHooks::class.java.getDeclaredField("volumeModeButtonObserverRegistered")
+        field.isAccessible = true
+        field.set(null, value)
     }
 
     private fun assertColorStateList(expected: Int, actual: ColorStateList?) {
