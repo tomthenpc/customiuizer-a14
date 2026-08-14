@@ -24,8 +24,14 @@ private class FakeDependency {
         @JvmField
         var ready: Boolean = false
 
+        @JvmField
+        var throwOnGet: Throwable? = null
+
         @JvmStatic
-        fun get(clazz: Class<*>): Any? = if (ready) INSTANCE else null
+        fun get(clazz: Class<*>): Any? {
+            throwOnGet?.let { throw it }
+            return if (ready) INSTANCE else null
+        }
 
         val INSTANCE = Any()
     }
@@ -74,6 +80,7 @@ class ReflectionCacheTest {
     @After
     fun tearDown() {
         FakeDependency.ready = false
+        FakeDependency.throwOnGet = null
         resolver.throwOnResolve = null
         resolver.className = FakeDependency::class.java.name
     }
@@ -219,6 +226,64 @@ class ReflectionCacheTest {
                 state.dependencyMethod
             )
         }
+    }
+
+    @Test
+    fun getDepInstance_dependencyThrowsInternalError_propagatesAndDoesNotCacheNotReady() {
+        val loader = object : ClassLoader(javaClass.classLoader) {}
+        resolver.className = FakeDependency::class.java.name
+        FakeDependency.throwOnGet = InternalError("dep vm error")
+
+        try {
+            cache.getDepInstance(loader, "java.lang.String")
+            assertTrue("wrapped InternalError from Dependency.get must propagate", false)
+        } catch (e: InternalError) {
+            // Expected: the wrapped VM error must not be converted to DependencyNotReady.
+        }
+
+        val state = cache.loaderStates[loader]
+        assertNotNull(state)
+        assertFalse(
+            "wrapped InternalError must not be cached as DependencyNotReady",
+            state!!.classResults["java.lang.String"] is DepResult.DependencyNotReady
+        )
+    }
+
+    @Test
+    fun getDepInstance_dependencyThrowsThreadDeath_propagatesAndDoesNotCacheNotReady() {
+        val loader = object : ClassLoader(javaClass.classLoader) {}
+        resolver.className = FakeDependency::class.java.name
+        FakeDependency.throwOnGet = ThreadDeath()
+
+        try {
+            cache.getDepInstance(loader, "java.lang.String")
+            assertTrue("wrapped ThreadDeath from Dependency.get must propagate", false)
+        } catch (e: ThreadDeath) {
+            // Expected: the wrapped thread error must not be converted to DependencyNotReady.
+        }
+
+        val state = cache.loaderStates[loader]
+        assertNotNull(state)
+        assertFalse(
+            "wrapped ThreadDeath must not be cached as DependencyNotReady",
+            state!!.classResults["java.lang.String"] is DepResult.DependencyNotReady
+        )
+    }
+
+    @Test
+    fun getDepInstance_dependencyThrowsRuntimeException_degradesToNotReady() {
+        val loader = object : ClassLoader(javaClass.classLoader) {}
+        resolver.className = FakeDependency::class.java.name
+        FakeDependency.throwOnGet = RuntimeException("transient dep failure")
+
+        assertNull(cache.getDepInstance(loader, "java.lang.String"))
+
+        val state = cache.loaderStates[loader]
+        assertNotNull(state)
+        assertTrue(
+            "ordinary RuntimeException from Dependency.get must remain isolated as DependencyNotReady",
+            state!!.classResults["java.lang.String"] is DepResult.DependencyNotReady
+        )
     }
 
     @Test
