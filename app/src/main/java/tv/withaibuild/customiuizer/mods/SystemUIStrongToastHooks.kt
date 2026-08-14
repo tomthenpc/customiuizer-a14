@@ -106,7 +106,9 @@ object SystemUIStrongToastHooks {
         return currentSnapshot()
     }
 
-    private class SwipeGestureState {
+    private class SwipeGestureState(
+        val capsule: View
+    ) {
         var downRawY = 0f
         var active = false
         var moved = false
@@ -289,7 +291,11 @@ object SystemUIStrongToastHooks {
                         callback.returnAndSkip(null)
                         return
                     }
-                    val capsule = findDynamicIslandCapsule(strongToast) ?: return
+                    val swipeState = XposedHelpers.getAdditionalInstanceField(
+                        strongToast,
+                        SWIPE_STATE_FIELD
+                    ) as? SwipeGestureState
+                    val capsule = swipeState?.capsule ?: findDynamicIslandCapsule(strongToast) ?: return
                     if (!strongToast.isAttachedToWindow) return
                     callback.returnAndSkip(null)
                     animateDynamicIslandDismiss(
@@ -310,7 +316,13 @@ object SystemUIStrongToastHooks {
                     val snapshot = resolveSnapshot(strongToast) ?: return
                     try {
                         if (snapshot.isDynamicIsland) {
-                            val capsule = findDynamicIslandCapsule(strongToast) ?: strongToast
+                            val swipeState = XposedHelpers.getAdditionalInstanceField(
+                                strongToast,
+                                SWIPE_STATE_FIELD
+                            ) as? SwipeGestureState
+                            val capsule = swipeState?.capsule
+                                ?: findDynamicIslandCapsule(strongToast)
+                                ?: strongToast
                             setSwipeListenerRecursively(capsule, null)
                             (capsule.parent as? View)?.setOnTouchListener(null)
                             removeExpandedWindowTouchRegion(strongToast)
@@ -410,7 +422,7 @@ object SystemUIStrongToastHooks {
         try {
             val capsule = prepareDynamicIslandCapsule(view, position, bottomOffsetDp) ?: return
             if (position == StrongToastPosition.TOP) hideStatusBarContents(view)
-            XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState())
+            XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState(capsule))
             installSwipeToDismiss(view, capsule, position)
             view.animate().cancel()
             resetDynamicIslandHostTransform(view)
@@ -493,11 +505,11 @@ object SystemUIStrongToastHooks {
         event: MotionEvent,
         position: StrongToastPosition
     ): Boolean {
-        val capsule = findDynamicIslandCapsule(strongToast) ?: return false
         val state = XposedHelpers.getAdditionalInstanceField(
             strongToast,
             SWIPE_STATE_FIELD
         ) as? SwipeGestureState ?: return false
+        val capsule = state.capsule
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {

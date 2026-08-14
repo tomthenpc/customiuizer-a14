@@ -131,16 +131,30 @@ class DynamicIslandMotionProfileTest {
     }
 
     @Test
-    fun motionProfileIsPreparedOnceAndReusedAcrossTouchAndDismiss() {
+    fun eventStateOwnsCapsuleAndProfileAcrossTouchAndDismiss() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
 
-        // The event-owned SwipeGestureState is the single owner of the prepared profile.
+        // The event-owned SwipeGestureState owns the capsule and the prepared profile.
         assertTrue(
-            "SwipeGestureState must own a motionProfile field",
+            "SwipeGestureState must declare a primary constructor that owns the capsule",
+            source.contains("private class SwipeGestureState(")
+        )
+        assertTrue(
+            "SwipeGestureState must own the capsule",
+            source.contains("val capsule: View")
+        )
+        assertTrue(
+            "SwipeGestureState must own the prepared profile",
             source.contains("var motionProfile: DynamicIslandMotionProfile? = null")
         )
 
-        // Entrance resolves the profile exactly once and binds it to the event state.
+        // Entrance resolves the capsule once, creates the event state, and binds the profile.
+        val startEntranceBody = extractFunctionBody(source, "private fun startDynamicIslandEntrance(")
+        assertTrue(
+            "each event must create a fresh SwipeGestureState that owns the capsule",
+            startEntranceBody.contains("XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState(capsule))")
+        )
+
         val entranceBody = extractFunctionBody(source, "private fun runDynamicIslandEntrance(")
         assertTrue(
             "entrance must resolve the profile once",
@@ -151,11 +165,24 @@ class DynamicIslandMotionProfileTest {
             entranceBody.contains("state?.motionProfile = profile")
         )
 
-        // MotionEvent hot path only reads the prepared profile; ACTION_MOVE never recomputes.
+        // MotionEvent hot path only reads state.capsule and state.motionProfile;
+        // it must never re-discover or re-prepare anything.
         val touchBody = extractFunctionBody(source, "private fun handleDynamicIslandTouch(")
+        assertTrue(
+            "touch must read the capsule from the event state",
+            touchBody.contains("val capsule = state.capsule")
+        )
         assertFalse(
             "ACTION_MOVE must not call resolveDynamicIslandMotionProfile",
             touchBody.contains("resolveDynamicIslandMotionProfile")
+        )
+        assertFalse(
+            "ACTION_MOVE must not call findDynamicIslandCapsule",
+            touchBody.contains("findDynamicIslandCapsule")
+        )
+        assertFalse(
+            "ACTION_MOVE must not call findViewBySystemUiId",
+            touchBody.contains("findViewBySystemUiId")
         )
         assertTrue(
             "ACTION_MOVE must read state.motionProfile",
@@ -166,8 +193,14 @@ class DynamicIslandMotionProfileTest {
             touchBody.contains("val profile = state.motionProfile")
         )
 
-        // Dismiss reuses the same event profile; a single cold fallback is allowed only when the
-        // profile is missing.
+        // Dismiss reuses the same event capsule and profile; a single cold fallback is allowed.
+        val realHideBody = extractFunctionBody(source, "private fun installDynamicIslandMotion(")
+        val realHideHook = realHideBody.substring(realHideBody.indexOf("\"realHideStrongToast\""))
+        assertTrue(
+            "dismiss must prefer the event-owned capsule",
+            realHideHook.contains("swipeState?.capsule")
+        )
+
         val dismissBody = extractFunctionBody(source, "private fun animateDynamicIslandDismiss(")
         assertTrue(
             "dismiss must read the event-owned profile first",
@@ -183,18 +216,14 @@ class DynamicIslandMotionProfileTest {
             dismissBody.split("resolveDynamicIslandMotionProfile").size - 1
         )
 
-        // A new event gets a fresh SwipeGestureState, so it can prepare a new profile.
-        val startEntranceBody = extractFunctionBody(source, "private fun startDynamicIslandEntrance(")
+        // Detach removes the event-owned state (capsule + profile) and clears listeners.
+        val onDetachedBody = realHideBody.substring(realHideBody.indexOf("onDetachedFromWindow"))
         assertTrue(
-            "each event must create a fresh SwipeGestureState",
-            startEntranceBody.contains("XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState())")
+            "detach must read the event-owned capsule when available",
+            onDetachedBody.contains("swipeState?.capsule")
         )
-
-        // Detach removes the event-owned state and therefore the profile reference.
-        val detachBody = extractFunctionBody(source, "private fun installDynamicIslandMotion(")
-        val onDetachedBody = detachBody.substring(detachBody.indexOf("onDetachedFromWindow"))
         assertTrue(
-            "detach must remove the swipe state that owns the profile",
+            "detach must remove the swipe state that owns capsule and profile",
             onDetachedBody.contains("XposedHelpers.removeAdditionalInstanceField(strongToast, SWIPE_STATE_FIELD)")
         )
     }
