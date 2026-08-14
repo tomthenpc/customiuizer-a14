@@ -6,7 +6,8 @@ hide feature in CustoMIUIzer r14.20.0.
 ## ROM / plugin artifacts
 
 ### Primary plugin
-- file: `C:\Users\tv\AppData\Local\Temp\fuxi-MIUISystemUIPlugin.apk`
+- local sample: `local-rom-samples/fuxi-V816.0.7.0-20260814/MIUISystemUIPlugin.apk`
+- device path: `/product/app/MIUISystemUIPlugin/MIUISystemUIPlugin.apk`
 - package: `miui.systemui.plugin`
 - versionName: `15.0.3.69.0`
 - versionCode: `150036900`
@@ -14,7 +15,8 @@ hide feature in CustoMIUIzer r14.20.0.
 - SHA-256: `3dafd9e068ebee7e88344ae1c7d146c7e2d41e79b5c52b7736cd3e58be0cc999`
 
 ### Host SystemUI (reference package)
-- file: `C:\Users\tv\AppData\Local\Temp\fuxi-MiuiSystemUI.apk`
+- local sample: `local-rom-samples/fuxi-V816.0.7.0-20260814/MiuiSystemUI.apk`
+- device path: `/system_ext/priv-app/MiuiSystemUI/MiuiSystemUI.apk`
 - package: `com.android.systemui`
 - versionName: `20230316.0`
 - versionCode: `202303160`
@@ -22,6 +24,41 @@ hide feature in CustoMIUIzer r14.20.0.
 - SHA-256: `5d8f2fe0b65d8a1a947b4280f8053b524f8c5de73f48a74f8792d415ae76e513`
 
 Both artifacts are from the `customiuizer-fuxi-rom-20260813` device image set.
+They were pulled again from the connected device on 2026-08-14. Their hashes
+are unchanged, so the static class/resource evidence below applies to the
+currently installed ROM.
+
+## Live volume-key evidence (2026-08-14)
+
+The device was unlocked through ADB, `logcat` was cleared, and
+`KEYCODE_VOLUME_UP` was injected. The resulting window was:
+
+- owner package: `com.android.systemui`, UID 1000;
+- window title: `MiuiVolumeDialogImpl`;
+- window type: `VOLUME_OVERLAY`;
+- flags: `NOT_FOCUSABLE`, `NOT_TOUCH_MODAL`, `LAYOUT_IN_SCREEN`,
+  `TRUSTED_OVERLAY` and related volume-overlay flags;
+- frame: `[0,0][1080,2400]`, with a visible SurfaceFlinger layer named
+  `MiuiVolumeDialogImpl`.
+
+The plugin runtime logged the exact state path used by this feature:
+
+```text
+vol.MiuiVolumeDialogImp-plugin: showVolumeDialogH reason:1 mActiveStream:3
+RingerModeLayout: updateState is zen= false, state=false
+RingerModeLayout: updateState is zen= true, state=true
+```
+
+This proves that one volume-key invocation reaches two
+`RingerButtonHelper.updateState()` instances on this ROM. Combined with the
+constructor ABI below, `mIsZen=false` identifies the Mute shortcut and
+`mIsZen=true` identifies the DND shortcut. The live sample observed Mute off
+and DND on; it did not change either user setting.
+
+`uiautomator dump` did not expose the volume overlay because the overlay is
+non-focusable; the captured tree remained the underlying Settings activity.
+Use WindowManager/SurfaceFlinger/logcat plus the plugin artifact for this
+surface, not accessibility-node absence as evidence that the panel is absent.
 
 ## Class evidence
 
