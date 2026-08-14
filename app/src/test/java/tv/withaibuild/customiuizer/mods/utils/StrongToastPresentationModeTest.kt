@@ -247,17 +247,80 @@ class StrongToastPresentationModeTest {
             source.contains("maxOf(statusBarInsetPx, visualHeightPx)")
         )
 
+        // Window and content mutation must be atomic: the Window height is only set when content
+        // preparation succeeds.
+        assertTrue(source.contains("val prepared = applyMatchStatusBarHeight("))
+        assertTrue(source.contains("if (prepared) {"))
+        assertTrue(source.contains("layoutParams.height = targetHeightPx"))
+
         // The container (cl_strong_toast_msg) must be sized to the target content height.
-        assertTrue(source.contains("applyMatchStatusBarHeight("))
-        assertTrue(source.contains("lp.height = targetContentHeightPx"))
+        val applyBody = extractFunctionBody(source, "internal fun applyMatchModeBaselineToViews(")
+        assertTrue("apply must capture baseline before any mutation", applyBody.contains("captureMatchModeBaseline("))
+        assertTrue(
+            "baseline must be stored before any MATCH mutation",
+            applyBody.indexOf("XposedHelpers.setAdditionalInstanceField(root, MATCH_BASELINE_FIELD, baseline)") <
+                applyBody.indexOf("applyMatchModeMutations(")
+        )
+        assertTrue("apply must skip re-capture on double apply", applyBody.contains("if (existing == null)"))
+
+        val mutationsBody = extractFunctionBody(source, "private fun applyMatchModeMutations(")
+        assertTrue(mutationsBody.contains("lp.height = targetContentHeightPx"))
 
         // Child content is centered vertically and the bottom forehead sibling is hidden.
         assertTrue(source.contains("(capsule as? LinearLayout)?.gravity = Gravity.CENTER_VERTICAL"))
-        assertTrue(source.contains("findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE"))
+        assertTrue(source.contains("bottomView?.visibility = View.GONE"))
 
-        // Detach / mode switch must restore the message container and show the bottom sibling again.
-        assertTrue(source.contains("resetMatchModeCapsule("))
-        assertTrue(source.contains("findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.VISIBLE"))
+        // Detach / mode switch must restore the exact captured baseline, not hard-coded ROM guesses.
+        val resetBody = extractFunctionBody(source, "internal fun resetMatchModeCapsule(")
+        assertTrue("reset must read the captured baseline", resetBody.contains("as? MatchModeBaseline"))
+        assertTrue("reset must call exact restore helper", resetBody.contains("restoreMatchModeBaseline("))
+        assertTrue("reset must clear the baseline field", resetBody.contains("removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)"))
+
+        val restoreBody = extractFunctionBody(source, "internal fun restoreMatchModeBaseline(")
+        assertTrue("restore must restore height from baseline", restoreBody.contains("lp.height = baseline.height"))
+        assertTrue("restore must restore width from baseline", restoreBody.contains("lp.width = baseline.width"))
+        assertTrue("restore must restore layout gravity from baseline", restoreBody.contains("lp.gravity = baseline.layoutGravity"))
+        assertTrue("restore must restore capsule gravity from baseline", restoreBody.contains("?.gravity = baseline.capsuleGravity"))
+        assertTrue("restore must restore parent padding from baseline", restoreBody.contains("parent.setPadding("))
+        assertTrue("restore must restore parent gravity from baseline", restoreBody.contains("?.gravity = baseline.parentGravity"))
+        assertTrue(
+            "restore must restore bottom view visibility from baseline",
+            restoreBody.contains("?.visibility = baseline.bottomViewVisibility")
+        )
+        assertFalse(
+            "restore must not use the ROM visual height as a baseline substitute",
+            restoreBody.contains("strongToastVisualHeightPx")
+        )
+        assertFalse(
+            "restore must not use ROM dimension resources as baseline substitutes",
+            restoreBody.contains("strong_toast_width") || restoreBody.contains("strong_toast_height")
+        )
+        assertFalse(
+            "restore must not hard-code visible for the bottom sibling",
+            restoreBody.contains("View.VISIBLE")
+        )
+    }
+
+    private fun extractFunctionBody(source: String, signature: String): String {
+        val start = source.indexOf(signature)
+        require(start >= 0) { "Signature not found: $signature" }
+        var braceCount = 0
+        var foundFirstBrace = false
+        val sb = StringBuilder()
+        for (i in start until source.length) {
+            val c = source[i]
+            if (c == '{') {
+                foundFirstBrace = true
+                braceCount++
+            } else if (c == '}') {
+                braceCount--
+            }
+            if (foundFirstBrace) {
+                sb.append(c)
+                if (braceCount == 0) break
+            }
+        }
+        return sb.toString()
     }
 
     private fun source(path: String): String {

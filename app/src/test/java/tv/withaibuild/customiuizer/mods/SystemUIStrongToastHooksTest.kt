@@ -1,10 +1,19 @@
 package tv.withaibuild.customiuizer.mods
 
+import android.content.Context
+import android.content.res.Configuration
+import android.content.res.Resources
+import android.util.DisplayMetrics
+import android.view.Gravity
+import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
 import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertThrows
@@ -12,6 +21,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
+import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeSnapshot
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeState
 import tv.withaibuild.customiuizer.utils.PrefMap
@@ -274,5 +284,346 @@ class SystemUIStrongToastHooksTest {
         val thrown = assertThrows(InternalError::class.java) { hook.intercept(chain) }
         assertSame(error, thrown)
         assertTrue(control.mKeyguardStateController.mShowing)
+    }
+
+    // -------------------------------------------------------------------------
+    // MATCH_STATUS_BAR_HEIGHT exact baseline capture / restore tests
+    // -------------------------------------------------------------------------
+
+    @Suppress("DEPRECATION")
+    private class FakeResources(dimensionMap: Map<String, Int> = emptyMap()) : Resources(null, DisplayMetrics(), Configuration()) {
+        private val metrics = DisplayMetrics().apply { density = 2.0f }
+        private val nameToId = mutableMapOf<String, Int>()
+        private val dimensions = mutableMapOf<Int, Int>()
+
+        init {
+            register("cl_strong_toast_msg", MSG_ID)
+            register("strong_toast_bottom_view", BOTTOM_ID)
+            for ((name, value) in dimensionMap) {
+                val id = NEXT_DIMEN_ID++
+                register(name, id)
+                setDimension(id, value)
+            }
+        }
+
+        fun register(name: String, id: Int) {
+            nameToId[name] = id
+        }
+
+        fun setDimension(id: Int, px: Int) {
+            dimensions[id] = px
+        }
+
+        override fun getIdentifier(name: String?, defType: String?, defPackage: String?): Int =
+            nameToId[name] ?: 0
+
+        override fun getDisplayMetrics(): DisplayMetrics = metrics
+
+        override fun getDimensionPixelSize(id: Int): Int = dimensions[id] ?: 0
+    }
+
+    /**
+     * Test double for MATCH root. It stores padding and gravity itself because the
+     * android.jar View/LinearLayout stub does not hold View state in the JVM unit-test
+     * runtime. The stub findViewById is a no-op, so we test the helpers directly instead of
+     * the full production find / apply / reset pipeline.
+     */
+    private open class FakeRoot(res: FakeResources) : LinearLayout(null as Context?) {
+        private val fakeRes = res
+        private var storedPaddingLeft = 0
+        private var storedPaddingTop = 0
+        private var storedPaddingRight = 0
+        private var storedPaddingBottom = 0
+        private var storedGravity = 0
+
+        override fun getResources(): Resources = fakeRes
+
+        override fun getPaddingLeft(): Int = storedPaddingLeft
+        override fun getPaddingTop(): Int = storedPaddingTop
+        override fun getPaddingRight(): Int = storedPaddingRight
+        override fun getPaddingBottom(): Int = storedPaddingBottom
+
+        override fun setPadding(left: Int, top: Int, right: Int, bottom: Int) {
+            storedPaddingLeft = left
+            storedPaddingTop = top
+            storedPaddingRight = right
+            storedPaddingBottom = bottom
+        }
+
+        override fun getGravity(): Int = storedGravity
+        override fun setGravity(gravity: Int) {
+            storedGravity = gravity
+        }
+    }
+
+    private class FakeCapsule(res: FakeResources) : LinearLayout(null as Context?) {
+        private val fakeRes = res
+        private var storedLp: ViewGroup.LayoutParams? = null
+        private var storedGravity = 0
+
+        override fun getResources(): Resources = fakeRes
+
+        override fun getLayoutParams(): ViewGroup.LayoutParams? = storedLp
+        override fun setLayoutParams(params: ViewGroup.LayoutParams?) {
+            storedLp = params
+        }
+
+        override fun getGravity(): Int = storedGravity
+        override fun setGravity(gravity: Int) {
+            storedGravity = gravity
+        }
+    }
+
+    private class FakeBottomView(res: FakeResources) : View(null as Context?) {
+        private val fakeRes = res
+        private var storedVisibility = View.VISIBLE
+
+        override fun getResources(): Resources = fakeRes
+
+        override fun getVisibility(): Int = storedVisibility
+        override fun setVisibility(visibility: Int) {
+            storedVisibility = visibility
+        }
+    }
+
+    private fun matchFixture(): Triple<FakeRoot, FakeCapsule, FakeBottomView> {
+        val res = FakeResources(mapOf("strong_toast_width" to 91))
+        val root = FakeRoot(res)
+        root.setPadding(3, 5, 7, 9)
+        root.gravity = GRAVITY_PARENT_BASELINE
+
+        val capsule = FakeCapsule(res)
+        val lp = LinearLayout.LayoutParams(300, 141).apply {
+            width = 300
+            height = 141
+            topMargin = 7
+            bottomMargin = 11
+            gravity = GRAVITY_LAYOUT_BASELINE
+        }
+        capsule.layoutParams = lp
+        capsule.gravity = GRAVITY_CAPSULE_BASELINE
+
+        val bottomView = FakeBottomView(res).apply {
+            visibility = View.INVISIBLE
+        }
+
+        return Triple(root, capsule, bottomView)
+    }
+
+    @Test
+    fun captureMatchModeBaseline_readsExactCurrentValues() {
+        val (root, capsule, bottomView) = matchFixture()
+
+        val baseline = SystemUIStrongToastHooks.captureMatchModeBaseline(capsule, root, bottomView)
+        assertNotNull(baseline)
+
+        assertEquals(300, baseline!!.width)
+        assertEquals(141, baseline.height)
+        assertEquals(7, baseline.topMargin)
+        assertEquals(11, baseline.bottomMargin)
+        assertEquals(GRAVITY_LAYOUT_BASELINE, baseline.layoutGravity)
+        assertEquals(GRAVITY_CAPSULE_BASELINE, baseline.capsuleGravity)
+        assertEquals(3, baseline.parentPaddingLeft)
+        assertEquals(5, baseline.parentPaddingTop)
+        assertEquals(7, baseline.parentPaddingRight)
+        assertEquals(9, baseline.parentPaddingBottom)
+        assertEquals(GRAVITY_PARENT_BASELINE, baseline.parentGravity)
+        assertEquals(View.INVISIBLE, baseline.bottomViewVisibility)
+    }
+
+    @Test
+    fun captureMatchModeBaseline_returnsNullWhenLayoutParamsMissing() {
+        val res = FakeResources()
+        val root = FakeRoot(res)
+        val capsule = FakeCapsule(res)
+
+        assertNull(SystemUIStrongToastHooks.captureMatchModeBaseline(capsule, root, null))
+    }
+
+    @Test
+    fun applyMatchModeBaselineToViews_appliesAndRestoresExactBaseline() {
+        val (root, capsule, bottomView) = matchFixture()
+
+        val baseline = SystemUIStrongToastHooks.captureMatchModeBaseline(capsule, root, bottomView)
+        assertNotNull(baseline)
+
+        val applied = SystemUIStrongToastHooks.applyMatchModeBaselineToViews(
+            root,
+            capsule,
+            root,
+            bottomView,
+            82
+        )
+        assertTrue("apply must succeed when baseline exists", applied)
+
+        assertEquals(82, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(91, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(0, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
+        assertEquals(0, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
+        assertEquals(Gravity.CENTER, (capsule.layoutParams as? LinearLayout.LayoutParams)?.gravity)
+        assertEquals(Gravity.CENTER_VERTICAL, capsule.gravity)
+        assertEquals(0, root.paddingLeft)
+        assertEquals(0, root.paddingTop)
+        assertEquals(0, root.paddingRight)
+        assertEquals(0, root.paddingBottom)
+        assertEquals(Gravity.TOP or Gravity.CENTER_HORIZONTAL, root.gravity)
+        assertEquals(View.GONE, bottomView.visibility)
+
+        SystemUIStrongToastHooks.restoreMatchModeBaseline(
+            root,
+            capsule,
+            root,
+            bottomView,
+            baseline!!
+        )
+
+        assertEquals(300, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(141, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(7, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
+        assertEquals(11, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
+        assertEquals(GRAVITY_LAYOUT_BASELINE, (capsule.layoutParams as? LinearLayout.LayoutParams)?.gravity)
+        assertEquals(GRAVITY_CAPSULE_BASELINE, capsule.gravity)
+        assertEquals(3, root.paddingLeft)
+        assertEquals(5, root.paddingTop)
+        assertEquals(7, root.paddingRight)
+        assertEquals(9, root.paddingBottom)
+        assertEquals(GRAVITY_PARENT_BASELINE, root.gravity)
+        assertEquals(View.INVISIBLE, bottomView.visibility)
+    }
+
+    @Test
+    fun applyMatchModeBaselineToViews_doubleApply_doesNotOverwriteBaseline() {
+        val (root, capsule, bottomView) = matchFixture()
+
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 150))
+
+        val baseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD) as SystemUIStrongToastHooks.MatchModeBaseline
+        assertEquals(141, baseline.height)
+        assertEquals(300, baseline.width)
+        assertEquals(7, baseline.topMargin)
+        assertEquals(11, baseline.bottomMargin)
+        assertEquals(GRAVITY_LAYOUT_BASELINE, baseline.layoutGravity)
+        assertEquals(GRAVITY_CAPSULE_BASELINE, baseline.capsuleGravity)
+        assertEquals(3, baseline.parentPaddingLeft)
+        assertEquals(5, baseline.parentPaddingTop)
+        assertEquals(7, baseline.parentPaddingRight)
+        assertEquals(9, baseline.parentPaddingBottom)
+        assertEquals(GRAVITY_PARENT_BASELINE, baseline.parentGravity)
+        assertEquals(View.INVISIBLE, baseline.bottomViewVisibility)
+
+        SystemUIStrongToastHooks.restoreMatchModeBaseline(root, capsule, root, bottomView, baseline)
+
+        assertEquals(141, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(300, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+    }
+
+    @Test
+    fun applyMatchModeBaselineToViews_nextEvent_capturesFreshBaseline() {
+        val (root, capsule, bottomView) = matchFixture()
+
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        val firstBaseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD) as SystemUIStrongToastHooks.MatchModeBaseline
+        SystemUIStrongToastHooks.restoreMatchModeBaseline(root, capsule, root, bottomView, firstBaseline)
+        XposedHelpers.removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+
+        (capsule.layoutParams as? LinearLayout.LayoutParams)?.apply {
+            width = 400
+            height = 222
+            topMargin = 13
+            bottomMargin = 17
+            gravity = GRAVITY_LAYOUT_NEXT
+        }
+        capsule.gravity = GRAVITY_CAPSULE_NEXT
+        root.setPadding(2, 4, 6, 8)
+        root.gravity = GRAVITY_PARENT_NEXT
+        bottomView.visibility = View.GONE
+
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 104))
+        val secondBaseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD) as SystemUIStrongToastHooks.MatchModeBaseline
+
+        assertEquals(400, secondBaseline.width)
+        assertEquals(222, secondBaseline.height)
+        assertEquals(13, secondBaseline.topMargin)
+        assertEquals(17, secondBaseline.bottomMargin)
+        assertEquals(GRAVITY_LAYOUT_NEXT, secondBaseline.layoutGravity)
+        assertEquals(GRAVITY_CAPSULE_NEXT, secondBaseline.capsuleGravity)
+        assertEquals(2, secondBaseline.parentPaddingLeft)
+        assertEquals(4, secondBaseline.parentPaddingTop)
+        assertEquals(6, secondBaseline.parentPaddingRight)
+        assertEquals(8, secondBaseline.parentPaddingBottom)
+        assertEquals(GRAVITY_PARENT_NEXT, secondBaseline.parentGravity)
+        assertEquals(View.GONE, secondBaseline.bottomViewVisibility)
+
+        SystemUIStrongToastHooks.restoreMatchModeBaseline(root, capsule, root, bottomView, secondBaseline)
+
+        assertEquals(400, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(222, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(13, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
+        assertEquals(17, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
+        assertEquals(GRAVITY_LAYOUT_NEXT, (capsule.layoutParams as? LinearLayout.LayoutParams)?.gravity)
+        assertEquals(GRAVITY_CAPSULE_NEXT, capsule.gravity)
+        assertEquals(2, root.paddingLeft)
+        assertEquals(4, root.paddingTop)
+        assertEquals(6, root.paddingRight)
+        assertEquals(8, root.paddingBottom)
+        assertEquals(GRAVITY_PARENT_NEXT, root.gravity)
+        assertEquals(View.GONE, bottomView.visibility)
+    }
+
+    @Test
+    fun applyMatchModeBaselineToViews_returnsFalseWhenBaselineCaptureFails() {
+        val res = FakeResources()
+        val root = FakeRoot(res)
+        val capsule = FakeCapsule(res)
+
+        val applied = SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, null, 82)
+        assertFalse("apply must fail when baseline cannot be captured", applied)
+        assertNull(
+            "no baseline must be stored when capture fails",
+            XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+        )
+    }
+
+    @Test
+    fun applyMatchStatusBarHeight_returnsFalseAndDoesNotMutateWhenCapsuleMissing() {
+        val res = FakeResources(mapOf("strong_toast_width" to 91))
+        val root = FakeRoot(res)
+
+        val applied = SystemUIStrongToastHooks.applyMatchStatusBarHeight(root, 82)
+        assertFalse("apply must fail when no cl_strong_toast_msg child exists", applied)
+        assertNull(
+            "no baseline must be stored when apply fails",
+            XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+        )
+    }
+
+    @Test
+    fun resetMatchModeCapsule_isNoOpWhenBaselineMissing() {
+        val (root, capsule, bottomView) = matchFixture()
+
+        val originalWidth = (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width
+        val originalVisibility = bottomView.visibility
+
+        SystemUIStrongToastHooks.resetMatchModeCapsule(root)
+
+        assertEquals(originalWidth, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(originalVisibility, bottomView.visibility)
+    }
+
+    companion object {
+        private const val MATCH_BASELINE_FIELD = "customiuizer_match_mode_baseline"
+        private const val MSG_ID = 1001
+        private const val BOTTOM_ID = 1002
+        private var NEXT_DIMEN_ID = 2001
+
+        // Deliberately non-default, non-zero, non-CENTER fixture values so that tests cannot
+        // pass with a hard-coded CENTER / VISIBLE implementation.
+        private const val GRAVITY_LAYOUT_BASELINE = Gravity.FILL_VERTICAL
+        private const val GRAVITY_CAPSULE_BASELINE = Gravity.BOTTOM or Gravity.RIGHT
+        private const val GRAVITY_PARENT_BASELINE = Gravity.BOTTOM or Gravity.END
+        private const val GRAVITY_LAYOUT_NEXT = Gravity.FILL_HORIZONTAL
+        private const val GRAVITY_CAPSULE_NEXT = Gravity.TOP or Gravity.LEFT
+        private const val GRAVITY_PARENT_NEXT = Gravity.TOP or Gravity.START
     }
 }

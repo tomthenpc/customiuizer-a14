@@ -75,6 +75,7 @@ object SystemUIStrongToastHooks {
     private const val STATUS_BAR_VIEW_CLASS =
         "com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView"
     private const val RUNTIME_SNAPSHOT_FIELD = "customiuizer_strong_toast_runtime_snapshot"
+    private const val MATCH_BASELINE_FIELD = "customiuizer_match_mode_baseline"
     // Mechanism reference: Ajaxy/telegram-tt, tag air_v2.11.5, commit d915b1b9,
     // src/styles/_variables.scss and src/util/animation.ts (GPL-3.0). Only its bounded
     // cubic-bezier curve and latest-animation-wins ownership are translated to Android here;
@@ -118,6 +119,25 @@ object SystemUIStrongToastHooks {
         var motionProfile: DynamicIslandMotionProfile? = null
     }
 
+    /**
+     * Captured pre-mutation baseline for a single MATCH_STATUS_BAR_HEIGHT event.
+     * Stored on the StrongToast root via [MATCH_BASELINE_FIELD] and removed on detach.
+     */
+    internal data class MatchModeBaseline(
+        val width: Int,
+        val height: Int,
+        val topMargin: Int,
+        val bottomMargin: Int,
+        val layoutGravity: Int,
+        val capsuleGravity: Int,
+        val parentPaddingLeft: Int,
+        val parentPaddingTop: Int,
+        val parentPaddingRight: Int,
+        val parentPaddingBottom: Int,
+        val parentGravity: Int,
+        val bottomViewVisibility: Int
+    )
+
     @JvmStatic
     internal fun install(
         lpparam: PackageReadyParam,
@@ -160,9 +180,14 @@ object SystemUIStrongToastHooks {
                                     statusBarInsetPx,
                                     visualHeightPx
                                 )
-                                layoutParams.height = targetHeightPx
-                                layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                                applyMatchStatusBarHeight(strongToast, targetContentHeightPx)
+                                val prepared = applyMatchStatusBarHeight(
+                                    strongToast,
+                                    targetContentHeightPx
+                                )
+                                if (prepared) {
+                                    layoutParams.height = targetHeightPx
+                                    layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                                }
                             }
                             StrongToastPresentationMode.DYNAMIC_ISLAND -> {
                                 // HyperOS normally makes this Window exactly as wide as
@@ -1040,17 +1065,44 @@ object SystemUIStrongToastHooks {
         view.translationY = 0f
     }
 
-    private fun applyMatchStatusBarHeight(root: View, targetContentHeightPx: Int) {
-        val capsule = findViewBySystemUiId(root, MESSAGE_CONTAINER_ID) ?: return
-        val visualWidthPx = strongToastDimensionPx(root, "strong_toast_width")
+    internal fun captureMatchModeBaseline(
+        capsule: View,
+        parent: ViewGroup?,
+        bottomView: View?
+    ): MatchModeBaseline? {
+        val lp = capsule.layoutParams ?: return null
+        return MatchModeBaseline(
+            width = lp.width,
+            height = lp.height,
+            topMargin = if (lp is ViewGroup.MarginLayoutParams) lp.topMargin else 0,
+            bottomMargin = if (lp is ViewGroup.MarginLayoutParams) lp.bottomMargin else 0,
+            layoutGravity = if (lp is LinearLayout.LayoutParams) lp.gravity else 0,
+            capsuleGravity = (capsule as? LinearLayout)?.gravity ?: 0,
+            parentPaddingLeft = parent?.paddingLeft ?: 0,
+            parentPaddingTop = parent?.paddingTop ?: 0,
+            parentPaddingRight = parent?.paddingRight ?: 0,
+            parentPaddingBottom = parent?.paddingBottom ?: 0,
+            parentGravity = (parent as? LinearLayout)?.gravity ?: 0,
+            bottomViewVisibility = bottomView?.visibility ?: View.VISIBLE
+        )
+    }
+
+    private fun applyMatchModeMutations(
+        root: View,
+        capsule: View,
+        parent: ViewGroup?,
+        bottomView: View?,
+        targetContentHeightPx: Int
+    ) {
         resetDynamicIslandHostTransform(root)
         resetDynamicIslandTransform(capsule)
         resetDynamicIslandContent(capsule)
         setSwipeListenerRecursively(capsule, null)
         (capsule.parent as? View)?.setOnTouchListener(null)
         removeExpandedWindowTouchRegion(root)
-        findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE
+        bottomView?.visibility = View.GONE
 
+        val visualWidthPx = strongToastDimensionPx(root, "strong_toast_width")
         val lp = capsule.layoutParams
             ?: LinearLayout.LayoutParams(
                 if (visualWidthPx > 0) visualWidthPx else ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -1068,40 +1120,103 @@ object SystemUIStrongToastHooks {
         capsule.layoutParams = lp
         (capsule as? LinearLayout)?.gravity = Gravity.CENTER_VERTICAL
 
-        val parent = capsule.parent as? ViewGroup
         if (parent === root) {
             parent.setPadding(0, 0, 0, 0)
             (parent as? LinearLayout)?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
         }
     }
 
-    private fun resetMatchModeCapsule(root: View) {
-        val capsule = findDynamicIslandCapsule(root) ?: return
-        val visualHeightPx = strongToastVisualHeightPx(root)
-        val visualWidthPx = strongToastDimensionPx(root, "strong_toast_width")
+    internal fun applyMatchModeBaselineToViews(
+        root: View,
+        capsule: View,
+        parent: ViewGroup?,
+        bottomView: View?,
+        targetContentHeightPx: Int
+    ): Boolean {
+        val existing = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+        if (existing == null) {
+            val baseline = captureMatchModeBaseline(capsule, parent, bottomView) ?: return false
+            XposedHelpers.setAdditionalInstanceField(root, MATCH_BASELINE_FIELD, baseline)
+        }
+
+        applyMatchModeMutations(root, capsule, parent, bottomView, targetContentHeightPx)
+        return true
+    }
+
+    internal fun applyMatchStatusBarHeight(root: View, targetContentHeightPx: Int): Boolean {
+        val capsule = findViewBySystemUiId(root, MESSAGE_CONTAINER_ID) ?: return false
+        val parent = capsule.parent as? ViewGroup
+        val bottomView = findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)
+        return applyMatchModeBaselineToViews(
+            root,
+            capsule,
+            parent,
+            bottomView,
+            targetContentHeightPx
+        )
+    }
+
+    internal fun restoreMatchModeBaseline(
+        root: View,
+        capsule: View,
+        parent: ViewGroup?,
+        bottomView: View?,
+        baseline: MatchModeBaseline
+    ) {
         resetDynamicIslandContent(capsule)
         resetDynamicIslandTransform(capsule)
 
-        val lp = capsule.layoutParams ?: return
-        lp.height = visualHeightPx
-        if (visualWidthPx > 0) lp.width = visualWidthPx
-        if (lp is ViewGroup.MarginLayoutParams) {
-            lp.topMargin = 0
-            lp.bottomMargin = 0
+        val lp = capsule.layoutParams
+        if (lp != null) {
+            lp.height = baseline.height
+            lp.width = baseline.width
+            if (lp is ViewGroup.MarginLayoutParams) {
+                lp.topMargin = baseline.topMargin
+                lp.bottomMargin = baseline.bottomMargin
+            }
+            if (lp is LinearLayout.LayoutParams) {
+                lp.gravity = baseline.layoutGravity
+            }
+            capsule.layoutParams = lp
         }
-        if (lp is LinearLayout.LayoutParams) {
-            lp.gravity = Gravity.CENTER_HORIZONTAL
+        (capsule as? LinearLayout)?.gravity = baseline.capsuleGravity
+
+        if (parent === root) {
+            parent.setPadding(
+                baseline.parentPaddingLeft,
+                baseline.parentPaddingTop,
+                baseline.parentPaddingRight,
+                baseline.parentPaddingBottom
+            )
+            (parent as? LinearLayout)?.gravity = baseline.parentGravity
         }
-        capsule.layoutParams = lp
-        (capsule as? LinearLayout)?.gravity = Gravity.CENTER_VERTICAL
+
+        bottomView?.visibility = baseline.bottomViewVisibility
+
+        setSwipeListenerRecursively(capsule, null)
+        (capsule.parent as? View)?.setOnTouchListener(null)
+        removeExpandedWindowTouchRegion(root)
+        resetDynamicIslandHostTransform(root)
+    }
+
+    internal fun resetMatchModeCapsule(root: View) {
+        val baseline = XposedHelpers.getAdditionalInstanceField(
+            root,
+            MATCH_BASELINE_FIELD
+        ) as? MatchModeBaseline ?: return
+
+        val capsule = findViewBySystemUiId(root, MESSAGE_CONTAINER_ID)
+            ?: findDynamicIslandCapsule(root)
+            ?: run {
+                XposedHelpers.removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+                return
+            }
 
         val parent = capsule.parent as? ViewGroup
-        if (parent === root) {
-            parent.setPadding(0, 0, 0, 0)
-            (parent as? LinearLayout)?.gravity = Gravity.CENTER
-        }
+        val bottomView = findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)
+        restoreMatchModeBaseline(root, capsule, parent, bottomView, baseline)
 
-        findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.VISIBLE
+        XposedHelpers.removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
     }
 
     private fun installStatusBarContentsCapture(lpparam: PackageReadyParam) {
