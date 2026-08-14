@@ -1,0 +1,195 @@
+# A14 Volume Mode Shortcut Identity Evidence
+
+This document records the source-of-truth used for the Mute / DND independent
+hide feature in CustoMIUIzer r14.20.0.
+
+## ROM / plugin artifacts
+
+### Primary plugin
+- file: `C:\Users\tv\AppData\Local\Temp\fuxi-MIUISystemUIPlugin.apk`
+- package: `miui.systemui.plugin`
+- versionName: `15.0.3.69.0`
+- versionCode: `150036900`
+- minSdk: `33`, targetSdk: `34`
+- SHA-256: `3dafd9e068ebee7e88344ae1c7d146c7e2d41e79b5c52b7736cd3e58be0cc999`
+
+### Host SystemUI (reference package)
+- file: `C:\Users\tv\AppData\Local\Temp\fuxi-MiuiSystemUI.apk`
+- package: `com.android.systemui`
+- versionName: `20230316.0`
+- versionCode: `202303160`
+- minSdk: `34`, targetSdk: `34`
+- SHA-256: `5d8f2fe0b65d8a1a947b4280f8053b524f8c5de73f48a74f8792d415ae76e513`
+
+Both artifacts are from the `customiuizer-fuxi-rom-20260813` device image set.
+
+## Class evidence
+
+### MiuiRingerModeLayout
+
+File in plugin smali: `com/android/systemui/miui/volume/MiuiRingerModeLayout.smali`
+
+Relevant instance fields:
+
+```smali
+.field public mDndHelper:Lcom/android/systemui/miui/volume/MiuiRingerModeLayout$RingerButtonHelper;
+.field public mRingerHelper:Lcom/android/systemui/miui/volume/MiuiRingerModeLayout$RingerButtonHelper;
+.field public mRingerMode:Z
+.field public mZenMode:Z
+```
+
+`initialize()` (lines 159-209) shows how the two shortcuts are located and how
+helpers are constructed:
+
+```smali
+.method private initialize()V
+    sget v0, Lcom/android/systemui/miui/volume/R$id;->ringer_layout:I
+    invoke-virtual {p0, v0}, Landroid/widget/LinearLayout;->findViewById(I)Landroid/view/View;
+    move-result-object v0
+
+    sget v1, Lcom/android/systemui/miui/volume/R$id;->dnd_layout:I
+    invoke-virtual {p0, v1}, Landroid/widget/LinearLayout;->findViewById(I)Landroid/view/View;
+    move-result-object v1
+
+    ...
+
+    new-instance v4, Lcom/android/systemui/miui/volume/MiuiRingerModeLayout$RingerButtonHelper;
+    const/4 v5, 0x0
+    invoke-direct {v4, p0, v0, v5, v2}, ...-><init>(...Landroid/view/View;ZZ)V
+    iput-object v4, p0, ...->mRingerHelper:...
+
+    new-instance v4, Lcom/android/systemui/miui/volume/MiuiRingerModeLayout$RingerButtonHelper;
+    const/4 v6, 0x1
+    invoke-direct {v4, p0, v1, v6, v3}, ...-><init>(...Landroid/view/View;ZZ)V
+    iput-object v4, p0, ...->mDndHelper:...
+```
+
+The first `RingerButtonHelper` is constructed with the `ringer_layout` view,
+third argument `0` and the current silent-mode state as the fourth argument.
+The second helper is constructed with the `dnd_layout` view, third argument `1`
+and the current zen-mode state as the fourth argument.
+
+Conclusion:
+- the constructor `View` argument (`p2`) is the whole shortcut root.
+- third constructor argument `0` = ringer/Mute, `1` = DND.
+
+### MiuiRingerModeLayout$RingerButtonHelper
+
+File in plugin smali: `com/android/systemui/miui/volume/MiuiRingerModeLayout$RingerButtonHelper.smali`
+
+Relevant instance fields:
+
+```smali
+.field public mBlurView:Lc/f/b/a/a/g;
+.field public mExpanded:Z
+.field public mIcon:Landroid/widget/ImageView;
+.field public mIsZen:Z
+.field public mLastState:Z
+.field public mStandardView:Landroid/view/View;
+.field public mState:Z
+```
+
+Constructor (`<init>(...Landroid/view/View;ZZ)V`):
+
+```smali
+.method public constructor <init>(Lcom/android/systemui/miui/volume/MiuiRingerModeLayout;Landroid/view/View;ZZ)V
+    ...
+    sget v0, Lcom/android/systemui/miui/volume/R$id;->miui_standard_btn:I
+    invoke-virtual {p2, v0}, Landroid/view/View;->findViewById(I)Landroid/view/View;
+    move-result-object v0
+    iput-object v0, p0, ...->mStandardView:Landroid/view/View;
+
+    ...
+    iput-boolean p3, p0, ...->mIsZen:Z
+    ...
+```
+
+`p2` is the whole root passed in by `MiuiRingerModeLayout.initialize()`;
+`mStandardView` is the **inner** `miui_standard_btn` presentation layer, found
+inside `p2`. The role field is `mIsZen` (set from `p3`).
+
+`updateState()` is `private` and has no parameters:
+
+```smali
+.method private updateState()V
+    .registers 8
+```
+
+It is reached through the package-private synthetic accessor:
+
+```smali
+.method public static synthetic access$000(Lcom/android/systemui/miui/volume/MiuiRingerModeLayout$RingerButtonHelper;)V
+    invoke-direct {p0}, ...->updateState()V
+    return-void
+.end method
+```
+
+## Resource evidence
+
+From `aapt2 dump resources fuxi-MIUISystemUIPlugin.apk`:
+
+```
+resource 0x7f0a011a id/dnd_layout
+resource 0x7f0a02ae id/ringer_layout
+resource 0x7f0a008c id/bottom_layout
+resource 0x7f0a0080 id/bg_blur
+resource 0x7f0a01db id/miui_standard_btn
+resource 0x7f0a017d id/icon
+```
+
+Layout `res/layout/miui_volume_dialog_ringer_mode.xml` (decompiled with
+`pyaxmlparser.AXMLPrinter`):
+
+```xml
+<com.android.systemui.miui.volume.MiuiRingerModeLayout ...>
+  <FrameLayout android:id="@7F0A01DA">
+    <LinearLayout android:id="@7F0A01D9">
+      <include android:id="@7F0A02AE" layout="@7F0D0076" />  <!-- ringer_layout -->
+      <View android:id="@7F0A01DE" ... />                    <!-- divider -->
+      <include android:id="@7F0A011A" layout="@7F0D0076" />  <!-- dnd_layout -->
+    </LinearLayout>
+  </FrameLayout>
+</com.android.systemui.miui.volume.MiuiRingerModeLayout>
+```
+
+`res/layout/miui_ringer_mode_layout.xml` (the included single-button layout):
+
+```xml
+<LinearLayout android:id="@7F0A008C">                       <!-- bottom_layout -->
+  <com.android.systemui.miui.volume.widget.VolumeBlurFrameLayout android:id="@7F0A0080">  <!-- bg_blur -->
+    <LinearLayout android:id="@7F0A01DB">                   <!-- miui_standard_btn -->
+      <ImageView android:id="@7F0A017D" ... />              <!-- icon -->
+    </LinearLayout>
+    <RoundCornerProgressBar ... />
+  </com.android.systemui.miui.volume.widget.VolumeBlurFrameLayout>
+  <include ... layout="@7F0D007B" />
+</LinearLayout>
+```
+
+## Conclusions
+
+| Question | Evidence | Verdict |
+|----------|----------|---------|
+| A. `miui_ringer_standard_btn` is whole Mute root? | No. `miui_standard_btn` is the inner presentation `LinearLayout`; the whole Mute root is `ringer_layout`. | NOT PROVEN as root. |
+| B. `miui_ringer_dnd_btn` is whole DND root? | Resource not present in A14 plugin; DND root is `dnd_layout`. | NOT PROVEN; `miui_ringer_dnd_btn` does not exist. |
+| C. `mRingerMode == 4` is Mute? | `RingerButtonHelper` has no `int mRingerMode`; `MiuiRingerModeLayout.mRingerMode` is a `boolean` state, and the helper role is `mIsZen`. | NOT PROVEN; remove fallback. |
+| D. `mRingerMode == 1` is DND? | Same as C. | NOT PROVEN; remove fallback. |
+| E. `mStandardView` is whole shortcut root? | `mStandardView` is `findViewById(R.id.miui_standard_btn)` inside the constructor `View`. | NOT PROVEN as root; it is a child. |
+| Mute whole shortcut root | Constructor `View` argument `p2` for the first helper is `MiuiRingerModeLayout` `findViewById(ringer_layout)`. | PROVEN. |
+| DND whole shortcut root | Constructor `View` argument `p2` for the second helper is `MiuiRingerModeLayout` `findViewById(dnd_layout)`. | PROVEN. |
+| Mute role | `RingerButtonHelper` constructor receives `mIsZen = 0` for the `ringer_layout` helper. | PROVEN by explicit ROM mode field (`mIsZen = false`). |
+| DND role | `RingerButtonHelper` constructor receives `mIsZen = 1` for the `dnd_layout` helper. | PROVEN by explicit ROM mode field (`mIsZen = true`). |
+| UNKNOWN fail-open | If `mIsZen` cannot be read or the constructor `View` root is missing, role is UNKNOWN and no hide is applied. | YES. |
+
+## Implementation rule derived from evidence
+
+1. Hook all constructors of `MiuiRingerModeLayout$RingerButtonHelper`.
+2. In the constructor `after` hook:
+   - `callback.getArg(1)` is the whole shortcut root (`View`).
+   - `helper.mIsZen` (`boolean`) is the proven role discriminator.
+   - Store `(role, WeakReference<View>(root))` in additional instance fields.
+3. In `updateState` after hook:
+   - Read the volatile `VolumeModeButtonVisibilitySnapshot`.
+   - Read the pre-bound role and `WeakReference<View>`.
+   - If the role's hide flag is true, set the root's `visibility = View.GONE`.
+   - No preference, resource, or parent traversal on the hot path.

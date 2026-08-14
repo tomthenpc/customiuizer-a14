@@ -14,8 +14,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 class VolumeModeButtonVisibilitySnapshotTest {
 
-    private val hideMuteKey = "system_volume_mode_button_hide_mute"
-    private val hideDndKey = "system_volume_mode_button_hide_dnd"
+    private val hideMuteKey = "system_volume_hide_mute_shortcut"
+    private val hideDndKey = "system_volume_hide_dnd_shortcut"
     private var savedPrefs: Map<String, Any> = emptyMap()
 
     @Before
@@ -177,5 +177,29 @@ class VolumeModeButtonVisibilitySnapshotTest {
         SystemUIControlCenterHooks.installVolumeModeButtonVisibilitySnapshot()
         val afterSecond = PreferenceObserverRegistry.observers.size
         assertEquals("second install must not register another observer", before + 1, afterSecond)
+    }
+
+    @Test
+    fun roleFromIsZenFalseIsMute() {
+        assertEquals(
+            SystemUIControlCenterHooks.VolumeModeButtonRole.MUTE,
+            SystemUIControlCenterHooks.volumeModeButtonRoleFromIsZen(false)
+        )
+    }
+
+    @Test
+    fun roleFromIsZenTrueIsDnd() {
+        assertEquals(
+            SystemUIControlCenterHooks.VolumeModeButtonRole.DND,
+            SystemUIControlCenterHooks.volumeModeButtonRoleFromIsZen(true)
+        )
+    }
+
+    @Test
+    fun roleFromMissingIsZenIsUnknown() {
+        assertEquals(
+            SystemUIControlCenterHooks.VolumeModeButtonRole.UNKNOWN,
+            SystemUIControlCenterHooks.volumeModeButtonRoleFromIsZen(null)
+        )
     }
 }

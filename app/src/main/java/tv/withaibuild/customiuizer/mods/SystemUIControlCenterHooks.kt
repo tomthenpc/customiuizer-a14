@@ -226,16 +226,23 @@ object SystemUIControlCenterHooks {
         "system_volume_mode_button_icon_color"
 
     private const val VOLUME_MODE_BUTTON_HIDE_MUTE_KEY =
-        "system_volume_mode_button_hide_mute"
+        "system_volume_hide_mute_shortcut"
     private const val VOLUME_MODE_BUTTON_HIDE_DND_KEY =
-        "system_volume_mode_button_hide_dnd"
+        "system_volume_hide_dnd_shortcut"
 
     private const val VOLUME_MODE_BUTTON_ROLE_FIELD = "customiuizer_volumeModeButtonRole"
     private const val VOLUME_MODE_BUTTON_ROOT_FIELD = "customiuizer_volumeModeButtonRoot"
 
-    private enum class VolumeModeButtonRole {
+    internal enum class VolumeModeButtonRole {
         MUTE, DND, UNKNOWN
     }
+
+    internal fun volumeModeButtonRoleFromIsZen(isZen: Boolean?): VolumeModeButtonRole =
+        when (isZen) {
+            true -> VolumeModeButtonRole.DND
+            false -> VolumeModeButtonRole.MUTE
+            else -> VolumeModeButtonRole.UNKNOWN
+        }
 
     internal fun refreshVolumeModeButtonColorSnapshot() {
         val enabled = MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_COLORS_ENABLED_KEY, false)
@@ -516,6 +523,7 @@ object SystemUIControlCenterHooks {
                     helper,
                     VOLUME_MODE_BUTTON_ROLE_FIELD
                 ) as? VolumeModeButtonRole ?: return@guarded
+                if (role == VolumeModeButtonRole.UNKNOWN) return@guarded
                 val shouldHide = when (role) {
                     VolumeModeButtonRole.MUTE -> snapshot.hideMute
                     VolumeModeButtonRole.DND -> snapshot.hideDnd
@@ -546,11 +554,18 @@ object SystemUIControlCenterHooks {
 
         val constructorHook = object : MethodHook() {
             override fun after(callback: AfterHookCallback) {
-                callback.getThisObject()?.let { helper ->
-                    bindVolumeModeButtonRole(helper)
-                    applyColors(helper)
-                    applyVisibility(helper)
+                val helper = callback.getThisObject() ?: return
+                val root = try {
+                    callback.getArgs().getOrNull(1) as? View
+                } catch (oom: OutOfMemoryError) {
+                    throw oom
+                } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
+                    null
                 }
+                bindVolumeModeButtonRole(helper, root)
+                applyColors(helper)
+                applyVisibility(helper)
             }
         }
 
@@ -576,54 +591,25 @@ object SystemUIControlCenterHooks {
         )
     }
 
-    private fun bindVolumeModeButtonRole(helper: Any) {
-        ModuleHelper.guarded {
-            val standardView = XposedHelpers.getObjectField(helper, "mStandardView") as? View
-                ?: return@guarded
-            val (role, root) = classifyVolumeModeButton(helper, standardView)
-            XposedHelpers.setAdditionalInstanceField(helper, VOLUME_MODE_BUTTON_ROLE_FIELD, role)
-            if (root != null) {
-                XposedHelpers.setAdditionalInstanceField(
-                    helper,
-                    VOLUME_MODE_BUTTON_ROOT_FIELD,
-                    WeakReference(root)
-                )
-            }
+    private fun bindVolumeModeButtonRole(helper: Any, root: View?) {
+        if (root == null) return
+        val isZen = try {
+            XposedHelpers.getBooleanField(helper, "mIsZen")
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            null
         }
-    }
-
-    private fun classifyVolumeModeButton(
-        helper: Any,
-        anchor: View
-    ): Pair<VolumeModeButtonRole, View?> {
-        val rawMode = ModuleHelper.getObjectFieldSilently(helper, "mRingerMode")
-        val mode = if (rawMode is Int) rawMode else null
-
-        var current: View? = anchor
-        var depth = 0
-        while (current != null && depth < 8) {
-            val id = current.id
-            if (id != View.NO_ID) {
-                val entryName = try {
-                    current.resources?.getResourceEntryName(id)
-                } catch (t: Throwable) {
-                    null
-                }
-                when (entryName) {
-                    "miui_ringer_standard_btn" -> return VolumeModeButtonRole.MUTE to current
-                    "miui_ringer_dnd_btn" -> return VolumeModeButtonRole.DND to current
-                }
-            }
-            current = current.parent as? View
-            depth++
+        val role = volumeModeButtonRoleFromIsZen(isZen)
+        XposedHelpers.setAdditionalInstanceField(helper, VOLUME_MODE_BUTTON_ROLE_FIELD, role)
+        if (role != VolumeModeButtonRole.UNKNOWN) {
+            XposedHelpers.setAdditionalInstanceField(
+                helper,
+                VOLUME_MODE_BUTTON_ROOT_FIELD,
+                WeakReference(root)
+            )
         }
-
-        val role = when (mode) {
-            4 -> VolumeModeButtonRole.MUTE
-            1 -> VolumeModeButtonRole.DND
-            else -> VolumeModeButtonRole.UNKNOWN
-        }
-        return role to if (role == VolumeModeButtonRole.UNKNOWN) null else anchor
     }
 
     @JvmStatic

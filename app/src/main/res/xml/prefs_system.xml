@@ -154,15 +154,15 @@
 			miuizer:indentLevel="1" />
 
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
-			android:key="pref_key_system_volume_mode_button_hide_mute"
-			android:title="@string/system_volume_mode_button_hide_mute_title"
-			android:summary="@string/system_volume_mode_button_hide_mute_summ"
+			android:key="pref_key_system_volume_hide_mute_shortcut"
+			android:title="@string/system_volume_hide_mute_shortcut_title"
+			android:summary="@string/system_volume_hide_mute_shortcut_summ"
 			android:defaultValue="false" />
 
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
-			android:key="pref_key_system_volume_mode_button_hide_dnd"
-			android:title="@string/system_volume_mode_button_hide_dnd_title"
-			android:summary="@string/system_volume_mode_button_hide_dnd_summ"
+			android:key="pref_key_system_volume_hide_dnd_shortcut"
+			android:title="@string/system_volume_hide_dnd_shortcut_title"
+			android:summary="@string/system_volume_hide_dnd_shortcut_summ"
 			android:defaultValue="false" />
 
 		<tv.withaibuild.customiuizer.prefs.SeekBarPreference

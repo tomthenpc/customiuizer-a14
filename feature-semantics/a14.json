@@ -14218,10 +14218,10 @@
       "notes": ""
     },
     {
-      "featureId": "pref_key_system_volume_mode_button_hide_dnd",
-      "featureName": "pref_key_system_volume_mode_button_hide_dnd",
+      "featureId": "pref_key_system_volume_hide_dnd_shortcut",
+      "featureName": "pref_key_system_volume_hide_dnd_shortcut",
       "preferenceKeys": [
-        "pref_key_system_volume_mode_button_hide_dnd"
+        "pref_key_system_volume_hide_dnd_shortcut"
       ],
       "xmlSource": "app/src/main/res/xml/prefs_system.xml",
       "defaultValue": "false",
@@ -14240,10 +14240,10 @@
       "notes": ""
     },
     {
-      "featureId": "pref_key_system_volume_mode_button_hide_mute",
-      "featureName": "pref_key_system_volume_mode_button_hide_mute",
+      "featureId": "pref_key_system_volume_hide_mute_shortcut",
+      "featureName": "pref_key_system_volume_hide_mute_shortcut",
       "preferenceKeys": [
-        "pref_key_system_volume_mode_button_hide_mute"
+        "pref_key_system_volume_hide_mute_shortcut"
       ],
       "xmlSource": "app/src/main/res/xml/prefs_system.xml",
       "defaultValue": "false",
@@ -22072,10 +22072,10 @@
       "notes": ""
     },
     {
-      "featureId": "system_volume_mode_button_hide_dnd",
-      "featureName": "system_volume_mode_button_hide_dnd",
+      "featureId": "system_volume_hide_dnd_shortcut",
+      "featureName": "system_volume_hide_dnd_shortcut",
       "preferenceKeys": [
-        "system_volume_mode_button_hide_dnd"
+        "system_volume_hide_dnd_shortcut"
       ],
       "xmlSource": "",
       "defaultValue": "",
@@ -22094,10 +22094,10 @@
       "notes": ""
     },
     {
-      "featureId": "system_volume_mode_button_hide_mute",
-      "featureName": "system_volume_mode_button_hide_mute",
+      "featureId": "system_volume_hide_mute_shortcut",
+      "featureName": "system_volume_hide_mute_shortcut",
       "preferenceKeys": [
-        "system_volume_mode_button_hide_mute"
+        "system_volume_hide_mute_shortcut"
       ],
       "xmlSource": "",
       "defaultValue": "",
