@@ -746,11 +746,7 @@ internal data class StrongToastRuntimeSnapshot(
     val bottomOffsetDp: Int,
 ) {
     val isDynamicIsland: Boolean
-        get() = mode == StrongToastPresentationMode.DYNAMIC_ISLAND ||
-            mode == StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP
-
-    val isCenterPop: Boolean
-        get() = mode == StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP
+        get() = mode == StrongToastPresentationMode.DYNAMIC_ISLAND
 }
 
 /**

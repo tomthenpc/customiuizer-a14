@@ -9,7 +9,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.SystemUIStrongToastHooks
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode.DYNAMIC_ISLAND
-import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode.HIDE
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode.SYSTEM_DEFAULT
@@ -70,26 +69,12 @@ class StrongToastRuntimeConfigTest {
     }
 
     @Test
-    fun mode3To4_publishesDynamicIslandCenterPop() {
-        val prefs = PrefMap().apply {
-            put("system_strong_toast_mode", "3")
-        }
-        val state = StrongToastRuntimeState.install(prefs)
-        assertEquals(DYNAMIC_ISLAND, state.snapshotRef.get().mode)
-
-        prefs.put("system_strong_toast_mode", "4")
-        state.preferenceObserver.onChange("system_strong_toast_mode")
-
-        assertEquals(DYNAMIC_ISLAND_CENTER_POP, state.snapshotRef.get().mode)
-    }
-
-    @Test
-    fun mode4To3_publishesDynamicIsland() {
+    fun legacyMode4_mapsToDynamicIsland() {
         val prefs = PrefMap().apply {
             put("system_strong_toast_mode", "4")
         }
         val state = StrongToastRuntimeState.install(prefs)
-        assertEquals(DYNAMIC_ISLAND_CENTER_POP, state.snapshotRef.get().mode)
+        assertEquals(DYNAMIC_ISLAND, state.snapshotRef.get().mode)
 
         prefs.put("system_strong_toast_mode", "3")
         state.preferenceObserver.onChange("system_strong_toast_mode")
@@ -195,7 +180,7 @@ class StrongToastRuntimeConfigTest {
     @Test
     fun storeSnapshot_overwritesPreviousValueForSameView() {
         val snapshot1 = StrongToastRuntimeSnapshot(DYNAMIC_ISLAND, TOP, 0)
-        val snapshot2 = StrongToastRuntimeSnapshot(DYNAMIC_ISLAND_CENTER_POP, BOTTOM, 24)
+        val snapshot2 = StrongToastRuntimeSnapshot(HIDE, BOTTOM, 24)
 
         SystemUIStrongToastHooks.snapshotRef = AtomicReference(snapshot1)
 
@@ -223,7 +208,7 @@ class StrongToastRuntimeConfigTest {
     @Test
     fun perEventSnapshot_acquiredOnce() {
         val snapshot1 = StrongToastRuntimeSnapshot(DYNAMIC_ISLAND, TOP, 0)
-        val snapshot2 = StrongToastRuntimeSnapshot(DYNAMIC_ISLAND_CENTER_POP, BOTTOM, 24)
+        val snapshot2 = StrongToastRuntimeSnapshot(HIDE, BOTTOM, 24)
 
         SystemUIStrongToastHooks.snapshotRef = AtomicReference(snapshot1)
 
@@ -282,7 +267,7 @@ class StrongToastRuntimeConfigTest {
             ).mode
         )
         assertEquals(
-            DYNAMIC_ISLAND_CENTER_POP,
+            DYNAMIC_ISLAND,
             StrongToastRuntimeState.buildSnapshot(
                 mapOf("system_strong_toast_mode" to "4")
             ).mode

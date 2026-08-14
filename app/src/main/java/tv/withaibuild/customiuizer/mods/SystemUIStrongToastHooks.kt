@@ -21,6 +21,7 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import tv.withaibuild.customiuizer.mods.utils.feature.DynamicIslandMotionProfile
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeSnapshot
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeState
 import io.github.libxposed.api.XposedInterface
@@ -55,25 +56,14 @@ object SystemUIStrongToastHooks {
     private const val FOREHEAD_BOTTOM_ID = "strong_toast_bottom_view"
     private const val CAPSULE_TOP_MARGIN_DP = 6f
     private const val CAPSULE_BOTTOM_SAFETY_MARGIN_DP = 16f
-    private const val CENTER_CAPSULE_SAFETY_MARGIN_DP = 16f
     private const val BOTTOM_EDGE_GAP_MIN_DP = 2f
     private const val BOTTOM_EDGE_GAP_MAX_DP = 6f
     private const val SWIPE_DISMISS_THRESHOLD_MAX_DP = 28f
     private const val SWIPE_TOUCH_EXPANSION_HORIZONTAL_DP = 24f
     private const val SWIPE_TOUCH_EXPANSION_VERTICAL_DP = 16f
-    private const val SWIPE_DISMISS_DURATION_MS = 280L
-    private const val TOP_ISLAND_DURATION_MS = 360L
-    private const val BOTTOM_ISLAND_DURATION_MS = 420L
+    private const val DYNAMIC_ISLAND_EXIT_DURATION_MS = 300L
     private const val ISLAND_CONTENT_DURATION_MS = 180L
     private const val ISLAND_CONTENT_DELAY_MS = 60L
-    private const val TOP_ISLAND_FALLBACK_SCALE_X = 0.28f
-    private const val TOP_ISLAND_MAX_ORIGIN_SCALE_X = 0.72f
-    private const val TOP_ISLAND_CUTOUT_PADDING_DP = 8f
-    private const val BOTTOM_ISLAND_START_SCALE_X = 0.58f
-    private const val CENTER_POP_START_SCALE_X = 0.52f
-    private const val CENTER_POP_START_SCALE_Y = 1f
-    private const val CENTER_POP_START_ALPHA = 1f
-    private const val CENTER_POP_DURATION_MS = 420L
     private const val SWIPE_STATE_FIELD = "customiuizer_strong_toast_swipe"
     private const val BOTTOM_BASE_PADDING_FIELD = "customiuizer_strong_toast_bottom_base_padding"
     private const val DISMISS_RUNNING_FIELD = "customiuizer_strong_toast_dismiss_running"
@@ -163,8 +153,7 @@ object SystemUIStrongToastHooks {
                                     layoutParams.height
                                 )
                             }
-                            StrongToastPresentationMode.DYNAMIC_ISLAND,
-                            StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP -> {
+                            StrongToastPresentationMode.DYNAMIC_ISLAND -> {
                                 // HyperOS normally makes this Window exactly as wide as
                                 // strong_toast_width. A centered overshoot is then clipped by the
                                 // Window surface before ViewGroup clip flags can help. Keep the
@@ -201,11 +190,7 @@ object SystemUIStrongToastHooks {
                                         currentStatusBarInsetPx(strongToast),
                                         visualHeightPx,
                                         dpToPx(strongToast, CAPSULE_TOP_MARGIN_DP),
-                                        dpToPx(
-                                            strongToast,
-                                            if (snapshot.isCenterPop) CENTER_CAPSULE_SAFETY_MARGIN_DP
-                                            else CAPSULE_BOTTOM_SAFETY_MARGIN_DP
-                                        )
+                                        dpToPx(strongToast, CAPSULE_BOTTOM_SAFETY_MARGIN_DP)
                                     )
                                 }
                             }
@@ -268,7 +253,6 @@ object SystemUIStrongToastHooks {
                     installExpandedWindowTouchRegion(strongToast)
                     startDynamicIslandEntrance(
                         strongToast,
-                        snapshot.isCenterPop,
                         snapshot.position,
                         snapshot.bottomOffsetDp
                     )
@@ -310,7 +294,6 @@ object SystemUIStrongToastHooks {
                     animateDynamicIslandDismiss(
                         strongToast,
                         capsule,
-                        snapshot.isCenterPop,
                         snapshot.position
                     )
                 }
@@ -327,7 +310,6 @@ object SystemUIStrongToastHooks {
                     try {
                         if (snapshot.isDynamicIsland) {
                             val capsule = findDynamicIslandCapsule(strongToast) ?: strongToast
-                            val motionView = dynamicIslandMotionView(capsule, snapshot.isCenterPop)
                             setSwipeListenerRecursively(capsule, null)
                             (capsule.parent as? View)?.setOnTouchListener(null)
                             removeExpandedWindowTouchRegion(strongToast)
@@ -337,8 +319,6 @@ object SystemUIStrongToastHooks {
                             restoreStatusBarContents(strongToast)
                             strongToast.animate().cancel()
                             resetDynamicIslandHostTransform(strongToast)
-                            motionView.animate().cancel()
-                            resetDynamicIslandTransform(motionView)
                             capsule.animate().cancel()
                             resetDynamicIslandTransform(capsule)
                         }
@@ -423,77 +403,32 @@ object SystemUIStrongToastHooks {
 
     private fun startDynamicIslandEntrance(
         view: View,
-        centerPop: Boolean,
         position: StrongToastPosition,
         bottomOffsetDp: Int
     ) {
         try {
-            val capsule = prepareDynamicIslandCapsule(
-                view,
-                centerPop,
-                position,
-                bottomOffsetDp
-            ) ?: return
-            val motionView = dynamicIslandMotionView(capsule, centerPop)
+            val capsule = prepareDynamicIslandCapsule(view, position, bottomOffsetDp) ?: return
             if (position == StrongToastPosition.TOP) hideStatusBarContents(view)
             XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState())
-            installSwipeToDismiss(view, capsule, centerPop, position)
+            installSwipeToDismiss(view, capsule, position)
             view.animate().cancel()
             resetDynamicIslandHostTransform(view)
-            motionView.animate().cancel()
-            resetDynamicIslandTransform(motionView)
             capsule.animate().cancel()
+            resetDynamicIslandTransform(capsule)
             prepareDynamicIslandContent(capsule)
-            // onAttachedToWindow precedes the first layout pass. Hide the not-yet-laid-out
-            // capsule and defer exactly once so its real width and centered pivot are stable.
-            // Starting here made HyperOS draw a clipped left half on the first event while
-            // subsequent events reused the already measured View and appeared correct.
-            capsule.alpha = if (position == StrongToastPosition.TOP) {
-                1f
-            } else if (position == StrongToastPosition.BOTTOM && !centerPop) {
-                0f
-            } else if (motionView === capsule) {
-                0f
-            } else {
-                1f
-            }
-            capsule.scaleX = 1f
-            capsule.scaleY = 1f
-            capsule.translationY = 0f
-            if (!centerPop && position == StrongToastPosition.TOP) {
-                capsule.pivotX = (capsule.layoutParams?.width?.takeIf { it > 0 }
-                    ?: capsule.resources.displayMetrics.widthPixels) / 2f
-                capsule.pivotY = (capsule.layoutParams?.height?.takeIf { it > 0 }
-                    ?: strongToastVisualHeightPx(view)) / 2f
-                capsule.scaleX = resolveTopIslandOriginScaleX(capsule)
-                capsule.translationY = -dpToPx(capsule, CAPSULE_TOP_MARGIN_DP).toFloat()
-            }
-            if (motionView !== capsule) {
-                // Center-pop transforms the transparent host so the ROM capsule remains complete.
-                motionView.alpha = 1f
-                motionView.scaleX = 1f
-                motionView.scaleY = 1f
-                motionView.translationY = 0f
-                if (centerPop) {
-                    motionView.pivotX = capsule.resources.displayMetrics.widthPixels / 2f
-                    motionView.pivotY = (motionView.layoutParams?.height?.takeIf { it > 0 }
-                        ?: strongToastVisualHeightPx(view)) / 2f
-                    motionView.scaleX = CENTER_POP_START_SCALE_X
-                }
-            }
-            val startEntrance = Runnable {
+            // onAttachedToWindow precedes the first layout pass. Defer exactly once so the
+            // capsule has real width/height and the profile can set a safe pivot/translation.
+            capsule.post {
                 ModuleHelper.guarded {
                     if (!capsule.isAttachedToWindow) {
                         resetDynamicIslandHostTransform(view)
-                        resetDynamicIslandTransform(motionView)
                         resetDynamicIslandTransform(capsule)
                         resetDynamicIslandContent(capsule)
                         return@guarded
                     }
-                    runDynamicIslandEntrance(view, capsule, motionView, centerPop, position)
+                    runDynamicIslandEntrance(view, capsule, position)
                 }
             }
-            capsule.post(startEntrance)
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             restoreStatusBarContents(view)
@@ -504,111 +439,57 @@ object SystemUIStrongToastHooks {
             XposedHelpers.log("StrongToastDynamicIsland", t)
         }
     }
-
     private fun runDynamicIslandEntrance(
         view: View,
         capsule: View,
-        motionView: View,
-        centerPop: Boolean,
         position: StrongToastPosition
     ) {
         try {
-            motionView.alpha = if (centerPop) CENTER_POP_START_ALPHA else 1f
-            if (centerPop) {
-                // Center-pop has no screen-edge direction: the complete capsule expands about
-                // its own center and collapses back to that same point on either screen edge.
-                motionView.pivotX = motionView.width / 2f
-                motionView.pivotY = motionView.height / 2f
-                motionView.scaleX = CENTER_POP_START_SCALE_X
-                motionView.scaleY = CENTER_POP_START_SCALE_Y
-            } else {
-                motionView.pivotX = motionView.width / 2f
-                motionView.pivotY = if (position == StrongToastPosition.BOTTOM) {
-                    motionView.height.toFloat()
-                } else {
-                    motionView.height / 2f
-                }
-                motionView.scaleX = if (position == StrongToastPosition.TOP) {
-                    resolveTopIslandOriginScaleX(capsule)
-                } else {
-                    1f
-                }
-            }
-            // Edge modes always render the complete 1:1 capsule. Scaling the ROM
-            // ConstraintLayout vertically made the first frames indistinguishable from a
-            // cropped top edge and reduced the Surface safety margin on some densities.
-            if (!centerPop) motionView.scaleY = 1f
-            // Keep the ROM's final top geometry from the first visible frame. Moving the
-            // capsule down exposes the physical camera edge; moving it up crosses the
-            // StrongToast Surface and is hard-cropped by SurfaceFlinger.
-            motionView.translationY = if (!centerPop && position == StrongToastPosition.TOP) {
-                -capsule.top.toFloat()
-            } else {
-                0f
-            }
-            if (centerPop) {
-                capsule.alpha = 1f
-                motionView.animate()
-                    .alpha(1f)
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .setDuration(CENTER_POP_DURATION_MS)
-                    // A bounded curve is deliberate: OvershootInterpolator briefly scales
-                    // the complete host beyond its Window surface and SurfaceFlinger then
-                    // hard-crops the capsule even when every ViewGroup clip flag is disabled.
-                    .setInterpolator(boundedDynamicIslandInterpolator)
-                    .start()
-                animateDynamicIslandContent(capsule)
-            } else if (position == StrongToastPosition.BOTTOM) {
-                motionView.translationY = resolveBottomEntranceTravelPx(motionView).toFloat()
-                capsule.alpha = 1f
-                capsule.pivotX = capsule.width / 2f
-                capsule.pivotY = capsule.height.toFloat()
-                capsule.scaleX = BOTTOM_ISLAND_START_SCALE_X
-                capsule.animate()
-                    .alpha(1f)
-                    .scaleX(1f)
-                    .translationY(0f)
-                    .setDuration(BOTTOM_ISLAND_DURATION_MS)
-                    .setInterpolator(boundedDynamicIslandInterpolator)
-                    .start()
-                animateDynamicIslandContent(capsule)
-            } else {
-                motionView.animate()
-                    .alpha(1f)
-                    .scaleX(1f)
-                    .scaleY(1f)
-                    .translationY(0f)
-                    .setDuration(TOP_ISLAND_DURATION_MS)
-                    .setInterpolator(boundedDynamicIslandInterpolator)
-                    .start()
-                animateDynamicIslandContent(capsule)
-            }
+            val profile = resolveDynamicIslandMotionProfile(view, capsule, position)
+                ?: return
+
+            // The capsule is laid out at its resting position. Set the pivot to the
+            // screen edge so vertical scaling grows from that edge, not the center.
+            capsule.pivotX = capsule.width / 2f
+            capsule.pivotY = profile.pivotY
+            capsule.scaleX = 1f
+            capsule.scaleY = profile.entranceScaleY
+            capsule.translationY = profile.entranceTranslationY
+            capsule.alpha = 1f
+
+            capsule.animate()
+                .alpha(1f)
+                .scaleX(1f)
+                .scaleY(1f)
+                .translationY(profile.restingTranslationY)
+                .setDuration(profile.entranceDurationMs)
+                .setInterpolator(boundedDynamicIslandInterpolator)
+                .start()
+
+            animateDynamicIslandContent(capsule)
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             restoreStatusBarContents(view)
             view.animate().cancel()
             resetDynamicIslandHostTransform(view)
-            motionView.animate().cancel()
-            resetDynamicIslandTransform(motionView)
+            capsule.animate().cancel()
             resetDynamicIslandTransform(capsule)
             resetDynamicIslandContent(capsule)
             XposedHelpers.log("StrongToastDynamicIsland", t)
         }
     }
-
     private fun handleDynamicIslandTouch(
         strongToast: View,
         event: MotionEvent,
-        centerPop: Boolean,
         position: StrongToastPosition
     ): Boolean {
         val capsule = findDynamicIslandCapsule(strongToast) ?: return false
-        val motionView = dynamicIslandMotionView(capsule, centerPop)
         val state = XposedHelpers.getAdditionalInstanceField(
             strongToast,
             SWIPE_STATE_FIELD
         ) as? SwipeGestureState ?: return false
+        val profile = resolveDynamicIslandMotionProfile(strongToast, capsule, position)
+            ?: return false
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -616,16 +497,12 @@ object SystemUIStrongToastHooks {
                 state.active = true
                 state.downRawY = event.rawY
                 state.moved = false
+                state.startTranslationY = capsule.translationY
                 strongToast.animate().cancel()
                 resetDynamicIslandHostTransform(strongToast)
-                if (!centerPop && position == StrongToastPosition.BOTTOM) {
-                    motionView.animate().cancel()
-                    state.startTranslationY = motionView.translationY
-                } else {
-                    motionView.animate().cancel()
-                }
-                motionView.scaleX = 1f
-                motionView.scaleY = 1f
+                capsule.animate().cancel()
+                capsule.scaleX = 1f
+                capsule.scaleY = 1f
             }
             MotionEvent.ACTION_MOVE -> {
                 if (!state.active) return false
@@ -637,30 +514,17 @@ object SystemUIStrongToastHooks {
                 }
                 state.moved = state.moved ||
                     kotlin.math.abs(deltaY) >= dpToPx(capsule, 4f)
-                if (centerPop) {
-                    val progress = (kotlin.math.abs(directionalDelta) /
-                        resolveSwipeDismissThresholdPx(capsule).coerceAtLeast(1f))
-                        .coerceIn(0f, 1f)
-                    motionView.scaleX = 1f - (1f - CENTER_POP_START_SCALE_X) * progress
-                    motionView.scaleY = 1f - (1f - CENTER_POP_START_SCALE_Y) * progress
-                    motionView.translationY = 0f
-                } else if (position == StrongToastPosition.BOTTOM) {
-                    motionView.translationY = (state.startTranslationY + directionalDelta)
-                        .coerceIn(0f, resolveBottomEntranceTravelPx(motionView).toFloat())
-                } else {
-                    val progress = (kotlin.math.abs(directionalDelta) /
-                        resolveSwipeDismissThresholdPx(capsule).coerceAtLeast(1f))
-                        .coerceIn(0f, 1f)
-                    val originScale = resolveTopIslandOriginScaleX(capsule)
-                    motionView.scaleX = 1f - (1f - originScale) * progress
-                    motionView.translationY = -capsule.top * progress
-                }
-                val fadeDistance = (capsule.height * 1.5f).coerceAtLeast(1f)
-                motionView.alpha = if (!centerPop) {
-                    1f
-                } else {
-                    (1f - kotlin.math.abs(directionalDelta) / fadeDistance)
-                        .coerceIn(0.55f, 1f)
+
+                val travel = profile.entranceTravelPx.toFloat().coerceAtLeast(1f)
+                val progress = (kotlin.math.abs(directionalDelta) / travel).coerceIn(0f, 1f)
+
+                capsule.pivotY = profile.pivotY
+                capsule.scaleY = 1f - (1f - profile.entranceScaleY) * progress
+                capsule.translationY = when (position) {
+                    StrongToastPosition.BOTTOM ->
+                        (state.startTranslationY + directionalDelta).coerceIn(0f, travel)
+                    StrongToastPosition.TOP ->
+                        (state.startTranslationY + directionalDelta).coerceIn(-travel, 0f)
                 }
             }
             MotionEvent.ACTION_UP -> {
@@ -675,29 +539,27 @@ object SystemUIStrongToastHooks {
                 ) {
                     dismissStrongToast(strongToast)
                 } else {
-                    restoreDynamicIslandAfterDrag(motionView, centerPop, position)
+                    restoreDynamicIslandAfterDrag(capsule, profile)
                     if (!state.moved) capsule.performClick()
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
                 if (!state.active) return false
                 state.active = false
-                restoreDynamicIslandAfterDrag(motionView, centerPop, position)
+                restoreDynamicIslandAfterDrag(capsule, profile)
             }
             else -> return state.active
         }
         return true
     }
-
     private fun installSwipeToDismiss(
         strongToast: View,
         capsule: View,
-        centerPop: Boolean,
         position: StrongToastPosition
     ) {
         val listener = View.OnTouchListener { _, event ->
             ModuleHelper.guarded(false) {
-                handleDynamicIslandTouch(strongToast, event, centerPop, position)
+                handleDynamicIslandTouch(strongToast, event, position)
             }
         }
         // The capsule's parent is the native full StrongToast row. Receiving ACTION_DOWN
@@ -706,7 +568,6 @@ object SystemUIStrongToastHooks {
         (capsule.parent as? View)?.setOnTouchListener(listener)
         setSwipeListenerRecursively(capsule, listener)
     }
-
     private fun isWithinExpandedCapsuleTouchBounds(
         event: MotionEvent,
         capsule: View,
@@ -746,10 +607,8 @@ object SystemUIStrongToastHooks {
     private fun animateDynamicIslandDismiss(
         strongToast: View,
         capsule: View,
-        centerPop: Boolean,
         position: StrongToastPosition
     ) {
-        val motionView = dynamicIslandMotionView(capsule, centerPop)
         XposedHelpers.setAdditionalInstanceField(strongToast, DISMISS_RUNNING_FIELD, true)
         setSwipeListenerRecursively(capsule, null)
         animateDynamicIslandContentOut(capsule)
@@ -766,61 +625,24 @@ object SystemUIStrongToastHooks {
                 XposedHelpers.callMethod(strongToast, "onComplete")
             }
         }
-        if (centerPop) {
-            motionView.pivotX = motionView.width / 2f
-            motionView.pivotY = motionView.height / 2f
-            motionView.animate()
-                .alpha(1f)
-                .scaleX(CENTER_POP_START_SCALE_X)
-                .scaleY(CENTER_POP_START_SCALE_Y)
-                .translationY(0f)
-                .setDuration(SWIPE_DISMISS_DURATION_MS)
-                .setInterpolator(dynamicIslandExitInterpolator)
-                .withEndAction(complete)
-                .start()
+
+        val profile = resolveDynamicIslandMotionProfile(strongToast, capsule, position)
+        if (profile == null) {
+            complete.run()
             return
         }
-        if (position == StrongToastPosition.BOTTOM) {
-            val targetOffset = resolveBottomEntranceTravelPx(motionView)
-            motionView.pivotX = motionView.width / 2f
-            motionView.pivotY = motionView.height.toFloat()
-            motionView.animate()
-                .scaleX(BOTTOM_ISLAND_START_SCALE_X)
-                .scaleY(1f)
-                .translationY(targetOffset.toFloat())
-                .setDuration(SWIPE_DISMISS_DURATION_MS)
-                .setInterpolator(dynamicIslandExitInterpolator)
-                .withEndAction(complete)
-                .start()
-            return
-        }
-        motionView.pivotX = motionView.width / 2f
-        motionView.pivotY = motionView.height / 2f
-        val screenTopExit = -capsule.top.toFloat()
-        motionView.animate()
+
+        capsule.pivotY = profile.pivotY
+        capsule.animate()
             .alpha(1f)
-            .scaleX(resolveTopIslandOriginScaleX(capsule))
-            .scaleY(1f)
-            // Return to the same compact cutout-sized pill at physical screen y=0 from
-            // which the top island entered. Window removal then merges it into the camera.
-            .translationY(screenTopExit)
-            .setDuration(SWIPE_DISMISS_DURATION_MS)
+            .scaleX(1f)
+            .scaleY(profile.exitScaleY)
+            .translationY(profile.exitTranslationY)
+            .setDuration(profile.exitDurationMs)
             .setInterpolator(dynamicIslandExitInterpolator)
-            .withEndAction {
-                ModuleHelper.guarded { complete.run() }
-            }
+            .withEndAction(complete)
             .start()
     }
-
-    /**
-     * Routes MIUIStrongToastControl method calls through the current StrongToast snapshot.
-     *
-     * - HIDE mode returns and skips `showCustomStrongToast`, preventing the toast from being shown.
-     * - Dynamic Island modes temporarily expose the keyguard state as false so HyperOS 1 does not
-     *   reject the toast while the lockscreen is visible. The original value is restored in the
-     *   same invocation, even if the chain throws or nested callbacks run.
-     * - MATCH and SYSTEM_DEFAULT proceed without modifying the keyguard state.
-     */
     private fun installControlClassHooks(lpparam: PackageReadyParam) {
         try {
             val controlClass = XposedHelpers.findClassIfExists(
@@ -963,7 +785,6 @@ object SystemUIStrongToastHooks {
 
     private fun prepareDynamicIslandCapsule(
         root: View,
-        centerPop: Boolean,
         position: StrongToastPosition,
         bottomOffsetDp: Int
     ): View? {
@@ -980,16 +801,11 @@ object SystemUIStrongToastHooks {
         if (layoutParams is ViewGroup.MarginLayoutParams) {
             if (position == StrongToastPosition.BOTTOM) {
                 layoutParams.topMargin = resolveBottomTopSafetyPx(root, visualHeightPx)
-                // Bottom spacing is owned by the LinearLayout parent's padding. Animating this
-                // child margin is absorbed by HyperOS relayouts and leaves the capsule stationary.
+                // Bottom spacing is owned by the LinearLayout parent padding.
                 layoutParams.bottomMargin = 0
             } else {
                 layoutParams.topMargin = dpToPx(root, CAPSULE_TOP_MARGIN_DP)
-                layoutParams.bottomMargin = dpToPx(
-                    root,
-                    if (centerPop) CENTER_CAPSULE_SAFETY_MARGIN_DP
-                    else CAPSULE_BOTTOM_SAFETY_MARGIN_DP
-                )
+                layoutParams.bottomMargin = dpToPx(root, CAPSULE_BOTTOM_SAFETY_MARGIN_DP)
             }
         }
         if (layoutParams is LinearLayout.LayoutParams) {
@@ -1012,25 +828,17 @@ object SystemUIStrongToastHooks {
             } else {
                 Gravity.TOP or Gravity.CENTER_HORIZONTAL
             }
-            if (position == StrongToastPosition.BOTTOM) {
-                val bottomPadding = resolveBottomPaddingPx(
-                    currentBottomSafeInsetPx(root),
-                    resolveBottomEdgeGapPx(root, visualHeightPx),
-                    dpToPx(root, bottomOffsetDp.toFloat())
-                )
-                setPadding(paddingLeft, paddingTop, paddingRight, bottomPadding)
-                XposedHelpers.setAdditionalInstanceField(
-                    this,
-                    BOTTOM_BASE_PADDING_FIELD,
-                    bottomPadding
-                )
+            val bottomPadding = if (position == StrongToastPosition.BOTTOM) {
+                resolveBottomPaddingForCapsule(root, visualHeightPx, bottomOffsetDp)
+            } else {
+                0
             }
+            setPadding(paddingLeft, 0, paddingRight, bottomPadding)
         }
         disableClippingThroughAncestors(capsule, root)
         findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE
         return capsule
     }
-
     private fun disableClippingThroughAncestors(capsule: View, root: View) {
         var ancestor = capsule.parent
         while (ancestor is ViewGroup) {
@@ -1041,52 +849,55 @@ object SystemUIStrongToastHooks {
         }
     }
 
-    private fun dynamicIslandMotionView(
-        capsule: View,
-        centerPop: Boolean
-    ): View {
-        return if (centerPop) {
-            capsule.parent as? View ?: capsule
-        } else {
-            capsule
-        }
-    }
-
     private fun restoreDynamicIslandAfterDrag(
         view: View,
-        centerPop: Boolean,
-        position: StrongToastPosition
+        profile: DynamicIslandMotionProfile
     ) {
-        if (centerPop) {
-            view.animate()
-                .alpha(1f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .translationY(0f)
-                .setDuration(180L)
-                .setInterpolator(boundedDynamicIslandInterpolator)
-                .start()
-        } else if (position == StrongToastPosition.BOTTOM) {
-            view.animate()
-                .alpha(1f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .translationY(0f)
-                .setDuration(180L)
-                .setInterpolator(boundedDynamicIslandInterpolator)
-                .start()
-        } else {
-            view.animate()
-                .alpha(1f)
-                .scaleX(1f)
-                .scaleY(1f)
-                .translationY(0f)
-                .setDuration(180L)
-                .setInterpolator(boundedDynamicIslandInterpolator)
-                .start()
-        }
+        view.pivotY = profile.pivotY
+        view.animate()
+            .alpha(1f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .translationY(0f)
+            .setDuration(180L)
+            .setInterpolator(boundedDynamicIslandInterpolator)
+            .start()
     }
 
+    private fun resolveDynamicIslandMotionProfile(
+        root: View,
+        capsule: View,
+        position: StrongToastPosition
+    ): DynamicIslandMotionProfile? {
+        val visualHeightPx = strongToastVisualHeightPx(root)
+        if (visualHeightPx <= 0) return null
+        return when (position) {
+            StrongToastPosition.TOP -> {
+                val topMarginPx = dpToPx(capsule, CAPSULE_TOP_MARGIN_DP)
+                val bottomSafetyPx = dpToPx(capsule, CAPSULE_BOTTOM_SAFETY_MARGIN_DP)
+                val statusBarInsetPx = currentStatusBarInsetPx(root)
+                DynamicIslandMotionProfile.forTop(
+                    visualHeightPx,
+                    topMarginPx,
+                    bottomSafetyPx,
+                    statusBarInsetPx
+                )
+            }
+            StrongToastPosition.BOTTOM -> {
+                val topSafetyPx = resolveBottomTopSafetyPx(root, visualHeightPx)
+                val bottomPaddingPx = resolveBottomPaddingForCapsule(
+                    root,
+                    visualHeightPx,
+                    resolveSnapshot(root)?.bottomOffsetDp ?: 0
+                )
+                DynamicIslandMotionProfile.forBottom(
+                    visualHeightPx,
+                    topSafetyPx,
+                    bottomPaddingPx
+                )
+            }
+        }
+    }
     private fun prepareDynamicIslandContent(capsule: View) {
         val group = capsule as? ViewGroup ?: return
         for (index in 0 until group.childCount) {
@@ -1155,11 +966,15 @@ object SystemUIStrongToastHooks {
         return (visualHeightPx / 4).coerceIn(minimum, maximum)
     }
 
-    private fun resolveBottomEntranceTravelPx(view: View): Int =
-        ((view.parent as? View)?.let { parent ->
-            XposedHelpers.getAdditionalInstanceField(parent, BOTTOM_BASE_PADDING_FIELD) as? Int
-                ?: parent.paddingBottom
-        } ?: 0).coerceAtLeast(0)
+    private fun resolveBottomPaddingForCapsule(
+        root: View,
+        visualHeightPx: Int,
+        bottomOffsetDp: Int
+    ): Int = resolveBottomPaddingPx(
+        currentBottomSafeInsetPx(root),
+        resolveBottomEdgeGapPx(root, visualHeightPx),
+        dpToPx(root, bottomOffsetDp.toFloat())
+    )
 
     private fun resolveSwipeDismissThresholdPx(view: View): Float {
         val capsuleThreshold = view.height.coerceAtLeast(strongToastVisualHeightPx(view)) / 5
@@ -1168,21 +983,6 @@ object SystemUIStrongToastHooks {
             .coerceAtMost(dpToPx(view, SWIPE_DISMISS_THRESHOLD_MAX_DP))
             .coerceAtLeast(1)
             .toFloat()
-    }
-
-    private fun resolveTopIslandOriginScaleX(capsule: View): Float {
-        val capsuleWidth = capsule.width.takeIf { it > 0 }
-            ?: capsule.layoutParams?.width?.takeIf { it > 0 }
-            ?: return TOP_ISLAND_FALLBACK_SCALE_X
-        val cutoutWidth = capsule.rootWindowInsets?.displayCutout
-            ?.boundingRectTop
-            ?.width()
-            ?.takeIf { it > 0 }
-            ?: 0
-        if (cutoutWidth <= 0) return TOP_ISLAND_FALLBACK_SCALE_X
-        val paddedCutoutWidth = cutoutWidth + dpToPx(capsule, TOP_ISLAND_CUTOUT_PADDING_DP) * 2
-        return (paddedCutoutWidth.toFloat() / capsuleWidth)
-            .coerceIn(TOP_ISLAND_FALLBACK_SCALE_X, TOP_ISLAND_MAX_ORIGIN_SCALE_X)
     }
 
     private fun resetDynamicIslandTransform(view: View) {

@@ -6,6 +6,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.SystemUIStrongToastHooks
+import tv.withaibuild.customiuizer.mods.utils.feature.DynamicIslandMotionProfile
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastPresentationFeature
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastPresentationFeatureId
 import tv.withaibuild.customiuizer.mods.utils.feature.SystemUiFeatures
@@ -21,9 +22,22 @@ class StrongToastPresentationModeTest {
         assertEquals(StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT, StrongToastPresentationMode.fromPreference(1))
         assertEquals(StrongToastPresentationMode.HIDE, StrongToastPresentationMode.fromPreference(2))
         assertEquals(StrongToastPresentationMode.DYNAMIC_ISLAND, StrongToastPresentationMode.fromPreference(3))
-        assertEquals(StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP, StrongToastPresentationMode.fromPreference(4))
+        assertEquals(StrongToastPresentationMode.DYNAMIC_ISLAND, StrongToastPresentationMode.fromPreference(4))
         assertEquals(StrongToastPresentationMode.SYSTEM_DEFAULT, StrongToastPresentationMode.fromPreference(-1))
         assertEquals(StrongToastPresentationMode.SYSTEM_DEFAULT, StrongToastPresentationMode.fromPreference(99))
+    }
+
+    @Test
+    fun legacyPreferenceValue4_isMigrationCoveredByEvaluateEnabled() {
+        assertTrue(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
+            put("system_strong_toast_mode", "4")
+        }))
+        assertEquals(
+            StrongToastPresentationMode.DYNAMIC_ISLAND,
+            StrongToastPresentationFeature.resolveMode(PrefMap().apply {
+                put("system_strong_toast_mode", "4")
+            })
+        )
     }
 
     @Test
@@ -136,53 +150,82 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun dynamicIslandWindow_supportsSafeFullWidthEntranceStyles() {
+    fun dynamicIslandMotionProfile_topEntranceFitsWindow() {
+        val profile = DynamicIslandMotionProfile.forTop(
+            visualHeightPx = 141,
+            topMarginPx = 18,
+            bottomSafetyMarginPx = 36,
+            statusBarInsetPx = 82
+        )
+        assertTrue(profile.capsuleFitsWindow(capsuleTopAtRest = 18, capsuleHeightPx = 141))
+        assertEquals(StrongToastPosition.TOP, profile.position)
+        assertEquals(0.88f, profile.entranceScaleY, 0.001f)
+        assertTrue(profile.entranceTranslationY < 0f)
+        assertEquals(profile.entranceTranslationY, profile.exitTranslationY, 0.001f)
+    }
+
+    @Test
+    fun dynamicIslandMotionProfile_bottomEntranceFitsWindow() {
+        val profile = DynamicIslandMotionProfile.forBottom(
+            visualHeightPx = 141,
+            topSafetyMarginPx = 18,
+            bottomPaddingPx = 90
+        )
+        assertTrue(profile.capsuleFitsWindow(capsuleTopAtRest = 18, capsuleHeightPx = 141))
+        assertEquals(StrongToastPosition.BOTTOM, profile.position)
+        assertEquals(0.88f, profile.entranceScaleY, 0.001f)
+        assertTrue(profile.entranceTranslationY > 0f)
+        assertEquals(profile.entranceTranslationY, profile.exitTranslationY, 0.001f)
+    }
+
+    @Test
+    fun dynamicIslandWindow_usesVerticalSoftMotionSource() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
         assertTrue(source.contains("layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT"))
-        assertTrue(source.contains("capsule.scaleX = 1f"))
-        assertTrue(source.contains("if (!centerPop) motionView.scaleY = 1f"))
-        assertTrue(source.contains("motionView.pivotX = motionView.width / 2f"))
-        assertTrue(source.contains("CENTER_POP_START_SCALE_X = 0.52f"))
-        assertTrue(source.contains("CENTER_POP_START_ALPHA = 1f"))
-        assertTrue(source.contains("CENTER_POP_DURATION_MS = 420L"))
+        assertTrue(source.contains("capsule.pivotY = profile.pivotY"))
+        assertTrue(source.contains("capsule.scaleY = profile.entranceScaleY"))
+        assertTrue(source.contains("capsule.translationY = profile.entranceTranslationY"))
+        assertTrue(source.contains("capsule.animate()"))
+        assertTrue(source.contains(".scaleY(1f)"))
+        assertTrue(source.contains(".scaleY(profile.exitScaleY)"))
+        assertTrue(source.contains(".translationY(profile.exitTranslationY)"))
         assertTrue(source.contains("boundedDynamicIslandInterpolator"))
         assertTrue(source.contains("PathInterpolator(0.25f, 1f, 0.5f, 1f)"))
         assertTrue(source.contains("prepareDynamicIslandContent(capsule)"))
         assertTrue(source.contains("resetDynamicIslandContent(capsule)"))
-        assertTrue(source.contains("motionView.scaleX = CENTER_POP_START_SCALE_X"))
-        assertTrue(source.contains("motionView.scaleY = CENTER_POP_START_SCALE_Y"))
-        assertTrue(source.contains("motionView.pivotY = motionView.height / 2f"))
-        assertTrue(source.contains("resetDynamicIslandHostTransform(strongToast)"))
-        assertFalse(source.contains("resolveDynamicIslandStartScaleX"))
         assertTrue(source.contains("layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL"))
         assertTrue(source.contains("layoutParams.windowAnimations = 0"))
         assertTrue(source.contains("layoutParams.setFitInsetsTypes(0)"))
         assertTrue(source.contains("disableClippingThroughAncestors(capsule, root)"))
-        assertTrue(source.contains("dynamicIslandMotionView(capsule, centerPop)"))
-        assertTrue(source.contains("motionView.translationY = 0f"))
-        assertTrue(source.contains("resolveTopIslandOriginScaleX(capsule)"))
-        assertTrue(source.contains("val screenTopExit = -capsule.top.toFloat()"))
         assertTrue(source.contains("OnComputeInternalInsetsListener"))
         assertTrue(source.contains("removeOnComputeInternalInsetsListener"))
         assertTrue(source.contains("capsule.clipToOutline = false"))
-        assertTrue(source.contains("resolveBottomEntranceTravelPx(motionView)"))
-        assertTrue(source.contains("BOTTOM_ISLAND_START_SCALE_X = 0.58f"))
-        assertTrue(source.contains("capsule.animate()"))
-        assertTrue(source.contains(".scaleX(BOTTOM_ISLAND_START_SCALE_X)"))
-        assertTrue(source.contains(".translationY(targetOffset.toFloat())"))
-        assertFalse(source.contains("import android.view.animation.OvershootInterpolator"))
-        assertFalse(source.contains("ValueAnimator"))
-        assertFalse(source.contains("animateBottomLayoutOffset"))
-        assertTrue(source.contains("} else if (position == StrongToastPosition.BOTTOM)"))
-        assertFalse(source.contains("BOTTOM_SURFACE_SETTLE_MS"))
-        assertFalse(source.contains("BOTTOM_ENTRANCE_DISTANCE_FACTOR"))
-        assertTrue(source.contains("\"realHideStrongToast\""))
+        assertTrue(source.contains("resolveBottomPaddingForCapsule("))
+        assertTrue(source.contains("resolveDynamicIslandMotionProfile("))
+        assertTrue(source.contains("DynamicIslandMotionProfile"))
+        assertTrue(source.contains("realHideStrongToast"))
         assertTrue(source.contains("XposedHelpers.callMethod(strongToast, \"onComplete\")"))
         assertTrue(source.contains("XposedHelpers.setBooleanField(strongToast, \"mCheckInOutStrongToasting\", true)"))
-        assertFalse(source.contains("startDynamicIslandRefresh"))
         assertTrue(source.contains("showingField.setBoolean(keyguardState, false)"))
         assertTrue(source.contains("override fun intercept(chain: XposedInterface.Chain)"))
         assertTrue(source.contains("closeLockscreenGate(token, showingField)"))
+
+        assertFalse(source.contains("DYNAMIC_ISLAND_CENTER_POP"))
+        assertFalse(source.contains("isCenterPop"))
+        assertFalse(source.contains("resolveTopIslandOriginScaleX"))
+        assertFalse(source.contains("BOTTOM_ISLAND_START_SCALE_X"))
+        assertFalse(source.contains("CENTER_POP_START_SCALE_X"))
+        assertFalse(source.contains("CENTER_POP_START_SCALE_Y"))
+        assertFalse(source.contains("CENTER_POP_START_ALPHA"))
+        assertFalse(source.contains("CENTER_POP_DURATION_MS"))
+        assertFalse(source.contains("TOP_ISLAND_FALLBACK_SCALE_X"))
+        assertFalse(source.contains("TOP_ISLAND_MAX_ORIGIN_SCALE_X"))
+        assertFalse(source.contains("TOP_ISLAND_CUTOUT_PADDING_DP"))
+        assertFalse(source.contains("dynamicIslandMotionView("))
+        assertFalse(source.contains("resolveBottomEntranceTravelPx("))
+        assertFalse(source.contains("import android.view.animation.OvershootInterpolator"))
+        assertFalse(source.contains("ValueAnimator"))
+        assertFalse(source.contains("startDynamicIslandRefresh"))
     }
 
     private fun source(path: String): String {
