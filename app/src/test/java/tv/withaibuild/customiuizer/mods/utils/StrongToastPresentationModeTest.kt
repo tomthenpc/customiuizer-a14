@@ -273,8 +273,16 @@ class StrongToastPresentationModeTest {
         // Detach / mode switch must restore the exact captured baseline, not hard-coded ROM guesses.
         val resetBody = extractFunctionBody(source, "internal fun resetMatchModeCapsule(")
         assertTrue("reset must read the captured baseline", resetBody.contains("as? MatchModeBaseline"))
-        assertTrue("reset must call exact restore helper", resetBody.contains("restoreMatchModeBaseline("))
-        assertTrue("reset must clear the baseline field", resetBody.contains("removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)"))
+        assertTrue("reset must call guaranteed-cleanup helper", resetBody.contains("resetMatchModeBaselineToViews("))
+
+        val cleanupBody = extractFunctionBody(source, "internal fun resetMatchModeBaselineToViews(")
+        assertTrue("cleanup helper must attempt restore", cleanupBody.contains("restoreMatchModeBaseline("))
+        assertTrue("cleanup helper must use try/finally", cleanupBody.contains("try {"))
+        assertTrue("cleanup helper must use finally block", cleanupBody.contains("finally {"))
+        assertTrue(
+            "cleanup helper must remove MATCH_BASELINE_FIELD exactly once in finally",
+            cleanupBody.contains("XposedHelpers.removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)")
+        )
 
         val restoreBody = extractFunctionBody(source, "internal fun restoreMatchModeBaseline(")
         assertTrue("restore must restore height from baseline", restoreBody.contains("lp.height = baseline.height"))

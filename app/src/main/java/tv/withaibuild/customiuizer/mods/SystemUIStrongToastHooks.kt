@@ -1199,6 +1199,22 @@ object SystemUIStrongToastHooks {
         resetDynamicIslandHostTransform(root)
     }
 
+    internal fun resetMatchModeBaselineToViews(
+        root: View,
+        capsule: View?,
+        parent: ViewGroup?,
+        bottomView: View?,
+        baseline: MatchModeBaseline
+    ) {
+        try {
+            if (capsule != null) {
+                restoreMatchModeBaseline(root, capsule, parent, bottomView, baseline)
+            }
+        } finally {
+            XposedHelpers.removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+        }
+    }
+
     internal fun resetMatchModeCapsule(root: View) {
         val baseline = XposedHelpers.getAdditionalInstanceField(
             root,
@@ -1207,16 +1223,10 @@ object SystemUIStrongToastHooks {
 
         val capsule = findViewBySystemUiId(root, MESSAGE_CONTAINER_ID)
             ?: findDynamicIslandCapsule(root)
-            ?: run {
-                XposedHelpers.removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
-                return
-            }
 
-        val parent = capsule.parent as? ViewGroup
+        val parent = capsule?.parent as? ViewGroup
         val bottomView = findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)
-        restoreMatchModeBaseline(root, capsule, parent, bottomView, baseline)
-
-        XposedHelpers.removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+        resetMatchModeBaselineToViews(root, capsule, parent, bottomView, baseline)
     }
 
     private fun installStatusBarContentsCapture(lpparam: PackageReadyParam) {

@@ -360,11 +360,13 @@ class SystemUIStrongToastHooksTest {
         private val fakeRes = res
         private var storedLp: ViewGroup.LayoutParams? = null
         private var storedGravity = 0
+        var throwOnSetLayoutParams = false
 
         override fun getResources(): Resources = fakeRes
 
         override fun getLayoutParams(): ViewGroup.LayoutParams? = storedLp
         override fun setLayoutParams(params: ViewGroup.LayoutParams?) {
+            if (throwOnSetLayoutParams) throw RuntimeException("FakeCapsule layoutParams failure")
             storedLp = params
         }
 
@@ -609,6 +611,133 @@ class SystemUIStrongToastHooksTest {
 
         assertEquals(originalWidth, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
         assertEquals(originalVisibility, bottomView.visibility)
+    }
+
+    @Test
+    fun resetMatchModeBaselineToViews_restoresAndClearsBaseline() {
+        val (root, capsule, bottomView) = matchFixture()
+
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        val baseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+            as SystemUIStrongToastHooks.MatchModeBaseline
+
+        SystemUIStrongToastHooks.resetMatchModeBaselineToViews(root, capsule, root, bottomView, baseline)
+
+        assertEquals(300, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(141, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(7, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
+        assertEquals(11, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
+        assertEquals(GRAVITY_LAYOUT_BASELINE, (capsule.layoutParams as? LinearLayout.LayoutParams)?.gravity)
+        assertEquals(GRAVITY_CAPSULE_BASELINE, capsule.gravity)
+        assertEquals(3, root.paddingLeft)
+        assertEquals(5, root.paddingTop)
+        assertEquals(7, root.paddingRight)
+        assertEquals(9, root.paddingBottom)
+        assertEquals(GRAVITY_PARENT_BASELINE, root.gravity)
+        assertEquals(View.INVISIBLE, bottomView.visibility)
+
+        assertNull(
+            "MATCH_BASELINE_FIELD must be removed after normal restore",
+            XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+        )
+    }
+
+    @Test
+    fun resetMatchModeBaselineToViews_clearsBaselineWhenCapsuleMissing() {
+        val (root, capsule, bottomView) = matchFixture()
+
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        val baseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+            as SystemUIStrongToastHooks.MatchModeBaseline
+
+        // Simulate the production path where the capsule could not be resolved,
+        // but the field still has to be cleared.
+        SystemUIStrongToastHooks.resetMatchModeBaselineToViews(root, null, root, null, baseline)
+
+        assertNull(
+            "MATCH_BASELINE_FIELD must be removed when capsule cannot be resolved",
+            XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+        )
+    }
+
+    @Test
+    fun resetMatchModeBaselineToViews_clearsBaselineWhenRestoreThrows() {
+        val (root, capsule, bottomView) = matchFixture()
+
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        val baseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+            as SystemUIStrongToastHooks.MatchModeBaseline
+
+        // Cause restore to fail at LayoutParams assignment with an ordinary RuntimeException.
+        capsule.throwOnSetLayoutParams = true
+
+        var thrown: RuntimeException? = null
+        try {
+            SystemUIStrongToastHooks.resetMatchModeBaselineToViews(root, capsule, root, bottomView, baseline)
+        } catch (e: RuntimeException) {
+            thrown = e
+        }
+
+        assertNotNull("restore must propagate the ordinary exception", thrown)
+        assertNull(
+            "MATCH_BASELINE_FIELD must be removed even when restore throws",
+            XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+        )
+    }
+
+    @Test
+    fun resetMatchModeBaselineToViews_nextEventAfterRestoreFailureCapturesFreshBaseline() {
+        val (root, capsule, bottomView) = matchFixture()
+
+        // Event A: apply MATCH, capture baseline A, then force restore to throw.
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        val baselineA = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+            as SystemUIStrongToastHooks.MatchModeBaseline
+        assertEquals(300, baselineA.width)
+        assertEquals(141, baselineA.height)
+
+        capsule.throwOnSetLayoutParams = true
+        try {
+            SystemUIStrongToastHooks.resetMatchModeBaselineToViews(root, capsule, root, bottomView, baselineA)
+        } catch (_: RuntimeException) {
+        }
+
+        // Fix the capsule and reconfigure with event B values. The field must be absent.
+        capsule.throwOnSetLayoutParams = false
+        (capsule.layoutParams as? LinearLayout.LayoutParams)?.apply {
+            width = 400
+            height = 222
+            topMargin = 13
+            bottomMargin = 17
+            gravity = GRAVITY_LAYOUT_NEXT
+        }
+        capsule.gravity = GRAVITY_CAPSULE_NEXT
+        root.setPadding(2, 4, 6, 8)
+        root.gravity = GRAVITY_PARENT_NEXT
+        bottomView.visibility = View.GONE
+
+        assertNull(
+            "MATCH_BASELINE_FIELD must be absent before the next event",
+            XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+        )
+
+        // Event B: fresh apply must capture the new baseline, not stale baseline A.
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 104))
+        val baselineB = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
+            as SystemUIStrongToastHooks.MatchModeBaseline
+
+        assertEquals(400, baselineB.width)
+        assertEquals(222, baselineB.height)
+        assertEquals(13, baselineB.topMargin)
+        assertEquals(17, baselineB.bottomMargin)
+        assertEquals(GRAVITY_LAYOUT_NEXT, baselineB.layoutGravity)
+        assertEquals(GRAVITY_CAPSULE_NEXT, baselineB.capsuleGravity)
+        assertEquals(2, baselineB.parentPaddingLeft)
+        assertEquals(4, baselineB.parentPaddingTop)
+        assertEquals(6, baselineB.parentPaddingRight)
+        assertEquals(8, baselineB.parentPaddingBottom)
+        assertEquals(GRAVITY_PARENT_NEXT, baselineB.parentGravity)
+        assertEquals(View.GONE, baselineB.bottomViewVisibility)
     }
 
     companion object {
