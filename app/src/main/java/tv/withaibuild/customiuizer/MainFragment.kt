@@ -14,8 +14,10 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ImageView
 import android.widget.ListView
+import android.widget.Toast
 import androidx.annotation.Nullable
 import androidx.appcompat.app.ActionBar
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.preference.Preference
@@ -29,12 +31,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
+import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
 import tv.withaibuild.customiuizer.subs.CategorySelector
 import tv.withaibuild.customiuizer.subs.Controls
 import tv.withaibuild.customiuizer.subs.Launcher
 import tv.withaibuild.customiuizer.subs.System as SubSystem
 import tv.withaibuild.customiuizer.subs.Various
 import tv.withaibuild.customiuizer.utils.AppHelper
+import tv.withaibuild.customiuizer.utils.AppLocaleController
 import tv.withaibuild.customiuizer.utils.AppSelectionSanitizer
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.ModData
@@ -63,6 +67,7 @@ class MainFragment : PreferenceFragmentBase() {
     private var mActionMenu: Menu? = null
     private var listView: RecyclerView? = null
     private var resultView: ListView? = null
+    private var localeConfirmationDialog: AlertDialog? = null
 
     private var isSearchFocused = false
     private var inSearchView = SearchStateMachine.STATE_IDLE
@@ -211,7 +216,7 @@ class MainFragment : PreferenceFragmentBase() {
         super.onActivityCreated(savedInstanceState)
 
         val actionBar: ActionBar? = getActionBar()
-        actionBar?.setTitle(R.string.settings_title)
+        actionBar?.setTitle(R.string.app_name)
 
         val view = this.view ?: return
 
@@ -246,6 +251,8 @@ class MainFragment : PreferenceFragmentBase() {
             inSearchView != SearchStateMachine.STATE_IDLE && !lastFilter.isNullOrEmpty() -> findMod(lastFilter ?: "")
         }
 
+        bindLocalePreference()
+
         findPreference<Preference>("pref_key_miuizer_launchericon")?.setOnPreferenceChangeListener { _, newValue ->
             val act = activity as? AppCompatActivity ?: return@setOnPreferenceChangeListener false
             val pm = act.packageManager
@@ -261,9 +268,67 @@ class MainFragment : PreferenceFragmentBase() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        localeConfirmationDialog?.dismiss()
+        localeConfirmationDialog = null
         resultView = null
         listView = null
         mActionMenu = null
+    }
+
+    private fun bindLocalePreference() {
+        val locale = findPreference<ListPreferenceEx>(AppLocaleController.LOCALE_PREF_KEY) ?: return
+        val prefs = AppHelper.appPrefs
+        if (prefs == null) {
+            locale.isEnabled = false
+            return
+        }
+
+        locale.isPersistent = false
+        val (displayEntries, entryValues) = try {
+            AppLocaleController.buildLocaleDisplayData(locale.context)
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            AppHelper.log("MainLocale", t)
+            locale.isEnabled = false
+            return
+        }
+
+        locale.entries = displayEntries
+        locale.entryValues = entryValues
+        locale.value = AppLocaleController.getUserLocaleForUi(prefs)
+        locale.setOnPreferenceChangeListener { _, newValue ->
+            val newTag = newValue as? String ?: return@setOnPreferenceChangeListener false
+            if (newTag == AppLocaleController.getUserLocaleForUi(prefs)) {
+                return@setOnPreferenceChangeListener true
+            }
+            showLocaleChangeConfirmation(newTag, locale)
+            false
+        }
+    }
+
+    private fun showLocaleChangeConfirmation(newTag: String, locale: ListPreferenceEx) {
+        val act = activity as? AppCompatActivity ?: return
+        if (act.isFinishing || act.isDestroyed || !isAdded) return
+
+        localeConfirmationDialog?.dismiss()
+        localeConfirmationDialog = AlertDialog.Builder(act)
+            .setTitle(R.string.dialog_change_locale_title)
+            .setMessage(R.string.dialog_change_locale_message)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.dialog_change_locale_confirm) { _, _ ->
+                val prefs = AppHelper.appPrefs
+                if (prefs == null || !AppLocaleController.setUserLocale(prefs, newTag)) {
+                    Toast.makeText(act, R.string.dialog_change_locale_save_failed, Toast.LENGTH_SHORT).show()
+                    prefs?.let { locale.value = AppLocaleController.getUserLocaleForUi(it) }
+                    return@setPositiveButton
+                }
+                if (!act.isFinishing && !act.isDestroyed && isAdded) {
+                    AppLocaleController.exitApplicationAfterLocaleSave(act)
+                }
+            }
+            .setOnDismissListener { localeConfirmationDialog = null }
+            .create()
+        localeConfirmationDialog?.show()
     }
 
     private fun findMod(filter: String) {

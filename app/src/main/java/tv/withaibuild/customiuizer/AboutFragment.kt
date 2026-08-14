@@ -1,6 +1,5 @@
 package tv.withaibuild.customiuizer
 
-import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.res.Configuration
@@ -15,20 +14,14 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
-import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import tv.withaibuild.customiuizer.mods.utils.FatalErrors
-import tv.withaibuild.customiuizer.utils.AppHelper
-import tv.withaibuild.customiuizer.utils.AppLocaleController
 import java.util.Locale
 
 class AboutFragment : Fragment() {
 
-    private var localeDialog: AlertDialog? = null
-    private var confirmationDialog: AlertDialog? = null
     private var donateDialog: AlertDialog? = null
 
     override fun onCreateView(
@@ -43,13 +36,6 @@ class AboutFragment : Fragment() {
         initActionBar()
         bindRowClicks(view)
         updateHeadViews(view, resources.configuration)
-        updateLanguageRow(view)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        val view = view ?: return
-        updateLanguageRow(view)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -60,10 +46,6 @@ class AboutFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-        localeDialog?.dismiss()
-        localeDialog = null
-        confirmationDialog?.dismiss()
-        confirmationDialog = null
         donateDialog?.dismiss()
         donateDialog = null
     }
@@ -77,9 +59,6 @@ class AboutFragment : Fragment() {
     }
 
     private fun bindRowClicks(view: View) {
-        view.findViewById<View>(R.id.about_language_row).setOnClickListener {
-            showLocaleSelector()
-        }
         view.findViewById<View>(R.id.about_donate_row).setOnClickListener {
             showDonationDialog()
         }
@@ -97,94 +76,6 @@ class AboutFragment : Fragment() {
 
         view.findViewById<TextView>(R.id.about_version)?.text =
             String.format(Locale.US, getString(R.string.about_version), BuildConfig.VERSION_NAME ?: "")
-    }
-
-    private fun updateLanguageRow(view: View) {
-        val summary = AppLocaleController.getUserLocaleSummary(requireContext(), AppHelper.appPrefs)
-        view.findViewById<TextView>(R.id.about_language_summary)?.text = summary
-    }
-
-    private fun showLocaleSelector() {
-        val context = context ?: return
-        val prefs = AppHelper.appPrefs ?: return
-        val currentTag = AppLocaleController.getUserLocaleForUi(prefs)
-
-        val (displayEntries, entryValues) = try {
-            AppLocaleController.buildLocaleDisplayData(context)
-        } catch (t: Throwable) {
-            FatalErrors.rethrowIfFatal(t)
-            Log.e("AboutFragment", "Cannot build locale display data", t)
-            return
-        }
-
-        var selectedIndex = entryValues.indexOf(currentTag)
-        if (selectedIndex < 0) selectedIndex = 0
-
-        val dialog = AlertDialog.Builder(context)
-            .setTitle(R.string.miuizer_locale_title)
-            .setSingleChoiceItems(displayEntries, selectedIndex) { _, which ->
-                selectedIndex = which
-            }
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                onLocaleSelected(entryValues, selectedIndex)
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .setOnDismissListener {
-                localeDialog = null
-            }
-            .create()
-
-        localeDialog = dialog
-        dialog.show()
-    }
-
-    private fun onLocaleSelected(entryValues: Array<String>, index: Int) {
-        if (index < 0 || index >= entryValues.size) return
-        val newTag = entryValues[index]
-
-        val prefs = AppHelper.appPrefs ?: return
-        val currentTag = AppLocaleController.getUserLocaleForUi(prefs)
-
-        // Same value: no confirmation and no write.
-        if (newTag == currentTag) return
-
-        showLocaleChangeConfirmation(newTag)
-    }
-
-    private fun showLocaleChangeConfirmation(newTag: String) {
-        val context = context ?: return
-
-        val dialog = AlertDialog.Builder(context)
-            .setTitle(R.string.dialog_change_locale_title)
-            .setMessage(R.string.dialog_change_locale_message)
-            .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(R.string.dialog_change_locale_confirm) { _, _ ->
-                applyLocale(newTag)
-            }
-            .setOnDismissListener {
-                confirmationDialog = null
-            }
-            .create()
-
-        confirmationDialog = dialog
-        dialog.show()
-    }
-
-    private fun applyLocale(newTag: String) {
-        val prefs = AppHelper.appPrefs ?: run {
-            showToast(R.string.dialog_change_locale_save_failed)
-            return
-        }
-
-        val success = AppLocaleController.setUserLocale(prefs, newTag)
-        if (!success) {
-            showToast(R.string.dialog_change_locale_save_failed)
-            return
-        }
-
-        val act = activity as? AppCompatActivity ?: return
-        if (act.isFinishing || act.isDestroyed || !isAdded) return
-        AppLocaleController.exitApplicationAfterLocaleSave(act)
     }
 
     private fun showDonationDialog() {

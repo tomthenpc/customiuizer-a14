@@ -13,6 +13,8 @@ class AboutMigrationTest {
     private val mainFragment = source("app/src/main/java/tv/withaibuild/customiuizer/MainFragment.kt")
     private val preferenceFragmentBase = source("app/src/main/java/tv/withaibuild/customiuizer/PreferenceFragmentBase.kt")
     private val buildGradle = source("app/build.gradle.kts")
+    private val mainPreferences = source("app/src/main/res/xml/prefs_main.xml")
+    private val aboutLayout = source("app/src/main/res/layout/fragment_about.xml")
 
     @Test
     fun aboutFragmentIsAPlainFragment() {
@@ -68,15 +70,28 @@ class AboutMigrationTest {
     }
 
     @Test
-    fun aboutFragmentGuardsFatalThrowableInLocalePath() {
-        assertTrue("AboutFragment must call FatalErrors.rethrowIfFatal in the locale dialog path", aboutFragment.contains("FatalErrors.rethrowIfFatal"))
-        assertTrue("AboutFragment must build locale display data from context", aboutFragment.contains("buildLocaleDisplayData(context)"))
+    fun languageControlLivesOnHomeBelowSettingsEntry() {
+        assertFalse("AboutFragment must not own locale behavior", aboutFragment.contains("AppLocaleController"))
+        assertFalse("About layout must not contain a language row", aboutLayout.contains("about_language_row"))
+
+        val settingsEntry = mainPreferences.indexOf("pref_key_miuizer_settingsiconpos")
+        val localeEntry = mainPreferences.indexOf("pref_key_miuizer_locale")
+        val launcherEntry = mainPreferences.indexOf("pref_key_miuizer_launchericon")
+        assertTrue("Home must contain the settings entry", settingsEntry >= 0)
+        assertTrue("Language must follow the settings entry", localeEntry > settingsEntry)
+        assertTrue("Language must be before the launcher icon entry", launcherEntry > localeEntry)
+
+        assertTrue("MainFragment must guard fatal locale-data failures", mainFragment.contains("FatalErrors.rethrowIfFatal(t)"))
+        assertTrue("MainFragment must use the centralized locale display data", mainFragment.contains("AppLocaleController.buildLocaleDisplayData(locale.context)"))
+        assertTrue("MainFragment must use the centralized durable locale writer", mainFragment.contains("AppLocaleController.setUserLocale(prefs, newTag)"))
     }
 
     @Test
-    fun mainFragmentUsesSettingsTitleForActionBar() {
-        assertFalse("MainFragment must not set the ActionBar title to app_name", mainFragment.contains("actionBar?.setTitle(R.string.app_name)"))
-        assertTrue("MainFragment must set the ActionBar title to settings_title", mainFragment.contains("actionBar?.setTitle(R.string.settings_title)"))
+    fun homeTitlesUseDistinctResources() {
+        assertTrue("MainFragment ActionBar must use the product name", mainFragment.contains("actionBar?.setTitle(R.string.app_name)"))
+        assertFalse("MainFragment ActionBar must not use the generic settings title", mainFragment.contains("actionBar?.setTitle(R.string.settings_title)"))
+        assertTrue("Home settings category must use the generic settings title", mainPreferences.contains("android:title=\"@string/settings_title\""))
+        assertFalse("Home settings category must not reuse the legacy product settings title", mainPreferences.contains("android:title=\"@string/miuizer\""))
     }
 
     private fun source(path: String): String {

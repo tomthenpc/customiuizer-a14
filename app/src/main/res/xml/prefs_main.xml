@@ -28,7 +28,7 @@
 	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
 
 	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
-		android:title="@string/miuizer"
+		android:title="@string/settings_title"
 		android:key="pref_key_miuizer">
 		<tv.withaibuild.customiuizer.prefs.ListPreferenceEx
 			android:key="pref_key_miuizer_settingsiconpos"
@@ -38,6 +38,14 @@
 			android:entryValues="@array/settingsicon_val"
 			miuizer:valueAsSummary="true"
 			android:defaultValue="1" />
+		<tv.withaibuild.customiuizer.prefs.ListPreferenceEx
+			android:key="pref_key_miuizer_locale"
+			android:title="@string/miuizer_locale_title"
+			android:summary="@string/miuizer_locale_summ"
+			android:entries="@array/placeholder_array"
+			android:entryValues="@array/placeholder_array_strval"
+			miuizer:valueAsSummary="true"
+			android:defaultValue="auto" />
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 			android:key="pref_key_miuizer_launchericon"
 			android:summary="@string/miuizer_show_launchericon_summ"

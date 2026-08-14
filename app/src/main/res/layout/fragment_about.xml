@@ -14,47 +14,6 @@
         <include layout="@layout/fragment_about_head" />
 
         <TextView
-            android:id="@+id/about_miuizer_category"
-            style="@style/Widget.InputField.Category"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/miuizer" />
-
-        <LinearLayout
-            android:id="@+id/about_language_row"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="?attr/selectableItemBackground"
-            android:paddingStart="@dimen/preference_item_child_padding"
-            android:paddingEnd="@dimen/preference_item_child_padding"
-            android:paddingTop="@dimen/preference_item_padding_top"
-            android:paddingBottom="@dimen/preference_item_padding_bottom"
-            android:clickable="true"
-            android:focusable="true">
-
-            <TextView
-                android:id="@+id/about_language_title"
-                style="@style/AppTextAppearance.Primary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/miuizer_locale_title" />
-
-            <TextView
-                android:id="@+id/about_language_summary"
-                style="@style/AppTextAppearance.Secondary"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/miuizer_locale_summ" />
-
-        </LinearLayout>
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="@color/about_divider" />
-
-        <TextView
             android:id="@+id/about_support_category"
             style="@style/Widget.InputField.Category"
             android:layout_width="match_parent"

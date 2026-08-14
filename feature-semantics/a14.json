@@ -3834,6 +3834,28 @@
       "notes": ""
     },
     {
+      "featureId": "pref_key_miuizer_locale",
+      "featureName": "pref_key_miuizer_locale",
+      "preferenceKeys": [
+        "pref_key_miuizer_locale"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_main.xml",
+      "defaultValue": "auto",
+      "sourceFile": "app/src/main/res/xml/prefs_main.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_main.xml",
+      "notes": ""
+    },
+    {
       "featureId": "pref_key_miuizer_settingsiconpos",
       "featureName": "pref_key_miuizer_settingsiconpos",
       "preferenceKeys": [
