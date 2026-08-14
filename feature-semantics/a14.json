@@ -14130,6 +14130,72 @@
       "notes": ""
     },
     {
+      "featureId": "pref_key_system_volume_mode_button_background_color",
+      "featureName": "pref_key_system_volume_mode_button_background_color",
+      "preferenceKeys": [
+        "pref_key_system_volume_mode_button_background_color"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "-1",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": ""
+    },
+    {
+      "featureId": "pref_key_system_volume_mode_button_colors",
+      "featureName": "pref_key_system_volume_mode_button_colors",
+      "preferenceKeys": [
+        "pref_key_system_volume_mode_button_colors"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": ""
+    },
+    {
+      "featureId": "pref_key_system_volume_mode_button_icon_color",
+      "featureName": "pref_key_system_volume_mode_button_icon_color",
+      "preferenceKeys": [
+        "pref_key_system_volume_mode_button_icon_color"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "-14189833",
+      "sourceFile": "app/src/main/res/xml/prefs_system.xml",
+      "installer": "UNKNOWN",
+      "targetPackage": "UNKNOWN",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "UNKNOWN",
+      "enableEffect": "UNKNOWN",
+      "disableEffect": "UNKNOWN",
+      "valueChangeEffect": "UNKNOWN",
+      "restartTarget": "UNKNOWN",
+      "hotReloadable": false,
+      "confidence": "INFERRED",
+      "evidence": "android:key in app/src/main/res/xml/prefs_system.xml",
+      "notes": ""
+    },
+    {
       "featureId": "pref_key_system_volumeblur_collapsed",
       "featureName": "pref_key_system_volumeblur_collapsed",
       "preferenceKeys": [
@@ -14832,6 +14898,94 @@
       "confidence": "CODE_VERIFIED",
       "evidence": "Various persists the prior state and requests verified package-level state changes",
       "notes": "Existing component overrides are preserved"
+    },
+    {
+      "featureId": "pref_key_various_trim_miui_daemon_network",
+      "featureName": "pref_key_various_trim_miui_daemon_network",
+      "preferenceKeys": [
+        "pref_key_various_trim_miui_daemon_network"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_various.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/subs/Various.kt",
+      "installer": "GlobalActionSystemServerHooks.setupUpdaterServicesBridge",
+      "targetPackage": "android",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "ONE_SHOT",
+      "enableEffect": "Disables allowlisted Daemon cloud-control and MQS upload components",
+      "disableEffect": "Restores each component state captured before enabling",
+      "valueChangeEffect": "Applies immediately through the authenticated system_server bridge",
+      "restartTarget": "NONE",
+      "hotReloadable": true,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "Bridge validates system package, manifest declaration, exact component allowlist, bounds, and rollback",
+      "notes": "MiuiPerf, MemCompact, GcBooster, Sysopt, rescue, and local performance services are not allowlisted"
+    },
+    {
+      "featureId": "pref_key_various_disable_xiaomi_analytics",
+      "featureName": "pref_key_various_disable_xiaomi_analytics",
+      "preferenceKeys": [
+        "pref_key_various_disable_xiaomi_analytics"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_various.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/subs/Various.kt",
+      "installer": "GlobalActionSystemServerHooks.setupUpdaterServicesBridge",
+      "targetPackage": "android",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "ONE_SHOT",
+      "enableEffect": "Disables allowlisted system analytics and system-ad packages",
+      "disableEffect": "Restores each application state captured before enabling",
+      "valueChangeEffect": "Applies immediately through the authenticated system_server bridge",
+      "restartTarget": "NONE",
+      "hotReloadable": true,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "Bridge accepts only com.miui.analytics and com.miui.msa.global after system-app verification",
+      "notes": "Does not include XMSF, Mi Cloud, PowerKeeper, Joyose, or Security Center"
+    },
+    {
+      "featureId": "pref_key_various_trim_security_center_marketing",
+      "featureName": "pref_key_various_trim_security_center_marketing",
+      "preferenceKeys": [
+        "pref_key_various_trim_security_center_marketing"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_various.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/subs/Various.kt",
+      "installer": "GlobalActionSystemServerHooks.setupUpdaterServicesBridge",
+      "targetPackage": "android",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "ONE_SHOT",
+      "enableEffect": "Disables allowlisted third-party ad and metrics startup components inside Security Center",
+      "disableEffect": "Restores each component state captured before enabling",
+      "valueChangeEffect": "Takes full effect when Security Center next starts",
+      "restartTarget": "NONE",
+      "hotReloadable": true,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "Bridge validates exact providers and Metrica services declared by the system Security Center package",
+      "notes": "Permission, antivirus, firewall, anti-spam, power, network, and install-security components are not allowlisted"
+    },
+    {
+      "featureId": "pref_key_various_remove_security_center_antivirus",
+      "featureName": "pref_key_various_remove_security_center_antivirus",
+      "preferenceKeys": [
+        "pref_key_various_remove_security_center_antivirus"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_various.xml",
+      "defaultValue": "false",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/subs/Various.kt",
+      "installer": "GlobalActionSystemServerHooks.setupUpdaterServicesBridge",
+      "targetPackage": "android",
+      "installPhase": "APP_UI_ONLY",
+      "runtimeReadMode": "ONE_SHOT",
+      "enableEffect": "Disables the exact allowlisted Security Center antivirus activities, services, update receiver, and scheduled scan job",
+      "disableEffect": "Restores every component state captured before enabling",
+      "valueChangeEffect": "Applies immediately through the authenticated system_server bridge",
+      "restartTarget": "NONE",
+      "hotReloadable": true,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "fuxi HyperOS OS1.0.7.0.UMCTWXM package dump confirmed every allowlisted component; the final bridge validates package, system-app status, manifest declaration, exact names, count, and state but was not applied after ADB ended",
+      "notes": "Does not disable Security Center itself, permissions, firewall, anti-spam, power, network, install-security, or unrelated scan components"
     },
     {
       "featureId": "pref_key_various_block_notification_permission_prompts",
@@ -21783,6 +21937,72 @@
       "hotReloadable": false,
       "confidence": "UNKNOWN",
       "evidence": "mPrefs call at app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:246",
+      "notes": ""
+    },
+    {
+      "featureId": "system_volume_mode_button_background_color",
+      "featureName": "system_volume_mode_button_background_color",
+      "preferenceKeys": [
+        "system_volume_mode_button_background_color"
+      ],
+      "xmlSource": "",
+      "defaultValue": "",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:VolumeModeButtonColorsHook",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "SYSTEMUI_INIT",
+      "runtimeReadMode": "INSTALL_TIME_SNAPSHOT",
+      "enableEffect": "Tints volume shortcut backgrounds",
+      "disableEffect": "Restores ROM colors after System UI restart",
+      "valueChangeEffect": "Applies after System UI restart",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "immutable ColorStateList captured by VolumeModeButtonColorsHook",
+      "notes": ""
+    },
+    {
+      "featureId": "system_volume_mode_button_colors",
+      "featureName": "system_volume_mode_button_colors",
+      "preferenceKeys": [
+        "system_volume_mode_button_colors"
+      ],
+      "xmlSource": "",
+      "defaultValue": "",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:initControlCenter",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "SYSTEMUI_INIT",
+      "runtimeReadMode": "INSTALL_TIME_SNAPSHOT",
+      "enableEffect": "Installs ROM volume shortcut tint hook",
+      "disableEffect": "Leaves ROM shortcuts unchanged after System UI restart",
+      "valueChangeEffect": "Applies after System UI restart",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "initControlCenter gates VolumeModeButtonColorsHook",
+      "notes": ""
+    },
+    {
+      "featureId": "system_volume_mode_button_icon_color",
+      "featureName": "system_volume_mode_button_icon_color",
+      "preferenceKeys": [
+        "system_volume_mode_button_icon_color"
+      ],
+      "xmlSource": "",
+      "defaultValue": "",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt:VolumeModeButtonColorsHook",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "SYSTEMUI_INIT",
+      "runtimeReadMode": "INSTALL_TIME_SNAPSHOT",
+      "enableEffect": "Tints volume shortcut icons",
+      "disableEffect": "Restores ROM colors after System UI restart",
+      "valueChangeEffect": "Applies after System UI restart",
+      "restartTarget": "SYSTEMUI",
+      "hotReloadable": false,
+      "confidence": "CODE_VERIFIED",
+      "evidence": "immutable ColorStateList captured by VolumeModeButtonColorsHook",
       "notes": ""
     },
     {

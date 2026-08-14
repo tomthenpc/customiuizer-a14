@@ -762,7 +762,10 @@ internal class StrongToastPresentationFeature(
         @JvmStatic
         fun resolveBottomOffsetDp(prefs: PrefMap): Int =
             prefs.getInt("system_strong_toast_bottom_offset", 0)
-                .coerceIn(0, SystemUIStrongToastHooks.MAX_BOTTOM_OFFSET_DP)
+                .coerceIn(
+                    SystemUIStrongToastHooks.MIN_BOTTOM_OFFSET_DP,
+                    SystemUIStrongToastHooks.MAX_BOTTOM_OFFSET_DP
+                )
 
         @JvmStatic
         fun evaluateEnabled(prefs: PrefMap): Boolean =

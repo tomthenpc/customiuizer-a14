@@ -8,6 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
+import android.graphics.Rect
+import android.graphics.RectF
 import android.net.Uri
 import android.os.Bundle
 import android.os.UserHandle
@@ -20,6 +22,7 @@ import miui.security.SecurityManager
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
+import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
@@ -357,6 +360,30 @@ object Launcher {
                 XposedHelpers.log("RecentsCardStyle", "Horizontal recents gap field is unavailable")
                 return
             }
+        val stackRectField = XposedHelpers.findFieldIfExists(horizontalAlgorithm, "mTaskStackViewRect")
+        val transformClass = XposedHelpers.findClassIfExists(
+            "com.miui.home.recents.views.TaskViewTransform",
+            lpparam.classLoader
+        )
+        val taskViewClass = XposedHelpers.findClassIfExists(
+            "com.miui.home.recents.views.TaskView",
+            lpparam.classLoader
+        )
+        val animationPropsClass = XposedHelpers.findClassIfExists(
+            "com.android.systemui.shared.recents.utilities.AnimationProps",
+            lpparam.classLoader
+        )
+        val transformRectField = transformClass?.let { XposedHelpers.findFieldIfExists(it, "rect") }
+        val transformScaleField = transformClass?.let { XposedHelpers.findFieldIfExists(it, "scale") }
+        val transformZField = transformClass?.let {
+            XposedHelpers.findFieldIfExists(it, "translationZ")
+        }
+        if (stackRectField == null || transformRectField == null || taskViewClass == null ||
+            animationPropsClass == null || transformScaleField == null || transformZField == null
+        ) {
+            XposedHelpers.log("RecentsCardStyle", "Native TaskViewTransform geometry is unavailable")
+            return
+        }
 
         val gapHook = ModuleHelper.findAndHookMethod(
             horizontalAlgorithm,
@@ -372,6 +399,71 @@ object Launcher {
             }
         ) ?: return
 
+        val depthHook = ModuleHelper.findAndHookMethod(
+            horizontalAlgorithm,
+            "getTaskViewTransform",
+            Int::class.javaPrimitiveType!!,
+            Float::class.javaPrimitiveType!!,
+            transformClass,
+            object : MethodHook() {
+                override fun after(callback: AfterHookCallback) {
+                    try {
+                        val algorithm = callback.getThisObject() ?: return
+                        val transform = callback.getArgs().getOrNull(2) ?: return
+                        val stackRect = stackRectField.get(algorithm) as? Rect ?: return
+                        val taskRect = transformRectField.get(transform) as? RectF ?: return
+                        val depth = resolveRecentsStackDepth(
+                            taskRect.centerX(),
+                            stackRect.exactCenterX(),
+                            taskRect.width()
+                        )
+                        transformScaleField.setFloat(transform, resolveRecentsStackScale(depth))
+                        transformZField.setFloat(
+                            transform,
+                            resolveRecentsStackTranslationZ(depth, taskRect.width())
+                        )
+                    } catch (t: Throwable) {
+                        tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log("RecentsCardStyleTransform", t)
+                    }
+                }
+            }
+        ) ?: run {
+            gapHook.unhook()
+            return
+        }
+
+        // TaskViewTransform normally animates translationZ from the recycled TaskView's old
+        // value. With overlapping cards that leaves the first part of the overview entrance
+        // painted in the previous order and only becomes correct after the Z animator settles.
+        // Apply the native transform's already-computed Z before that method compares values;
+        // geometry and every other property continue through Xiaomi's original animation path.
+        val immediateZHook = ModuleHelper.findAndHookMethod(
+            transformClass,
+            "applyToTaskView",
+            taskViewClass,
+            ArrayList::class.java,
+            animationPropsClass,
+            Boolean::class.javaPrimitiveType!!,
+            object : MethodHook() {
+                override fun before(callback: BeforeHookCallback) {
+                    try {
+                        val transform = callback.getThisObject() ?: return
+                        val taskView = callback.getArg(0) as? View ?: return
+                        val z = transformZField.getFloat(transform)
+                        if (z.isFinite()) taskView.translationZ = z
+                    } catch (t: Throwable) {
+                        tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+                        XposedHelpers.log("RecentsCardStyleImmediateZ", t)
+                    }
+                }
+            }
+        ) ?: run {
+            gapHook.unhook()
+            depthHook.unhook()
+            return
+        }
+
         val styleHook = ModuleHelper.findAndHookMethod(
             "com.miui.home.launcher.RecentsAndFSGestureUtils",
             lpparam.classLoader,
@@ -381,6 +473,8 @@ object Launcher {
         )
         if (styleHook == null) {
             gapHook.unhook()
+            depthHook.unhook()
+            immediateZHook.unhook()
         }
     }
 
@@ -390,6 +484,29 @@ object Launcher {
     @JvmStatic
     internal fun resolveRecentsStackGap(taskViewWidth: Int): Float =
         if (taskViewWidth > 0) -taskViewWidth * RECENTS_STACK_OVERLAP_RATIO else 0f
+
+    @JvmStatic
+    internal fun resolveRecentsStackDepth(
+        taskCenterX: Float,
+        stackCenterX: Float,
+        taskWidth: Float
+    ): Float = if (taskWidth > 0f) {
+        (kotlin.math.abs(taskCenterX - stackCenterX) / taskWidth).coerceIn(0f, 3f)
+    } else {
+        0f
+    }
+
+    @JvmStatic
+    internal fun resolveRecentsStackScale(depth: Float): Float =
+        (1f - depth.coerceIn(0f, 3f) * 0.055f).coerceAtLeast(0.835f)
+
+    @JvmStatic
+    internal fun resolveRecentsStackTranslationZ(depth: Float, taskWidth: Float): Float =
+        if (taskWidth > 0f) {
+            (3f - depth.coerceIn(0f, 3f)) * taskWidth * 0.002f
+        } else {
+            0f
+        }
 
     @JvmStatic
     fun DisableLauncherLogHook(lpparam: PackageReadyParam) {

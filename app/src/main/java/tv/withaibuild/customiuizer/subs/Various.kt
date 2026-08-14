@@ -31,6 +31,78 @@ class Various : SubFragment() {
         const val MIUI_DAEMON_PACKAGE = "com.miui.daemon"
         const val MIUI_DAEMON_PREF = "pref_key_various_disable_miui_daemon"
         const val MIUI_DAEMON_STATE_SNAPSHOT = "internal_miui_daemon_application_state"
+        const val DAEMON_NETWORK_TRIM_PREF = "pref_key_various_trim_miui_daemon_network"
+        const val XIAOMI_ANALYTICS_TRIM_PREF = "pref_key_various_disable_xiaomi_analytics"
+        const val SECURITY_CENTER_MARKETING_TRIM_PREF =
+            "pref_key_various_trim_security_center_marketing"
+        const val SECURITY_CENTER_ANTIVIRUS_TRIM_PREF =
+            "pref_key_various_remove_security_center_antivirus"
+        const val PROFILE_PACKAGES_SUFFIX = "_packages"
+        const val PROFILE_COMPONENTS_SUFFIX = "_components"
+        const val PROFILE_STATES_SUFFIX = "_states"
+        val DAEMON_NETWORK_COMPONENTS = listOf(
+            ComponentName(
+                MIUI_DAEMON_PACKAGE,
+                "com.miui.daemon.performance.cloudcontrol.CloudControlSyncService"
+            ),
+            ComponentName(
+                MIUI_DAEMON_PACKAGE,
+                "com.miui.daemon.performance.mispeed.CloudServerReceiver"
+            ),
+            ComponentName(
+                MIUI_DAEMON_PACKAGE,
+                "com.miui.daemon.mqsas.jobs.EventUploadService"
+            ),
+            ComponentName(
+                MIUI_DAEMON_PACKAGE,
+                "com.miui.daemon.mqsas.jobs.FileUploadService"
+            ),
+            ComponentName(
+                MIUI_DAEMON_PACKAGE,
+                "com.miui.daemon.mqsas.jobs.HeartBeatUploadService"
+            )
+        )
+        val SECURITY_CENTER_MARKETING_COMPONENTS = listOf(
+            ComponentName(
+                "com.miui.securitycenter",
+                "com.facebook.ads.AudienceNetworkContentProvider"
+            ),
+            ComponentName(
+                "com.miui.securitycenter",
+                "com.my.target.common.MyTargetContentProvider"
+            ),
+            ComponentName(
+                "com.miui.securitycenter",
+                "com.yandex.mobile.ads.core.initializer.MobileAdsInitializeProvider"
+            ),
+            ComponentName("com.miui.securitycenter", "com.yandex.metrica.MetricaService"),
+            ComponentName("com.miui.securitycenter", "com.yandex.metrica.ConfigurationService"),
+            ComponentName(
+                "com.miui.securitycenter",
+                "com.yandex.metrica.ConfigurationJobService"
+            ),
+            ComponentName(
+                "com.miui.securitycenter",
+                "com.yandex.metrica.PreloadInfoContentProvider"
+            )
+        )
+        val SECURITY_CENTER_ANTIVIRUS_COMPONENTS = listOf(
+            "com.miui.antivirus.activity.MainActivity",
+            "com.miui.antivirus.activity.SettingsActivity",
+            "com.miui.antivirus.whitelist.WhiteListActivity",
+            "com.miui.antivirus.activity.VirusMonitorDialogActivity",
+            "com.miui.antivirus.activity.DangerousAlertActivity",
+            "com.miui.antivirus.activity.VirusDetailActivity",
+            "com.miui.antivirus.activity.MonitoredAppSettingsActivity",
+            "com.miui.antivirus.activity.WebsiteSecurityCheckActivity",
+            "com.miui.antivirus.activity.SignExceptionActivity",
+            "com.miui.antivirus.service.GuardService",
+            "com.miui.antivirus.service.DialogService",
+            "com.miui.antivirus.service.VirusAutoUpdateJobService",
+            "com.miui.antivirus.receiver.UpdaterReceiver",
+            "com.miui.securityscan.job.ScanJobService"
+        ).map { className -> ComponentName("com.miui.securitycenter", className) }
+        val XIAOMI_ANALYTICS_PACKAGES = listOf("com.miui.analytics", "com.miui.msa.global")
         const val BLOCK_NOTIFICATION_PROMPTS_PREF =
             "pref_key_various_block_notification_permission_prompts"
         const val BLOCK_LOCATION_PROMPTS_PREF =
@@ -64,6 +136,26 @@ class Various : SubFragment() {
         setupUpdaterServiceControl()
         setupUpdaterStateCleaner()
         setupMiuiDaemonControl()
+        setupComponentTrimProfile(
+            DAEMON_NETWORK_TRIM_PREF,
+            DAEMON_NETWORK_COMPONENTS,
+            R.string.various_trim_miui_daemon_network_confirm
+        )
+        setupPackageTrimProfile(
+            XIAOMI_ANALYTICS_TRIM_PREF,
+            XIAOMI_ANALYTICS_PACKAGES,
+            R.string.various_disable_xiaomi_analytics_confirm
+        )
+        setupComponentTrimProfile(
+            SECURITY_CENTER_MARKETING_TRIM_PREF,
+            SECURITY_CENTER_MARKETING_COMPONENTS,
+            R.string.various_trim_security_center_marketing_confirm
+        )
+        setupComponentTrimProfile(
+            SECURITY_CENTER_ANTIVIRUS_TRIM_PREF,
+            SECURITY_CENTER_ANTIVIRUS_COMPONENTS,
+            R.string.various_remove_security_center_antivirus_confirm
+        )
         setupPermissionControllerScopeRequests()
 
         try {
@@ -205,6 +297,239 @@ class Various : SubFragment() {
             false
         }
     }
+
+    @Suppress("DEPRECATION")
+    private fun setupComponentTrimProfile(
+        preferenceKey: String,
+        knownComponents: List<ComponentName>,
+        confirmation: Int
+    ) {
+        val preference = findPreference<CheckBoxPreferenceEx>(preferenceKey) ?: return
+        val packageManager = context?.packageManager ?: return
+        val declared = HashSet<String>()
+        for (packageName in knownComponents.map { it.packageName }.toSet()) {
+            val info = try {
+                packageManager.getPackageInfo(
+                    packageName,
+                    PackageManager.GET_ACTIVITIES or PackageManager.GET_SERVICES or
+                        PackageManager.GET_RECEIVERS or
+                        PackageManager.GET_PROVIDERS or PackageManager.MATCH_DISABLED_COMPONENTS
+                )
+            } catch (_: PackageManager.NameNotFoundException) {
+                continue
+            }
+            info.activities?.forEach { declared.add("$packageName/${it.name}") }
+            info.services?.forEach { declared.add("$packageName/${it.name}") }
+            info.receivers?.forEach { declared.add("$packageName/${it.name}") }
+            info.providers?.forEach { declared.add("$packageName/${it.name}") }
+        }
+        val available = knownComponents.filter {
+            "${it.packageName}/${it.className}" in declared
+        }
+        if (available.isEmpty()) {
+            preference.isChecked = false
+            preference.setUnsupported(true)
+            preference.setSummary(R.string.various_xiaomi_trim_unavailable)
+            return
+        }
+        preference.setOnPreferenceChangeListener { _, value ->
+            val enable = value == true
+            val snapshot = if (enable) {
+                available to IntArray(available.size) { index ->
+                    packageManager.getComponentEnabledSetting(available[index])
+                }
+            } else {
+                readComponentProfileSnapshot(preferenceKey)
+                    ?: return@setOnPreferenceChangeListener false
+            }
+            val requestedStates = if (enable) {
+                IntArray(snapshot.first.size) { PackageManager.COMPONENT_ENABLED_STATE_DISABLED }
+            } else {
+                snapshot.second
+            }
+            val runAction = {
+                val intent = Intent(GlobalActions.SET_XIAOMI_COMPONENTS_ACTION).apply {
+                    setPackage("android")
+                    putExtra(
+                        GlobalActions.EXTRA_PACKAGE_NAMES,
+                        snapshot.first.map { it.packageName }.toTypedArray()
+                    )
+                    putExtra(
+                        GlobalActions.EXTRA_COMPONENT_NAMES,
+                        snapshot.first.map { it.className }.toTypedArray()
+                    )
+                    putExtra(GlobalActions.EXTRA_COMPONENT_STATES, requestedStates)
+                }
+                requestMaintenanceAction(
+                    preference,
+                    intent,
+                    R.string.various_xiaomi_trim_success,
+                    R.string.various_xiaomi_trim_failed
+                ) {
+                    persistComponentProfileSnapshot(
+                        preferenceKey,
+                        enable,
+                        snapshot.first,
+                        snapshot.second
+                    )
+                    preference.isChecked = enable
+                }
+            }
+            if (enable) showTrimConfirmation(confirmation, snapshot.first.size, runAction)
+            else runAction()
+            false
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun setupPackageTrimProfile(
+        preferenceKey: String,
+        knownPackages: List<String>,
+        confirmation: Int
+    ) {
+        val preference = findPreference<CheckBoxPreferenceEx>(preferenceKey) ?: return
+        val packageManager = context?.packageManager ?: return
+        val installed = knownPackages.filter { packageName ->
+            try {
+                val info = packageManager.getApplicationInfo(
+                    packageName,
+                    PackageManager.MATCH_DISABLED_COMPONENTS
+                )
+                info.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0 &&
+                    info.flags and android.content.pm.ApplicationInfo.FLAG_INSTALLED != 0
+            } catch (_: PackageManager.NameNotFoundException) {
+                false
+            }
+        }
+        if (installed.isEmpty()) {
+            preference.isChecked = false
+            preference.setUnsupported(true)
+            preference.setSummary(R.string.various_xiaomi_trim_unavailable)
+            return
+        }
+        preference.setOnPreferenceChangeListener { _, value ->
+            val enable = value == true
+            val snapshot = if (enable) {
+                installed to IntArray(installed.size) { index ->
+                    packageManager.getApplicationEnabledSetting(installed[index])
+                }
+            } else {
+                readPackageProfileSnapshot(preferenceKey)
+                    ?: return@setOnPreferenceChangeListener false
+            }
+            val requestedStates = if (enable) {
+                IntArray(snapshot.first.size) {
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER
+                }
+            } else {
+                snapshot.second
+            }
+            val runAction = {
+                val intent = Intent(GlobalActions.SET_XIAOMI_PACKAGES_ACTION).apply {
+                    setPackage("android")
+                    putExtra(GlobalActions.EXTRA_PACKAGE_NAMES, snapshot.first.toTypedArray())
+                    putExtra(GlobalActions.EXTRA_COMPONENT_STATES, requestedStates)
+                }
+                requestMaintenanceAction(
+                    preference,
+                    intent,
+                    R.string.various_xiaomi_trim_success,
+                    R.string.various_xiaomi_trim_failed
+                ) {
+                    persistPackageProfileSnapshot(
+                        preferenceKey,
+                        enable,
+                        snapshot.first,
+                        snapshot.second
+                    )
+                    preference.isChecked = enable
+                }
+            }
+            if (enable) showTrimConfirmation(confirmation, snapshot.first.size, runAction)
+            else runAction()
+            false
+        }
+    }
+
+    private fun showTrimConfirmation(message: Int, count: Int, action: () -> Unit) {
+        val activity = activity ?: return
+        AlertDialog.Builder(activity)
+            .setTitle(R.string.various_xiaomi_trim_confirm_title)
+            .setMessage(getString(message, count))
+            .setPositiveButton(android.R.string.ok) { _, _ -> action() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun persistComponentProfileSnapshot(
+        key: String,
+        enabled: Boolean,
+        components: List<ComponentName>,
+        states: IntArray
+    ) {
+        AppHelper.appPrefs?.edit()?.apply {
+            putBoolean(key, enabled)
+            if (enabled) {
+                putString(
+                    key + PROFILE_PACKAGES_SUFFIX,
+                    components.joinToString("\n") { it.packageName }
+                )
+                putString(
+                    key + PROFILE_COMPONENTS_SUFFIX,
+                    components.joinToString("\n") { it.className }
+                )
+                putString(key + PROFILE_STATES_SUFFIX, states.joinToString(","))
+            } else {
+                remove(key + PROFILE_PACKAGES_SUFFIX)
+                remove(key + PROFILE_COMPONENTS_SUFFIX)
+                remove(key + PROFILE_STATES_SUFFIX)
+            }
+        }?.apply()
+    }
+
+    private fun readComponentProfileSnapshot(
+        key: String
+    ): Pair<List<ComponentName>, IntArray>? {
+        val prefs = AppHelper.appPrefs ?: return null
+        val packages = prefs.getString(key + PROFILE_PACKAGES_SUFFIX, null)
+            ?.split('\n') ?: return null
+        val names = prefs.getString(key + PROFILE_COMPONENTS_SUFFIX, null)
+            ?.split('\n') ?: return null
+        val states = readProfileStates(key) ?: return null
+        if (packages.isEmpty() || packages.size != names.size || names.size != states.size) return null
+        return names.indices.map { ComponentName(packages[it], names[it]) } to states
+    }
+
+    private fun persistPackageProfileSnapshot(
+        key: String,
+        enabled: Boolean,
+        packages: List<String>,
+        states: IntArray
+    ) {
+        AppHelper.appPrefs?.edit()?.apply {
+            putBoolean(key, enabled)
+            if (enabled) {
+                putString(key + PROFILE_PACKAGES_SUFFIX, packages.joinToString("\n"))
+                putString(key + PROFILE_STATES_SUFFIX, states.joinToString(","))
+            } else {
+                remove(key + PROFILE_PACKAGES_SUFFIX)
+                remove(key + PROFILE_STATES_SUFFIX)
+            }
+        }?.apply()
+    }
+
+    private fun readPackageProfileSnapshot(key: String): Pair<List<String>, IntArray>? {
+        val packages = AppHelper.appPrefs?.getString(key + PROFILE_PACKAGES_SUFFIX, null)
+            ?.split('\n') ?: return null
+        val states = readProfileStates(key) ?: return null
+        return if (packages.isNotEmpty() && packages.size == states.size) packages to states else null
+    }
+
+    private fun readProfileStates(key: String): IntArray? =
+        AppHelper.appPrefs?.getString(key + PROFILE_STATES_SUFFIX, null)
+            ?.split(',')
+            ?.mapNotNull { it.toIntOrNull() }
+            ?.toIntArray()
 
     private fun requestMaintenanceAction(
         preference: Preference,

@@ -48,9 +48,15 @@ class StrongToastPresentationModeTest {
     fun bottomOffsetPreference_isBoundedAndBackwardsCompatible() {
         assertEquals(0, StrongToastPresentationFeature.resolveBottomOffsetDp(PrefMap()))
         assertEquals(
-            0,
+            -1,
             StrongToastPresentationFeature.resolveBottomOffsetDp(PrefMap().apply {
                 put("system_strong_toast_bottom_offset", -1)
+            })
+        )
+        assertEquals(
+            -40,
+            StrongToastPresentationFeature.resolveBottomOffsetDp(PrefMap().apply {
+                put("system_strong_toast_bottom_offset", -999)
             })
         )
         assertEquals(
@@ -111,13 +117,6 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun dynamicIslandVerticalScaleResolver_isBoundedAcrossDeviceGeometry() {
-        assertEquals(0.72f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(104, 0))
-        assertEquals(0.62f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(82, 141))
-        assertEquals(0.90f, SystemUIStrongToastHooks.resolveDynamicIslandStartScaleY(182, 141))
-    }
-
-    @Test
     fun dynamicIslandWindow_keepsFullCapsuleAndOvershootSafetyArea() {
         assertEquals(195, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(82, 141, 18, 36))
         assertEquals(195, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(182, 141, 18, 36))
@@ -141,11 +140,17 @@ class StrongToastPresentationModeTest {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
         assertTrue(source.contains("layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT"))
         assertTrue(source.contains("capsule.scaleX = 1f"))
-        assertTrue(source.contains("view.pivotX = view.width / 2f"))
+        assertTrue(source.contains("if (!centerPop) motionView.scaleY = 1f"))
+        assertTrue(source.contains("motionView.pivotX = motionView.width / 2f"))
         assertTrue(source.contains("CENTER_POP_START_SCALE_X = 0.52f"))
-        assertTrue(source.contains("CENTER_POP_START_ALPHA = 0.58f"))
-        assertTrue(source.contains("CENTER_POP_DURATION_MS = 520L"))
-        assertTrue(source.contains("view.scaleX = CENTER_POP_START_SCALE_X"))
+        assertTrue(source.contains("CENTER_POP_START_ALPHA = 1f"))
+        assertTrue(source.contains("CENTER_POP_DURATION_MS = 420L"))
+        assertTrue(source.contains("boundedDynamicIslandInterpolator"))
+        assertTrue(source.contains("PathInterpolator(0.25f, 1f, 0.5f, 1f)"))
+        assertTrue(source.contains("prepareDynamicIslandContent(capsule)"))
+        assertTrue(source.contains("resetDynamicIslandContent(capsule)"))
+        assertTrue(source.contains("motionView.scaleX = CENTER_POP_START_SCALE_X"))
+        assertTrue(source.contains("motionView.scaleY = CENTER_POP_START_SCALE_Y"))
         assertTrue(source.contains("motionView.pivotY = motionView.height / 2f"))
         assertTrue(source.contains("resetDynamicIslandHostTransform(strongToast)"))
         assertFalse(source.contains("resolveDynamicIslandStartScaleX"))
@@ -153,19 +158,28 @@ class StrongToastPresentationModeTest {
         assertTrue(source.contains("layoutParams.windowAnimations = 0"))
         assertTrue(source.contains("layoutParams.setFitInsetsTypes(0)"))
         assertTrue(source.contains("disableClippingThroughAncestors(capsule, root)"))
-        assertTrue(source.contains("dynamicIslandMotionView(capsule, position)"))
+        assertTrue(source.contains("dynamicIslandMotionView(capsule, centerPop)"))
+        assertTrue(source.contains("motionView.translationY = 0f"))
+        assertTrue(source.contains("resolveTopIslandOriginScaleX(capsule)"))
+        assertTrue(source.contains("val screenTopExit = -capsule.top.toFloat()"))
+        assertTrue(source.contains("OnComputeInternalInsetsListener"))
+        assertTrue(source.contains("removeOnComputeInternalInsetsListener"))
         assertTrue(source.contains("capsule.clipToOutline = false"))
-        assertTrue(source.contains("dpToPx(view, BOTTOM_ENTRANCE_TRAVEL_DP)"))
-        assertTrue(source.contains("baseTopPadding + offset"))
-        assertTrue(source.contains("(basePadding - offset).coerceAtLeast(0)"))
-        assertTrue(source.contains("motionView.alpha = if (position == StrongToastPosition.BOTTOM)"))
+        assertTrue(source.contains("resolveBottomEntranceTravelPx(motionView)"))
+        assertTrue(source.contains("BOTTOM_ISLAND_START_SCALE_X = 0.58f"))
+        assertTrue(source.contains("capsule.animate()"))
+        assertTrue(source.contains(".scaleX(BOTTOM_ISLAND_START_SCALE_X)"))
+        assertTrue(source.contains(".translationY(targetOffset.toFloat())"))
+        assertFalse(source.contains("import android.view.animation.OvershootInterpolator"))
+        assertFalse(source.contains("ValueAnimator"))
+        assertFalse(source.contains("animateBottomLayoutOffset"))
+        assertTrue(source.contains("} else if (position == StrongToastPosition.BOTTOM)"))
         assertFalse(source.contains("BOTTOM_SURFACE_SETTLE_MS"))
         assertFalse(source.contains("BOTTOM_ENTRANCE_DISTANCE_FACTOR"))
-        assertTrue(source.contains("if (position == StrongToastPosition.BOTTOM) 1f else 0.90f"))
-        assertTrue(source.contains("animateDynamicIslandDismiss(strongToast, capsule, motionView, position)"))
-        assertTrue(source.contains("ModuleHelper.guarded { dismissStrongToast(strongToast) }"))
-        assertTrue(source.contains("XposedHelpers.callMethod(strongToast, \"hideStrongToast\")"))
-        assertTrue(source.contains("\"updateStrongToast\""))
+        assertTrue(source.contains("\"realHideStrongToast\""))
+        assertTrue(source.contains("XposedHelpers.callMethod(strongToast, \"onComplete\")"))
+        assertTrue(source.contains("XposedHelpers.setBooleanField(strongToast, \"mCheckInOutStrongToasting\", true)"))
+        assertFalse(source.contains("startDynamicIslandRefresh"))
         assertTrue(source.contains("showingField.setBoolean(keyguardState, false)"))
         assertTrue(source.contains("return chain.proceed()"))
     }
@@ -197,15 +211,18 @@ class StrongToastPresentationModeTest {
     fun bottomDynamicIslandWindow_reservesNavigationArea() {
         assertEquals(
             249,
-            SystemUIStrongToastHooks.resolveBottomDynamicIslandWindowHeightPx(54, 141, 18, 36)
+            SystemUIStrongToastHooks.resolveBottomDynamicIslandWindowHeightPx(141, 18, 90)
         )
         assertEquals(
             141,
-            SystemUIStrongToastHooks.resolveBottomDynamicIslandWindowHeightPx(0, 141, 0, 0)
+            SystemUIStrongToastHooks.resolveBottomDynamicIslandWindowHeightPx(141, 0, 0)
         )
         assertEquals(
             54,
-            SystemUIStrongToastHooks.resolveBottomDynamicIslandWindowHeightPx(54, 0, 18, 36)
+            SystemUIStrongToastHooks.resolveBottomDynamicIslandWindowHeightPx(0, 18, 54)
         )
+        assertEquals(90, SystemUIStrongToastHooks.resolveBottomPaddingPx(54, 36, 0))
+        assertEquals(54, SystemUIStrongToastHooks.resolveBottomPaddingPx(54, 18, -18))
+        assertEquals(0, SystemUIStrongToastHooks.resolveBottomPaddingPx(54, 18, -999))
     }
 }

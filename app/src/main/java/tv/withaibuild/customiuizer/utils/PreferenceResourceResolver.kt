@@ -64,6 +64,7 @@ internal object PreferenceResourceResolver {
         "pref_key_various_cat_security_center" -> R.xml.prefs_various_security_center
         "pref_key_various_cat_calls" -> R.xml.prefs_various_calls
         "pref_key_various_cat_settings" -> R.xml.prefs_various_settings
+        "pref_key_various_cat_exclusive" -> R.xml.prefs_various_exclusive
         "pref_key_various_cat_gboard" -> R.xml.prefs_various_gboard
         else -> R.xml.prefs_various
     }

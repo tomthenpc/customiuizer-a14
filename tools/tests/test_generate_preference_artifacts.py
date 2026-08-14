@@ -59,10 +59,12 @@ EXPECTED_SPLITS = {
     "pref_key_various_cat_security_center": "prefs_various_security_center.xml",
     "pref_key_various_cat_calls": "prefs_various_calls.xml",
     "pref_key_various_cat_settings": "prefs_various_settings.xml",
+    "pref_key_various_cat_exclusive": "prefs_various_exclusive.xml",
     "pref_key_various_cat_gboard": "prefs_various_gboard.xml",
 }
 
 VARIOUS_GROUPS = (
+    ("pref_key_various_cat_exclusive", "@string/various_exclusive_features_cat_title"),
     ("pref_key_various_cat_general", "@string/various_general_cat_title"),
     ("pref_key_various_cat_package_installer", "@string/various_package_installer_cat_title"),
     ("pref_key_various_cat_security_center", "@string/various_securitycenter_unlock_title"),
@@ -275,7 +277,7 @@ class GeneratePreferenceArtifactsTest(unittest.TestCase):
         self.assertTrue(set(various_routes.values()).issubset({key for key, _ in VARIOUS_GROUPS}))
         expected_various_routes: dict[str, str] = {}
         various_root = ET.parse(SOURCE_DIR / "prefs_various.xml").getroot()
-        group_index = 0
+        group_index = -1
         for child in list(various_root):
             if child.tag == PREFERENCE_CATEGORY:
                 group_index += 1

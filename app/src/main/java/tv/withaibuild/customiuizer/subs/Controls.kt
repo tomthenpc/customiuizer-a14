@@ -33,8 +33,9 @@ class Controls : SubFragment() {
             }
             "pref_key_controls_cat_fingerprint" -> {
                 findPreference<Preference>("pref_key_controls_fingerprintsuccess_ignore")?.isEnabled = AppHelper.getStringOfAppPrefs("pref_key_controls_fingerprintsuccess", "1") != "1"
-                findPreference<Preference>("pref_key_controls_fingerprintsuccess")?.setOnPreferenceChangeListener { _, newValue ->
-                    findPreference<Preference>("pref_key_controls_fingerprintsuccess_ignore")?.isEnabled = newValue != "1"
+                findPreference<Preference>("pref_key_controls_fingerprintsuccess")?.setOnPreferenceChangeListener { preference, newValue ->
+                    val selected = syncPendingListSelection(preference, newValue)
+                    findPreference<Preference>("pref_key_controls_fingerprintsuccess_ignore")?.isEnabled = selected != "1"
                     true
                 }
             }

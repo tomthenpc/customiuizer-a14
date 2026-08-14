@@ -12,9 +12,10 @@ class System_Visualizer : SubFragment() {
 
         findPreference<Preference>("pref_key_system_visualizer_colorval")?.isEnabled = "2" == AppHelper.getStringOfAppPrefs("pref_key_system_visualizer_color", "1")
         findPreference<Preference>("pref_key_system_visualizer_dyntime")?.isEnabled = "5" == AppHelper.getStringOfAppPrefs("pref_key_system_visualizer_color", "1")
-        findPreference<Preference>("pref_key_system_visualizer_color")?.setOnPreferenceChangeListener { _, newValue ->
-            findPreference<Preference>("pref_key_system_visualizer_colorval")?.isEnabled = "2" == newValue
-            findPreference<Preference>("pref_key_system_visualizer_dyntime")?.isEnabled = "5" == newValue
+        findPreference<Preference>("pref_key_system_visualizer_color")?.setOnPreferenceChangeListener { preference, newValue ->
+            val selected = syncPendingListSelection(preference, newValue)
+            findPreference<Preference>("pref_key_system_visualizer_colorval")?.isEnabled = "2" == selected
+            findPreference<Preference>("pref_key_system_visualizer_dyntime")?.isEnabled = "5" == selected
             true
         }
     }

@@ -15,8 +15,9 @@ class System_ScreenshotConfig : SubFragment() {
 
         val format = AppHelper.getStringOfAppPrefs("pref_key_system_screenshot_format", "1")
         findPreference<Preference>("pref_key_system_screenshot_quality")?.isEnabled = format == "2" || format == "4"
-        findPreference<Preference>("pref_key_system_screenshot_format")?.setOnPreferenceChangeListener { _, newValue ->
-            findPreference<Preference>("pref_key_system_screenshot_quality")?.isEnabled = newValue == "2" || newValue == "4"
+        findPreference<Preference>("pref_key_system_screenshot_format")?.setOnPreferenceChangeListener { preference, newValue ->
+            val selected = syncPendingListSelection(preference, newValue)
+            findPreference<Preference>("pref_key_system_screenshot_quality")?.isEnabled = selected == "2" || selected == "4"
             true
         }
 
@@ -26,8 +27,9 @@ class System_ScreenshotConfig : SubFragment() {
             isEnabled = path == "4"
             summary = dir
         }
-        findPreference<Preference>("pref_key_system_screenshot_path")?.setOnPreferenceChangeListener { _, newValue ->
-            findPreference<Preference>("pref_key_system_screenshot_mypath")?.isEnabled = newValue == "4"
+        findPreference<Preference>("pref_key_system_screenshot_path")?.setOnPreferenceChangeListener { preference, newValue ->
+            val selected = syncPendingListSelection(preference, newValue)
+            findPreference<Preference>("pref_key_system_screenshot_mypath")?.isEnabled = selected == "4"
             true
         }
 

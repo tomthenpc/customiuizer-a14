@@ -105,12 +105,14 @@ class System : SubFragment() {
                     strongToastBottomOffset?.isVisible = dynamicIsland && position == "1"
                 }
                 updateStrongToastGeometryVisibility(strongToastMode?.value, strongToastPosition?.value)
-                strongToastMode?.setOnPreferenceChangeListener { _, newValue ->
-                    updateStrongToastGeometryVisibility(newValue as? String, strongToastPosition?.value)
+                strongToastMode?.setOnPreferenceChangeListener { preference, newValue ->
+                    val selected = syncPendingListSelection(preference, newValue)
+                    updateStrongToastGeometryVisibility(selected, strongToastPosition?.value)
                     true
                 }
-                strongToastPosition?.setOnPreferenceChangeListener { _, newValue ->
-                    updateStrongToastGeometryVisibility(strongToastMode?.value, newValue as? String)
+                strongToastPosition?.setOnPreferenceChangeListener { preference, newValue ->
+                    val selected = syncPendingListSelection(preference, newValue)
+                    updateStrongToastGeometryVisibility(strongToastMode?.value, selected)
                     true
                 }
                 findPreference<Preference>("pref_key_system_statusbarcolor_apps")?.setOnPreferenceClickListener(openAppsEdit)

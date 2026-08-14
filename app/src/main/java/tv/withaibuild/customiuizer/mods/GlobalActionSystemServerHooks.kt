@@ -34,6 +34,52 @@ object GlobalActionSystemServerHooks {
 
     private const val XIAOMI_UPDATER_PACKAGE = "com.android.updater"
     private const val MIUI_DAEMON_PACKAGE = "com.miui.daemon"
+    private const val MIUI_SECURITY_CENTER_PACKAGE = "com.miui.securitycenter"
+
+    /**
+     * Exact component allowlist extracted from the connected fuxi HyperOS 1 system image.
+     *
+     * The bridge deliberately does not accept arbitrary privileged component requests. Daemon
+     * performance services (MiuiPerf, MemCompact, GcBooster and Sysopt) and Security Center
+     * protection services are absent from this set.
+     */
+    private val XIAOMI_TRIM_COMPONENTS = mapOf(
+        MIUI_DAEMON_PACKAGE to setOf(
+            "com.miui.daemon.performance.cloudcontrol.CloudControlSyncService",
+            "com.miui.daemon.performance.mispeed.CloudServerReceiver",
+            "com.miui.daemon.mqsas.jobs.EventUploadService",
+            "com.miui.daemon.mqsas.jobs.FileUploadService",
+            "com.miui.daemon.mqsas.jobs.HeartBeatUploadService"
+        ),
+        MIUI_SECURITY_CENTER_PACKAGE to setOf(
+            "com.facebook.ads.AudienceNetworkContentProvider",
+            "com.my.target.common.MyTargetContentProvider",
+            "com.yandex.mobile.ads.core.initializer.MobileAdsInitializeProvider",
+            "com.yandex.metrica.MetricaService",
+            "com.yandex.metrica.ConfigurationService",
+            "com.yandex.metrica.ConfigurationJobService",
+            "com.yandex.metrica.PreloadInfoContentProvider",
+            "com.miui.antivirus.activity.MainActivity",
+            "com.miui.antivirus.activity.SettingsActivity",
+            "com.miui.antivirus.whitelist.WhiteListActivity",
+            "com.miui.antivirus.activity.VirusMonitorDialogActivity",
+            "com.miui.antivirus.activity.DangerousAlertActivity",
+            "com.miui.antivirus.activity.VirusDetailActivity",
+            "com.miui.antivirus.activity.MonitoredAppSettingsActivity",
+            "com.miui.antivirus.activity.WebsiteSecurityCheckActivity",
+            "com.miui.antivirus.activity.SignExceptionActivity",
+            "com.miui.antivirus.service.GuardService",
+            "com.miui.antivirus.service.DialogService",
+            "com.miui.antivirus.service.VirusAutoUpdateJobService",
+            "com.miui.antivirus.receiver.UpdaterReceiver",
+            "com.miui.securityscan.job.ScanJobService"
+        )
+    )
+
+    private val XIAOMI_TRIM_PACKAGES = setOf(
+        "com.miui.analytics",
+        "com.miui.msa.global"
+    )
 
     @JvmStatic
     fun setupAnimationScaleBridge(lpparam: XposedModuleInterface.SystemServerStartingParam) {
@@ -146,6 +192,27 @@ object GlobalActionSystemServerHooks {
                                                     -1
                                                 )
                                             )
+                                        GlobalActions.SET_XIAOMI_COMPONENTS_ACTION -> {
+                                            val packages = intent.getStringArrayExtra(
+                                                GlobalActions.EXTRA_PACKAGE_NAMES
+                                            ) ?: return@guarded
+                                            val names = intent.getStringArrayExtra(
+                                                GlobalActions.EXTRA_COMPONENT_NAMES
+                                            ) ?: return@guarded
+                                            val states = intent.getIntArrayExtra(
+                                                GlobalActions.EXTRA_COMPONENT_STATES
+                                            ) ?: return@guarded
+                                            applyXiaomiComponentStates(context, packages, names, states)
+                                        }
+                                        GlobalActions.SET_XIAOMI_PACKAGES_ACTION -> {
+                                            val packages = intent.getStringArrayExtra(
+                                                GlobalActions.EXTRA_PACKAGE_NAMES
+                                            ) ?: return@guarded
+                                            val states = intent.getIntArrayExtra(
+                                                GlobalActions.EXTRA_COMPONENT_STATES
+                                            ) ?: return@guarded
+                                            applyXiaomiPackageStates(context, packages, states)
+                                        }
                                         else -> false
                                     }
                                 }
@@ -163,6 +230,8 @@ object GlobalActionSystemServerHooks {
                         IntentFilter(GlobalActions.SET_UPDATER_SERVICES_ACTION).apply {
                             addAction(GlobalActions.CLEAR_UPDATER_STATE_ACTION)
                             addAction(GlobalActions.SET_MIUI_DAEMON_STATE_ACTION)
+                            addAction(GlobalActions.SET_XIAOMI_COMPONENTS_ACTION)
+                            addAction(GlobalActions.SET_XIAOMI_PACKAGES_ACTION)
                         },
                         Context.RECEIVER_EXPORTED,
                         GlobalActions.BROADCAST_PERMISSION
@@ -271,6 +340,102 @@ object GlobalActionSystemServerHooks {
         }
     }
 
+    @Suppress("DEPRECATION")
+    private fun applyXiaomiComponentStates(
+        context: Context,
+        packageNames: Array<String>,
+        names: Array<String>,
+        states: IntArray
+    ): Boolean {
+        if (names.isEmpty() || names.size > 32 ||
+            packageNames.size != names.size || states.size != names.size ||
+            names.toSet().size != names.size || states.any { !isAllowedComponentState(it) }
+        ) return false
+
+        val packageManager = context.packageManager
+        val declaredByPackage = HashMap<String, Set<String>>()
+        for (packageName in packageNames.toSet()) {
+            val allowed = XIAOMI_TRIM_COMPONENTS[packageName] ?: return false
+            if (!isSystemApplication(packageManager, packageName)) return false
+            val declared = try {
+                val info = packageManager.getPackageInfo(
+                    packageName,
+                    PackageManager.GET_ACTIVITIES or PackageManager.GET_SERVICES or
+                        PackageManager.GET_RECEIVERS or
+                        PackageManager.GET_PROVIDERS or PackageManager.MATCH_DISABLED_COMPONENTS
+                )
+                HashSet<String>().apply {
+                    info.activities?.forEach { activity -> add(activity.name) }
+                    info.services?.forEach { service -> add(service.name) }
+                    info.receivers?.forEach { receiver -> add(receiver.name) }
+                    info.providers?.forEach { provider -> add(provider.name) }
+                }
+            } catch (t: Throwable) {
+                tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log(t)
+                return false
+            }
+            if (declared.none { it in allowed }) return false
+            declaredByPackage[packageName] = declared
+        }
+        for (index in names.indices) {
+            val packageName = packageNames[index]
+            val name = names[index]
+            if (name !in XIAOMI_TRIM_COMPONENTS.getValue(packageName) ||
+                name !in declaredByPackage.getValue(packageName)
+            ) return false
+        }
+
+        val components = names.indices.map { ComponentName(packageNames[it], names[it]) }
+        return applyComponentStates(packageManager, components, states)
+    }
+
+    private fun applyXiaomiPackageStates(
+        context: Context,
+        packageNames: Array<String>,
+        states: IntArray
+    ): Boolean {
+        if (packageNames.isEmpty() || packageNames.size > XIAOMI_TRIM_PACKAGES.size ||
+            packageNames.size != states.size || packageNames.toSet().size != packageNames.size ||
+            packageNames.any { it !in XIAOMI_TRIM_PACKAGES } ||
+            states.any { !isAllowedComponentState(it) }
+        ) return false
+        val packageManager = context.packageManager
+        if (packageNames.any { !isSystemApplication(packageManager, it) }) return false
+        val original = IntArray(packageNames.size) { index ->
+            packageManager.getApplicationEnabledSetting(packageNames[index])
+        }
+        var changed = 0
+        return try {
+            for (index in packageNames.indices) {
+                packageManager.setApplicationEnabledSetting(packageNames[index], states[index], 0)
+                changed++
+                if (packageManager.getApplicationEnabledSetting(packageNames[index]) !=
+                    states[index]
+                ) error("Package state was not applied")
+            }
+            true
+        } catch (t: Throwable) {
+            tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log(t)
+            for (index in 0 until changed) {
+                try {
+                    packageManager.setApplicationEnabledSetting(
+                        packageNames[index],
+                        original[index],
+                        0
+                    )
+                } catch (rollback: Throwable) {
+                    tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(
+                        rollback
+                    )
+                    XposedHelpers.log(rollback)
+                }
+            }
+            false
+        }
+    }
+
     private fun stopMiuiDaemon(context: Context) {
         val activityManagerService = XposedHelpers.callStaticMethod(
             ActivityManager::class.java,
@@ -336,6 +501,14 @@ object GlobalActionSystemServerHooks {
         if (names.any { it !in declared }) return false
 
         val components = names.map { ComponentName(XIAOMI_UPDATER_PACKAGE, it) }
+        return applyComponentStates(packageManager, components, states)
+    }
+
+    private fun applyComponentStates(
+        packageManager: PackageManager,
+        components: List<ComponentName>,
+        states: IntArray
+    ): Boolean {
         val original = IntArray(components.size) { index ->
             packageManager.getComponentEnabledSetting(components[index])
         }
@@ -348,6 +521,9 @@ object GlobalActionSystemServerHooks {
                     PackageManager.DONT_KILL_APP
                 )
                 changed++
+                if (packageManager.getComponentEnabledSetting(components[index]) != states[index]) {
+                    error("Component state was not applied")
+                }
             }
             true
         } catch (t: Throwable) {

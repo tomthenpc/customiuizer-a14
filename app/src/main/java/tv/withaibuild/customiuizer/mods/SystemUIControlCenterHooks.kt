@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.content.pm.ApplicationInfo
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
@@ -15,6 +16,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.TextView
@@ -214,6 +216,9 @@ object SystemUIControlCenterHooks {
         if (MainModule.mPrefs.getBoolean("system_volumetimer")) {
             VolumeTimerValuesRes(loader)
         }
+        if (MainModule.mPrefs.getBoolean("system_volume_mode_button_colors")) {
+            VolumeModeButtonColorsHook(loader)
+        }
         if (MainModule.mPrefs.getBoolean("system_cc_tile_roundedrect")) {
             CCTileCornerHook(loader)
         }
@@ -349,6 +354,7 @@ object SystemUIControlCenterHooks {
             || MainModule.mPrefs.getInt("system_volumeblur_expanded", 0) > 0
             || MainModule.mPrefs.getBoolean("system_volumebar_blur_mtk")
             || MainModule.mPrefs.getBoolean("system_volumetimer")
+            || MainModule.mPrefs.getBoolean("system_volume_mode_button_colors")
             || MainModule.mPrefs.getBoolean("system_cc_tile_roundedrect")
             || MainModule.mPrefs.getBoolean("system_cc_volume_showpct")
             || MainModule.mPrefs.getBoolean("system_qs_hideoperator")
@@ -361,6 +367,55 @@ object SystemUIControlCenterHooks {
             || MainModule.mPrefs.getBoolean("system_cc_tile_enabled_color")
             || MainModule.mPrefs.getBoolean("system_cc_card_enabled_color")
             || MainModule.mPrefs.getBoolean("system_cc_slider_color_enable")
+    }
+
+    /**
+     * Styles the ROM-owned silent and DND shortcuts at their state-update boundary. Colors are
+     * captured once when the plugin ClassLoader is installed, keeping preference and resource
+     * lookups out of the volume panel's hot update path.
+     */
+    @JvmStatic
+    fun VolumeModeButtonColorsHook(pluginLoader: ClassLoader) {
+        val backgroundTint = ColorStateList.valueOf(
+            MainModule.mPrefs.getInt(
+                "system_volume_mode_button_background_color",
+                0xffffffff.toInt()
+            )
+        )
+        val iconTint = ColorStateList.valueOf(
+            MainModule.mPrefs.getInt("system_volume_mode_button_icon_color", 0xff277af7.toInt())
+        )
+        val helperClassName =
+            "com.android.systemui.miui.volume.MiuiRingerModeLayout\$RingerButtonHelper"
+        val applyColors = { helper: Any ->
+            ModuleHelper.guarded {
+                val standardView = XposedHelpers.getObjectField(helper, "mStandardView") as? View
+                val blurView = XposedHelpers.getObjectField(helper, "mBlurView") as? View
+                val icon = XposedHelpers.getObjectField(helper, "mIcon") as? ImageView
+                standardView?.backgroundTintList = backgroundTint
+                blurView?.backgroundTintList = backgroundTint
+                icon?.imageTintList = iconTint
+            }
+        }
+        ModuleHelper.hookAllConstructors(
+            helperClassName,
+            pluginLoader,
+            object : MethodHook() {
+                override fun after(callback: AfterHookCallback) {
+                    callback.getThisObject()?.let(applyColors)
+                }
+            }
+        )
+        ModuleHelper.hookAllMethods(
+            helperClassName,
+            pluginLoader,
+            "updateState",
+            object : MethodHook() {
+                override fun after(callback: AfterHookCallback) {
+                    callback.getThisObject()?.let(applyColors)
+                }
+            }
+        )
     }
 
     @JvmStatic

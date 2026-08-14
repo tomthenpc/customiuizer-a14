@@ -31,6 +31,18 @@ class RecentsCardStyleTest {
     }
 
     @Test
+    fun stackedCardsUseNativeDistanceForBoundedDepth() {
+        assertEquals(0f, Launcher.resolveRecentsStackDepth(500f, 500f, 1000f), 0f)
+        assertEquals(1f, Launcher.resolveRecentsStackDepth(1500f, 500f, 1000f), 0f)
+        assertEquals(3f, Launcher.resolveRecentsStackDepth(5000f, 500f, 1000f), 0f)
+        assertEquals(0f, Launcher.resolveRecentsStackDepth(5000f, 500f, 0f), 0f)
+        assertEquals(1f, Launcher.resolveRecentsStackScale(0f), 0f)
+        assertEquals(0.835f, Launcher.resolveRecentsStackScale(3f), 0.0001f)
+        assertEquals(6f, Launcher.resolveRecentsStackTranslationZ(0f, 1000f), 0.0001f)
+        assertEquals(0f, Launcher.resolveRecentsStackTranslationZ(3f, 1000f), 0f)
+    }
+
+    @Test
     fun featureOnlyEnablesForCustomModes() {
         assertFalse(LauncherRecentsCardStyleFeature.evaluateEnabled(PrefMap()))
         assertTrue(LauncherRecentsCardStyleFeature.evaluateEnabled(PrefMap().apply {

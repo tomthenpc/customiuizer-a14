@@ -236,6 +236,8 @@
     <string name="system_volumetimer_title">Extended timers</string>
     <string name="system_volumetimer_summ">Add more intervals to timers for Silent and Do Not Disturb modes</string>
     <string name="system_volumebar_blur_mtk_title">Enable volume bar blur support for MTK devices</string>
+    <string name="system_volume_mode_button_colors_title">Silent and DND shortcut colors</string>
+    <string name="system_volume_mode_button_colors_summ">Customize the background and icon colors of the two shortcuts at the bottom of the volume panel. Restart System UI after changing colors.</string>
     <string name="system_volumedialogdelay_collapsed_title">Volume dialog autohide delay</string>
     <string name="system_volumedialogdelay_collapsed_summ">Collapsed</string>
     <string name="system_volumedialogdelay_expanded_summ">Expanded</string>
@@ -633,6 +635,7 @@
     <string name="various_mods">Various</string>
     <string name="various_general_cat_title">System &amp; compatibility</string>
     <string name="various_app_management_cat_title">App management</string>
+    <string name="various_exclusive_features_cat_title">Exclusive features</string>
     <string name="various_hiddenfeatures_title">Hidden features</string>
     <string name="various_hiddenfeatures_summ">Activities that are not always easily accessible</string>
     <string name="various_hiddenfeatures_not_found">Not available on this device</string>
@@ -1028,7 +1031,7 @@
     <string name="system_strong_toast_position_top">Top</string>
     <string name="system_strong_toast_position_bottom">Bottom</string>
     <string name="system_strong_toast_bottom_offset_title">Extra distance from bottom</string>
-    <string name="system_strong_toast_bottom_offset_summ">Adds to the runtime navigation and mandatory-gesture safe inset. Leave at 0 unless the ROM still overlaps bottom content.</string>
+    <string name="system_strong_toast_bottom_offset_summ">Fine-tunes the position from the runtime navigation and gesture inset. Negative values move the capsule closer to the bottom; positive values move it upward.</string>
 
     <!-- Locale change confirmation -->
     <string name="dialog_change_locale_title">更改界面语言</string>
@@ -1046,6 +1049,22 @@
     <string name="various_disable_miui_daemon_success">System Quality Service state updated.</string>
     <string name="various_disable_miui_daemon_failed">Unable to update the System Quality Service state.</string>
     <string name="various_disable_miui_daemon_unavailable">The system com.miui.daemon package was not found.</string>
+    <string name="various_trim_miui_daemon_network_title">Trim Daemon cloud control and uploads</string>
+    <string name="various_trim_miui_daemon_network_summ">Disables only the declared cloud-profile receiver and MQS upload jobs; keeps local performance, memory compaction, rescue, and system optimization services</string>
+    <string name="various_trim_miui_daemon_network_confirm">Disable %1$d verified Daemon network components? Their current states will be saved for exact restoration.</string>
+    <string name="various_disable_xiaomi_analytics_title">Disable Xiaomi analytics and system ads</string>
+    <string name="various_disable_xiaomi_analytics_summ">Disables the standalone system com.miui.analytics and com.miui.msa.global packages; does not disable push, cloud sync, or Security Center protection</string>
+    <string name="various_disable_xiaomi_analytics_confirm">Disable %1$d installed Xiaomi analytics or system-ad packages? Their current application states will be saved for exact restoration.</string>
+    <string name="various_trim_security_center_marketing_title">Trim Security Center marketing startup</string>
+    <string name="various_trim_security_center_marketing_summ">Disables only verified Facebook, MyTarget, Yandex Ads, and Metrica startup components; keeps permissions, antivirus, firewall, anti-spam, power, and install security</string>
+    <string name="various_trim_security_center_marketing_confirm">Disable %1$d installed third-party marketing startup components in Security Center? Restart Security Center or reboot to release already loaded providers.</string>
+    <string name="various_remove_security_center_antivirus_title">Remove Security Center antivirus and reminders</string>
+    <string name="various_remove_security_center_antivirus_summ">Disables antivirus entry points, guards, dialogs, updates, and periodic scan jobs to suppress stale-scan reminders; keeps permissions, firewall, anti-spam, and battery tools</string>
+    <string name="various_remove_security_center_antivirus_confirm">Disable %1$d verified Security Center antivirus components? Antivirus scans, virus warnings, and stale-scan reminders will be unavailable. Turning this off restores every component to its previous state.</string>
+    <string name="various_xiaomi_trim_confirm_title">Apply reversible Xiaomi component profile?</string>
+    <string name="various_xiaomi_trim_success">Xiaomi component profile updated.</string>
+    <string name="various_xiaomi_trim_failed">Unable to update every component; completed changes were rolled back.</string>
+    <string name="various_xiaomi_trim_unavailable">No installed verified components from this device profile were found for the current user.</string>
     <string name="various_block_notification_permission_prompts_title">Dismiss notification permission prompts</string>
     <string name="various_block_notification_permission_prompts_summ">Closes the Android system prompt without granting notification permission; restart PermissionController or reboot after changing</string>
     <string name="various_block_location_permission_prompts_title">Dismiss location permission prompts</string>

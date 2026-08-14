@@ -35,6 +35,22 @@ class UpdaterServicesBridgeContractTest {
         assertTrue(bridge.contains("\"addAppLocked\""))
         assertTrue(bridge.contains("COMPONENT_ENABLED_STATE_DISABLED_USER"))
         assertTrue(bridge.contains("callback.returnAndSkip(null)"))
+        assertTrue(bridge.contains("XIAOMI_TRIM_COMPONENTS = mapOf("))
+        assertTrue(bridge.contains("XIAOMI_TRIM_PACKAGES = setOf("))
+        assertTrue(bridge.contains("name !in XIAOMI_TRIM_COMPONENTS.getValue(packageName)"))
+        assertTrue(bridge.contains("packageNames.any { it !in XIAOMI_TRIM_PACKAGES }"))
+        assertTrue(bridge.contains("declaredByPackage.getValue(packageName)"))
+        assertTrue(screen.contains("persistComponentProfileSnapshot("))
+        assertTrue(screen.contains("persistPackageProfileSnapshot("))
+        assertTrue(screen.contains("DAEMON_NETWORK_COMPONENTS"))
+        assertTrue(screen.contains("SECURITY_CENTER_MARKETING_COMPONENTS"))
+        assertTrue(screen.contains("SECURITY_CENTER_ANTIVIRUS_COMPONENTS"))
+        assertTrue(screen.contains("XIAOMI_ANALYTICS_PACKAGES"))
+        assertFalse(bridge.contains("com.miui.powerkeeper"))
+        assertTrue(bridge.contains("com.miui.antivirus.service.GuardService"))
+        assertTrue(bridge.contains("com.miui.antivirus.service.VirusAutoUpdateJobService"))
+        assertTrue(bridge.contains("com.miui.securityscan.job.ScanJobService"))
+        assertTrue(screen.contains("SECURITY_CENTER_ANTIVIRUS_TRIM_PREF"))
     }
 
     private fun source(path: String): String {

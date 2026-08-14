@@ -27,6 +27,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.PreferenceFragmentCompat
+import androidx.preference.ListPreference
 import androidx.preference.PreferenceManager
 import java.util.Collections
 import java.util.Locale
@@ -49,6 +50,17 @@ import tv.withaibuild.customiuizer.utils.XposedServiceManager
 open class PreferenceFragmentBase : PreferenceFragmentCompat() {
 
     private var actContext: Context? = null
+
+    /**
+     * AndroidX invokes change listeners before ListPreference persists its new value. A listener
+     * that changes sibling visibility can therefore rebind this row against the previous entry.
+     * Commit the accepted pending selection first so row text and dependent state share one value.
+     */
+    protected fun syncPendingListSelection(preference: androidx.preference.Preference, value: Any?): String? {
+        val selected = value as? String ?: return null
+        (preference as? ListPreference)?.value = selected
+        return selected
+    }
 
     @JvmField
     protected var toolbarMenu = false

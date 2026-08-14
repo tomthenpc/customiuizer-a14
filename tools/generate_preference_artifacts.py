@@ -52,6 +52,11 @@ CATEGORY_SOURCES = (
 
 VARIOUS_GROUPS = (
     VariousGroup(
+        "pref_key_various_cat_exclusive",
+        "@string/various_exclusive_features_cat_title",
+        "prefs_various_exclusive.xml",
+    ),
+    VariousGroup(
         "pref_key_various_cat_general",
         "@string/various_general_cat_title",
         "prefs_various_general.xml",
@@ -71,7 +76,6 @@ VARIOUS_GROUPS = (
         "pref_key_various_cat_settings",
         "@string/various_app_management_cat_title",
         "prefs_various_settings.xml",
-        "@string/settings",
     ),
     VariousGroup("pref_key_various_cat_gboard", "@string/gboard", "prefs_various_gboard.xml"),
 )
@@ -137,7 +141,7 @@ def _structured_categories(
 
 def _partition_various(source_root: ET.Element) -> list[list[ET.Element]]:
     groups: list[list[ET.Element]] = [[] for _ in VARIOUS_GROUPS]
-    group_index = 0
+    group_index = -1
     for child in list(source_root):
         if child.tag == PREFERENCE_CATEGORY:
             group_index += 1
@@ -151,6 +155,8 @@ def _partition_various(source_root: ET.Element) -> list[list[ET.Element]]:
                     f"Unexpected prefs_various.xml header {actual_title!r}; expected {expected_title!r}"
                 )
             continue
+        if group_index < 0:
+            raise ValueError("prefs_various.xml must start with an explicit category header")
         groups[group_index].append(child)
 
     if group_index != len(VARIOUS_GROUPS) - 1:

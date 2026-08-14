@@ -66,8 +66,13 @@ object GlobalActions {
     const val SET_UPDATER_SERVICES_ACTION = ACTION_PREFIX + "SetUpdaterServices"
     const val CLEAR_UPDATER_STATE_ACTION = ACTION_PREFIX + "ClearUpdaterState"
     const val SET_MIUI_DAEMON_STATE_ACTION = ACTION_PREFIX + "SetMiuiDaemonState"
+    const val SET_XIAOMI_COMPONENTS_ACTION = ACTION_PREFIX + "SetXiaomiComponents"
+    const val SET_XIAOMI_PACKAGES_ACTION = ACTION_PREFIX + "SetXiaomiPackages"
     const val EXTRA_UPDATER_SERVICE_NAMES = "updater_service_names"
     const val EXTRA_UPDATER_SERVICE_STATES = "updater_service_states"
+    const val EXTRA_PACKAGE_NAMES = "package_names"
+    const val EXTRA_COMPONENT_NAMES = "component_names"
+    const val EXTRA_COMPONENT_STATES = "component_states"
     const val EXTRA_APPLICATION_STATE = "application_state"
 
     /**

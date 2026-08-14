@@ -18,9 +18,10 @@ class System_NoScreenLock : SubFragment() {
         val noScreenLock = AppHelper.getStringOfAppPrefs("pref_key_system_noscreenlock", "1")
         findPreference<Preference>("pref_key_system_noscreenlock_wifi")?.isEnabled = noScreenLock == "3"
         findPreference<Preference>("pref_key_system_noscreenlock_bt")?.isEnabled = noScreenLock == "3"
-        findPreference<Preference>("pref_key_system_noscreenlock")?.setOnPreferenceChangeListener { _, newValue ->
-            findPreference<Preference>("pref_key_system_noscreenlock_wifi")?.isEnabled = newValue == "3"
-            findPreference<Preference>("pref_key_system_noscreenlock_bt")?.isEnabled = newValue == "3"
+        findPreference<Preference>("pref_key_system_noscreenlock")?.setOnPreferenceChangeListener { preference, newValue ->
+            val selected = syncPendingListSelection(preference, newValue)
+            findPreference<Preference>("pref_key_system_noscreenlock_wifi")?.isEnabled = selected == "3"
+            findPreference<Preference>("pref_key_system_noscreenlock_bt")?.isEnabled = selected == "3"
             true
         }
 

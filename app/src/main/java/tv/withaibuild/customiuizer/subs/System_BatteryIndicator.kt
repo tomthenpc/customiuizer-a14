@@ -16,11 +16,12 @@ class System_BatteryIndicator : SubFragment() {
         findPreference<Preference>("pref_key_system_batteryindicator_colorval2")?.isEnabled = colorval != "3"
         findPreference<Preference>("pref_key_system_batteryindicator_colorval3")?.isEnabled = colorval != "3"
         findPreference<Preference>("pref_key_system_batteryindicator_colorval4")?.isEnabled = colorval != "3"
-        findPreference<Preference>("pref_key_system_batteryindicator_color")?.setOnPreferenceChangeListener { _, newValue ->
-            findPreference<Preference>("pref_key_system_batteryindicator_colorval1")?.isEnabled = newValue != "3"
-            findPreference<Preference>("pref_key_system_batteryindicator_colorval2")?.isEnabled = newValue != "3"
-            findPreference<Preference>("pref_key_system_batteryindicator_colorval3")?.isEnabled = newValue != "3"
-            findPreference<Preference>("pref_key_system_batteryindicator_colorval4")?.isEnabled = newValue != "3"
+        findPreference<Preference>("pref_key_system_batteryindicator_color")?.setOnPreferenceChangeListener { preference, newValue ->
+            val selected = syncPendingListSelection(preference, newValue)
+            findPreference<Preference>("pref_key_system_batteryindicator_colorval1")?.isEnabled = selected != "3"
+            findPreference<Preference>("pref_key_system_batteryindicator_colorval2")?.isEnabled = selected != "3"
+            findPreference<Preference>("pref_key_system_batteryindicator_colorval3")?.isEnabled = selected != "3"
+            findPreference<Preference>("pref_key_system_batteryindicator_colorval4")?.isEnabled = selected != "3"
             true
         }
 

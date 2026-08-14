@@ -3,6 +3,66 @@
 	android:layout_height="match_parent"
 	android:key="pref_key_various">
 
+	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
+		android:title="@string/various_exclusive_features_cat_title" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_disable_update_services"
+		android:title="@string/various_disable_update_services_title"
+		android:summary="@string/various_disable_update_services_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.PreferenceEx
+		android:key="pref_key_various_clear_update_state"
+		android:title="@string/various_clear_update_state_title"
+		android:summary="@string/various_clear_update_state_summ"
+		android:persistent="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_disable_miui_daemon"
+		android:title="@string/various_disable_miui_daemon_title"
+		android:summary="@string/various_disable_miui_daemon_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_trim_miui_daemon_network"
+		android:title="@string/various_trim_miui_daemon_network_title"
+		android:summary="@string/various_trim_miui_daemon_network_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_disable_xiaomi_analytics"
+		android:title="@string/various_disable_xiaomi_analytics_title"
+		android:summary="@string/various_disable_xiaomi_analytics_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_trim_security_center_marketing"
+		android:title="@string/various_trim_security_center_marketing_title"
+		android:summary="@string/various_trim_security_center_marketing_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_remove_security_center_antivirus"
+		android:title="@string/various_remove_security_center_antivirus_title"
+		android:summary="@string/various_remove_security_center_antivirus_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_block_notification_permission_prompts"
+		android:title="@string/various_block_notification_permission_prompts_title"
+		android:summary="@string/various_block_notification_permission_prompts_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
+		android:key="pref_key_various_block_location_permission_prompts"
+		android:title="@string/various_block_location_permission_prompts_title"
+		android:summary="@string/various_block_location_permission_prompts_summ"
+		android:defaultValue="false" />
+
+	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
+		android:title="@string/various_general_cat_title" />
+
 	<tv.withaibuild.customiuizer.prefs.PreferenceEx
 		android:key="pref_key_various_hiddenfeatures_cat"
 		android:title="@string/various_hiddenfeatures_title"
@@ -130,7 +190,7 @@
 		android:title="@string/various_calluibright_title" />
 
 	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
-		android:title="@string/settings" />
+		android:title="@string/various_app_management_cat_title" />
 
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 		android:key="pref_key_various_restrictapp"
@@ -142,36 +202,6 @@
 		android:key="pref_key_various_disableapp"
 		android:summary="@string/various_disableapp_summ"
 		android:title="@string/various_disableapp_title"
-		android:defaultValue="false" />
-
-	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
-		android:key="pref_key_various_disable_update_services"
-		android:title="@string/various_disable_update_services_title"
-		android:summary="@string/various_disable_update_services_summ"
-		android:defaultValue="false" />
-
-	<tv.withaibuild.customiuizer.prefs.PreferenceEx
-		android:key="pref_key_various_clear_update_state"
-		android:title="@string/various_clear_update_state_title"
-		android:summary="@string/various_clear_update_state_summ"
-		android:persistent="false" />
-
-	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
-		android:key="pref_key_various_disable_miui_daemon"
-		android:title="@string/various_disable_miui_daemon_title"
-		android:summary="@string/various_disable_miui_daemon_summ"
-		android:defaultValue="false" />
-
-	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
-		android:key="pref_key_various_block_notification_permission_prompts"
-		android:title="@string/various_block_notification_permission_prompts_title"
-		android:summary="@string/various_block_notification_permission_prompts_summ"
-		android:defaultValue="false" />
-
-	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
-		android:key="pref_key_various_block_location_permission_prompts"
-		android:title="@string/various_block_location_permission_prompts_title"
-		android:summary="@string/various_block_location_permission_prompts_summ"
 		android:defaultValue="false" />
 
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
