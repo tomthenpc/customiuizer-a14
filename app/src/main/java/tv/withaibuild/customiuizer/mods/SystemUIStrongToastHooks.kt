@@ -112,6 +112,7 @@ object SystemUIStrongToastHooks {
         var moved = false
         var startTranslationY = 0f
         val capsuleLocation = IntArray(2)
+        var motionProfile: DynamicIslandMotionProfile? = null
     }
 
     @JvmStatic
@@ -448,6 +449,15 @@ object SystemUIStrongToastHooks {
             val profile = resolveDynamicIslandMotionProfile(view, capsule, position)
                 ?: return
 
+            // Bind the prepared geometry to the event-owned swipe state so every
+            // MotionEvent and the dismiss animation can reuse it without window/inset
+            // lookups or new allocations.
+            val state = XposedHelpers.getAdditionalInstanceField(
+                view,
+                SWIPE_STATE_FIELD
+            ) as? SwipeGestureState
+            state?.motionProfile = profile
+
             // The capsule is laid out at its resting position. Set the pivot to the
             // screen edge so vertical scaling grows from that edge, not the center.
             capsule.pivotX = capsule.width / 2f
@@ -488,8 +498,6 @@ object SystemUIStrongToastHooks {
             strongToast,
             SWIPE_STATE_FIELD
         ) as? SwipeGestureState ?: return false
-        val profile = resolveDynamicIslandMotionProfile(strongToast, capsule, position)
-            ?: return false
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -506,6 +514,7 @@ object SystemUIStrongToastHooks {
             }
             MotionEvent.ACTION_MOVE -> {
                 if (!state.active) return false
+                val profile = state.motionProfile ?: return false
                 val deltaY = event.rawY - state.downRawY
                 val directionalDelta = if (position == StrongToastPosition.BOTTOM) {
                     deltaY.coerceAtLeast(0f)
@@ -539,14 +548,18 @@ object SystemUIStrongToastHooks {
                 ) {
                     dismissStrongToast(strongToast)
                 } else {
-                    restoreDynamicIslandAfterDrag(capsule, profile)
+                    val profile = state.motionProfile
+                    if (profile != null) {
+                        restoreDynamicIslandAfterDrag(capsule, profile)
+                    }
                     if (!state.moved) capsule.performClick()
                 }
             }
             MotionEvent.ACTION_CANCEL -> {
                 if (!state.active) return false
                 state.active = false
-                restoreDynamicIslandAfterDrag(capsule, profile)
+                val profile = state.motionProfile
+                if (profile != null) restoreDynamicIslandAfterDrag(capsule, profile)
             }
             else -> return state.active
         }
@@ -626,7 +639,13 @@ object SystemUIStrongToastHooks {
             }
         }
 
-        val profile = resolveDynamicIslandMotionProfile(strongToast, capsule, position)
+        val swipeState = XposedHelpers.getAdditionalInstanceField(
+            strongToast,
+            SWIPE_STATE_FIELD
+        ) as? SwipeGestureState
+        val profile = swipeState?.motionProfile
+            ?: resolveDynamicIslandMotionProfile(strongToast, capsule, position)
+                .also { fallback -> swipeState?.motionProfile = fallback }
         if (profile == null) {
             complete.run()
             return
