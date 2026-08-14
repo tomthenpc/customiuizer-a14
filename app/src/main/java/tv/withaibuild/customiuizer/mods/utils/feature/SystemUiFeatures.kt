@@ -27,11 +27,11 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
-import tv.withaibuild.customiuizer.mods.utils.FatalErrors
-import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.PrefMap
 
@@ -740,13 +740,6 @@ internal class StatusBarIconsPositionAdjustFeature(
 
 }
 
-/**
- * Immutable StrongToast runtime snapshot.
- *
- * This is the only object a hot callback is allowed to read. It is published atomically
- * and never modified after creation, so a callback that captures one snapshot sees a
- * consistent mode, position and bottom offset for the whole event.
- */
 internal data class StrongToastRuntimeSnapshot(
     val mode: StrongToastPresentationMode,
     val position: StrongToastPosition,
@@ -833,19 +826,21 @@ internal class StrongToastRuntimeState private constructor(
 
         @JvmStatic
         internal fun buildSnapshot(source: Map<String, Any>): StrongToastRuntimeSnapshot {
-            val mode = StrongToastPresentationMode.fromPreference(
-                (source[MODE_KEY] as? String)?.toIntOrNull() ?: 0
-            )
-            val position = StrongToastPosition.fromPreference(
-                (source[POSITION_KEY] as? String)?.toIntOrNull() ?: 0
-            )
-            val bottomOffset = (source[BOTTOM_OFFSET_KEY] as? String)?.toIntOrNull() ?: 0
+            val mode = StrongToastPresentationMode.fromPreference(parsePreferenceInt(source[MODE_KEY]))
+            val position = StrongToastPosition.fromPreference(parsePreferenceInt(source[POSITION_KEY]))
+            val bottomOffset = parsePreferenceInt(source[BOTTOM_OFFSET_KEY])
             val boundedOffset = bottomOffset.coerceIn(
                 SystemUIStrongToastHooks.MIN_BOTTOM_OFFSET_DP,
                 SystemUIStrongToastHooks.MAX_BOTTOM_OFFSET_DP
             )
             return StrongToastRuntimeSnapshot(mode, position, boundedOffset)
         }
+
+        private fun parsePreferenceInt(value: Any?): Int = when (value) {
+            is Number -> value.toInt()
+            is String -> value.toIntOrNull()
+            else -> null
+        } ?: 0
 
         @JvmStatic
         internal fun install(prefs: PrefMap): StrongToastRuntimeState =
@@ -2429,7 +2424,7 @@ object SystemUiFeatures {
             preferenceKey = "system_strong_toast_mode",
             target = FeatureTarget.SYSTEM_UI,
             phase = InstallPhase.PACKAGE_READY,
-            enabled = { true },
+            enabled = { prefs -> StrongToastPresentationFeature.evaluateEnabled(prefs) },
             factory = { StrongToastPresentationFeature(lpparam, mPrefs) },
         ),
         LazyFeatureSpec(

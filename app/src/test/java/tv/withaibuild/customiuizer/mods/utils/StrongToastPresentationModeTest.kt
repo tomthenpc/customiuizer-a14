@@ -181,7 +181,8 @@ class StrongToastPresentationModeTest {
         assertTrue(source.contains("XposedHelpers.setBooleanField(strongToast, \"mCheckInOutStrongToasting\", true)"))
         assertFalse(source.contains("startDynamicIslandRefresh"))
         assertTrue(source.contains("showingField.setBoolean(keyguardState, false)"))
-        assertTrue(source.contains("closeLockscreenGate"))
+        assertTrue(source.contains("override fun intercept(chain: XposedInterface.Chain)"))
+        assertTrue(source.contains("closeLockscreenGate(token, showingField)"))
     }
 
     private fun source(path: String): String {

@@ -1,2 +1,1 @@
 *.java text eol=crlf
-*.kt whitespace=trailing-space,cr-at-eol

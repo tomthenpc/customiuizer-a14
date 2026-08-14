@@ -23,6 +23,7 @@ import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeSnapshot
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeState
+import io.github.libxposed.api.XposedInterface
 import java.lang.reflect.Field
 import java.lang.reflect.Proxy
 import java.lang.ref.WeakReference
@@ -83,8 +84,6 @@ object SystemUIStrongToastHooks {
     private const val STATUS_BAR_VIEW_CLASS =
         "com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView"
     private const val RUNTIME_SNAPSHOT_FIELD = "customiuizer_strong_toast_runtime_snapshot"
-    private const val LOCKSCREEN_GATE_TOKEN_FIELD =
-        "customiuizer_strong_toast_lockscreen_token"
     // Mechanism reference: Ajaxy/telegram-tt, tag air_v2.11.5, commit d915b1b9,
     // src/styles/_variables.scss and src/util/animation.ts (GPL-3.0). Only its bounded
     // cubic-bezier curve and latest-animation-wins ownership are translated to Android here;
@@ -150,7 +149,7 @@ object SystemUIStrongToastHooks {
                     try {
                         val layoutParams = callback.getResult() as? WindowManager.LayoutParams ?: return
                         val strongToast = callback.getThisObject() as? View ?: return
-                        val snapshot = resolveSnapshot(strongToast) ?: return
+                        val snapshot = currentSnapshot() ?: return
                         storeSnapshot(strongToast, snapshot)
                         when (snapshot.mode) {
                             StrongToastPresentationMode.SYSTEM_DEFAULT,
@@ -263,7 +262,7 @@ object SystemUIStrongToastHooks {
             object : MethodHook() {
                 override fun after(callback: AfterHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
-                    val snapshot = resolveSnapshot(strongToast) ?: return
+                    val snapshot = currentSnapshot() ?: return
                     storeSnapshot(strongToast, snapshot)
                     if (!snapshot.isDynamicIsland) return
                     installExpandedWindowTouchRegion(strongToast)
@@ -325,22 +324,27 @@ object SystemUIStrongToastHooks {
                 override fun before(callback: BeforeHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
                     val snapshot = resolveSnapshot(strongToast) ?: return
-                    if (!snapshot.isDynamicIsland) return
-                    val capsule = findDynamicIslandCapsule(strongToast) ?: strongToast
-                    val motionView = dynamicIslandMotionView(capsule, snapshot.isCenterPop)
-                    setSwipeListenerRecursively(capsule, null)
-                    (capsule.parent as? View)?.setOnTouchListener(null)
-                    removeExpandedWindowTouchRegion(strongToast)
-                    resetDynamicIslandContent(capsule)
-                    XposedHelpers.removeAdditionalInstanceField(strongToast, SWIPE_STATE_FIELD)
-                    XposedHelpers.removeAdditionalInstanceField(strongToast, DISMISS_RUNNING_FIELD)
-                    restoreStatusBarContents(strongToast)
-                    strongToast.animate().cancel()
-                    resetDynamicIslandHostTransform(strongToast)
-                    motionView.animate().cancel()
-                    resetDynamicIslandTransform(motionView)
-                    capsule.animate().cancel()
-                    resetDynamicIslandTransform(capsule)
+                    try {
+                        if (snapshot.isDynamicIsland) {
+                            val capsule = findDynamicIslandCapsule(strongToast) ?: strongToast
+                            val motionView = dynamicIslandMotionView(capsule, snapshot.isCenterPop)
+                            setSwipeListenerRecursively(capsule, null)
+                            (capsule.parent as? View)?.setOnTouchListener(null)
+                            removeExpandedWindowTouchRegion(strongToast)
+                            resetDynamicIslandContent(capsule)
+                            XposedHelpers.removeAdditionalInstanceField(strongToast, SWIPE_STATE_FIELD)
+                            XposedHelpers.removeAdditionalInstanceField(strongToast, DISMISS_RUNNING_FIELD)
+                            restoreStatusBarContents(strongToast)
+                            strongToast.animate().cancel()
+                            resetDynamicIslandHostTransform(strongToast)
+                            motionView.animate().cancel()
+                            resetDynamicIslandTransform(motionView)
+                            capsule.animate().cancel()
+                            resetDynamicIslandTransform(capsule)
+                        }
+                    } finally {
+                        XposedHelpers.removeAdditionalInstanceField(strongToast, RUNTIME_SNAPSHOT_FIELD)
+                    }
                 }
             }
         )
@@ -814,7 +818,7 @@ object SystemUIStrongToastHooks {
      * - HIDE mode returns and skips `showCustomStrongToast`, preventing the toast from being shown.
      * - Dynamic Island modes temporarily expose the keyguard state as false so HyperOS 1 does not
      *   reject the toast while the lockscreen is visible. The original value is restored in the
-     *   matching after hook, even if the chain throws.
+     *   same invocation, even if the chain throws or nested callbacks run.
      * - MATCH and SYSTEM_DEFAULT proceed without modifying the keyguard state.
      */
     private fun installControlClassHooks(lpparam: PackageReadyParam) {
@@ -878,56 +882,37 @@ object SystemUIStrongToastHooks {
         val wasShowing: Boolean
     )
 
-    private class StrongToastControlHook(
+    internal class StrongToastControlHook(
         private val controllerField: Field?,
         private val showingField: Field?,
         private val outerControlField: Field?,
         private val allowHide: Boolean
     ) : MethodHook() {
-        override fun before(callback: BeforeHookCallback) {
-            val snapshot = currentSnapshot() ?: return
-            val receiver = callback.getThisObject() ?: return
-            val control = if (outerControlField != null) {
-                outerControlField.get(receiver)
-            } else {
-                receiver
+        @Throws(Throwable::class)
+        override fun intercept(chain: XposedInterface.Chain): Any? {
+            val snapshot = currentSnapshot() ?: return chain.proceed()
+            if (snapshot.mode == StrongToastPresentationMode.HIDE && allowHide) {
+                return null
             }
-            when (snapshot.mode) {
-                StrongToastPresentationMode.HIDE -> {
-                    if (allowHide) {
-                        callback.returnAndSkip(null)
-                    }
-                }
-                StrongToastPresentationMode.DYNAMIC_ISLAND,
-                StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP -> {
-                    val token = openLockscreenGate(control, controllerField, showingField)
-                    if (token != null && control != null) {
-                        XposedHelpers.setAdditionalInstanceField(
-                            control,
-                            LOCKSCREEN_GATE_TOKEN_FIELD,
-                            token
-                        )
-                    }
-                }
-                else -> {}
+            if (!snapshot.isDynamicIsland) {
+                return chain.proceed()
             }
-        }
 
-        override fun after(callback: AfterHookCallback) {
-            val receiver = callback.getThisObject() ?: return
-            val control = if (outerControlField != null) {
-                outerControlField.get(receiver)
-            } else {
-                receiver
+            val before = tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallback(chain)
+            val receiver = before.getThisObject() ?: return chain.proceed()
+            val control = try {
+                if (outerControlField != null) outerControlField.get(receiver) else receiver
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log("StrongToastControlResolve", t)
+                return chain.proceed()
             }
-            if (control == null) return
-            val token = XposedHelpers.getAdditionalInstanceField(
-                control,
-                LOCKSCREEN_GATE_TOKEN_FIELD
-            ) as? LockscreenGateToken
-            if (token != null) {
-                XposedHelpers.removeAdditionalInstanceField(control, LOCKSCREEN_GATE_TOKEN_FIELD)
-                closeLockscreenGate(token, showingField)
+
+            val token = openLockscreenGate(control, controllerField, showingField)
+            return try {
+                chain.proceed()
+            } finally {
+                if (token != null) closeLockscreenGate(token, showingField)
             }
         }
     }
