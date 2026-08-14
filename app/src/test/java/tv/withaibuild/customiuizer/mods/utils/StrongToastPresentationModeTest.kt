@@ -121,13 +121,21 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun windowHeight_usesRuntimeInsetWithoutClippingRomVisual() {
-        assertEquals(141, SystemUIStrongToastHooks.resolveWindowHeightPx(82, 141, 208))
-        assertEquals(141, SystemUIStrongToastHooks.resolveWindowHeightPx(104, 141, 208))
-        assertEquals(141, SystemUIStrongToastHooks.resolveWindowHeightPx(135, 141, 208))
-        assertEquals(182, SystemUIStrongToastHooks.resolveWindowHeightPx(182, 141, 208))
-        assertEquals(208, SystemUIStrongToastHooks.resolveWindowHeightPx(0, 141, 208))
-        assertEquals(129, SystemUIStrongToastHooks.resolveWindowHeightPx(129, 0, 208))
+    fun matchHeight_windowAndContainerStrictlyUseStatusBarInsetOrFallback() {
+        // Window height strictly equals the current status-bar inset, falling back to ROM original.
+        assertEquals(82, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(82, 208))
+        assertEquals(104, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(104, 208))
+        assertEquals(135, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(135, 208))
+        assertEquals(182, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(182, 208))
+        assertEquals(208, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(0, 208))
+
+        // Container height matches the target so the visible capsule never exceeds the Window bounds.
+        assertEquals(82, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(82, 141))
+        assertEquals(104, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(104, 141))
+        assertEquals(135, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(135, 141))
+        assertEquals(141, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(141, 141))
+        assertEquals(182, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(182, 141))
+        assertEquals(141, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(0, 141))
     }
 
     @Test
@@ -226,6 +234,30 @@ class StrongToastPresentationModeTest {
         assertFalse(source.contains("import android.view.animation.OvershootInterpolator"))
         assertFalse(source.contains("ValueAnimator"))
         assertFalse(source.contains("startDynamicIslandRefresh"))
+    }
+
+    @Test
+    fun matchHeight_sourceUsesStrictHelpersAndCleansUpAtDetach() {
+        val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
+
+        // The MATCH branch must not call a maxOf helper and must drive both window and container.
+        assertTrue(source.contains("resolveMatchedStatusBarHeightPx("))
+        assertTrue(source.contains("resolveMatchContainerHeightPx("))
+        assertFalse("match mode must not use maxOf(statusBarInset, visualHeight)",
+            source.contains("maxOf(statusBarInsetPx, visualHeightPx)")
+        )
+
+        // The container (cl_strong_toast_msg) must be sized to the target content height.
+        assertTrue(source.contains("applyMatchStatusBarHeight("))
+        assertTrue(source.contains("lp.height = targetContentHeightPx"))
+
+        // Child content is centered vertically and the bottom forehead sibling is hidden.
+        assertTrue(source.contains("(capsule as? LinearLayout)?.gravity = Gravity.CENTER_VERTICAL"))
+        assertTrue(source.contains("findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE"))
+
+        // Detach / mode switch must restore the message container and show the bottom sibling again.
+        assertTrue(source.contains("resetMatchModeCapsule("))
+        assertTrue(source.contains("findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.VISIBLE"))
     }
 
     private fun source(path: String): String {

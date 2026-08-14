@@ -33,9 +33,10 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * HyperOS 1 StrongToast presentation (the top black capsule used by charging and system modes).
  *
- * Height matching changes only the outer overlay window. The ROM's content height, width and
- * corner radius resources remain untouched. The window never becomes shorter than the ROM's
- * visual capsule height, so a short status bar cannot clip its lower corners.
+ * MATCH_STATUS_BAR_HEIGHT sets the StrongToast Window and the actual message capsule to the
+ * current status-bar inset height. The ROM's original content width is preserved, child content is
+ * centered vertically, and the forehead bottom sibling is hidden so the visible capsule stays inside
+ * the Window surface. A valid status-bar inset of 0 falls back to the ROM window height.
  * Hiding stops the request at MIUIStrongToastControl before a View or animation is created. No
  * Activity, View, controller or listener is retained.
  * Dynamic Island mode reuses that same event-scoped ROM View and cleanup path. The ROM's full-width
@@ -150,11 +151,18 @@ object SystemUIStrongToastHooks {
                             StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT -> {
                                 val statusBarInsetPx = currentStatusBarInsetPx(strongToast)
                                 val visualHeightPx = strongToastVisualHeightPx(strongToast)
-                                layoutParams.height = resolveWindowHeightPx(
+                                val originalWindowHeightPx = layoutParams.height
+                                val targetHeightPx = resolveMatchedStatusBarHeightPx(
                                     statusBarInsetPx,
-                                    visualHeightPx,
-                                    layoutParams.height
+                                    originalWindowHeightPx
                                 )
+                                val targetContentHeightPx = resolveMatchContainerHeightPx(
+                                    statusBarInsetPx,
+                                    visualHeightPx
+                                )
+                                layoutParams.height = targetHeightPx
+                                layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                                applyMatchStatusBarHeight(strongToast, targetContentHeightPx)
                             }
                             StrongToastPresentationMode.DYNAMIC_ISLAND -> {
                                 // HyperOS normally makes this Window exactly as wide as
@@ -334,6 +342,8 @@ object SystemUIStrongToastHooks {
                             resetDynamicIslandHostTransform(strongToast)
                             capsule.animate().cancel()
                             resetDynamicIslandTransform(capsule)
+                        } else {
+                            resetMatchModeCapsule(strongToast)
                         }
                     } finally {
                         XposedHelpers.removeAdditionalInstanceField(strongToast, RUNTIME_SNAPSHOT_FIELD)
@@ -1030,6 +1040,70 @@ object SystemUIStrongToastHooks {
         view.translationY = 0f
     }
 
+    private fun applyMatchStatusBarHeight(root: View, targetContentHeightPx: Int) {
+        val capsule = findViewBySystemUiId(root, MESSAGE_CONTAINER_ID) ?: return
+        val visualWidthPx = strongToastDimensionPx(root, "strong_toast_width")
+        resetDynamicIslandHostTransform(root)
+        resetDynamicIslandTransform(capsule)
+        resetDynamicIslandContent(capsule)
+        setSwipeListenerRecursively(capsule, null)
+        (capsule.parent as? View)?.setOnTouchListener(null)
+        removeExpandedWindowTouchRegion(root)
+        findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE
+
+        val lp = capsule.layoutParams
+            ?: LinearLayout.LayoutParams(
+                if (visualWidthPx > 0) visualWidthPx else ViewGroup.LayoutParams.WRAP_CONTENT,
+                targetContentHeightPx
+            )
+        lp.height = targetContentHeightPx
+        if (visualWidthPx > 0) lp.width = visualWidthPx
+        if (lp is ViewGroup.MarginLayoutParams) {
+            lp.topMargin = 0
+            lp.bottomMargin = 0
+        }
+        if (lp is LinearLayout.LayoutParams) {
+            lp.gravity = Gravity.CENTER
+        }
+        capsule.layoutParams = lp
+        (capsule as? LinearLayout)?.gravity = Gravity.CENTER_VERTICAL
+
+        val parent = capsule.parent as? ViewGroup
+        if (parent === root) {
+            parent.setPadding(0, 0, 0, 0)
+            (parent as? LinearLayout)?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        }
+    }
+
+    private fun resetMatchModeCapsule(root: View) {
+        val capsule = findDynamicIslandCapsule(root) ?: return
+        val visualHeightPx = strongToastVisualHeightPx(root)
+        val visualWidthPx = strongToastDimensionPx(root, "strong_toast_width")
+        resetDynamicIslandContent(capsule)
+        resetDynamicIslandTransform(capsule)
+
+        val lp = capsule.layoutParams ?: return
+        lp.height = visualHeightPx
+        if (visualWidthPx > 0) lp.width = visualWidthPx
+        if (lp is ViewGroup.MarginLayoutParams) {
+            lp.topMargin = 0
+            lp.bottomMargin = 0
+        }
+        if (lp is LinearLayout.LayoutParams) {
+            lp.gravity = Gravity.CENTER_HORIZONTAL
+        }
+        capsule.layoutParams = lp
+        (capsule as? LinearLayout)?.gravity = Gravity.CENTER_VERTICAL
+
+        val parent = capsule.parent as? ViewGroup
+        if (parent === root) {
+            parent.setPadding(0, 0, 0, 0)
+            (parent as? LinearLayout)?.gravity = Gravity.CENTER
+        }
+
+        findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.VISIBLE
+    }
+
     private fun installStatusBarContentsCapture(lpparam: PackageReadyParam) {
         ModuleHelper.hookAllMethods(
             STATUS_BAR_VIEW_CLASS,
@@ -1088,14 +1162,16 @@ object SystemUIStrongToastHooks {
     }
 
     @JvmStatic
-    internal fun resolveWindowHeightPx(
+    internal fun resolveMatchedStatusBarHeightPx(
         statusBarInsetPx: Int,
-        visualHeightPx: Int,
         originalWindowHeightPx: Int
-    ): Int {
-        if (statusBarInsetPx <= 0) return originalWindowHeightPx
-        return if (visualHeightPx > 0) maxOf(statusBarInsetPx, visualHeightPx) else statusBarInsetPx
-    }
+    ): Int = if (statusBarInsetPx > 0) statusBarInsetPx else originalWindowHeightPx
+
+    @JvmStatic
+    internal fun resolveMatchContainerHeightPx(
+        targetHeightPx: Int,
+        romVisualHeightPx: Int
+    ): Int = if (targetHeightPx > 0) targetHeightPx else romVisualHeightPx
 
     @JvmStatic
     internal fun resolveDynamicIslandWindowHeightPx(
