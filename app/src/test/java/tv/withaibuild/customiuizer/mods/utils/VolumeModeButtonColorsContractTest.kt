@@ -6,20 +6,32 @@ import org.junit.Test
 
 class VolumeModeButtonColorsContractTest {
     @Test
-    fun colorsAreCapturedOnceAndReappliedAtTheRomStateBoundary() {
+    fun colorsArePreparedAsSnapshotAndReappliedAtTheRomStateBoundary() {
         val source = source(
             "app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIControlCenterHooks.kt"
         )
         val section = source.substringAfter("fun VolumeModeButtonColorsHook(")
             .substringBefore("fun ControlCenterPluginHook(")
-        assertTrue(section.contains("val backgroundTint = ColorStateList.valueOf("))
-        assertTrue(section.contains("val iconTint = ColorStateList.valueOf("))
+
+        // The hook must refresh the process-owned snapshot at install time and register the
+        // process-owned preference observer exactly once through a single helper.
+        assertTrue(section.contains("installVolumeModeButtonColorSnapshot()"))
+
+        // The ROM helper must still be hooked at constructor and updateState boundaries.
         assertTrue(section.contains("MiuiRingerModeLayout\\\$RingerButtonHelper"))
         assertTrue(section.contains("\"updateState\""))
-        assertTrue(section.contains("standardView?.backgroundTintList = backgroundTint"))
-        assertTrue(section.contains("blurView?.backgroundTintList = backgroundTint"))
-        assertTrue(section.contains("icon?.imageTintList = iconTint"))
-        assertTrue(!section.substringAfter("val applyColors").contains("MainModule.mPrefs.get"))
+
+        // The hot callback must read from the prepared snapshot, not from preferences.
+        assertTrue(section.contains("val snapshot = volumeModeButtonColorSnapshot"))
+        assertTrue(section.contains("if (snapshot.enabled) {"))
+        assertTrue(section.contains("standardView?.backgroundTintList = snapshot.backgroundTint"))
+        assertTrue(section.contains("blurView?.backgroundTintList = snapshot.backgroundTint"))
+        assertTrue(section.contains("icon?.imageTintList = snapshot.iconTint"))
+
+        val applyColorsBody = section.substringAfter("val applyColors = { helper: Any ->")
+            .substringBefore("ModuleHelper.hookAllConstructors")
+        assertTrue(!applyColorsBody.contains("MainModule.mPrefs.get"))
+        assertTrue(!applyColorsBody.contains("ColorStateList.valueOf"))
     }
 
     private fun source(path: String): String {

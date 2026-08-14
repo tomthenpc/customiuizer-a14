@@ -194,6 +194,77 @@ object SystemUIControlCenterHooks {
         })
     }
 
+    internal data class VolumeModeButtonColorSnapshot(
+        val enabled: Boolean,
+        val backgroundColor: Int,
+        val iconColor: Int,
+        val backgroundTint: ColorStateList,
+        val iconTint: ColorStateList
+    )
+
+    @Volatile
+    private var volumeModeButtonColorSnapshot: VolumeModeButtonColorSnapshot? = null
+
+    private fun volumeModeButtonColorStateList(color: Int): ColorStateList =
+        ColorStateList.valueOf(color) ?: ColorStateList(arrayOf(IntArray(0)), intArrayOf(color))
+
+    private var volumeModeButtonColorObserverRegistered = false
+
+    private const val VOLUME_MODE_BUTTON_COLORS_ENABLED_KEY =
+        "system_volume_mode_button_colors"
+    private const val VOLUME_MODE_BUTTON_BACKGROUND_COLOR_KEY =
+        "system_volume_mode_button_background_color"
+    private const val VOLUME_MODE_BUTTON_ICON_COLOR_KEY =
+        "system_volume_mode_button_icon_color"
+
+    internal fun refreshVolumeModeButtonColorSnapshot() {
+        val enabled = MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_COLORS_ENABLED_KEY, false)
+        val backgroundColor = MainModule.mPrefs.getInt(
+            VOLUME_MODE_BUTTON_BACKGROUND_COLOR_KEY,
+            0xffffffff.toInt()
+        )
+        val iconColor = MainModule.mPrefs.getInt(
+            VOLUME_MODE_BUTTON_ICON_COLOR_KEY,
+            0xff277af7.toInt()
+        )
+        volumeModeButtonColorSnapshot = VolumeModeButtonColorSnapshot(
+            enabled = enabled,
+            backgroundColor = backgroundColor,
+            iconColor = iconColor,
+            backgroundTint = volumeModeButtonColorStateList(backgroundColor),
+            iconTint = volumeModeButtonColorStateList(iconColor)
+        )
+    }
+
+    internal fun onVolumeModeButtonColorPreferenceChanged(key: String?) {
+        if (key == null ||
+            key == VOLUME_MODE_BUTTON_COLORS_ENABLED_KEY ||
+            key == VOLUME_MODE_BUTTON_BACKGROUND_COLOR_KEY ||
+            key == VOLUME_MODE_BUTTON_ICON_COLOR_KEY
+        ) {
+            refreshVolumeModeButtonColorSnapshot()
+        }
+    }
+
+    internal fun getVolumeModeButtonColorSnapshot(): VolumeModeButtonColorSnapshot {
+        if (volumeModeButtonColorSnapshot == null) refreshVolumeModeButtonColorSnapshot()
+        return volumeModeButtonColorSnapshot!!
+    }
+
+    internal fun installVolumeModeButtonColorSnapshot() {
+        refreshVolumeModeButtonColorSnapshot()
+        if (!volumeModeButtonColorObserverRegistered) {
+            volumeModeButtonColorObserverRegistered = true
+            ModuleHelper.observePreferenceChange(volumeModeButtonColorPreferenceObserver)
+        }
+    }
+
+    private val volumeModeButtonColorPreferenceObserver = object : ModuleHelper.PreferenceObserver {
+        override fun onChange(key: String?) = ModuleHelper.guarded {
+            onVolumeModeButtonColorPreferenceChanged(key)
+        }
+    }
+
     @JvmStatic
     fun BlurMTKVolumeBarHook(classLoader: ClassLoader) {
         ModuleHelper.findAndHookMethod("com.android.systemui.miui.volume.Util", classLoader, "isSupportBlurS", HookerClassHelper.returnConstant(true))
@@ -376,25 +447,21 @@ object SystemUIControlCenterHooks {
      */
     @JvmStatic
     fun VolumeModeButtonColorsHook(pluginLoader: ClassLoader) {
-        val backgroundTint = ColorStateList.valueOf(
-            MainModule.mPrefs.getInt(
-                "system_volume_mode_button_background_color",
-                0xffffffff.toInt()
-            )
-        )
-        val iconTint = ColorStateList.valueOf(
-            MainModule.mPrefs.getInt("system_volume_mode_button_icon_color", 0xff277af7.toInt())
-        )
+        installVolumeModeButtonColorSnapshot()
+
         val helperClassName =
             "com.android.systemui.miui.volume.MiuiRingerModeLayout\$RingerButtonHelper"
         val applyColors = { helper: Any ->
             ModuleHelper.guarded {
-                val standardView = XposedHelpers.getObjectField(helper, "mStandardView") as? View
-                val blurView = XposedHelpers.getObjectField(helper, "mBlurView") as? View
-                val icon = XposedHelpers.getObjectField(helper, "mIcon") as? ImageView
-                standardView?.backgroundTintList = backgroundTint
-                blurView?.backgroundTintList = backgroundTint
-                icon?.imageTintList = iconTint
+                val snapshot = volumeModeButtonColorSnapshot ?: return@guarded
+                if (snapshot.enabled) {
+                    val standardView = XposedHelpers.getObjectField(helper, "mStandardView") as? View
+                    val blurView = XposedHelpers.getObjectField(helper, "mBlurView") as? View
+                    val icon = XposedHelpers.getObjectField(helper, "mIcon") as? ImageView
+                    standardView?.backgroundTintList = snapshot.backgroundTint
+                    blurView?.backgroundTintList = snapshot.backgroundTint
+                    icon?.imageTintList = snapshot.iconTint
+                }
             }
         }
         ModuleHelper.hookAllConstructors(
