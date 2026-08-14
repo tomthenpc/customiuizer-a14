@@ -231,8 +231,7 @@ class ReflectionCache @JvmOverloads internal constructor(
             } catch (oom: OutOfMemoryError) {
                 throw oom
             } catch (ite: java.lang.reflect.InvocationTargetException) {
-                val cause = ite.cause
-                if (cause is OutOfMemoryError) throw cause
+                FatalErrors.unwrapAndRethrowIfFatal(ite)
                 XposedHelpers.log(ite)
                 null
             } catch (t: Throwable) {
