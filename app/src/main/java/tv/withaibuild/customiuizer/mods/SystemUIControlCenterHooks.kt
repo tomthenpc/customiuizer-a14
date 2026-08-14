@@ -234,6 +234,8 @@ object SystemUIControlCenterHooks {
     private const val VOLUME_MODE_BUTTON_ROOT_FIELD = "customiuizer_volumeModeButtonRoot"
     private const val VOLUME_MODE_BUTTON_VISIBILITY_OWNERSHIP_FIELD =
         "customiuizer_volumeModeButtonVisibilityOwnership"
+    private const val VOLUME_MODE_SHARED_VISIBILITY_STATE_FIELD =
+        "customiuizer_volumeModeSharedVisibilityState"
 
     internal enum class VolumeModeButtonRole {
         MUTE, DND, UNKNOWN
@@ -289,6 +291,29 @@ object SystemUIControlCenterHooks {
         ownership.customHidden = true
         return View.GONE
     }
+
+    internal class VolumeModeSharedVisibilityState(layout: View) {
+        val layoutRef = WeakReference<View>(layout)
+        val dividerRef = WeakReference<View>(
+            layout.findViewById(
+                layout.resources.getIdentifier(
+                    "miui_volume_ringer_divider",
+                    "id",
+                    layout.context.packageName
+                )
+            )
+        )
+        val layoutOwnership = VolumeModeButtonVisibilityOwnership(romVisibility = layout.visibility)
+        val dividerOwnership = VolumeModeButtonVisibilityOwnership(
+            romVisibility = dividerRef.get()?.visibility ?: View.VISIBLE
+        )
+    }
+
+    internal fun shouldHideVolumeModeDivider(hideMute: Boolean, hideDnd: Boolean): Boolean =
+        hideMute || hideDnd
+
+    internal fun shouldHideVolumeModeContainer(hideMute: Boolean, hideDnd: Boolean): Boolean =
+        hideMute && hideDnd
 
     internal fun refreshVolumeModeButtonColorSnapshot() {
         val enabled = MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_COLORS_ENABLED_KEY, false)
@@ -565,6 +590,11 @@ object SystemUIControlCenterHooks {
         val applyVisibility = { helper: Any ->
             ModuleHelper.guarded {
                 val snapshot = volumeModeButtonVisibilitySnapshot ?: return@guarded
+                val sharedState = XposedHelpers.getAdditionalInstanceField(
+                    helper,
+                    VOLUME_MODE_SHARED_VISIBILITY_STATE_FIELD
+                ) as? VolumeModeSharedVisibilityState
+
                 val role = XposedHelpers.getAdditionalInstanceField(
                     helper,
                     VOLUME_MODE_BUTTON_ROLE_FIELD
@@ -592,6 +622,10 @@ object SystemUIControlCenterHooks {
                 if (newVisibility != NO_VISIBILITY_WRITE) {
                     root.visibility = newVisibility
                 }
+
+                if (sharedState != null) {
+                    applyVolumeModeSharedVisibility(sharedState, snapshot.hideMute, snapshot.hideDnd)
+                }
             }
         }
 
@@ -613,6 +647,14 @@ object SystemUIControlCenterHooks {
             override fun after(callback: AfterHookCallback) {
                 if (callback.getThrowable() != null) return
                 val helper = callback.getThisObject() ?: return
+                val layout = try {
+                    callback.getArgs().getOrNull(0) as? View
+                } catch (oom: OutOfMemoryError) {
+                    throw oom
+                } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
+                    null
+                }
                 val root = try {
                     callback.getArgs().getOrNull(1) as? View
                 } catch (oom: OutOfMemoryError) {
@@ -622,6 +664,7 @@ object SystemUIControlCenterHooks {
                     null
                 }
                 bindVolumeModeButtonRole(helper, root)
+                bindVolumeModeButtonSharedState(helper, layout)
                 applyColors(helper)
                 applyVisibility(helper)
             }
@@ -650,6 +693,32 @@ object SystemUIControlCenterHooks {
         )
     }
 
+    private fun applyVolumeModeSharedVisibility(
+        state: VolumeModeSharedVisibilityState,
+        hideMute: Boolean,
+        hideDnd: Boolean
+    ) {
+        val layout = state.layoutRef.get() ?: return
+        val layoutNewVisibility = reconcileVolumeModeButtonVisibility(
+            state.layoutOwnership,
+            shouldHideVolumeModeContainer(hideMute, hideDnd),
+            layout.visibility
+        )
+        if (layoutNewVisibility != NO_VISIBILITY_WRITE) {
+            layout.visibility = layoutNewVisibility
+        }
+
+        val divider = state.dividerRef.get() ?: return
+        val dividerNewVisibility = reconcileVolumeModeButtonVisibility(
+            state.dividerOwnership,
+            shouldHideVolumeModeDivider(hideMute, hideDnd),
+            divider.visibility
+        )
+        if (dividerNewVisibility != NO_VISIBILITY_WRITE) {
+            divider.visibility = dividerNewVisibility
+        }
+    }
+
     private fun bindVolumeModeButtonRole(helper: Any, root: View?) {
         if (root == null) return
         val isZen = try {
@@ -674,6 +743,22 @@ object SystemUIControlCenterHooks {
                 VolumeModeButtonVisibilityOwnership(romVisibility = root.visibility)
             )
         }
+    }
+
+    private fun bindVolumeModeButtonSharedState(helper: Any, layout: View?) {
+        if (layout == null) return
+        val state = XposedHelpers.getAdditionalInstanceField(
+            layout,
+            VOLUME_MODE_SHARED_VISIBILITY_STATE_FIELD
+        ) as? VolumeModeSharedVisibilityState
+            ?: VolumeModeSharedVisibilityState(layout).also {
+                XposedHelpers.setAdditionalInstanceField(
+                    layout,
+                    VOLUME_MODE_SHARED_VISIBILITY_STATE_FIELD,
+                    it
+                )
+            }
+        XposedHelpers.setAdditionalInstanceField(helper, VOLUME_MODE_SHARED_VISIBILITY_STATE_FIELD, state)
     }
 
     @JvmStatic

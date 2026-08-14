@@ -318,3 +318,76 @@ releases it, the newer visibility wins.
 
     - `IMMEDIATE NO-EVENT REPAINT = DEFERRED`
     - `COLD BOTH-OFF → LIVE ENABLE = ARCHITECTURALLY DEFERRED`
+
+## Shared visual container ownership
+
+Device evidence on `fuxi` / `V816.0.7.0.UMCTWXM` with both Mute and DND roots
+hidden (`ringer_layout` and `dnd_layout` both `GONE`) shows:
+
+- `miui_volume_ringer_divider` = `VISIBLE` (size 849x64)
+- `miui_ringer_btn_layout` = `VISIBLE` (size 849x395)
+- `miui_volume_ringer_layout` = `VISIBLE` (size 832x395, `GradientDrawable` background)
+
+The residual shadow / empty shell comes from the shared container and divider
+that live **outside** the individual button roots.
+
+### Exact hierarchy from the plugin layout
+
+`res/layout/miui_volume_dialog_ringer_mode.xml`:
+
+```
+com.android.systemui.miui.volume.MiuiRingerModeLayout (id=miui_volume_ringer_layout)
+└── FrameLayout
+    └── LinearLayout (id=miui_ringer_btn_layout)
+        ├── include (id=ringer_layout)
+        ├── View       (id=miui_volume_ringer_divider)
+        └── include (id=dnd_layout)
+```
+
+### Collapse-owner decision
+
+- `miui_volume_ringer_layout` (the outer `MiuiRingerModeLayout`) is the
+  authoritative parent. Hiding it alone fully collapses the `FrameLayout`,
+  `miui_ringer_btn_layout`, the divider, and both button roots.
+- `miui_ringer_btn_layout` and the intermediate `FrameLayout` do **not** need
+  independent module visibility writes.
+- The divider (`miui_volume_ringer_divider`) is a direct child of
+  `miui_ringer_btn_layout` and must be hidden whenever **at least one** button
+  is hidden, because a separator between two buttons is visually wrong when one
+  of them is gone.
+
+### Final policy
+
+```text
+SHADOW_FAILURE_BOUNDARY = shared divider/container outside helper roots
+
+dividerHidden = hideMute || hideDnd
+containerHidden = hideMute && hideDnd
+```
+
+### Ownership requirements
+
+The same reversible ownership model used for the button roots is extended to
+the shared views:
+
+- One `VolumeModeSharedVisibilityState` per `MiuiRingerModeLayout` instance.
+- The state is shared by both `RingerButtonHelper` instances belonging to the
+  same layout.
+- Capture `layout.visibility` and `divider.visibility` before any module `GONE`
+  write.
+- Track `romVisibility` and `customHidden` per shared view.
+- Restore the exact captured visibility when module hide is disabled.
+- If the ROM or another owner changes a shared view while module-hidden, adopt
+  that newer visibility as the restore baseline.
+- ROM-owned `GONE` must not be claimed by the module.
+- No hard-coded `View.VISIBLE` restoration.
+
+### Binding
+
+At cold constructor time, the helper receives the outer `MiuiRingerModeLayout`
+as constructor argument 0 and the whole shortcut root as argument 1. The
+shared `miui_volume_ringer_layout` is the layout instance itself. The divider
+is resolved through `layout.findViewById(layout.resources.getIdentifier(
+"miui_volume_ringer_divider", "id", ...))`. This is a cold-only resource
+lookup; the hot `updateState` path only reads pre-bound state and writes the
+reconciled visibility.

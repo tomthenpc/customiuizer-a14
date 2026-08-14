@@ -32,7 +32,6 @@ class VolumeModeButtonVisibilityContractTest {
         assertTrue(section.contains("romVisibility = root.visibility"))
         assertTrue(!section.contains("mRingerMode"))
         assertTrue(!section.contains("getResourceEntryName"))
-        assertTrue(!section.contains("getIdentifier"))
         assertTrue(!section.contains("getParent"))
         assertTrue(!section.contains("classifyVolumeModeButton"))
 
@@ -58,6 +57,25 @@ class VolumeModeButtonVisibilityContractTest {
         // Constructor and updateState hooks must not swallow ROM throwables.
         assertTrue(section.contains("callback.getThrowable()"))
         assertTrue(!section.contains("setThrowable(null)"))
+
+        // Shared container visibility must be bound at construction and reconciled on the hot path
+        // using the same ownership state machine as the button roots.
+        assertTrue(section.contains("VolumeModeSharedVisibilityState"))
+        assertTrue(section.contains("bindVolumeModeButtonSharedState"))
+        assertTrue(section.contains("applyVolumeModeSharedVisibility"))
+        assertTrue(section.contains("shouldHideVolumeModeDivider"))
+        assertTrue(section.contains("shouldHideVolumeModeContainer"))
+        assertTrue(!section.contains("View.VISIBLE"))
+
+        // Exact shared view names may only appear in the cold bind path, not the hot apply path.
+        assertTrue(source.contains("miui_volume_ringer_divider"))
+        assertTrue(!visibilityBody.contains("miui_volume_ringer"))
+
+        // No updateState before hook is required and color assignment statements are untouched.
+        assertTrue(!section.contains("BeforeHookCallback"))
+        assertTrue(source.contains("standardView?.backgroundTintList = snapshot.backgroundTint"))
+        assertTrue(source.contains("blurView?.backgroundTintList = snapshot.backgroundTint"))
+        assertTrue(source.contains("icon?.imageTintList = snapshot.iconTint"))
     }
 
     private fun source(path: String): String {
