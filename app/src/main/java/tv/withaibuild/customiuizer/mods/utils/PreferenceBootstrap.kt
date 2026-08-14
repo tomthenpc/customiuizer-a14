@@ -287,6 +287,7 @@ class PreferenceBootstrap private constructor(
                 changeDispatcher(canonicalKey)
             }
         } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
             XposedHelpers.log(t)
         }
     }
