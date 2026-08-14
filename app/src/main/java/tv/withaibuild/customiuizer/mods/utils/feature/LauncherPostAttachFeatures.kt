@@ -973,7 +973,7 @@ internal class LauncherRecentsCardStyleFeature(
     companion object {
         @JvmStatic
         fun evaluateEnabled(prefs: PrefMap): Boolean =
-            prefs.getStringAsInt("system_recents_card_style", 0) in 1..2
+            prefs.getStringAsInt("system_recents_card_style", 0) == 1
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
