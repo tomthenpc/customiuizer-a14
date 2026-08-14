@@ -255,13 +255,66 @@ releases it, the newer visibility wins.
 
 ## Implementation rule derived from evidence
 
-1. Hook all constructors of `MiuiRingerModeLayout$RingerButtonHelper`.
-2. In the constructor `after` hook:
-   - `callback.getArg(1)` is the whole shortcut root (`View`).
-   - `helper.mIsZen` (`boolean`) is the proven role discriminator.
+1. Hook all constructors of `MiuiRingerModeLayout$RingerButtonHelper` using the
+   `miui.systemui.plugin` ClassLoader.
+
+2. Constructor `after` hook:
+   - `callback.getArg(1)` is the whole shortcut root: `ringer_layout` for Mute,
+     `dnd_layout` for DND.
+   - `helper.mIsZen` (`boolean`) is the sole role discriminator:
+     `false` = Mute, `true` = DND.
+   - UNKNOWN is fail-open: no role, no root, no hide.
    - Store `(role, WeakReference<View>(root))` in additional instance fields.
-3. In `updateState` after hook:
-   - Read the volatile `VolumeModeButtonVisibilitySnapshot`.
-   - Read the pre-bound role and `WeakReference<View>`.
-   - If the role's hide flag is true, set the root's `visibility = View.GONE`.
-   - No preference, resource, or parent traversal on the hot path.
+   - Create a per-helper visibility ownership state.
+   - Capture `root.visibility` before any custom `View.GONE` write.
+
+3. Ownership state:
+   - `romVisibility` = last real ROM / external visibility.
+   - `customHidden` = whether the current `GONE` was written by this module.
+   - The state must not hold a `View`, `Context`, `Activity`, `ClassLoader`, or
+     controller; the only view reference remains the pre-bound `WeakReference`.
+
+4. Constructor `after` and `updateState` `after` hooks:
+   - Read the prepared `VolumeModeButtonVisibilitySnapshot`.
+   - Read the pre-bound role, `WeakReference<View>`, and ownership state.
+   - Compute `shouldHide` independently for Mute and DND.
+   - Reconcile through the production reversible ownership helper.
+   - Write `root.visibility` only when reconciliation requests a write.
+   - Skip custom work if the original ROM callback threw; do not replace or
+     swallow the original throwable.
+
+5. Hide enable:
+   - If the current root is already `GONE` and the module does not own it, do
+     not claim it and do not write.
+   - Otherwise capture the current real visibility as `romVisibility`, mark
+     `customHidden = true`, and write `View.GONE`.
+
+6. Hide disable:
+   - If the current `GONE` is module-owned, restore the exact saved
+     `romVisibility`.
+   - Never hard-code `View.VISIBLE` as the restore value.
+
+7. External state:
+   - If another owner changes visibility while the module owns `GONE`, adopt
+     that newer visibility as the restore baseline and re-apply `GONE`.
+   - If the external owner changes visibility before the module releases it,
+     external state wins and the module does not overwrite it.
+
+8. Boundary:
+   - Constructor `after` and `updateState` `after` are the only visibility
+     boundaries used.
+   - No `updateState` `before` hook is required because exact ROM evidence
+     proves `updateState()` does not access the whole root.
+
+9. Hot path:
+   - No preference reads.
+   - No resource lookup (`getIdentifier`, `getResourceEntryName`, etc.).
+   - No role discovery beyond the pre-bound `mIsZen`.
+   - No `findViewById`, parent traversal, or `resources` access.
+   - No new `WeakReference` allocation per callback.
+   - No ownership state allocation per callback.
+
+10. Current architectural limitations remain:
+
+    - `IMMEDIATE NO-EVENT REPAINT = DEFERRED`
+    - `COLD BOTH-OFF → LIVE ENABLE = ARCHITECTURALLY DEFERRED`
