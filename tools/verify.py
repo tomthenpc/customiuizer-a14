@@ -19,11 +19,13 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+REQUIRED_JAVA_MAJOR = 25
 
 # Gradle wrapper name depends on the host.
 GRADLEW = "gradlew.bat" if os.name == "nt" else "gradlew"
@@ -55,10 +57,69 @@ def _summarize(output: str, tail_lines: int = 12) -> str:
     return "\n".join(lines[:4] + ["..."] + lines[-tail_lines:])
 
 
+def command_environment(source: dict[str, str] | None = None) -> dict[str, str]:
+    """Return a subprocess environment with a legacy JAVA_HOME/bin value normalized."""
+    env = dict(os.environ if source is None else source)
+    raw_home = env.get("JAVA_HOME", "").strip().strip('"')
+    if not raw_home:
+        return env
+
+    home = Path(raw_home)
+    java_name = "java.exe" if sys.platform == "win32" else "java"
+    if home.name.lower() == "bin" and (home / java_name).is_file():
+        env["JAVA_HOME"] = str(home.parent)
+    return env
+
+
+def parse_java_major(output: str) -> int | None:
+    """Parse the major version from standard java -version output."""
+    match = re.search(r'(?:java|openjdk) version "(?:1\.)?(\d+)', output, re.IGNORECASE)
+    return int(match.group(1)) if match else None
+
+
+def check_java_runtime() -> int:
+    """Require the system-selected build runtime to be JDK 25."""
+    env = command_environment()
+    java_home = env.get("JAVA_HOME", "").strip()
+    if java_home:
+        java_name = "java.exe" if sys.platform == "win32" else "java"
+        java = Path(java_home) / "bin" / java_name
+        if not java.is_file():
+            fail(f"JAVA_HOME does not point to a JDK root: {java_home}")
+        executable = str(java)
+    else:
+        executable = shutil.which("java", path=env.get("PATH")) or ""
+        if not executable:
+            fail("system java was not found on PATH")
+
+    result = subprocess.run(
+        [executable, "-version"],
+        cwd=REPO_ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    output = (result.stdout or "") + (result.stderr or "")
+    major = parse_java_major(output)
+    if result.returncode != 0 or major != REQUIRED_JAVA_MAJOR:
+        fail(
+            f"JDK {REQUIRED_JAVA_MAJOR} is required; "
+            f"selected runtime is {major or 'unknown'} ({executable})"
+        )
+    print(f"verify: JDK {major} runtime passed ({executable})")
+    return 0
+
+
 def run(cmd: list[str]) -> int:
     """Run a command in the repo root; on success only print a summary, on failure print full output."""
     print(f"\n=== {' '.join(cmd)} ===")
-    result = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True)
+    result = subprocess.run(
+        cmd,
+        cwd=REPO_ROOT,
+        env=command_environment(),
+        capture_output=True,
+        text=True,
+    )
     output = (result.stdout or "") + (result.stderr or "")
     if result.returncode != 0:
         print(output)
@@ -165,6 +226,14 @@ def check_static_rules() -> int:
     require_in_text(build, r'compileSdk\s*=\s*3[4-9]', "compileSdk >= 34")
     require_in_text(build, r'minSdk\s*=\s*34', "minSdk 34")
     require_in_text(build, r'targetSdk\s*=\s*34', "targetSdk 34")
+    require_in_text(build, r'sourceCompatibility\s*=\s*JavaVersion\.VERSION_17', "Java source compatibility 17")
+    require_in_text(build, r'targetCompatibility\s*=\s*JavaVersion\.VERSION_17', "Java target compatibility 17")
+    require_in_text(build, r'languageVersion\s*=\s*JavaLanguageVersion\.of\(25\)', "Java toolchain 25")
+
+    daemon_criteria = REPO_ROOT / "gradle" / "gradle-daemon-jvm.properties"
+    if not daemon_criteria.is_file():
+        fail("gradle daemon JVM criteria not found")
+    require_in_text(daemon_criteria.read_text(encoding="utf-8"), r'(?m)^toolchainVersion=25$', "Gradle daemon JDK 25")
 
     require_in_text(prop, r"minApiVersion\s*=\s*101", "module.prop minApiVersion=101")
     require_in_text(prop, r"targetApiVersion\s*=\s*102", "module.prop targetApiVersion=102")
@@ -200,6 +269,9 @@ def changed_files(ref: str = "HEAD") -> list[str]:
 
 
 def fast(tests: list[str] | None, changed: bool = False, staged: bool = False) -> int:
+    code = check_java_runtime()
+    if code != 0:
+        return code
     code = check_static_rules()
     if code != 0:
         return code
@@ -235,6 +307,9 @@ def fast(tests: list[str] | None, changed: bool = False, staged: bool = False) -
 
 
 def full() -> int:
+    code = check_java_runtime()
+    if code != 0:
+        return code
     code = check_static_rules()
     if code != 0:
         return code
@@ -251,16 +326,12 @@ def full() -> int:
     if code != 0:
         return code
 
-    code = gradle("compileDebugKotlin", "compileDebugJavaWithJavac")
-    if code != 0:
-        return code
-
-    code = gradle("testDebugUnitTest")
-    if code != 0:
-        return code
-
-    code = gradle("lintDebug")
-    return code
+    return gradle(
+        "compileDebugKotlin",
+        "compileDebugJavaWithJavac",
+        "testDebugUnitTest",
+        "lintDebug",
+    )
 
 
 def main() -> int:

@@ -35,9 +35,15 @@ def _run_gradle(*args: str) -> str:
     if not _GRADLEW_PATH.is_file():
         raise unittest.SkipTest(f"gradle wrapper not found: {_GRADLEW_PATH}")
     cmd = [str(_GRADLEW_PATH), "--no-daemon", "--no-configuration-cache"] + list(args)
+    env = os.environ.copy()
+    java_home = Path(env.get("JAVA_HOME", "").strip().strip('"'))
+    java_name = "java.exe" if sys.platform == "win32" else "java"
+    if java_home.name.lower() == "bin" and (java_home / java_name).is_file():
+        env["JAVA_HOME"] = str(java_home.parent)
     result = subprocess.run(
         cmd,
         cwd=_REPO_ROOT,
+        env=env,
         capture_output=True,
         text=True,
     )

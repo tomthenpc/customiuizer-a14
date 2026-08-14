@@ -95,6 +95,15 @@ git fetch origin
 
 ## 7. JVM 和语言边界
 
+构建工具链固定为系统默认 JDK 25：
+
+- `JAVA_HOME` 必须指向 JDK 根目录，禁止指向其 `bin` 子目录；
+- Gradle daemon criteria 和 Java toolchain 均保持 Java 25；
+- Android 产物的 `sourceCompatibility` / `targetCompatibility` 保持 17，
+  不得误改为 Java 25 字节码；
+- 不得为了绕过环境错误临时降级到 JDK 17；
+- `tools/verify.py` 必须在执行 Gradle 前验证实际 Java 主版本为 25。
+
 以下 Java 边界默认保留，除非任务明确证明可以安全改变：
 
 - `MainModule.java`

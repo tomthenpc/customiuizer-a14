@@ -1,6 +1,6 @@
 import importlib.util
 import json
-import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -33,6 +33,29 @@ class VerifyFeatureSemanticsTests(unittest.TestCase):
         """verify.check_feature_semantics runs audit-feature-semantics.py --validate."""
         code = _verify.check_feature_semantics()
         self.assertEqual(code, 0)
+
+    def test_javaVersionParserAcceptsJdk25(self):
+        self.assertEqual(
+            _verify.parse_java_major('java version "25.0.4" 2026-07-21 LTS'),
+            25,
+        )
+        self.assertEqual(
+            _verify.parse_java_major('openjdk version "25.0.2" 2026-01-20'),
+            25,
+        )
+
+    def test_javaVersionParserRejectsUnrelatedOutput(self):
+        self.assertIsNone(_verify.parse_java_major("not a java runtime"))
+
+    def test_commandEnvironmentNormalizesBinJavaHome(self):
+        java_name = "java.exe" if _verify.sys.platform == "win32" else "java"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "jdk-25"
+            binary_dir = root / "bin"
+            binary_dir.mkdir(parents=True)
+            (binary_dir / java_name).touch()
+            env = _verify.command_environment({"JAVA_HOME": str(binary_dir)})
+            self.assertEqual(env["JAVA_HOME"], str(root))
 
     def test_successfulValidationReturnsZero(self):
         """audit-feature-semantics --validate exits 0 on the real inventory."""
