@@ -232,6 +232,8 @@ object SystemUIControlCenterHooks {
 
     private const val VOLUME_MODE_BUTTON_ROLE_FIELD = "customiuizer_volumeModeButtonRole"
     private const val VOLUME_MODE_BUTTON_ROOT_FIELD = "customiuizer_volumeModeButtonRoot"
+    private const val VOLUME_MODE_BUTTON_VISIBILITY_OWNERSHIP_FIELD =
+        "customiuizer_volumeModeButtonVisibilityOwnership"
 
     internal enum class VolumeModeButtonRole {
         MUTE, DND, UNKNOWN
@@ -243,6 +245,50 @@ object SystemUIControlCenterHooks {
             false -> VolumeModeButtonRole.MUTE
             else -> VolumeModeButtonRole.UNKNOWN
         }
+
+    internal const val NO_VISIBILITY_WRITE = Int.MIN_VALUE
+
+    internal data class VolumeModeButtonVisibilityOwnership(
+        var romVisibility: Int,
+        var customHidden: Boolean = false
+    )
+
+    internal fun reconcileVolumeModeButtonVisibility(
+        ownership: VolumeModeButtonVisibilityOwnership,
+        shouldHide: Boolean,
+        currentVisibility: Int
+    ): Int {
+        if (!shouldHide) {
+            if (ownership.customHidden) {
+                if (currentVisibility == View.GONE) {
+                    ownership.customHidden = false
+                    val target = ownership.romVisibility
+                    return if (target != View.GONE) target else NO_VISIBILITY_WRITE
+                }
+                ownership.romVisibility = currentVisibility
+                ownership.customHidden = false
+                return NO_VISIBILITY_WRITE
+            }
+            return NO_VISIBILITY_WRITE
+        }
+
+        if (ownership.customHidden) {
+            if (currentVisibility == View.GONE) {
+                return NO_VISIBILITY_WRITE
+            }
+            ownership.romVisibility = currentVisibility
+            return View.GONE
+        }
+
+        if (currentVisibility == View.GONE) {
+            ownership.romVisibility = View.GONE
+            return NO_VISIBILITY_WRITE
+        }
+
+        ownership.romVisibility = currentVisibility
+        ownership.customHidden = true
+        return View.GONE
+    }
 
     internal fun refreshVolumeModeButtonColorSnapshot() {
         val enabled = MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_COLORS_ENABLED_KEY, false)
@@ -529,12 +575,23 @@ object SystemUIControlCenterHooks {
                     VolumeModeButtonRole.DND -> snapshot.hideDnd
                     VolumeModeButtonRole.UNKNOWN -> false
                 }
-                if (!shouldHide) return@guarded
                 val rootRef = XposedHelpers.getAdditionalInstanceField(
                     helper,
                     VOLUME_MODE_BUTTON_ROOT_FIELD
                 ) as? WeakReference<View>
-                rootRef?.get()?.visibility = View.GONE
+                val root = rootRef?.get() ?: return@guarded
+                val ownership = XposedHelpers.getAdditionalInstanceField(
+                    helper,
+                    VOLUME_MODE_BUTTON_VISIBILITY_OWNERSHIP_FIELD
+                ) as? VolumeModeButtonVisibilityOwnership ?: return@guarded
+                val newVisibility = reconcileVolumeModeButtonVisibility(
+                    ownership,
+                    shouldHide,
+                    root.visibility
+                )
+                if (newVisibility != NO_VISIBILITY_WRITE) {
+                    root.visibility = newVisibility
+                }
             }
         }
 
@@ -554,6 +611,7 @@ object SystemUIControlCenterHooks {
 
         val constructorHook = object : MethodHook() {
             override fun after(callback: AfterHookCallback) {
+                if (callback.getThrowable() != null) return
                 val helper = callback.getThisObject() ?: return
                 val root = try {
                     callback.getArgs().getOrNull(1) as? View
@@ -571,6 +629,7 @@ object SystemUIControlCenterHooks {
 
         val updateStateHook = object : MethodHook() {
             override fun after(callback: AfterHookCallback) {
+                if (callback.getThrowable() != null) return
                 callback.getThisObject()?.let { helper ->
                     applyColors(helper)
                     applyVisibility(helper)
@@ -608,6 +667,11 @@ object SystemUIControlCenterHooks {
                 helper,
                 VOLUME_MODE_BUTTON_ROOT_FIELD,
                 WeakReference(root)
+            )
+            XposedHelpers.setAdditionalInstanceField(
+                helper,
+                VOLUME_MODE_BUTTON_VISIBILITY_OWNERSHIP_FIELD,
+                VolumeModeButtonVisibilityOwnership(romVisibility = root.visibility)
             )
         }
     }

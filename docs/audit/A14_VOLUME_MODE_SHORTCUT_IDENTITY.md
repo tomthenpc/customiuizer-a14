@@ -203,6 +203,41 @@ Layout `res/layout/miui_volume_dialog_ringer_mode.xml` (decompiled with
 </LinearLayout>
 ```
 
+## Whole-root visibility ownership
+
+Based on the exact plugin artifact
+`SHA-256 = 3dafd9e068ebee7e88344ae1c7d146c7e2d41e79b5c52b7736cd3e58be0cc999`:
+
+- `RingerButtonHelper` does **not** store the whole shortcut root `p2` in any
+  of its instance fields.
+- `RingerButtonHelper.updateState()` only mutates `mStandardView`, `mIcon`, and
+  activation/selected/background/icon color/size state of the inner
+  presentation layer.
+- `RingerButtonHelper.onExpanded()` only mutates `mStandardView` layout params
+  and `mBlurView`.
+- The outer `MiuiRingerModeLayout` methods `updateExpandedStateH()` and
+  `updateExpandedH()` only dispatch to each helper's `updateState()` or
+  `onExpanded()`.
+- `RingerButtonHelper.cleanUp()` only stops an internal worker thread.
+- A search of `MiuiRingerModeLayout` and `MiuiRingerModeLayout$RingerButtonHelper`
+  for `setVisibility` / `getVisibility` invocations on any whole-root `View`
+  returns **zero** matches.
+
+Therefore:
+
+```text
+RingerButtonHelper.updateState whole-root access = NO
+Whole-root setVisibility by ROM = NO
+ROM_WHOLE_ROOT_RESTORE = NOT_PRESENT
+LAST_ROM_VISIBILITY_MUST_BE_OWNED_BY_MODULE = YES
+```
+
+The module must capture the root visibility before it first writes `View.GONE`,
+track whether the current `GONE` is module-owned, and restore the captured
+visibility when the hide preference is disabled. If the ROM or another owner
+changes the root visibility while the module owns it or before the module
+releases it, the newer visibility wins.
+
 ## Conclusions
 
 | Question | Evidence | Verdict |

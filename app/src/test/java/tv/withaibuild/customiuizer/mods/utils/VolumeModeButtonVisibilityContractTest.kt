@@ -28,6 +28,8 @@ class VolumeModeButtonVisibilityContractTest {
         assertTrue(section.contains("getArgs().getOrNull(1)"))
         assertTrue(section.contains("getBooleanField(helper, \"mIsZen\")"))
         assertTrue(section.contains("WeakReference(root)"))
+        assertTrue(section.contains("VolumeModeButtonVisibilityOwnership"))
+        assertTrue(section.contains("romVisibility = root.visibility"))
         assertTrue(!section.contains("mRingerMode"))
         assertTrue(!section.contains("getResourceEntryName"))
         assertTrue(!section.contains("getIdentifier"))
@@ -40,7 +42,8 @@ class VolumeModeButtonVisibilityContractTest {
         assertTrue(visibilityBody.contains("val snapshot = volumeModeButtonVisibilitySnapshot"))
         assertTrue(visibilityBody.contains("snapshot.hideMute"))
         assertTrue(visibilityBody.contains("snapshot.hideDnd"))
-        assertTrue(visibilityBody.contains("View.GONE"))
+        assertTrue(visibilityBody.contains("reconcileVolumeModeButtonVisibility"))
+        assertTrue(visibilityBody.contains("NO_VISIBILITY_WRITE"))
         assertTrue(!visibilityBody.contains("View.VISIBLE"))
 
         assertTrue(!visibilityBody.contains("MainModule.mPrefs.get"))
@@ -51,6 +54,10 @@ class VolumeModeButtonVisibilityContractTest {
         assertTrue(!visibilityBody.contains("resources"))
         assertTrue(!visibilityBody.contains("mRingerMode"))
         assertTrue(!visibilityBody.contains("classifyVolumeModeButton"))
+
+        // Constructor and updateState hooks must not swallow ROM throwables.
+        assertTrue(section.contains("callback.getThrowable()"))
+        assertTrue(!section.contains("setThrowable(null)"))
     }
 
     private fun source(path: String): String {
