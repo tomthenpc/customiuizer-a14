@@ -221,6 +221,33 @@ class StrongToastRuntimeConfigTest {
     }
 
     @Test
+    fun perEventSnapshot_acquiredOnce() {
+        val snapshot1 = StrongToastRuntimeSnapshot(DYNAMIC_ISLAND, TOP, 0)
+        val snapshot2 = StrongToastRuntimeSnapshot(DYNAMIC_ISLAND_CENTER_POP, BOTTOM, 24)
+
+        SystemUIStrongToastHooks.snapshotRef = AtomicReference(snapshot1)
+
+        val view = Object()
+        // First event boundary (e.g. getWindowParam) captures and stores.
+        val firstSnapshot = SystemUIStrongToastHooks.resolveSnapshot(view)
+            ?: SystemUIStrongToastHooks.currentSnapshot()!!
+        SystemUIStrongToastHooks.storeSnapshot(view, firstSnapshot)
+        assertEquals(snapshot1, firstSnapshot)
+
+        // Global snapshot changes before the second boundary runs.
+        SystemUIStrongToastHooks.snapshotRef = AtomicReference(snapshot2)
+
+        // Second event boundary (e.g. onAttachedToWindow) must reuse the stored
+        // event snapshot, not acquire a new one from currentSnapshot().
+        val secondSnapshot = SystemUIStrongToastHooks.resolveSnapshot(view)
+            ?: SystemUIStrongToastHooks.currentSnapshot()!!
+        SystemUIStrongToastHooks.storeSnapshot(view, secondSnapshot)
+
+        assertEquals(snapshot1, secondSnapshot)
+        assertEquals(snapshot1, SystemUIStrongToastHooks.resolveSnapshot(view))
+    }
+
+    @Test
     fun buildSnapshot_coercesUnknownModeAndPositionToDefaults() {
         val source = mapOf(
             "system_strong_toast_mode" to "99",

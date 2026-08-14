@@ -149,7 +149,7 @@ object SystemUIStrongToastHooks {
                     try {
                         val layoutParams = callback.getResult() as? WindowManager.LayoutParams ?: return
                         val strongToast = callback.getThisObject() as? View ?: return
-                        val snapshot = currentSnapshot() ?: return
+                        val snapshot = resolveSnapshot(strongToast) ?: return
                         storeSnapshot(strongToast, snapshot)
                         when (snapshot.mode) {
                             StrongToastPresentationMode.SYSTEM_DEFAULT,
@@ -262,7 +262,7 @@ object SystemUIStrongToastHooks {
             object : MethodHook() {
                 override fun after(callback: AfterHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
-                    val snapshot = currentSnapshot() ?: return
+                    val snapshot = resolveSnapshot(strongToast) ?: return
                     storeSnapshot(strongToast, snapshot)
                     if (!snapshot.isDynamicIsland) return
                     installExpandedWindowTouchRegion(strongToast)
