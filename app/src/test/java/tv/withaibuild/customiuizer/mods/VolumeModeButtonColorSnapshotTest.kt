@@ -1,12 +1,9 @@
 package tv.withaibuild.customiuizer.mods
 
-import android.content.res.ColorStateList
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -51,18 +48,12 @@ class VolumeModeButtonColorSnapshotTest {
         field.set(null, value)
     }
 
-    private fun assertColorStateList(expected: Int, actual: ColorStateList?) {
-        assertNotNull("ColorStateList must be prepared", actual)
-    }
-
     @Test
     fun defaultSnapshotMatchesPreferenceDefaults() {
         val snapshot = SystemUIControlCenterHooks.getVolumeModeButtonColorSnapshot()
         assertFalse(snapshot.enabled)
         assertEquals(0xffffffff.toInt(), snapshot.backgroundColor)
         assertEquals(0xff277af7.toInt(), snapshot.iconColor)
-        assertColorStateList(snapshot.backgroundColor, snapshot.backgroundTint)
-        assertColorStateList(snapshot.iconColor, snapshot.iconTint)
     }
 
     @Test
@@ -76,8 +67,6 @@ class VolumeModeButtonColorSnapshotTest {
         assertTrue(snapshot.enabled)
         assertEquals(0xff123456.toInt(), snapshot.backgroundColor)
         assertEquals(0xff654321.toInt(), snapshot.iconColor)
-        assertColorStateList(snapshot.backgroundColor, snapshot.backgroundTint)
-        assertColorStateList(snapshot.iconColor, snapshot.iconTint)
     }
 
     @Test
@@ -90,8 +79,6 @@ class VolumeModeButtonColorSnapshotTest {
         val snapshot = SystemUIControlCenterHooks.getVolumeModeButtonColorSnapshot()
         assertEquals(0xffabcdef.toInt(), snapshot.backgroundColor)
         assertEquals(0xfffedcba.toInt(), snapshot.iconColor)
-        assertColorStateList(snapshot.backgroundColor, snapshot.backgroundTint)
-        assertColorStateList(snapshot.iconColor, snapshot.iconTint)
     }
 
     @Test
@@ -105,8 +92,6 @@ class VolumeModeButtonColorSnapshotTest {
         assertTrue(snapshot.enabled)
         assertEquals(0xff111111.toInt(), snapshot.backgroundColor)
         assertEquals(0xff222222.toInt(), snapshot.iconColor)
-        assertColorStateList(snapshot.backgroundColor, snapshot.backgroundTint)
-        assertColorStateList(snapshot.iconColor, snapshot.iconTint)
     }
 
     @Test
@@ -120,8 +105,6 @@ class VolumeModeButtonColorSnapshotTest {
         assertTrue(snapshot.enabled)
         assertEquals(0xff333333.toInt(), snapshot.backgroundColor)
         assertEquals(0xff444444.toInt(), snapshot.iconColor)
-        assertColorStateList(snapshot.backgroundColor, snapshot.backgroundTint)
-        assertColorStateList(snapshot.iconColor, snapshot.iconTint)
     }
 
     @Test
@@ -137,8 +120,6 @@ class VolumeModeButtonColorSnapshotTest {
         val snapshot = SystemUIControlCenterHooks.getVolumeModeButtonColorSnapshot()
         assertEquals(0xff555555.toInt(), snapshot.backgroundColor)
         assertEquals(0xff666666.toInt(), snapshot.iconColor)
-        assertColorStateList(snapshot.backgroundColor, snapshot.backgroundTint)
-        assertColorStateList(snapshot.iconColor, snapshot.iconTint)
     }
 
     @Test
@@ -159,8 +140,6 @@ class VolumeModeButtonColorSnapshotTest {
         assertTrue(snapshot.enabled)
         assertEquals(0xff777777.toInt(), snapshot.backgroundColor)
         assertEquals(0xff888888.toInt(), snapshot.iconColor)
-        assertColorStateList(snapshot.backgroundColor, snapshot.backgroundTint)
-        assertColorStateList(snapshot.iconColor, snapshot.iconTint)
     }
 
     @Test
@@ -172,14 +151,14 @@ class VolumeModeButtonColorSnapshotTest {
 
         val snapshot = SystemUIControlCenterHooks.getVolumeModeButtonColorSnapshot()
         val enabledRead = snapshot.enabled
-        val backgroundRead = snapshot.backgroundTint
-        val iconRead = snapshot.iconTint
+        val backgroundRead = snapshot.backgroundColor
+        val iconRead = snapshot.iconColor
 
         assertTrue(enabledRead)
-        assertEquals(0xff999999.toInt(), snapshot.backgroundColor)
-        assertEquals(0xffaaaaaa.toInt(), snapshot.iconColor)
-        assertSame(backgroundRead, snapshot.backgroundTint)
-        assertSame(iconRead, snapshot.iconTint)
+        assertEquals(0xff999999.toInt(), backgroundRead)
+        assertEquals(0xffaaaaaa.toInt(), iconRead)
+        assertEquals(backgroundRead, snapshot.backgroundColor)
+        assertEquals(iconRead, snapshot.iconColor)
     }
 
     @Test
@@ -201,12 +180,10 @@ class VolumeModeButtonColorSnapshotTest {
         assertTrue(second.enabled)
         assertEquals(0xffdddddd.toInt(), second.backgroundColor)
         assertEquals(0xffeeeeee.toInt(), second.iconColor)
-        assertColorStateList(second.backgroundColor, second.backgroundTint)
-        assertColorStateList(second.iconColor, second.iconTint)
     }
 
     @Test
-    fun disabledSnapshotKeepsDefaultTintsButIsNotApplied() {
+    fun disabledSnapshotKeepsConfiguredColorsButIsNotApplied() {
         MainModule.mPrefs.put(enabledKey, false)
         MainModule.mPrefs.put(backgroundKey, 0xff123456.toInt())
         MainModule.mPrefs.put(iconKey, 0xff654321.toInt())
@@ -214,6 +191,8 @@ class VolumeModeButtonColorSnapshotTest {
 
         val snapshot = SystemUIControlCenterHooks.getVolumeModeButtonColorSnapshot()
         assertFalse(snapshot.enabled)
+        assertEquals(0xff123456.toInt(), snapshot.backgroundColor)
+        assertEquals(0xff654321.toInt(), snapshot.iconColor)
     }
 
     @Test

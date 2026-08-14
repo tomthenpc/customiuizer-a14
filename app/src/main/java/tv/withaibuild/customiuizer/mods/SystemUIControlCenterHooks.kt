@@ -5,8 +5,9 @@ import android.annotation.SuppressLint
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.content.pm.ApplicationInfo
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.util.TypedValue
@@ -197,9 +198,7 @@ object SystemUIControlCenterHooks {
     internal data class VolumeModeButtonColorSnapshot(
         val enabled: Boolean,
         val backgroundColor: Int,
-        val iconColor: Int,
-        val backgroundTint: ColorStateList,
-        val iconTint: ColorStateList
+        val iconColor: Int
     )
 
     internal data class VolumeModeButtonVisibilitySnapshot(
@@ -212,9 +211,6 @@ object SystemUIControlCenterHooks {
 
     @Volatile
     private var volumeModeButtonVisibilitySnapshot: VolumeModeButtonVisibilitySnapshot? = null
-
-    private fun volumeModeButtonColorStateList(color: Int): ColorStateList =
-        ColorStateList.valueOf(color) ?: ColorStateList(arrayOf(IntArray(0)), intArrayOf(color))
 
     private var volumeModeButtonObserverRegistered = false
 
@@ -236,6 +232,8 @@ object SystemUIControlCenterHooks {
         "customiuizer_volumeModeButtonVisibilityOwnership"
     private const val VOLUME_MODE_SHARED_VISIBILITY_STATE_FIELD =
         "customiuizer_volumeModeSharedVisibilityState"
+    private const val VOLUME_MODE_BUTTON_COLOR_STATE_FIELD =
+        "customiuizer_volumeModeButtonColorState"
 
     internal enum class VolumeModeButtonRole {
         MUTE, DND, UNKNOWN
@@ -315,6 +313,38 @@ object SystemUIControlCenterHooks {
     internal fun shouldHideVolumeModeContainer(hideMute: Boolean, hideDnd: Boolean): Boolean =
         hideMute && hideDnd
 
+    internal class VolumeModeButtonColorState(helper: Any) {
+        val standardViewRef = WeakReference<View>(
+            XposedHelpers.getObjectField(helper, "mStandardView") as? View
+        )
+        val iconRef = WeakReference<ImageView>(
+            XposedHelpers.getObjectField(helper, "mIcon") as? ImageView
+        )
+
+        var backgroundFilter: PorterDuffColorFilter? = null
+        var iconFilter: PorterDuffColorFilter? = null
+        var lastBackgroundColor: Int = 0
+        var lastIconColor: Int = 0
+
+        fun getOrCreateBackgroundFilter(color: Int): PorterDuffColorFilter {
+            val existing = backgroundFilter
+            if (existing != null && lastBackgroundColor == color) return existing
+            lastBackgroundColor = color
+            return PorterDuffColorFilter(color, PorterDuff.Mode.SRC_IN).also {
+                backgroundFilter = it
+            }
+        }
+
+        fun getOrCreateIconFilter(color: Int): PorterDuffColorFilter {
+            val existing = iconFilter
+            if (existing != null && lastIconColor == color) return existing
+            lastIconColor = color
+            return PorterDuffColorFilter(color, PorterDuff.Mode.SRC_ATOP).also {
+                iconFilter = it
+            }
+        }
+    }
+
     internal fun refreshVolumeModeButtonColorSnapshot() {
         val enabled = MainModule.mPrefs.getBoolean(VOLUME_MODE_BUTTON_COLORS_ENABLED_KEY, false)
         val backgroundColor = MainModule.mPrefs.getInt(
@@ -328,9 +358,7 @@ object SystemUIControlCenterHooks {
         volumeModeButtonColorSnapshot = VolumeModeButtonColorSnapshot(
             enabled = enabled,
             backgroundColor = backgroundColor,
-            iconColor = iconColor,
-            backgroundTint = volumeModeButtonColorStateList(backgroundColor),
-            iconTint = volumeModeButtonColorStateList(iconColor)
+            iconColor = iconColor
         )
     }
 
@@ -632,14 +660,24 @@ object SystemUIControlCenterHooks {
         val applyColors = { helper: Any ->
             ModuleHelper.guarded {
                 val snapshot = volumeModeButtonColorSnapshot ?: return@guarded
-                if (snapshot.enabled) {
-                    val standardView = XposedHelpers.getObjectField(helper, "mStandardView") as? View
-                    val blurView = XposedHelpers.getObjectField(helper, "mBlurView") as? View
-                    val icon = XposedHelpers.getObjectField(helper, "mIcon") as? ImageView
-                    standardView?.backgroundTintList = snapshot.backgroundTint
-                    blurView?.backgroundTintList = snapshot.backgroundTint
-                    icon?.imageTintList = snapshot.iconTint
+                if (!snapshot.enabled) return@guarded
+                val colorState = XposedHelpers.getAdditionalInstanceField(
+                    helper,
+                    VOLUME_MODE_BUTTON_COLOR_STATE_FIELD
+                ) as? VolumeModeButtonColorState ?: return@guarded
+                val standardView = colorState.standardViewRef.get() ?: return@guarded
+                val icon = colorState.iconRef.get() ?: return@guarded
+
+                val background = standardView.background
+                if (background != null) {
+                    background.mutate().setColorFilter(
+                        colorState.getOrCreateBackgroundFilter(snapshot.backgroundColor)
+                    )
                 }
+
+                icon.setColorFilter(
+                    colorState.getOrCreateIconFilter(snapshot.iconColor)
+                )
             }
         }
 
@@ -665,6 +703,7 @@ object SystemUIControlCenterHooks {
                 }
                 bindVolumeModeButtonRole(helper, root)
                 bindVolumeModeButtonSharedState(helper, layout)
+                bindVolumeModeButtonColorState(helper)
                 applyColors(helper)
                 applyVisibility(helper)
             }
@@ -759,6 +798,17 @@ object SystemUIControlCenterHooks {
                 )
             }
         XposedHelpers.setAdditionalInstanceField(helper, VOLUME_MODE_SHARED_VISIBILITY_STATE_FIELD, state)
+    }
+
+    private fun bindVolumeModeButtonColorState(helper: Any) {
+        if (XposedHelpers.getAdditionalInstanceField(helper, VOLUME_MODE_BUTTON_COLOR_STATE_FIELD) != null) {
+            return
+        }
+        XposedHelpers.setAdditionalInstanceField(
+            helper,
+            VOLUME_MODE_BUTTON_COLOR_STATE_FIELD,
+            VolumeModeButtonColorState(helper)
+        )
     }
 
     @JvmStatic

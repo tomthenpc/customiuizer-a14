@@ -71,11 +71,9 @@ class VolumeModeButtonVisibilityContractTest {
         assertTrue(source.contains("miui_volume_ringer_divider"))
         assertTrue(!visibilityBody.contains("miui_volume_ringer"))
 
-        // No updateState before hook is required and color assignment statements are untouched.
+        // No updateState before hook is required. Color operations are owned by
+        // VolumeModeButtonColorsContractTest; this contract only checks visibility boundaries.
         assertTrue(!section.contains("BeforeHookCallback"))
-        assertTrue(source.contains("standardView?.backgroundTintList = snapshot.backgroundTint"))
-        assertTrue(source.contains("blurView?.backgroundTintList = snapshot.backgroundTint"))
-        assertTrue(source.contains("icon?.imageTintList = snapshot.iconTint"))
     }
 
     private fun source(path: String): String {

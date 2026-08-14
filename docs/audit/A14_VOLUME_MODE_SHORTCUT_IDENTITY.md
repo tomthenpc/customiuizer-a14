@@ -391,3 +391,100 @@ is resolved through `layout.findViewById(layout.resources.getIdentifier(
 "miui_volume_ringer_divider", "id", ...))`. This is a cold-only resource
 lookup; the hot `updateState` path only reads pre-bound state and writes the
 reconciled visibility.
+
+## Volume Mute / DND shortcut color ownership
+
+Device evidence on `fuxi` / `V816.0.7.0.UMCTWXM` shows that previous module
+writes to `mStandardView.backgroundTintList`, `mBlurView.backgroundTintList`, and
+`mIcon.imageTintList` succeed at the Android property level but have no visible
+result. The active ROM visual path is different.
+
+### ROM icon visual owner
+
+In `com/android/systemui/miui/volume/MiuiRingerModeLayout$RingerButtonHelper.smali`
+around `setIcon()` and `updateState()` the ROM sets the icon color through:
+
+```smali
+invoke-virtual {p0, v0}, Landroid/widget/ImageView;->setColorFilter(I)V
+```
+
+That is `ImageView.setColorFilter(int)` (one-argument overload, default blending
+mode `PorterDuff.Mode.SRC_ATOP`). The module now applies the configured icon
+color through the same channel by creating an immutable
+`PorterDuffColorFilter(iconColor, PorterDuff.Mode.SRC_ATOP)` and calling
+`ImageView.setColorFilter(ColorFilter)` on the pre-bound `mIcon` after the ROM
+`updateState()` has completed.
+
+### ROM background visual owner
+
+The visible shortcut background is not owned by the `View`'s `backgroundTintList`
+property. The actual background is the `mStandardView.background` drawable:
+
+```text
+mStandardView = android.widget.LinearLayout (id=miui_standard_btn)
+mIcon       = android.widget.ImageView       (id=icon)
+mBlurView   = com.android.systemui.miui.volume.widget.VolumeBlurFrameLayout (id=bg_blur)
+```
+
+The background drawable chain is a `miuix.smooth.SmoothContainerDrawable` that
+wraps a child `<shape>` with a `<solid>` color. The observed selected ROM color
+on device is `#FF3482FF`; the solid color source is the selector
+`res/color/miui_volume_ringer_btn_bg_color.xml`.
+
+Drawable chain:
+
+```text
+miuix.smooth.SmoothContainerDrawable
+└── child
+    └── shape (GradientDrawable)
+        └── solid
+            └── ColorStateList selector
+                ├── state_selected=true  -> color/miui_volume_color_btn_seleted
+                └── state_selected=false -> color/miui_volume_bg_color
+```
+
+The module now applies the configured background color by mutating the actual
+background drawable and setting a `PorterDuffColorFilter(backgroundColor,
+PorterDuff.Mode.SRC_IN)` on it. This is the same `Drawable.setColorFilter`
+public API, but targeted at the actual visual owner rather than at the
+ineffective `backgroundTintList` view property.
+
+### Module operations
+
+```text
+ICON_ROM_VISUAL_OWNER   = ImageView.setColorFilter(int)
+ICON_MODULE_OPERATION   = ImageView.setColorFilter(PorterDuffColorFilter)
+
+BACKGROUND_DRAWABLE_CHAIN = SmoothContainerDrawable -> child -> shape -> solid -> ColorStateList
+BACKGROUND_ROM_VISUAL_OWNER = mStandardView.background (SmoothContainerDrawable)
+BACKGROUND_MODULE_OPERATION = standardView.background.mutate().setColorFilter(PorterDuffColorFilter)
+
+SHARED_RESOURCE_MUTATION = YES
+MUTATE_ISOLATION = YES
+MUTATE reason = setBackgroundResource loads a drawable that shares a ConstantState
+                with the same resource used by the sibling shortcut and
+                potentially by other volume panels. Calling setColorFilter on a
+                shared drawable would recolor those other instances. mutate()
+                produces a per-view ConstantState copy before the color filter is
+                applied.
+```
+
+### Hot path requirements
+
+- All color preferences are resolved into the process-owned
+  `VolumeModeButtonColorSnapshot` once, before `updateState()` runs.
+- `updateState()` and constructor `after` hooks read the snapshot and
+  pre-bound `WeakReference<View>` / `WeakReference<ImageView>`.
+- `PorterDuffColorFilter` objects are cached per helper and only recreated when
+  the configured color changes.
+- The hot path does not read preferences, perform resource lookups,
+  discover fields through reflection, or allocate ownership state per callback.
+
+### Disable / restore behavior
+
+When the color feature is disabled, the module stops writing custom color
+filters on the next `updateState()`. The ROM continues to call
+`mStandardView.setBackgroundResource(...)` and `mIcon.setColorFilter(romColor)`,
+so the original ROM visual path is restored for the background drawable and the
+icon. The module does not attempt to store or restore ROM colors because the ROM
+itself re-applies them at the next state update.
