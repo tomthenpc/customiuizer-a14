@@ -508,4 +508,54 @@ class BackupFormatV2Test {
         result[payload.size + 3] = value.toByte()
         return result
     }
+
+    @Test
+    fun encodeRejectsMalformedKeyUtf16() {
+        try {
+            BackupFormatV2.encode(linkedMapOf("k\uD800x" to "v"))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("Malformed or unmappable") == true)
+        }
+    }
+
+    @Test
+    fun encodeRejectsMalformedStringValueUtf16() {
+        try {
+            BackupFormatV2.encode(linkedMapOf("key" to "value\uD800"))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("Malformed or unmappable") == true)
+        }
+    }
+
+    @Test
+    fun encodeRejectsMalformedStringSetItemUtf16() {
+        try {
+            BackupFormatV2.encode(linkedMapOf("key" to LinkedHashSet(listOf("pkg\uDC00"))))
+            fail("Expected BackupFormatException")
+        } catch (e: BackupFormatV2.BackupFormatException) {
+            assertTrue(e.message?.contains("Malformed or unmappable") == true)
+        }
+    }
+
+    @Test
+    fun encodeDecodeRoundTripValidNonBmp() {
+        val key = "键\uD83D\uDE00"
+        val value = "值\uD83D\uDE80"
+        val set = LinkedHashSet(listOf("应用\uD83D\uDE00", "应用\uD83D\uDE80"))
+
+        val entries = linkedMapOf(
+            key to value,
+            "nonbmp_set" to set
+        )
+
+        val encoded = BackupFormatV2.encode(entries)
+        val decoded = BackupFormatV2.decode(encoded)
+
+        assertEquals(value, decoded[key])
+        @Suppress("UNCHECKED_CAST")
+        val resultSet = decoded["nonbmp_set"] as Set<String>
+        assertEquals(set, resultSet)
+    }
 }

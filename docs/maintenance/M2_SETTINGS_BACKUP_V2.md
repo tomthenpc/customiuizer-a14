@@ -47,6 +47,7 @@ Type tags (frozen constants, not enum ordinals):
 Negative length / count → `BackupFormatException`.  
 Unknown type tag → `BackupFormatException`.  
 Malformed / unmappable UTF-8 → `BackupFormatException`.
+Malformed / unmappable UTF-16 source (e.g. unpaired surrogates) → `BackupFormatException`; the encoder does not replacement-encode.
 
 ## 3. Final Bounds
 

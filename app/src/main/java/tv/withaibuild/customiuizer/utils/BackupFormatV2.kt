@@ -6,6 +6,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
+import java.nio.CharBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
@@ -76,7 +77,7 @@ object BackupFormatV2 {
         // Total size preflight using Long to avoid overflow.
         var totalSize = 16L // MAGIC + FORMAT_VERSION + APP_REVISION + ENTRY_COUNT
         for (key in entries.keys) {
-            val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
+            val keyBytes = encodeStrictUtf8(key)
             if (keyBytes.size > MAX_KEY_BYTES) {
                 throw BackupFormatException("Key too long: ${keyBytes.size} > $MAX_KEY_BYTES")
             }
@@ -177,7 +178,7 @@ object BackupFormatV2 {
 
     @JvmStatic
     private fun writeKey(data: DataOutputStream, key: String) {
-        val keyBytes = key.toByteArray(StandardCharsets.UTF_8)
+        val keyBytes = encodeStrictUtf8(key)
         if (keyBytes.size > MAX_KEY_BYTES) {
             throw BackupFormatException("Key too long: ${keyBytes.size} > $MAX_KEY_BYTES")
         }
@@ -196,7 +197,7 @@ object BackupFormatV2 {
             is Long -> 8L
             is Float -> 4L
             is String -> {
-                val bytes = value.toByteArray(StandardCharsets.UTF_8)
+                val bytes = encodeStrictUtf8(value)
                 if (bytes.size > MAX_STRING_BYTES) {
                     throw BackupFormatException("String too long: ${bytes.size} > $MAX_STRING_BYTES")
                 }
@@ -211,7 +212,7 @@ object BackupFormatV2 {
                     if (item !is String) {
                         throw BackupFormatException("StringSet contains non-String member: ${item?.javaClass}")
                     }
-                    val itemBytes = item.toByteArray(StandardCharsets.UTF_8)
+                    val itemBytes = encodeStrictUtf8(item)
                     if (itemBytes.size > MAX_STRING_BYTES) {
                         throw BackupFormatException("StringSet item too long: ${itemBytes.size} > $MAX_STRING_BYTES")
                     }
@@ -256,7 +257,7 @@ object BackupFormatV2 {
 
     @JvmStatic
     private fun writeString(data: DataOutputStream, value: String) {
-        val bytes = value.toByteArray(StandardCharsets.UTF_8)
+        val bytes = encodeStrictUtf8(value)
         if (bytes.size > MAX_STRING_BYTES) {
             throw BackupFormatException("String too long: ${bytes.size} > $MAX_STRING_BYTES")
         }
@@ -348,6 +349,21 @@ object BackupFormatV2 {
             buffer.toString()
         } catch (e: CharacterCodingException) {
             throw BackupFormatException("Malformed or unmappable UTF-8")
+        }
+    }
+
+    @JvmStatic
+    private fun encodeStrictUtf8(value: String): ByteArray {
+        val encoder = StandardCharsets.UTF_8.newEncoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+        return try {
+            val buffer = encoder.encode(CharBuffer.wrap(value))
+            val bytes = ByteArray(buffer.remaining())
+            buffer.get(bytes)
+            bytes
+        } catch (e: CharacterCodingException) {
+            throw BackupFormatException("Malformed or unmappable UTF-16 source")
         }
     }
 
