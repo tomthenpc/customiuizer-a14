@@ -181,11 +181,11 @@ class StrongToastPresentationModeTest {
         assertTrue(source.contains("XposedHelpers.setBooleanField(strongToast, \"mCheckInOutStrongToasting\", true)"))
         assertFalse(source.contains("startDynamicIslandRefresh"))
         assertTrue(source.contains("showingField.setBoolean(keyguardState, false)"))
-        assertTrue(source.contains("return chain.proceed()"))
+        assertTrue(source.contains("closeLockscreenGate"))
     }
 
     private fun source(path: String): String {
-        var directory = File(System.getProperty("user.dir")).absoluteFile
+        var directory = File(System.getProperty("user.dir")!!).absoluteFile
         while (true) {
             val candidate = File(directory, path)
             if (candidate.isFile) return candidate.readText()

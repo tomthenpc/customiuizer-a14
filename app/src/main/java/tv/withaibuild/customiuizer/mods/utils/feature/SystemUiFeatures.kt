@@ -3,6 +3,7 @@ package tv.withaibuild.customiuizer.mods.utils.feature
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.mods.Controls
 import tv.withaibuild.customiuizer.mods.GlobalActions
+import java.util.concurrent.atomic.AtomicReference
 import tv.withaibuild.customiuizer.mods.System as ModsSystem
 import tv.withaibuild.customiuizer.mods.SystemAudioHooks
 import tv.withaibuild.customiuizer.mods.SystemClockHooks
@@ -26,9 +27,12 @@ import tv.withaibuild.customiuizer.mods.utils.FeatureTarget
 import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
+import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
+import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.PrefMap
 
 /**
@@ -736,6 +740,136 @@ internal class StatusBarIconsPositionAdjustFeature(
 
 }
 
+/**
+ * Immutable StrongToast runtime snapshot.
+ *
+ * This is the only object a hot callback is allowed to read. It is published atomically
+ * and never modified after creation, so a callback that captures one snapshot sees a
+ * consistent mode, position and bottom offset for the whole event.
+ */
+internal data class StrongToastRuntimeSnapshot(
+    val mode: StrongToastPresentationMode,
+    val position: StrongToastPosition,
+    val bottomOffsetDp: Int,
+) {
+    val isDynamicIsland: Boolean
+        get() = mode == StrongToastPresentationMode.DYNAMIC_ISLAND ||
+            mode == StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP
+
+    val isCenterPop: Boolean
+        get() = mode == StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP
+}
+
+/**
+ * Process-scoped StrongToast runtime configuration.
+ *
+ * - Installs exactly one preference observer per process.
+ * - Publishes an immutable [StrongToastRuntimeSnapshot] through an [AtomicReference].
+ * - Rebuilds the snapshot only when a relevant preference key changes.
+ * - Keeps reflection, Binder and disk I/O out of the hot path.
+ */
+internal class StrongToastRuntimeState private constructor(
+    private val refreshSource: () -> Map<String, Any>,
+) {
+    val snapshotRef = AtomicReference(DEFAULT_SNAPSHOT)
+
+    private val refreshLock = Any()
+    private var observerRegistered = false
+
+    @JvmField
+    val preferenceObserver = object : ModuleHelper.PreferenceObserver {
+        override fun onChange(key: String?) = ModuleHelper.guarded {
+            onPreferenceChanged(key)
+        }
+    }
+
+    private fun onPreferenceChanged(key: String?) {
+        if (key != null && key != MODE_KEY && key != POSITION_KEY && key != BOTTOM_OFFSET_KEY) {
+            return
+        }
+        synchronized(refreshLock) {
+            refreshSnapshotLocked()
+        }
+    }
+
+    internal fun initialize() {
+        synchronized(refreshLock) {
+            refreshSnapshotLocked()
+        }
+    }
+
+    private fun refreshSnapshotLocked() {
+        try {
+            val source = refreshSource()
+            snapshotRef.set(buildSnapshot(source))
+        } catch (e: Exception) {
+            FatalErrors.rethrowIfFatal(e)
+            XposedHelpers.log("StrongToastRuntimeState", e)
+        }
+    }
+
+    internal fun installObserver() {
+        if (!observerRegistered) {
+            ModuleHelper.observePreferenceChange(preferenceObserver)
+            observerRegistered = true
+        }
+    }
+
+    companion object {
+        const val MODE_KEY = "system_strong_toast_mode"
+        const val POSITION_KEY = "system_strong_toast_position"
+        const val BOTTOM_OFFSET_KEY = "system_strong_toast_bottom_offset"
+
+        internal val DEFAULT_SNAPSHOT = StrongToastRuntimeSnapshot(
+            StrongToastPresentationMode.SYSTEM_DEFAULT,
+            StrongToastPosition.TOP,
+            0
+        )
+
+        @Volatile
+        internal var installed: Boolean = false
+        internal var instance: StrongToastRuntimeState? = null
+        private val installLock = Any()
+
+        @JvmStatic
+        internal fun buildSnapshot(source: Map<String, Any>): StrongToastRuntimeSnapshot {
+            val mode = StrongToastPresentationMode.fromPreference(
+                (source[MODE_KEY] as? String)?.toIntOrNull() ?: 0
+            )
+            val position = StrongToastPosition.fromPreference(
+                (source[POSITION_KEY] as? String)?.toIntOrNull() ?: 0
+            )
+            val bottomOffset = (source[BOTTOM_OFFSET_KEY] as? String)?.toIntOrNull() ?: 0
+            val boundedOffset = bottomOffset.coerceIn(
+                SystemUIStrongToastHooks.MIN_BOTTOM_OFFSET_DP,
+                SystemUIStrongToastHooks.MAX_BOTTOM_OFFSET_DP
+            )
+            return StrongToastRuntimeSnapshot(mode, position, boundedOffset)
+        }
+
+        @JvmStatic
+        internal fun install(prefs: PrefMap): StrongToastRuntimeState =
+            install(StrongToastRuntimeState { prefs.getAll() })
+
+        @JvmStatic
+        internal fun install(runtimeState: StrongToastRuntimeState): StrongToastRuntimeState {
+            if (installed) {
+                return checkNotNull(instance) { "StrongToastRuntimeState installed but instance is null" }
+            }
+            synchronized(installLock) {
+                if (installed) {
+                    return checkNotNull(instance) { "StrongToastRuntimeState installed but instance is null" }
+                }
+                instance = runtimeState
+                runtimeState.installObserver()
+                runtimeState.initialize()
+                installed = true
+                return runtimeState
+            }
+        }
+    }
+}
+
 internal class StrongToastPresentationFeature(
     lpparam: PackageReadyParam,
     mPrefs: PrefMap
@@ -773,12 +907,10 @@ internal class StrongToastPresentationFeature(
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
-    override fun installHook() = SystemUIStrongToastHooks.install(
-        lpparam,
-        resolveMode(mPrefs),
-        resolvePosition(mPrefs),
-        resolveBottomOffsetDp(mPrefs)
-    )
+    override fun installHook() {
+        val runtimeState = StrongToastRuntimeState.install(mPrefs)
+        SystemUIStrongToastHooks.install(lpparam, runtimeState.snapshotRef)
+    }
 }
 
 internal class MonitorDeviceInfoFeature(
@@ -2297,7 +2429,7 @@ object SystemUiFeatures {
             preferenceKey = "system_strong_toast_mode",
             target = FeatureTarget.SYSTEM_UI,
             phase = InstallPhase.PACKAGE_READY,
-            enabled = { prefs -> StrongToastPresentationFeature.evaluateEnabled(prefs) },
+            enabled = { true },
             factory = { StrongToastPresentationFeature(lpparam, mPrefs) },
         ),
         LazyFeatureSpec(

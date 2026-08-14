@@ -12,7 +12,6 @@ import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
 import android.widget.LinearLayout
-import io.github.libxposed.api.XposedInterface
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.AfterHookCallback
@@ -22,9 +21,12 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeSnapshot
+import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeState
 import java.lang.reflect.Field
 import java.lang.reflect.Proxy
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * HyperOS 1 StrongToast presentation (the top black capsule used by charging and system modes).
@@ -80,6 +82,9 @@ object SystemUIStrongToastHooks {
     private const val STATUS_BAR_CONTENTS_ID = "status_bar_contents"
     private const val STATUS_BAR_VIEW_CLASS =
         "com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView"
+    private const val RUNTIME_SNAPSHOT_FIELD = "customiuizer_strong_toast_runtime_snapshot"
+    private const val LOCKSCREEN_GATE_TOKEN_FIELD =
+        "customiuizer_strong_toast_lockscreen_token"
     // Mechanism reference: Ajaxy/telegram-tt, tag air_v2.11.5, commit d915b1b9,
     // src/styles/_variables.scss and src/util/animation.ts (GPL-3.0). Only its bounded
     // cubic-bezier curve and latest-animation-wins ownership are translated to Android here;
@@ -90,6 +95,27 @@ object SystemUIStrongToastHooks {
     private var statusBarContentsRef = WeakReference<View>(null)
     private var statusBarHiddenOwnerRef = WeakReference<View>(null)
     private var statusBarContentsOriginalAlpha = 1f
+    @JvmField
+    internal var snapshotRef: AtomicReference<StrongToastRuntimeSnapshot>? = null
+    @JvmField
+    internal var installed: Boolean = false
+
+    internal fun currentSnapshot(): StrongToastRuntimeSnapshot? = snapshotRef?.get()
+
+    internal fun storeSnapshot(view: Any, snapshot: StrongToastRuntimeSnapshot) {
+        XposedHelpers.setAdditionalInstanceField(view, RUNTIME_SNAPSHOT_FIELD, snapshot)
+    }
+
+    internal fun resolveSnapshot(view: Any?): StrongToastRuntimeSnapshot? {
+        if (view != null) {
+            val stored = XposedHelpers.getAdditionalInstanceField(
+                view,
+                RUNTIME_SNAPSHOT_FIELD
+            ) as? StrongToastRuntimeSnapshot
+            if (stored != null) return stored
+        }
+        return currentSnapshot()
+    }
 
     private class SwipeGestureState {
         var downRawY = 0f
@@ -100,67 +126,21 @@ object SystemUIStrongToastHooks {
     }
 
     @JvmStatic
-    fun install(
+    internal fun install(
         lpparam: PackageReadyParam,
-        mode: StrongToastPresentationMode,
-        position: StrongToastPosition = StrongToastPosition.TOP,
-        bottomOffsetDp: Int = 0
+        snapshotRef: AtomicReference<StrongToastRuntimeSnapshot>
     ) {
-        val boundedBottomOffsetDp = bottomOffsetDp.coerceIn(
-            MIN_BOTTOM_OFFSET_DP,
-            MAX_BOTTOM_OFFSET_DP
-        )
-        when (mode) {
-            StrongToastPresentationMode.SYSTEM_DEFAULT -> Unit
-            StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT -> installHeightMatch(lpparam)
-            StrongToastPresentationMode.HIDE -> installHide(lpparam)
-            StrongToastPresentationMode.DYNAMIC_ISLAND -> {
-                installHeightMatch(
-                    lpparam,
-                    dynamicIsland = true,
-                    position = position,
-                    bottomOffsetDp = boundedBottomOffsetDp
-                )
-                installDynamicIslandMotion(
-                    lpparam,
-                    centerPop = false,
-                    position = position,
-                    bottomOffsetDp = boundedBottomOffsetDp
-                )
-                if (position == StrongToastPosition.TOP) {
-                    installStatusBarContentsCapture(lpparam)
-                }
-                installLockscreenSupport(lpparam)
-            }
-            StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP -> {
-                installHeightMatch(
-                    lpparam,
-                    dynamicIsland = true,
-                    centerPop = true,
-                    position = position,
-                    bottomOffsetDp = boundedBottomOffsetDp
-                )
-                installDynamicIslandMotion(
-                    lpparam,
-                    centerPop = true,
-                    position = position,
-                    bottomOffsetDp = boundedBottomOffsetDp
-                )
-                if (position == StrongToastPosition.TOP) {
-                    installStatusBarContentsCapture(lpparam)
-                }
-                installLockscreenSupport(lpparam)
-            }
-        }
+        this.snapshotRef = snapshotRef
+        if (installed) return
+        installed = true
+
+        installHeightMatch(lpparam)
+        installDynamicIslandMotion(lpparam)
+        installStatusBarContentsCapture(lpparam)
+        installControlClassHooks(lpparam)
     }
 
-    private fun installHeightMatch(
-        lpparam: PackageReadyParam,
-        dynamicIsland: Boolean = false,
-        centerPop: Boolean = false,
-        position: StrongToastPosition = StrongToastPosition.TOP,
-        bottomOffsetDp: Int = 0
-    ) {
+    private fun installHeightMatch(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod(
             STRONG_TOAST_CLASS,
             lpparam.classLoader,
@@ -169,58 +149,67 @@ object SystemUIStrongToastHooks {
                 override fun after(callback: AfterHookCallback) {
                     try {
                         val layoutParams = callback.getResult() as? WindowManager.LayoutParams ?: return
-                        val strongToast = callback.getThisObject() as? View
-                        val statusBarInsetPx = currentStatusBarInsetPx(strongToast)
-                        val visualHeightPx = strongToastVisualHeightPx(strongToast)
-                        layoutParams.height = if (dynamicIsland) {
-                            // HyperOS normally makes this Window exactly as wide as
-                            // strong_toast_width. A centered overshoot is then clipped by the
-                            // Window surface before ViewGroup clip flags can help. Keep the
-                            // capsule at ROM width, but give it a full-screen transparent host.
-                            layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT
-                            // The ROM window animation is authored for the status-bar edge.
-                            // Dynamic-island modes own their complete transform so a second
-                            // surface animation cannot add a direction or clip the first frames.
-                            layoutParams.windowAnimations = 0
-                            // Keep the transparent safety area inside the actual input frame.
-                            // HyperOS otherwise fits this STATUS_BAR_SUB_PANEL window again and
-                            // exposes only its legacy content height as the touchable region.
-                            layoutParams.setFitInsetsTypes(0)
-                            if (position == StrongToastPosition.BOTTOM) {
-                                layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                                // The bottom window owns its navigation/gesture-safe padding.
-                                // Leaving the ROM's NAVIGATION_BARS fit type enabled makes WMS
-                                // subtract the visible navigation inset a second time and clips
-                                // the capsule by that exact amount on gesture-navigation devices.
-                                val bottomPaddingPx = resolveBottomPaddingPx(
-                                    currentBottomSafeInsetPx(strongToast),
-                                    resolveBottomEdgeGapPx(strongToast, visualHeightPx),
-                                    dpToPx(strongToast, bottomOffsetDp.toFloat())
-                                )
-                                resolveBottomDynamicIslandWindowHeightPx(
-                                    visualHeightPx,
-                                    resolveBottomTopSafetyPx(strongToast, visualHeightPx),
-                                    bottomPaddingPx
-                                )
-                            } else {
-                                layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                                resolveDynamicIslandWindowHeightPx(
+                        val strongToast = callback.getThisObject() as? View ?: return
+                        val snapshot = resolveSnapshot(strongToast) ?: return
+                        storeSnapshot(strongToast, snapshot)
+                        when (snapshot.mode) {
+                            StrongToastPresentationMode.SYSTEM_DEFAULT,
+                            StrongToastPresentationMode.HIDE -> return
+                            StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT -> {
+                                val statusBarInsetPx = currentStatusBarInsetPx(strongToast)
+                                val visualHeightPx = strongToastVisualHeightPx(strongToast)
+                                layoutParams.height = resolveWindowHeightPx(
                                     statusBarInsetPx,
                                     visualHeightPx,
-                                    dpToPx(strongToast, CAPSULE_TOP_MARGIN_DP),
-                                    dpToPx(
-                                        strongToast,
-                                        if (centerPop) CENTER_CAPSULE_SAFETY_MARGIN_DP
-                                        else CAPSULE_BOTTOM_SAFETY_MARGIN_DP
-                                    )
+                                    layoutParams.height
                                 )
                             }
-                        } else {
-                            resolveWindowHeightPx(
-                                statusBarInsetPx,
-                                visualHeightPx,
-                                layoutParams.height
-                            )
+                            StrongToastPresentationMode.DYNAMIC_ISLAND,
+                            StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP -> {
+                                // HyperOS normally makes this Window exactly as wide as
+                                // strong_toast_width. A centered overshoot is then clipped by the
+                                // Window surface before ViewGroup clip flags can help. Keep the
+                                // capsule at ROM width, but give it a full-screen transparent host.
+                                layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT
+                                // The ROM window animation is authored for the status-bar edge.
+                                // Dynamic-island modes own their complete transform so a second
+                                // surface animation cannot add a direction or clip the first frames.
+                                layoutParams.windowAnimations = 0
+                                // Keep the transparent safety area inside the actual input frame.
+                                // HyperOS otherwise fits this STATUS_BAR_SUB_PANEL window again and
+                                // exposes only its legacy content height as the touchable region.
+                                layoutParams.setFitInsetsTypes(0)
+                                val visualHeightPx = strongToastVisualHeightPx(strongToast)
+                                if (snapshot.position == StrongToastPosition.BOTTOM) {
+                                    layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                                    // The bottom window owns its navigation/gesture-safe padding.
+                                    // Leaving the ROM's NAVIGATION_BARS fit type enabled makes WMS
+                                    // subtract the visible navigation inset a second time and clips
+                                    // the capsule by that exact amount on gesture-navigation devices.
+                                    val bottomPaddingPx = resolveBottomPaddingPx(
+                                        currentBottomSafeInsetPx(strongToast),
+                                        resolveBottomEdgeGapPx(strongToast, visualHeightPx),
+                                        dpToPx(strongToast, snapshot.bottomOffsetDp.toFloat())
+                                    )
+                                    layoutParams.height = resolveBottomDynamicIslandWindowHeightPx(
+                                        visualHeightPx,
+                                        resolveBottomTopSafetyPx(strongToast, visualHeightPx),
+                                        bottomPaddingPx
+                                    )
+                                } else {
+                                    layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                                    layoutParams.height = resolveDynamicIslandWindowHeightPx(
+                                        currentStatusBarInsetPx(strongToast),
+                                        visualHeightPx,
+                                        dpToPx(strongToast, CAPSULE_TOP_MARGIN_DP),
+                                        dpToPx(
+                                            strongToast,
+                                            if (snapshot.isCenterPop) CENTER_CAPSULE_SAFETY_MARGIN_DP
+                                            else CAPSULE_BOTTOM_SAFETY_MARGIN_DP
+                                        )
+                                    )
+                                }
+                            }
                         }
                     } catch (t: Throwable) {
                         FatalErrors.unwrapAndRethrowIfFatal(t)
@@ -266,25 +255,7 @@ object SystemUIStrongToastHooks {
         return if (id != 0) resources.getDimensionPixelSize(id) else 0
     }
 
-    private fun installHide(lpparam: PackageReadyParam) {
-        ModuleHelper.hookAllMethods(
-            STRONG_TOAST_CONTROL_CLASS,
-            lpparam.classLoader,
-            "showCustomStrongToast",
-            object : MethodHook() {
-                override fun before(callback: BeforeHookCallback) {
-                    callback.returnAndSkip(null)
-                }
-            }
-        )
-    }
-
-    private fun installDynamicIslandMotion(
-        lpparam: PackageReadyParam,
-        centerPop: Boolean,
-        position: StrongToastPosition,
-        bottomOffsetDp: Int
-    ) {
+    private fun installDynamicIslandMotion(lpparam: PackageReadyParam) {
         ModuleHelper.hookAllMethods(
             STRONG_TOAST_CLASS,
             lpparam.classLoader,
@@ -292,12 +263,15 @@ object SystemUIStrongToastHooks {
             object : MethodHook() {
                 override fun after(callback: AfterHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
+                    val snapshot = resolveSnapshot(strongToast) ?: return
+                    storeSnapshot(strongToast, snapshot)
+                    if (!snapshot.isDynamicIsland) return
                     installExpandedWindowTouchRegion(strongToast)
                     startDynamicIslandEntrance(
                         strongToast,
-                        centerPop,
-                        position,
-                        bottomOffsetDp
+                        snapshot.isCenterPop,
+                        snapshot.position,
+                        snapshot.bottomOffsetDp
                     )
                 }
             }
@@ -309,7 +283,8 @@ object SystemUIStrongToastHooks {
             object : MethodHook() {
                 override fun before(callback: BeforeHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
-                    restoreStatusBarContents(strongToast)
+                    val snapshot = resolveSnapshot(strongToast) ?: return
+                    if (snapshot.isDynamicIsland) restoreStatusBarContents(strongToast)
                 }
             }
         )
@@ -320,6 +295,8 @@ object SystemUIStrongToastHooks {
             object : MethodHook() {
                 override fun before(callback: BeforeHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
+                    val snapshot = resolveSnapshot(strongToast) ?: return
+                    if (!snapshot.isDynamicIsland) return
                     if (XposedHelpers.getAdditionalInstanceField(
                             strongToast,
                             DISMISS_RUNNING_FIELD
@@ -331,7 +308,12 @@ object SystemUIStrongToastHooks {
                     val capsule = findDynamicIslandCapsule(strongToast) ?: return
                     if (!strongToast.isAttachedToWindow) return
                     callback.returnAndSkip(null)
-                    animateDynamicIslandDismiss(strongToast, capsule, centerPop, position)
+                    animateDynamicIslandDismiss(
+                        strongToast,
+                        capsule,
+                        snapshot.isCenterPop,
+                        snapshot.position
+                    )
                 }
             }
         )
@@ -342,8 +324,10 @@ object SystemUIStrongToastHooks {
             object : MethodHook() {
                 override fun before(callback: BeforeHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
+                    val snapshot = resolveSnapshot(strongToast) ?: return
+                    if (!snapshot.isDynamicIsland) return
                     val capsule = findDynamicIslandCapsule(strongToast) ?: strongToast
-                    val motionView = dynamicIslandMotionView(capsule, centerPop)
+                    val motionView = dynamicIslandMotionView(capsule, snapshot.isCenterPop)
                     setSwipeListenerRecursively(capsule, null)
                     (capsule.parent as? View)?.setOnTouchListener(null)
                     removeExpandedWindowTouchRegion(strongToast)
@@ -825,87 +809,170 @@ object SystemUIStrongToastHooks {
     }
 
     /**
-     * HyperOS 1 rejects StrongToast while KeyguardStateControllerImpl.mShowing is true. Keep the
-     * ROM method and every other eligibility gate intact, but expose that single state as false
-     * only for the synchronous native call. Nested charging callbacks restore the outer value in
-     * strict LIFO order and every chain proceeds exactly once.
+     * Routes MIUIStrongToastControl method calls through the current StrongToast snapshot.
+     *
+     * - HIDE mode returns and skips `showCustomStrongToast`, preventing the toast from being shown.
+     * - Dynamic Island modes temporarily expose the keyguard state as false so HyperOS 1 does not
+     *   reject the toast while the lockscreen is visible. The original value is restored in the
+     *   matching after hook, even if the chain throws.
+     * - MATCH and SYSTEM_DEFAULT proceed without modifying the keyguard state.
      */
-    private fun installLockscreenSupport(lpparam: PackageReadyParam) {
+    private fun installControlClassHooks(lpparam: PackageReadyParam) {
         try {
             val controlClass = XposedHelpers.findClassIfExists(
                 STRONG_TOAST_CONTROL_CLASS,
                 lpparam.classLoader
-            ) ?: return
+            )
             val keyguardClass = XposedHelpers.findClassIfExists(
                 KEYGUARD_STATE_CLASS,
                 lpparam.classLoader
-            ) ?: return
-            val controllerField = XposedHelpers.findFieldIfExists(
-                controlClass,
-                "mKeyguardStateController"
-            ) ?: return
-            val showingField = XposedHelpers.findFieldIfExists(keyguardClass, "mShowing") ?: return
+            )
+            val controllerField = if (controlClass != null && keyguardClass != null) {
+                XposedHelpers.findFieldIfExists(controlClass, "mKeyguardStateController")
+            } else null
+            val showingField = if (keyguardClass != null) {
+                XposedHelpers.findFieldIfExists(keyguardClass, "mShowing")
+            } else null
 
+            val showHook = StrongToastControlHook(
+                controllerField = controllerField,
+                showingField = showingField,
+                outerControlField = null,
+                allowHide = true
+            )
             ModuleHelper.hookAllMethods(
-                controlClass,
+                STRONG_TOAST_CONTROL_CLASS,
+                lpparam.classLoader,
                 "showCustomStrongToast",
-                lockscreenGateHook(controllerField, showingField, null)
+                showHook
             )
 
             val batteryCallbackClass = XposedHelpers.findClassIfExists(
                 BATTERY_CALLBACK_CLASS,
                 lpparam.classLoader
-            ) ?: return
-            val outerControlField = XposedHelpers.findFieldIfExists(
-                batteryCallbackClass,
-                "this\$0"
-            ) ?: return
-            ModuleHelper.hookAllMethods(
-                batteryCallbackClass,
-                "onRefreshBatteryInfo",
-                lockscreenGateHook(controllerField, showingField, outerControlField)
             )
+            val outerControlField = if (batteryCallbackClass != null) {
+                XposedHelpers.findFieldIfExists(batteryCallbackClass, "this\$0")
+            } else null
+            if (batteryCallbackClass != null && outerControlField != null) {
+                val batteryHook = StrongToastControlHook(
+                    controllerField = controllerField,
+                    showingField = showingField,
+                    outerControlField = outerControlField,
+                    allowHide = false
+                )
+                ModuleHelper.hookAllMethods(
+                    batteryCallbackClass,
+                    "onRefreshBatteryInfo",
+                    batteryHook
+                )
+            }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
-            XposedHelpers.log("StrongToastLockscreen", t)
+            XposedHelpers.log("StrongToastControlClassHooks", t)
         }
     }
 
-    private fun lockscreenGateHook(
-        controllerField: Field,
-        showingField: Field,
-        outerControlField: Field?
-    ): MethodHook = object : MethodHook() {
-        override fun intercept(chain: XposedInterface.Chain): Any? {
-            val keyguardState: Any
-            val wasShowing: Boolean
-            try {
-                val receiver = chain.thisObject
-                val control = if (outerControlField != null) {
-                    outerControlField.get(receiver)
-                } else {
-                    receiver
-                }
-                keyguardState = controllerField.get(control) ?: return chain.proceed()
-                wasShowing = showingField.getBoolean(keyguardState)
-                if (!wasShowing) return chain.proceed()
-                showingField.setBoolean(keyguardState, false)
-            } catch (t: Throwable) {
-                FatalErrors.unwrapAndRethrowIfFatal(t)
-                XposedHelpers.log("StrongToastLockscreenRead", t)
-                return chain.proceed()
-            }
+    private data class LockscreenGateToken(
+        val keyguardState: Any,
+        val wasShowing: Boolean
+    )
 
-            try {
-                return chain.proceed()
-            } finally {
-                try {
-                    showingField.setBoolean(keyguardState, true)
-                } catch (t: Throwable) {
-                    FatalErrors.unwrapAndRethrowIfFatal(t)
-                    XposedHelpers.log("StrongToastLockscreenRestore", t)
-                }
+    private class StrongToastControlHook(
+        private val controllerField: Field?,
+        private val showingField: Field?,
+        private val outerControlField: Field?,
+        private val allowHide: Boolean
+    ) : MethodHook() {
+        override fun before(callback: BeforeHookCallback) {
+            val snapshot = currentSnapshot() ?: return
+            val receiver = callback.getThisObject() ?: return
+            val control = if (outerControlField != null) {
+                outerControlField.get(receiver)
+            } else {
+                receiver
             }
+            when (snapshot.mode) {
+                StrongToastPresentationMode.HIDE -> {
+                    if (allowHide) {
+                        callback.returnAndSkip(null)
+                    }
+                }
+                StrongToastPresentationMode.DYNAMIC_ISLAND,
+                StrongToastPresentationMode.DYNAMIC_ISLAND_CENTER_POP -> {
+                    val token = openLockscreenGate(control, controllerField, showingField)
+                    if (token != null && control != null) {
+                        XposedHelpers.setAdditionalInstanceField(
+                            control,
+                            LOCKSCREEN_GATE_TOKEN_FIELD,
+                            token
+                        )
+                    }
+                }
+                else -> {}
+            }
+        }
+
+        override fun after(callback: AfterHookCallback) {
+            val receiver = callback.getThisObject() ?: return
+            val control = if (outerControlField != null) {
+                outerControlField.get(receiver)
+            } else {
+                receiver
+            }
+            if (control == null) return
+            val token = XposedHelpers.getAdditionalInstanceField(
+                control,
+                LOCKSCREEN_GATE_TOKEN_FIELD
+            ) as? LockscreenGateToken
+            if (token != null) {
+                XposedHelpers.removeAdditionalInstanceField(control, LOCKSCREEN_GATE_TOKEN_FIELD)
+                closeLockscreenGate(token, showingField)
+            }
+        }
+    }
+
+    private fun openLockscreenGate(
+        control: Any?,
+        controllerField: Field?,
+        showingField: Field?
+    ): LockscreenGateToken? {
+        if (control == null || controllerField == null || showingField == null) return null
+        val keyguardState = try {
+            controllerField.get(control)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastLockscreenRead", t)
+            null
+        } ?: return null
+        val wasShowing = try {
+            showingField.getBoolean(keyguardState)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastLockscreenRead", t)
+            return null
+        }
+        if (!wasShowing) return null
+        try {
+            showingField.setBoolean(keyguardState, false)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastLockscreenSet", t)
+            return null
+        }
+        return LockscreenGateToken(keyguardState, wasShowing)
+    }
+
+    private fun closeLockscreenGate(
+        token: LockscreenGateToken,
+        showingField: Field?
+    ) {
+        if (showingField == null) return
+        try {
+            showingField.setBoolean(token.keyguardState, token.wasShowing)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastLockscreenRestore", t)
         }
     }
 
