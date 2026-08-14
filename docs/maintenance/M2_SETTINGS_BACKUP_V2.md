@@ -383,7 +383,31 @@ M2 changes do not alter:
 
 - M1 = PASS
 - M2_SELF_ASSESSMENT = PASS_CANDIDATE
+- M2_INDEPENDENT_GATE = PASS
+- M2_FREEZE_SHA = `026b9364ef362fabc14903cc7ee1695ee135af26`
 - M3_AUTHORIZATION = NO
 
-`M2` has not been independently audited; only an independent auditor may freeze
-it as `PASS`.
+Independent gate coverage includes:
+
+- CUI2 framing / version / app revision / entry count
+- all six explicit type tags
+- deterministic key / StringSet serialization
+- CRC32 payload coverage
+- trailing byte rejection
+- strict UTF-8 decoder
+- strict UTF-8 encoder / malformed UTF-16 rejection
+- file / entry / key / String / set bounds
+- legacy focused parser
+- exact descriptor allowlist
+- graph / descriptor-depth / handle / capacity bounds
+- no unrestricted ObjectInputStream restore
+- unified restore pipeline
+- validation/filtering
+- commit(false) rollback
+- locale reconcile marker
+- launcher reconcile
+- fatal propagation
+
+API34 legacy runtime instrumentation is **not available / not required for this
+static gate**; the current evidence consists of host JDK 17 unit tests, static
+analysis, and the restricted historical wire fixture documented above.
