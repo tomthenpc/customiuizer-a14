@@ -1538,3 +1538,12 @@ P3_FINAL_GATE = (not written)
 ```
 
 The P3 simplification is a candidate; the final gate remains for the authorized reviewer.
+
+### Unknown / missing shared sub closure
+
+For the shared resources `R.xml.prefs_system`, `R.xml.prefs_launcher`, `R.xml.prefs_controls`, and `R.xml.prefs_various`, an unknown or missing `sub` value resolves to `RestartMask.NONE` instead of a module-wide conservative union.
+
+```text
+UNKNOWN/MISSING SHARED SUB -> RestartMask.NONE
+FAIL_CLOSED = YES
+```

@@ -98,4 +98,45 @@ class RestartPagePolicyTest {
         assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_system_toasts))
         assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_various_exclusive))
     }
+
+    @Test
+    fun shared_resources_fail_closed_for_missing_or_unknown_sub() {
+        // Unknown or missing shared-resource sub identity must fail closed to NONE,
+        // not fall back to a module-wide conservative union.
+        assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_system, null))
+        assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_system, "pref_key_unknown"))
+
+        assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_launcher, null))
+        assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_launcher, "pref_key_unknown"))
+
+        assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_controls, null))
+        assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_controls, "pref_key_unknown"))
+
+        assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_various, null))
+        assertEquals(RestartMask.NONE, RestartPagePolicy.maskFor(R.xml.prefs_various, "pref_key_unknown"))
+    }
+
+    @Test
+    fun known_shared_sub_mapping_is_preserved() {
+        assertEquals(
+            RestartMask.SYSTEMUI,
+            RestartPagePolicy.maskFor(R.xml.prefs_system, "pref_key_system_cat_screen")
+        )
+        assertEquals(
+            RestartMask.SYSTEMUI or RestartMask.SECURITY_CENTER,
+            RestartPagePolicy.maskFor(R.xml.prefs_system, "pref_key_system_cat_other")
+        )
+        assertEquals(
+            RestartMask.LAUNCHER or RestartMask.SYSTEMUI,
+            RestartPagePolicy.maskFor(R.xml.prefs_controls, "pref_key_controls_cat_fsg")
+        )
+        assertEquals(
+            RestartMask.LAUNCHER,
+            RestartPagePolicy.maskFor(R.xml.prefs_launcher, "pref_key_launcher_cat_gestures")
+        )
+        assertEquals(
+            RestartMask.SECURITY_CENTER,
+            RestartPagePolicy.maskFor(R.xml.prefs_various, "pref_key_various_cat_security_center")
+        )
+    }
 }

@@ -93,7 +93,7 @@ internal object RestartPagePolicy {
             "pref_key_system_cat_statusbar" -> RestartMask.SYSTEMUI
             "pref_key_system_cat_toasts" -> RestartMask.NONE
             "pref_key_system_cat_vibration" -> RestartMask.SYSTEMUI
-            else -> RestartMask.LAUNCHER or RestartMask.SYSTEMUI or RestartMask.SECURITY_CENTER
+            else -> RestartMask.NONE
         }
         R.xml.prefs_launcher -> when (sub) {
             "pref_key_launcher_cat_bugfixes" -> RestartMask.LAUNCHER
@@ -102,7 +102,7 @@ internal object RestartPagePolicy {
             "pref_key_launcher_cat_other" -> RestartMask.LAUNCHER
             "pref_key_launcher_cat_privacyapps" -> RestartMask.LAUNCHER or RestartMask.SECURITY_CENTER
             "pref_key_launcher_cat_titles" -> RestartMask.LAUNCHER
-            else -> RestartMask.LAUNCHER or RestartMask.SECURITY_CENTER
+            else -> RestartMask.NONE
         }
         R.xml.prefs_controls -> when (sub) {
             "pref_key_controls_cat_fingerprint" -> RestartMask.NONE
@@ -110,7 +110,7 @@ internal object RestartPagePolicy {
             "pref_key_controls_cat_navbar" -> RestartMask.LAUNCHER or RestartMask.SYSTEMUI
             "pref_key_controls_cat_power" -> RestartMask.NONE
             "pref_key_controls_cat_volume" -> RestartMask.SYSTEMUI
-            else -> RestartMask.LAUNCHER or RestartMask.SYSTEMUI
+            else -> RestartMask.NONE
         }
         R.xml.prefs_various -> when (sub) {
             "pref_key_various_cat_calls" -> RestartMask.SYSTEMUI
@@ -120,7 +120,7 @@ internal object RestartPagePolicy {
             "pref_key_various_cat_package_installer" -> RestartMask.NONE
             "pref_key_various_cat_security_center" -> RestartMask.SECURITY_CENTER
             "pref_key_various_cat_settings" -> RestartMask.SECURITY_CENTER
-            else -> RestartMask.SYSTEMUI or RestartMask.SECURITY_CENTER
+            else -> RestartMask.NONE
         }
         else -> RestartMask.NONE
     }
