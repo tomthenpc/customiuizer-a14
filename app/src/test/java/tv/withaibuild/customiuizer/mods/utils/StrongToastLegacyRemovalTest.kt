@@ -69,10 +69,12 @@ class StrongToastLegacyRemovalTest {
 
     @Test
     fun newFeatureEvaluatesCorrectly() {
-        assertFalse(StrongToastPresentationFeature.evaluateEnabled(PrefMap()))
-        assertFalse(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
-            put("system_strong_toast_mode", "0")
-        }))
+        assertTrue("StrongToast must install in default mode for live updates",
+            StrongToastPresentationFeature.evaluateEnabled(PrefMap()))
+        assertTrue("StrongToast must install in default mode for live updates",
+            StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
+                put("system_strong_toast_mode", "0")
+            }))
         assertTrue(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
             put("system_strong_toast_mode", "1")
         }))
