@@ -543,6 +543,8 @@
     <string name="controls_volumemedia_vibrate_summ">Вибрировать при выполнении действия на долгое нажатие</string>
     <string name="controls_mods_navbar">Панель навигации</string>
     <string name="controls_nonavbar_title">Скрыть панель</string>
+    <string name="controls_hide_ime_dismiss_button_title">Скрыть кнопку сбора клавиатуры</string>
+    <string name="controls_hide_ime_dismiss_button_summ">Скрывает левую нижнюю кнопку сбора клавиатуры в жестовой навигации</string>
     <string name="controls_hidenavbar_whenscreenshot_title">Скрыть панель навигации и полноэкранный индикатор при скриншоте</string>
     <string name="controls_nonavbar_fix_inputmethod_title">Исправление оптимизации полноэкранной клавиатуры</string>
     <string name="controls_nonavbar_fix_inputmethod_summ">Сначала добавьте приложение клавиатуры в LSPosed</string>

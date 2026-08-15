@@ -521,6 +521,8 @@
     <string name="controls_volumemedia_vibrate_summ">執行長按動作時振動</string>
     <string name="controls_mods_navbar">導航欄</string>
     <string name="controls_nonavbar_title">隱藏導航欄</string>
+    <string name="controls_hide_ime_dismiss_button_title">隱藏輸入法收回按鍵</string>
+    <string name="controls_hide_ime_dismiss_button_summ">在手勢導覽下隱藏輸入法顯示時底部左側的收回按鍵</string>
     <string name="controls_backlong_title">長按返回鍵動作</string>
     <string name="controls_homelong_title">長按Home鍵動作</string>
     <string name="controls_menulong_title">長按功能表鍵動作</string>

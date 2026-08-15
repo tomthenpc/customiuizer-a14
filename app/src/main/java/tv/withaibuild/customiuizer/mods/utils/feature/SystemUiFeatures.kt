@@ -564,6 +564,25 @@ internal class HideNoNotificationsFeature(
     override fun installHook() = SystemUINotificationHooks.HideNoNotificationsHook(lpparam)
 }
 
+internal class HideImeDismissButtonFeature(
+    lpparam: PackageReadyParam,
+    mPrefs: PrefMap
+) : BaseSystemUiFeature(
+    lpparam,
+    mPrefs,
+    HideImeDismissButtonFeatureId,
+    "Hide IME Dismiss Button",
+    "controls_hide_ime_dismiss_button"
+) {
+    companion object {
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getBoolean("controls_hide_ime_dismiss_button")
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
+    override fun installHook() = Controls.HideImeDismissButtonHook(lpparam)
+}
+
 internal class HideNavBarFeature(
     lpparam: PackageReadyParam,
     mPrefs: PrefMap
@@ -2340,6 +2359,15 @@ object SystemUiFeatures {
             phase = InstallPhase.PACKAGE_READY,
             enabled = { prefs -> HideNoNotificationsFeature.evaluateEnabled(prefs) },
             factory = { HideNoNotificationsFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = HideImeDismissButtonFeatureId,
+            name = "Hide IME Dismiss Button",
+            preferenceKey = "controls_hide_ime_dismiss_button",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> HideImeDismissButtonFeature.evaluateEnabled(prefs) },
+            factory = { HideImeDismissButtonFeature(lpparam, mPrefs) },
         ),
         LazyFeatureSpec(
             id = HideNavBarFeatureId,

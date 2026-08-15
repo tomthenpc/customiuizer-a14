@@ -37,6 +37,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
+import java.lang.reflect.Field
 import java.lang.reflect.Method
 import tv.withaibuild.customiuizer.utils.HookUtils
 
@@ -1066,5 +1067,93 @@ object Controls {
         })
 
         ModuleHelper.findAndHookMethod("com.android.systemui.assist.ui.DefaultUiController", lpparam.classLoader, "logInvocationProgressMetrics", Float::class.javaPrimitiveType, Boolean::class.javaPrimitiveType, tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.DO_NOTHING)
+    }
+
+    @JvmStatic
+    fun HideImeDismissButtonHook(lpparam: PackageReadyParam) {
+        val navBarViewClass = XposedHelpers.findClassIfExists(
+            "com.android.systemui.navigationbar.NavigationBarView",
+            lpparam.classLoader
+        ) ?: run {
+            XposedHelpers.log("HideImeDismissButtonHook: NavigationBarView not found")
+            return
+        }
+
+        val backButtonDispatcherClass = XposedHelpers.findClassIfExists(
+            "com.android.systemui.navigationbar.buttons.ButtonDispatcher",
+            lpparam.classLoader
+        ) ?: run {
+            XposedHelpers.log("HideImeDismissButtonHook: ButtonDispatcher not found")
+            return
+        }
+
+        val navigationIconHintsField = XposedHelpers.findFieldIfExists(navBarViewClass, "mNavigationIconHints")
+            ?: run {
+                XposedHelpers.log("HideImeDismissButtonHook: mNavigationIconHints not found")
+                return
+            }
+
+        val navBarModeField = XposedHelpers.findFieldIfExists(navBarViewClass, "mNavBarMode")
+            ?: run {
+                XposedHelpers.log("HideImeDismissButtonHook: mNavBarMode not found")
+                return
+            }
+
+        val getBackButtonMethod = XposedHelpers.findMethodExactIfExists(
+            navBarViewClass,
+            "getBackButton"
+        ) ?: run {
+            XposedHelpers.log("HideImeDismissButtonHook: getBackButton not found")
+            return
+        }
+
+        val setVisibilityMethod = XposedHelpers.findMethodExactIfExists(
+            backButtonDispatcherClass,
+            "setVisibility",
+            Int::class.javaPrimitiveType
+        ) ?: run {
+            XposedHelpers.log("HideImeDismissButtonHook: ButtonDispatcher.setVisibility not found")
+            return
+        }
+
+        ModuleHelper.findAndHookMethod(navBarViewClass, "updateNavButtonIcons", object : MethodHook() {
+            override fun intercept(chain: XposedInterface.Chain): Any? {
+                var result: Any?
+                var throwable: Throwable? = null
+                try {
+                    result = chain.proceed()
+                } catch (t: Throwable) {
+                    throwable = t
+                    result = null
+                }
+
+                try {
+                    val thisObject = chain.thisObject
+                    val navigationIconHints = navigationIconHintsField.getInt(thisObject)
+                    val navBarMode = navBarModeField.getInt(thisObject)
+
+                    if (shouldHideImeDismissButton(navigationIconHints, navBarMode)) {
+                        val backButton = getBackButtonMethod.invoke(thisObject)
+                        if (backButton != null) {
+                            setVisibilityMethod.invoke(backButton, View.INVISIBLE)
+                        }
+                    }
+                } catch (t: Throwable) {
+                    XposedHelpers.log(t)
+                }
+
+                return XposedHelpers.throwOrReturn(throwable, result)
+            }
+        })
+    }
+
+    /**
+     * Returns true when the back button is in IME-alternate mode and the nav bar is in gestural mode.
+     *
+     * - bit 0 of navigationIconHints is the BACK_ALT/IME alternate hint.
+     * - navBarMode 2 is the fully gestural navigation mode (QuickStepContract.isGesturalMode).
+     */
+    internal fun shouldHideImeDismissButton(navigationIconHints: Int, navBarMode: Int): Boolean {
+        return (navigationIconHints and 0x1) != 0 && navBarMode == 2
     }
 }

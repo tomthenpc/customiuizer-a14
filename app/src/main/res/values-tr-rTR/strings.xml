@@ -500,6 +500,8 @@ ss - iki basamaklı saniye(09)</string>
     <string name="controls_volumemedia_vibrate_summ">Uzun basma eyleminde titreştir</string>
     <string name="controls_mods_navbar">Gezinti çubuğu</string>
     <string name="controls_nonavbar_title">Gezinme çubuğunu ve tam ekran göstergesini gizle</string>
+    <string name="controls_hide_ime_dismiss_button_title">Klavye gizle düğmesini gizle</string>
+    <string name="controls_hide_ime_dismiss_button_summ">Hareketle gezinmede klavye gösterilirken sol alttaki gizle düğmesini gizler</string>
     <string name="controls_hidenavbar_whenscreenshot_title">Ekran görüntüsü alırken gezinme çubuğunu ve tam ekran göstergesini gizle</string>
     <string name="controls_nonavbar_fix_inputmethod_title">Tam ekran klavye optimizasyonunu düzeltin</string>
     <string name="controls_nonavbar_fix_inputmethod_summ">Önce LSPosed kapsamına InputMethod uygulamalarını ekleyin</string>

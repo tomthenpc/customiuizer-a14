@@ -556,6 +556,8 @@
     <string name="controls_volumemedia_vibrate_summ">長押しのアクションを実行時にバイブレーションをさせるようにします</string>
     <string name="controls_mods_navbar">ナビゲーションバー</string>
     <string name="controls_nonavbar_title">ナビゲーションバーを非表示</string>
+    <string name="controls_hide_ime_dismiss_button_title">キーボードを閉じるボタンを非表示</string>
+    <string name="controls_hide_ime_dismiss_button_summ">ジェスチャーナビゲーション時、キーボード表示中に左下の閉じるボタンを非表示にします</string>
     <string name="controls_hidenavbar_whenscreenshot_title">スクリーンショット時にナビゲーションバー、フルスクリーンインジケーターを非表示にする</string>
     <string name="controls_nonavbar_fix_inputmethod_title">フルスクリーンキーボードの最適化を修正する</string>
     <string name="controls_nonavbar_fix_inputmethod_summ">始めに文字入力アプリをLSPosedのスコープに追加してください</string>

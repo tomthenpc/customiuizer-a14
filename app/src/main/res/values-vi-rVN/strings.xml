@@ -556,6 +556,8 @@
     <string name="controls_volumemedia_vibrate_summ">Rung khi nhấn lâu</string>
     <string name="controls_mods_navbar">Thanh điều hướng</string>
     <string name="controls_nonavbar_title">Ẩn thanh điều hướng và chỉ báo toàn màn hình</string>
+    <string name="controls_hide_ime_dismiss_button_title">Ẩn nút thu bàn phím</string>
+    <string name="controls_hide_ime_dismiss_button_summ">Ẩn nút thu bàn phím bên trái dưới cùng khi hiển thị bàn phím trong điều hướng cử chỉ</string>
     <string name="controls_hidenavbar_whenscreenshot_title">Ẩn thanh điều hướng hoặc dòng nhắc cử chỉ khi chụp ảnh màn hình</string>
     <string name="controls_nonavbar_fix_inputmethod_title">Sửa lỗi tối ưu hóa bàn phím toàn màn hình</string>
     <string name="controls_nonavbar_fix_inputmethod_summ">Trước tiên, thêm ứng dụng InputMethod vào phạm vi LSPosed</string>

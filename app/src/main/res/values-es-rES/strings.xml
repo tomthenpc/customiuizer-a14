@@ -524,6 +524,8 @@
     <string name="controls_volumemedia_vibrate_summ">Vibrar cuando se ejecute pulsación larga</string>
     <string name="controls_mods_navbar">Barra de navegación</string>
     <string name="controls_nonavbar_title">Esconder barra de navegación e indicador de pantalla completa</string>
+    <string name="controls_hide_ime_dismiss_button_title">Ocultar botón de cierre del teclado</string>
+    <string name="controls_hide_ime_dismiss_button_summ">Oculta el botón inferior izquierdo de cierre del teclado en la navegación por gestos</string>
     <string name="controls_hidenavbar_whenscreenshot_title">Esconder la barra de navegación e indicador de pantalla completa al tomar captura de pantalla</string>
     <string name="controls_nonavbar_fix_inputmethod_title">Corregir optimización de teclado en pantalla completa</string>
     <string name="controls_nonavbar_fix_inputmethod_summ">Añadir primero el método de entrada al scope de LSPosed</string>

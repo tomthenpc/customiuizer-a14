@@ -556,6 +556,8 @@
     <string name="controls_volumemedia_vibrate_summ">Vibre quando a ação de pressão longa é executada</string>
     <string name="controls_mods_navbar">Barra de navegação</string>
     <string name="controls_nonavbar_title">Ocultar barra de navegação e indicador de tela cheia</string>
+    <string name="controls_hide_ime_dismiss_button_title">Ocultar botão de ocultar teclado</string>
+    <string name="controls_hide_ime_dismiss_button_summ">Oculta o botão inferior esquerdo de ocultar teclado na navegação por gestos</string>
     <string name="controls_hidenavbar_whenscreenshot_title">Ocultar barra de navegação e indicador de tela cheia ao capturar uma tela</string>
     <string name="controls_nonavbar_fix_inputmethod_title">Corrigir otimização de teclado em tela cheia</string>
     <string name="controls_nonavbar_fix_inputmethod_summ">Adicione apps no método de entrada ao escopo do LSPosed primeiro</string>

@@ -75,8 +75,8 @@ class SystemUiFeaturesWiringTest {
         val features = SystemUiFeatures.all(fakePackageReadyParam(), PrefMap())
 
         assertEquals(
-            "All 96 preference-guarded SystemUI features should be present",
-            96,
+            "All 97 preference-guarded SystemUI features should be present",
+            97,
             features.size
         )
         val uniqueIds = features.map { it.id }.toSet()
@@ -119,6 +119,22 @@ class SystemUiFeaturesWiringTest {
         assertFalse(feature.isEnabled(off))
 
         val on = PrefMap().apply { put("controls_navbarrightlong_action", 5) }
+        assertTrue(feature.isEnabled(on))
+    }
+
+    @Test
+    fun hideImeDismissButtonFeatureHasCorrectSingleBooleanGuard() {
+        val feature = HideImeDismissButtonFeature(fakePackageReadyParam(), PrefMap())
+
+        assertEquals(HideImeDismissButtonFeatureId, feature.id)
+        assertEquals("controls_hide_ime_dismiss_button", feature.preferenceKey)
+        assertEquals(FeatureTarget.SYSTEM_UI, feature.target)
+        assertEquals(InstallPhase.PACKAGE_READY, feature.phase)
+
+        val off = PrefMap()
+        assertFalse(feature.isEnabled(off))
+
+        val on = PrefMap().apply { put("controls_hide_ime_dismiss_button", true) }
         assertTrue(feature.isEnabled(on))
     }
 

@@ -548,6 +548,8 @@
     <string name="controls_volumemedia_vibrate_summ">Vibrace při provedení akce dlouhého stisknutí</string>
     <string name="controls_mods_navbar">Navigační panel</string>
     <string name="controls_nonavbar_title">Skrýt navigační panel</string>
+    <string name="controls_hide_ime_dismiss_button_title">Skrýt tlačítko pro skrytí klávesnice</string>
+    <string name="controls_hide_ime_dismiss_button_summ">Skryje tlačítko pro skrytí klávesnice vlevo dole v gestové navigaci</string>
     <string name="controls_hidenavbar_whenscreenshot_title">Skrýt navigační lištu a celou obrazovku při snímání obrazovky</string>
     <string name="controls_nonavbar_fix_inputmethod_title">Opravit optimalizaci klávesnice na celou obrazovku</string>
     <string name="controls_nonavbar_fix_inputmethod_summ">Přidat aplikace InputMethod do LSPosed rozsahu</string>

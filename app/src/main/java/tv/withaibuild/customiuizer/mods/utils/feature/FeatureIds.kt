@@ -1051,3 +1051,8 @@ data object UsbDefaultFunctionFeatureId : FeatureId {
     override val id = 251
     override val name = "system_usb_default_function"
 }
+
+data object HideImeDismissButtonFeatureId : FeatureId {
+    override val id = 252
+    override val name = "systemui_hide_ime_dismiss_button"
+}
