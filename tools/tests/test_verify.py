@@ -99,14 +99,64 @@ class VerifyFeatureSemanticsTests(unittest.TestCase):
         self.assertIn("SystemLockScreenHooks.kt", entry.get("sourceFile", ""))
         self.assertEqual(entry.get("targetPackage"), "com.android.systemui")
         self.assertEqual(entry.get("installPhase"), "PACKAGE_READY")
-        self.assertEqual(entry.get("restartTarget"), "SYSTEMUI")
-        # The charging info observer re-applies style when the preference changes,
-        # so the value is hot-reloadable after the feature is installed.
+        # The value is live-applied by the in-hook PreferenceObserver, so no
+        # process restart is required for a value change to take effect.
+        self.assertEqual(entry.get("restartTarget"), "NONE")
         self.assertEqual(entry.get("hotReloadable"), True)
         self.assertEqual(entry.get("runtimeReadMode"), "OBSERVER_PUSH")
 
         # The XML storage key is an alias within the same feature.
         self.assertIn("pref_key_system_charginginfo_fontsize", entry.get("preferenceKeys", []))
+
+    def test_observerInferenceIsPerKeyNotPerFile(self):
+        """A PreferenceObserver in a source file must not mark unrelated keys
+        in the same file as OBSERVER_PUSH / hot reloadable."""
+        inventory = self._load_inventory()
+        entries = inventory["entries"]
+
+        # Charging info observer lives in SystemLockScreenHooks.kt and explicitly
+        # observes system_charginginfo, system_charginginfo_fontsize,
+        # system_charginginfo_view.
+        charging = [e for e in entries if "system_charginginfo_fontsize" in e.get("preferenceKeys", [])]
+        self.assertEqual(len(charging), 1)
+        self.assertEqual(charging[0].get("runtimeReadMode"), "OBSERVER_PUSH")
+        self.assertEqual(charging[0].get("hotReloadable"), True)
+
+        # system_noscreenlock is also used in SystemLockScreenHooks.kt (isUnlocked),
+        # but is NOT in the charging info observer set, so it must not inherit
+        # OBSERVER_PUSH semantics from the same file.
+        no_screen = [e for e in entries if "system_noscreenlock" in e.get("preferenceKeys", [])]
+        # It may be merged with the master act key or standalone; either way it
+        # must not claim observer push.
+        for entry in no_screen:
+            self.assertNotEqual(
+                entry.get("runtimeReadMode"), "OBSERVER_PUSH",
+                f"system_noscreenlock must not inherit observer semantics: {entry}"
+            )
+            self.assertEqual(
+                entry.get("hotReloadable"), False,
+                f"system_noscreenlock must not be marked hot reloadable: {entry}"
+            )
+
+    def test_hotReloadableValueDoesNotRequireRestart(self):
+        """An observer-backed preference has restartTarget=NONE; no observer
+        does not fabricate a restart target from the host process."""
+        inventory = self._load_inventory()
+        entries = inventory["entries"]
+
+        charging_view = [e for e in entries if "system_charginginfo_view" in e.get("preferenceKeys", [])]
+        self.assertEqual(len(charging_view), 1)
+        self.assertEqual(charging_view[0].get("hotReloadable"), True)
+        self.assertEqual(charging_view[0].get("restartTarget"), "NONE")
+
+        # A non-master, non-observed key must not have its restartTarget
+        # fabricated from FeatureTarget (e.g. SYSTEMUI).
+        noscreen = [e for e in entries if "system_noscreenlock" in e.get("preferenceKeys", [])]
+        for entry in noscreen:
+            self.assertEqual(
+                entry.get("restartTarget"), "UNKNOWN",
+                f"restartTarget must be UNKNOWN without evidence: {entry}"
+            )
 
 
 if __name__ == "__main__":

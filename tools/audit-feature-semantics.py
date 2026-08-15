@@ -343,6 +343,7 @@ def _lazy_feature_specs(repo_root: Path) -> dict[str, dict[str, str]]:
             canonical = canonical_preference_key(pref_key)
             meta[canonical] = {
                 "name": name,
+                "preferenceKey": canonical,
                 "target": target,
                 "phase": phase,
                 "sourceFile": rel,
@@ -476,28 +477,136 @@ PHASE_MAP = {
     "LAUNCHER_READY": "LAUNCHER_READY",
 }
 
-RESTART_MAP = {
-    "SETTINGS_APP": "NONE",
-    "SYSTEM_PACKAGE": "TARGET_APP",
-    "SYSTEM_UI": "SYSTEMUI",
-    "LAUNCHER": "LAUNCHER",
-    "SYSTEM_SERVER": "SYSTEM_SERVER",
-    "ANY": "NONE",
-}
+
+def _extract_set_definitions(text: str) -> dict[str, set[str]]:
+    """Find top-level `val NAME = setOf("a", "b")` and const setOf definitions."""
+    sets: dict[str, set[str]] = {}
+    # Kotlin: val CHARGING_INFO_OBSERVED_KEYS = setOf("...", "...")
+    for m in re.finditer(
+        r'(?:val|const val)\s+(\w+)\s*=\s*setOf\((.*?)\)',
+        text,
+        re.DOTALL,
+    ):
+        name, body = m.groups()
+        keys = set(re.findall(r'"([^"]+)"', body))
+        if keys:
+            sets[name] = keys
+    return sets
 
 
-def _source_has_observer(source_file: str) -> bool:
-    """Return True if the source file contains a PreferenceObserver registration."""
+def _extract_literal_string_keys(text: str) -> set[str]:
+    """Return all literal string preference keys used in observer conditions."""
+    keys: set[str] = set()
+
+    # set definitions for resolving names
+    set_defs = _extract_set_definitions(text)
+
+    # Direct `if (key == "foo")` or `if ("foo" == key)`
+    for m in re.finditer(
+        r'if\s*\(\s*(?:key|\w+)\s*(?:==|!=)\s*"([^"]+)"\s*\)',
+        text,
+    ):
+        keys.add(m.group(1))
+
+    # Java `if ("foo".equals(key))` / `if (!"foo".equals(key))`
+    for m in re.finditer(
+        r'"([^"]+)"\s*\.\s*equals\s*\(\s*(?:key|\w+)\s*\)',
+        text,
+    ):
+        keys.add(m.group(1))
+
+    # `when (key) { "foo" -> ...; "bar" -> ... }`
+    for m in re.finditer(
+        r'when\s*\(\s*(?:key|\w+)\s*\)\s*\{([^}]*)\}',
+        text,
+    ):
+        keys.update(re.findall(r'"([^"]+)"', m.group(1)))
+
+    # `if (key !in SET) return`  -> the SET keys are observed
+    for m in re.finditer(
+        r'if\s*\(\s*(?:key|\w+)\s*!in\s+(\w+)\s*\)\s*(?:return|return@)',
+        text,
+    ):
+        set_name = m.group(1)
+        if set_name in set_defs:
+            keys.update(set_defs[set_name])
+
+    # `if (key in SET)` / `if (SET.contains(key))` -> the branch handles those keys
+    for m in re.finditer(
+        r'if\s*\(\s*(?:(?:key|\w+)\s*in\s+(\w+)|(\w+)\.\s*contains\s*\(\s*(?:key|\w+)\s*\))\s*\)',
+        text,
+    ):
+        set_name = m.group(1) or m.group(2)
+        if set_name in set_defs:
+            keys.update(set_defs[set_name])
+
+    # `if (key != null && key in SET)` / `if (key != null && key in SET) return` handled above for `in SET`
+    # also `if (key != null || key in SET) return` -> SET keys observed
+    for m in re.finditer(
+        r'if\s*\(\s*(?:key|\w+)\s*!=\s*null\s*\|\|\s*(?:key|\w+)\s*in\s+(\w+)\s*\)\s*(?:return|return@)',
+        text,
+    ):
+        set_name = m.group(1)
+        if set_name in set_defs:
+            keys.update(set_defs[set_name])
+
+    # `if (key != null && key != "foo") return` -> "foo" is the only handled key
+    for m in re.finditer(
+        r'if\s*\(\s*(?:key|\w+)\s*!=\s*null\s*&&\s*(?:key|\w+)\s*!=\s*"([^"]+)"\s*\)\s*(?:return|return@)',
+        text,
+    ):
+        keys.add(m.group(1))
+
+    return keys
+
+
+def _extract_observer_keys(repo_root: Path) -> dict[str, set[str]]:
+    """Discover observed preference keys per source file.
+
+    Returns a map of relative source path -> set of canonical observed keys.
+    The extraction is conservative: it only marks a key as observed when the
+    source contains an exact literal match in a preference observer callback.
+    """
+    observed: dict[str, set[str]] = {}
+    mod_dir = repo_root / "app" / "src" / "main" / "java" / "tv" / "withaibuild" / "customiuizer" / "mods"
+    if not mod_dir.is_dir():
+        return observed
+    for fp in sorted(mod_dir.rglob("*.kt")):
+        rel = _rel(repo_root, fp)
+        text = fp.read_text(encoding="utf-8")
+        # Only consider files that actually register an observer.
+        if "observePreferenceChange" not in text and "PreferenceObserver" not in text:
+            continue
+        keys = _extract_literal_string_keys(text)
+        if keys:
+            observed[rel] = {canonical_preference_key(k) for k in keys}
+    return observed
+
+
+def _is_observed_key(
+    canonical_key: str,
+    preference_keys: list[str],
+    observer_keys: dict[str, set[str]],
+    source_file: str,
+) -> tuple[bool, str]:
+    """Return (is_observed, evidence_source) for the canonical key."""
     if not source_file:
-        return False
-    path = REPO_ROOT / source_file
-    if not path.is_file():
-        return False
-    text = path.read_text(encoding="utf-8")
-    return "observePreferenceChange" in text or "PreferenceObserver" in text
+        return False, ""
+    keys = observer_keys.get(source_file, set())
+    if canonical_key in keys:
+        return True, source_file
+    for k in preference_keys:
+        if canonical_preference_key(k) in keys:
+            return True, source_file
+    return False, ""
 
 
-def _build_entry(canonical_key: str, meta: dict[str, Any], feature_id: str) -> dict[str, Any]:
+def _build_entry(
+    canonical_key: str,
+    meta: dict[str, Any],
+    feature_id: str,
+    observer_keys: dict[str, set[str]],
+) -> dict[str, Any]:
     source_file = meta.get("sourceFile", "")
     installer = _build_installer(meta)
     func = meta.get("installer_func")
@@ -507,25 +616,33 @@ def _build_entry(canonical_key: str, meta: dict[str, Any], feature_id: str) -> d
     is_xml_only = not is_resource and meta.get("xmlSource") and not func
 
     # Prefer LazyFeatureSpec metadata (from canonical feature registry) for
-    # target package, install phase and restart target.
+    # target package and install phase.  Restart target is not inherited
+    # from FeatureTarget; it must come from per-key runtime evidence.
     if lazy:
         target_enum = lazy.get("target", "")
         phase_enum = lazy.get("phase", "")
         target_package = TARGET_MAP.get(target_enum, _target_package_from_path(source_file))
         install_phase = PHASE_MAP.get(phase_enum, _infer_install_phase(func, source_file))
-        restart_target = RESTART_MAP.get(target_enum, "UNKNOWN")
-        lazy_source = lazy.get("sourceFile", "")
     else:
         target_package = _target_package_from_path(source_file)
         install_phase = _infer_install_phase(func, source_file)
-        restart_target = "UNKNOWN"
-        lazy_source = ""
+
+    preference_keys = meta.get("keys", [canonical_key])
+    if canonical_key not in preference_keys:
+        preference_keys.append(canonical_key)
+
+    is_master = bool(lazy) and canonical_key == lazy.get("preferenceKey")
+    observed, observed_src = _is_observed_key(
+        canonical_key, preference_keys, observer_keys, source_file
+    )
 
     if is_resource:
         runtime_mode = "RESOURCE_REPLACEMENT"
         enable_effect = "Replaces or injects the resource value"
         disable_effect = "No resource replacement"
         value_change_effect = "Resource replacement value is updated"
+        hot_reloadable = False
+        restart_target = "NONE"
         confidence = "INFERRED"
     elif is_xml_only:
         install_phase = "APP_UI_ONLY"
@@ -535,40 +652,55 @@ def _build_entry(canonical_key: str, meta: dict[str, Any], feature_id: str) -> d
         enable_effect = "UNKNOWN"
         disable_effect = "UNKNOWN"
         value_change_effect = "UNKNOWN"
+        hot_reloadable = False
         confidence = "INFERRED"
     else:
-        if _source_has_observer(source_file) or _source_has_observer(lazy_source):
+        enable_effect = "Applies hook when enabled"
+        disable_effect = "Restores default behavior"
+
+        if is_master:
+            # Master key controls feature installation.  The value is read at
+            # install time by isEnabled() and may also be observed by an
+            # already-installed hook for secondary effects, but the
+            # install/uninstall effect is not live.
+            runtime_mode = "CAPTURED_AT_INSTALL"
+            hot_reloadable = False
+            restart_target = "UNKNOWN"
+            value_change_effect = "Value change may require process restart to install/uninstall the feature"
+        elif observed:
             runtime_mode = "OBSERVER_PUSH"
             hot_reloadable = True
+            restart_target = "NONE"
+            value_change_effect = "Value change is pushed to the observer and applied immediately"
         else:
             runtime_mode = "UNKNOWN"
             hot_reloadable = False
-        enable_effect = "Applies hook when enabled"
-        disable_effect = "Restores default behavior"
-        value_change_effect = "Updates applied hook behavior"
-        if install_phase != "UNKNOWN" and ("MainModule.java" in source_file or lazy):
+            restart_target = "UNKNOWN"
+            value_change_effect = "Updates applied hook behavior"
+
+        if is_master:
+            confidence = "INFERRED"
+        elif observed:
+            confidence = "CODE_VERIFIED"
+        elif install_phase != "UNKNOWN" and ("MainModule.java" in source_file or lazy):
             confidence = "INFERRED"
         else:
             confidence = "UNKNOWN"
-
-    # If the source has an observer, value changes are live-applied.
-    if is_resource:
-        hot_reloadable = False
-    elif is_xml_only:
-        hot_reloadable = False
-    elif _source_has_observer(source_file) or _source_has_observer(lazy_source):
-        hot_reloadable = True
-    else:
-        hot_reloadable = False
 
     feature_name = meta.get("resourceName", lazy.get("name")) or canonical_key
     # Keep the name human-readable; don't use the synthetic theme:/fake: prefix in display.
     if is_resource and ":" in feature_name:
         feature_name = feature_name.split(":")[-1]
 
-    preference_keys = meta.get("keys", [canonical_key])
-    if canonical_key not in preference_keys:
-        preference_keys.append(canonical_key)
+    notes = ""
+    if is_master:
+        notes = (
+            "Master key controls feature installation at the declared install phase. "
+            "A value change may require the host process to restart before "
+            "install/uninstall takes effect."
+        )
+    elif observed:
+        notes = f"Observed by PreferenceObserver in {observed_src}."
 
     return {
         "featureId": feature_id,
@@ -588,16 +720,22 @@ def _build_entry(canonical_key: str, meta: dict[str, Any], feature_id: str) -> d
         "hotReloadable": hot_reloadable,
         "confidence": confidence,
         "evidence": meta.get("evidence", ""),
-        "notes": "",
+        "notes": notes,
     }
 
 
-def generate_inventory(repo_root: Path, features: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def generate_inventory(
+    repo_root: Path,
+    features: dict[str, dict[str, Any]],
+    observer_keys: dict[str, set[str]] | None = None,
+) -> dict[str, Any]:
+    if observer_keys is None:
+        observer_keys = _extract_observer_keys(repo_root)
     seen: set[str] = set()
     entries = []
     for key in sorted(features):
         feature_id = _sanitize_id(key, seen)
-        entry = _build_entry(key, features[key], feature_id)
+        entry = _build_entry(key, features[key], feature_id, observer_keys)
         entries.append(entry)
     return {
         "schemaVersion": 1,

@@ -74,6 +74,7 @@
         },
         "runtimeReadMode": {
           "type": "string",
+          "description": "How the preference value is read at runtime. OBSERVER_PUSH means an already-installed hook receives a PreferenceObserver callback and applies the new value without a process restart.",
           "enum": [
             "INSTALL_TIME_SNAPSHOT",
             "CALLBACK_READ",
@@ -90,6 +91,7 @@
         "valueChangeEffect": { "type": "string" },
         "restartTarget": {
           "type": "string",
+          "description": "The restart action required for a preference value change to take effect. This is NOT the process that hosts the feature; it is the restart a user must perform so the new value is observed. NONE means no restart is needed because the value is already applied live (e.g. observer push or callback read). UNKNOWN means no per-key evidence was found.",
           "enum": [
             "NONE",
             "SYSTEMUI",
@@ -102,7 +104,10 @@
             "UNKNOWN"
           ]
         },
-        "hotReloadable": { "type": "boolean" },
+        "hotReloadable": {
+          "type": "boolean",
+          "description": "True when a preference value can take effect in an already-installed runtime without restarting the required host. This must be backed by per-key evidence such as a PreferenceObserver or a per-callback read, not by the host process alone."
+        },
         "confidence": {
           "type": "string",
           "enum": ["CODE_VERIFIED", "DEVICE_VERIFIED", "INFERRED", "UNKNOWN"]
