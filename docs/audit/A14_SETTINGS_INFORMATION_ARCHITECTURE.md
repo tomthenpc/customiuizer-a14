@@ -14,20 +14,56 @@ key/default/entry/dependency/fragment/intent changes, no cross-page migrations.
 
 ## Production user-facing page inventory
 
-`app/src/main/res/xml` 下共有 `prefs_*.xml` 文件 30 个，其中
-`shortcuts.xml` 为启动器快捷方式入口，不是用户可见的 preference 页面，
-因此本次统计生产用户可见页面为 **29** 个：
+通过实际枚举 `app/src/main/res/xml/prefs_*.xml` 得到 **29** 个生产用户可见页面：
 
-| Main/selector | 4 canonical root pages | 23 manual secondary pages | 2 tertiary pages |
-|---|---|---|---|
+```text
+prefs_controls.xml
+prefs_launcher.xml
+prefs_main.xml
+prefs_system.xml
+prefs_system_alarmonlock.xml
+prefs_system_albumartonlock.xml
+prefs_system_autobrightness.xml
+prefs_system_batteryindicator.xml
+prefs_system_charginginfo.xml
+prefs_system_controlcenter_clock.xml
+prefs_system_controlcenter_themestyle.xml
+prefs_system_detailednetspeed.xml
+prefs_system_hideicons.xml
+prefs_system_lockscreenshortcuts.xml
+prefs_system_noscreenlock.xml
+prefs_system_screenshot.xml
+prefs_system_secureqs.xml
+prefs_system_statusbarcontrols.xml
+prefs_system_statusbar_batterystyle.xml
+prefs_system_statusbar_batterytempandcurrent.xml
+prefs_system_statusbar_clock.xml
+prefs_system_statusbar_mobilesignal.xml
+prefs_system_statusbar_righticons.xml
+prefs_system_statusbar_showdevicetemperature.xml
+prefs_system_vibration_amp.xml
+prefs_system_visualizer.xml
+prefs_various.xml
+prefs_various_calluibright.xml
+prefs_various_hiddenfeatures.xml
+```
+
+分类（不重复计数）：
+
+| 类别 | 数量 | 文件 |
+|---|---|---|
+| TOP_SELECTOR | 1 | `prefs_main.xml` |
+| CANONICAL_ROOT | 4 | `prefs_controls.xml`, `prefs_launcher.xml`, `prefs_system.xml`, `prefs_various.xml` |
+| MANUAL_SECONDARY | 24 | 所有 `prefs_system_*.xml` 中除 `prefs_system.xml` 外的 22 个；以及 `prefs_various_calluibright.xml`、`prefs_various_hiddenfeatures.xml` |
+
 | `prefs_main.xml` | `prefs_system.xml`, `prefs_launcher.xml`, `prefs_controls.xml`, `prefs_various.xml` | `prefs_system_alarmonlock.xml`, `prefs_system_albumartonlock.xml`, `prefs_system_autobrightness.xml`, `prefs_system_batteryindicator.xml`, `prefs_system_charginginfo.xml`, `prefs_system_controlcenter_clock.xml`, `prefs_system_controlcenter_themestyle.xml`, `prefs_system_detailednetspeed.xml`, `prefs_system_hideicons.xml`, `prefs_system_lockscreenshortcuts.xml`, `prefs_system_noscreenlock.xml`, `prefs_system_screenshot.xml`, `prefs_system_secureqs.xml`, `prefs_system_statusbar_batterystyle.xml`, `prefs_system_statusbar_batterytempandcurrent.xml`, `prefs_system_statusbar_clock.xml`, `prefs_system_statusbar_mobilesignal.xml`, `prefs_system_statusbar_righticons.xml`, `prefs_system_statusbar_showdevicetemperature.xml`, `prefs_system_statusbarcontrols.xml`, `prefs_system_vibration_amp.xml`, `prefs_system_visualizer.xml`, `prefs_various_calluibright.xml`, `prefs_various_hiddenfeatures.xml` | `prefs_various_calluibright.xml`（二级入口）, `prefs_various_hiddenfeatures.xml` |
 
 各类别说明：
 
 - `prefs_main.xml`：顶层入口，2 个 category（Mods / Settings）。
 - 4 canonical root pages：经 `tools/generate_preference_artifacts.py` 生成 lazy category 拆页与 search breadcrumb。
-- 23 manual secondary pages：`System.kt`/`Various.kt` 中 `openSubFragment` 直接打开的独立页。
-- 2 tertiary pages：`prefs_various_hiddenfeatures.xml` 由 `various_hiddenfeatures` 次级入口打开；`prefs_various_calluibright.xml` 为独立功能页。
+- 24 manual secondary pages：`System.kt` / `Various.kt` 中通过 `openSubFragment` 直接打开的独立页；`prefs_various_calluibright.xml` 和 `prefs_various_hiddenfeatures.xml` 也直接由 `prefs_various.xml` 中的 `PreferenceEx` 入口打开，同属 manual secondary。
+- 不存在 `shortcuts.xml` 或单独的 tertiary 分类；相关文件未计入。
 
 ## Changed pages
 
