@@ -892,9 +892,17 @@ internal class StrongToastPresentationFeature(
                     SystemUIStrongToastHooks.MAX_BOTTOM_OFFSET_DP
                 )
 
+        /**
+         * Always installed for HyperOS 1 A14 P0.
+         *
+         * The StrongToast hooks own a fast passthrough for [StrongToastPresentationMode.SYSTEM_DEFAULT]
+         * inside the event callbacks, so the hooks must be present even in the default mode.  This
+         * lets mode, position and bottom-offset changes reflect on the next SystemUI event without
+         * reinstalling hooks.  No preference lookup happens on the event hot path.
+         */
         @JvmStatic
         fun evaluateEnabled(prefs: PrefMap): Boolean =
-            resolveMode(prefs) != StrongToastPresentationMode.SYSTEM_DEFAULT
+            true
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)

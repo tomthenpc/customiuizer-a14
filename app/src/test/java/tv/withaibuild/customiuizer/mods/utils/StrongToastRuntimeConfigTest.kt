@@ -50,13 +50,14 @@ class StrongToastRuntimeConfigTest {
     }
 
     @Test
-    fun systemDefaultAtBoot_featureIsDisabled() {
+    fun systemDefaultAtBoot_featureIsEnabledForFastPassthrough() {
         val prefs = PrefMap().apply {
             put("system_strong_toast_mode", "0")
         }
 
-        assertFalse(StrongToastPresentationFeature.evaluateEnabled(prefs))
-        assertFalse(SystemUIStrongToastHooks.installed)
+        assertTrue("StrongToast feature must install even in SYSTEM_DEFAULT so live preference changes affect the next event",
+            StrongToastPresentationFeature.evaluateEnabled(prefs))
+        assertFalse("installation must not run in a unit-test JVM", SystemUIStrongToastHooks.installed)
     }
 
     @Test

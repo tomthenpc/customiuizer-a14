@@ -88,9 +88,10 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun feature_isDisabledOnlyForSystemDefault() {
-        assertFalse(StrongToastPresentationFeature.evaluateEnabled(PrefMap()))
-        assertFalse(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
+    fun feature_isEnabledForAllModesToKeepLiveConfiguration() {
+        assertTrue("StrongToast hooks must be present even in SYSTEM_DEFAULT",
+            StrongToastPresentationFeature.evaluateEnabled(PrefMap()))
+        assertTrue(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
             put("system_strong_toast_mode", "0")
         }))
         assertTrue(StrongToastPresentationFeature.evaluateEnabled(PrefMap().apply {
