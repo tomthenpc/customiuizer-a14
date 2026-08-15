@@ -1375,3 +1375,48 @@ P3_B_FINAL_GATE = (not written)
 
 This implementation is a candidate; the final gate is left for the authorized
 reviewer to close.
+
+## P3-B FINAL CORRECTIVE
+
+### Base
+
+```text
+BASE = 1438e298c4d7268fa3b80af28c082d2953bda1bc
+```
+
+### Corrected items
+
+- **Generic secondary-page menu reachability**: menu capability is now
+centralised in `SubFragment.onCreate(...)` via `shouldEnablePreferenceToolbar(...)`.
+Every page opened with `SettingsType.Preference` receives `toolbarMenu = true`,
+so the matched restart item can be resolved and shown on Launcher, Controls,
+Various, System, `CategorySelector`, standalone typed sub-fragments
+(`System_Visualizer`, `System_BatteryIndicator`, etc.) and bare `SubFragment()`
+standalone pages (charging info, alarm on lock, etc.).
+
+- **Removed redundant page-specific activation**: `System.kt` and
+`CategorySelector.kt` no longer set `toolbarMenu` based on `sub` or `cat`.
+Menu capability is derived from the fragment contract, not page names.
+
+- **Zero-allocation registry lookup**: `PreferenceRestartTargetRegistry`
+now returns one of the pre-built constants (`LAUNCHER_ONLY`, `SYSTEMUI_ONLY`,
+`SECURITY_CENTER_ONLY`, `LAUNCHER_AND_SYSTEMUI`, `EMPTY_TARGETS`).  The three
+multi-host keys are tested first, so the overlap is resolved correctly.
+
+- **Execution failure diagnostics**: `PreferenceRestartTargetExecutor` logs
+`target`, `operation`, `command`, `exit` and `output` for every failed
+`force-stop`, `pidof` and `kill -9` step.  Toast text stays short and aggregated.
+
+- **Tests**: added `SubFragmentMenuPolicyTest` covering the menu policy,
+`MainFragment` not being a `SubFragment`, and the structural reachability of all
+relevant secondary preference pages.  Added a referential-identity test in
+`PreferenceRestartTargetRegistryTest` to lock in the zero-allocation contract.
+
+### P3-B self assessment
+
+```text
+P3_B_SELF_ASSESSMENT = PASS_CANDIDATE
+P3_B_FINAL_GATE = (not written)
+```
+
+The final gate remains for the authorized reviewer.

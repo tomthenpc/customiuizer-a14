@@ -16,11 +16,6 @@ class CategorySelector : SubFragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         cat = arguments?.getString("cat")
-        when (cat) {
-            "pref_key_system" -> toolbarMenu = true
-            "pref_key_launcher" -> toolbarMenu = true
-            else -> toolbarMenu = false
-        }
         super.onCreate(savedInstanceState)
     }
 

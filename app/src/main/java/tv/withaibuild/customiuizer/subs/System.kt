@@ -71,7 +71,6 @@ class System : SubFragment() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        toolbarMenu = true
         super.onCreate(savedInstanceState)
     }
 

@@ -1,5 +1,7 @@
 package tv.withaibuild.customiuizer.utils
 
+import android.util.Log
+
 /**
  * Executes the set of matched [RestartTarget]s in a fixed order.
  *
@@ -7,6 +9,8 @@ package tv.withaibuild.customiuizer.utils
  * target independently.  Failures are isolated: one failing target does not
  * cancel the remaining attempts.  No soft reboot or system reboot is invoked.
  */
+private const val TAG = "miuizer"
+
 class PreferenceRestartTargetExecutor(
     private val commandRunner: (String) -> Pair<Int, String> = { cmd ->
         val result = AppHelper.executeRootCommand(cmd)
@@ -81,21 +85,48 @@ class PreferenceRestartTargetExecutor(
     }
 
     private fun forceStopPackage(packageName: String): Boolean {
-        val result = commandRunner("am force-stop $packageName")
-        return result.first == 0
+        val cmd = "am force-stop $packageName"
+        val result = commandRunner(cmd)
+        if (result.first == 0) return true
+        logShellFailure("force-stop", packageName, cmd, result.first, result.second)
+        return false
     }
 
     private fun killProcess(processName: String): Boolean {
-        val pidResult = commandRunner("pidof $processName")
-        if (pidResult.first != 0 || pidResult.second.isBlank()) return false
+        val pidCmd = "pidof $processName"
+        val pidResult = commandRunner(pidCmd)
+        if (pidResult.first != 0 || pidResult.second.isBlank()) {
+            logShellFailure("pidof", processName, pidCmd, pidResult.first, pidResult.second)
+            return false
+        }
 
         val pids = pidResult.second
             .split(Regex("\\s+"))
             .filter { it.isNotEmpty() }
             .joinToString(" ")
-        if (pids.isBlank()) return false
+        if (pids.isBlank()) {
+            logShellFailure("pidof", processName, pidCmd, pidResult.first, pidResult.second)
+            return false
+        }
 
-        val killResult = commandRunner("kill -9 $pids")
-        return killResult.first == 0
+        val killCmd = "kill -9 $pids"
+        val killResult = commandRunner(killCmd)
+        if (killResult.first == 0) return true
+        logShellFailure("kill", processName, killCmd, killResult.first, killResult.second)
+        return false
+    }
+
+    private fun logShellFailure(
+        operation: String,
+        target: String,
+        command: String,
+        exitCode: Int,
+        output: String
+    ) {
+        Log.e(
+            TAG,
+            "Matched restart failed: target=$target, operation=$operation, " +
+                "command=\"$command\", exit=$exitCode, output=\"$output\""
+        )
     }
 }

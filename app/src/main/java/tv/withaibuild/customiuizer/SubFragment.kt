@@ -34,6 +34,17 @@ import tv.withaibuild.customiuizer.subs.SortableList
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.Helpers
 
+/**
+ * Pure decision policy for whether a SubFragment-derived page should enable the
+ * options menu.  [Preference] pages always get menu capability so the matched
+ * restart action can be resolved; [Edit] pages only get a menu when they use
+ * a custom action bar (e.g. the edit-confirm action).
+ */
+internal fun shouldEnablePreferenceToolbar(
+    settingsType: AppHelper.SettingsType,
+    isCustomActionBar: Boolean
+): Boolean = isCustomActionBar || (settingsType == AppHelper.SettingsType.Preference)
+
 open class SubFragment : PreferenceFragmentBase() {
 
     private var contentResId = 0
@@ -130,7 +141,7 @@ open class SubFragment : PreferenceFragmentBase() {
         if (abType == AppHelper.ActionBarType.Edit) {
             isCustomActionBar = true
         }
-        toolbarMenu = toolbarMenu || isCustomActionBar
+        toolbarMenu = toolbarMenu || shouldEnablePreferenceToolbar(settingsType, isCustomActionBar)
 
         if (contentResId == 0) {
             activity?.finish()

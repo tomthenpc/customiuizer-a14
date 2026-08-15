@@ -1,6 +1,7 @@
 package tv.withaibuild.customiuizer.utils
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -497,5 +498,42 @@ class PreferenceRestartTargetRegistryTest {
         assertTrue(PreferenceRestartTargetRegistry.targetsFor("not_a_real_key").isEmpty())
         assertTrue(PreferenceRestartTargetRegistry.targetsFor("pref_key_not_a_real_key").isEmpty())
         assertTrue(PreferenceRestartTargetRegistry.targetsFor(null).isEmpty())
+    }
+
+    @Test
+    fun targetsFor_returns_prebuilt_immutable_sets() {
+        // Every lookup must return one of the pre-built constants, not a newly
+        // allocated Set.  Same canonical input => same object; same canonical
+        // produced by both raw and prefixed forms => same object.
+        assertSame(
+            PreferenceRestartTargetRegistry.targetsFor("controls_nonavbar"),
+            PreferenceRestartTargetRegistry.targetsFor("pref_key_controls_nonavbar")
+        )
+        assertSame(
+            PreferenceRestartTargetRegistry.targetsFor("controls_fsg_assist_left_action"),
+            PreferenceRestartTargetRegistry.targetsFor("pref_key_controls_fsg_assist_left_action")
+        )
+        assertSame(
+            PreferenceRestartTargetRegistry.targetsFor("launcher_fixanim"),
+            PreferenceRestartTargetRegistry.targetsFor("pref_key_launcher_fixanim")
+        )
+        assertSame(
+            PreferenceRestartTargetRegistry.targetsFor("system_charginginfo"),
+            PreferenceRestartTargetRegistry.targetsFor("pref_key_system_charginginfo")
+        )
+        assertSame(
+            PreferenceRestartTargetRegistry.targetsFor("various_disableapp"),
+            PreferenceRestartTargetRegistry.targetsFor("pref_key_various_disableapp")
+        )
+        assertSame(
+            PreferenceRestartTargetRegistry.targetsFor("system_strong_toast_mode"),
+            PreferenceRestartTargetRegistry.targetsFor("pref_key_system_strong_toast_mode")
+        )
+
+        val unknown1 = PreferenceRestartTargetRegistry.targetsFor("not_a_real_key")
+        val unknown2 = PreferenceRestartTargetRegistry.targetsFor("pref_key_not_a_real_key")
+        val unknown3 = PreferenceRestartTargetRegistry.targetsFor(null)
+        assertSame(unknown1, unknown2)
+        assertSame(unknown2, unknown3)
     }
 }

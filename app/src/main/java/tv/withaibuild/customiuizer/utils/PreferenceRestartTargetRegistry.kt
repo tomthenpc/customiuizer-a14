@@ -219,6 +219,12 @@ object PreferenceRestartTargetRegistry {
         "controls_nonavbar",
     )
 
+    private val EMPTY_TARGETS = emptySet<RestartTarget>()
+    private val LAUNCHER_ONLY = setOf(RestartTarget.LAUNCHER)
+    private val SYSTEMUI_ONLY = setOf(RestartTarget.SYSTEMUI)
+    private val SECURITY_CENTER_ONLY = setOf(RestartTarget.SECURITY_CENTER)
+    private val LAUNCHER_AND_SYSTEMUI = setOf(RestartTarget.LAUNCHER, RestartTarget.SYSTEMUI)
+
     /**
      * Returns all canonical keys mapped to the given [target].
      */
@@ -231,14 +237,19 @@ object PreferenceRestartTargetRegistry {
     /**
      * Returns the executable target set for the given raw or canonical [key].
      * Unknown or `null` keys return an empty set.
+     *
+     * Multi-host keys are tested first, then single-host sets.  The result is
+     * always one of the pre-built immutable constants; no allocation per lookup.
      */
     fun targetsFor(key: String?): Set<RestartTarget> {
-        val canonical = canonicalPreferenceKey(key) ?: return emptySet()
-        val result = mutableSetOf<RestartTarget>()
-        if (canonical in LAUNCHER_KEYS) result.add(RestartTarget.LAUNCHER)
-        if (canonical in SYSTEMUI_KEYS) result.add(RestartTarget.SYSTEMUI)
-        if (canonical in SECURITY_CENTER_KEYS) result.add(RestartTarget.SECURITY_CENTER)
-        return result
+        val canonical = canonicalPreferenceKey(key) ?: return EMPTY_TARGETS
+        return when {
+            canonical in MULTI_HOST_KEYS -> LAUNCHER_AND_SYSTEMUI
+            canonical in LAUNCHER_KEYS -> LAUNCHER_ONLY
+            canonical in SYSTEMUI_KEYS -> SYSTEMUI_ONLY
+            canonical in SECURITY_CENTER_KEYS -> SECURITY_CENTER_ONLY
+            else -> EMPTY_TARGETS
+        }
     }
 
     /**
