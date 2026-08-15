@@ -142,6 +142,151 @@ All heavy/derived artifacts are outside the repository:
 - `C:/Home/xiaomi/rom/A14/_compat_work/dex_index/dex_index_*.json.gz` — per-build DEX class/method/field indices.
 - `C:/Home/xiaomi/rom/A14/_compat_work/artifact_index.json` — 4,783 APK/JAR artifact inventory.
 
+## 13. RC-A1 candidate proof / classification corrective
+
+> Base for this corrective: `e7818c02023b68c9f40cb1b70c59c9074a1e4217`.
+> Scope: targeted proof of the three RC-A0 P0 items only. No production changes. No APK generated.
+
+### 13.1 RC-A0 P0 re-classification
+
+| RC-A0 P0 | RC-A1 classification | Reason |
+|---|---|---|
+| Package installer routing | `P0_CANDIDATE_REQUIRES_SEMANTIC_PROOF` (resolved below) | CN host confirmed; Global/TW host and `InstallStart#getCallingPackage` semantics are now evidenced. |
+| InCallUI Global | `SKIP` / `GRACEFUL_UNSUPPORTED` | `com.android.incallui` package is absent on Global; no routing or class fallback is justified. |
+| RegionSamplingHelper | `P0_CANDIDATE` | Global/TW `MIUISecurityCenterGlobal.apk` contains a structurally equivalent obfuscated class (`l1.b`) in the `com.miui.securitycenter` classloader. |
+
+`RC_A0_P0_CLASSIFICATION = HOLD` — RC-A0 shortlist is preserved above for history; the values below are the corrected RC-A1 view.
+
+### 13.2 Package installer host identity
+
+| Region | APK path | Manifest package | `InstallStart` class | `getCallingPackage` descriptor |
+|---|---|---|---|---|
+| CN | `product/product_a/priv-app/MIUIPackageInstaller/MIUIPackageInstaller.apk` | `com.miui.packageinstaller` | `com.miui.packageInstaller.InstallStart` | `()Ljava/lang/String;` |
+| CN (AOSP, also present) | `system/system_a/system/priv-app/PackageInstaller/PackageInstaller.apk` | `com.android.packageinstaller` | `com.android.packageinstaller.InstallStart` | `NONE` |
+| Global | `system/system_a/system/priv-app/GooglePackageInstaller/GooglePackageInstaller.apk` | `com.google.android.packageinstaller` | `com.android.packageinstaller.InstallStart` | `NONE` |
+| Global (MIUI global) | `product/product_a/app/GlobalPackageInstaller/GlobalPackageInstaller.apk` | `com.miui.global.packageinstaller` | `NONE` | `NONE` |
+| TW | `system/system_a/system/priv-app/GooglePackageInstaller/GooglePackageInstaller.apk` | `com.google.android.packageinstaller` | `com.android.packageinstaller.InstallStart` | `NONE` |
+| TW (MIUI global) | `product/product_a/app/GlobalPackageInstaller/GlobalPackageInstaller.apk` | `com.miui.global.packageinstaller` | `NONE` | `NONE` |
+
+Only CN `com.miui.packageInstaller.InstallStart` defines `getCallingPackage()`. The AOSP `com.android.packageinstaller.InstallStart` in CN, Global and TW does **not** override or expose a `getCallingPackage` method; it uses `Activity.getLaunchedFromPackage()` as the install-source string and stores the source in `PackageInstallerActivity.mOriginatingPackage`.
+
+### 13.3 `com.miui.global.packageinstaller` target check
+
+Target search inside `com.miui.global.packageinstaller` / `GlobalPackageInstaller.apk`:
+
+- `com.miui.packageInstaller.InstallStart` — **absent**
+- `com.miui.packageInstaller.ui.listcomponets.AppInfoViewObject` — **absent**
+- `com.miui.packageInstaller.ui.listcomponets.SafeModeTipViewObject$ViewHolder` — **absent**
+- `com.miui.packageInstaller.model.ApkInfo` — **absent**
+- `getCallingPackage()` in any installer-owned class — **absent**
+
+Conclusion: `com.miui.global.packageinstaller` **MUST_NOT_BE_ROUTED** to the existing package-installer features.
+
+### 13.4 `MiuiPackageInstallerHook` semantic proof
+
+CN `com.miui.packageInstaller.InstallStart.getCallingPackage()` returns `Activity.getCallingPackage()` or, via reflection, `Activity.mReferrer`. Its return value is consumed in `onCreate` to:
+
+1. Detect a `com.xiaomi.market` caller.
+2. Verify the caller's signature (`7b6dc7079c34739ce81159719fb5eb61d2a03225`).
+3. Feed the resolved package into `InstallStart.l(String)` → `j(Intent, ApplicationInfo)` → `i(int)`.
+4. Decide whether `android.permission.INSTALL_PACKAGES` / `NOT_UNKNOWN_SOURCE` allows treating the install as a trusted system-app update.
+
+The module's `MiuiPackageInstallerHook` intercepts this method and returns the constant `"com.android.fileexplorer"` to make the installer believe the call originated from the file manager, bypassing the market/signature gate.
+
+Global/TW `com.android.packageinstaller.InstallStart.onCreate` uses `getLaunchedFromPackage()` and passes that string to `getSourceInfo(String)`. `PackageInstallerActivity` then uses `mOriginatingPackage` for the `AppOpsManager` and unknown-sources checks. There is no `getCallingPackage()` hook point in the install flow, and the permission decision does not use the value `getCallingPackage()` would return.
+
+`INSTALLSTART_SEMANTIC_EQUIVALENCE = NO`
+
+### 13.5 Per-feature Global/TW classification
+
+| Feature | Preference key | CN | Global | TW |
+|---|---|---|---|---|
+| `Package Installer Miui Package` | `various_miuiinstaller` | `SUPPORTED` | `NOT_NEEDED` | `NOT_NEEDED` |
+| `Package Installer App Info` | `various_installappinfo` | `SUPPORTED` | `FEATURE_ABSENT` | `FEATURE_ABSENT` |
+| `Package Installer Purify` | `various_installer_purify` | `SUPPORTED` | `FEATURE_ABSENT` | `FEATURE_ABSENT` |
+
+- `various_miuiinstaller` is `NOT_NEEDED` on Global/TW because the AOSP installer does not use `getCallingPackage()` for the same system-app update permission path; faking it would not be equivalent.
+- `various_installappinfo` and `various_installer_purify` are `FEATURE_ABSENT` on Global/TW because the MIUI-specific `AppInfoViewObject`, `ApkInfo` and `SafeModeTipViewObject` classes do not exist there, and the targeted preference keys / UI state are not present in the AOSP/Google installer.
+
+### 13.6 Router and scope requirement
+
+Because no package-installer feature is supported on Global/TW:
+
+- `PACKAGE_INSTALLER_ROUTER_PACKAGE_REQUIRED = NONE`
+- `PACKAGE_INSTALLER_SCOPE_PACKAGE_REQUIRED = NONE`
+- `com.miui.global.packageinstaller` and `com.google.android.packageinstaller` must not be added to `ProcessRouter.packageInstallerPackages` or `META-INF/xposed/scope.list` for these features.
+
+### 13.7 InCallUI Global
+
+- `com.android.incallui` package is **absent** on Global.
+- Global ships `com.google.android.dialer` and an AOSP `Dialer.apk` instead.
+- Current `ProcessRouter` only maps `com.android.incallui` to `ProcessScope.PHONE`.
+
+`INCALLUI_GLOBAL = GRACEFUL_UNSUPPORTED`
+`GOOGLE_DIALER_ROUTING = NO`
+
+### 13.8 RegionSamplingHelper
+
+CN `MIUISecurityCenter.apk` contains `com.android.systemui.navigationbar.gestural.RegionSamplingHelper` with:
+- constructor `(Landroid/view/View;Lcom/android/systemui/navigationbar/gestural/RegionSamplingHelper$c;)V`
+- `onViewDetachedFromWindow(Landroid/view/View;)V`
+- `j(Landroid/graphics/Rect;)V` (first `void(Rect)` method)
+- implements `View$OnAttachStateChangeListener` and `View$OnLayoutChangeListener`
+- contains `Landroid/view/CompositionSamplingListener` and `Landroid/graphics/Rect` fields
+
+Global/TW `MIUISecurityCenterGlobal.apk` does **not** contain a class with that exact dot-name. A targeted search for the same structural fingerprint in Global/TW SecurityCenter found exactly one strong candidate:
+
+| Property | CN | Global/TW |
+|---|---|---|
+| Class | `com.android.systemui.navigationbar.gestural.RegionSamplingHelper` | `l1.b` (obfuscated) |
+| APK | `MIUISecurityCenter.apk` | `MIUISecurityCenterGlobal.apk` |
+| Manifest package | `com.miui.securitycenter` | `com.miui.securitycenter` |
+| Constructor | `(View, RegionSamplingHelper$c)` | `(View, l1.b$d)` |
+| `onViewDetachedFromWindow(View)` | yes | yes |
+| `void(Rect)` method | `j(Rect)` | `j(Rect)` |
+| `View$OnAttachStateChangeListener` | yes | yes |
+| `View$OnLayoutChangeListener` | yes | yes |
+| `CompositionSamplingListener` | yes | yes |
+
+`REGION_SAMPLING_SECURITYCENTER_EQUIVALENT = l1.b` (obfuscated, in `com.miui.securitycenter` classloader)
+`SYSTEMUI_REGION_SAMPLING_FALLBACK = REJECTED` — the `com.android.systemui.shared.navigationbar.RegionSamplingHelper` found in `MiuiSystemUI.apk` is in a different classloader and is not a SecurityCenter sidebar equivalent.
+
+### 13.9 SecurityCenter version delta
+
+`com.miui.appmanager.*` contracts remain `SAME_3_OF_3` across the version gap (`8.8.3` vs `8.9.6`).
+
+`SECURITYCENTER_VERSION_DELTA_ACTION = NO_CHANGE`
+
+### 13.10 Input method
+
+`ProcessRouter` already includes `com.google.android.inputmethod*`. No DEX evidence for the remaining `android.inputmethodservice.*` contracts.
+
+`INPUT_METHOD_ACTION = UNKNOWN_DEVICE_EVIDENCE_LATER`
+
+### 13.11 Region / version hardcoding — RC-A1 correction
+
+`REGION_HARDCODE_REQUIRED = NO`
+`VERSION_HARDCODE_REQUIRED = NO`
+
+RC-A1 did not introduce region/version branching. Compatibility decisions are based on exact package/class/method presence, not on `Build.region` or ROM version strings.
+
+### 13.12 Production change authorization (RC-A1)
+
+- This phase is **AUDIT / EXTRACTION / DOCS ONLY**.
+- No production Kotlin/Java, resources, tests, Gradle, hook, router or `scope.list` changes were made.
+- No APK was generated.
+- `CONFIRMED_P0 = 0`
+- `P0_CANDIDATE = 1` — `RegionSamplingHelper` obfuscated equivalent `l1.b` in Global/TW `MIUISecurityCenterGlobal.apk`; the class name is obfuscated and would require runtime discovery, so it is not a production-safe confirmed P0 at this stage.
+- `SKIP = [InCallUI Global]`
+- `UNKNOWN = [Input method package contracts]`
+- `RC_B_PRODUCTION_SAFE_TO_IMPLEMENT = NO` — no confirmed P0 satisfies all required gates.
+
+## 14. Verification commands (RC-A1)
+
+- `python tools/verify.py fast --changed` — pass
+- `git diff --check` — pass
+- `git status --short` — only `docs/audit/A14_FUXI_ROM_COMPAT_AUDIT.md` modified
+
 ---
-Generated from base `3084297afd0b414e4db103dbc119d96700abfe62` on `devin/a14-final-polish-r14.20.0`.
+Generated from base `e7818c02023b68c9f40cb1b70c59c9074a1e4217` on `devin/a14-final-polish-r14.20.0`.
 This is a documentation-only commit.
