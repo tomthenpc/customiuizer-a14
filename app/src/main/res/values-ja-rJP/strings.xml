@@ -960,8 +960,7 @@
     <string name="system_recents_card_style_title">最近のタスクカードのスタイル</string>
     <string name="system_strong_toast_bottom_offset_summ">実行時のナビゲーション領域とジェスチャー領域を基準に位置を微調整します。負の値ではカプセルが下端に近づき、正の値では上に移動します。</string>
     <string name="system_strong_toast_bottom_offset_title">下端からの追加距離</string>
-    <string name="system_strong_toast_mode_dynamic_island">ダイナミックアイランド（縦方向スプリング）</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop">ダイナミックアイランド（中央からポップ）</string>
+    <string name="system_strong_toast_mode_dynamic_island">ダイナミックアイランド</string>
     <string name="system_strong_toast_position_bottom">下部</string>
     <string name="system_strong_toast_position_summ">上部のアイランドは上にスワイプすると閉じます。下部のアイランドはナビゲーション領域の上に現れ、下にスワイプすると閉じます。</string>
     <string name="system_strong_toast_position_title">ダイナミックアイランドの位置</string>

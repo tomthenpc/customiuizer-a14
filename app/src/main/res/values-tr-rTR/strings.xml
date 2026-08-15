@@ -865,8 +865,7 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_recents_card_style_title">Son görev kartı stili</string>
     <string name="system_strong_toast_bottom_offset_summ">Konumu çalışma anındaki gezinme ve hareket boşluklarına göre hassas şekilde ayarlar. Negatif değerler kapsülü alt kenara yaklaştırır; pozitif değerler yukarı taşır.</string>
     <string name="system_strong_toast_bottom_offset_title">Alttan ek mesafe</string>
-    <string name="system_strong_toast_mode_dynamic_island">Dinamik Ada (dikey yay)</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop">Dinamik Ada (merkezden açılma)</string>
+    <string name="system_strong_toast_mode_dynamic_island">Dinamik Ada</string>
     <string name="system_strong_toast_position_bottom">Alt</string>
     <string name="system_strong_toast_position_summ">Üst adalar yukarı kaydırılarak kapatılır. Alt adalar gezinme alanının üzerine yükselir ve aşağı kaydırılarak kapatılır.</string>
     <string name="system_strong_toast_position_title">Dinamik Ada konumu</string>

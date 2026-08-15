@@ -1028,7 +1028,6 @@
     <string name="system_strong_toast_summ">A full reboot is required. Dynamic Island follows HyperOS event eligibility, supports the lock screen and consecutive-event feedback, and adds soft vertical motion with directional swipe-to-dismiss without a resident service.</string>
     <string name="system_strong_toast_mode_match_height">Match status bar height</string>
     <string name="system_strong_toast_mode_dynamic_island">Dynamic Island</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop" translatable="false" />
     <string name="system_strong_toast_mode_hide">Hide status capsule</string>
     <string name="system_strong_toast_position_title">Dynamic Island position</string>
     <string name="system_strong_toast_position_summ">Top islands swipe up to dismiss. Bottom islands rise above the navigation area and swipe down to dismiss.</string>

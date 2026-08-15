@@ -151,14 +151,14 @@ class DynamicIslandMotionProfileTest {
         // Entrance resolves the capsule once, creates the event state, and binds the profile.
         val startEntranceBody = extractFunctionBody(source, "private fun startDynamicIslandEntrance(")
         assertTrue(
-            "each event must create a fresh SwipeGestureState that owns the capsule",
-            startEntranceBody.contains("XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState(capsule))")
+            "each event must create a fresh SwipeGestureState that owns the shell",
+            startEntranceBody.contains("XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState(shell))")
         )
 
         val entranceBody = extractFunctionBody(source, "private fun runDynamicIslandEntrance(")
         assertTrue(
             "entrance must resolve the profile once",
-            entranceBody.contains("val profile = resolveDynamicIslandMotionProfile(view, capsule, position)")
+            entranceBody.contains("val profile = resolveDynamicIslandMotionProfile(view, shell, position)")
         )
         assertTrue(
             "entrance must store the profile in the event-owned state",
@@ -216,14 +216,18 @@ class DynamicIslandMotionProfileTest {
             dismissBody.split("resolveDynamicIslandMotionProfile").size - 1
         )
 
-        // Detach removes the event-owned state (capsule + profile) and clears listeners.
+        // Detach restores the shell state and removes the event-owned state.
         val onDetachedBody = realHideBody.substring(realHideBody.indexOf("onDetachedFromWindow"))
         assertTrue(
-            "detach must read the event-owned capsule when available",
-            onDetachedBody.contains("swipeState?.capsule")
+            "detach must read the shell state that owns the capsule",
+            onDetachedBody.contains("SHELL_STATE_FIELD")
         )
         assertTrue(
-            "detach must remove the swipe state that owns capsule and profile",
+            "detach must restore the original Dynamic Island hierarchy",
+            onDetachedBody.contains("restoreDynamicIslandShell(")
+        )
+        assertTrue(
+            "detach must remove the swipe state that owns the motion profile",
             onDetachedBody.contains("XposedHelpers.removeAdditionalInstanceField(strongToast, SWIPE_STATE_FIELD)")
         )
     }

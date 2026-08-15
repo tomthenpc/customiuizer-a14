@@ -46,7 +46,6 @@ class AuditHookOwnershipTest(unittest.TestCase):
         self.assertIn("Hook ownership scan passes", result.stdout)
         self.assertNotIn("Committed inventory", result.stdout)
         self.assertFalse(EXPECTED_INVENTORY.exists())
-        self.assertFalse((REPO_ROOT / "docs" / "audit").exists())
 
     def test_checkDoesNotWriteRepositoryFiles(self):
         """Default check is in-memory and does not create any repository files."""

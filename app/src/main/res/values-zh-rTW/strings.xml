@@ -831,8 +831,7 @@
     <string name="system_strong_toast_title">靈動額頭</string>
     <string name="system_strong_toast_summ">修改後需完整重啟。動態島嚴格沿用 HyperOS 事件條件，支援鎖定畫面和連續觸發回饋，並加入方向對應的滑動關閉；無常駐服務。</string>
     <string name="system_strong_toast_mode_match_height">符合狀態列高度</string>
-    <string name="system_strong_toast_mode_dynamic_island">動態島（縱向軟彈）</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop">動態島（中心彈出）</string>
+    <string name="system_strong_toast_mode_dynamic_island">動態島</string>
     <string name="system_strong_toast_mode_hide">隱藏靈動額頭</string>
     <string name="system_strong_toast_position_title">動態島位置</string>
     <string name="system_strong_toast_position_summ">頂部動態島上滑關閉；底部動態島從導覽區上方彈出，下滑關閉。</string>

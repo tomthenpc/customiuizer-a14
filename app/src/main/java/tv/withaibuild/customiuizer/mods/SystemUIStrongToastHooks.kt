@@ -2,6 +2,7 @@ package tv.withaibuild.customiuizer.mods
 
 import android.graphics.Color
 import android.graphics.Region
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.MotionEvent
@@ -11,6 +12,7 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
@@ -40,9 +42,10 @@ import java.util.concurrent.atomic.AtomicReference
  * Hiding stops the request at MIUIStrongToastControl before a View or animation is created. No
  * Activity, View, controller or listener is retained.
  * Dynamic Island mode reuses that same event-scoped ROM View and cleanup path. The ROM's full-width
- * forehead bottom is removed and its message container becomes a centered rounded capsule. Only
- * that capsule receives a device-scaled entrance transform while attached; no overlay service,
- * listener or polling is introduced.
+ * forehead bottom is removed and a module-owned FrameLayout shell is inserted around the ROM
+ * message container. The shell owns the black rounded capsule background and the entrance/exit
+ * transforms; the ROM content stays the authoritative content owner. No overlay service, listener
+ * or polling is introduced.
  */
 object SystemUIStrongToastHooks {
     private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
@@ -62,12 +65,10 @@ object SystemUIStrongToastHooks {
     private const val SWIPE_DISMISS_THRESHOLD_MAX_DP = 28f
     private const val SWIPE_TOUCH_EXPANSION_HORIZONTAL_DP = 24f
     private const val SWIPE_TOUCH_EXPANSION_VERTICAL_DP = 16f
-    private const val DYNAMIC_ISLAND_EXIT_DURATION_MS = 300L
-    private const val ISLAND_CONTENT_DURATION_MS = 180L
-    private const val ISLAND_CONTENT_DELAY_MS = 60L
     private const val SWIPE_STATE_FIELD = "customiuizer_strong_toast_swipe"
     private const val BOTTOM_BASE_PADDING_FIELD = "customiuizer_strong_toast_bottom_base_padding"
     private const val DISMISS_RUNNING_FIELD = "customiuizer_strong_toast_dismiss_running"
+    private const val SHELL_STATE_FIELD = "customiuizer_dynamic_island_shell_state"
     private const val TOUCH_REGION_LISTENER_FIELD =
         "customiuizer_strong_toast_touch_region_listener"
     private const val TOUCHABLE_INSETS_REGION = 3
@@ -136,6 +137,23 @@ object SystemUIStrongToastHooks {
         val parentPaddingBottom: Int,
         val parentGravity: Int,
         val bottomViewVisibility: Int
+    )
+
+    /**
+     * Per-MIUIStrongToast Dynamic Island ownership state.
+     *
+     * A module-owned [FrameLayout] shell is inserted around the ROM
+     * [mDarkToastContent] / [cl_strong_toast_msg]. The shell owns the black
+     * rounded capsule background and all shell-level transforms; the ROM content
+     * stays untouched and is reparented as a whole.
+     */
+    internal data class DynamicIslandShellState(
+        val shell: FrameLayout,
+        val content: View,
+        val originalParent: ViewGroup,
+        val originalIndex: Int,
+        val originalContentLayoutParams: ViewGroup.LayoutParams?,
+        val originalContentBackground: Drawable?
     )
 
     @JvmStatic
@@ -328,12 +346,19 @@ object SystemUIStrongToastHooks {
                         strongToast,
                         SWIPE_STATE_FIELD
                     ) as? SwipeGestureState
-                    val capsule = swipeState?.capsule ?: findDynamicIslandCapsule(strongToast) ?: return
+                    val shell = swipeState?.capsule
+                        ?: findDynamicIslandShell(strongToast)
+                        ?: prepareDynamicIslandCapsule(
+                            strongToast,
+                            snapshot.position,
+                            snapshot.bottomOffsetDp
+                        )
+                        ?: return
                     if (!strongToast.isAttachedToWindow) return
                     callback.returnAndSkip(null)
                     animateDynamicIslandDismiss(
                         strongToast,
-                        capsule,
+                        shell,
                         snapshot.position
                     )
                 }
@@ -349,24 +374,27 @@ object SystemUIStrongToastHooks {
                     val snapshot = resolveSnapshot(strongToast) ?: return
                     try {
                         if (snapshot.isDynamicIsland) {
-                            val swipeState = XposedHelpers.getAdditionalInstanceField(
+                            val state = XposedHelpers.getAdditionalInstanceField(
                                 strongToast,
-                                SWIPE_STATE_FIELD
-                            ) as? SwipeGestureState
-                            val capsule = swipeState?.capsule
+                                SHELL_STATE_FIELD
+                            ) as? DynamicIslandShellState
+                            val shell = state?.shell
+                                ?: findDynamicIslandShell(strongToast)
                                 ?: findDynamicIslandCapsule(strongToast)
                                 ?: strongToast
-                            setSwipeListenerRecursively(capsule, null)
-                            (capsule.parent as? View)?.setOnTouchListener(null)
+                            shell.animate().cancel()
+                            state?.content?.animate()?.cancel()
+                            resetDynamicIslandHostTransform(strongToast)
+                            resetDynamicIslandTransform(shell)
+                            state?.content?.let { resetDynamicIslandTransform(it) }
+                            setSwipeListenerRecursively(shell, null)
+                            (shell.parent as? View)?.setOnTouchListener(null)
                             removeExpandedWindowTouchRegion(strongToast)
-                            resetDynamicIslandContent(capsule)
+                            restoreStatusBarContents(strongToast)
+                            restoreDynamicIslandShell(state)
+                            XposedHelpers.removeAdditionalInstanceField(strongToast, SHELL_STATE_FIELD)
                             XposedHelpers.removeAdditionalInstanceField(strongToast, SWIPE_STATE_FIELD)
                             XposedHelpers.removeAdditionalInstanceField(strongToast, DISMISS_RUNNING_FIELD)
-                            restoreStatusBarContents(strongToast)
-                            strongToast.animate().cancel()
-                            resetDynamicIslandHostTransform(strongToast)
-                            capsule.animate().cancel()
-                            resetDynamicIslandTransform(capsule)
                         } else {
                             resetMatchModeCapsule(strongToast)
                         }
@@ -395,14 +423,14 @@ object SystemUIStrongToastHooks {
                             XposedHelpers.callMethod(info, "setTouchableInsets", TOUCHABLE_INSETS_REGION)
                             val region = XposedHelpers.getObjectField(info, "touchableRegion") as? Region
                                 ?: return@guarded
-                            val capsule = findDynamicIslandCapsule(view) ?: return@guarded
-                            val horizontal = dpToPx(capsule, SWIPE_TOUCH_EXPANSION_HORIZONTAL_DP)
-                            val vertical = dpToPx(capsule, SWIPE_TOUCH_EXPANSION_VERTICAL_DP)
+                            val shell = findDynamicIslandShell(view) ?: return@guarded
+                            val horizontal = dpToPx(shell, SWIPE_TOUCH_EXPANSION_HORIZONTAL_DP)
+                            val vertical = dpToPx(shell, SWIPE_TOUCH_EXPANSION_VERTICAL_DP)
                             region.set(
-                                (capsule.left - horizontal).coerceAtLeast(0),
-                                (capsule.top - vertical).coerceAtLeast(0),
-                                (capsule.right + horizontal).coerceAtMost(view.width),
-                                (capsule.bottom + vertical).coerceAtMost(view.height)
+                                (shell.left - horizontal).coerceAtLeast(0),
+                                (shell.top - vertical).coerceAtLeast(0),
+                                (shell.right + horizontal).coerceAtMost(view.width),
+                                (shell.bottom + vertical).coerceAtMost(view.height)
                             )
                         }
                         null
@@ -455,45 +483,44 @@ object SystemUIStrongToastHooks {
         bottomOffsetDp: Int
     ) {
         try {
-            val capsule = prepareDynamicIslandCapsule(view, position, bottomOffsetDp) ?: return
+            val shell = prepareDynamicIslandCapsule(view, position, bottomOffsetDp) ?: return
             if (position == StrongToastPosition.TOP) hideStatusBarContents(view)
-            XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState(capsule))
-            installSwipeToDismiss(view, capsule, position)
+            XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState(shell))
+            installSwipeToDismiss(view, shell, position)
             view.animate().cancel()
             resetDynamicIslandHostTransform(view)
-            capsule.animate().cancel()
-            resetDynamicIslandTransform(capsule)
-            prepareDynamicIslandContent(capsule)
+            shell.animate().cancel()
+            resetDynamicIslandTransform(shell)
             // onAttachedToWindow precedes the first layout pass. Defer exactly once so the
-            // capsule has real width/height and the profile can set a safe pivot/translation.
-            capsule.post {
+            // shell has real width/height and the profile can set a safe pivot/translation.
+            shell.post {
                 ModuleHelper.guarded {
-                    if (!capsule.isAttachedToWindow) {
+                    if (!shell.isAttachedToWindow) {
                         resetDynamicIslandHostTransform(view)
-                        resetDynamicIslandTransform(capsule)
-                        resetDynamicIslandContent(capsule)
+                        resetDynamicIslandTransform(shell)
                         return@guarded
                     }
-                    runDynamicIslandEntrance(view, capsule, position)
+                    runDynamicIslandEntrance(view, shell, position)
                 }
             }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             restoreStatusBarContents(view)
             resetDynamicIslandHostTransform(view)
-            val capsule = findDynamicIslandCapsule(view) ?: view
-            resetDynamicIslandTransform(capsule)
-            resetDynamicIslandContent(capsule)
+            val state = XposedHelpers.getAdditionalInstanceField(view, SHELL_STATE_FIELD) as? DynamicIslandShellState
+            state?.shell?.let { resetDynamicIslandTransform(it) }
+            restoreDynamicIslandShell(state)
+            XposedHelpers.removeAdditionalInstanceField(view, SHELL_STATE_FIELD)
             XposedHelpers.log("StrongToastDynamicIsland", t)
         }
     }
     private fun runDynamicIslandEntrance(
         view: View,
-        capsule: View,
+        shell: View,
         position: StrongToastPosition
     ) {
         try {
-            val profile = resolveDynamicIslandMotionProfile(view, capsule, position)
+            val profile = resolveDynamicIslandMotionProfile(view, shell, position)
                 ?: return
 
             // Bind the prepared geometry to the event-owned swipe state so every
@@ -505,16 +532,16 @@ object SystemUIStrongToastHooks {
             ) as? SwipeGestureState
             state?.motionProfile = profile
 
-            // The capsule is laid out at its resting position. Set the pivot to the
+            // The shell is laid out at its resting position. Set the pivot to the
             // screen edge so vertical scaling grows from that edge, not the center.
-            capsule.pivotX = capsule.width / 2f
-            capsule.pivotY = profile.pivotY
-            capsule.scaleX = 1f
-            capsule.scaleY = profile.entranceScaleY
-            capsule.translationY = profile.entranceTranslationY
-            capsule.alpha = 1f
+            shell.pivotX = shell.width / 2f
+            shell.pivotY = profile.pivotY
+            shell.scaleX = 1f
+            shell.scaleY = profile.entranceScaleY
+            shell.translationY = profile.entranceTranslationY
+            shell.alpha = 1f
 
-            capsule.animate()
+            shell.animate()
                 .alpha(1f)
                 .scaleX(1f)
                 .scaleY(1f)
@@ -523,15 +550,15 @@ object SystemUIStrongToastHooks {
                 .setInterpolator(boundedDynamicIslandInterpolator)
                 .start()
 
-            animateDynamicIslandContent(capsule)
+            // The ROM content children are animated by the ROM itself. Module does
+            // not own their alpha to avoid double ownership with ROM Folme.
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             restoreStatusBarContents(view)
             view.animate().cancel()
             resetDynamicIslandHostTransform(view)
-            capsule.animate().cancel()
-            resetDynamicIslandTransform(capsule)
-            resetDynamicIslandContent(capsule)
+            shell.animate().cancel()
+            resetDynamicIslandTransform(shell)
             XposedHelpers.log("StrongToastDynamicIsland", t)
         }
     }
@@ -664,26 +691,46 @@ object SystemUIStrongToastHooks {
         }
     }
 
+    /**
+     * Builds the dismiss completion runnable that runs only after the shell exit
+     * animation has fully finished. The ROM cleanup order is intentionally:
+     *
+     *     1. Visual shell exit completed.
+     *     2. clearAll() once.
+     *     3. onComplete() once.
+     *
+     * This prevents clearAll() from mutating content and requesting layout in the
+     * middle of the shell transform, which was the root cause of the choppy exit.
+     */
+    internal fun buildDynamicIslandDismissComplete(strongToast: View): Runnable {
+        return Runnable {
+            ModuleHelper.guarded {
+                restoreStatusBarContents(strongToast)
+                try {
+                    XposedHelpers.callMethod(strongToast, "clearAll")
+                } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
+                    XposedHelpers.log("StrongToastDynamicIslandClear", t)
+                }
+                XposedHelpers.callMethod(strongToast, "onComplete")
+            }
+        }
+    }
+
     private fun animateDynamicIslandDismiss(
         strongToast: View,
-        capsule: View,
+        shell: View,
         position: StrongToastPosition
     ) {
         XposedHelpers.setAdditionalInstanceField(strongToast, DISMISS_RUNNING_FIELD, true)
-        setSwipeListenerRecursively(capsule, null)
-        animateDynamicIslandContentOut(capsule)
+        setSwipeListenerRecursively(shell, null)
+        (shell.parent as? View)?.setOnTouchListener(null)
+        val complete = buildDynamicIslandDismissComplete(strongToast)
         try {
             XposedHelpers.setBooleanField(strongToast, "mCheckInOutStrongToasting", true)
-            XposedHelpers.callMethod(strongToast, "clearAll")
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
-            XposedHelpers.log("StrongToastDynamicIslandClear", t)
-        }
-        val complete = Runnable {
-            ModuleHelper.guarded {
-                restoreStatusBarContents(strongToast)
-                XposedHelpers.callMethod(strongToast, "onComplete")
-            }
+            XposedHelpers.log("StrongToastDynamicIslandDismissState", t)
         }
 
         val swipeState = XposedHelpers.getAdditionalInstanceField(
@@ -691,15 +738,15 @@ object SystemUIStrongToastHooks {
             SWIPE_STATE_FIELD
         ) as? SwipeGestureState
         val profile = swipeState?.motionProfile
-            ?: resolveDynamicIslandMotionProfile(strongToast, capsule, position)
+            ?: resolveDynamicIslandMotionProfile(strongToast, shell, position)
                 .also { fallback -> swipeState?.motionProfile = fallback }
         if (profile == null) {
             complete.run()
             return
         }
 
-        capsule.pivotY = profile.pivotY
-        capsule.animate()
+        shell.pivotY = profile.pivotY
+        shell.animate()
             .alpha(1f)
             .scaleX(1f)
             .scaleY(profile.exitScaleY)
@@ -849,19 +896,176 @@ object SystemUIStrongToastHooks {
         }
     }
 
-    private fun prepareDynamicIslandCapsule(
+    /**
+     * Locates the module-owned Dynamic Island shell for a live MIUIStrongToast.
+     *
+     * If the shell state has been removed or the shell is no longer attached,
+     * returns null so the caller can re-bind or let the ROM handle cleanup.
+     */
+    private fun findDynamicIslandShell(root: View): View? {
+        val state = XposedHelpers.getAdditionalInstanceField(
+            root,
+            SHELL_STATE_FIELD
+        ) as? DynamicIslandShellState ?: return null
+        if (!state.shell.isAttachedToWindow) return null
+        if (state.content.parent !== state.shell) return null
+        if (state.shell.parent !== state.originalParent) return null
+        return state.shell
+    }
+
+    /**
+     * Wraps the ROM message container in a module-owned FrameLayout shell.
+     *
+     * The ROM content is reparented as a whole into the shell, the shell takes
+     * the original container's outer layout params, and the content fills the
+     * shell. This is idempotent: calling it again for the same content returns
+     * the existing shell.
+     */
+    internal fun bindDynamicIslandShell(
+        root: View,
+        content: View,
+        position: StrongToastPosition,
+        bottomOffsetDp: Int
+    ): FrameLayout? {
+        val existing = XposedHelpers.getAdditionalInstanceField(
+            root,
+            SHELL_STATE_FIELD
+        ) as? DynamicIslandShellState
+        if (existing != null) {
+            if (existing.content === content &&
+                existing.shell.isAttachedToWindow &&
+                existing.content.parent === existing.shell &&
+                existing.shell.parent === existing.originalParent
+            ) {
+                return existing.shell
+            }
+            // A state exists but is stale or belongs to a different content
+            // instance. Tear it down before creating a new one.
+            restoreDynamicIslandShell(existing)
+            XposedHelpers.removeAdditionalInstanceField(root, SHELL_STATE_FIELD)
+        }
+
+        val parent = content.parent as? ViewGroup ?: return null
+        val originalIndex = parent.indexOfChild(content)
+        if (originalIndex < 0) return null
+        val originalLp = content.layoutParams
+        val originalBackground = content.background
+
+        val shell = FrameLayout(root.context).apply {
+            clipChildren = false
+            clipToPadding = false
+            clipToOutline = false
+        }
+
+        val shellLp = when (originalLp) {
+            is LinearLayout.LayoutParams -> LinearLayout.LayoutParams(
+                ViewGroup.MarginLayoutParams(originalLp)
+            ).apply {
+                gravity = originalLp.gravity
+                weight = originalLp.weight
+            }
+            is ViewGroup.MarginLayoutParams -> ViewGroup.MarginLayoutParams(originalLp)
+            else -> ViewGroup.LayoutParams(
+                originalLp?.width ?: ViewGroup.LayoutParams.WRAP_CONTENT,
+                originalLp?.height ?: ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+        shell.layoutParams = shellLp
+
+        parent.removeView(content)
+        parent.addView(shell, originalIndex)
+        content.layoutParams = FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        content.background = null
+        content.clipToOutline = false
+        shell.addView(content)
+
+        XposedHelpers.setAdditionalInstanceField(
+            root,
+            SHELL_STATE_FIELD,
+            DynamicIslandShellState(
+                shell = shell,
+                content = content,
+                originalParent = parent,
+                originalIndex = originalIndex,
+                originalContentLayoutParams = originalLp,
+                originalContentBackground = originalBackground
+            )
+        )
+        return shell
+    }
+
+    /**
+     * Reverses [bindDynamicIslandShell]. The ROM content is returned to its
+     * original parent, the shell is removed and the original background / layout
+     * params are restored. Safe to call on an already-restored or partially
+     * torn-down state.
+     */
+    internal fun restoreDynamicIslandShell(state: DynamicIslandShellState?) {
+        if (state == null) return
+        val shell = state.shell
+        val content = state.content
+        val parent = state.originalParent
+
+        try {
+            shell.animate().cancel()
+            resetDynamicIslandTransform(shell)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastDynamicIslandShellTeardown", t)
+        }
+        try {
+            content.animate().cancel()
+            resetDynamicIslandTransform(content)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastDynamicIslandContentTeardown", t)
+        }
+
+        if (content.parent === shell) {
+            shell.removeView(content)
+        }
+        content.background = state.originalContentBackground
+        content.layoutParams = state.originalContentLayoutParams
+
+        when {
+            shell.parent === parent -> {
+                parent.removeView(shell)
+                val index = state.originalIndex.coerceIn(0, parent.childCount)
+                parent.addView(content, index)
+            }
+            shell.parent is ViewGroup -> {
+                (shell.parent as ViewGroup).removeView(shell)
+                if (content.parent == null) {
+                    val index = state.originalIndex.coerceIn(0, parent.childCount)
+                    parent.addView(content, index)
+                }
+            }
+            content.parent == null -> {
+                val index = state.originalIndex.coerceIn(0, parent.childCount)
+                parent.addView(content, index)
+            }
+        }
+    }
+
+    internal fun prepareDynamicIslandCapsule(
         root: View,
         position: StrongToastPosition,
         bottomOffsetDp: Int
     ): View? {
-        val capsule = findDynamicIslandCapsule(root) ?: return null
+        val content = findDynamicIslandCapsule(root) ?: return null
+        val shell = bindDynamicIslandShell(root, content, position, bottomOffsetDp)
+            ?: return null
+
         val visualWidthPx = strongToastDimensionPx(root, "strong_toast_width")
         val visualHeightPx = strongToastVisualHeightPx(root)
         if (visualWidthPx <= 0 || visualHeightPx <= 0) return null
 
         val horizontalMarginPx = dpToPx(root, 16f)
         val availableWidthPx = root.resources.displayMetrics.widthPixels - horizontalMarginPx * 2
-        val layoutParams = capsule.layoutParams ?: return null
+        val layoutParams = shell.layoutParams ?: return null
         layoutParams.width = minOf(visualWidthPx, availableWidthPx)
         layoutParams.height = visualHeightPx
         if (layoutParams is ViewGroup.MarginLayoutParams) {
@@ -877,18 +1081,17 @@ object SystemUIStrongToastHooks {
         if (layoutParams is LinearLayout.LayoutParams) {
             layoutParams.gravity = Gravity.CENTER_HORIZONTAL
         }
-        capsule.layoutParams = layoutParams
-        capsule.background = GradientDrawable().apply {
+        shell.layoutParams = layoutParams
+        shell.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             setColor(Color.BLACK)
             cornerRadius = visualHeightPx / 2f
         }
-        // The ROM's STConstraintLayout does not need outline clipping for a rounded
-        // GradientDrawable background. Its first-layout outline can lag the transform and
-        // cut the top of the capsule, so animate the outer container and keep this disabled.
-        capsule.clipToOutline = false
+        // The ROM content lives inside the shell and must not clip to its own
+        // outline; the shell background provides the rounded pill shape.
+        shell.clipToOutline = false
 
-        (capsule.parent as? LinearLayout)?.apply {
+        (shell.parent as? LinearLayout)?.apply {
             gravity = if (position == StrongToastPosition.BOTTOM) {
                 Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             } else {
@@ -901,9 +1104,9 @@ object SystemUIStrongToastHooks {
             }
             setPadding(paddingLeft, 0, paddingRight, bottomPadding)
         }
-        disableClippingThroughAncestors(capsule, root)
+        disableClippingThroughAncestors(shell, root)
         findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE
-        return capsule
+        return shell
     }
     private fun disableClippingThroughAncestors(capsule: View, root: View) {
         var ancestor = capsule.parent
@@ -964,39 +1167,11 @@ object SystemUIStrongToastHooks {
             }
         }
     }
-    private fun prepareDynamicIslandContent(capsule: View) {
-        val group = capsule as? ViewGroup ?: return
-        for (index in 0 until group.childCount) {
-            val child = group.getChildAt(index)
-            child.animate().cancel()
-            child.alpha = 0f
-        }
-    }
-
-    private fun animateDynamicIslandContent(capsule: View) {
-        val group = capsule as? ViewGroup ?: return
-        for (index in 0 until group.childCount) {
-            group.getChildAt(index).animate()
-                .alpha(1f)
-                .setStartDelay(ISLAND_CONTENT_DELAY_MS)
-                .setDuration(ISLAND_CONTENT_DURATION_MS)
-                .setInterpolator(boundedDynamicIslandInterpolator)
-                .start()
-        }
-    }
-
-    private fun animateDynamicIslandContentOut(capsule: View) {
-        val group = capsule as? ViewGroup ?: return
-        for (index in 0 until group.childCount) {
-            group.getChildAt(index).animate()
-                .alpha(0f)
-                .setStartDelay(0L)
-                .setDuration(ISLAND_CONTENT_DURATION_MS / 2)
-                .setInterpolator(dynamicIslandExitInterpolator)
-                .start()
-        }
-    }
-
+    /**
+     * Resets any module-imposed content alpha/animation state. Only used in
+     * MATCH_STATUS_BAR_HEIGHT cleanup; the Dynamic Island path no longer owns
+     * ROM content child alpha because the module shell is the transform target.
+     */
     private fun resetDynamicIslandContent(capsule: View) {
         val group = capsule as? ViewGroup ?: return
         for (index in 0 until group.childCount) {

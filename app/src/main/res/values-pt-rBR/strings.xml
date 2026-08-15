@@ -960,8 +960,7 @@
     <string name="system_recents_card_style_title">Estilo dos cartões de tarefas recentes</string>
     <string name="system_strong_toast_bottom_offset_summ">Ajusta a posição com base nas margens de navegação e gestos em execução. Valores negativos aproximam a cápsula da borda inferior; valores positivos a movem para cima.</string>
     <string name="system_strong_toast_bottom_offset_title">Distância adicional da parte inferior</string>
-    <string name="system_strong_toast_mode_dynamic_island">Ilha Dinâmica (mola vertical)</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop">Ilha Dinâmica (expansão central)</string>
+    <string name="system_strong_toast_mode_dynamic_island">Ilha Dinâmica</string>
     <string name="system_strong_toast_position_bottom">Inferior</string>
     <string name="system_strong_toast_position_summ">Ilhas superiores são dispensadas ao deslizar para cima. Ilhas inferiores sobem acima da área de navegação e são dispensadas ao deslizar para baixo.</string>
     <string name="system_strong_toast_position_title">Posição da Ilha Dinâmica</string>

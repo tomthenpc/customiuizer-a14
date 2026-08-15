@@ -994,8 +994,7 @@
     <string name="system_strong_toast_title">灵动额头</string>
     <string name="system_strong_toast_summ">修改后需完整重启。动态岛严格沿用 HyperOS 事件条件，支持锁屏和连续触发反馈，并加入方向对应的滑动关闭；无常驻服务。</string>
     <string name="system_strong_toast_mode_match_height">匹配状态栏高度</string>
-    <string name="system_strong_toast_mode_dynamic_island">动态岛（纵向软弹）</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop">动态岛（中心弹出）</string>
+    <string name="system_strong_toast_mode_dynamic_island">动态岛</string>
     <string name="system_strong_toast_mode_hide">隐藏灵动额头</string>
     <string name="system_strong_toast_position_title">动态岛位置</string>
     <string name="system_strong_toast_position_summ">顶部动态岛上滑关闭；底部动态岛从导航区上方弹出，下滑关闭。</string>

@@ -952,8 +952,7 @@
     <string name="system_recents_card_style_title">Styl karet posledních úloh</string>
     <string name="system_strong_toast_bottom_offset_summ">Doladí polohu podle aktuální navigační a gestové výplně. Záporné hodnoty posunou kapsli blíže ke spodnímu okraji, kladné hodnoty ji posunou nahoru.</string>
     <string name="system_strong_toast_bottom_offset_title">Dodatečná vzdálenost odspodu</string>
-    <string name="system_strong_toast_mode_dynamic_island">Dynamický ostrov (svislá pružina)</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop">Dynamický ostrov (vysunutí ze středu)</string>
+    <string name="system_strong_toast_mode_dynamic_island">Dynamický ostrov</string>
     <string name="system_strong_toast_position_bottom">Dole</string>
     <string name="system_strong_toast_position_summ">Horní ostrovy zavřete přejetím nahoru. Spodní ostrovy se zvednou nad navigační oblast a zavřete je přejetím dolů.</string>
     <string name="system_strong_toast_position_title">Poloha Dynamického ostrova</string>

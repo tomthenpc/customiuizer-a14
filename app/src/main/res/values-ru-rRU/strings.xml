@@ -937,8 +937,7 @@
     <string name="system_recents_card_style_title">Стиль карточек недавних задач</string>
     <string name="system_strong_toast_bottom_offset_summ">Точная настройка относительно вычисленных системой отступов навигации и жестов. Отрицательные значения приближают капсулу к нижнему краю, положительные поднимают её.</string>
     <string name="system_strong_toast_bottom_offset_title">Дополнительный отступ снизу</string>
-    <string name="system_strong_toast_mode_dynamic_island">Динамический остров (вертикальная пружина)</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop">Динамический остров (появление из центра)</string>
+    <string name="system_strong_toast_mode_dynamic_island">Динамический остров</string>
     <string name="system_strong_toast_position_bottom">Снизу</string>
     <string name="system_strong_toast_position_summ">Верхний остров закрывается свайпом вверх. Нижний появляется над областью навигации и закрывается свайпом вниз.</string>
     <string name="system_strong_toast_position_title">Положение динамического острова</string>

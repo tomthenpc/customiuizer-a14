@@ -894,8 +894,7 @@
     <string name="system_recents_card_style_title">Estilo de tarjetas de tareas recientes</string>
     <string name="system_strong_toast_bottom_offset_summ">Ajusta la posición a partir de los márgenes de navegación y gestos en tiempo de ejecución. Los valores negativos acercan la cápsula al borde inferior; los positivos la desplazan hacia arriba.</string>
     <string name="system_strong_toast_bottom_offset_title">Distancia adicional desde abajo</string>
-    <string name="system_strong_toast_mode_dynamic_island">Isla dinámica (resorte vertical)</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop">Isla dinámica (expansión central)</string>
+    <string name="system_strong_toast_mode_dynamic_island">Isla dinámica</string>
     <string name="system_strong_toast_position_bottom">Abajo</string>
     <string name="system_strong_toast_position_summ">Las islas superiores se descartan deslizando hacia arriba. Las inferiores suben sobre el área de navegación y se descartan deslizando hacia abajo.</string>
     <string name="system_strong_toast_position_title">Posición de la Isla dinámica</string>

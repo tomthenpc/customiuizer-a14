@@ -960,8 +960,7 @@
     <string name="system_recents_card_style_title">Kiểu thẻ tác vụ gần đây</string>
     <string name="system_strong_toast_bottom_offset_summ">Tinh chỉnh vị trí dựa trên vùng chèn điều hướng và cử chỉ khi chạy. Giá trị âm đưa viên nang đến gần cạnh dưới hơn; giá trị dương đưa nó lên trên.</string>
     <string name="system_strong_toast_bottom_offset_title">Khoảng cách bổ sung từ cạnh dưới</string>
-    <string name="system_strong_toast_mode_dynamic_island">Đảo động (lò xo dọc)</string>
-    <string name="system_strong_toast_mode_dynamic_island_center_pop">Đảo động (bật ra từ giữa)</string>
+    <string name="system_strong_toast_mode_dynamic_island">Đảo động</string>
     <string name="system_strong_toast_position_bottom">Dưới</string>
     <string name="system_strong_toast_position_summ">Đảo ở trên vuốt lên để đóng. Đảo ở dưới nổi lên trên vùng điều hướng và vuốt xuống để đóng.</string>
     <string name="system_strong_toast_position_title">Vị trí Đảo động</string>
