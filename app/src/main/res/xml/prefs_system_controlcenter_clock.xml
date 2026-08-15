@@ -28,7 +28,7 @@
 		android:defaultValue="false" />
 
 	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
-		android:title="@string/settings"
+		android:title="@string/system_statusbar_clocktweak_title"
 		android:dependency="pref_key_system_cc_clocktweak">
 
 	<tv.withaibuild.customiuizer.prefs.SeekBarPreference

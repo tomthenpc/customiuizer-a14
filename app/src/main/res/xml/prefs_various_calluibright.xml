@@ -10,7 +10,7 @@
 		android:defaultValue="false" />
 
 	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
-		android:title="@string/settings"
+		android:title="@string/various_calluibright_title"
 		android:dependency="pref_key_various_calluibright"
 		miuizer:dynamic="true">
 

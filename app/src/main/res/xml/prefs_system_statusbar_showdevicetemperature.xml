@@ -11,7 +11,7 @@
 		android:defaultValue="false" />
 
 	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
-		android:title="@string/settings"
+		android:title="@string/system_statusbar_showdevicetemperature_title"
 		android:dependency="pref_key_system_statusbar_showdevicetemperature"
 		>
 

@@ -10,7 +10,7 @@
 		android:defaultValue="false" />
 
 	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
-		android:title="@string/settings"
+		android:title="@string/system_noscreenlock_title"
 		android:dependency="pref_key_system_noscreenlock_act"
 		miuizer:dynamic="true">
 
