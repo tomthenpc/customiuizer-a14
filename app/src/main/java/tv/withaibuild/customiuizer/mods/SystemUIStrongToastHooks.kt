@@ -66,7 +66,6 @@ object SystemUIStrongToastHooks {
     private const val SWIPE_TOUCH_EXPANSION_HORIZONTAL_DP = 24f
     private const val SWIPE_TOUCH_EXPANSION_VERTICAL_DP = 16f
     private const val SWIPE_STATE_FIELD = "customiuizer_strong_toast_swipe"
-    private const val BOTTOM_BASE_PADDING_FIELD = "customiuizer_strong_toast_bottom_base_padding"
     private const val DISMISS_RUNNING_FIELD = "customiuizer_strong_toast_dismiss_running"
     private const val SHELL_STATE_FIELD = "customiuizer_dynamic_island_shell_state"
     private const val TOUCH_REGION_LISTENER_FIELD =
@@ -140,12 +139,24 @@ object SystemUIStrongToastHooks {
     )
 
     /**
+     * Captured pre-mutation baseline for a single ancestor's clip flags.
+     */
+    internal data class AncestorClipBaseline(
+        val view: ViewGroup,
+        val originalClipChildren: Boolean,
+        val originalClipToPadding: Boolean
+    )
+
+    /**
      * Per-MIUIStrongToast Dynamic Island ownership state.
      *
      * A module-owned [FrameLayout] shell is inserted around the ROM
      * [mDarkToastContent] / [cl_strong_toast_msg]. The shell owns the black
      * rounded capsule background and all shell-level transforms; the ROM content
      * stays untouched and is reparented as a whole.
+     *
+     * Every module-owned mutation is captured here so [restoreDynamicIslandShell]
+     * can return the ROM hierarchy to its exact original state.
      */
     internal data class DynamicIslandShellState(
         val shell: FrameLayout,
@@ -153,7 +164,16 @@ object SystemUIStrongToastHooks {
         val originalParent: ViewGroup,
         val originalIndex: Int,
         val originalContentLayoutParams: ViewGroup.LayoutParams?,
-        val originalContentBackground: Drawable?
+        val originalContentBackground: Drawable?,
+        val originalContentClipToOutline: Boolean,
+        val originalParentPaddingLeft: Int,
+        val originalParentPaddingTop: Int,
+        val originalParentPaddingRight: Int,
+        val originalParentPaddingBottom: Int,
+        val originalParentGravity: Int,
+        val bottomView: View?,
+        val bottomViewOriginalVisibility: Int,
+        val ancestorClipBaselines: List<AncestorClipBaseline>
     )
 
     @JvmStatic
@@ -920,6 +940,10 @@ object SystemUIStrongToastHooks {
      * the original container's outer layout params, and the content fills the
      * shell. This is idempotent: calling it again for the same content returns
      * the existing shell.
+     *
+     * All mutations are wrapped in a single transaction: if any non-fatal step
+     * fails, the original parent/index/background is rolled back and no state
+     * is published.
      */
     internal fun bindDynamicIslandShell(
         root: View,
@@ -950,6 +974,12 @@ object SystemUIStrongToastHooks {
         if (originalIndex < 0) return null
         val originalLp = content.layoutParams
         val originalBackground = content.background
+        val originalContentClipToOutline = content.clipToOutline
+        val originalParentPaddingLeft = parent.paddingLeft
+        val originalParentPaddingTop = parent.paddingTop
+        val originalParentPaddingRight = parent.paddingRight
+        val originalParentPaddingBottom = parent.paddingBottom
+        val originalParentGravity = (parent as? LinearLayout)?.gravity ?: 0
 
         val shell = FrameLayout(root.context).apply {
             clipChildren = false
@@ -972,15 +1002,34 @@ object SystemUIStrongToastHooks {
         }
         shell.layoutParams = shellLp
 
-        parent.removeView(content)
-        parent.addView(shell, originalIndex)
-        content.layoutParams = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        )
-        content.background = null
-        content.clipToOutline = false
-        shell.addView(content)
+        try {
+            parent.removeView(content)
+            parent.addView(shell, originalIndex)
+            content.layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            content.background = null
+            content.clipToOutline = false
+            shell.addView(content)
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            try {
+                if (content.parent == null) {
+                    content.layoutParams = originalLp
+                    content.background = originalBackground
+                    content.clipToOutline = originalContentClipToOutline
+                    parent.addView(content, originalIndex)
+                }
+                if (shell.parent === parent) {
+                    parent.removeView(shell)
+                }
+            } catch (rollback: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(rollback)
+                XposedHelpers.log("StrongToastDynamicIslandBindRollback", rollback)
+            }
+            return null
+        }
 
         XposedHelpers.setAdditionalInstanceField(
             root,
@@ -991,7 +1040,16 @@ object SystemUIStrongToastHooks {
                 originalParent = parent,
                 originalIndex = originalIndex,
                 originalContentLayoutParams = originalLp,
-                originalContentBackground = originalBackground
+                originalContentBackground = originalBackground,
+                originalContentClipToOutline = originalContentClipToOutline,
+                originalParentPaddingLeft = originalParentPaddingLeft,
+                originalParentPaddingTop = originalParentPaddingTop,
+                originalParentPaddingRight = originalParentPaddingRight,
+                originalParentPaddingBottom = originalParentPaddingBottom,
+                originalParentGravity = originalParentGravity,
+                bottomView = null,
+                bottomViewOriginalVisibility = View.VISIBLE,
+                ancestorClipBaselines = emptyList()
             )
         )
         return shell
@@ -1000,8 +1058,8 @@ object SystemUIStrongToastHooks {
     /**
      * Reverses [bindDynamicIslandShell]. The ROM content is returned to its
      * original parent, the shell is removed and the original background / layout
-     * params are restored. Safe to call on an already-restored or partially
-     * torn-down state.
+     * params / parent padding / gravity / ancestor clip flags are restored.
+     * Safe to call on an already-restored or partially torn-down state.
      */
     internal fun restoreDynamicIslandShell(state: DynamicIslandShellState?) {
         if (state == null) return
@@ -1025,19 +1083,31 @@ object SystemUIStrongToastHooks {
         }
 
         if (content.parent === shell) {
-            shell.removeView(content)
+            try { shell.removeView(content) } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+            }
         }
-        content.background = state.originalContentBackground
-        content.layoutParams = state.originalContentLayoutParams
+        try {
+            content.background = state.originalContentBackground
+            content.layoutParams = state.originalContentLayoutParams
+            content.clipToOutline = state.originalContentClipToOutline
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastDynamicIslandContentRestore", t)
+        }
 
         when {
             shell.parent === parent -> {
-                parent.removeView(shell)
+                try { parent.removeView(shell) } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
+                }
                 val index = state.originalIndex.coerceIn(0, parent.childCount)
                 parent.addView(content, index)
             }
             shell.parent is ViewGroup -> {
-                (shell.parent as ViewGroup).removeView(shell)
+                try { (shell.parent as ViewGroup).removeView(shell) } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
+                }
                 if (content.parent == null) {
                     val index = state.originalIndex.coerceIn(0, parent.childCount)
                     parent.addView(content, index)
@@ -1048,6 +1118,83 @@ object SystemUIStrongToastHooks {
                 parent.addView(content, index)
             }
         }
+
+        try {
+            parent.setPadding(
+                state.originalParentPaddingLeft,
+                state.originalParentPaddingTop,
+                state.originalParentPaddingRight,
+                state.originalParentPaddingBottom
+            )
+            (parent as? LinearLayout)?.gravity = state.originalParentGravity
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastDynamicIslandParentRestore", t)
+        }
+
+        try {
+            state.bottomView?.let { bottom ->
+                if (bottom.visibility != state.bottomViewOriginalVisibility) {
+                    bottom.visibility = state.bottomViewOriginalVisibility
+                }
+            }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastDynamicIslandBottomRestore", t)
+        }
+
+        for (baseline in state.ancestorClipBaselines) {
+            try {
+                baseline.view.clipChildren = baseline.originalClipChildren
+                baseline.view.clipToPadding = baseline.originalClipToPadding
+            } catch (t: Throwable) {
+                FatalErrors.unwrapAndRethrowIfFatal(t)
+                XposedHelpers.log("StrongToastDynamicIslandClipRestore", t)
+            }
+        }
+    }
+
+    /**
+     * Captures each ancestor's original [clipChildren] / [clipToPadding] between
+     * [capsule] and [root] inclusive, then disables clipping. The returned list
+     * is used by [restoreDynamicIslandShell] to restore the original values.
+     */
+    private fun captureAndDisableClippingThroughAncestors(
+        capsule: View,
+        root: View
+    ): List<AncestorClipBaseline> {
+        val baselines = mutableListOf<AncestorClipBaseline>()
+        var ancestor = capsule.parent
+        while (ancestor is ViewGroup) {
+            baselines.add(
+                AncestorClipBaseline(
+                    view = ancestor,
+                    originalClipChildren = ancestor.clipChildren,
+                    originalClipToPadding = ancestor.clipToPadding
+                )
+            )
+            if (ancestor === root) break
+            ancestor = ancestor.parent
+        }
+        try {
+            for (baseline in baselines) {
+                baseline.view.clipChildren = false
+                baseline.view.clipToPadding = false
+            }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            for (baseline in baselines) {
+                try {
+                    baseline.view.clipChildren = baseline.originalClipChildren
+                    baseline.view.clipToPadding = baseline.originalClipToPadding
+                } catch (rollback: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(rollback)
+                    XposedHelpers.log("StrongToastDynamicIslandClipRollback", rollback)
+                }
+            }
+            throw t
+        }
+        return baselines
     }
 
     internal fun prepareDynamicIslandCapsule(
@@ -1056,65 +1203,93 @@ object SystemUIStrongToastHooks {
         bottomOffsetDp: Int
     ): View? {
         val content = findDynamicIslandCapsule(root) ?: return null
-        val shell = bindDynamicIslandShell(root, content, position, bottomOffsetDp)
-            ?: return null
 
         val visualWidthPx = strongToastDimensionPx(root, "strong_toast_width")
         val visualHeightPx = strongToastVisualHeightPx(root)
-        if (visualWidthPx <= 0 || visualHeightPx <= 0) return null
+        if (visualWidthPx <= 0 || visualHeightPx <= 0) {
+            return null
+        }
 
-        val horizontalMarginPx = dpToPx(root, 16f)
-        val availableWidthPx = root.resources.displayMetrics.widthPixels - horizontalMarginPx * 2
-        val layoutParams = shell.layoutParams ?: return null
-        layoutParams.width = minOf(visualWidthPx, availableWidthPx)
-        layoutParams.height = visualHeightPx
-        if (layoutParams is ViewGroup.MarginLayoutParams) {
-            if (position == StrongToastPosition.BOTTOM) {
-                layoutParams.topMargin = resolveBottomTopSafetyPx(root, visualHeightPx)
-                // Bottom spacing is owned by the LinearLayout parent padding.
-                layoutParams.bottomMargin = 0
-            } else {
-                layoutParams.topMargin = dpToPx(root, CAPSULE_TOP_MARGIN_DP)
-                layoutParams.bottomMargin = dpToPx(root, CAPSULE_BOTTOM_SAFETY_MARGIN_DP)
-            }
-        }
-        if (layoutParams is LinearLayout.LayoutParams) {
-            layoutParams.gravity = Gravity.CENTER_HORIZONTAL
-        }
-        shell.layoutParams = layoutParams
-        shell.background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(Color.BLACK)
-            cornerRadius = visualHeightPx / 2f
-        }
-        // The ROM content lives inside the shell and must not clip to its own
-        // outline; the shell background provides the rounded pill shape.
-        shell.clipToOutline = false
+        val shell = bindDynamicIslandShell(root, content, position, bottomOffsetDp)
+            ?: return null
 
-        (shell.parent as? LinearLayout)?.apply {
-            gravity = if (position == StrongToastPosition.BOTTOM) {
-                Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            } else {
-                Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        val state = XposedHelpers.getAdditionalInstanceField(
+            root,
+            SHELL_STATE_FIELD
+        ) as? DynamicIslandShellState ?: return null
+
+        return try {
+            val horizontalMarginPx = dpToPx(root, 16f)
+            val availableWidthPx = root.resources.displayMetrics.widthPixels - horizontalMarginPx * 2
+            val layoutParams = shell.layoutParams
+                ?: throw IllegalStateException("Shell has no layout params")
+            layoutParams.width = minOf(visualWidthPx, availableWidthPx)
+            layoutParams.height = visualHeightPx
+            if (layoutParams is ViewGroup.MarginLayoutParams) {
+                if (position == StrongToastPosition.BOTTOM) {
+                    layoutParams.topMargin = resolveBottomTopSafetyPx(root, visualHeightPx)
+                    // Bottom spacing is owned by the LinearLayout parent padding.
+                    layoutParams.bottomMargin = 0
+                } else {
+                    layoutParams.topMargin = dpToPx(root, CAPSULE_TOP_MARGIN_DP)
+                    layoutParams.bottomMargin = dpToPx(root, CAPSULE_BOTTOM_SAFETY_MARGIN_DP)
+                }
             }
-            val bottomPadding = if (position == StrongToastPosition.BOTTOM) {
-                resolveBottomPaddingForCapsule(root, visualHeightPx, bottomOffsetDp)
-            } else {
-                0
+            if (layoutParams is LinearLayout.LayoutParams) {
+                layoutParams.gravity = Gravity.CENTER_HORIZONTAL
             }
-            setPadding(paddingLeft, 0, paddingRight, bottomPadding)
-        }
-        disableClippingThroughAncestors(shell, root)
-        findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE
-        return shell
-    }
-    private fun disableClippingThroughAncestors(capsule: View, root: View) {
-        var ancestor = capsule.parent
-        while (ancestor is ViewGroup) {
-            ancestor.clipChildren = false
-            ancestor.clipToPadding = false
-            if (ancestor === root) return
-            ancestor = ancestor.parent
+            shell.layoutParams = layoutParams
+            shell.background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                setColor(Color.BLACK)
+                cornerRadius = visualHeightPx / 2f
+            }
+            // The ROM content lives inside the shell and must not clip to its own
+            // outline; the shell background provides the rounded pill shape.
+            shell.clipToOutline = false
+
+            val parent = state.originalParent
+            (parent as? LinearLayout)?.apply {
+                gravity = if (position == StrongToastPosition.BOTTOM) {
+                    Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                } else {
+                    Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                }
+                val bottomPadding = if (position == StrongToastPosition.BOTTOM) {
+                    resolveBottomPaddingForCapsule(root, visualHeightPx, bottomOffsetDp)
+                } else {
+                    0
+                }
+                setPadding(
+                    state.originalParentPaddingLeft,
+                    0,
+                    state.originalParentPaddingRight,
+                    bottomPadding
+                )
+            }
+
+            val clipBaselines = captureAndDisableClippingThroughAncestors(shell, root)
+
+            val bottomView = findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)
+            val bottomViewOriginalVisibility = bottomView?.visibility ?: View.VISIBLE
+            bottomView?.visibility = View.GONE
+
+            XposedHelpers.setAdditionalInstanceField(
+                root,
+                SHELL_STATE_FIELD,
+                state.copy(
+                    bottomView = bottomView,
+                    bottomViewOriginalVisibility = bottomViewOriginalVisibility,
+                    ancestorClipBaselines = clipBaselines
+                )
+            )
+            shell
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastPrepareShell", t)
+            restoreDynamicIslandShell(state)
+            XposedHelpers.removeAdditionalInstanceField(root, SHELL_STATE_FIELD)
+            null
         }
     }
 

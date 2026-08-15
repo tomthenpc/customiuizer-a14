@@ -77,7 +77,18 @@ Runtime diagnosis identified two related defects:
    removes the expanded touch region, restores status-bar contents, and then
    calls `restoreDynamicIslandShell()` before the ROM super method runs.
 
-6. **Updates UI labels and removes the obsolete center-pop resource.**
+6. **Captures and restores every module-owned baseline.**
+   `DynamicIslandShellState` now records the original parent padding, parent
+   `LinearLayout.gravity`, the forehead bottom view reference and its exact
+   original visibility, and the original `clipChildren` / `clipToPadding` of
+   every ancestor up to the `MIUIStrongToast` root. `prepareDynamicIslandCapsule()`
+   validates ROM dimensions before any hierarchy mutation and wraps post-bind
+   setup in a single transaction: on any non-fatal failure it calls
+   `restoreDynamicIslandShell()` and removes the shell state, leaving the ROM
+   hierarchy intact. `bindDynamicIslandShell()` itself rolls back content
+   reparenting and background clearing if the transaction fails.
+
+7. **Updates UI labels and removes the obsolete center-pop resource.**
    The `system_strong_toast_mode_dynamic_island_center_pop` string resource
    was removed from all locale files and from the localization test fixture
    after confirming no production, array, reflection or dynamic reference.
@@ -98,6 +109,11 @@ New tests:
   - Verifies the shell is a `FrameLayout`, idempotent, preserves original
     background / layout params, restores hierarchy, and that Dynamic Island
     no longer owns direct child alpha.
+  - Verifies `DynamicIslandShellState` captures parent padding/gravity,
+    bottom-view visibility, and ancestor `clipChildren`/`clipToPadding`
+    baselines, and that `restoreDynamicIslandShell()` restores them exactly.
+  - Verifies `prepareDynamicIslandCapsule()` validates ROM dimensions before
+    binding, and that both `prepare` and `bind` fail open with rollback.
 
 - `app/src/test/java/tv/withaibuild/customiuizer/mods/DynamicIslandDismissLifecycleTest.kt`
   - Functional test for `buildDynamicIslandDismissComplete()`:

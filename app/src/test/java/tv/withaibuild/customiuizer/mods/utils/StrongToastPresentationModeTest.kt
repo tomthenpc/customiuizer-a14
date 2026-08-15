@@ -204,7 +204,7 @@ class StrongToastPresentationModeTest {
         assertTrue(source.contains("layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL"))
         assertTrue(source.contains("layoutParams.windowAnimations = 0"))
         assertTrue(source.contains("layoutParams.setFitInsetsTypes(0)"))
-        assertTrue(source.contains("disableClippingThroughAncestors(shell, root)"))
+        assertTrue(source.contains("captureAndDisableClippingThroughAncestors(shell, root)"))
         assertTrue(source.contains("OnComputeInternalInsetsListener"))
         assertTrue(source.contains("removeOnComputeInternalInsetsListener"))
         assertTrue(source.contains("shell.clipToOutline = false"))

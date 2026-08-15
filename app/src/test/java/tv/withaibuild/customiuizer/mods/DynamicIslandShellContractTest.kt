@@ -1,5 +1,7 @@
 package tv.withaibuild.customiuizer.mods
 
+import android.view.View
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -64,6 +66,68 @@ class DynamicIslandShellContractTest {
     }
 
     @Test
+    fun dynamicIslandShellState_capturesAllBaselines() {
+        val source = productionSource()
+        val body = source.substring(source.indexOf("data class DynamicIslandShellState"))
+
+        assertTrue(
+            "state must capture the content background",
+            body.contains("val originalContentBackground: Drawable?")
+        )
+        assertTrue(
+            "state must capture the content layout params",
+            body.contains("val originalContentLayoutParams: ViewGroup.LayoutParams?")
+        )
+        assertTrue(
+            "state must capture the original content clipToOutline",
+            body.contains("val originalContentClipToOutline: Boolean")
+        )
+        assertTrue(
+            "state must capture the original parent padding",
+            body.containsAll(listOf(
+                "val originalParentPaddingLeft: Int",
+                "val originalParentPaddingTop: Int",
+                "val originalParentPaddingRight: Int",
+                "val originalParentPaddingBottom: Int"
+            ))
+        )
+        assertTrue(
+            "state must capture the original parent gravity",
+            body.contains("val originalParentGravity: Int")
+        )
+        assertTrue(
+            "state must capture the bottom view reference and visibility",
+            body.containsAll(listOf(
+                "val bottomView: View?",
+                "val bottomViewOriginalVisibility: Int"
+            ))
+        )
+        assertTrue(
+            "state must capture the ancestor clip baselines",
+            body.contains("val ancestorClipBaselines: List<AncestorClipBaseline>")
+        )
+    }
+
+    @Test
+    fun ancestorClipBaseline_holdsOriginalFlags() {
+        val source = productionSource()
+        val body = source.substring(source.indexOf("data class AncestorClipBaseline"))
+
+        assertTrue(
+            "AncestorClipBaseline must hold the target view",
+            body.contains("val view: ViewGroup")
+        )
+        assertTrue(
+            "AncestorClipBaseline must hold the original clipChildren",
+            body.contains("val originalClipChildren: Boolean")
+        )
+        assertTrue(
+            "AncestorClipBaseline must hold the original clipToPadding",
+            body.contains("val originalClipToPadding: Boolean")
+        )
+    }
+
+    @Test
     fun bindDynamicIslandShell_wrapsContentInFrameLayoutShell() {
         val source = productionSource()
         val body = functionBody(source, "bindDynamicIslandShell")
@@ -89,6 +153,10 @@ class DynamicIslandShellContractTest {
             body.contains("val originalBackground = content.background")
         )
         assertTrue(
+            "bind must save the original content clipToOutline",
+            body.contains("val originalContentClipToOutline = content.clipToOutline")
+        )
+        assertTrue(
             "bind must hide the original content background so the shell draws",
             body.contains("content.background = null")
         )
@@ -99,6 +167,19 @@ class DynamicIslandShellContractTest {
         assertTrue(
             "bind must set content to fill the shell",
             body.contains("FrameLayout.LayoutParams(")
+        )
+        assertTrue(
+            "bind must capture original parent padding",
+            body.containsAll(listOf(
+                "val originalParentPaddingLeft = parent.paddingLeft",
+                "val originalParentPaddingTop = parent.paddingTop",
+                "val originalParentPaddingRight = parent.paddingRight",
+                "val originalParentPaddingBottom = parent.paddingBottom"
+            ))
+        )
+        assertTrue(
+            "bind must capture original parent gravity",
+            body.contains("val originalParentGravity = (parent as? LinearLayout)?.gravity")
         )
         assertTrue(
             "bind must store a stable shell state on the root",
@@ -133,6 +214,36 @@ class DynamicIslandShellContractTest {
     }
 
     @Test
+    fun bindDynamicIslandShell_hasTransactionRollback() {
+        val body = functionBody(productionSource(), "bindDynamicIslandShell")
+
+        assertTrue(
+            "bind must wrap reparent mutations in a single try block",
+            body.contains("try {")
+        )
+        assertTrue(
+            "bind must re-add content to the original parent on rollback",
+            body.contains("parent.addView(content, originalIndex)")
+        )
+        assertTrue(
+            "bind must restore the original background on rollback",
+            body.contains("content.background = originalBackground")
+        )
+        assertTrue(
+            "bind must restore the original layout params on rollback",
+            body.contains("content.layoutParams = originalLp")
+        )
+        assertTrue(
+            "bind must remove the orphan shell on rollback",
+            body.contains("parent.removeView(shell)")
+        )
+        assertTrue(
+            "bind must rethrow fatal errors",
+            body.contains("FatalErrors.unwrapAndRethrowIfFatal(t)")
+        )
+    }
+
+    @Test
     fun restoreDynamicIslandShell_returnsContentAndRemovesShell() {
         val source = productionSource()
         val body = functionBody(source, "restoreDynamicIslandShell")
@@ -158,12 +269,63 @@ class DynamicIslandShellContractTest {
             body.contains("content.layoutParams = state.originalContentLayoutParams")
         )
         assertTrue(
+            "restore must put the original clipToOutline back",
+            body.contains("content.clipToOutline = state.originalContentClipToOutline")
+        )
+        assertTrue(
             "restore must remove the shell from the parent",
             body.contains("parent.removeView(shell)")
         )
         assertTrue(
             "restore must add content back at the original index",
             body.contains("parent.addView(content, index)")
+        )
+    }
+
+    @Test
+    fun restoreDynamicIslandShell_restoresParentBaseline() {
+        val body = functionBody(productionSource(), "restoreDynamicIslandShell")
+
+        assertTrue(
+            "restore must restore the exact original parent padding",
+            body.contains(
+                "parent.setPadding(\n" +
+                "                state.originalParentPaddingLeft,\n" +
+                "                state.originalParentPaddingTop,\n" +
+                "                state.originalParentPaddingRight,\n" +
+                "                state.originalParentPaddingBottom\n" +
+                "            )"
+            )
+        )
+        assertTrue(
+            "restore must restore the exact original parent gravity",
+            body.contains("(parent as? LinearLayout)?.gravity = state.originalParentGravity")
+        )
+    }
+
+    @Test
+    fun restoreDynamicIslandShell_restoresBottomViewAndAncestors() {
+        val body = functionBody(productionSource(), "restoreDynamicIslandShell")
+
+        assertTrue(
+            "restore must not hard-code a View.VISIBLE",
+            !body.contains("View.VISIBLE")
+        )
+        assertTrue(
+            "restore must restore the exact bottom view visibility",
+            body.contains("bottom.visibility = state.bottomViewOriginalVisibility")
+        )
+        assertTrue(
+            "restore must loop over the ancestor clip baselines",
+            body.contains("for (baseline in state.ancestorClipBaselines)")
+        )
+        assertTrue(
+            "restore must restore each ancestor clipChildren",
+            body.contains("baseline.view.clipChildren = baseline.originalClipChildren")
+        )
+        assertTrue(
+            "restore must restore each ancestor clipToPadding",
+            body.contains("baseline.view.clipToPadding = baseline.originalClipToPadding")
         )
     }
 
@@ -220,6 +382,21 @@ class DynamicIslandShellContractTest {
     }
 
     @Test
+    fun prepareDynamicIslandCapsule_validatesDimensionsBeforeBind() {
+        val body = functionBody(productionSource(), "prepareDynamicIslandCapsule")
+
+        val widthIndex = body.indexOf("val visualWidthPx = strongToastDimensionPx(root, \"strong_toast_width\")")
+        val heightIndex = body.indexOf("val visualHeightPx = strongToastVisualHeightPx(root)")
+        val validationIndex = body.indexOf("if (visualWidthPx <= 0 || visualHeightPx <= 0)")
+        val bindIndex = body.indexOf("bindDynamicIslandShell(root, content, position, bottomOffsetDp)")
+
+        assertTrue("prepare must resolve width first", widthIndex != -1)
+        assertTrue("prepare must resolve height first", heightIndex != -1)
+        assertTrue("prepare must validate dimensions", validationIndex != -1)
+        assertTrue("prepare must bind only after validation", bindIndex > validationIndex)
+    }
+
+    @Test
     fun prepareDynamicIslandCapsule_usesShellAndHidesBottomView() {
         val source = productionSource()
         val body = functionBody(source, "prepareDynamicIslandCapsule")
@@ -241,8 +418,79 @@ class DynamicIslandShellContractTest {
             body.contains("strongToastVisualHeightPx(root)")
         )
         assertTrue(
+            "prepare must capture the bottom view visibility before hiding",
+            body.contains("val bottomViewOriginalVisibility = bottomView?.visibility")
+        )
+        assertTrue(
             "prepare must hide the ROM forehead bottom view",
-            body.contains("findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE")
+            body.contains("bottomView?.visibility = View.GONE")
+        )
+        assertTrue(
+            "prepare must capture and disable ancestor clipping",
+            body.contains("captureAndDisableClippingThroughAncestors(shell, root)")
+        )
+        assertTrue(
+            "prepare must store the final baseline state",
+            body.contains("state.copy(")
+        )
+    }
+
+    @Test
+    fun prepareDynamicIslandCapsule_hasFailOpenRollback() {
+        val body = functionBody(productionSource(), "prepareDynamicIslandCapsule")
+
+        assertTrue(
+            "prepare must wrap post-bind setup in try/catch",
+            body.contains("return try {")
+        )
+        assertTrue(
+            "prepare must call restoreDynamicIslandShell on failure",
+            body.contains("restoreDynamicIslandShell(state)")
+        )
+        assertTrue(
+            "prepare must remove the shell state on failure",
+            body.contains("XposedHelpers.removeAdditionalInstanceField(root, SHELL_STATE_FIELD)")
+        )
+        assertTrue(
+            "prepare must return null on failure",
+            body.contains("null")
+        )
+    }
+
+    @Test
+    fun prepareDynamicIslandCapsule_usesCapturedParentPadding() {
+        val body = functionBody(productionSource(), "prepareDynamicIslandCapsule")
+
+        assertTrue(
+            "prepare must set parent padding using the captured left/right",
+            body.contains("state.originalParentPaddingLeft") &&
+                body.contains("state.originalParentPaddingRight")
+        )
+    }
+
+    @Test
+    fun captureAndDisableClippingThroughAncestors_capturesBeforeMutating() {
+        val body = functionBody(productionSource(), "captureAndDisableClippingThroughAncestors")
+
+        assertTrue(
+            "capture must record original clipChildren",
+            body.contains("originalClipChildren = ancestor.clipChildren")
+        )
+        assertTrue(
+            "capture must record original clipToPadding",
+            body.contains("originalClipToPadding = ancestor.clipToPadding")
+        )
+        assertTrue(
+            "capture must disable clipChildren",
+            body.contains("baseline.view.clipChildren = false")
+        )
+        assertTrue(
+            "capture must disable clipToPadding",
+            body.contains("baseline.view.clipToPadding = false")
+        )
+        assertTrue(
+            "capture must return the baselines list",
+            body.contains("return baselines")
         )
     }
 
@@ -394,5 +642,9 @@ class DynamicIslandShellContractTest {
             "find must require the shell to still be in the original parent",
             source.contains("state.shell.parent !== state.originalParent")
         )
+    }
+
+    private fun String.containsAll(substrings: List<String>): Boolean {
+        return substrings.all { this.contains(it) }
     }
 }
