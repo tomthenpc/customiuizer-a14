@@ -71,6 +71,8 @@ object SystemUIStrongToastHooks {
     private const val SWIPE_STATE_FIELD = "customiuizer_strong_toast_swipe"
     private const val DISMISS_RUNNING_FIELD = "customiuizer_strong_toast_dismiss_running"
     private const val SHELL_STATE_FIELD = "customiuizer_dynamic_island_shell_state"
+    private const val PENDING_PREDRAW_LISTENER_FIELD =
+        "customiuizer_dynamic_island_pending_predraw"
     private const val TOUCH_REGION_LISTENER_FIELD =
         "customiuizer_strong_toast_touch_region_listener"
     private const val TOUCHABLE_INSETS_REGION = 3
@@ -358,6 +360,7 @@ object SystemUIStrongToastHooks {
                 override fun before(callback: BeforeHookCallback) {
                     val strongToast = callback.getThisObject() as? View ?: return
                     val snapshot = resolveSnapshot(strongToast) ?: return
+                    removePendingDynamicIslandPreDrawListener(strongToast)
                     if (!snapshot.isDynamicIsland) return
                     if (XposedHelpers.getAdditionalInstanceField(
                             strongToast,
@@ -398,6 +401,7 @@ object SystemUIStrongToastHooks {
                     val strongToast = callback.getThisObject() as? View ?: return
                     val snapshot = resolveSnapshot(strongToast) ?: return
                     try {
+                        removePendingDynamicIslandPreDrawListener(strongToast)
                         if (snapshot.isDynamicIsland) {
                             val state = XposedHelpers.getAdditionalInstanceField(
                                 strongToast,
@@ -502,12 +506,38 @@ object SystemUIStrongToastHooks {
         }
     }
 
+    /**
+     * Removes a stale Dynamic Island pre-draw listener for [view].  The listener was added to the
+     * shell's [ViewTreeObserver] in [startDynamicIslandEntrance], but once the View is attached the
+     * shell and root share the same observer.  Calling this before the next entrance or during
+     * detach prevents a stale callback from running after the shell has been replaced or removed.
+     */
+    private fun removePendingDynamicIslandPreDrawListener(view: View) {
+        val listener = XposedHelpers.getAdditionalInstanceField(
+            view,
+            PENDING_PREDRAW_LISTENER_FIELD
+        ) as? ViewTreeObserver.OnPreDrawListener ?: return
+        try {
+            val observer = view.viewTreeObserver
+            if (observer.isAlive) {
+                observer.removeOnPreDrawListener(listener)
+            }
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastDynamicIslandPreDrawCleanup", t)
+        } finally {
+            XposedHelpers.removeAdditionalInstanceField(view, PENDING_PREDRAW_LISTENER_FIELD)
+        }
+    }
+
     private fun startDynamicIslandEntrance(
         view: View,
         position: StrongToastPosition,
         bottomOffsetDp: Int
     ) {
         try {
+            removePendingDynamicIslandPreDrawListener(view)
+
             val shell = prepareDynamicIslandCapsule(view, position, bottomOffsetDp) ?: return
             if (position == StrongToastPosition.TOP) hideStatusBarContents(view)
             XposedHelpers.setAdditionalInstanceField(view, SWIPE_STATE_FIELD, SwipeGestureState(shell))
@@ -516,24 +546,42 @@ object SystemUIStrongToastHooks {
             resetDynamicIslandHostTransform(view)
             shell.animate().cancel()
             resetDynamicIslandTransform(shell)
+
             // onAttachedToWindow precedes the first layout pass. Defer exactly once until the
             // shell is laid out so the profile can set a safe pivot/translation from real
             // width/height and the first animation frame does not run before drawing.
-            val vto = shell.viewTreeObserver
-            vto.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            val listener = object : ViewTreeObserver.OnPreDrawListener {
                 override fun onPreDraw(): Boolean {
-                    shell.viewTreeObserver.removeOnPreDrawListener(this)
+                    val observer = shell.viewTreeObserver
+                    if (observer.isAlive) {
+                        observer.removeOnPreDrawListener(this)
+                    }
+                    val current = XposedHelpers.getAdditionalInstanceField(
+                        view,
+                        PENDING_PREDRAW_LISTENER_FIELD
+                    )
+                    if (current !== this) return true
+                    XposedHelpers.removeAdditionalInstanceField(view, PENDING_PREDRAW_LISTENER_FIELD)
+
+                    if (!shell.isAttachedToWindow || shell.width <= 0 || shell.height <= 0) {
+                        resetDynamicIslandHostTransform(view)
+                        resetDynamicIslandTransform(shell)
+                        return true
+                    }
                     ModuleHelper.guarded {
-                        if (!shell.isAttachedToWindow) {
-                            resetDynamicIslandHostTransform(view)
-                            resetDynamicIslandTransform(shell)
-                            return@guarded
-                        }
                         runDynamicIslandEntrance(view, shell, position)
                     }
                     return true
                 }
-            })
+            }
+
+            XposedHelpers.setAdditionalInstanceField(view, PENDING_PREDRAW_LISTENER_FIELD, listener)
+            val vto = shell.viewTreeObserver
+            if (vto.isAlive) {
+                vto.addOnPreDrawListener(listener)
+            } else {
+                XposedHelpers.removeAdditionalInstanceField(view, PENDING_PREDRAW_LISTENER_FIELD)
+            }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             restoreStatusBarContents(view)
@@ -542,6 +590,8 @@ object SystemUIStrongToastHooks {
             state?.shell?.let { resetDynamicIslandTransform(it) }
             restoreDynamicIslandShell(state)
             XposedHelpers.removeAdditionalInstanceField(view, SHELL_STATE_FIELD)
+            XposedHelpers.removeAdditionalInstanceField(view, SWIPE_STATE_FIELD)
+            XposedHelpers.removeAdditionalInstanceField(view, PENDING_PREDRAW_LISTENER_FIELD)
             XposedHelpers.log("StrongToastDynamicIsland", t)
         }
     }
