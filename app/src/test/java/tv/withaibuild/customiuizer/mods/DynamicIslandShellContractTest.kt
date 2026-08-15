@@ -222,6 +222,14 @@ class DynamicIslandShellContractTest {
             body.contains("try {")
         )
         assertTrue(
+            "bind must detach content from the shell on rollback if it got that far",
+            body.contains("if (content.parent === shell) {")
+        )
+        assertTrue(
+            "bind must remove content from the shell before re-adding",
+            body.contains("shell.removeView(content)")
+        )
+        assertTrue(
             "bind must re-add content to the original parent on rollback",
             body.contains("parent.addView(content, originalIndex)")
         )
@@ -232,6 +240,10 @@ class DynamicIslandShellContractTest {
         assertTrue(
             "bind must restore the original layout params on rollback",
             body.contains("content.layoutParams = originalLp")
+        )
+        assertTrue(
+            "bind must restore the original clipToOutline on rollback",
+            body.contains("content.clipToOutline = originalContentClipToOutline")
         )
         assertTrue(
             "bind must remove the orphan shell on rollback",
@@ -422,17 +434,40 @@ class DynamicIslandShellContractTest {
             body.contains("val bottomViewOriginalVisibility = bottomView?.visibility")
         )
         assertTrue(
+            "prepare must capture ancestor clip baselines without mutating",
+            body.contains("captureAncestorClipBaselines(shell, root)")
+        )
+        assertTrue(
+            "prepare must apply disabled ancestor clipping",
+            body.contains("applyDisabledAncestorClipping(clipBaselines)")
+        )
+        assertTrue(
             "prepare must hide the ROM forehead bottom view",
             body.contains("bottomView?.visibility = View.GONE")
         )
-        assertTrue(
-            "prepare must capture and disable ancestor clipping",
-            body.contains("captureAndDisableClippingThroughAncestors(shell, root)")
-        )
-        assertTrue(
-            "prepare must store the final baseline state",
-            body.contains("state.copy(")
-        )
+    }
+
+    @Test
+    fun prepareDynamicIslandCapsule_publishesUpdatedStateBeforeMutations() {
+        val body = functionBody(productionSource(), "prepareDynamicIslandCapsule")
+
+        val bottomCaptureIndex = body.indexOf("val bottomViewOriginalVisibility = bottomView?.visibility")
+        val clipCaptureIndex = body.indexOf("val clipBaselines = captureAncestorClipBaselines(shell, root)")
+        val updatedStateIndex = body.indexOf("val updatedState = state.copy(")
+        val publishIndex = body.indexOf("XposedHelpers.setAdditionalInstanceField(root, SHELL_STATE_FIELD, updatedState)")
+        val parentGravityIndex = body.indexOf("(parent as? LinearLayout)?.apply")
+        val applyClipIndex = body.indexOf("applyDisabledAncestorClipping(clipBaselines)")
+        val bottomGoneIndex = body.indexOf("bottomView?.visibility = View.GONE")
+
+        assertTrue("prepare must capture bottom visibility", bottomCaptureIndex != -1)
+        assertTrue("prepare must capture clip baselines", clipCaptureIndex != -1)
+        assertTrue("prepare must build the updated state", updatedStateIndex != -1)
+        assertTrue("prepare must publish updated state", publishIndex != -1)
+        assertTrue("bottom capture must precede state publication", bottomCaptureIndex < publishIndex)
+        assertTrue("clip capture must precede state publication", clipCaptureIndex < publishIndex)
+        assertTrue("state publication must precede parent mutation", publishIndex < parentGravityIndex)
+        assertTrue("state publication must precede clip mutation", publishIndex < applyClipIndex)
+        assertTrue("state publication must precede bottom view gone", publishIndex < bottomGoneIndex)
     }
 
     @Test
@@ -444,8 +479,14 @@ class DynamicIslandShellContractTest {
             body.contains("return try {")
         )
         assertTrue(
-            "prepare must call restoreDynamicIslandShell on failure",
-            body.contains("restoreDynamicIslandShell(state)")
+            "prepare must look up the published state in catch",
+            body.contains("XposedHelpers.getAdditionalInstanceField(") &&
+                body.contains("SHELL_STATE_FIELD") &&
+                body.contains("as? DynamicIslandShellState")
+        )
+        assertTrue(
+            "prepare must restore from the published (or fallback) state",
+            body.contains("restoreDynamicIslandShell(publishedState ?: state)")
         )
         assertTrue(
             "prepare must remove the shell state on failure",
@@ -469,8 +510,8 @@ class DynamicIslandShellContractTest {
     }
 
     @Test
-    fun captureAndDisableClippingThroughAncestors_capturesBeforeMutating() {
-        val body = functionBody(productionSource(), "captureAndDisableClippingThroughAncestors")
+    fun captureAncestorClipBaselines_capturesWithoutMutating() {
+        val body = functionBody(productionSource(), "captureAncestorClipBaselines")
 
         assertTrue(
             "capture must record original clipChildren",
@@ -481,16 +522,30 @@ class DynamicIslandShellContractTest {
             body.contains("originalClipToPadding = ancestor.clipToPadding")
         )
         assertTrue(
-            "capture must disable clipChildren",
+            "capture must return the baselines list",
+            body.contains("return baselines")
+        )
+        assertFalse(
+            "capture must not assign clipChildren",
+            body.contains(".clipChildren = false")
+        )
+        assertFalse(
+            "capture must not assign clipToPadding",
+            body.contains(".clipToPadding = false")
+        )
+    }
+
+    @Test
+    fun applyDisabledAncestorClipping_mutatesFromBaselines() {
+        val body = functionBody(productionSource(), "applyDisabledAncestorClipping")
+
+        assertTrue(
+            "apply must disable clipChildren",
             body.contains("baseline.view.clipChildren = false")
         )
         assertTrue(
-            "capture must disable clipToPadding",
+            "apply must disable clipToPadding",
             body.contains("baseline.view.clipToPadding = false")
-        )
-        assertTrue(
-            "capture must return the baselines list",
-            body.contains("return baselines")
         )
     }
 

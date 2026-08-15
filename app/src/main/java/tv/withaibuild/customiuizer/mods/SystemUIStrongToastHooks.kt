@@ -1015,6 +1015,9 @@ object SystemUIStrongToastHooks {
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             try {
+                if (content.parent === shell) {
+                    shell.removeView(content)
+                }
                 if (content.parent == null) {
                     content.layoutParams = originalLp
                     content.background = originalBackground
@@ -1156,10 +1159,10 @@ object SystemUIStrongToastHooks {
 
     /**
      * Captures each ancestor's original [clipChildren] / [clipToPadding] between
-     * [capsule] and [root] inclusive, then disables clipping. The returned list
-     * is used by [restoreDynamicIslandShell] to restore the original values.
+     * [capsule] and [root] inclusive. This function is side-effect free; the
+     * actual clipping mutation is performed by [applyDisabledAncestorClipping].
      */
-    private fun captureAndDisableClippingThroughAncestors(
+    private fun captureAncestorClipBaselines(
         capsule: View,
         root: View
     ): List<AncestorClipBaseline> {
@@ -1176,6 +1179,17 @@ object SystemUIStrongToastHooks {
             if (ancestor === root) break
             ancestor = ancestor.parent
         }
+        return baselines
+    }
+
+    /**
+     * Disables [clipChildren] / [clipToPadding] for each captured ancestor. The
+     * caller is expected to have already published the baselines on
+     * [DynamicIslandShellState] so any later failure can restore them.
+     */
+    private fun applyDisabledAncestorClipping(
+        baselines: List<AncestorClipBaseline>
+    ) {
         try {
             for (baseline in baselines) {
                 baseline.view.clipChildren = false
@@ -1194,7 +1208,6 @@ object SystemUIStrongToastHooks {
             }
             throw t
         }
-        return baselines
     }
 
     internal fun prepareDynamicIslandCapsule(
@@ -1248,6 +1261,20 @@ object SystemUIStrongToastHooks {
             // outline; the shell background provides the rounded pill shape.
             shell.clipToOutline = false
 
+            // Capture all remaining baselines before any mutation. The updated
+            // state is published immediately so the catch/restore path can roll
+            // back every module-owned change.
+            val bottomView = findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)
+            val bottomViewOriginalVisibility = bottomView?.visibility ?: View.VISIBLE
+            val clipBaselines = captureAncestorClipBaselines(shell, root)
+
+            val updatedState = state.copy(
+                bottomView = bottomView,
+                bottomViewOriginalVisibility = bottomViewOriginalVisibility,
+                ancestorClipBaselines = clipBaselines
+            )
+            XposedHelpers.setAdditionalInstanceField(root, SHELL_STATE_FIELD, updatedState)
+
             val parent = state.originalParent
             (parent as? LinearLayout)?.apply {
                 gravity = if (position == StrongToastPosition.BOTTOM) {
@@ -1268,26 +1295,18 @@ object SystemUIStrongToastHooks {
                 )
             }
 
-            val clipBaselines = captureAndDisableClippingThroughAncestors(shell, root)
-
-            val bottomView = findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)
-            val bottomViewOriginalVisibility = bottomView?.visibility ?: View.VISIBLE
+            applyDisabledAncestorClipping(clipBaselines)
             bottomView?.visibility = View.GONE
 
-            XposedHelpers.setAdditionalInstanceField(
-                root,
-                SHELL_STATE_FIELD,
-                state.copy(
-                    bottomView = bottomView,
-                    bottomViewOriginalVisibility = bottomViewOriginalVisibility,
-                    ancestorClipBaselines = clipBaselines
-                )
-            )
             shell
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             XposedHelpers.log("StrongToastPrepareShell", t)
-            restoreDynamicIslandShell(state)
+            val publishedState = XposedHelpers.getAdditionalInstanceField(
+                root,
+                SHELL_STATE_FIELD
+            ) as? DynamicIslandShellState
+            restoreDynamicIslandShell(publishedState ?: state)
             XposedHelpers.removeAdditionalInstanceField(root, SHELL_STATE_FIELD)
             null
         }

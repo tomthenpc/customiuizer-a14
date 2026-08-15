@@ -85,8 +85,13 @@ Runtime diagnosis identified two related defects:
    validates ROM dimensions before any hierarchy mutation and wraps post-bind
    setup in a single transaction: on any non-fatal failure it calls
    `restoreDynamicIslandShell()` and removes the shell state, leaving the ROM
-   hierarchy intact. `bindDynamicIslandShell()` itself rolls back content
-   reparenting and background clearing if the transaction fails.
+   hierarchy intact. `prepare` captures the bottom-view visibility and the
+   ancestor-clip baselines without mutating, then publishes the fully updated
+   `DynamicIslandShellState` before it changes the parent padding/gravity,
+   disables ancestor clipping or hides the bottom view, ensuring every module
+   mutation is recoverable from the published state. `bindDynamicIslandShell()`
+   itself rolls back content reparenting and background clearing if the
+   transaction fails.
 
 7. **Updates UI labels and removes the obsolete center-pop resource.**
    The `system_strong_toast_mode_dynamic_island_center_pop` string resource
@@ -113,7 +118,9 @@ New tests:
     bottom-view visibility, and ancestor `clipChildren`/`clipToPadding`
     baselines, and that `restoreDynamicIslandShell()` restores them exactly.
   - Verifies `prepareDynamicIslandCapsule()` validates ROM dimensions before
-    binding, and that both `prepare` and `bind` fail open with rollback.
+    binding, publishes the fully updated `DynamicIslandShellState` before any
+    ancestor-clip, parent padding/gravity or bottom-view mutation, and that
+    both `prepare` and `bind` fail open with rollback.
 
 - `app/src/test/java/tv/withaibuild/customiuizer/mods/DynamicIslandDismissLifecycleTest.kt`
   - Functional test for `buildDynamicIslandDismissComplete()`:
