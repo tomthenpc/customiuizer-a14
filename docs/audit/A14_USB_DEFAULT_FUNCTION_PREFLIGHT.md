@@ -358,6 +358,6 @@ EXACT_TARGET_ARTIFACT = UNAVAILABLE
 P1_B_SAFE_TO_IMPLEMENT = NO
 
 PRODUCTION CHANGE = NO
-fast --changed = <待运行>
-diff --check = <待运行>
+fast --changed = PASS
+diff --check = PASS
 ```
