@@ -1033,3 +1033,287 @@ C:\Users\tv\AppData\Local\Temp\p3a3_registry.json
 ```
 
 This file is a temporary audit artifact and is not part of the repository.
+
+## P3-A4: Executable restart target audit
+
+### Base and gate history
+
+- Repository: `tv.withaibuild.customiuizer.r14` A14 tree
+- Base SHA: `e88ff4ffca65d408e711f82bddfb8a6d552a79ca`
+- Audit scope: all `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/*Features.kt`
+- XML scope: all `app/src/main/res/xml/prefs_*.xml` functional widgets only
+- Semantics source: `feature-semantics/a14.json`
+
+P3-A4 builds on P3-A3. It still resolves every `LazyFeatureSpec.enabled` expression, but now it also
+follows `ClassName.evaluateEnabled` / `isEnabledCondition` to detect **always-installed** features.
+A feature whose resolved enabled body is just `true` does not use its declared `preferenceKey` as an
+install gate. This removes `system_strong_toast_mode` from the executable SystemUI mapping while keeping
+strong-toast runtime hooks live through `StrongToastRuntimeState`. `system_usb_default_function` is also
+correctly recognized as runtime-handled (not a live install gate), and the SystemServer bridge features
+(`AnimationScaleBridge`, `UpdaterServicesBridge`) are recorded as unconditional runtime passthroughs.
+
+### Always-installed features
+
+- `Animation Scale Bridge` (SystemServerFeatures.kt)
+  - preferenceKey: `(none)`
+  - FeatureTarget: `FeatureTarget.SYSTEM_SERVER`
+  - why: `AnimationScaleBridgeFeature.isEnabledCondition = true`
+  - runtime value path: `{ AnimationScaleBridgeFeature(lpparam) }`
+  - executable target before: `(none)`
+  - executable target after: `set()`
+- `Updater Services Bridge` (SystemServerFeatures.kt)
+  - preferenceKey: `(none)`
+  - FeatureTarget: `FeatureTarget.SYSTEM_SERVER`
+  - why: `UpdaterServicesBridgeFeature.isEnabledCondition = true`
+  - runtime value path: `{ UpdaterServicesBridgeFeature(lpparam) }`
+  - executable target before: `(none)`
+  - executable target after: `set()`
+- `Disable Window Blurs` (SystemServerFeatures.kt)
+  - preferenceKey: `system_disable_window_blurs`
+  - FeatureTarget: `FeatureTarget.SYSTEM_SERVER`
+  - why: `DisableWindowBlursFeature.evaluateEnabled = true`
+  - runtime value path: `SystemDisplayHooks.DisableWindowBlursHook(lpparam)`
+  - executable target before: `(none)`
+  - executable target after: `set()`
+- `USB Default Function` (SystemServerFeatures.kt)
+  - preferenceKey: `system_usb_default_function`
+  - FeatureTarget: `FeatureTarget.SYSTEM_SERVER`
+  - why: `UsbDefaultFunctionFeature.isEnabledCondition = true`
+  - runtime value path: `SystemUsbDefaultHooks runtime handler`
+  - executable target before: `(none)`
+  - executable target after: `set()`
+- `Strong Toast Presentation` (SystemUiFeatures.kt)
+  - preferenceKey: `system_strong_toast_mode`
+  - FeatureTarget: `FeatureTarget.SYSTEM_UI`
+  - why: `StrongToastPresentationFeature.evaluateEnabled = true`
+  - runtime value path: `StrongToastRuntimeState observer / passthrough`
+  - executable target before: `{'SYSTEMUI'}`
+  - executable target after: `set()`
+
+### Corrective methodology
+
+1. **Feature parsing**: every `LazyFeatureSpec(...)` block is extracted from `*Features.kt` to obtain
+   `preferenceKey`, `target`, `phase`, `enabled` lambda, and `factory`.
+2. **Always-installed detection**: the `enabled` lambda is resolved. If it is literally `{ true }`, or if
+   it calls `ClassName.evaluateEnabled` / `isEnabledCondition` whose resolved body is just `true`, the
+   feature is recorded as always-installed and its `preferenceKey` is **not** used as an executable
+   install gate.
+3. **Target mapping**:
+   - `FeatureTarget.SYSTEM_UI` -> `SYSTEMUI`
+   - `FeatureTarget.LAUNCHER` -> `LAUNCHER`
+   - `FeatureTarget.SYSTEM_PACKAGE` -> `SECURITYCENTER` only when the source file is
+     `SecurityCenterFeatures.kt` (the enum is overloaded across package-ready installers; other
+     package-ready hosts such as PackageInstaller/Phone/InputMethod/Media are treated as
+     `UNSUPPORTED_OTHER`).
+4. **Key aggregation**: for every non-always-installed feature, the declared `preferenceKey` plus every
+   key read in its enabled condition contributes the feature's restart target. A canonical key may
+   therefore map to multiple targets.
+5. **XML functional keys**: only `CheckBoxPreferenceEx`, `SwitchPreferenceEx`, `ListPreferenceEx`,
+   `EditTextPreferenceEx`, `ColorPreferenceEx`, `MultiSelectListPreferenceEx`, and `SeekBarPreference`
+   are collected. `PreferenceEx` and `PreferenceCategoryEx` are ignored. The `pref_key_` prefix is
+   stripped to match feature keys.
+6. **Non-executable classification**: for XML keys without a feature-derived executable target, the
+   `feature-semantics/a14.json` entry is used. Hardcoded overrides for the charging-info current/
+   voltage/wattage/temp, `system_applock_timeout`, `system_usb_default_function`, and the strong-toast
+   mode/position/bottom-offset keys are applied. Missing evidence is never defaulted to executable; it is
+   marked `UNKNOWN_EVIDENCE` or `NO_EXECUTABLE_MAPPING`.
+
+### Required counts
+
+| Field | Value |
+|-------|-------|
+| TOTAL_FUNCTIONAL_PREFERENCES | 514 |
+| EXECUTABLE_UNIQUE_KEYS | 192 |
+| EXECUTABLE_LAUNCHER_UNIQUE_KEYS | 61 |
+| EXECUTABLE_SYSTEMUI_UNIQUE_KEYS | 118 |
+| EXECUTABLE_SECURITYCENTER_UNIQUE_KEYS | 16 |
+| LAUNCHER_TARGET_REFERENCES | 61 |
+| SYSTEMUI_TARGET_REFERENCES | 118 |
+| SECURITYCENTER_TARGET_REFERENCES | 16 |
+| MULTI_EXECUTABLE_TARGET_KEYS | 3 (['controls_fsg_assist_left_action', 'controls_fsg_assist_right_action', 'controls_nonavbar']) |
+| NO_EXECUTABLE_MAPPING | 113 |
+| UNKNOWN_EVIDENCE | 0 |
+| COUNT_CONSISTENCY | PASS |
+| P3_B_SAFE_TO_IMPLEMENT | YES |
+
+### MULTI_EXECUTABLE_TARGET_KEYS (3)
+
+- `controls_fsg_assist_left_action` -> targets ['LAUNCHER', 'SYSTEMUI']
+- `controls_fsg_assist_right_action` -> targets ['LAUNCHER', 'SYSTEMUI']
+- `controls_nonavbar` -> targets ['LAUNCHER', 'SYSTEMUI']
+
+
+### EXECUTABLE_LAUNCHER_KEYS
+
+`controls_fsg_assist_left_action`, `controls_fsg_assist_right_action`, `controls_fsg_coverage`
+`controls_fsg_horiz`, `controls_fsg_swipeandstop_action`, `controls_fsg_width`
+`controls_nonavbar`, `launcher_closedrawer`, `launcher_closefolders`, `launcher_darkershadow`
+`launcher_disable_log`, `launcher_disable_wallpaperscale`, `launcher_dock_bottommargin`
+`launcher_dock_height`, `launcher_dock_topmargin`, `launcher_docktitles`
+`launcher_doubletap_action`, `launcher_fixanim`, `launcher_fixlaunch`, `launcher_folder_cols`
+`launcher_folderblur_disable`, `launcher_folderblur_opacity`, `launcher_hideseekpoints`
+`launcher_hidetitles`, `launcher_horizmargin`, `launcher_horizwidgetmargin`, `launcher_iconscale`
+`launcher_indicator_topmargin`, `launcher_indicatorheight`, `launcher_infinitescroll`
+`launcher_noclockhide`, `launcher_nounlockanim`, `launcher_nowidgetonly`, `launcher_nozoomanim`
+`launcher_oldlaunchanim`, `launcher_pinch_action`, `launcher_privacyapps_gest`
+`launcher_renameapps`, `launcher_sensorportrait`, `launcher_shake_action`
+`launcher_spread_action`, `launcher_swipedown2_action`, `launcher_swipedown_action`
+`launcher_swipeleft_action`, `launcher_swiperight_action`, `launcher_swipeup2_action`
+`launcher_swipeup_action`, `launcher_titlefontsize`, `launcher_titletopmargin`
+`launcher_topmargin`, `launcher_unlockgrids`, `launcher_unlockhotseat`
+`launcher_wallpaper_colormode`, `system_fw_splitscreen`, `system_hidefromrecents`
+`system_recents_blur`, `system_recents_card_style`, `system_recents_disable_wallpaperscale`
+`system_recents_hide_statusbar`, `system_removecleaner`, `system_resizablewidgets`
+
+### EXECUTABLE_SYSTEMUI_KEYS
+
+`controls_fsg_assist_left_action`, `controls_fsg_assist_right_action`
+`controls_hidenavbar_whenscreenshot`, `controls_navbarleft_action`, `controls_nonavbar`
+`controls_volumecursor`, `system_4gtolte`, `system_albumartonlock`, `system_allownotiffloat`
+`system_allownotifonkeyguard`, `system_batteryindicator`, `system_betterpopups_allowfloat`
+`system_betterpopups_autoclose_expanded`, `system_betterpopups_center`
+`system_betterpopups_delay`, `system_betterpopups_disablewhenmute`, `system_betterpopups_nohide`
+`system_cc_btandtorch_ascard`, `system_cc_card_enabled_color`, `system_cc_clock_centeralign`
+`system_cc_clocktweak`, `system_cc_collapse_after_clicked`, `system_cc_floatingtimetile`
+`system_cc_fpstile`, `system_cc_freeform_when_longclick`, `system_cc_hide_edit`
+`system_cc_hide_profile_monitoring`, `system_cc_hideoperator_delimiter`
+`system_cc_show_stepcount`, `system_cc_slider_color_enable`, `system_cc_switch_qsandnotification`
+`system_cc_tile_enabled_color`, `system_cc_tile_roundedrect`, `system_cc_volume_showpct`
+`system_ccgridcolumns`, `system_chargeanimtime`, `system_charginginfo`, `system_colorizenotifs`
+`system_detailednetspeed_style`, `system_disableanynotif`, `system_drawer_blur`
+`system_drawer_remove_emptynotify`, `system_drawer_removeshortcut`, `system_dttosleep`
+`system_epm`, `system_expandheadups`, `system_expandnotifs`, `system_fivegtile`
+`system_fw_noblacklist`, `system_hidelsclock`, `system_hidelshint`, `system_hidelsstatusbar`
+`system_hidestatusbar_whenscreenshot`, `system_lockscreen_disable_edit`
+`system_lockscreen_hidezenmode`, `system_lockscreenshortcuts`, `system_ls_force_systemfonts`
+`system_lsalarm`, `system_maxsbicons`, `system_minimalnotifview`, `system_mobiletypeicon`
+`system_morenotif`, `system_mutevisiblenotif`, `system_netspeedinterval`
+`system_networkindicator_wifi`, `system_nolightuponcharges`, `system_nopassword`
+`system_nosafevolume`, `system_noscreenlock_act`, `system_nosilentvibrate`, `system_nosos`
+`system_notif_disable_fold`, `system_notifafterunlock`, `system_notifchannelsettings`
+`system_notifimportance`, `system_notifrowmenu`, `system_notify_openinfw`
+`system_qs_disable_fakeclock_anim`, `system_qs_force_systemfonts`, `system_qs_hideoperator`
+`system_qshaptics`, `system_removedismiss`, `system_scramblepin`, `system_screenshot_overlay`
+`system_secureqs`, `system_shortcut_app`, `system_showpct`, `system_statusbar_alarm_atright`
+`system_statusbar_batterystyle`, `system_statusbar_batterytempandcurrent`
+`system_statusbar_clock_position`, `system_statusbar_clocktweak`, `system_statusbar_dualrows`
+`system_statusbar_dualsimin2rows`, `system_statusbar_horizmargin`
+`system_statusbar_mobile_digital_signal`, `system_statusbar_mobiletype_single`
+`system_statusbar_topmargin`, `system_statusbarcontrols`, `system_statusbaricons_alarm`
+`system_statusbaricons_battery1`, `system_statusbaricons_battery3`
+`system_statusbaricons_privacy`, `system_statusbaricons_privacy_prompt`
+`system_statusbaricons_signal`, `system_statusbaricons_vowifi`, `system_statusbaricons_wifi`
+`system_statusbaricons_wifistandard`, `system_taptounlock`, `system_visualizer`
+`system_volume_mode_button_colors`, `system_volumebar_blur_mtk`, `system_volumeblur_collapsed`
+`system_volumeblur_expanded`, `system_volumedialogdelay_collapsed`
+`system_volumedialogdelay_expanded`, `system_volumetimer`, `various_showcallui`
+
+### EXECUTABLE_SECURITYCENTER_KEYS
+
+`system_applock_scramblepin`, `system_hidelowbatwarn`, `various_appdetails`, `various_appsort`, `various_disable_dock_suggest`, `various_disable_freeform_suggest_blacklist`, `various_disable_reset_recents_privacy_blur`, `various_disableapp`, `various_enable_expand_sidebar`, `various_hide_report_ondetails`, `various_privacyapps_column_nums4`, `various_replace_defaultopen_with_openbydefault`, `various_restrictapp`, `various_show_battery_temperature`, `various_skip_interceptperm`, `various_skip_securityscan`
+
+### P3_A2_FALSE_NEGATIVE_MULTI_TARGET
+
+- `controls_nonavbar`
+  - old set: `['SYSTEMUI']`
+  - correct set: `['LAUNCHER', 'SYSTEMUI']`
+  - why: P3-A2 only used the master preferenceKey of HideNavBarFeature in SystemUiFeatures.kt (target SYSTEM_UI). P3-A3 resolves the enabled conditions of every LazyFeatureSpec and finds LauncherHideNavBarFeature in LauncherPostAttachFeatures.kt also gating controls_nonavbar (target LAUNCHER), plus HideNavBarBeforeScreenshotFeature reading it.
+
+### P3-A3 gate status (carried forward)
+
+```text
+P3_A3_SHA = e88ff4ffca65d408e711f82bddfb8a6d552a79ca
+P3_A3_GATE = HOLD
+P3_A3_PUBLICATION_GATE = PASS
+P3_A3_KEY_TO_SET_MODEL = PASS
+P3_A3_MULTI_HOST_MODEL = PASS
+P3_A3_FAIL_CLOSED_MODEL = PASS
+```
+
+P3-A4 blocker resolved:
+
+```text
+BLOCKER = DECLARED_PREFERENCE_KEY_TREATED_AS_INSTALL_GATE_FOR_ALWAYS_INSTALLED_FEATURE
+```
+
+### P3-A4 model correction
+
+A `LazyFeatureSpec` declared `preferenceKey` is now treated as **feature identity only**, not as an automatic executable restart gate. The only keys that contribute to a feature's executable target are:
+
+1. Positive value reads inside the resolved `enabled` / `isEnabled` / `evaluateEnabled` body (`prefs.getBoolean/getInt/getString/getStringAsInt`).
+2. Concrete install-time captured values or resource reinit requirements.
+3. Other restart-specific source evidence.
+
+A feature is considered **always-installed** when its resolved enabled body is just `true`. Its declared `preferenceKey` (if any) is therefore a runtime/observer value, not an install gate, and does **not** produce an executable restart target.
+
+### Always-installed features
+
+| feature file | feature name | preferenceKey | FeatureTarget | why | runtime value path | executable target before | executable target after |
+|---|---|---|---|---|---|---|---|
+| SystemServerFeatures.kt | Animation Scale Bridge | (none) | FeatureTarget.SYSTEM_SERVER | AnimationScaleBridgeFeature.isEnabledCondition = true | { AnimationScaleBridgeFeature(lpparam) } | (none) | {} |
+| SystemServerFeatures.kt | Updater Services Bridge | (none) | FeatureTarget.SYSTEM_SERVER | UpdaterServicesBridgeFeature.isEnabledCondition = true | { UpdaterServicesBridgeFeature(lpparam) } | (none) | {} |
+| SystemServerFeatures.kt | Disable Window Blurs | system_disable_window_blurs | FeatureTarget.SYSTEM_SERVER | DisableWindowBlursFeature.evaluateEnabled = true | SystemDisplayHooks.DisableWindowBlursHook(lpparam) | (none) | {} |
+| SystemServerFeatures.kt | USB Default Function | system_usb_default_function | FeatureTarget.SYSTEM_SERVER | UsbDefaultFunctionFeature.isEnabledCondition = true | SystemUsbDefaultHooks runtime handler | (none) | {} |
+| SystemUiFeatures.kt | Strong Toast Presentation | system_strong_toast_mode | FeatureTarget.SYSTEM_UI | StrongToastPresentationFeature.evaluateEnabled = true | StrongToastRuntimeState observer / passthrough | {SYSTEMUI} | {} |
+
+### ALWAYS_INSTALLED_KEYS_REMOVED_FROM_EXECUTABLE
+
+```text
+COUNT = 1
+LIST = ['system_strong_toast_mode']
+```
+
+These keys were incorrectly granted executable restart targets in P3-A3 because the parser added every `LazyFeatureSpec.preferenceKey` regardless of whether the feature was always-installed.
+
+### StrongToast and USB target confirmation
+
+```text
+STRONG_TOAST_MODE_TARGETS = set()
+STRONG_TOAST_POSITION_TARGETS = set()
+STRONG_TOAST_BOTTOM_OFFSET_TARGETS = set()
+USB_DEFAULT_FUNCTION_TARGETS = {}
+CONTROLS_NONAVBAR_TARGETS = {LAUNCHER, SYSTEMUI}
+```
+
+- `system_strong_toast_mode`, `system_strong_toast_position`, `system_strong_toast_bottom_offset`: `NONE_LIVE` (`StrongToastRuntimeState` observer + passthrough).
+- `system_usb_default_function`: `NONE_LIVE` (runtime handler, P1 USB already confirmed).
+
+### Count consistency
+
+```text
+COUNT_CONSISTENCY = PASS
+EXECUTABLE_LAUNCHER_UNIQUE_KEYS + EXECUTABLE_SYSTEMUI_UNIQUE_KEYS + EXECUTABLE_SECURITYCENTER_UNIQUE_KEYS
+- (MULTI_EXECUTABLE_TARGET_KEYS overlap)
+= 61 + 118 + 16 - 3
+= 192
+```
+
+### P3-B safety gate
+
+```text
+P3_B_SAFE_TO_IMPLEMENT = YES
+P3_B_AUTHORIZATION = NO
+```
+
+- The executable positive allowlist is exact (positive feature evidence only), all multi-host masters are complete, the always-installed false positive `system_strong_toast_mode` is removed, and the registry is `KEY_TO_SET` with fail-closed misses.
+- `UNKNOWN_EVIDENCE = 0`.
+- `NO_EXECUTABLE_MAPPING = 113` keys fail-closed at runtime.
+- P3-B implementation is **not authorized** in this task; this document supplies the pre-flight registry only.
+
+### Verification commands
+
+```text
+python tools/verify.py fast --changed
+git diff --check
+git status --short
+```
+
+### Source of truth for full mapping
+
+The machine-readable full mapping is at:
+
+```text
+C:\Users\tv\AppData\Local\Temp\p3a4_registry.json
+```
+
+This file is a temporary audit artifact and is not part of the repository.
