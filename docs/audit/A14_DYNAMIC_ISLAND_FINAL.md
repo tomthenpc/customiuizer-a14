@@ -266,11 +266,132 @@ Documentation:
   `cl_strong_toast_msg` outside `mDarkToast` the `bindDynamicIslandShell()`
   copy logic will need a matching update.
 
+## Native animation ownership audit (P0-D)
+
+This section records the exact HyperOS 1 `fuxi` ROM evidence for who owns
+`MATCH_STATUS_BAR_HEIGHT` and Dynamic Island motion, and the engineering
+verdict on direct ROM animation reuse.
+
+### ROM artifacts
+
+- `MiuiSystemUI.apk` SHA-256:
+  `5d8f2fe0b65d8a1a947b4280f8053b524f8c5de73f48a74f8792d415ae76e513`
+- `MIUISystemUIPlugin.apk` SHA-256:
+  `3dafd9e068ebee7e88344ae1c7d146c7e2d41e79b5c52b7736cd3e58be0cc999`
+- Smali source audited:
+  `com/android/systemui/toast/MIUIStrongToast.smali`
+  - `getWindowParam()`
+  - `onAttachedToWindow()`
+  - `realHideStrongToast()`
+  - `updateStrongToast()`
+  - `setValue()`
+  - `doShowViewAnimationForTB()`
+  - inner class `MIUIStrongToast$2` (the `OnPreDrawListener`)
+
+### Exact ROM window / style
+
+- `getWindowParam()` builds a `WindowManager.LayoutParams` with:
+  - `flags = 0x1800728`, `type = 0x7e1`, `format = -3`
+  - `gravity = 0x31` (`Gravity.TOP | Gravity.CENTER_HORIZONTAL`) in **all** cases
+  - `windowAnimations = 0` when `mShowBottom` is `false`
+  - `windowAnimations = 0x7f1401ac` (`style/MIUIStrongToast`) when `mShowBottom` is `true`
+- `style/MIUIStrongToast` (`0x7f1401ac`) has parent `0x7f140021` and sets
+  `android:windowAnimationStyle` to `0x7f01022e`, which is `anim/translate_enter`.
+- `0x7f071114` resolves to `dimen/strong_toast_width_window`; `0x7f05000e`
+  (`check_is_default_strong_toast`) drives `mShowBottom`.
+- `mShowBottom` does **not** mean a vertical bottom position; it selects the
+  wider, default-toast window and animation path.  Vertical position is still
+  fixed at `Gravity.TOP` by the ROM.
+
+### ROM entrance / exit mechanics
+
+- `onAttachedToWindow()` adds an `OnPreDrawListener` (`MIUIStrongToast$2`,
+  class-id `2`) to the root `ViewTreeObserver`.  This is the primary motion.
+- In that pre-draw:
+  - `mShowBottom = true` -> `Folme.useAt` on `mRLLeft`/`mRLRight` animates
+    `ViewProperty.X` (from the left/right edge) and `ViewProperty.ALPHA` using
+    `mStartXConfig` / `mStartAlphaConfig`.
+  - `mShowBottom = false` -> an `AnimatorSet` of `ObjectAnimator`s on
+    `mCirCleCenter`/`mSTBgFL`/`mRightVideoView` with `DecelerateInterpolator(1.5f)`.
+- `realHideStrongToast()` for `mShowBottom = true` builds `mDFWAnimationSet`:
+  - `mRLLeft` and `mRLRight` fade to `0` over `200ms`
+  - `mDarkToast` translates up by its height over `500ms`, start-delay `100ms`
+  - all three use `DecelerateInterpolator(2.0f)`.
+- `doShowViewAnimationForTB()` is a secondary Folme alpha transition for
+  left/right text called from `updateStrongToast()` on content changes, not the
+  first entrance.
+
+### MATCH animation owner
+
+`MATCH_STATUS_BAR_HEIGHT` only changes the outer window/container height and
+keeps the original ROM child hierarchy.  The observed smooth MATCH motion is
+therefore ROM-owned:
+
+- `MATCH_ANIMATION_OWNER = ROM_VIEW_ANIMATION`
+- `ROM_WINDOW_ANIMATION = 0` for `mShowBottom = false`; `style/MIUIStrongToast`
+  (windowAnimationStyle → `anim/translate_enter`) for `mShowBottom = true`
+- `ROM_TOP_ASSUMPTION = Gravity.TOP | Gravity.CENTER_HORIZONTAL` with the
+  original `strong_toast_width_window` / `mCurrentTextHeight * 2` window geometry
+- `ROM_BOTTOM_SUPPORT = NO` native top/bottom directional entrance; `mShowBottom`
+  is a layout/animation selector, not a vertical position, and the gravity never
+  changes.
+
+### Dynamic Island direct ROM reuse verdict
+
+- `DYNAMIC_ISLAND_DIRECT_ROM_ANIMATION_REUSE = UNSAFE`
+
+Why:
+
+1. The ROM `OnPreDraw` / `realHideStrongToast` motion targets the original
+   `mRLLeft`/`mRLRight`/`mDarkToast` children.  Those children are now inside the
+   module-owned shell, so ROM Folme would transform them independently of the
+   shell, producing a double transform / clip / empty-look on the first frame.
+2. Removing the module `layoutParams.windowAnimations = 0` would only expose the
+   window-level `translate_enter`; the primary Folme/object-animator content
+   motion would still fight the shell.
+3. ROM entrance/exit is bound to the original `cl_strong_toast_msg` geometry and
+   fixed `Gravity.TOP` window; it does not adapt to a top/bottom module shell
+   with a full-width transparent envelope.
+4. `realHideStrongToast` starts its own exit and then calls `clearAll()`.  The
+   module must already intercept this path to keep `clearAll()` inside the shell
+   exit `withEndAction`, so direct ROM reuse of exit is already unsafe for the
+   dismiss order.
+
+### Final Dynamic Island animation ownership
+
+- `FINAL_DYNAMIC_ISLAND_ANIMATION_OWNER = MIXED` with a strict, documented boundary:
+  - **Module** owns the shell `scaleY`/`translationY`/`alpha` via
+    `ViewPropertyAnimator` (one cached `PathInterpolator`, `withLayer()`,
+    one-shot `OnPreDrawListener` gate).
+  - **ROM** still owns content-child Folme / `ObjectAnimator` alpha because the
+    module does not set child alpha.
+  - **Window** animation is zeroed (`layoutParams.windowAnimations = 0`) so no
+    third window-level entrance is layered on top.
+- `DECISION = ROM_DERIVED_MODULE_TRANSFORM`
+- `WHY`: the ROM motion semantics (edge-driven X/alpha for left/right text,
+  `mDarkToast` height translate on exit, `DecelerateInterpolator(2.0f)`) cannot
+  be mapped directly onto the module shell without binding to the original ROM
+  geometry.  The existing module `ViewPropertyAnimator` shell is the single,
+  safe owner of the shell transform, and the `DynamicIslandWindowEnvelope`
+  reproduces the ROM-safe geometry without the ROM's original-geometry coupling.
+- `MODULE_INTERPOLATOR_SOURCE = EXISTING_EQUIVALENT`
+- `EXACT_MODULE_INTERPOLATOR = PathInterpolator(0.25f, 1f, 0.5f, 1f)`
+- `MOTION_PARAMETERS_CHANGED = NO`
+- `PRE_DRAW_LIFECYCLE = RETAINED` because the shell still needs a one-shot
+  `OnPreDrawListener` to guarantee measured width/height before the first frame.
+- `ROM_CONTENT_CHILD_OWNERSHIP = ROM`
+- `DISMISS_COMPLETION_STATUS = PRESERVED` (`clearAll()` only runs after the
+  shell `withEndAction`, then `onComplete()` once).
+- `mCacheModel STATUS = PRESERVED` (no access or mutation in the animation path).
+- `WINDOW_ANIMATIONS_ZEROED = YES` for Dynamic Island (`layoutParams.windowAnimations = 0`).
+
 ## Gate / status
 
 - `DYNAMIC_ISLAND_SHELL_LIFECYCLE_ENGINEERING_GATE = PASS`
 - `DYNAMIC_ISLAND_GEOMETRY_MOTION_ENGINEERING_GATE = PASS`
-- `ENGINEERING_FREEZE = 7ecd1a3a1a1ecd55cfcdbf7dcf7da86c91d18302`
+- `DYNAMIC_ISLAND_NATIVE_ANIMATION_AUDIT_ENGINEERING_GATE = PASS`
+- `ENGINEERING_FREEZE = d78c04c1cf82c41d17ed5e85d7c9e6ce9b3aea8f`
+- `P0_D_CORRECTIVE_IN_PROGRESS = YES`
 - `FINAL_TREE_CONTAINS_CORRECTIVE = YES`
 - `DEVICE_VISUAL_ACCEPTANCE = PENDING_FINAL_SIGNED_APK`
 

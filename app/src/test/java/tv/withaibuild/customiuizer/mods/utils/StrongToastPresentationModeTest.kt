@@ -319,9 +319,98 @@ class StrongToastPresentationModeTest {
         )
     }
 
+    @Test
+    fun dynamicIslandAnimation_ownsShellAndRejectsRomWindowAnimation() {
+        val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
+
+        val installBody = extractFunctionBody(
+            source,
+            "private fun installHeightMatch(lpparam: PackageReadyParam)"
+        )
+        val matchBranch = extractWhenBranch(
+            installBody,
+            "StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT ->"
+        )
+        val islandBranch = extractWhenBranch(
+            installBody,
+            "StrongToastPresentationMode.DYNAMIC_ISLAND ->"
+        )
+
+        // MATCH leaves the ROM window/style path untouched.
+        assertFalse(
+            "MATCH must not zero or overwrite windowAnimations",
+            matchBranch.contains("windowAnimations")
+        )
+        assertFalse(
+            "MATCH must not force a full-width host window",
+            matchBranch.contains("layoutParams.width")
+        )
+
+        // Dynamic Island must disable the ROM window-level animation so the module owns
+        // the only shell transform.
+        assertTrue(
+            "Dynamic Island must set windowAnimations to 0",
+            islandBranch.contains("layoutParams.windowAnimations = 0")
+        )
+        assertTrue(
+            "Dynamic Island must use a full-screen transparent host",
+            islandBranch.contains("layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT")
+        )
+
+        // The shell is the single module-owned transform target, not the ROM children.
+        assertTrue(
+            "entrance must animate shell scaleY",
+            source.contains("shell.scaleY = profile.entranceScaleY")
+        )
+        assertTrue(
+            "entrance must animate shell translationY",
+            source.contains("shell.translationY = profile.entranceTranslationY")
+        )
+        assertTrue(
+            "entrance/exit must use the module cached interpolator",
+            source.contains("boundedDynamicIslandInterpolator")
+        )
+        assertTrue(
+            "entrance/exit must use a PathInterpolator with bounded easing",
+            source.contains("PathInterpolator(0.25f, 1f, 0.5f, 1f)")
+        )
+        assertTrue(
+            "entrance/exit must use hardware layers",
+            source.contains(".withLayer()")
+        )
+
+        // The module must not try to import or call Folme / MIUIX animation directly.
+        assertFalse(
+            "module must not directly depend on MIUIX Folme",
+            source.contains("miuix.animation")
+        )
+    }
+
     private fun extractFunctionBody(source: String, signature: String): String {
         val start = source.indexOf(signature)
         require(start >= 0) { "Signature not found: $signature" }
+        var braceCount = 0
+        var foundFirstBrace = false
+        val sb = StringBuilder()
+        for (i in start until source.length) {
+            val c = source[i]
+            if (c == '{') {
+                foundFirstBrace = true
+                braceCount++
+            } else if (c == '}') {
+                braceCount--
+            }
+            if (foundFirstBrace) {
+                sb.append(c)
+                if (braceCount == 0) break
+            }
+        }
+        return sb.toString()
+    }
+
+    private fun extractWhenBranch(source: String, label: String): String {
+        val start = source.indexOf(label)
+        require(start >= 0) { "Branch label not found: $label" }
         var braceCount = 0
         var foundFirstBrace = false
         val sb = StringBuilder()
