@@ -1,11 +1,11 @@
-# A14 Dynamic Island shell / dismiss order corrective
+# A14 Dynamic Island shell / dismiss order / geometry corrective
 
 This document records the final implementation for the HyperOS 1 A14
 `r14.20.0` Dynamic Island corrective.
 
 ## Problem statement
 
-Runtime diagnosis identified two related defects:
+Runtime diagnosis identified three related defects:
 
 1. **The Dynamic Island was not a true independent surface.**
    The module was transforming the ROM message container
@@ -20,6 +20,17 @@ Runtime diagnosis identified two related defects:
    before the module exit animation finished, which mutated the view content
    and requested layout while the capsule was still transforming.
 
+3. **Geometry / motion clipping on the first and bottom events.**
+   The original host Window height was sized only for the resting capsule
+   plus a fixed bottom margin. It did not reserve a rounding/pixel-safety
+   margin for the scaled entrance/exit edge, and the shell layout placed the
+   shell using margins/padding that did not make the parent height match the
+   Window height. The scaled capsule at the start and exit could therefore
+   touch or exceed the Window surface, causing the first trigger to be
+   invisible or the bottom capsule to be clipped by a few pixels. The shell
+   entrance was also gated only by `View.post`, which could fire before the
+   first layout pass completed.
+
 ## Root causes
 
 - `cl_strong_toast_msg` is the ROM content owner. ROM `setValue()` and
@@ -33,6 +44,10 @@ Runtime diagnosis identified two related defects:
 - `realHideStrongToast` was calling ROM `clearAll()` before the module
   `ViewPropertyAnimator` exit started. `clearAll()` then removed the view and
   reset children while the exit transform was still running.
+- The Window height and shell margins were computed independently. There was
+  no single pure envelope that guaranteed the scaled shell stayed inside the
+  host surface at all phases, and no rounding safety margin absorbed
+  RenderNode integer-rounding overflow at the edge.
 
 ## Implementation
 
@@ -93,16 +108,64 @@ Runtime diagnosis identified two related defects:
    itself rolls back content reparenting and background clearing if the
    transaction fails.
 
-7. **Updates UI labels and removes the obsolete center-pop resource.**
-   The `system_strong_toast_mode_dynamic_island_center_pop` string resource
-   was removed from all locale files and from the localization test fixture
-   after confirming no production, array, reflection or dynamic reference.
-   Locale labels for `system_strong_toast_mode_dynamic_island` were shortened
-   to just "Dynamic Island" (and translated equivalents).
+7. **Adds a pure `DynamicIslandWindowEnvelope` geometry helper.**
+   `DynamicIslandWindowEnvelope.kt` is a new testable, side-effect-free
+   class that produces a host Window height, shell margins, parent padding
+   and parent gravity from the position, visual height, top/bottom insets,
+   and a rounding safety margin. It proves the shell fits at the scaled
+   entrance start, at rest, and at the scaled exit end. The envelope is the
+   single source of truth used by `prepareDynamicIslandCapsule()`,
+   `resolveDynamicIslandMotionProfile()`, and `getWindowParam()` so the host
+   Window and the shell are always sized consistently.
+
+8. **Reserves a rounding safety margin and keeps the scaled edge inside.**
+   `CAPSULE_ROUNDING_SAFETY_MARGIN_DP = 2` is added to the host height and
+   subtracted from the entrance/exit travel so the scaled capsule starts
+   inside the Window surface, not flush with it. This absorbs
+   `Math.round()` / RenderNode half-pixel expansion that was clipping the
+   first frame on the target device.
+
+9. **Fixes parent padding / margin layout to make `mDarkToast` height match
+   the host Window.**
+   `prepareDynamicIslandCapsule()` now uses the envelope's `shellTopMargin`,
+   `shellBottomMargin`, `parentPaddingTop` and `parentPaddingBottom`. For the
+   top position the top margin is the near-edge inset and the bottom padding
+   is the far-edge safety; for the bottom position the bottom margin is the
+   near-edge inset and the top padding is the far-edge safety. This makes
+   the wrapping `LinearLayout` total height equal the computed Window height
+   and keeps the shell correctly aligned through all animation phases.
+
+10. **Gates the first entrance on a one-shot pre-draw listener.**
+    `startDynamicIslandEntrance()` no longer uses `View.post`. It adds an
+    `OnPreDrawListener` that removes itself before calling
+    `runDynamicIslandEntrance()`, guaranteeing the shell has been measured
+    and laid out before the first transform is applied.
+
+11. **Uses hardware layers for shell animations.**
+    Entrance, dismiss, and the drag-settle restore animation now call
+    `ViewPropertyAnimator.withLayer()` to reduce first-frame texture setup
+    latency and avoid drawing the transformed shell through the normal
+    software/RenderNode path.
+
+12. **Updates UI labels and removes the obsolete center-pop resource.**
+    The `system_strong_toast_mode_dynamic_island_center_pop` string resource
+    was removed from all locale files and from the localization test fixture
+    after confirming no production, array, reflection or dynamic reference.
+    Locale labels for `system_strong_toast_mode_dynamic_island` were shortened
+    to just "Dynamic Island" (and translated equivalents).
 
 ## Test coverage
 
 New tests:
+
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/feature/DynamicIslandWindowEnvelopeTest.kt`
+  - Verifies top and bottom envelopes produce the expected host height,
+    shell margins, parent padding/gravity, resting top/bottom, and signed
+    entrance translation.
+  - Verifies `fitsAllPhases()` passes for both positions with and without
+    rounding and with a very small bottom padding.
+  - Verifies the scaled start top/bottom is inside the host when rounding is
+    used and closer to the edge when rounding is not used.
 
 - `app/src/test/java/tv/withaibuild/customiuizer/mods/DynamicIslandShellContractTest.kt`
   - Source-contract assertions for `bindDynamicIslandShell`,
@@ -127,14 +190,31 @@ New tests:
     `clearAll()` runs before `onComplete()`, each runs once, and `onComplete()`
     still runs even if `clearAll()` throws.
 
+Updated tests:
+
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/feature/DynamicIslandMotionProfileTest.kt`
+  - Updated all cases to include `roundingSafetyPx = 2` and the matching
+    expected window heights (197 / 251) and bottom rest top (20).
+  - Added `topWindowHeightRespectsStatusBarInsetWhenLargerThanCapsule` and
+    `bottomWindowHeightIncludesRoundingSafety` to verify the envelope is
+    reflected in the public motion profile.
+
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/StrongToastPresentationModeTest.kt`
+  - Added source-contract assertions that shell entrance/exit/rest
+    `ViewPropertyAnimator` chains call `.withLayer()` and that the first
+    entrance is gated by a one-shot `addOnPreDrawListener`.
+
 Existing `SystemUIStrongToastHooksTest` MATCH-status-bar tests continue to
 pass.
 
 ## Verification
 
+Run these in order:
+
 ```powershell
 python tools/verify.py fast --changed
 python tools/verify.py fast --tests SystemUIStrongToastHooksTest
+python tools/verify.py fast --tests DynamicIslandMotionProfileTest DynamicIslandWindowEnvelopeTest
 python tools/verify.py fast --tests DynamicIslandShellContractTest DynamicIslandDismissLifecycleTest
 python tools/verify.py full
 ```
@@ -147,6 +227,8 @@ Static rules, invariants, `compileDebugKotlin`, `testDebugUnitTest`, and
 Production:
 
 - `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/DynamicIslandWindowEnvelope.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/DynamicIslandMotionProfile.kt`
 
 Resources:
 
@@ -163,6 +245,9 @@ Resources:
 
 Tests and fixtures:
 
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/feature/DynamicIslandWindowEnvelopeTest.kt`
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/feature/DynamicIslandMotionProfileTest.kt`
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/StrongToastPresentationModeTest.kt`
 - `app/src/test/java/tv/withaibuild/customiuizer/mods/DynamicIslandShellContractTest.kt`
 - `app/src/test/java/tv/withaibuild/customiuizer/mods/DynamicIslandDismissLifecycleTest.kt`
 - `tools/tests/test_recent_feature_localizations.py`
@@ -183,11 +268,15 @@ Documentation:
 
 ## Gate / status
 
-- `DYNAMIC_ISLAND_ENGINEERING_GATE = PASS`
+- `DYNAMIC_ISLAND_SHELL_LIFECYCLE_ENGINEERING_GATE = PASS`
+- `DYNAMIC_ISLAND_GEOMETRY_MOTION_ENGINEERING_GATE = PASS`
 - `ENGINEERING_FREEZE = 7ecd1a3a1a1ecd55cfcdbf7dcf7da86c91d18302`
 - `FINAL_TREE_CONTAINS_CORRECTIVE = YES`
 - `DEVICE_VISUAL_ACCEPTANCE = PENDING_FINAL_SIGNED_APK`
 
-The implementation is complete and consistent with the HyperOS 1 A14 evidence.
-A device runtime smoke test with the signed release APK is still required to
-confirm the visual result on the target ROM.
+The geometry/motion envelope is now derived from a single pure
+`DynamicIslandWindowEnvelope` that reserves a rounding safety margin, sizes the
+host Window and parent `LinearLayout` consistently, and proves the shell fits
+at every animation phase. The implementation is complete and consistent with the
+HyperOS 1 A14 evidence. A device runtime smoke test with the signed release APK
+is still required to confirm the visual result on the target ROM.

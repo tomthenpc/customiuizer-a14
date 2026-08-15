@@ -9,6 +9,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
@@ -24,6 +25,7 @@ import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.mods.utils.feature.DynamicIslandMotionProfile
+import tv.withaibuild.customiuizer.mods.utils.feature.DynamicIslandWindowEnvelope
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeSnapshot
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeState
 import io.github.libxposed.api.XposedInterface
@@ -60,6 +62,7 @@ object SystemUIStrongToastHooks {
     private const val FOREHEAD_BOTTOM_ID = "strong_toast_bottom_view"
     private const val CAPSULE_TOP_MARGIN_DP = 6f
     private const val CAPSULE_BOTTOM_SAFETY_MARGIN_DP = 16f
+    private const val CAPSULE_ROUNDING_SAFETY_MARGIN_DP = 2f
     private const val BOTTOM_EDGE_GAP_MIN_DP = 2f
     private const val BOTTOM_EDGE_GAP_MAX_DP = 6f
     private const val SWIPE_DISMISS_THRESHOLD_MAX_DP = 28f
@@ -256,7 +259,8 @@ object SystemUIStrongToastHooks {
                                     layoutParams.height = resolveBottomDynamicIslandWindowHeightPx(
                                         visualHeightPx,
                                         resolveBottomTopSafetyPx(strongToast, visualHeightPx),
-                                        bottomPaddingPx
+                                        bottomPaddingPx,
+                                        dpToPx(strongToast, CAPSULE_ROUNDING_SAFETY_MARGIN_DP)
                                     )
                                 } else {
                                     layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
@@ -264,7 +268,8 @@ object SystemUIStrongToastHooks {
                                         currentStatusBarInsetPx(strongToast),
                                         visualHeightPx,
                                         dpToPx(strongToast, CAPSULE_TOP_MARGIN_DP),
-                                        dpToPx(strongToast, CAPSULE_BOTTOM_SAFETY_MARGIN_DP)
+                                        dpToPx(strongToast, CAPSULE_BOTTOM_SAFETY_MARGIN_DP),
+                                        dpToPx(strongToast, CAPSULE_ROUNDING_SAFETY_MARGIN_DP)
                                     )
                                 }
                             }
@@ -511,18 +516,24 @@ object SystemUIStrongToastHooks {
             resetDynamicIslandHostTransform(view)
             shell.animate().cancel()
             resetDynamicIslandTransform(shell)
-            // onAttachedToWindow precedes the first layout pass. Defer exactly once so the
-            // shell has real width/height and the profile can set a safe pivot/translation.
-            shell.post {
-                ModuleHelper.guarded {
-                    if (!shell.isAttachedToWindow) {
-                        resetDynamicIslandHostTransform(view)
-                        resetDynamicIslandTransform(shell)
-                        return@guarded
+            // onAttachedToWindow precedes the first layout pass. Defer exactly once until the
+            // shell is laid out so the profile can set a safe pivot/translation from real
+            // width/height and the first animation frame does not run before drawing.
+            val vto = shell.viewTreeObserver
+            vto.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    shell.viewTreeObserver.removeOnPreDrawListener(this)
+                    ModuleHelper.guarded {
+                        if (!shell.isAttachedToWindow) {
+                            resetDynamicIslandHostTransform(view)
+                            resetDynamicIslandTransform(shell)
+                            return@guarded
+                        }
+                        runDynamicIslandEntrance(view, shell, position)
                     }
-                    runDynamicIslandEntrance(view, shell, position)
+                    return true
                 }
-            }
+            })
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             restoreStatusBarContents(view)
@@ -568,6 +579,7 @@ object SystemUIStrongToastHooks {
                 .translationY(profile.restingTranslationY)
                 .setDuration(profile.entranceDurationMs)
                 .setInterpolator(boundedDynamicIslandInterpolator)
+                .withLayer()
                 .start()
 
             // The ROM content children are animated by the ROM itself. Module does
@@ -774,6 +786,7 @@ object SystemUIStrongToastHooks {
             .setDuration(profile.exitDurationMs)
             .setInterpolator(dynamicIslandExitInterpolator)
             .withEndAction(complete)
+            .withLayer()
             .start()
     }
     private fun installControlClassHooks(lpparam: PackageReadyParam) {
@@ -1232,6 +1245,9 @@ object SystemUIStrongToastHooks {
         ) as? DynamicIslandShellState ?: return null
 
         return try {
+            val envelope = resolveDynamicIslandWindowEnvelope(root, position, bottomOffsetDp)
+                ?: return null
+
             val horizontalMarginPx = dpToPx(root, 16f)
             val availableWidthPx = root.resources.displayMetrics.widthPixels - horizontalMarginPx * 2
             val layoutParams = shell.layoutParams
@@ -1239,14 +1255,8 @@ object SystemUIStrongToastHooks {
             layoutParams.width = minOf(visualWidthPx, availableWidthPx)
             layoutParams.height = visualHeightPx
             if (layoutParams is ViewGroup.MarginLayoutParams) {
-                if (position == StrongToastPosition.BOTTOM) {
-                    layoutParams.topMargin = resolveBottomTopSafetyPx(root, visualHeightPx)
-                    // Bottom spacing is owned by the LinearLayout parent padding.
-                    layoutParams.bottomMargin = 0
-                } else {
-                    layoutParams.topMargin = dpToPx(root, CAPSULE_TOP_MARGIN_DP)
-                    layoutParams.bottomMargin = dpToPx(root, CAPSULE_BOTTOM_SAFETY_MARGIN_DP)
-                }
+                layoutParams.topMargin = envelope.shellTopMarginPx
+                layoutParams.bottomMargin = envelope.shellBottomMarginPx
             }
             if (layoutParams is LinearLayout.LayoutParams) {
                 layoutParams.gravity = Gravity.CENTER_HORIZONTAL
@@ -1277,21 +1287,12 @@ object SystemUIStrongToastHooks {
 
             val parent = state.originalParent
             (parent as? LinearLayout)?.apply {
-                gravity = if (position == StrongToastPosition.BOTTOM) {
-                    Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                } else {
-                    Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                }
-                val bottomPadding = if (position == StrongToastPosition.BOTTOM) {
-                    resolveBottomPaddingForCapsule(root, visualHeightPx, bottomOffsetDp)
-                } else {
-                    0
-                }
+                gravity = envelope.parentGravity
                 setPadding(
                     state.originalParentPaddingLeft,
-                    0,
+                    envelope.parentPaddingTopPx,
                     state.originalParentPaddingRight,
-                    bottomPadding
+                    envelope.parentPaddingBottomPx
                 )
             }
 
@@ -1324,7 +1325,36 @@ object SystemUIStrongToastHooks {
             .translationY(0f)
             .setDuration(180L)
             .setInterpolator(boundedDynamicIslandInterpolator)
+            .withLayer()
             .start()
+    }
+
+    private fun resolveDynamicIslandWindowEnvelope(
+        root: View,
+        position: StrongToastPosition,
+        bottomOffsetDp: Int
+    ): DynamicIslandWindowEnvelope? {
+        val visualHeightPx = strongToastVisualHeightPx(root)
+        if (visualHeightPx <= 0) return null
+        val roundingPx = dpToPx(root, CAPSULE_ROUNDING_SAFETY_MARGIN_DP)
+        return when (position) {
+            StrongToastPosition.TOP -> DynamicIslandWindowEnvelope.forTop(
+                visualHeightPx,
+                dpToPx(root, CAPSULE_TOP_MARGIN_DP),
+                dpToPx(root, CAPSULE_BOTTOM_SAFETY_MARGIN_DP),
+                roundingPx
+            )
+            StrongToastPosition.BOTTOM -> DynamicIslandWindowEnvelope.forBottom(
+                visualHeightPx,
+                resolveBottomTopSafetyPx(root, visualHeightPx),
+                resolveBottomPaddingForCapsule(
+                    root,
+                    visualHeightPx,
+                    bottomOffsetDp
+                ),
+                roundingPx
+            )
+        }
     }
 
     private fun resolveDynamicIslandMotionProfile(
@@ -1334,6 +1364,7 @@ object SystemUIStrongToastHooks {
     ): DynamicIslandMotionProfile? {
         val visualHeightPx = strongToastVisualHeightPx(root)
         if (visualHeightPx <= 0) return null
+        val roundingPx = dpToPx(capsule, CAPSULE_ROUNDING_SAFETY_MARGIN_DP)
         return when (position) {
             StrongToastPosition.TOP -> {
                 val topMarginPx = dpToPx(capsule, CAPSULE_TOP_MARGIN_DP)
@@ -1343,7 +1374,8 @@ object SystemUIStrongToastHooks {
                     visualHeightPx,
                     topMarginPx,
                     bottomSafetyPx,
-                    statusBarInsetPx
+                    statusBarInsetPx,
+                    roundingPx
                 )
             }
             StrongToastPosition.BOTTOM -> {
@@ -1356,7 +1388,8 @@ object SystemUIStrongToastHooks {
                 DynamicIslandMotionProfile.forBottom(
                     visualHeightPx,
                     topSafetyPx,
-                    bottomPaddingPx
+                    bottomPaddingPx,
+                    roundingPx
                 )
             }
         }
@@ -1672,13 +1705,15 @@ object SystemUIStrongToastHooks {
         statusBarInsetPx: Int,
         visualHeightPx: Int,
         topMarginPx: Int,
-        bottomSafetyMarginPx: Int
+        bottomSafetyMarginPx: Int,
+        roundingSafetyMarginPx: Int = 0
     ): Int {
         if (visualHeightPx <= 0) return statusBarInsetPx
         return maxOf(
             statusBarInsetPx,
             visualHeightPx + topMarginPx.coerceAtLeast(0) +
-                bottomSafetyMarginPx.coerceAtLeast(0)
+                bottomSafetyMarginPx.coerceAtLeast(0) +
+                roundingSafetyMarginPx.coerceAtLeast(0)
         )
     }
 
@@ -1686,11 +1721,13 @@ object SystemUIStrongToastHooks {
     internal fun resolveBottomDynamicIslandWindowHeightPx(
         visualHeightPx: Int,
         topSafetyMarginPx: Int,
-        bottomPaddingPx: Int
+        bottomPaddingPx: Int,
+        roundingSafetyMarginPx: Int = 0
     ): Int {
         if (visualHeightPx <= 0) return bottomPaddingPx.coerceAtLeast(0)
         return visualHeightPx + topSafetyMarginPx.coerceAtLeast(0) +
-            bottomPaddingPx.coerceAtLeast(0)
+            bottomPaddingPx.coerceAtLeast(0) +
+            roundingSafetyMarginPx.coerceAtLeast(0)
     }
 
     @JvmStatic

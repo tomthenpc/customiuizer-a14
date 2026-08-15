@@ -199,6 +199,8 @@ class StrongToastPresentationModeTest {
         assertTrue(source.contains(".translationY(profile.exitTranslationY)"))
         assertTrue(source.contains("boundedDynamicIslandInterpolator"))
         assertTrue(source.contains("PathInterpolator(0.25f, 1f, 0.5f, 1f)"))
+        assertTrue("entrance/exit/rest animations must use hardware layers", source.contains(".withLayer()"))
+        assertTrue("entrance must be gated by a one-shot pre-draw listener", source.contains("addOnPreDrawListener"))
         assertFalse(source.contains("prepareDynamicIslandContent("))
         assertTrue(source.contains("resetDynamicIslandContent(capsule)"))
         assertTrue(source.contains("layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL"))

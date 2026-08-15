@@ -15,7 +15,8 @@ class DynamicIslandMotionProfileTest {
             visualHeightPx = 141,
             topMarginPx = 18,
             bottomSafetyMarginPx = 36,
-            statusBarInsetPx = 82
+            statusBarInsetPx = 82,
+            roundingSafetyPx = 2
         )
 
         assertEquals(StrongToastPosition.TOP, profile.position)
@@ -32,7 +33,8 @@ class DynamicIslandMotionProfileTest {
             visualHeightPx = 141,
             topMarginPx = 18,
             bottomSafetyMarginPx = 36,
-            statusBarInsetPx = 82
+            statusBarInsetPx = 82,
+            roundingSafetyPx = 2
         )
 
         assertTrue(
@@ -46,7 +48,8 @@ class DynamicIslandMotionProfileTest {
         val profile = DynamicIslandMotionProfile.forBottom(
             visualHeightPx = 141,
             topSafetyMarginPx = 18,
-            bottomPaddingPx = 90
+            bottomPaddingPx = 90,
+            roundingSafetyPx = 2
         )
 
         assertEquals(StrongToastPosition.BOTTOM, profile.position)
@@ -62,12 +65,14 @@ class DynamicIslandMotionProfileTest {
         val profile = DynamicIslandMotionProfile.forBottom(
             visualHeightPx = 141,
             topSafetyMarginPx = 18,
-            bottomPaddingPx = 90
+            bottomPaddingPx = 90,
+            roundingSafetyPx = 2
         )
 
+        // With rounding safety, the shell rests [topSafety + rounding] from the parent top.
         assertTrue(
             "full transformed capsule must stay inside Window surface",
-            profile.capsuleFitsWindow(capsuleTopAtRest = 18, capsuleHeightPx = 141)
+            profile.capsuleFitsWindow(capsuleTopAtRest = 20, capsuleHeightPx = 141)
         )
     }
 
@@ -77,17 +82,19 @@ class DynamicIslandMotionProfileTest {
             visualHeightPx = 141,
             topMarginPx = 18,
             bottomSafetyMarginPx = 36,
-            statusBarInsetPx = 82
+            statusBarInsetPx = 82,
+            roundingSafetyPx = 2
         )
-        // The helper uses maxOf(statusBarInset, visual + top + bottom).
-        assertEquals(195, topProfile.windowHeightPx)
+        // The helper uses maxOf(statusBarInset, visual + top + bottom + rounding).
+        assertEquals(197, topProfile.windowHeightPx)
 
         val bottomProfile = DynamicIslandMotionProfile.forBottom(
             visualHeightPx = 141,
             topSafetyMarginPx = 18,
-            bottomPaddingPx = 90
+            bottomPaddingPx = 90,
+            roundingSafetyPx = 2
         )
-        assertEquals(249, bottomProfile.windowHeightPx)
+        assertEquals(251, bottomProfile.windowHeightPx)
     }
 
     @Test
@@ -96,7 +103,8 @@ class DynamicIslandMotionProfileTest {
             visualHeightPx = 141,
             topMarginPx = 18,
             bottomSafetyMarginPx = 36,
-            statusBarInsetPx = 82
+            statusBarInsetPx = 82,
+            roundingSafetyPx = 2
         )
 
         assertEquals(profile.entranceTranslationY, profile.maxDragTranslationY, 0.0001f)
@@ -108,7 +116,8 @@ class DynamicIslandMotionProfileTest {
         val profile = DynamicIslandMotionProfile.forBottom(
             visualHeightPx = 141,
             topSafetyMarginPx = 18,
-            bottomPaddingPx = 90
+            bottomPaddingPx = 90,
+            roundingSafetyPx = 2
         )
 
         assertEquals(profile.entranceTranslationY, profile.maxDragTranslationY, 0.0001f)
@@ -118,16 +127,43 @@ class DynamicIslandMotionProfileTest {
     @Test
     fun noOvershootScaleY() {
         val top = DynamicIslandMotionProfile.forTop(
-            141, 18, 36, 82
+            141, 18, 36, 82, 2
         )
         val bottom = DynamicIslandMotionProfile.forBottom(
-            141, 18, 90
+            141, 18, 90, 2
         )
 
         assertTrue("entrance scale must not overshoot", top.entranceScaleY <= 1f)
         assertTrue("entrance scale must not overshoot", bottom.entranceScaleY <= 1f)
         assertTrue("exit scale must not overshoot", top.exitScaleY <= 1f)
         assertTrue("exit scale must not overshoot", bottom.exitScaleY <= 1f)
+    }
+
+    @Test
+    fun topWindowHeightRespectsStatusBarInsetWhenLargerThanCapsule() {
+        val profile = DynamicIslandMotionProfile.forTop(
+            visualHeightPx = 80,
+            topMarginPx = 6,
+            bottomSafetyMarginPx = 16,
+            statusBarInsetPx = 200,
+            roundingSafetyPx = 2
+        )
+
+        assertEquals(200, profile.windowHeightPx)
+        assertTrue(profile.capsuleFitsWindow(capsuleTopAtRest = 6, capsuleHeightPx = 80))
+    }
+
+    @Test
+    fun bottomWindowHeightIncludesRoundingSafety() {
+        val profile = DynamicIslandMotionProfile.forBottom(
+            visualHeightPx = 80,
+            topSafetyMarginPx = 4,
+            bottomPaddingPx = 40,
+            roundingSafetyPx = 2
+        )
+
+        assertEquals(126, profile.windowHeightPx)
+        assertTrue(profile.capsuleFitsWindow(capsuleTopAtRest = 6, capsuleHeightPx = 80))
     }
 
     @Test
