@@ -139,9 +139,59 @@ The bottom-left "收回输入法" button is **the `back` navigation button in th
 | `aapt2 dump xmltree --file res/drawable/ic_ime_switcher_default.xml MiuiSystemUI.apk` | Rule out keyboard-switcher icon | 0 | keyboard grid, not the down arrow |
 | Python androguard cross-check on CN/Global/TW `MiuiSystemUI.apk` | Verify `NavigationBarView` and `orientBackButton` across ROMs | 0 | all three positive |
 
-## 7. Blockers and remaining work
+## 7. P4-B implementation candidate
+
+P4-A0 gate = PASS
+
+P4-B authorization = YES
+
+### 7.1 Verified contract
+
+| Member | Exact descriptor | Status |
+|---|---|---|
+| `com.android.systemui.navigationbar.NavigationBarView.updateNavButtonIcons` | `()V` | verified on CN device + CN/Global/TW ROM |
+| `com.android.systemui.navigationbar.NavigationBarView.getBackButton` | `()Lcom/android/systemui/navigationbar/buttons/ButtonDispatcher;` | verified on all three ROMs |
+| `com.android.systemui.navigationbar.NavigationBarView.mNavigationIconHints` | `I` | verified on all three ROMs |
+| `com.android.systemui.navigationbar.NavigationBarView.mNavBarMode` | `I` | verified on all three ROMs |
+| `com.android.systemui.navigationbar.buttons.ButtonDispatcher.setVisibility` | `(I)V` | verified on all three ROMs |
+
+CONTRACT_SAME_3_OF_3 = YES
+
+### 7.2 Implementation summary
+
+- Feature id: `252`
+- Feature key: `controls_hide_ime_dismiss_button`
+- Feature target: `SYSTEM_UI`
+- Install phase: `PACKAGE_READY`
+- Hook class: `com.android.systemui.navigationbar.NavigationBarView`
+- Hook method: `updateNavButtonIcons`
+- Callback:
+  1. Call `chain.proceed()` first.
+  2. Read `mNavigationIconHints` and `mNavBarMode`.
+  3. If `(hints & 0x1) != 0 && navBarMode == 2`, get the back `ButtonDispatcher` and call `setVisibility(View.INVISIBLE)`.
+  4. Otherwise do nothing (do not force `VISIBLE`).
+- No runtime preference read, no observer, no broadcast, no polling, no DexKit, no region branch, no version branch.
+- Reflection members resolved once at hook installation.
+
+### 7.3 Side-effect freeze
+
+- Does not modify `InputMethodFeatures`, `InputMethodInstaller`, `ProcessRouter`, or `scope.list`.
+- Does not change `home_handle`, `ime_switcher`, navigation-bar height, IME insets, keyboard height, back-gesture areas, or 3-button navigation.
+- Does not reuse `controls_nonavbar_fix_inputmethod` preference.
+- No P3 RestartPagePolicy change required; controls/navbar page already targets SystemUI restart.
+
+### 7.4 Validation
+
+- `python tools/verify.py full` and `python tools/verify.py fast --changed` must pass.
+- `SystemUiFeaturesWiringTest` count updated from 96 to 97.
+- New `HideImeDismissButtonTest` covers the boolean condition.
+
+### 7.5 P4-B self-assessment
+
+P4_B_SELF_ASSESSMENT = PASS_CANDIDATE
+
+## 8. Blockers and remaining work
 
 - P4-A0 evidence is complete.
-- No production implementation was made.
-- P4-B implementation must be authorized by the independent P4-A0 gate.
+- P4-B candidate is implemented and validated; waiting for independent P4-B final gate.
 - No Global/TW live-device capture was performed; the three-ROM conclusion rests on static APK evidence and the assumption that the live navigation-mode configuration is equivalent.
