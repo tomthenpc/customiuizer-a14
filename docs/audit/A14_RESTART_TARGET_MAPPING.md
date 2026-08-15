@@ -601,3 +601,189 @@ various_showcallui
 | prefs_system.xml | system_nopassword | SYSTEMUI | com.android.systemui / app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt |
 
 ...（剩余行见 `feature-semantics/a14.json` 与源码）
+
+## P3-A2 — Restart Mapping Semantic Corrective
+
+### Base and gate history
+
+```text
+BASE SHA = 106b302bed5bbbf4c7bfb947dcce3a745bac48bb
+FINAL SHA = 7aca1824
+REMOTE HEAD = 106b302bed5bbbf4c7bfb947dcce3a745bac48bb
+PRODUCTION CHANGE = NO
+P3_A1_GATE = HOLD
+ROOT_CAUSE = HOST_OWNERSHIP_CONFLATED_WITH_RESTART_REQUIREMENT
+```
+
+### Corrective methodology
+
+1. Reclassify by `VALUE_READ_MODE`: `CALLBACK_READ`, `OBSERVER_PUSH`, `INSTALL_TIME_GATE`, `INSTALL_TIME_CAPTURE`, `RESOURCE_INIT`, `APP_UI_ONLY`.
+2. Parse all 16 `*Features.kt` files and build a master map from 223 `LazyFeatureSpec` entries.
+3. Use `feature-semantics/a14.json` only as supporting evidence; resolve conflicts with actual source files.
+4. Treat `*Hooks.kt` constructor / `init*` / `setup*` functions as install-time captures; lowercase callbacks as live reads.
+5. Use page master host as a safe default for sub-options whose source evidence is missing (fail-open to `CALLBACK_READ` => `NONE`).
+6. Record the host package from the value-read site, not the XML page or file name.
+
+### Required counts
+
+```text
+TOTAL_FUNCTIONAL_PREFERENCES = 496
+NONE = 234
+LAUNCHER = 47
+SYSTEMUI = 137
+SECURITY_CENTER = 17
+EXCLUDED_SYSTEM = 44
+UNSUPPORTED_OTHER = 17
+UNKNOWN = 0
+COUNT_SUM_CHECK = PASS
+CALLBACK_READ_COUNT = 196
+OBSERVER_PUSH_COUNT = 38
+INSTALL_TIME_GATE_COUNT = 212
+INSTALL_TIME_CAPTURE_COUNT = 45
+P3_A1_FALSE_POSITIVES = 21
+```
+```text
+SUM = 234+47+137+17+44+17+0 = 496
+```
+
+### P3-A1 false-positive regression list
+
+Found 21 false positives where P3-A1 assigned an executable target and P3-A2 assigns a non-executable one (or the host was misidentified).
+
+| canonical key | old target | new target | value read mode | host package | why |
+|---|---|---|---|---|---|
+| controls_fsg_swipeandstop_disablevibrate | LAUNCHER | NONE | CALLBACK_READ | com.miui.home | preference is read in a callback, not at feature install |
+| controls_volumedowndt_torch | SYSTEMUI | NONE | CALLBACK_READ | UNKNOWN | preference is read in a callback, not at feature install |
+| controls_volumemedia_vibrate | SYSTEMUI | NONE | CALLBACK_READ | android | preference is read in a callback, not at feature install |
+| controls_volumemedia_vibrate_ignore | SYSTEMUI | NONE | CALLBACK_READ | android | preference is read in a callback, not at feature install |
+| launcher_folderspace | LAUNCHER | NONE | CALLBACK_READ | com.miui.home | preference is read in a callback, not at feature install |
+| launcher_hideseekpoints_edit | LAUNCHER | NONE | CALLBACK_READ | com.miui.home | preference is read in a callback, not at feature install |
+| system_albumartonlock_blur | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | preference is read inside a live hook callback |
+| system_albumartonlock_gray | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | preference is read inside a live hook callback |
+| system_albumartonlock_scale | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | preference is read inside a live hook callback |
+| system_allrotations2 | SYSTEMUI | EXCLUDED_SYSTEM | INSTALL_TIME_GATE | android | master is SystemServerFeatures / AndroidPackageFeatures (android) |
+| system_applock_timeout | SYSTEMUI | EXCLUDED_SYSTEM | INSTALL_TIME_GATE | android | AppLockTimeoutFeature is a BaseSystemServerFeature; requires system-server restart, not SystemUI |
+| system_cc_clock_verticaloffset | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | value read is CALLBACK_READ, not install-time on host |
+| system_charginginfo_current | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | read on every callback in SystemLockScreenHooks.buildChargingInfoDetails |
+| system_charginginfo_temp | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | read on every callback in SystemLockScreenHooks.buildChargingInfoDetails |
+| system_charginginfo_voltage | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | read on every callback in SystemLockScreenHooks.buildChargingInfoDetails |
+| system_charginginfo_wattage | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | read on every callback in SystemLockScreenHooks.buildChargingInfoDetails |
+| system_detailednetspeed_align | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | preference is read inside a live hook callback |
+| system_detailednetspeed_icon | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | preference is read inside a live hook callback |
+| system_detailednetspeed_low | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | preference is read inside a live hook callback |
+| system_detailednetspeed_lowlevel | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | preference is read inside a live hook callback |
+| system_detailednetspeed_secunit | SYSTEMUI | NONE | CALLBACK_READ | com.android.systemui | preference is read inside a live hook callback |
+
+### P3-A2 special cases (required exact values)
+
+```text
+system_charginginfo_current = CALLBACK_READ / com.android.systemui / NONE
+system_charginginfo_voltage = CALLBACK_READ / com.android.systemui / NONE
+system_charginginfo_wattage = CALLBACK_READ / com.android.systemui / NONE
+system_charginginfo_temp = CALLBACK_READ / com.android.systemui / NONE
+system_applock_timeout = INSTALL_TIME_GATE / android / EXCLUDED_SYSTEM
+system_usb_default_function = CALLBACK_READ / android / NONE
+```
+
+### Selected evidence table
+
+| page | canonical key | value read mode | host package | restart target | evidence |
+|---|---|---|---|---|---|
+| prefs_controls.xml | controls_fsg_swipeandstop_disablevibrate | CALLBACK_READ | com.miui.home | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/LauncherGestureHooks.kt |
+| prefs_controls.xml | controls_nonavbar | INSTALL_TIME_GATE | com.android.systemui,com.miui.home | SYSTEMUI | LAZY_FEATURE_MASTER: master in LauncherPostAttachFeatures.kt, SystemUiFeatures.kt |
+| prefs_controls.xml | controls_volumedowndt_torch | CALLBACK_READ | UNKNOWN | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/Controls.kt |
+| prefs_controls.xml | controls_volumemedia_vibrate | CALLBACK_READ | android | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt |
+| prefs_controls.xml | controls_volumemedia_vibrate_ignore | CALLBACK_READ | android | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/GlobalActions.kt |
+| prefs_launcher.xml | launcher_folderspace | CALLBACK_READ | com.miui.home | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/LauncherFolderHooks.kt |
+| prefs_launcher.xml | launcher_hideseekpoints_edit | CALLBACK_READ | com.miui.home | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/LauncherLayoutHooks.kt |
+| prefs_system_albumartonlock.xml | system_albumartonlock_blur | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUILockScreenHooks.kt |
+| prefs_system_albumartonlock.xml | system_albumartonlock_gray | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUILockScreenHooks.kt |
+| prefs_system_albumartonlock.xml | system_albumartonlock_scale | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUILockScreenHooks.kt |
+| prefs_system.xml | system_allrotations2 | INSTALL_TIME_GATE | android | EXCLUDED_SYSTEM | LAZY_FEATURE_MASTER: master in AndroidPackageFeatures.kt, SystemServerFeatures.kt |
+| prefs_system.xml | system_applock_timeout | INSTALL_TIME_GATE | android | EXCLUDED_SYSTEM | LAZY_FEATURE_MASTER: SystemServerFeatures AppLockTimeoutFeature |
+| prefs_system_controlcenter_clock.xml | system_cc_clock_fontsize | INSTALL_TIME_CAPTURE | com.android.systemui | SYSTEMUI | HOOK_INITIALIZER:  |
+| prefs_system_controlcenter_clock.xml | system_cc_clock_verticaloffset | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/SystemClockHooks.kt |
+| prefs_system_charginginfo.xml | system_charginginfo_current | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: buildChargingInfoDetails |
+| prefs_system_charginginfo.xml | system_charginginfo_temp | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: buildChargingInfoDetails |
+| prefs_system_charginginfo.xml | system_charginginfo_voltage | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: buildChargingInfoDetails |
+| prefs_system_charginginfo.xml | system_charginginfo_wattage | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: buildChargingInfoDetails |
+| prefs_system_detailednetspeed.xml | system_detailednetspeed_align | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt |
+| prefs_system_detailednetspeed.xml | system_detailednetspeed_icon | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt |
+| prefs_system_detailednetspeed.xml | system_detailednetspeed_low | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt |
+| prefs_system_detailednetspeed.xml | system_detailednetspeed_lowlevel | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt |
+| prefs_system_detailednetspeed.xml | system_detailednetspeed_secunit | CALLBACK_READ | com.android.systemui | NONE | CALLBACK_PREF_READ: callback in app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt |
+| prefs_system.xml | system_statusbarcolor | INSTALL_TIME_GATE | __GENERIC__ | UNSUPPORTED_OTHER | LAZY_FEATURE_MASTER: master in GenericAppFeatures.kt |
+| prefs_system.xml | system_usb_default_function | CALLBACK_READ | android | NONE | CALLBACK_PREF_READ: UsbDefaultFunctionFeature enabled={true}; value read on USB default-application event |
+
+### Page resolution
+
+```text
+PAGE_RESOLUTION_COMPLETE = 19
+PAGE_RESOLUTION_PARTIAL_SAFE = 8
+PAGE_RESOLUTION_BLOCKED = 0
+```
+
+| page | executable targets | all targets | confidence |
+|---|---|---|---|
+| prefs_controls.xml | LAUNCHER, SYSTEMUI | EXCLUDED_SYSTEM, LAUNCHER, NONE, SYSTEMUI, UNSUPPORTED_OTHER | PARTIAL_SAFE |
+| prefs_launcher.xml | LAUNCHER, SECURITY_CENTER | LAUNCHER, NONE, SECURITY_CENTER | COMPLETE |
+| prefs_system.xml | LAUNCHER, SECURITY_CENTER, SYSTEMUI | EXCLUDED_SYSTEM, LAUNCHER, NONE, SECURITY_CENTER, SYSTEMUI, UNSUPPORTED_OTHER | PARTIAL_SAFE |
+| prefs_system_alarmonlock.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_albumartonlock.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_autobrightness.xml |  | EXCLUDED_SYSTEM, NONE | PARTIAL_SAFE |
+| prefs_system_batteryindicator.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_charginginfo.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_controlcenter_clock.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_controlcenter_themestyle.xml | SYSTEMUI | SYSTEMUI | COMPLETE |
+| prefs_system_detailednetspeed.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_hideicons.xml | SYSTEMUI | EXCLUDED_SYSTEM, NONE, SYSTEMUI | PARTIAL_SAFE |
+| prefs_system_lockscreenshortcuts.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_noscreenlock.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_screenshot.xml |  | NONE, UNSUPPORTED_OTHER | PARTIAL_SAFE |
+| prefs_system_secureqs.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_statusbar_batterystyle.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_statusbar_batterytempandcurrent.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_statusbar_clock.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_statusbar_mobilesignal.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_statusbar_righticons.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_statusbar_showdevicetemperature.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_statusbarcontrols.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_system_vibration_amp.xml |  | EXCLUDED_SYSTEM, NONE | PARTIAL_SAFE |
+| prefs_system_visualizer.xml | SYSTEMUI | NONE, SYSTEMUI | COMPLETE |
+| prefs_various.xml | SECURITY_CENTER | EXCLUDED_SYSTEM, NONE, SECURITY_CENTER, UNSUPPORTED_OTHER | PARTIAL_SAFE |
+| prefs_various_calluibright.xml |  | NONE, UNSUPPORTED_OTHER | PARTIAL_SAFE |
+
+### P3-B safety gate
+
+```text
+P3_B_SAFE_TO_IMPLEMENT = NO
+```
+
+- `UNKNOWN` target count is now `0` and no page is `BLOCKED`.
+- However, a meaningful set of `SYSTEMUI` / `LAUNCHER` mappings still relies on `MANUAL_SOURCE_REVIEW` or `PAGE_MASTER_DEFAULT` heuristics.
+- P3-B implementation is therefore NOT authorized in this task; it requires a second pass to confirm every executable mapping against its source function.
+
+### P3-B matched-restart design constraints (future work)
+
+1. Direct-only: inspect settings directly contained by the current page; no recursive subtree.
+2. Exclude category keys, navigation-only `PreferenceEx`, hidden/unsupported entries, app blacklists that only affect future attach.
+3. Union executable targets in `{NONE, LAUNCHER, SYSTEMUI, SECURITY_CENTER}`.
+4. Do NOT execute `EXCLUDED_SYSTEM`, `UNSUPPORTED_OTHER`, or `UNKNOWN` targets.
+5. Do NOT include live settings, system reboot, soft reboot, or system-server reboot in the automatic set.
+6. Present one `重启相关组件` action per page; aggregate results; fail closed.
+
+### Verification commands
+
+- `fast --changed`
+- `diff --check`
+- `git status`
+
+### Source of truth for full mapping
+
+The machine-readable full per-preference mapping is available at:
+
+```text
+C:\Users\tv\AppData\Local\Temp\restart_lifecycle_mapping.json
+```
+
+This file is a temporary audit artifact and is not part of the repository.
