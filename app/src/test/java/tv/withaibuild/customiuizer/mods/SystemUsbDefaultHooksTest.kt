@@ -1,5 +1,7 @@
 package tv.withaibuild.customiuizer.mods
 
+import android.os.Message
+import io.github.libxposed.api.XposedInterface
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,7 +12,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.SystemUsbDefaultHooks.ContextReason
+import tv.withaibuild.customiuizer.mods.SystemUsbDefaultHooks.ResolvedTargets
+import tv.withaibuild.customiuizer.mods.SystemUsbDefaultHooks.SetEnabledCall
 import tv.withaibuild.customiuizer.mods.SystemUsbDefaultHooks.UsbDefaultContext
+import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
+import java.lang.reflect.Field
+import java.lang.reflect.InvocationHandler
+import java.lang.reflect.Method
+import java.lang.reflect.Proxy
+import java.util.concurrent.atomic.AtomicInteger
 
 class SystemUsbDefaultHooksTest {
 
@@ -46,6 +56,203 @@ class SystemUsbDefaultHooksTest {
     fun getStringAsInt_acceptsNumberStorage() {
         MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, 1)
         assertEquals(1, MainModule.mPrefs.getStringAsInt(SystemUsbDefaultHooks.PREF_KEY, 0))
+    }
+
+    // --- Mode sanitization ---
+
+    @Test
+    fun getMode_returnsSanitizedValue() {
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+        assertEquals(SystemUsbDefaultHooks.MODE_MTP, SystemUsbDefaultHooks.getMode())
+    }
+
+    @Test
+    fun getMode_invalidValueFallsBackToFollowSystem() {
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "7")
+        assertEquals(SystemUsbDefaultHooks.MODE_FOLLOW_SYSTEM, SystemUsbDefaultHooks.getMode())
+    }
+
+    @Test
+    fun getMode_negativeValueFallsBackToFollowSystem() {
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "-1")
+        assertEquals(SystemUsbDefaultHooks.MODE_FOLLOW_SYSTEM, SystemUsbDefaultHooks.getMode())
+    }
+
+    // --- JZI contract parser ---
+
+    @Test
+    fun parseSetEnabledCall_validMtpCall() {
+        val call = SystemUsbDefaultHooks.parseSetEnabledCall(arrayOf(4L, false, 123))!!
+        assertEquals(4L, call.functions)
+        assertFalse(call.forceRestart)
+        assertEquals(123, call.operationId)
+    }
+
+    @Test
+    fun parseSetEnabledCall_validPtpCall() {
+        val call = SystemUsbDefaultHooks.parseSetEnabledCall(arrayOf(16L, true, 456))!!
+        assertEquals(16L, call.functions)
+        assertTrue(call.forceRestart)
+        assertEquals(456, call.operationId)
+    }
+
+    @Test
+    fun parseSetEnabledCall_rejectsWrongArity() {
+        assertNull(SystemUsbDefaultHooks.parseSetEnabledCall(arrayOf(4L, false)))
+        assertNull(SystemUsbDefaultHooks.parseSetEnabledCall(arrayOf(4L, false, 123, "extra")))
+    }
+
+    @Test
+    fun parseSetEnabledCall_rejectsWrongTypes() {
+        assertNull(SystemUsbDefaultHooks.parseSetEnabledCall(arrayOf(4, false, 123)))
+        assertNull(SystemUsbDefaultHooks.parseSetEnabledCall(arrayOf(4L, "false", 123)))
+        assertNull(SystemUsbDefaultHooks.parseSetEnabledCall(arrayOf(4L, false, 123L)))
+    }
+
+    // --- Production rewrite boundary ---
+
+    @Test
+    fun applySetEnabledFunctionsOverride_rewritesMtp() {
+        val args = arrayOf<Any?>(0L, false, 1)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_MTP,
+            nativeDefault = 0L,
+            screenLocked = false,
+            transferAllowed = true,
+        )
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_MTP, effective)
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_MTP, args[0])
+        assertEquals(false, args[1])
+        assertEquals(1, args[2])
+    }
+
+    @Test
+    fun applySetEnabledFunctionsOverride_rewritesPtp() {
+        val args = arrayOf<Any?>(0L, false, 2)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_PTP,
+            nativeDefault = 0L,
+            screenLocked = false,
+            transferAllowed = true,
+        )
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_PTP, effective)
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_PTP, args[0])
+        assertEquals(false, args[1])
+        assertEquals(2, args[2])
+    }
+
+    @Test
+    fun applySetEnabledFunctionsOverride_chargingSetsNone() {
+        val args = arrayOf<Any?>(16L, false, 3)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_CHARGING,
+            nativeDefault = 16L,
+            screenLocked = false,
+            transferAllowed = true,
+        )
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_NONE, effective)
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_NONE, args[0])
+    }
+
+    @Test
+    fun applySetEnabledFunctionsOverride_followSystemPreservesArgs() {
+        val args = arrayOf<Any?>(4L, false, 4)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_FOLLOW_SYSTEM,
+            nativeDefault = 0L,
+            screenLocked = false,
+            transferAllowed = true,
+        )
+        assertNull(effective)
+        assertEquals(4L, args[0])
+    }
+
+    @Test
+    fun applySetEnabledFunctionsOverride_forceRestartNoRewrite() {
+        val args = arrayOf<Any?>(0L, true, 5)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_MTP,
+            nativeDefault = 0L,
+            screenLocked = false,
+            transferAllowed = true,
+        )
+        assertNull(effective)
+        assertEquals(0L, args[0])
+        assertEquals(true, args[1])
+    }
+
+    @Test
+    fun applySetEnabledFunctionsOverride_screenLockedNoRewrite() {
+        val args = arrayOf<Any?>(0L, false, 6)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_MTP,
+            nativeDefault = 0L,
+            screenLocked = true,
+            transferAllowed = true,
+        )
+        assertNull(effective)
+        assertEquals(0L, args[0])
+    }
+
+    @Test
+    fun applySetEnabledFunctionsOverride_transferBlockedDowngradesToNone() {
+        val args = arrayOf<Any?>(16L, false, 7)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_MTP,
+            nativeDefault = 0L,
+            screenLocked = false,
+            transferAllowed = false,
+        )
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_NONE, effective)
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_NONE, args[0])
+    }
+
+    @Test
+    fun applySetEnabledFunctionsOverride_transferBlockedAlreadyNoneNoRewrite() {
+        val args = arrayOf<Any?>(0L, false, 8)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_MTP,
+            nativeDefault = 0L,
+            screenLocked = false,
+            transferAllowed = false,
+        )
+        assertNull(effective)
+        assertEquals(0L, args[0])
+    }
+
+    @Test
+    fun applySetEnabledFunctionsOverride_alreadyCorrectNoRewrite() {
+        val args = arrayOf<Any?>(SystemUsbDefaultHooks.FUNCTION_MTP, false, 9)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_MTP,
+            nativeDefault = 0L,
+            screenLocked = false,
+            transferAllowed = true,
+        )
+        assertNull(effective)
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_MTP, args[0])
+    }
+
+    @Test
+    fun applySetEnabledFunctionsOverride_invalidArgsNoCrash() {
+        val args = arrayOf<Any?>("not-a-long", false, 10)
+        val effective = SystemUsbDefaultHooks.applySetEnabledFunctionsOverride(
+            args = args,
+            mode = SystemUsbDefaultHooks.MODE_MTP,
+            nativeDefault = 0L,
+            screenLocked = false,
+            transferAllowed = true,
+        )
+        assertNull(effective)
     }
 
     // --- Pure mapping ---
@@ -195,6 +402,171 @@ class SystemUsbDefaultHooksTest {
         )
     }
 
+    // --- SetEnabledFunctionsHook end-to-end ---
+
+    @Test
+    fun setEnabledFunctionsHook_rewritesMtpInDefaultContext() {
+        val handler = TestHandler()
+        val targets = createTestTargets(handler)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+        UsbDefaultContext.push(ContextReason.HANDLE_MESSAGE, 0)
+
+        val initialArgs = arrayOf<Any?>(0L, false, 1)
+        val callback = createBeforeCallback(handler, initialArgs)
+
+        val hook = SystemUsbDefaultHooks.SetEnabledFunctionsHook(targets)
+        hook.before(callback)
+
+        val args = callback.getArgs()
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_MTP, args[0])
+        assertEquals(false, args[1])
+        assertEquals(1, args[2])
+
+        UsbDefaultContext.pop()
+    }
+
+    @Test
+    fun setEnabledFunctionsHook_noRewriteWithoutContext() {
+        val handler = TestHandler()
+        val targets = createTestTargets(handler)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+
+        val initialArgs = arrayOf<Any?>(0L, false, 1)
+        val callback = createBeforeCallback(handler, initialArgs)
+
+        val hook = SystemUsbDefaultHooks.SetEnabledFunctionsHook(targets)
+        hook.before(callback)
+
+        assertEquals(0L, callback.getArgs()[0])
+    }
+
+    @Test
+    fun setEnabledFunctionsHook_noRewriteWhenTransferBlocked() {
+        val handler = TestHandler(transferAllowed = false)
+        val targets = createTestTargets(handler)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+        UsbDefaultContext.push(ContextReason.HANDLE_MESSAGE, 0)
+
+        val initialArgs = arrayOf<Any?>(16L, false, 1)
+        val callback = createBeforeCallback(handler, initialArgs)
+
+        val hook = SystemUsbDefaultHooks.SetEnabledFunctionsHook(targets)
+        hook.before(callback)
+
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_NONE, callback.getArgs()[0])
+        UsbDefaultContext.pop()
+    }
+
+    // --- HandleMessageHook end-to-end ---
+
+    @Test
+    fun handleMessageHook_pushesForDefaultMessages() {
+        val targets = createTestTargets(TestHandler(), msgUpdateScreenLock = 13)
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+
+        val msg = Message().apply { what = 13; arg1 = 0 }
+        val beforeCallback = createBeforeCallback(TestHandler(), arrayOf(msg))
+        hook.before(beforeCallback)
+
+        assertNotNull(UsbDefaultContext.peek())
+        assertEquals(ContextReason.HANDLE_MESSAGE, UsbDefaultContext.peek()!!.reason)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_doesNotPushForBootCompleted() {
+        val targets = createTestTargets(TestHandler(), msgBootCompleted = 4)
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+
+        val msg = Message().apply { what = 4 }
+        val callback = createBeforeCallback(TestHandler(), arrayOf(msg))
+        hook.before(callback)
+
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_doesNotPushForSystemReady() {
+        val targets = createTestTargets(TestHandler(), msgSystemReady = 3)
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+
+        val msg = Message().apply { what = 3 }
+        val callback = createBeforeCallback(TestHandler(), arrayOf(msg))
+        hook.before(callback)
+
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_cleansUpEvenWithNullThisObject() {
+        val targets = createTestTargets(TestHandler(), msgUpdateScreenLock = 13)
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+
+        val msg = Message().apply { what = 13; arg1 = 0 }
+        val beforeCallback = createBeforeCallback(null, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        assertNotNull(UsbDefaultContext.peek())
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_nativeNoneSupplementCallsSetEnabledFunctions() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = 0L,
+            currentFunctions = 0L,
+            bootCompleted = true,
+            transferAllowed = true,
+        )
+        val targets = createTestTargets(handler, msgUpdateScreenLock = 13)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 13; arg1 = 0 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_MTP, handler.lastSetFunctions)
+        assertFalse(handler.lastSetForceRestart)
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_nativeNoneSupplementBlockedWhenTransferDisallowed() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = 0L,
+            currentFunctions = 0L,
+            bootCompleted = true,
+            transferAllowed = false,
+        )
+        val targets = createTestTargets(handler, msgUpdateScreenLock = 13)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 13; arg1 = 0 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertEquals(-1L, handler.lastSetFunctions)
+        assertNull(UsbDefaultContext.peek())
+    }
+
     // --- Thread-local ownership guard ---
 
     @Test
@@ -236,12 +608,114 @@ class SystemUsbDefaultHooksTest {
         assertNull(UsbDefaultContext.peek())
     }
 
+    @Test
+    fun usbDefaultContext_lastPopRemovesStorage() {
+        UsbDefaultContext.push(ContextReason.HANDLE_MESSAGE, 0)
+        UsbDefaultContext.pop()
+        assertNull(UsbDefaultContext.peek())
+        // A second push/pop on the same thread should still behave correctly.
+        UsbDefaultContext.push(ContextReason.HANDLE_MESSAGE, 1)
+        assertNotNull(UsbDefaultContext.peek())
+        UsbDefaultContext.pop()
+        assertNull(UsbDefaultContext.peek())
+    }
+
     // --- Constants ---
 
     @Test
-    fun usbFunctionConstantsMatchExpectedValues() {
+    fun usbFunctionConstantsAreAospValues() {
         assertEquals(0L, SystemUsbDefaultHooks.FUNCTION_NONE)
-        assertEquals(SystemUsbDefaultHooks.FUNCTION_MTP, SystemUsbDefaultHooks.FUNCTION_MTP)
-        assertEquals(SystemUsbDefaultHooks.FUNCTION_PTP, SystemUsbDefaultHooks.FUNCTION_PTP)
+        assertEquals(4L, SystemUsbDefaultHooks.FUNCTION_MTP)
+        assertEquals(16L, SystemUsbDefaultHooks.FUNCTION_PTP)
+    }
+
+    // --- Test helpers ---
+
+    class TestHandler(
+        @JvmField var screenLocked: Boolean = false,
+        @JvmField var screenUnlockedFunctions: Long = 0L,
+        @JvmField var currentFunctions: Long = 0L,
+        @JvmField var bootCompleted: Boolean = false,
+        @JvmField var transferAllowed: Boolean = true,
+    ) {
+        @JvmField
+        var lastSetFunctions: Long = -1L
+
+        @JvmField
+        var lastSetForceRestart: Boolean = false
+
+        @JvmField
+        var lastSetOperationId: Int = -1
+
+        @Suppress("unused")
+        fun realSetEnabledFunctions(functions: Long, forceRestart: Boolean, operationId: Int) {
+            lastSetFunctions = functions
+            lastSetForceRestart = forceRestart
+            lastSetOperationId = operationId
+        }
+
+        @Suppress("unused")
+        fun realIsUsbTransferAllowed(): Boolean = transferAllowed
+    }
+
+    private fun createTestTargets(
+        handler: TestHandler,
+        msgUpdateState: Int = 0,
+        msgSetScreenUnlockedFunctions: Int = 0xc,
+        msgUpdateScreenLock: Int = 0xd,
+        msgBootCompleted: Int = 0x4,
+        msgSystemReady: Int = 0x3,
+    ): ResolvedTargets {
+        val handlerClass = TestHandler::class.java
+        val fieldScreenUnlockedFunctions = handlerClass.getDeclaredField("screenUnlockedFunctions")
+        val fieldScreenLocked = handlerClass.getDeclaredField("screenLocked")
+        val fieldCurrentFunctions = handlerClass.getDeclaredField("currentFunctions")
+        val fieldBootCompleted = handlerClass.getDeclaredField("bootCompleted")
+        val methodSetEnabledFunctions = handlerClass.getDeclaredMethod(
+            "realSetEnabledFunctions",
+            Long::class.javaPrimitiveType,
+            Boolean::class.javaPrimitiveType,
+            Int::class.javaPrimitiveType,
+        )
+        val methodIsUsbTransferAllowed = handlerClass.getDeclaredMethod("realIsUsbTransferAllowed")
+
+        return ResolvedTargets(
+            handlerClass = handlerClass,
+            handlerHalClass = handlerClass,
+            handlerLegacyClass = null,
+            msgUpdateState = msgUpdateState,
+            msgSetScreenUnlockedFunctions = msgSetScreenUnlockedFunctions,
+            msgUpdateScreenLock = msgUpdateScreenLock,
+            msgBootCompleted = msgBootCompleted,
+            msgSystemReady = msgSystemReady,
+            fieldScreenUnlockedFunctions = fieldScreenUnlockedFunctions,
+            fieldScreenLocked = fieldScreenLocked,
+            fieldCurrentFunctions = fieldCurrentFunctions,
+            fieldBootCompleted = fieldBootCompleted,
+            methodSetScreenUnlockedFunctions = TestHandler::class.java.getMethod("toString"),
+            methodFinishBoot = TestHandler::class.java.getMethod("toString"),
+            methodHandleMessage = TestHandler::class.java.getMethod("toString"),
+            methodSetEnabledFunctionsHal = methodSetEnabledFunctions,
+            methodSetEnabledFunctionsLegacy = null,
+            methodIsUsbTransferAllowed = methodIsUsbTransferAllowed,
+            operationCounter = AtomicInteger(0),
+        )
+    }
+
+    private fun createBeforeCallback(thisObject: Any?, args: Array<Any?>): HookerClassHelper.BeforeHookCallback {
+        val argList = args.toList()
+        val chain = Proxy.newProxyInstance(
+            XposedInterface.Chain::class.java.classLoader,
+            arrayOf(XposedInterface.Chain::class.java),
+            InvocationHandler { _, method, methodArgs ->
+                when (method.name) {
+                    "getThisObject" -> thisObject
+                    "getArgs" -> argList
+                    "getArg" -> argList[methodArgs[0] as Int]
+                    else -> null
+                }
+            },
+        ) as XposedInterface.Chain
+        return HookerClassHelper.BeforeHookCallback(chain)
     }
 }

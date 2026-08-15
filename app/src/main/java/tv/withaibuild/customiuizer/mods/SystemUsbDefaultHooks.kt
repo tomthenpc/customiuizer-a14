@@ -9,6 +9,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.lang.reflect.Field
+import java.lang.reflect.Method
 import java.util.ArrayDeque
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -48,7 +49,30 @@ object SystemUsbDefaultHooks {
     internal const val FUNCTION_MTP = 4L // 1 << 2
     internal const val FUNCTION_PTP = 16L // 1 << 4
 
-    private class ResolvedTargets(
+    /**
+     * Parsed (functions, forceRestart, operationId) triplet for the exact
+     * `setEnabledFunctions(JZI)V` boundary.
+     */
+    internal data class SetEnabledCall(
+        val functions: Long,
+        val forceRestart: Boolean,
+        val operationId: Int,
+    )
+
+    /**
+     * Parses the exact `setEnabledFunctions(JZI)V` argument array.
+     *
+     * Any arity, type or null mismatch returns `null` so the hook falls open.
+     */
+    internal fun parseSetEnabledCall(args: Array<Any?>): SetEnabledCall? {
+        if (args.size != 3) return null
+        val functions = args[0] as? Long ?: return null
+        val forceRestart = args[1] as? Boolean ?: return null
+        val operationId = args[2] as? Int ?: return null
+        return SetEnabledCall(functions, forceRestart, operationId)
+    }
+
+    internal data class ResolvedTargets(
         val handlerClass: Class<*>,
         val handlerHalClass: Class<*>,
         val handlerLegacyClass: Class<*>?,
@@ -61,6 +85,12 @@ object SystemUsbDefaultHooks {
         val fieldScreenLocked: Field,
         val fieldCurrentFunctions: Field,
         val fieldBootCompleted: Field,
+        val methodSetScreenUnlockedFunctions: Method,
+        val methodFinishBoot: Method,
+        val methodHandleMessage: Method,
+        val methodSetEnabledFunctionsHal: Method,
+        val methodSetEnabledFunctionsLegacy: Method?,
+        val methodIsUsbTransferAllowed: Method,
         val operationCounter: AtomicInteger,
     )
 
@@ -73,22 +103,28 @@ object SystemUsbDefaultHooks {
     }
 
     internal object UsbDefaultContext {
-        private val threadLocal = object : ThreadLocal<ArrayDeque<ContextFrame>>() {
-            override fun initialValue() = ArrayDeque<ContextFrame>()
-        }
+        // Lazy per-thread deque: get() without a prior set() returns null.
+        private val threadLocal = ThreadLocal<ArrayDeque<ContextFrame>?>()
 
         fun push(reason: ContextReason, messageWhat: Int = -1) {
-            threadLocal.get().push(ContextFrame(reason, messageWhat))
+            val deque = threadLocal.get() ?: ArrayDeque<ContextFrame>()
+            deque.push(ContextFrame(reason, messageWhat))
+            threadLocal.set(deque)
         }
 
         fun pop() {
-            threadLocal.get().pollFirst()
+            val deque = threadLocal.get() ?: return
+            deque.pollFirst()
+            if (deque.isEmpty()) {
+                threadLocal.remove()
+            }
         }
 
-        fun peek(): ContextFrame? = threadLocal.get().peekFirst()
+        fun peek(): ContextFrame? = threadLocal.get()?.peekFirst()
 
         fun clear() {
-            threadLocal.get().clear()
+            threadLocal.get()?.clear()
+            threadLocal.remove()
         }
     }
 
@@ -101,14 +137,8 @@ object SystemUsbDefaultHooks {
     @JvmStatic
     fun hook(lpparam: XposedModuleInterface.SystemServerStartingParam): FeatureInstallResult {
         return try {
-            val targets = resolveTargets(lpparam.classLoader)
-            if (targets == null) {
-                return FeatureInstallResult.FAILED_TRANSIENT
-            }
-            if (!installContextHooks(targets)) {
-                return FeatureInstallResult.FAILED_TRANSIENT
-            }
-            if (!installSetEnabledFunctionsHooks(targets)) {
+            val targets = resolveTargets(lpparam.classLoader) ?: return FeatureInstallResult.FAILED_TRANSIENT
+            if (!installAllHooks(targets)) {
                 return FeatureInstallResult.FAILED_TRANSIENT
             }
             FeatureInstallResult.INSTALLED
@@ -120,7 +150,8 @@ object SystemUsbDefaultHooks {
     }
 
     /**
-     * Resolves ROM classes, message ids and fields at cold install time.  No DexKit, no disk I/O.
+     * Resolves ROM classes, message ids, fields and the exact methods we hook at cold install time.
+     * No DexKit, no disk I/O.
      */
     private fun resolveTargets(classLoader: ClassLoader): ResolvedTargets? {
         val usbDeviceManagerClass = XposedHelpers.findClassIfExists(USB_DEVICE_MANAGER_CLASS, classLoader) ?: return null
@@ -138,6 +169,30 @@ object SystemUsbDefaultHooks {
         val fieldScreenLocked = findFieldQuiet(handlerClass, "mScreenLocked") ?: return null
         val fieldCurrentFunctions = findFieldQuiet(handlerClass, "mCurrentFunctions") ?: return null
         val fieldBootCompleted = findFieldQuiet(handlerClass, "mBootCompleted") ?: return null
+
+        val methodSetScreenUnlockedFunctions = findMethodQuiet(handlerClass, "setScreenUnlockedFunctions", Int::class.javaPrimitiveType!!) ?: return null
+        val methodFinishBoot = findMethodQuiet(handlerClass, "finishBoot", Int::class.javaPrimitiveType!!) ?: return null
+        val methodHandleMessage = findMethodQuiet(handlerClass, "handleMessage", Message::class.java) ?: return null
+
+        val methodSetEnabledFunctionsHal = findMethodQuiet(
+            handlerHalClass,
+            "setEnabledFunctions",
+            Long::class.javaPrimitiveType!!,
+            Boolean::class.javaPrimitiveType!!,
+            Int::class.javaPrimitiveType!!,
+        ) ?: return null
+
+        val methodSetEnabledFunctionsLegacy = handlerLegacyClass?.let {
+            findMethodQuiet(
+                it,
+                "setEnabledFunctions",
+                Long::class.javaPrimitiveType!!,
+                Boolean::class.javaPrimitiveType!!,
+                Int::class.javaPrimitiveType!!,
+            )
+        }
+
+        val methodIsUsbTransferAllowed = findMethodQuiet(handlerClass, "isUsbTransferAllowed") ?: return null
 
         val operationCounter = try {
             XposedHelpers.getStaticObjectField(usbDeviceManagerClass, "sUsbOperationCount") as? AtomicInteger
@@ -159,51 +214,42 @@ object SystemUsbDefaultHooks {
             fieldScreenLocked = fieldScreenLocked,
             fieldCurrentFunctions = fieldCurrentFunctions,
             fieldBootCompleted = fieldBootCompleted,
+            methodSetScreenUnlockedFunctions = methodSetScreenUnlockedFunctions,
+            methodFinishBoot = methodFinishBoot,
+            methodHandleMessage = methodHandleMessage,
+            methodSetEnabledFunctionsHal = methodSetEnabledFunctionsHal,
+            methodSetEnabledFunctionsLegacy = methodSetEnabledFunctionsLegacy,
+            methodIsUsbTransferAllowed = methodIsUsbTransferAllowed,
             operationCounter = operationCounter,
         )
     }
 
-    private fun installContextHooks(targets: ResolvedTargets): Boolean {
-        if (!ModuleHelper.findAndHookMethodSilently(
-                targets.handlerClass,
-                "setScreenUnlockedFunctions",
-                Int::class.javaPrimitiveType,
-                SetScreenUnlockedFunctionsHook(),
-            )
-        ) {
-            return false
-        }
-        if (!ModuleHelper.findAndHookMethodSilently(
-                targets.handlerClass,
-                "finishBoot",
-                Int::class.javaPrimitiveType,
-                FinishBootHook(),
-            )
-        ) {
-            return false
-        }
-        if (!ModuleHelper.findAndHookMethodSilently(
-                targets.handlerClass,
-                "handleMessage",
-                Message::class.java,
-                HandleMessageHook(targets),
-            )
-        ) {
-            return false
-        }
-        return true
-    }
+    private fun installAllHooks(targets: ResolvedTargets): Boolean {
+        val unhookers = mutableListOf<HookerClassHelper.CustomMethodUnhooker>()
 
-    private fun installSetEnabledFunctionsHooks(targets: ResolvedTargets): Boolean {
-        val hook = SetEnabledFunctionsHook(targets)
-        if (!ModuleHelper.hookAllMethodsSilently(targets.handlerHalClass, "setEnabledFunctions", hook)) {
-            return false
-        }
-        targets.handlerLegacyClass?.let {
-            if (!ModuleHelper.hookAllMethodsSilently(it, "setEnabledFunctions", hook)) {
+        fun install(method: Method?, callback: HookerClassHelper.MethodHook): Boolean {
+            if (method == null) return true
+            val unhooker = try {
+                ModuleHelper.hookMethod(method, callback)
+            } catch (t: Throwable) {
+                FatalErrors.rethrowIfFatal(t)
+                null
+            }
+            if (unhooker == null) {
+                unhookers.forEach { it.unhook() }
+                unhookers.clear()
                 return false
             }
+            unhookers.add(unhooker)
+            return true
         }
+
+        if (!install(targets.methodSetScreenUnlockedFunctions, SetScreenUnlockedFunctionsHook())) return false
+        if (!install(targets.methodFinishBoot, FinishBootHook())) return false
+        if (!install(targets.methodHandleMessage, HandleMessageHook(targets))) return false
+        if (!install(targets.methodSetEnabledFunctionsHal, SetEnabledFunctionsHook(targets))) return false
+        if (!install(targets.methodSetEnabledFunctionsLegacy, SetEnabledFunctionsHook(targets))) return false
+
         return true
     }
 
@@ -214,34 +260,56 @@ object SystemUsbDefaultHooks {
      * context.  Manual current-function, policy, user-switch, accessory, tethering and MIDI paths
      * are never in that context, so they are left untouched.
      */
-    private class SetEnabledFunctionsHook(private val targets: ResolvedTargets) : HookerClassHelper.MethodHook() {
+    internal class SetEnabledFunctionsHook(private val targets: ResolvedTargets) : HookerClassHelper.MethodHook() {
 
-        override fun before(callback: HookerClassHelper.BeforeHookCallback) {
+        public override fun before(callback: HookerClassHelper.BeforeHookCallback) {
             if (UsbDefaultContext.peek() == null) return
 
             val mode = getMode()
             if (mode == MODE_FOLLOW_SYSTEM) return
 
             val args = callback.getArgs()
-            if (args.size < 4) return
-            val functions = args[0] as? Long ?: return
-            val forceRestart = args[2] as? Boolean ?: return
-
             val handler = callback.getThisObject() ?: return
-            val screenLocked = readBoolean(handler, targets.fieldScreenLocked)
-            val nativeDefault = readLong(handler, targets.fieldScreenUnlockedFunctions)
-            val transferAllowed = if (mode == MODE_MTP || mode == MODE_PTP) isUsbTransferAllowed(handler) else true
 
-            val effective = computeEffectiveUsbFunctions(
+            val nativeDefault = readLong(handler, targets.fieldScreenUnlockedFunctions)
+            val screenLocked = readBoolean(handler, targets.fieldScreenLocked)
+            val transferAllowed = if (mode == MODE_MTP || mode == MODE_PTP) isUsbTransferAllowed(handler, targets) else true
+
+            applySetEnabledFunctionsOverride(
+                args = args,
                 mode = mode,
                 nativeDefault = nativeDefault,
-                currentFunctions = functions,
                 screenLocked = screenLocked,
-                forceRestart = forceRestart,
                 transferAllowed = transferAllowed,
             )
-            if (effective != null) args[0] = effective
         }
+    }
+
+    /**
+     * Production argument rewrite boundary.  Parses the exact JZI triplet, computes the
+     * effective function and writes it back to `args[0]` when appropriate.
+     *
+     * Returns the effective value that was written, or `null` when the original arguments
+     * must be preserved.
+     */
+    internal fun applySetEnabledFunctionsOverride(
+        args: Array<Any?>,
+        mode: Int,
+        nativeDefault: Long,
+        screenLocked: Boolean,
+        transferAllowed: Boolean,
+    ): Long? {
+        val call = parseSetEnabledCall(args) ?: return null
+        val effective = computeEffectiveUsbFunctions(
+            mode = mode,
+            nativeDefault = nativeDefault,
+            currentFunctions = call.functions,
+            screenLocked = screenLocked,
+            forceRestart = call.forceRestart,
+            transferAllowed = transferAllowed,
+        )
+        if (effective != null) args[0] = effective
+        return effective
     }
 
     private class SetScreenUnlockedFunctionsHook : HookerClassHelper.MethodHook() {
@@ -264,21 +332,26 @@ object SystemUsbDefaultHooks {
         }
     }
 
-    private class HandleMessageHook(private val targets: ResolvedTargets) : HookerClassHelper.MethodHook() {
-        override fun before(callback: HookerClassHelper.BeforeHookCallback) {
+    internal class HandleMessageHook(private val targets: ResolvedTargets) : HookerClassHelper.MethodHook() {
+        public override fun before(callback: HookerClassHelper.BeforeHookCallback) {
             val msg = callback.getArg(0) as? Message ?: return
             if (isDefaultMessage(targets, msg.what)) {
                 UsbDefaultContext.push(ContextReason.HANDLE_MESSAGE, msg.what)
             }
         }
 
-        override fun after(callback: HookerClassHelper.AfterHookCallback) {
-            val msg = callback.getArgs().getOrNull(0) as? Message ?: return
-            if (!isDefaultMessage(targets, msg.what)) return
+        public override fun after(callback: HookerClassHelper.AfterHookCallback) {
+            val frame = UsbDefaultContext.peek()
+            if (frame?.reason != ContextReason.HANDLE_MESSAGE) return
 
-            val handler = callback.getThisObject() ?: return
             try {
-                maybeSupplementScreenUnlock(handler, targets, msg)
+                val msg = callback.getArgs().getOrNull(0) as? Message
+                if (msg != null && msg.what == targets.msgUpdateScreenLock) {
+                    val handler = callback.getThisObject()
+                    if (handler != null) {
+                        maybeSupplementScreenUnlock(handler, targets, msg)
+                    }
+                }
             } finally {
                 UsbDefaultContext.pop()
             }
@@ -306,8 +379,9 @@ object SystemUsbDefaultHooks {
         if (currentFunctions != FUNCTION_NONE) return
 
         if (readBoolean(handler, targets.fieldScreenLocked)) return
-        if (!isUsbTransferAllowed(handler)) return
+        if (!isUsbTransferAllowed(handler, targets)) return
 
+        val method = pickSetEnabledFunctionsMethod(handler, targets) ?: return
         val operationId = targets.operationCounter.incrementAndGet()
         val effective = when (mode) {
             MODE_MTP -> FUNCTION_MTP
@@ -315,19 +389,25 @@ object SystemUsbDefaultHooks {
             else -> FUNCTION_NONE
         }
         try {
-            XposedHelpers.callMethod(handler, "setEnabledFunctions", effective, false, operationId)
+            method.invoke(handler, effective, false, operationId)
         } catch (t: Throwable) {
-            FatalErrors.rethrowIfFatal(t)
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             XposedHelpers.log(t)
+        }
+    }
+
+    private fun pickSetEnabledFunctionsMethod(handler: Any, targets: ResolvedTargets): Method? {
+        return when {
+            targets.handlerHalClass.isAssignableFrom(handler.javaClass) -> targets.methodSetEnabledFunctionsHal
+            targets.handlerLegacyClass?.isAssignableFrom(handler.javaClass) == true -> targets.methodSetEnabledFunctionsLegacy
+            else -> null
         }
     }
 
     private fun isDefaultMessage(targets: ResolvedTargets, what: Int): Boolean {
         return what == targets.msgUpdateState ||
             what == targets.msgSetScreenUnlockedFunctions ||
-            what == targets.msgUpdateScreenLock ||
-            what == targets.msgBootCompleted ||
-            what == targets.msgSystemReady
+            what == targets.msgUpdateScreenLock
     }
 
     /**
@@ -365,13 +445,18 @@ object SystemUsbDefaultHooks {
         return effective
     }
 
-    private fun getMode(): Int = MainModule.mPrefs.getStringAsInt(PREF_KEY, MODE_FOLLOW_SYSTEM)
+    internal fun getMode(): Int {
+        return when (val value = MainModule.mPrefs.getStringAsInt(PREF_KEY, MODE_FOLLOW_SYSTEM)) {
+            MODE_FOLLOW_SYSTEM, MODE_CHARGING, MODE_MTP, MODE_PTP -> value
+            else -> MODE_FOLLOW_SYSTEM
+        }
+    }
 
-    private fun isUsbTransferAllowed(handler: Any): Boolean {
+    private fun isUsbTransferAllowed(handler: Any, targets: ResolvedTargets): Boolean {
         return try {
-            XposedHelpers.callMethod(handler, "isUsbTransferAllowed") as? Boolean ?: false
+            targets.methodIsUsbTransferAllowed.invoke(handler) as? Boolean ?: false
         } catch (t: Throwable) {
-            FatalErrors.rethrowIfFatal(t)
+            FatalErrors.unwrapAndRethrowIfFatal(t)
             false
         }
     }
@@ -398,6 +483,19 @@ object SystemUsbDefaultHooks {
     private fun findFieldQuiet(clazz: Class<*>, name: String): Field? {
         return try {
             clazz.getDeclaredField(name).also { it.isAccessible = true }
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            null
+        }
+    }
+
+    private fun findMethodQuiet(clazz: Class<*>, name: String, vararg parameterTypes: Class<*>): Method? {
+        return try {
+            if (parameterTypes.isEmpty()) {
+                XposedHelpers.findMethodBestMatch(clazz, name)
+            } else {
+                XposedHelpers.findMethodExactIfExists(clazz, name, *parameterTypes)
+            }
         } catch (t: Throwable) {
             FatalErrors.rethrowIfFatal(t)
             null

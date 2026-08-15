@@ -476,12 +476,81 @@ fast --changed = PASS
 diff --check = PASS
 
 P1_B_PRODUCTION_CHANGE = YES
-P1_B_COMMIT = 73b01460
+P1_B_INITIAL_IMPLEMENTATION = 73b0146054cd2d35c602e4a9350a61859de57395
+P1_B_INITIAL_GATE = HOLD
+P1_B_BLOCKER = JZI_ARGUMENT_CONTRACT
+
+P1_B_COMMIT = <TBD_CORRECTIVE>
+P1_B_ARGUMENT_CONTRACT = PASS_CANDIDATE
 P1_B_VERIFY_FAST = PASS
 P1_B_VERIFY_FULL = PASS
 P1_B_DIFF_CHECK = PASS
 P1_B_PUSHED = YES
 ```
+
+## P1-B Corrective
+
+### 修正原因
+
+初始实现 `73b01460` 中 `SetEnabledFunctionsHook` 错误地把 `setEnabledFunctions(JZI)V` 当成四参数调用处理：
+
+```text
+if (args.size < 4) return
+val forceRestart = args[2] as? Boolean
+```
+
+实际的 ROM signature 是：
+
+```text
+setEnabledFunctions(J Z I)V
+args[0] = long  functions
+args[1] = boolean forceRestart
+args[2] = int operationId
+```
+
+这会导致所有正常 `setEnabledFunctions` 调用被直接 `return`，无法改写。
+
+### 修正项
+
+1. **JZI production parser**
+   - 新增 `SetEnabledCall` / `parseSetEnabledCall(...)`
+   - 严格检查 `args.size == 3`、类型为 `Long / Boolean / Int`
+2. **Exact signature hook**
+   - 不再 `hookAllMethodsSilently`
+   - `resolveTargets()` 在 cold install 阶段解析 `setEnabledFunctions(long, boolean, int)` 的精确 `Method`
+   - 安装时使用 `ModuleHelper.hookMethod(method, callback)` 只挂具体 `UsbHandlerHal/UsbHandlerLegacy` 实现
+3. **参数改写边界**
+   - 只读取 `args[0]` / `args[1]` / `args[2]`
+   - 只改写 `args[0]`
+   - `forceRestart` 与 `operationId` 原样保留
+4. **Mode sanitization**
+   - `getMode()` 对任何非 0-3 值返回 `FOLLOW_SYSTEM`
+5. ** narrowed handleMessage context**
+   - `isDefaultMessage()` 仅对 `MSG_UPDATE_STATE / MSG_SET_SCREEN_UNLOCKED_FUNCTIONS / MSG_UPDATE_SCREEN_LOCK` push context
+   - `MSG_BOOT_COMPLETED` / `MSG_SYSTEM_READY` 由独立的 `FinishBootHook` 拥有
+6. **Unconditional cleanup**
+   - `HandleMessageHook.after()` 只要 peek 到 `HANDLE_MESSAGE` frame 就在 `finally` 中 pop
+   - 即使 `thisObject == null`、supplement 抛异常或原方法抛异常，也不会留下 stale frame
+7. **ThreadLocal lazy cleanup**
+   - `UsbDefaultContext` 改为 `ThreadLocal<ArrayDeque?>`
+   - `peek()` 不创建 deque
+   - 最后一个 frame pop 后调用 `ThreadLocal.remove()`
+8. **Cold method cache**
+   - `resolveTargets()` 预先解析并缓存：
+     - `isUsbTransferAllowed()`
+     - `setEnabledFunctions(JZI)`
+   - runtime 使用 `Method.invoke`，不再按名称 lookup
+9. **Install failure boundary / rollback**
+   - `resolveTargets()` 缺任何 Class/Method/Field/constant 返回 `FAILED_TRANSIENT`
+   - 安装阶段收集 `CustomMethodUnhooker`，任一失败 `unhook()` 已安装的 hooks
+10. **测试补充**
+    - `parseSetEnabledCall` JZI 合同测试
+    - `applySetEnabledFunctionsOverride` 实际参数改写边界测试
+    - `SetEnabledFunctionsHook` / `HandleMessageHook` end-to-end 测试
+    - `getMode()` 非法值测试
+    - `UsbDefaultContext` last-pop 清理、thread isolation、嵌套测试
+    - `HandleMessageHook` `MSG_BOOT_COMPLETED` / `MSG_SYSTEM_READY` 不 push context 测试
+    - native-none supplement 路径测试（allowed / blocked）
 
 ## P1-B 实现记录
 
@@ -519,20 +588,30 @@ USB CONNECTION LISTENER = NONE
 ### 实现要点
 
 1. `UsbDefaultFunctionFeature` always returns `isEnabled = true` and installs `SystemUsbDefaultHooks.hook()`.
-2. Hook target: `com.android.server.usb.UsbDeviceManager$UsbHandlerHal/UsbHandlerLegacy.setEnabledFunctions(JZI)V`.
-3. Context guard: before/after hooks on `UsbHandler.handleMessage`, `setScreenUnlockedFunctions`, and `finishBoot` push/pop a `ThreadLocal<ArrayDeque<ContextFrame>>`. The `setEnabledFunctions` hook only rewrites the argument when a context frame is present.
-4. Rewrite happens only when `!mScreenLocked && !forceRestart` and mode is not `FOLLOW_SYSTEM`.
-5. MTP/PTP calls ROM's own `isUsbTransferAllowed()` and falls back to `FUNCTION_NONE` when disallowed.
-6. In `MSG_UPDATE_SCREEN_LOCK` unlock branch where `mScreenUnlockedFunctions == 0 && mCurrentFunctions == 0` the ROM does not call `setEnabledFunctions`; `handleMessage.after` supplements the override when the user chose a data mode.
-7. `getScreenUnlockedFunctions` is not hooked; `mSettings` and `mCurrentFunctions` are not modified; no USB connection listener is registered; preference changes take effect on the next default event without forced reapply.
+2. Hook target: exact `com.android.server.usb.UsbDeviceManager$UsbHandlerHal/UsbHandlerLegacy.setEnabledFunctions(JZI)V`.
+3. `resolveTargets()` resolves all classes, message ids, fields and the exact methods at cold install time. Missing target/member returns `FAILED_TRANSIENT` before any hook is installed.
+4. Installation uses pre-resolved `Method` objects with `ModuleHelper.hookMethod()` and rolls back (`unhook()`) if any step fails.
+5. `SetEnabledCall` / `parseSetEnabledCall(...)` enforce the exact JZI contract (`args.size == 3`, `Long/Boolean/Int`).
+6. Context guard: before/after hooks on `UsbHandler.handleMessage`, `setScreenUnlockedFunctions`, and `finishBoot` push/pop a `ThreadLocal<ArrayDeque<ContextFrame>>`.
+7. `isDefaultMessage()` only recognizes `MSG_UPDATE_STATE / MSG_SET_SCREEN_UNLOCKED_FUNCTIONS / MSG_UPDATE_SCREEN_LOCK`; `finishBoot` has its own `FINISH_BOOT` context.
+8. The `setEnabledFunctions` hook only rewrites `args[0]` when a context frame is present, mode is not `FOLLOW_SYSTEM`, `!mScreenLocked`, `!forceRestart` and (for data modes) transfer is allowed.
+9. MTP/PTP calls the ROM's pre-resolved `isUsbTransferAllowed()` and falls back to `FUNCTION_NONE` when disallowed.
+10. In `MSG_UPDATE_SCREEN_LOCK` unlock branch where `mScreenUnlockedFunctions == 0 && mCurrentFunctions == 0` the ROM does not call `setEnabledFunctions`; `handleMessage.after` supplements the override using the pre-resolved `setEnabledFunctions` `Method.invoke()`.
+11. `getScreenUnlockedFunctions` is not hooked; `mSettings` and `mCurrentFunctions` are not modified; no USB connection listener is registered; preference changes take effect on the next default event without forced reapply.
 
 ### 测试覆盖
 
 - `SystemUsbDefaultHooksTest`
   - `getStringAsInt` parsing for string, number, and invalid values
+  - `getMode` sanitization (valid / invalid / negative)
   - `resolveEffective` mapping for FOLLOW_SYSTEM / CHARGING / MTP / PTP / invalid
   - `computeEffectiveUsbFunctions` policy guards (screenLocked, forceRestart, transferAllowed, already-correct, charging override)
-  - `UsbDefaultContext` thread-local and nested push/pop ownership
+  - `parseSetEnabledCall` JZI contract (arity / types / valid / invalid)
+  - `applySetEnabledFunctionsOverride` argument-rewrite boundary (MTP/PTP/CHARGING/FOLLOW_SYSTEM/forceRestart/screenLocked/transferAllowed/alreadyCorrect)
+  - `SetEnabledFunctionsHook` end-to-end rewrite and no-rewrite-without-context
+  - `HandleMessageHook` context exclusion for `MSG_BOOT_COMPLETED` / `MSG_SYSTEM_READY` and cleanup with null `thisObject`
+  - `HandleMessageHook` native-none supplement (allowed / blocked)
+  - `UsbDefaultContext` thread-local, nested, and last-pop cleanup
 - `SystemServerFeaturesWiringTest`
   - `UsbDefaultFunctionFeature` always-on wiring and catalog membership
 
