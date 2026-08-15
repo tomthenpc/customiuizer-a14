@@ -393,6 +393,7 @@
     <string name="system_qshaptic_title">Ajustes rápidos de respuesta háptica</string>
     <string name="system_qshaptic_summ">Vibrar al pulsar el panel de ajustes rápidos</string>
     <string name="system_mods_other">Otros</string>
+    <string name="system_mods_connectivity">Conectividad</string>
     <string name="system_mods_volumeblur">Desenfoque del fondo al ajustar el volumen</string>
     <string name="system_volumeblur_collapsed_title">Cuadro de diálogo compactado</string>
     <string name="system_volumeblur_expanded_title">Cuadro de diálogo expandido</string>

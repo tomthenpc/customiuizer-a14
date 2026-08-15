@@ -423,6 +423,7 @@
     <string name="system_qshaptic_title">クイック設定の触覚フィードバック</string>
     <string name="system_qshaptic_summ">クイック設定のバイブレーションのタイルをタップ時の触覚フィードバック</string>
     <string name="system_mods_other">その他</string>
+    <string name="system_mods_connectivity">接続</string>
     <string name="system_mods_volumeblur">音量ダイアログの背景ぼかし</string>
     <string name="system_volumeblur_collapsed_title">折りたたまれたダイアログ</string>
     <string name="system_volumeblur_expanded_title">展開されたダイアログ</string>

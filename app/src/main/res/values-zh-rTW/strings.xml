@@ -394,6 +394,7 @@
     <string name="system_qshaptic_title">快速設置觸覺反饋</string>
     <string name="system_qshaptic_summ">點擊快速設置磁貼時振動</string>
     <string name="system_mods_other">其他</string>
+    <string name="system_mods_connectivity">連線</string>
     <string name="system_mods_volumeblur">音量對話框背景模糊</string>
     <string name="system_volumeblur_collapsed_title">折疊對話框</string>
     <string name="system_volumeblur_expanded_title">展開對話框</string>

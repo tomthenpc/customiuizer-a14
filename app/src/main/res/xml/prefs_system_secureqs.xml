@@ -8,17 +8,12 @@
 		android:title="@string/enable_mod"
 		android:defaultValue="false" />
 
-	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
-		android:title="@string/settings"
-		android:dependency="pref_key_system_secureqs">
-
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 		android:key="pref_key_system_secureqs_keepopened"
 		android:title="@string/system_secureqs_keepopened_title"
 		android:summary="@string/system_secureqs_keepopened_summ"
-		android:defaultValue="false" />
-
-	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
+		android:defaultValue="false"
+		android:dependency="pref_key_system_secureqs" />
 
 	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
 		android:title="@string/secure_tiles"

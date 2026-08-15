@@ -375,6 +375,7 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_qshaptic_title">Hızlı ayarlar dokunsal geri bildirim</string>
     <string name="system_qshaptic_summ">Hızlı ayarlar kutucuğuna dokunduğunuzda titreş</string>
     <string name="system_mods_other">Diğer</string>
+    <string name="system_mods_connectivity">Bağlantı</string>
     <string name="system_mods_volumeblur">Ses iletişim kutusu arka plan bulanıklığı</string>
     <string name="system_volumeblur_collapsed_title">Daraltılmış iletişim kutusu</string>
     <string name="system_volumeblur_expanded_title">Genişletilmiş iletişim kutusu</string>

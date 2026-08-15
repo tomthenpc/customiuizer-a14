@@ -445,6 +445,7 @@
     <string name="system_qshaptic_title">磁贴振动</string>
     <string name="system_qshaptic_summ">点击磁贴时振动</string>
     <string name="system_mods_other">其他</string>
+    <string name="system_mods_connectivity">连接</string>
     <string name="system_mods_volumeblur">音量对话框背景模糊</string>
     <string name="system_volumeblur_collapsed_title">折叠对话框</string>
     <string name="system_volumeblur_expanded_title">展开对话框</string>

@@ -417,6 +417,7 @@
     <string name="system_qshaptic_title">Rychlé nastavení hmatové zpětné vazby</string>
     <string name="system_qshaptic_summ">Vibrace u dlaždice Rychlá nastavení ťuknutím na položku</string>
     <string name="system_mods_other">Jiné</string>
+    <string name="system_mods_connectivity">Připojení</string>
     <string name="system_mods_volumeblur">Rozmazat pozadí dialogového okna hlasitosti</string>
     <string name="system_volumeblur_collapsed_title">Sbalený dialog</string>
     <string name="system_volumeblur_expanded_title">Rozšířený dialog</string>

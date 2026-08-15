@@ -736,7 +736,6 @@
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 			android:key="pref_key_system_fivegtile"
 			android:title="@string/system_fivegtile_title"
-			android:summary="@string/system_fivegtile_summ"
 			android:defaultValue="false"
 			/>
 
@@ -916,7 +915,6 @@
 		<tv.withaibuild.customiuizer.prefs.SeekBarPreference
 			android:key="pref_key_system_recents_blur"
 			android:title="@string/system_blur_title"
-			android:summary="@string/system_recents_blur_summ"
 			android:defaultValue="100"
 			miuizer:minValue="0"
 			miuizer:maxValue="100"
@@ -1220,11 +1218,21 @@
 			android:summary="@string/system_disable_window_blurs_summ"
 			android:defaultValue="false" />
 
+		<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
+			android:title="@string/system_mods_connectivity" />
+
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 			android:key="pref_key_system_wifipassword"
 			android:title="@string/system_wifipassword_title"
 			android:summary="@string/system_wifipassword_summ"
 			android:defaultValue="true" />
+
+		<tv.withaibuild.customiuizer.prefs.ListPreferenceEx
+			android:key="pref_key_system_usb_default_function"
+			android:title="@string/system_usb_default_function_title"
+			android:entries="@array/usb_default_functions"
+			android:entryValues="@array/usb_default_functions_val"
+			android:defaultValue="0" />
 
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 			android:key="pref_key_system_epm"
@@ -1428,13 +1436,6 @@
 			miuizer:stepValue="1"
 			miuizer:displayDividerValue="10"
 			miuizer:format="x%s"/>
-
-		<tv.withaibuild.customiuizer.prefs.ListPreferenceEx
-			android:key="pref_key_system_usb_default_function"
-			android:title="@string/system_usb_default_function_title"
-			android:entries="@array/usb_default_functions"
-			android:entryValues="@array/usb_default_functions_val"
-			android:defaultValue="0" />
 
 	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
 

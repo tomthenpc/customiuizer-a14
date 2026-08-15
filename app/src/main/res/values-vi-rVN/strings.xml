@@ -423,6 +423,7 @@
     <string name="system_qshaptic_title">Phản hồi xúc giác trong cài đặt nhanh</string>
     <string name="system_qshaptic_summ">Phản hồi xúc giác khi chạm vào ô rung trong cài đặt nhanh</string>
     <string name="system_mods_other">Khác</string>
+    <string name="system_mods_connectivity">Kết nối</string>
     <string name="system_mods_volumeblur">Làm mờ nền hộp thoại âm lượng</string>
     <string name="system_volumeblur_collapsed_title">Hộp thoại thu gọn</string>
     <string name="system_volumeblur_expanded_title">Hộp thoại mở rộng</string>

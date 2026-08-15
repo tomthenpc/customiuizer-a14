@@ -412,6 +412,7 @@
     <string name="system_qshaptic_title">Вибрация при переключении настроек</string>
     <string name="system_qshaptic_summ">Вибрировать при нажатии на переключатели в Быстрых настройках</string>
     <string name="system_mods_other">Другое</string>
+    <string name="system_mods_connectivity">Подключения</string>
     <string name="system_mods_volumeblur">Размытия фона диалога громкости</string>
     <string name="system_volumeblur_collapsed_title">Свёрнутый диалог</string>
     <string name="system_volumeblur_expanded_title">Развёрнутый диалог</string>

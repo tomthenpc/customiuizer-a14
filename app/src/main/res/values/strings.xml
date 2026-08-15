@@ -469,6 +469,7 @@
     <string name="system_qshaptic_title">Quick settings haptic feedback</string>
     <string name="system_qshaptic_summ">Vibrate on Quick settings tile tap</string>
     <string name="system_mods_other">Other</string>
+    <string name="system_mods_connectivity">Connectivity</string>
     <string name="system_mods_volumeblur">Volume dialog background blur</string>
     <string name="system_volumeblur_collapsed_title">Collapsed dialog</string>
     <string name="system_volumeblur_expanded_title">Expanded dialog</string>

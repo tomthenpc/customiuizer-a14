@@ -9,11 +9,6 @@
 		android:title="@string/enable_mod"
 		android:defaultValue="false" />
 
-	<tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx
-		android:title="@string/settings"
-		android:dependency="pref_key_system_statusbar_batterystyle"
-		/>
-
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 		android:key="pref_key_system_statusbaricons_swap_batteryicon_percentage"
 		android:title="@string/system_statusbaricons_swap_batteryicon_percentage_title"

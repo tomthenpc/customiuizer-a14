@@ -423,6 +423,7 @@
     <string name="system_qshaptic_title">Feedback tátil de Configurações rápidas</string>
     <string name="system_qshaptic_summ">Vibre ao tocar no bloco Configurações rápidas</string>
     <string name="system_mods_other">Outro</string>
+    <string name="system_mods_connectivity">Conectividade</string>
     <string name="system_mods_volumeblur">Blur de fundo na caixa de diálogo de volume</string>
     <string name="system_volumeblur_collapsed_title">Diálogo recolhido</string>
     <string name="system_volumeblur_expanded_title">Diálogo expandido</string>
