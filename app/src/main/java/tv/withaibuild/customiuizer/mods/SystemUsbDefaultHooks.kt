@@ -345,13 +345,13 @@ object SystemUsbDefaultHooks {
             if (frame?.reason != ContextReason.HANDLE_MESSAGE) return
 
             try {
-                val msg = callback.getArgs().getOrNull(0) as? Message
-                if (msg != null && msg.what == targets.msgUpdateScreenLock) {
-                    val handler = callback.getThisObject()
-                    if (handler != null) {
-                        maybeSupplementScreenUnlock(handler, targets, msg)
-                    }
-                }
+                if (callback.getThrowable() != null) return
+
+                val msg = callback.getArgs().getOrNull(0) as? Message ?: return
+                if (msg.what != targets.msgUpdateScreenLock) return
+
+                val handler = callback.getThisObject() ?: return
+                maybeSupplementScreenUnlock(handler, targets, msg)
             } finally {
                 UsbDefaultContext.pop()
             }

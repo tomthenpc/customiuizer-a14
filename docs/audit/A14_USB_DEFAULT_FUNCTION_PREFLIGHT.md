@@ -480,13 +480,30 @@ P1_B_INITIAL_IMPLEMENTATION = 73b0146054cd2d35c602e4a9350a61859de57395
 P1_B_INITIAL_GATE = HOLD
 P1_B_BLOCKER = JZI_ARGUMENT_CONTRACT
 
-P1_B_COMMIT = 7d4e9707
+P1_B_JZI_CORRECTIVE = 7d4e97071a4d8835e5fb7e17b7178af5ba68539d
+P1_B_FAILURE_BOUNDARY_INITIAL_GATE = HOLD
+P1_B_BLOCKER = SUPPLEMENT_AFTER_ORIGINAL_FAILURE
+
+P1_B_COMMIT = <TBD_FAILURE_BOUNDARY>
 P1_B_ARGUMENT_CONTRACT = PASS_CANDIDATE
+P1_B_FAILURE_BOUNDARY = PASS_CANDIDATE
 P1_B_VERIFY_FAST = PASS
 P1_B_VERIFY_FULL = PASS
 P1_B_DIFF_CHECK = PASS
 P1_B_PUSHED = YES
 ```
+
+## P1-B Final Failure-Boundary Corrective
+
+### 修正原因
+
+`HookerClassHelper.MethodHook.intercept()` 的 after 回调在 `chain.proceed()` 抛出异常后仍会执行。`HandleMessageHook.after()` 当时没有检查 `callback.getThrowable()`，导致即使 ROM `handleMessage()` 本身失败，模块仍会执行 `maybeSupplementScreenUnlock()`，即 ROM 失败后继续执行 USB mutation，违反 fail-open 原则。
+
+### 修正项
+
+1. `HandleMessageHook.after()` 首先检查 `callback.getThrowable() != null`；如果原方法失败，直接 return，只由 `finally` 完成 `UsbDefaultContext.pop()`。
+2. 保留所有已通过审计的 JZI contract、exact Method hook、mode mapping、native state ownership、policy guard、native NONE supplement eligibility 等不变。
+3. 新增回归测试：在 `MSG_UPDATE_SCREEN_LOCK` + native NONE + mode MTP + transfer allowed 的条件下，若 `AfterHookCallback` 携带原方法异常，则 `setEnabledFunctions` 不被调用，且 context 被清理。
 
 ## P1-B Corrective
 
@@ -611,6 +628,7 @@ USB CONNECTION LISTENER = NONE
   - `SetEnabledFunctionsHook` end-to-end rewrite and no-rewrite-without-context
   - `HandleMessageHook` context exclusion for `MSG_BOOT_COMPLETED` / `MSG_SYSTEM_READY` and cleanup with null `thisObject`
   - `HandleMessageHook` native-none supplement (allowed / blocked)
+  - `HandleMessageHook` no supplement when original `handleMessage` failed
   - `UsbDefaultContext` thread-local, nested, and last-pop cleanup
 - `SystemServerFeaturesWiringTest`
   - `UsbDefaultFunctionFeature` always-on wiring and catalog membership

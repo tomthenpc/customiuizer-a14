@@ -567,6 +567,31 @@ class SystemUsbDefaultHooksTest {
         assertNull(UsbDefaultContext.peek())
     }
 
+    @Test
+    fun handleMessageHook_noSupplementWhenOriginalMessageHandlerFailed() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = 0L,
+            currentFunctions = 0L,
+            bootCompleted = true,
+            transferAllowed = true,
+        )
+        val targets = createTestTargets(handler, msgUpdateScreenLock = 13)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 13; arg1 = 0 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val originalThrowable = RuntimeException("rom failure")
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, originalThrowable)
+        hook.after(afterCallback)
+
+        assertEquals(-1L, handler.lastSetFunctions)
+        assertNull(UsbDefaultContext.peek())
+    }
+
     // --- Thread-local ownership guard ---
 
     @Test
