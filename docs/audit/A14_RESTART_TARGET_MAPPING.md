@@ -787,3 +787,249 @@ C:\Users\tv\AppData\Local\Temp\restart_lifecycle_mapping.json
 ```
 
 This file is a temporary audit artifact and is not part of the repository.
+
+## P3-A3: Executable restart target audit
+
+### Base and gate history
+
+- Repository: `tv.withaibuild.customiuizer.r14` A14 tree
+- Base SHA: `548bebe211e082c87051786a71045c632ea46c2e`
+- Audit scope: all `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/*Features.kt`
+- XML scope: all `app/src/main/res/xml/prefs_*.xml` functional widgets only
+- Semantics source: `feature-semantics/a14.json`
+
+P3-A2 under-counted multi-host master keys because it looked only at each feature's declared
+`preferenceKey`. P3-A3 now resolves every `LazyFeatureSpec.enabled` expression to its underlying
+`evaluateEnabled` / `isEnabledCondition`, extracts all `prefs.getBoolean/getInt/getString/getStringAsInt`
+string literal keys, and follows one level of qualified helper calls such as
+`SystemUIControlCenterHooks.hasControlCenterModifications()` and `StatusBarHeightConfig.isEnabled(prefs)`.
+
+### Corrective methodology
+
+1. **Feature parsing**: every `LazyFeatureSpec(...)` block is extracted from `*Features.kt` to obtain
+   `preferenceKey`, `target`, `phase`, and the `enabled` lambda.
+2. **Enabled resolution**: the lambda body (e.g. `ClassName.evaluateEnabled(prefs)`) is resolved to the
+   matching `companion object fun evaluateEnabled` or `override fun isEnabledCondition`. Only qualified
+   `ClassName.methodName(...)` calls are followed one level; unqualified function calls are ignored.
+3. **Target mapping**:
+   - `FeatureTarget.SYSTEM_UI` -> `SYSTEMUI`
+   - `FeatureTarget.LAUNCHER` -> `LAUNCHER`
+   - `FeatureTarget.SYSTEM_PACKAGE` -> `SECURITYCENTER` only when the source file is
+     `SecurityCenterFeatures.kt` (the enum is overloaded across package-ready installers; other
+     package-ready hosts such as PackageInstaller/Phone/InputMethod/Media are treated as
+     `UNSUPPORTED_OTHER`).
+4. **Key aggregation**: for every feature, the declared `preferenceKey` plus every key read in its
+   enabled condition contributes the feature's restart target. A canonical key may therefore map to
+   multiple targets.
+5. **XML functional keys**: only `CheckBoxPreferenceEx`, `SwitchPreferenceEx`, `ListPreferenceEx`,
+   `EditTextPreferenceEx`, `ColorPreferenceEx`, `MultiSelectListPreferenceEx`, and `SeekBarPreference`
+   are collected. `PreferenceEx` and `PreferenceCategoryEx` are ignored. The `pref_key_` prefix is
+   stripped to match feature keys.
+6. **Non-executable classification**: for XML keys without a feature-derived executable target, the
+   `feature-semantics/a14.json` entry is used. Hardcoded overrides for the charging-info current/
+   voltage/wattage/temp, `system_applock_timeout`, and `system_usb_default_function` are applied.
+   Missing evidence is never defaulted to executable; it is marked `UNKNOWN_EVIDENCE` or
+   `NO_EXECUTABLE_MAPPING`.
+
+### Required counts
+
+| Field | Value |
+|-------|-------|
+| TOTAL_FUNCTIONAL_PREFERENCES | 514 |
+| EXECUTABLE_UNIQUE_KEYS | 193 |
+| LAUNCHER_TARGET_REFERENCES | 61 |
+| SYSTEMUI_TARGET_REFERENCES | 119 |
+| SECURITYCENTER_TARGET_REFERENCES | 16 |
+| MULTI_EXECUTABLE_TARGET_KEYS | 3 |
+| NO_EXECUTABLE_MAPPING | 115 |
+| UNKNOWN_EVIDENCE | 0 |
+| P3_B_SAFE_TO_IMPLEMENT | NO |
+
+### MULTI_HOST_MASTER_KEYS (3)
+
+- `controls_fsg_assist_left_action` -> targets ['LAUNCHER', 'SYSTEMUI']
+  - LauncherPostAttachFeatures.kt / Launcher Assist Gesture Action (FeatureTarget.LAUNCHER -> LAUNCHER)
+  - SystemUiFeatures.kt / Assist Gesture Action (FeatureTarget.SYSTEM_UI -> SYSTEMUI)
+- `controls_fsg_assist_right_action` -> targets ['LAUNCHER', 'SYSTEMUI']
+  - LauncherPostAttachFeatures.kt / Launcher Assist Gesture Action (FeatureTarget.LAUNCHER -> LAUNCHER)
+  - SystemUiFeatures.kt / Assist Gesture Action (FeatureTarget.SYSTEM_UI -> SYSTEMUI)
+- `controls_nonavbar` -> targets ['LAUNCHER', 'SYSTEMUI']
+  - InputMethodFeatures.kt / Input Method Fix Bottom Margin (FeatureTarget.ANY)
+  - LauncherPostAttachFeatures.kt / Launcher Hide Nav Bar (FeatureTarget.LAUNCHER -> LAUNCHER)
+  - SystemUiFeatures.kt / Hide Nav Bar (FeatureTarget.SYSTEM_UI -> SYSTEMUI)
+  - SystemUiFeatures.kt / Hide Nav Bar Before Screenshot (FeatureTarget.SYSTEM_UI -> SYSTEMUI)
+
+### EXECUTABLE_LAUNCHER_KEYS
+
+`controls_fsg_assist_left_action`, `controls_fsg_assist_right_action`, `controls_fsg_coverage`
+`controls_fsg_horiz`, `controls_fsg_swipeandstop_action`, `controls_fsg_width`
+`controls_nonavbar`, `launcher_closedrawer`, `launcher_closefolders`, `launcher_darkershadow`
+`launcher_disable_log`, `launcher_disable_wallpaperscale`, `launcher_dock_bottommargin`
+`launcher_dock_height`, `launcher_dock_topmargin`, `launcher_docktitles`
+`launcher_doubletap_action`, `launcher_fixanim`, `launcher_fixlaunch`, `launcher_folder_cols`
+`launcher_folderblur_disable`, `launcher_folderblur_opacity`, `launcher_hideseekpoints`
+`launcher_hidetitles`, `launcher_horizmargin`, `launcher_horizwidgetmargin`, `launcher_iconscale`
+`launcher_indicator_topmargin`, `launcher_indicatorheight`, `launcher_infinitescroll`
+`launcher_noclockhide`, `launcher_nounlockanim`, `launcher_nowidgetonly`, `launcher_nozoomanim`
+`launcher_oldlaunchanim`, `launcher_pinch_action`, `launcher_privacyapps_gest`
+`launcher_renameapps`, `launcher_sensorportrait`, `launcher_shake_action`
+`launcher_spread_action`, `launcher_swipedown2_action`, `launcher_swipedown_action`
+`launcher_swipeleft_action`, `launcher_swiperight_action`, `launcher_swipeup2_action`
+`launcher_swipeup_action`, `launcher_titlefontsize`, `launcher_titletopmargin`
+`launcher_topmargin`, `launcher_unlockgrids`, `launcher_unlockhotseat`
+`launcher_wallpaper_colormode`, `system_fw_splitscreen`, `system_hidefromrecents`
+`system_recents_blur`, `system_recents_card_style`, `system_recents_disable_wallpaperscale`
+`system_recents_hide_statusbar`, `system_removecleaner`, `system_resizablewidgets`
+
+### EXECUTABLE_SYSTEMUI_KEYS
+
+`controls_fsg_assist_left_action`, `controls_fsg_assist_right_action`
+`controls_hidenavbar_whenscreenshot`, `controls_navbarleft_action`, `controls_nonavbar`
+`controls_volumecursor`, `system_4gtolte`, `system_albumartonlock`, `system_allownotiffloat`
+`system_allownotifonkeyguard`, `system_batteryindicator`, `system_betterpopups_allowfloat`
+`system_betterpopups_autoclose_expanded`, `system_betterpopups_center`
+`system_betterpopups_delay`, `system_betterpopups_disablewhenmute`, `system_betterpopups_nohide`
+`system_cc_btandtorch_ascard`, `system_cc_card_enabled_color`, `system_cc_clock_centeralign`
+`system_cc_clocktweak`, `system_cc_collapse_after_clicked`, `system_cc_floatingtimetile`
+`system_cc_fpstile`, `system_cc_freeform_when_longclick`, `system_cc_hide_edit`
+`system_cc_hide_profile_monitoring`, `system_cc_hideoperator_delimiter`
+`system_cc_show_stepcount`, `system_cc_slider_color_enable`, `system_cc_switch_qsandnotification`
+`system_cc_tile_enabled_color`, `system_cc_tile_roundedrect`, `system_cc_volume_showpct`
+`system_ccgridcolumns`, `system_chargeanimtime`, `system_charginginfo`, `system_colorizenotifs`
+`system_detailednetspeed_style`, `system_disableanynotif`, `system_drawer_blur`
+`system_drawer_remove_emptynotify`, `system_drawer_removeshortcut`, `system_dttosleep`
+`system_epm`, `system_expandheadups`, `system_expandnotifs`, `system_fivegtile`
+`system_fw_noblacklist`, `system_hidelsclock`, `system_hidelshint`, `system_hidelsstatusbar`
+`system_hidestatusbar_whenscreenshot`, `system_lockscreen_disable_edit`
+`system_lockscreen_hidezenmode`, `system_lockscreenshortcuts`, `system_ls_force_systemfonts`
+`system_lsalarm`, `system_maxsbicons`, `system_minimalnotifview`, `system_mobiletypeicon`
+`system_morenotif`, `system_mutevisiblenotif`, `system_netspeedinterval`
+`system_networkindicator_wifi`, `system_nolightuponcharges`, `system_nopassword`
+`system_nosafevolume`, `system_noscreenlock_act`, `system_nosilentvibrate`, `system_nosos`
+`system_notif_disable_fold`, `system_notifafterunlock`, `system_notifchannelsettings`
+`system_notifimportance`, `system_notifrowmenu`, `system_notify_openinfw`
+`system_qs_disable_fakeclock_anim`, `system_qs_force_systemfonts`, `system_qs_hideoperator`
+`system_qshaptics`, `system_removedismiss`, `system_scramblepin`, `system_screenshot_overlay`
+`system_secureqs`, `system_shortcut_app`, `system_showpct`, `system_statusbar_alarm_atright`
+`system_statusbar_batterystyle`, `system_statusbar_batterytempandcurrent`
+`system_statusbar_clock_position`, `system_statusbar_clocktweak`, `system_statusbar_dualrows`
+`system_statusbar_dualsimin2rows`, `system_statusbar_horizmargin`
+`system_statusbar_mobile_digital_signal`, `system_statusbar_mobiletype_single`
+`system_statusbar_topmargin`, `system_statusbarcontrols`, `system_statusbaricons_alarm`
+`system_statusbaricons_battery1`, `system_statusbaricons_battery3`
+`system_statusbaricons_privacy`, `system_statusbaricons_privacy_prompt`
+`system_statusbaricons_signal`, `system_statusbaricons_vowifi`, `system_statusbaricons_wifi`
+`system_statusbaricons_wifistandard`, `system_strong_toast_mode`, `system_taptounlock`
+`system_visualizer`, `system_volume_mode_button_colors`, `system_volumebar_blur_mtk`
+`system_volumeblur_collapsed`, `system_volumeblur_expanded`, `system_volumedialogdelay_collapsed`
+`system_volumedialogdelay_expanded`, `system_volumetimer`, `various_showcallui`
+
+### EXECUTABLE_SECURITYCENTER_KEYS
+
+`system_applock_scramblepin`, `system_hidelowbatwarn`, `various_appdetails`, `various_appsort`, `various_disable_dock_suggest`, `various_disable_freeform_suggest_blacklist`, `various_disable_reset_recents_privacy_blur`, `various_disableapp`, `various_enable_expand_sidebar`, `various_hide_report_ondetails`, `various_privacyapps_column_nums4`, `various_replace_defaultopen_with_openbydefault`, `various_restrictapp`, `various_show_battery_temperature`, `various_skip_interceptperm`, `various_skip_securityscan`
+
+### P3_A2_FALSE_NEGATIVE_MULTI_TARGET
+
+- `controls_nonavbar`
+  - old set: `['SYSTEMUI']`
+  - correct set: `['LAUNCHER', 'SYSTEMUI']`
+  - why: P3-A2 only used the master preferenceKey of HideNavBarFeature in SystemUiFeatures.kt (target SYSTEM_UI). P3-A3 resolves the enabled conditions of every LazyFeatureSpec and finds LauncherHideNavBarFeature in LauncherPostAttachFeatures.kt also gating controls_nonavbar (target LAUNCHER), plus HideNavBarBeforeScreenshotFeature reading it.
+
+### P3-A2 gate status (carried forward)
+
+```text
+P3_A2_SHA = 548bebe211e082c87051786a71045c632ea46c2e
+P3_A2_GATE = HOLD
+P3_A2_CALLBACK_READ_CORRECTIVE = PASS
+P3_A2_SYSTEM_SERVER_CORRECTIVE = PASS
+```
+
+P3-A3 blockers resolved:
+
+```text
+P3_A2_BLOCKER_1 = MISSING_EVIDENCE_DEFAULTED_TO_NONE
+P3_A2_BLOCKER_2 = SINGLE_TARGET_MODEL_LOSES_MULTI_HOST_REQUIREMENTS
+```
+
+### P3-A3 model decisions
+
+```text
+PAGE_MASTER_FALLBACK = REMOVED
+MISSING_EVIDENCE_DEFAULT = NO_EXECUTABLE_MAPPING
+RUNTIME_REGISTRY_MODEL = KEY_TO_SET
+CONTROLS_NONAVBAR_TARGETS = {LAUNCHER, SYSTEMUI}
+EXECUTABLE_MAPPING_EVIDENCE = POSITIVE_ONLY
+```
+
+`PAGE_MASTER_FALLBACK` is **REMOVED**: no XML page, category, key prefix, source filename, page master, or same-page sibling is used as restart evidence. Missing direct value-read or install evidence is recorded as `NO_EXECUTABLE_MAPPING` or `UNKNOWN_EVIDENCE`.
+
+`MISSING_EVIDENCE_DEFAULT` is `NO_EXECUTABLE_MAPPING`, not `NONE`. A runtime registry lookup miss returns an empty `Set<RestartTarget>` (fail-closed).
+
+`RUNTIME_REGISTRY_MODEL` is `KEY_TO_SET`: `PreferenceRestartTargetRegistry.targetsFor(canonicalKey)` returns `Set<RestartTarget>`.
+
+`EXECUTABLE_MAPPING_EVIDENCE` is `POSITIVE_ONLY`:
+
+- Each `LazyFeatureSpec` `preferenceKey` maps to its declared `FeatureTarget` when the target is one of `SYSTEM_UI`, `LAUNCHER`, or `SecurityCenterFeatures.SYSTEM_PACKAGE`.
+- Each key read inside the resolved `evaluateEnabled` / `isEnabledCondition` of a feature contributes that feature's target (dependency-derived install gate).
+- `controls_nonavbar` is the canonical multi-host example: it independently gates `HideNavBarFeature` (SystemUI), `LauncherHideNavBarFeature` (Launcher), and is a dependency for `HideNavBarBeforeScreenshotFeature` (SystemUI) and `InputMethodFixBottomMarginFeature` (unsupported ANY).
+- Hardcoded overrides preserve P3-A2-confirmed cases: charging-info sub-keys (`NONE_LIVE`), `system_applock_timeout` (`EXCLUDED_SYSTEM`), `system_usb_default_function` (`NONE_LIVE`).
+
+### P3-A2 false-negative multi-target regression
+
+```text
+P3_A2_FALSE_NEGATIVE_MULTI_TARGET = controls_nonavbar
+OLD = {SYSTEMUI}
+CORRECT = {LAUNCHER, SYSTEMUI}
+WHY = same canonical preference independently gates LauncherHideNavBarFeature (target LAUNCHER) and HideNavBarFeature (target SYSTEM_UI); it is also a dependency for HideNavBarBeforeScreenshotFeature (target SYSTEM_UI)
+```
+
+### P3-B safety gate
+
+```text
+P3_B_SAFE_TO_IMPLEMENT = NO
+```
+
+- The executable positive allowlist is now `Set<RestartTarget>` based, with multi-host masters represented correctly.
+- `UNKNOWN_EVIDENCE = 0`. `NO_EXECUTABLE_MAPPING = 115` keys are fail-closed at runtime; the P3-B registry returns an empty set for them.
+- However, P3-B implementation is **not authorized** in this task (`P3_B_AUTHORIZATION = NO`). This document supplies the pre-flight registry only.
+
+### P3-B matched-restart design constraints (future work)
+
+1. Direct-only: inspect only settings directly contained by the current page.
+2. Exclude `PreferenceCategory`, navigation-only `PreferenceEx`, hidden/unsupported, non-interactive, and app-blacklist entries.
+3. `PreferenceRestartTargetRegistry.targetsFor(key)` returns a prebuilt `Set<RestartTarget>`.
+4. The page action takes the union of executable targets from direct settings; never executes `EXCLUDED_SYSTEM`, `UNSUPPORTED_OTHER`, or `UNKNOWN_EVIDENCE` targets.
+5. Do not include system reboot, soft reboot, or system-server reboot in the automatic set.
+6. Present one "重启相关组件" action per page; aggregate results; fail closed (no executable target = no action or disabled action).
+7. Registry miss returns `emptySet()`, so missing evidence cannot accidentally restart a process.
+
+### Non-executable reason breakdown
+
+| reason | count |
+|---|---|
+| NONE_LIVE | 43 |
+| APP_UI_ONLY | 83 |
+| EXCLUDED_SYSTEM | 69 |
+| UNSUPPORTED_OTHER | 27 |
+| NO_EXECUTABLE_MAPPING | 115 |
+| UNKNOWN_EVIDENCE | 0 |
+
+`NO_EXECUTABLE_MAPPING` means `feature-semantics/a14.json` points to a package or source that could be executable, but no `*Features.kt` `LazyFeatureSpec` or `FeatureDefinition` installs a feature gated by this key. The P3-B registry will fail-closed for these keys.
+
+### Verification commands
+
+```text
+python tools/verify.py fast --changed
+git diff --check
+git status --short
+```
+
+### Source of truth for full mapping
+
+The machine-readable full mapping is at:
+
+```text
+C:\Users\tv\AppData\Local\Temp\p3a3_registry.json
+```
+
+This file is a temporary audit artifact and is not part of the repository.
