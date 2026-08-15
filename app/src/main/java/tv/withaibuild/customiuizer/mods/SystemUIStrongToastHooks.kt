@@ -140,6 +140,11 @@ object SystemUIStrongToastHooks {
         val parentPaddingRight: Int,
         val parentPaddingBottom: Int,
         val parentGravity: Int,
+        val parentWidth: Int,
+        val parentHeight: Int,
+        val parentTopMargin: Int,
+        val parentBottomMargin: Int,
+        val parentLayoutGravity: Int,
         val bottomViewVisibility: Int
     )
 
@@ -1523,6 +1528,7 @@ object SystemUIStrongToastHooks {
         bottomView: View?
     ): MatchModeBaseline? {
         val lp = capsule.layoutParams ?: return null
+        val parentLp = parent?.layoutParams
         return MatchModeBaseline(
             width = lp.width,
             height = lp.height,
@@ -1535,6 +1541,11 @@ object SystemUIStrongToastHooks {
             parentPaddingRight = parent?.paddingRight ?: 0,
             parentPaddingBottom = parent?.paddingBottom ?: 0,
             parentGravity = (parent as? LinearLayout)?.gravity ?: 0,
+            parentWidth = parentLp?.width ?: 0,
+            parentHeight = parentLp?.height ?: 0,
+            parentTopMargin = if (parentLp is ViewGroup.MarginLayoutParams) parentLp.topMargin else 0,
+            parentBottomMargin = if (parentLp is ViewGroup.MarginLayoutParams) parentLp.bottomMargin else 0,
+            parentLayoutGravity = if (parentLp is LinearLayout.LayoutParams) parentLp.gravity else 0,
             bottomViewVisibility = bottomView?.visibility ?: View.VISIBLE
         )
     }
@@ -1552,30 +1563,15 @@ object SystemUIStrongToastHooks {
         setSwipeListenerRecursively(capsule, null)
         (capsule.parent as? View)?.setOnTouchListener(null)
         removeExpandedWindowTouchRegion(root)
-        bottomView?.visibility = View.GONE
 
-        val visualWidthPx = strongToastDimensionPx(root, "strong_toast_width")
-        val lp = capsule.layoutParams
-            ?: LinearLayout.LayoutParams(
-                if (visualWidthPx > 0) visualWidthPx else ViewGroup.LayoutParams.WRAP_CONTENT,
-                targetContentHeightPx
-            )
-        lp.height = targetContentHeightPx
-        if (visualWidthPx > 0) lp.width = visualWidthPx
-        if (lp is ViewGroup.MarginLayoutParams) {
-            lp.topMargin = 0
-            lp.bottomMargin = 0
+        val parentLp = parent?.layoutParams
+        if (parentLp != null) {
+            parentLp.height = targetContentHeightPx
+            parent.layoutParams = parentLp
         }
-        if (lp is LinearLayout.LayoutParams) {
-            lp.gravity = Gravity.CENTER
-        }
-        capsule.layoutParams = lp
-        (capsule as? LinearLayout)?.gravity = Gravity.CENTER_VERTICAL
 
-        if (parent === root) {
-            parent.setPadding(0, 0, 0, 0)
-            (parent as? LinearLayout)?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-        }
+        parent?.setPadding(0, 0, 0, 0)
+        (parent as? LinearLayout)?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
     }
 
     internal fun applyMatchModeBaselineToViews(
@@ -1633,15 +1629,27 @@ object SystemUIStrongToastHooks {
         }
         (capsule as? LinearLayout)?.gravity = baseline.capsuleGravity
 
-        if (parent === root) {
-            parent.setPadding(
-                baseline.parentPaddingLeft,
-                baseline.parentPaddingTop,
-                baseline.parentPaddingRight,
-                baseline.parentPaddingBottom
-            )
-            (parent as? LinearLayout)?.gravity = baseline.parentGravity
+        val parentLp = parent?.layoutParams
+        if (parentLp != null) {
+            parentLp.height = baseline.parentHeight
+            parentLp.width = baseline.parentWidth
+            if (parentLp is ViewGroup.MarginLayoutParams) {
+                parentLp.topMargin = baseline.parentTopMargin
+                parentLp.bottomMargin = baseline.parentBottomMargin
+            }
+            if (parentLp is LinearLayout.LayoutParams) {
+                parentLp.gravity = baseline.parentLayoutGravity
+            }
+            parent.layoutParams = parentLp
         }
+
+        parent?.setPadding(
+            baseline.parentPaddingLeft,
+            baseline.parentPaddingTop,
+            baseline.parentPaddingRight,
+            baseline.parentPaddingBottom
+        )
+        (parent as? LinearLayout)?.gravity = baseline.parentGravity
 
         bottomView?.visibility = baseline.bottomViewVisibility
 

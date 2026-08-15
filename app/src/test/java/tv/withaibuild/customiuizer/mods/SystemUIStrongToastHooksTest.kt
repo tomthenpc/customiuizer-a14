@@ -335,6 +335,8 @@ class SystemUIStrongToastHooksTest {
         private var storedPaddingRight = 0
         private var storedPaddingBottom = 0
         private var storedGravity = 0
+        private var storedLp: ViewGroup.LayoutParams? = null
+        var throwOnSetLayoutParams = false
 
         override fun getResources(): Resources = fakeRes
 
@@ -353,6 +355,12 @@ class SystemUIStrongToastHooksTest {
         override fun getGravity(): Int = storedGravity
         override fun setGravity(gravity: Int) {
             storedGravity = gravity
+        }
+
+        override fun getLayoutParams(): ViewGroup.LayoutParams? = storedLp
+        override fun setLayoutParams(params: ViewGroup.LayoutParams?) {
+            if (throwOnSetLayoutParams) throw RuntimeException("FakeRoot layoutParams failure")
+            storedLp = params
         }
     }
 
@@ -393,6 +401,13 @@ class SystemUIStrongToastHooksTest {
         val root = FakeRoot(res)
         root.setPadding(3, 5, 7, 9)
         root.gravity = GRAVITY_PARENT_BASELINE
+        root.layoutParams = LinearLayout.LayoutParams(500, 200).apply {
+            width = 500
+            height = 200
+            topMargin = 19
+            bottomMargin = 23
+            gravity = GRAVITY_PARENT_LAYOUT_BASELINE
+        }
 
         val capsule = FakeCapsule(res)
         val lp = LinearLayout.LayoutParams(300, 141).apply {
@@ -430,6 +445,11 @@ class SystemUIStrongToastHooksTest {
         assertEquals(7, baseline.parentPaddingRight)
         assertEquals(9, baseline.parentPaddingBottom)
         assertEquals(GRAVITY_PARENT_BASELINE, baseline.parentGravity)
+        assertEquals(500, baseline.parentWidth)
+        assertEquals(200, baseline.parentHeight)
+        assertEquals(19, baseline.parentTopMargin)
+        assertEquals(23, baseline.parentBottomMargin)
+        assertEquals(GRAVITY_PARENT_LAYOUT_BASELINE, baseline.parentLayoutGravity)
         assertEquals(View.INVISIBLE, baseline.bottomViewVisibility)
     }
 
@@ -458,18 +478,26 @@ class SystemUIStrongToastHooksTest {
         )
         assertTrue("apply must succeed when baseline exists", applied)
 
-        assertEquals(82, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
-        assertEquals(91, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
-        assertEquals(0, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
-        assertEquals(0, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
-        assertEquals(Gravity.CENTER, (capsule.layoutParams as? LinearLayout.LayoutParams)?.gravity)
-        assertEquals(Gravity.CENTER_VERTICAL, capsule.gravity)
+        // MATCH must own the outer container (parent) geometry, not the inner message capsule.
+        assertEquals(500, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(82, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(19, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
+        assertEquals(23, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
+        assertEquals(GRAVITY_PARENT_LAYOUT_BASELINE, (root.layoutParams as? LinearLayout.LayoutParams)?.gravity)
         assertEquals(0, root.paddingLeft)
         assertEquals(0, root.paddingTop)
         assertEquals(0, root.paddingRight)
         assertEquals(0, root.paddingBottom)
         assertEquals(Gravity.TOP or Gravity.CENTER_HORIZONTAL, root.gravity)
-        assertEquals(View.GONE, bottomView.visibility)
+
+        // The inner capsule and its sibling must remain untouched.
+        assertEquals(300, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(141, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(7, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
+        assertEquals(11, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
+        assertEquals(GRAVITY_LAYOUT_BASELINE, (capsule.layoutParams as? LinearLayout.LayoutParams)?.gravity)
+        assertEquals(GRAVITY_CAPSULE_BASELINE, capsule.gravity)
+        assertEquals(View.INVISIBLE, bottomView.visibility)
 
         SystemUIStrongToastHooks.restoreMatchModeBaseline(
             root,
@@ -479,17 +507,23 @@ class SystemUIStrongToastHooksTest {
             baseline!!
         )
 
+        // Both parent and child are restored to the captured baseline.
+        assertEquals(500, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(200, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(19, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
+        assertEquals(23, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
+        assertEquals(GRAVITY_PARENT_LAYOUT_BASELINE, (root.layoutParams as? LinearLayout.LayoutParams)?.gravity)
+        assertEquals(3, root.paddingLeft)
+        assertEquals(5, root.paddingTop)
+        assertEquals(7, root.paddingRight)
+        assertEquals(9, root.paddingBottom)
+        assertEquals(GRAVITY_PARENT_BASELINE, root.gravity)
         assertEquals(300, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
         assertEquals(141, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
         assertEquals(7, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
         assertEquals(11, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
         assertEquals(GRAVITY_LAYOUT_BASELINE, (capsule.layoutParams as? LinearLayout.LayoutParams)?.gravity)
         assertEquals(GRAVITY_CAPSULE_BASELINE, capsule.gravity)
-        assertEquals(3, root.paddingLeft)
-        assertEquals(5, root.paddingTop)
-        assertEquals(7, root.paddingRight)
-        assertEquals(9, root.paddingBottom)
-        assertEquals(GRAVITY_PARENT_BASELINE, root.gravity)
         assertEquals(View.INVISIBLE, bottomView.visibility)
     }
 
@@ -512,12 +546,19 @@ class SystemUIStrongToastHooksTest {
         assertEquals(7, baseline.parentPaddingRight)
         assertEquals(9, baseline.parentPaddingBottom)
         assertEquals(GRAVITY_PARENT_BASELINE, baseline.parentGravity)
+        assertEquals(500, baseline.parentWidth)
+        assertEquals(200, baseline.parentHeight)
+        assertEquals(19, baseline.parentTopMargin)
+        assertEquals(23, baseline.parentBottomMargin)
+        assertEquals(GRAVITY_PARENT_LAYOUT_BASELINE, baseline.parentLayoutGravity)
         assertEquals(View.INVISIBLE, baseline.bottomViewVisibility)
 
         SystemUIStrongToastHooks.restoreMatchModeBaseline(root, capsule, root, bottomView, baseline)
 
         assertEquals(141, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
         assertEquals(300, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(200, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(500, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
     }
 
     @Test
@@ -539,6 +580,13 @@ class SystemUIStrongToastHooksTest {
         capsule.gravity = GRAVITY_CAPSULE_NEXT
         root.setPadding(2, 4, 6, 8)
         root.gravity = GRAVITY_PARENT_NEXT
+        root.layoutParams = LinearLayout.LayoutParams(600, 333).apply {
+            width = 600
+            height = 333
+            topMargin = 29
+            bottomMargin = 31
+            gravity = GRAVITY_PARENT_LAYOUT_NEXT
+        }
         bottomView.visibility = View.GONE
 
         assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 104))
@@ -555,6 +603,11 @@ class SystemUIStrongToastHooksTest {
         assertEquals(6, secondBaseline.parentPaddingRight)
         assertEquals(8, secondBaseline.parentPaddingBottom)
         assertEquals(GRAVITY_PARENT_NEXT, secondBaseline.parentGravity)
+        assertEquals(600, secondBaseline.parentWidth)
+        assertEquals(333, secondBaseline.parentHeight)
+        assertEquals(29, secondBaseline.parentTopMargin)
+        assertEquals(31, secondBaseline.parentBottomMargin)
+        assertEquals(GRAVITY_PARENT_LAYOUT_NEXT, secondBaseline.parentLayoutGravity)
         assertEquals(View.GONE, secondBaseline.bottomViewVisibility)
 
         SystemUIStrongToastHooks.restoreMatchModeBaseline(root, capsule, root, bottomView, secondBaseline)
@@ -570,6 +623,11 @@ class SystemUIStrongToastHooksTest {
         assertEquals(6, root.paddingRight)
         assertEquals(8, root.paddingBottom)
         assertEquals(GRAVITY_PARENT_NEXT, root.gravity)
+        assertEquals(600, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(333, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(29, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
+        assertEquals(31, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
+        assertEquals(GRAVITY_PARENT_LAYOUT_NEXT, (root.layoutParams as? LinearLayout.LayoutParams)?.gravity)
         assertEquals(View.GONE, bottomView.visibility)
     }
 
@@ -634,6 +692,11 @@ class SystemUIStrongToastHooksTest {
         assertEquals(7, root.paddingRight)
         assertEquals(9, root.paddingBottom)
         assertEquals(GRAVITY_PARENT_BASELINE, root.gravity)
+        assertEquals(500, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
+        assertEquals(200, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(19, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
+        assertEquals(23, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
+        assertEquals(GRAVITY_PARENT_LAYOUT_BASELINE, (root.layoutParams as? LinearLayout.LayoutParams)?.gravity)
         assertEquals(View.INVISIBLE, bottomView.visibility)
 
         assertNull(
@@ -714,6 +777,13 @@ class SystemUIStrongToastHooksTest {
         capsule.gravity = GRAVITY_CAPSULE_NEXT
         root.setPadding(2, 4, 6, 8)
         root.gravity = GRAVITY_PARENT_NEXT
+        root.layoutParams = LinearLayout.LayoutParams(600, 333).apply {
+            width = 600
+            height = 333
+            topMargin = 29
+            bottomMargin = 31
+            gravity = GRAVITY_PARENT_LAYOUT_NEXT
+        }
         bottomView.visibility = View.GONE
 
         assertNull(
@@ -737,6 +807,11 @@ class SystemUIStrongToastHooksTest {
         assertEquals(6, baselineB.parentPaddingRight)
         assertEquals(8, baselineB.parentPaddingBottom)
         assertEquals(GRAVITY_PARENT_NEXT, baselineB.parentGravity)
+        assertEquals(600, baselineB.parentWidth)
+        assertEquals(333, baselineB.parentHeight)
+        assertEquals(29, baselineB.parentTopMargin)
+        assertEquals(31, baselineB.parentBottomMargin)
+        assertEquals(GRAVITY_PARENT_LAYOUT_NEXT, baselineB.parentLayoutGravity)
         assertEquals(View.GONE, baselineB.bottomViewVisibility)
     }
 
@@ -751,8 +826,10 @@ class SystemUIStrongToastHooksTest {
         private const val GRAVITY_LAYOUT_BASELINE = Gravity.FILL_VERTICAL
         private const val GRAVITY_CAPSULE_BASELINE = Gravity.BOTTOM or Gravity.RIGHT
         private const val GRAVITY_PARENT_BASELINE = Gravity.BOTTOM or Gravity.END
+        private const val GRAVITY_PARENT_LAYOUT_BASELINE = Gravity.BOTTOM or Gravity.FILL_HORIZONTAL
         private const val GRAVITY_LAYOUT_NEXT = Gravity.FILL_HORIZONTAL
         private const val GRAVITY_CAPSULE_NEXT = Gravity.TOP or Gravity.LEFT
+        private const val GRAVITY_PARENT_LAYOUT_NEXT = Gravity.TOP or Gravity.FILL_HORIZONTAL
         private const val GRAVITY_PARENT_NEXT = Gravity.TOP or Gravity.START
     }
 }

@@ -267,11 +267,15 @@ class StrongToastPresentationModeTest {
         assertTrue("apply must skip re-capture on double apply", applyBody.contains("if (existing == null)"))
 
         val mutationsBody = extractFunctionBody(source, "private fun applyMatchModeMutations(")
-        assertTrue(mutationsBody.contains("lp.height = targetContentHeightPx"))
+        assertTrue(mutationsBody.contains(".height = targetContentHeightPx"))
 
-        // Child content is centered vertically and the bottom forehead sibling is hidden.
-        assertTrue(source.contains("(capsule as? LinearLayout)?.gravity = Gravity.CENTER_VERTICAL"))
-        assertTrue(source.contains("bottomView?.visibility = View.GONE"))
+        // MATCH owns the outer container (ll_strong_toast) geometry; it must not compress the
+        // inner message container or hide the bottom forehead sibling.
+        assertTrue(source.contains("(parent as? LinearLayout)?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL"))
+        assertFalse("match mutations must not force the message capsule to a fixed width",
+            mutationsBody.contains("strong_toast_width"))
+        assertFalse("match mode must not hide the forehead bottom sibling",
+            mutationsBody.contains("bottomView?.visibility = View.GONE"))
 
         // Detach / mode switch must restore the exact captured baseline, not hard-coded ROM guesses.
         val resetBody = extractFunctionBody(source, "internal fun resetMatchModeCapsule(")
@@ -292,7 +296,10 @@ class StrongToastPresentationModeTest {
         assertTrue("restore must restore width from baseline", restoreBody.contains("lp.width = baseline.width"))
         assertTrue("restore must restore layout gravity from baseline", restoreBody.contains("lp.gravity = baseline.layoutGravity"))
         assertTrue("restore must restore capsule gravity from baseline", restoreBody.contains("?.gravity = baseline.capsuleGravity"))
-        assertTrue("restore must restore parent padding from baseline", restoreBody.contains("parent.setPadding("))
+        assertTrue("restore must restore parent layout params height", restoreBody.contains("parentLp.height = baseline.parentHeight"))
+        assertTrue("restore must restore parent layout params width", restoreBody.contains("parentLp.width = baseline.parentWidth"))
+        assertTrue("restore must restore parent layout gravity from baseline", restoreBody.contains("parentLp.gravity = baseline.parentLayoutGravity"))
+        assertTrue("restore must restore parent padding from baseline", restoreBody.contains("parent?.setPadding("))
         assertTrue("restore must restore parent gravity from baseline", restoreBody.contains("?.gravity = baseline.parentGravity"))
         assertTrue(
             "restore must restore bottom view visibility from baseline",
