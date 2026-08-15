@@ -56,8 +56,8 @@ class NormalizeResolvedTypeTest(unittest.TestCase):
 
 
 class AllowedUntrackedTest(unittest.TestCase):
-    def test_allowed_file(self) -> None:
-        self.assertTrue(build_revision.is_allowed_untracked("?? .self-eval-scores.jsonl"))
+    def test_self_eval_not_allowed(self) -> None:
+        self.assertFalse(build_revision.is_allowed_untracked("?? .self-eval-scores.jsonl"))
 
     def test_allowed_dir(self) -> None:
         self.assertTrue(build_revision.is_allowed_untracked("?? DEVIN_LOCAL_A14_SKILLS_V2/"))

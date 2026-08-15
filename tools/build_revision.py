@@ -17,7 +17,6 @@ REVISION_RE = re.compile(r"^[0-9a-fA-F]{8}$")
 
 # Untracked paths that are allowed in the repo during a delivery build.
 ALLOWED_UNTRACKED: set[str] = {
-    ".self-eval-scores.jsonl",
     "DEVIN_LOCAL_A14_SKILLS_V2/",
 }
 

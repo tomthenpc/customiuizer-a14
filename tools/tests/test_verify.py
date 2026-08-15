@@ -84,7 +84,9 @@ class VerifyFeatureSemanticsTests(unittest.TestCase):
         )
 
     def test_chargingFontSizePreferenceIsCovered(self):
-        """The real inventory covers the new charging font size preference."""
+        """The real inventory covers the charging info font size preference
+        as a single semantic feature linking the runtime canonical key and
+        its XML storage alias."""
         inventory = self._load_inventory()
         entries = inventory["entries"]
 
@@ -98,12 +100,13 @@ class VerifyFeatureSemanticsTests(unittest.TestCase):
         self.assertEqual(entry.get("targetPackage"), "com.android.systemui")
         self.assertEqual(entry.get("installPhase"), "PACKAGE_READY")
         self.assertEqual(entry.get("restartTarget"), "SYSTEMUI")
-        self.assertEqual(entry.get("hotReloadable"), False)
+        # The charging info observer re-applies style when the preference changes,
+        # so the value is hot-reloadable after the feature is installed.
+        self.assertEqual(entry.get("hotReloadable"), True)
+        self.assertEqual(entry.get("runtimeReadMode"), "OBSERVER_PUSH")
 
-        # The XML key is also covered, matching the charging detail entries.
-        found_xml = [e for e in entries if "pref_key_system_charginginfo_fontsize" in e.get("preferenceKeys", [])]
-        self.assertEqual(len(found_xml), 1, "pref_key_system_charginginfo_fontsize must appear exactly once")
-        self.assertEqual(found_xml[0].get("defaultValue"), "16")
+        # The XML storage key is an alias within the same feature.
+        self.assertIn("pref_key_system_charginginfo_fontsize", entry.get("preferenceKeys", []))
 
 
 if __name__ == "__main__":

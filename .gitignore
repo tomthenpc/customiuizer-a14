@@ -49,6 +49,7 @@ keystore.properties
 
 # Devin local task state and command logs
 /.devin/
+/.self-eval-scores.jsonl
 
 # Python test cache
 tools/__pycache__/

@@ -33,7 +33,26 @@ XML_KEY_RE = re.compile(r'android:key="([^"]+)"')
 XML_DEFAULT_RE = re.compile(r'android:defaultValue="([^"]*)"')
 XML_TAG_RE = re.compile(r'<[^>]*?android:key="[^"]+"[^>]*?>', re.DOTALL)
 
-PREFS_KEY_RE = re.compile(r'mPrefs\.get\w*\s*\(\s*"([^"]+)"')
+# Match PrefMap accessors.  Only literal string keys are discovered; constant
+# references are intentionally skipped to avoid false positives.
+# Variables must be declared as PrefMap or be the known MainModule.mPrefs field.
+PREFMAP_GETTER_RE = re.compile(
+    r'(?:getInt|getBoolean|getStringAsInt|getString|getLong|getStringSet)'
+    r'\s*\(\s*"([^"]+)"',
+    re.VERBOSE,
+)
+
+
+def canonical_preference_key(key: str) -> str:
+    """Return the runtime canonical form of a preference key.
+
+    Storage/XML keys use the `pref_key_` prefix; source-level getters and
+    observers use the short form.  Both must resolve to the same semantic
+    feature.
+    """
+    if key.startswith("pref_key_"):
+        return key[len("pref_key_"):]
+    return key
 
 THEME_RE = re.compile(r'setThemeValueReplacement\s*\(\s*"([^"]+)"\s*,\s*"([^"]+)"\s*,\s*"([^"]+)"')
 FAKE_RE = re.compile(r'addFakeResource\s*\(\s*"([^"]+)"')
@@ -163,6 +182,36 @@ def _extract_xml_keys(repo_root: Path) -> dict[str, dict[str, Any]]:
     return found
 
 
+def _find_prefmap_var_names(text: str) -> set[str]:
+    """Return variable/parameter names that are declared as PrefMap in the file.
+
+    Covers Kotlin `name: PrefMap` parameters/properties and Java `PrefMap name`.
+    `MainModule.mPrefs` is handled separately because it is a field reference.
+    """
+    names: set[str] = set()
+    # Kotlin parameters and properties: `prefs: PrefMap`, `val prefs: PrefMap`, etc.
+    for m in re.finditer(r'(?:(?:val|var|)\s+)?(\w+)\s*:\s*PrefMap', text):
+        names.add(m.group(1))
+    # Java fields/locals: `PrefMap mPrefs = ...`
+    for m in re.finditer(r'PrefMap\s+(\w+)', text):
+        names.add(m.group(1))
+    return names
+
+
+def _build_prefmap_accessor_regex(var_names: set[str]) -> re.Pattern[str] | None:
+    if not var_names:
+        return None
+    # Names sorted by length descending so that `mPrefs` matches before `prefs`
+    # and `MainModule.mPrefs` is matched as a single dotted name.
+    name_alts = sorted(var_names, key=len, reverse=True)
+    name_pattern = "|".join(re.escape(n) for n in name_alts)
+    return re.compile(
+        rf'(?:MainModule\.)?(?:{name_pattern})'
+        r'\.(?:getInt|getBoolean|getStringAsInt|getString|getLong|getStringSet)'
+        r'\s*\(\s*"([^"]+)"'
+    )
+
+
 def _extract_code_keys(
     repo_root: Path,
     file_paths: list[Path],
@@ -173,22 +222,33 @@ def _extract_code_keys(
     for fp in sorted(file_paths):
         text = fp.read_text(encoding="utf-8")
         rel = _rel(repo_root, fp)
+        var_names = _find_prefmap_var_names(text)
+        # MainModule.mPrefs is a known PrefMap field that may not be declared
+        # inside the file being scanned.
+        var_names.add("mPrefs")
+        pref_re = _build_prefmap_accessor_regex(var_names)
+        if pref_re is None:
+            continue
         lines = text.splitlines()
-        for m in PREFS_KEY_RE.finditer(text):
+        for m in pref_re.finditer(text):
             key = m.group(1)
             line_no = text[:m.start()].count("\n") + 1
             func = _nearest_function(text, line_no, language)
-            if key not in found:
-                found[key] = {
+            canonical = canonical_preference_key(key)
+            if canonical not in found:
+                found[canonical] = {
                     "sourceFile": rel,
                     "installer_func": func,
-                    "evidence": f'mPrefs call at {rel}:{line_no}',
+                    "evidence": f'PrefMap call at {rel}:{line_no}',
                     "line": line_no,
                     "xmlSource": "",
                     "defaultValue": "",
+                    "keys": [key],
                 }
             else:
-                found[key].setdefault("sourceFile", rel)
+                found[canonical].setdefault("sourceFile", rel)
+                if key not in found[canonical]["keys"]:
+                    found[canonical]["keys"].append(key)
     return found
 
 
@@ -235,9 +295,86 @@ def _extract_resource_names(
     return found
 
 
+def _lazy_feature_specs(repo_root: Path) -> dict[str, dict[str, str]]:
+    """Parse LazyFeatureSpec registries for canonical feature metadata.
+
+    Returns a map of canonical preference key -> metadata dict with:
+    name, target, phase, sourceFile (registry file).
+    """
+    feature_dir = (
+        repo_root
+        / "app"
+        / "src"
+        / "main"
+        / "java"
+        / "tv"
+        / "withaibuild"
+        / "customiuizer"
+        / "mods"
+        / "utils"
+        / "feature"
+    )
+    meta: dict[str, dict[str, str]] = {}
+    if not feature_dir.is_dir():
+        return meta
+
+    # Match LazyFeatureSpec(...) blocks that contain the standard fields.
+    # The regex is intentionally tolerant of newlines and optional trailing commas.
+    spec_re = re.compile(
+        r'LazyFeatureSpec\('
+        r'(?:.|\n)*?'
+        r'name\s*=\s*"([^"]+)"'
+        r'(?:.|\n)*?'
+        r'preferenceKey\s*=\s*(?:"([^"]*)"|null)'
+        r'(?:.|\n)*?'
+        r'target\s*=\s*FeatureTarget\.(\w+)'
+        r'(?:.|\n)*?'
+        r'phase\s*=\s*InstallPhase\.(\w+)',
+        re.DOTALL,
+    )
+
+    for fp in sorted(feature_dir.glob("*.kt")):
+        text = fp.read_text(encoding="utf-8")
+        rel = _rel(repo_root, fp)
+        for m in spec_re.finditer(text):
+            name, pref_key, target, phase = m.groups()
+            if not pref_key:
+                continue
+            canonical = canonical_preference_key(pref_key)
+            meta[canonical] = {
+                "name": name,
+                "target": target,
+                "phase": phase,
+                "sourceFile": rel,
+            }
+    return meta
+
+
+def _feature_meta_for_key(
+    canonical_key: str,
+    lazy_specs: dict[str, dict[str, str]],
+) -> dict[str, str] | None:
+    """Find the nearest LazyFeatureSpec for a canonical key.
+
+    Exact match is preferred; otherwise the longest matching prefix is used so
+    that observed sub-keys such as `system_charginginfo_fontsize` inherit the
+    metadata of the `system_charginginfo` feature.
+    """
+    if canonical_key in lazy_specs:
+        return lazy_specs[canonical_key]
+    best: dict[str, str] | None = None
+    best_len = -1
+    for spec_key, spec in lazy_specs.items():
+        if canonical_key.startswith(spec_key + "_") and len(spec_key) > best_len:
+            best = spec
+            best_len = len(spec_key)
+    return best
+
+
 def discover_features(repo_root: Path) -> dict[str, dict[str, Any]]:
     """Discover all preference/resource keys and their source metadata."""
     features: dict[str, dict[str, Any]] = {}
+    lazy_specs = _lazy_feature_specs(repo_root)
 
     # 1. XML preference keys (used for xmlSource/defaultValue)
     xml_meta = _extract_xml_keys(repo_root)
@@ -257,41 +394,55 @@ def discover_features(repo_root: Path) -> dict[str, dict[str, Any]]:
     resource_files = ([main_module] if main_module.is_file() else []) + kt_files
     resource_keys = _extract_resource_names(repo_root, resource_files)
 
+    def _empty_feature() -> dict[str, Any]:
+        return {
+            "sourceFile": "",
+            "installer_func": None,
+            "evidence": "",
+            "line": 0,
+            "xmlSource": "",
+            "defaultValue": "",
+            "keys": [],
+            "lazy_meta": None,
+        }
+
+    def _ensure(canonical: str) -> dict[str, Any]:
+        if canonical not in features:
+            features[canonical] = _empty_feature()
+            features[canonical]["lazy_meta"] = _feature_meta_for_key(canonical, lazy_specs)
+        return features[canonical]
+
     # Merge preference keys from MainModule and mods; prefer code source over XML.
     code_order = [main_keys, kt_keys]
     for code_map in code_order:
-        for key, meta in code_map.items():
-            if key not in features:
-                features[key] = {
-                    "sourceFile": meta.get("sourceFile", ""),
-                    "installer_func": meta.get("installer_func"),
-                    "evidence": meta.get("evidence", ""),
-                    "line": meta.get("line", 0),
-                    "xmlSource": xml_meta.get(key, {}).get("xmlSource", ""),
-                    "defaultValue": xml_meta.get(key, {}).get("defaultValue", ""),
-                }
-            else:
-                features[key].setdefault("sourceFile", meta.get("sourceFile"))
+        for canonical, meta in code_map.items():
+            f = _ensure(canonical)
+            if not f.get("sourceFile"):
+                f["sourceFile"] = meta.get("sourceFile", "")
+                f["installer_func"] = meta.get("installer_func")
+                f["evidence"] = meta.get("evidence", "")
+                f["line"] = meta.get("line", 0)
+            for k in meta.get("keys", []):
+                if k not in f["keys"]:
+                    f["keys"].append(k)
+            f["lazy_meta"] = _feature_meta_for_key(canonical, lazy_specs)
 
-    # Add XML-only keys
+    # Add XML-only keys, merging aliases under their canonical form.
     for key, meta in xml_meta.items():
-        if key not in features:
-            features[key] = {
-                "sourceFile": meta.get("xmlSource", ""),
-                "installer_func": None,
-                "evidence": f'android:key in {meta.get("xmlSource", "")}',
-                "line": 0,
-                "xmlSource": meta.get("xmlSource", ""),
-                "defaultValue": meta.get("defaultValue", ""),
-            }
+        canonical = canonical_preference_key(key)
+        f = _ensure(canonical)
+        if key not in f["keys"]:
+            f["keys"].append(key)
+        if not f.get("xmlSource"):
+            f["xmlSource"] = meta.get("xmlSource", "")
+            f["defaultValue"] = meta.get("defaultValue", "")
+        if not f.get("evidence"):
+            f["evidence"] = f'android:key in {meta.get("xmlSource", "")}'
 
-    # Add resource keys
+    # Add resource keys (no canonicalisation; theme/fake keys are synthetic)
     for key, meta in resource_keys.items():
         if key not in features:
-            features[key] = meta
-        else:
-            # Resource and preference should not collide, but keep resource source if no source file.
-            features[key].setdefault("sourceFile", meta.get("sourceFile"))
+            features[key] = {**_empty_feature(), **meta}
 
     return features
 
@@ -306,18 +457,72 @@ def _build_installer(meta: dict[str, Any]) -> str:
     return "UNKNOWN"
 
 
-def _build_entry(key: str, meta: dict[str, Any], feature_id: str) -> dict[str, Any]:
+TARGET_MAP = {
+    "SETTINGS_APP": "tv.withaibuild.customiuizer.r14",
+    "SYSTEM_PACKAGE": "android",
+    "SYSTEM_UI": "com.android.systemui",
+    "LAUNCHER": "com.miui.home",
+    "SYSTEM_SERVER": "android",
+    "ANY": "UNKNOWN",
+}
+
+PHASE_MAP = {
+    "MODULE_LOADED": "UNKNOWN",
+    "SYSTEM_SERVER_STARTING": "SYSTEM_SERVER_START",
+    "PACKAGE_READY": "PACKAGE_READY",
+    "PREFS_READY": "UNKNOWN",
+    "APPLICATION_ATTACHED": "APPLICATION_ATTACH",
+    "SYSTEM_UI_INITIALIZED": "SYSTEMUI_INIT",
+    "LAUNCHER_READY": "LAUNCHER_READY",
+}
+
+RESTART_MAP = {
+    "SETTINGS_APP": "NONE",
+    "SYSTEM_PACKAGE": "TARGET_APP",
+    "SYSTEM_UI": "SYSTEMUI",
+    "LAUNCHER": "LAUNCHER",
+    "SYSTEM_SERVER": "SYSTEM_SERVER",
+    "ANY": "NONE",
+}
+
+
+def _source_has_observer(source_file: str) -> bool:
+    """Return True if the source file contains a PreferenceObserver registration."""
+    if not source_file:
+        return False
+    path = REPO_ROOT / source_file
+    if not path.is_file():
+        return False
+    text = path.read_text(encoding="utf-8")
+    return "observePreferenceChange" in text or "PreferenceObserver" in text
+
+
+def _build_entry(canonical_key: str, meta: dict[str, Any], feature_id: str) -> dict[str, Any]:
     source_file = meta.get("sourceFile", "")
     installer = _build_installer(meta)
     func = meta.get("installer_func")
+    lazy = meta.get("lazy_meta") or {}
 
-    is_resource = key.startswith(("theme:", "fake:"))
+    is_resource = canonical_key.startswith(("theme:", "fake:"))
     is_xml_only = not is_resource and meta.get("xmlSource") and not func
 
-    if is_resource:
+    # Prefer LazyFeatureSpec metadata (from canonical feature registry) for
+    # target package, install phase and restart target.
+    if lazy:
+        target_enum = lazy.get("target", "")
+        phase_enum = lazy.get("phase", "")
+        target_package = TARGET_MAP.get(target_enum, _target_package_from_path(source_file))
+        install_phase = PHASE_MAP.get(phase_enum, _infer_install_phase(func, source_file))
+        restart_target = RESTART_MAP.get(target_enum, "UNKNOWN")
+        lazy_source = lazy.get("sourceFile", "")
+    else:
+        target_package = _target_package_from_path(source_file)
         install_phase = _infer_install_phase(func, source_file)
+        restart_target = "UNKNOWN"
+        lazy_source = ""
+
+    if is_resource:
         runtime_mode = "RESOURCE_REPLACEMENT"
-        target_package = meta.get("targetPackage") or _target_package_from_path(source_file)
         enable_effect = "Replaces or injects the resource value"
         disable_effect = "No resource replacement"
         value_change_effect = "Resource replacement value is updated"
@@ -326,31 +531,49 @@ def _build_entry(key: str, meta: dict[str, Any], feature_id: str) -> dict[str, A
         install_phase = "APP_UI_ONLY"
         runtime_mode = "UNKNOWN"
         target_package = "UNKNOWN"
+        restart_target = "UNKNOWN"
         enable_effect = "UNKNOWN"
         disable_effect = "UNKNOWN"
         value_change_effect = "UNKNOWN"
         confidence = "INFERRED"
     else:
-        install_phase = _infer_install_phase(func, source_file)
-        runtime_mode = "UNKNOWN"
-        target_package = _target_package_from_path(source_file)
+        if _source_has_observer(source_file) or _source_has_observer(lazy_source):
+            runtime_mode = "OBSERVER_PUSH"
+            hot_reloadable = True
+        else:
+            runtime_mode = "UNKNOWN"
+            hot_reloadable = False
         enable_effect = "Applies hook when enabled"
         disable_effect = "Restores default behavior"
         value_change_effect = "Updates applied hook behavior"
-        if install_phase != "UNKNOWN" and "MainModule.java" in source_file:
+        if install_phase != "UNKNOWN" and ("MainModule.java" in source_file or lazy):
             confidence = "INFERRED"
         else:
             confidence = "UNKNOWN"
 
-    feature_name = meta.get("resourceName", key)
+    # If the source has an observer, value changes are live-applied.
+    if is_resource:
+        hot_reloadable = False
+    elif is_xml_only:
+        hot_reloadable = False
+    elif _source_has_observer(source_file) or _source_has_observer(lazy_source):
+        hot_reloadable = True
+    else:
+        hot_reloadable = False
+
+    feature_name = meta.get("resourceName", lazy.get("name")) or canonical_key
     # Keep the name human-readable; don't use the synthetic theme:/fake: prefix in display.
     if is_resource and ":" in feature_name:
         feature_name = feature_name.split(":")[-1]
 
+    preference_keys = meta.get("keys", [canonical_key])
+    if canonical_key not in preference_keys:
+        preference_keys.append(canonical_key)
+
     return {
         "featureId": feature_id,
         "featureName": feature_name,
-        "preferenceKeys": [key],
+        "preferenceKeys": preference_keys,
         "xmlSource": meta.get("xmlSource", ""),
         "defaultValue": meta.get("defaultValue", ""),
         "sourceFile": source_file,
@@ -361,8 +584,8 @@ def _build_entry(key: str, meta: dict[str, Any], feature_id: str) -> dict[str, A
         "enableEffect": enable_effect,
         "disableEffect": disable_effect,
         "valueChangeEffect": value_change_effect,
-        "restartTarget": "UNKNOWN",
-        "hotReloadable": False,
+        "restartTarget": restart_target,
+        "hotReloadable": hot_reloadable,
         "confidence": confidence,
         "evidence": meta.get("evidence", ""),
         "notes": "",
