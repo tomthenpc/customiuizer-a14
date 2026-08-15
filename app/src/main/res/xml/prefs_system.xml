@@ -884,7 +884,6 @@
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 			android:key="pref_key_system_recents_card_style"
 			android:title="@string/system_recents_card_style_hide_title"
-			android:summary="@string/system_recents_card_style_summ"
 			android:defaultValue="false" />
 
 		<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx

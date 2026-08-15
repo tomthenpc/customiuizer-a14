@@ -115,7 +115,7 @@ class RecentsCardStyleTest {
     fun prefsXmlUsesCheckBoxForRecentsCardStyle() {
         val xml = source("app/src/main/res/xml/prefs_system.xml").readText()
         val regex = Regex(
-            """<tv\.withaibuild\.customiuizer\.prefs\.(\w+)\s+android:key="pref_key_system_recents_card_style"\s+android:title="@string/system_recents_card_style_hide_title"\s+android:summary="@string/system_recents_card_style_summ"\s+android:defaultValue="false"\s*/>"""
+            """<tv\.withaibuild\.customiuizer\.prefs\.(\w+)\s+android:key="pref_key_system_recents_card_style"\s+android:title="@string/system_recents_card_style_hide_title"(?:\s+android:summary="@string/system_recents_card_style_summ")?\s+android:defaultValue="false"\s*/>"""
         )
         val m = regex.find(xml)
         assertNotNull("recents card style preference must match the CheckBox form", m)
