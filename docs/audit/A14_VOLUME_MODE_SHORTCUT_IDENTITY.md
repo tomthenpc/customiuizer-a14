@@ -489,12 +489,50 @@ so the original ROM visual path is restored for the background drawable and the
 icon. The module does not attempt to store or restore ROM colors because the ROM
 itself re-applies them at the next state update.
 
+## Active-state color semantics
+
+ROM decompilation of `MiuiRingerModeLayout$RingerButtonHelper.updateState()`
+shows that color is a function of the button's **selected** state, not of the
+shortcut role or of an unconditional module override. The relevant ROM decision
+tree for the icon and background can be summarized as:
+
+- `mState == true` (selected / active):
+  - Blur disabled: the icon gets an active color filter; the background gets an
+    active blend color or active background drawable.
+  - Blur enabled: `Util.setMiViewBlurAndBlendColor` is called on both the icon
+    and the background with the active blend-color arrays.
+- `mState == false` (unselected / inactive):
+  - ROM reverts the icon and background to the inactive blend colors, inactive
+    drawable, or collapsed/expanded defaults.
+- `mExpanded`, dark/light theme, and blur-support flags only affect **which**
+  ROM color or blend is used for a given state; they do not remove the
+  active/inactive distinction.
+
+The module's previous implementation applied one user color to both states, which
+collapsed the active/inactive distinction on the device. The corrected
+implementation:
+
+1. Reads `RingerButtonHelper.mState` on every `updateState()` callback.
+2. Only applies the user background and icon `PorterDuffColorFilter`s when
+   `mState == true`.
+3. When `mState == false`, removes a module-owned color filter only if the
+   current filter on the view/drawable is exactly the cached module filter. This
+   preserves any ROM filter the ROM may have just installed and avoids leaving
+   the previous active color behind when the ROM did not replace the view.
+4. Does not re-implement the ROM's expanded/collapsed or blur/dark branches;
+   those remain ROM-owned and are restored automatically when the ROM re-runs
+   `updateState()`.
+
+This keeps the user color as the active-state color while preserving ordinary
+ROM behavior for the inactive state.
+
 ## Gate / status
 
 - `VOLUME_ENGINEERING_GATE = PASS`
 - `ROOT_VISIBILITY = PASS`
 - `SHARED_VISIBILITY = PASS`
 - `COLOR_VISUAL_OWNER = PASS`
+- `ACTIVE_STATE_COLOR_SEMANTICS = PASS`
 - `DEVICE_ACCEPTANCE = PENDING_FINAL_SIGNED_APK`
 
 Engineering implementation is complete and consistent with ROM evidence. Final

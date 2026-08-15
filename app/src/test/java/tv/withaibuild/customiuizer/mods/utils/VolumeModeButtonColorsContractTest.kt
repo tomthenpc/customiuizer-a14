@@ -51,6 +51,18 @@ class VolumeModeButtonColorsContractTest {
         assertFalse(applyColorsBody.contains("ColorStateList.valueOf"))
         assertFalse(applyColorsBody.contains("resources.getIdentifier"))
         assertFalse(applyColorsBody.contains("XposedHelpers.getObjectField"))
+
+        // The active-state color semantics must be respected: the custom color is applied only
+        // when the ROM helper reports mState == true (selected), and the module's own color
+        // filters are cleared on the active -> inactive transition when the ROM has not already
+        // replaced them. Filter identity is checked through the cached PorterDuffColorFilter.
+        assertTrue(applyColorsBody.contains("getBooleanField(helper, \"mState\")"))
+        assertTrue(applyColorsBody.contains("isSelected"))
+        assertTrue(applyColorsBody.contains("if (isSelected)"))
+        assertTrue(applyColorsBody.contains("background.colorFilter"))
+        assertTrue(applyColorsBody.contains("icon.colorFilter"))
+        assertTrue(applyColorsBody.contains("clearColorFilter()"))
+        assertTrue(applyColorsBody.contains("icon.setColorFilter(null)"))
     }
 
     private fun source(path: String): String {

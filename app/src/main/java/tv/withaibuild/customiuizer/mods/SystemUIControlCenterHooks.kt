@@ -665,19 +665,38 @@ object SystemUIControlCenterHooks {
                     helper,
                     VOLUME_MODE_BUTTON_COLOR_STATE_FIELD
                 ) as? VolumeModeButtonColorState ?: return@guarded
+                val isSelected = try {
+                    XposedHelpers.getBooleanField(helper, "mState")
+                } catch (oom: OutOfMemoryError) {
+                    throw oom
+                } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
+                    return@guarded
+                }
+
                 val standardView = colorState.standardViewRef.get() ?: return@guarded
                 val icon = colorState.iconRef.get() ?: return@guarded
 
-                val background = standardView.background
-                if (background != null) {
-                    background.mutate().setColorFilter(
-                        colorState.getOrCreateBackgroundFilter(snapshot.backgroundColor)
-                    )
-                }
+                if (isSelected) {
+                    val background = standardView.background
+                    if (background != null) {
+                        background.mutate().setColorFilter(
+                            colorState.getOrCreateBackgroundFilter(snapshot.backgroundColor)
+                        )
+                    }
 
-                icon.setColorFilter(
-                    colorState.getOrCreateIconFilter(snapshot.iconColor)
-                )
+                    icon.setColorFilter(
+                        colorState.getOrCreateIconFilter(snapshot.iconColor)
+                    )
+                } else {
+                    val background = standardView.background
+                    if (background != null && background.colorFilter == colorState.backgroundFilter) {
+                        background.clearColorFilter()
+                    }
+                    if (icon.colorFilter == colorState.iconFilter) {
+                        icon.setColorFilter(null)
+                    }
+                }
             }
         }
 
