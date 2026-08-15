@@ -875,9 +875,7 @@
     <string name="animation_scale_bridge_unavailable">系統服務橋無法使用，請確認模組已啟用並完整重新啟動裝置。</string>
     <string name="animation_scale_write_failed">系統拒絕了動畫縮放修改。</string>
     <string name="system_recents_card_style_hide_title">隱藏應用程式名稱</string>
-    <string name="system_recents_card_style_immersive">iOS 式堆疊卡片</string>
-    <string name="system_recents_card_style_summ">沿用桌面的原生版面幾何，不增加滑動回呼；修改後需重新啟動桌面</string>
-    <string name="system_recents_card_style_title">最近任務卡片樣式</string>
+    <string name="system_recents_card_style_summ">隱藏最近任務卡片中的應用程式名稱；修改後需重新啟動桌面</string>
     <string name="various_disable_update_services_bridge_unavailable">系統服務橋無法使用，請確認模組已啟用並完整重新啟動裝置。</string>
     <string name="various_disable_update_services_confirm">停用 %1$d 個小米系統更新背景服務？目前元件狀態會儲存，以便精確還原。</string>
     <string name="various_disable_update_services_failed">更新服務狀態修改失敗，已回復。</string>

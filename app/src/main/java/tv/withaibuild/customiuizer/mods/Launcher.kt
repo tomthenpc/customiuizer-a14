@@ -25,6 +25,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.PrefMap
 
 /**
  * Launcher hooks that belong to no larger surface.
@@ -317,8 +318,13 @@ object Launcher {
     }
 
     @JvmStatic
-    fun RecentsCardStyleHook(lpparam: PackageReadyParam, mode: Int) {
-        if (resolveRecentsCardStyle(mode) != 1) return
+    fun isRecentsHideAppNameEnabled(prefs: PrefMap): Boolean {
+        if (prefs.getBoolean("system_recents_card_style")) return true
+        return prefs.getStringAsInt("system_recents_card_style", 0) == 1
+    }
+
+    @JvmStatic
+    fun RecentsHideAppNameHook(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod(
             "com.miui.home.recents.views.TaskView",
             lpparam.classLoader,
@@ -332,15 +338,12 @@ object Launcher {
                         if (titleId != 0) taskView.findViewById<View>(titleId)?.visibility = View.GONE
                     } catch (t: Throwable) {
                         tv.withaibuild.customiuizer.mods.utils.FatalErrors.unwrapAndRethrowIfFatal(t)
-                        XposedHelpers.log("RecentsCardStyle", t)
+                        XposedHelpers.log("RecentsHideAppName", t)
                     }
                 }
             }
         )
     }
-
-    @JvmStatic
-    internal fun resolveRecentsCardStyle(mode: Int): Int = if (mode == 1) 1 else 0
 
     @JvmStatic
     fun DisableLauncherLogHook(lpparam: PackageReadyParam) {

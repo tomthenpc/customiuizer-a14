@@ -955,9 +955,7 @@
     <string name="system_disable_window_blurs_summ">Hoạt động mà không cần Tùy chọn nhà phát triển; khi tắt, Android điều khiển hiệu ứng làm mờ như bình thường. Khi bật, HyperOS vẽ bảng âm lượng và menu nguồn không có nền riêng, đồng thời các thanh trượt làm mờ âm lượng bên dưới không có tác dụng</string>
     <string name="system_disable_window_blurs_title">Tắt làm mờ ở cấp cửa sổ</string>
     <string name="system_recents_card_style_hide_title">Ẩn tên ứng dụng</string>
-    <string name="system_recents_card_style_immersive">Thẻ xếp chồng kiểu iOS</string>
-    <string name="system_recents_card_style_summ">Dùng hình học bố cục gốc của trình khởi chạy mà không tăng xử lý khi cuộn; khởi động lại trình khởi chạy sau khi thay đổi</string>
-    <string name="system_recents_card_style_title">Kiểu thẻ tác vụ gần đây</string>
+    <string name="system_recents_card_style_summ">Ẩn tên ứng dụng trên thẻ tác vụ gần đây; khởi động lại trình khởi chạy sau khi thay đổi</string>
     <string name="system_strong_toast_bottom_offset_summ">Tinh chỉnh vị trí dựa trên vùng chèn điều hướng và cử chỉ khi chạy. Giá trị âm đưa viên nang đến gần cạnh dưới hơn; giá trị dương đưa nó lên trên.</string>
     <string name="system_strong_toast_bottom_offset_title">Khoảng cách bổ sung từ cạnh dưới</string>
     <string name="system_strong_toast_mode_dynamic_island">Đảo động</string>

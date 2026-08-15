@@ -860,9 +860,7 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_disable_window_blurs_summ">Geliştirici seçenekleri olmadan çalışır; kapalıyken bulanıklığı Android normal şekilde kontrol eder. Açıkken HyperOS ses panelini ve güç menüsünü kendi arka planları olmadan çizer, aşağıdaki ses bulanıklığı kaydırıcıları etkisiz kalır</string>
     <string name="system_disable_window_blurs_title">Pencere düzeyinde bulanıklığı devre dışı bırak</string>
     <string name="system_recents_card_style_hide_title">Uygulama adını gizle</string>
-    <string name="system_recents_card_style_immersive">iOS tarzı yığın kartlar</string>
-    <string name="system_recents_card_style_summ">Kaydırmaya ek yük getirmeden başlatıcının yerel düzen geometrisini kullanır; değişiklikten sonra başlatıcıyı yeniden başlatın</string>
-    <string name="system_recents_card_style_title">Son görev kartı stili</string>
+    <string name="system_recents_card_style_summ">Son görev kartlarındaki uygulama adlarını gizle; değişiklikten sonra başlatıcıyı yeniden başlatın</string>
     <string name="system_strong_toast_bottom_offset_summ">Konumu çalışma anındaki gezinme ve hareket boşluklarına göre hassas şekilde ayarlar. Negatif değerler kapsülü alt kenara yaklaştırır; pozitif değerler yukarı taşır.</string>
     <string name="system_strong_toast_bottom_offset_title">Alttan ek mesafe</string>
     <string name="system_strong_toast_mode_dynamic_island">Dinamik Ada</string>

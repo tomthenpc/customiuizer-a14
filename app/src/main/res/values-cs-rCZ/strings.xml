@@ -947,9 +947,7 @@
     <string name="system_disable_window_blurs_summ">Funguje bez možností pro vývojáře; při vypnutí řídí rozmazání běžným způsobem Android. Při zapnutí vykreslí HyperOS panel hlasitosti a nabídku napájení bez vlastního pozadí a níže uvedené posuvníky rozmazání hlasitosti nemají žádný účinek</string>
     <string name="system_disable_window_blurs_title">Vypnout rozmazání na úrovni oken</string>
     <string name="system_recents_card_style_hide_title">Skrýt název aplikace</string>
-    <string name="system_recents_card_style_immersive">Skládané karty ve stylu iOS</string>
-    <string name="system_recents_card_style_summ">Používá nativní geometrii rozvržení spouštěče bez přidání práce při posouvání; po změně restartujte spouštěč</string>
-    <string name="system_recents_card_style_title">Styl karet posledních úloh</string>
+    <string name="system_recents_card_style_summ">Skrýt názvy aplikací na kartách posledních úloh; po změně restartujte spouštěč</string>
     <string name="system_strong_toast_bottom_offset_summ">Doladí polohu podle aktuální navigační a gestové výplně. Záporné hodnoty posunou kapsli blíže ke spodnímu okraji, kladné hodnoty ji posunou nahoru.</string>
     <string name="system_strong_toast_bottom_offset_title">Dodatečná vzdálenost odspodu</string>
     <string name="system_strong_toast_mode_dynamic_island">Dynamický ostrov</string>

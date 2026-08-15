@@ -17,17 +17,40 @@ import java.lang.reflect.Proxy
 class RecentsCardStyleTest {
 
     @Test
-    fun legacyAndInvalidModesDegradeToDefault() {
-        assertEquals(0, Launcher.resolveRecentsCardStyle(-1))
-        assertEquals(0, Launcher.resolveRecentsCardStyle(0))
-        assertEquals(1, Launcher.resolveRecentsCardStyle(1))
-        assertEquals(0, Launcher.resolveRecentsCardStyle(2))
-        assertEquals(0, Launcher.resolveRecentsCardStyle(99))
+    fun resolverSupportsBooleanAndLegacyStringAndNumber() {
+        assertFalse(Launcher.isRecentsHideAppNameEnabled(PrefMap()))
+        assertTrue(Launcher.isRecentsHideAppNameEnabled(PrefMap().apply {
+            put("system_recents_card_style", true)
+        }))
+        assertFalse(Launcher.isRecentsHideAppNameEnabled(PrefMap().apply {
+            put("system_recents_card_style", false)
+        }))
+        assertTrue(Launcher.isRecentsHideAppNameEnabled(PrefMap().apply {
+            put("system_recents_card_style", "1")
+        }))
+        assertFalse(Launcher.isRecentsHideAppNameEnabled(PrefMap().apply {
+            put("system_recents_card_style", "0")
+        }))
+        assertFalse(Launcher.isRecentsHideAppNameEnabled(PrefMap().apply {
+            put("system_recents_card_style", "2")
+        }))
+        assertFalse(Launcher.isRecentsHideAppNameEnabled(PrefMap().apply {
+            put("system_recents_card_style", "99")
+        }))
+        assertTrue(Launcher.isRecentsHideAppNameEnabled(PrefMap().apply {
+            put("system_recents_card_style", 1)
+        }))
+        assertFalse(Launcher.isRecentsHideAppNameEnabled(PrefMap().apply {
+            put("system_recents_card_style", 2)
+        }))
     }
 
     @Test
     fun featureOnlyEnablesForHideAppName() {
         assertFalse(LauncherRecentsCardStyleFeature.evaluateEnabled(PrefMap()))
+        assertTrue(LauncherRecentsCardStyleFeature.evaluateEnabled(PrefMap().apply {
+            put("system_recents_card_style", true)
+        }))
         assertTrue(LauncherRecentsCardStyleFeature.evaluateEnabled(PrefMap().apply {
             put("system_recents_card_style", "1")
         }))
@@ -35,7 +58,7 @@ class RecentsCardStyleTest {
             put("system_recents_card_style", "2")
         }))
         assertFalse(LauncherRecentsCardStyleFeature.evaluateEnabled(PrefMap().apply {
-            put("system_recents_card_style", "99")
+            put("system_recents_card_style", 2)
         }))
     }
 
@@ -66,30 +89,38 @@ class RecentsCardStyleTest {
     @Test
     fun hideAppNameHookIsPreserved() {
         val source = launcherSource()
-        val hookBody = source.substringAfter("fun RecentsCardStyleHook(")
-            .substringBefore("fun resolveRecentsCardStyle(")
-        assertTrue("TaskView target must remain", hookBody.contains("com.miui.home.recents.views.TaskView"))
-        assertTrue("onFinishInflate hook must remain", hookBody.contains("onFinishInflate"))
-        assertTrue("title View must be hidden", hookBody.contains("title"))
-        assertTrue("title View must be set to GONE", hookBody.contains("View.GONE"))
-        assertFalse("mode-2 branch must be removed", hookBody.contains("boundedMode == 2"))
-        assertFalse("stacked installer must be removed", hookBody.contains("installRecentsStackedCards"))
+        assertTrue("RecentsHideAppNameHook must exist", source.contains("fun RecentsHideAppNameHook("))
+        assertTrue("TaskView target must remain", source.contains("com.miui.home.recents.views.TaskView"))
+        assertTrue("onFinishInflate hook must remain", source.contains("onFinishInflate"))
+        assertTrue("title View must be hidden", source.contains("\"title\""))
+        assertTrue("title View must be set to GONE", source.contains("View.GONE"))
+        assertFalse("old RecentsCardStyleHook must be removed", source.contains("fun RecentsCardStyleHook("))
+        assertFalse("resolveRecentsCardStyle must be removed", source.contains("resolveRecentsCardStyle"))
+        assertFalse("mode-2 branch must be removed", source.contains("boundedMode == 2"))
+        assertFalse("stacked installer must be removed", source.contains("installRecentsStackedCards"))
     }
 
     @Test
-    fun arrayContractHasOnlySystemDefaultAndHideAppName() {
+    fun cardStyleArraysAndModePlumbingRemoved() {
+        val source = launcherSource()
+        assertFalse("resolveRecentsCardStyle must be removed", source.contains("resolveRecentsCardStyle"))
+        assertFalse("RecentsCardStyleHook must be removed", source.contains("RecentsCardStyleHook("))
+
         val arrays = source("app/src/main/res/values/arrays.xml").readText()
-        val entries = arrays.substringAfter("<string-array name=\"recents_card_styles\">")
-            .substringBefore("</string-array>")
-        val values = arrays.substringAfter("<string-array name=\"recents_card_styles_val\">")
-            .substringBefore("</string-array>")
-        val entryItems = Regex("<item>([^<]+)</item>").findAll(entries).map { it.groupValues[1].trim() }.toList()
-        val valueItems = Regex("<item>([^<]+)</item>").findAll(values).map { it.groupValues[1].trim() }.toList()
-        assertEquals(
-            listOf("@string/array_system_default", "@string/system_recents_card_style_hide_title"),
-            entryItems
+        assertFalse("recents_card_styles array must be removed", arrays.contains("name=\"recents_card_styles\""))
+        assertFalse("recents_card_styles_val array must be removed", arrays.contains("name=\"recents_card_styles_val\""))
+    }
+
+    @Test
+    fun prefsXmlUsesCheckBoxForRecentsCardStyle() {
+        val xml = source("app/src/main/res/xml/prefs_system.xml").readText()
+        val regex = Regex(
+            """<tv\.withaibuild\.customiuizer\.prefs\.(\w+)\s+android:key="pref_key_system_recents_card_style"\s+android:title="@string/system_recents_card_style_hide_title"\s+android:summary="@string/system_recents_card_style_summ"\s+android:defaultValue="false"\s*/>"""
         )
-        assertEquals(listOf("0", "1"), valueItems)
+        val m = regex.find(xml)
+        assertNotNull("recents card style preference must match the CheckBox form", m)
+        assertEquals("CheckBoxPreferenceEx", m?.groupValues?.get(1))
+        assertFalse("must not reference recents_card_styles entries", m?.value?.contains("recents_card_styles") ?: true)
     }
 
     private fun launcherSource(): String =

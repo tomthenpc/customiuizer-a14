@@ -955,9 +955,7 @@
     <string name="system_disable_window_blurs_summ">Funciona sem as Opções do desenvolvedor; quando desativado, o Android controla o desfoque normalmente. Quando ativado, o HyperOS desenha o painel de volume e o menu de energia sem fundo próprio, e os controles de desfoque do volume abaixo não têm efeito</string>
     <string name="system_disable_window_blurs_title">Desativar desfoque no nível da janela</string>
     <string name="system_recents_card_style_hide_title">Ocultar nome do aplicativo</string>
-    <string name="system_recents_card_style_immersive">Cartões empilhados no estilo iOS</string>
-    <string name="system_recents_card_style_summ">Usa a geometria de layout nativa do iniciador sem adicionar trabalho à rolagem; reinicie o iniciador após alterar</string>
-    <string name="system_recents_card_style_title">Estilo dos cartões de tarefas recentes</string>
+    <string name="system_recents_card_style_summ">Ocultar nomes de aplicativos nos cartões de tarefas recentes; reinicie o iniciador após alterar</string>
     <string name="system_strong_toast_bottom_offset_summ">Ajusta a posição com base nas margens de navegação e gestos em execução. Valores negativos aproximam a cápsula da borda inferior; valores positivos a movem para cima.</string>
     <string name="system_strong_toast_bottom_offset_title">Distância adicional da parte inferior</string>
     <string name="system_strong_toast_mode_dynamic_island">Ilha Dinâmica</string>

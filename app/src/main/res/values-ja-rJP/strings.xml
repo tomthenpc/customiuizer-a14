@@ -955,9 +955,7 @@
     <string name="system_disable_window_blurs_summ">開発者向けオプションなしで動作します。オフではAndroidが通常どおりぼかしを制御します。オンではHyperOSの音量パネルと電源メニューから個別の背景がなくなり、下の音量ぼかしスライダーは効果がありません</string>
     <string name="system_disable_window_blurs_title">ウィンドウ単位のぼかしを無効化</string>
     <string name="system_recents_card_style_hide_title">アプリ名を非表示</string>
-    <string name="system_recents_card_style_immersive">iOS風スタックカード</string>
-    <string name="system_recents_card_style_summ">スクロール処理を増やさずにランチャー本来のレイアウト形状を使用します。変更後はランチャーを再起動してください</string>
-    <string name="system_recents_card_style_title">最近のタスクカードのスタイル</string>
+    <string name="system_recents_card_style_summ">最近のタスクカードでアプリ名を非表示にする；変更後はランチャーを再起動してください</string>
     <string name="system_strong_toast_bottom_offset_summ">実行時のナビゲーション領域とジェスチャー領域を基準に位置を微調整します。負の値ではカプセルが下端に近づき、正の値では上に移動します。</string>
     <string name="system_strong_toast_bottom_offset_title">下端からの追加距離</string>
     <string name="system_strong_toast_mode_dynamic_island">ダイナミックアイランド</string>

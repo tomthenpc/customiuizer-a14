@@ -966,21 +966,18 @@ internal class LauncherRecentsCardStyleFeature(
     lpparam,
     mPrefs,
     LauncherRecentsCardStyleFeatureId,
-    "Launcher Recents Card Style",
+    "Launcher Recents Hide App Name",
     "system_recents_card_style",
     FeatureTarget.LAUNCHER,
 ) {
     companion object {
         @JvmStatic
         fun evaluateEnabled(prefs: PrefMap): Boolean =
-            prefs.getStringAsInt("system_recents_card_style", 0) == 1
+            Launcher.isRecentsHideAppNameEnabled(prefs)
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
-    override fun installHook() = Launcher.RecentsCardStyleHook(
-        lpparam,
-        mPrefs.getStringAsInt("system_recents_card_style", 0)
-    )
+    override fun installHook() = Launcher.RecentsHideAppNameHook(lpparam)
 }
 
 internal class LauncherMultiWindowPlusFeature(

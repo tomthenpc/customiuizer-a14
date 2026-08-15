@@ -31,8 +31,43 @@ import kotlin.math.roundToInt
 class System : SubFragment() {
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+        if (sub == "pref_key_system_cat_recents") {
+            migrateLegacyRecentsCardStylePreference()
+        }
         super.onCreatePreferences(savedInstanceState, rootKey)
         selectSub()
+    }
+
+    private fun migrateLegacyRecentsCardStylePreference() {
+        val prefs = AppHelper.appPrefs ?: return
+        val raw = prefs.all?.get("pref_key_system_recents_card_style") ?: return
+        val migrated = legacyRecentsCardStyleToBoolean(raw) ?: return
+        val editor = prefs.edit()
+        editor.remove("pref_key_system_recents_card_style")
+        editor.putBoolean("pref_key_system_recents_card_style", migrated)
+        val committed = editor.commit()
+        if (!committed) {
+            AppHelper.appPrefs?.edit()?.remove("pref_key_system_recents_card_style")?.commit()
+        }
+    }
+
+    internal companion object {
+        @JvmStatic
+        fun legacyRecentsCardStyleToBoolean(raw: Any?): Boolean? {
+            return when (raw) {
+                is Boolean -> null
+                is String -> when (raw.toIntOrNull()) {
+                    1 -> true
+                    else -> false
+                }
+                is Number -> when (raw.toInt()) {
+                    1 -> true
+                    else -> false
+                }
+                null -> null
+                else -> false
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {

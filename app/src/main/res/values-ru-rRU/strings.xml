@@ -932,9 +932,7 @@
     <string name="system_disable_window_blurs_summ">Работает без параметров разработчика. Когда функция выключена, Android управляет размытием штатно. Когда включена, панель громкости и меню питания HyperOS не имеют собственного фона, а ползунки размытия громкости ниже не действуют</string>
     <string name="system_disable_window_blurs_title">Отключить размытие на уровне окон</string>
     <string name="system_recents_card_style_hide_title">Скрыть название приложения</string>
-    <string name="system_recents_card_style_immersive">Карточки с наложением в стиле iOS</string>
-    <string name="system_recents_card_style_summ">Использует штатную геометрию рабочего стола без дополнительной работы при прокрутке; после изменения перезапустите рабочий стол</string>
-    <string name="system_recents_card_style_title">Стиль карточек недавних задач</string>
+    <string name="system_recents_card_style_summ">Скрывать названия приложений на карточках недавних задач; после изменения перезапустите рабочий стол</string>
     <string name="system_strong_toast_bottom_offset_summ">Точная настройка относительно вычисленных системой отступов навигации и жестов. Отрицательные значения приближают капсулу к нижнему краю, положительные поднимают её.</string>
     <string name="system_strong_toast_bottom_offset_title">Дополнительный отступ снизу</string>
     <string name="system_strong_toast_mode_dynamic_island">Динамический остров</string>
