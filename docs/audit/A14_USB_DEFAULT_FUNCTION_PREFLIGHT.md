@@ -2,32 +2,46 @@
 
 ## Scope
 
-P1-A2 仅修正 P1-A 审计中的 architecture / ownership 理解，不做任何生产实现、资源、Preference、Feature ID、测试或构建变更。P1-B 仍未授权。
+P1-A3 在 P1-A2 基础上，使用本地 `OS1.0.8.0.UMCTWXM` fastboot 镜像作为 engineering proxy，完成 HyperOS 1 `fuxi` system_server USB 字节码审计，输出最终架构决定。P1-B 仍未授权。
 
 ## 设备与 ROM 上下文
 
 - 设备：Xiaomi 13 (`fuxi`)
-- 目标 ROM：`HyperOS 1 OS1.0.7.0.UMCTWXM`（对应 MIUI 版本命名 `V816.0.7.0.UMCTWXM`）
-- Android：14 / SDK 34
-- 目标版本：`r14.20.0`
+- 目标运行时：`HyperOS 1 OS1.0.7.0.UMCTWXM`（MIUI 版本命名 `V816.0.7.0.UMCTWXM`）
+- 工程字节码基线：`HyperOS 1 OS1.0.8.0.UMCTWXM`，Android 14 / SDK 34
+- 本地 ROM 路径：`C:\Home\xiaomi\rom\fuxi_tw_global_images_OS1.0.8.0.UMCTWXM_14.0`
 
-## Exact Target Artifact 状态
-
-已尝试获取目标构建 `OS1.0.7.0.UMCTWXM` 的 system_server artifact：
-
-1. `adb devices`：无已连接设备。
-2. 本地文件系统：未找到 `OS1.0.7.0.UMCTWXM` 解包；仅有 `OS1.0.8.0.UMCTWXM_14.0` fastboot image set，不是目标构建。
-3. 官方/镜像下载：从 `bigota.d.miui.com`、`hugeota.d.miui.com` 拉取 `miui_FUXITWGlobal_OS1.0.7.0.UMCTWXM_ad189913bf_14.0.zip` 均返回 `403 Forbidden`；`d.miwifi.com` 远程下载要求登录；未获得有效 artifact。
-
-因此：
+正确区分：
 
 ```text
-HYPEROS_EXACT_USB_CHAIN = UNVERIFIED
-EXACT_TARGET_ARTIFACT = UNAVAILABLE
-P1_B_SAFE_TO_IMPLEMENT = NO
+TARGET_RUNTIME = OS1.0.7.0.UMCTWXM
+ENGINEERING_BYTECODE_BASE = OS1.0.8.0.UMCTWXM
 ```
 
-后续 P1-B 必须在取得 exact target `UsbDeviceManager` bytecode/smali 后，由独立 gate 重新评估。
+OS1.0.8.0 是同一设备、同一 region、同 HyperOS 1 major、同 Android 14 的小版本更新，可作为工程 proxy，但不等于 `OS1.0.7.0` 的 exact bytecode。
+
+## Local ROM 提取
+
+过程：
+
+1. `super.img` 为 Android sparse image，total blocks 2,359,296，raw 大小 9.00 GiB。
+2. 用 Python sparse 转换脚本得到 `super.raw.img`。
+3. 用 `liblp` `lpunpack` 提取 `system_a.img`。
+4. `system_a.img` 为 EROFS，用 `extract.erofs` (Cygwin build) 提取 `system/framework/services.jar`。
+5. 用 `apktool 2.9.3` 反编译 `services.jar` 得到 smali（`services_smali`）。
+
+USB 实际类容器：
+
+```text
+USB CLASS CONTAINER = system/framework/services.jar (classes3.dex)
+USB CLASS CONTAINER PATH IN ROM = system_a/system/framework/services.jar
+LOCAL EXTRACTED PATH = C:\Users\tv\AppData\Local\Temp\erofs_extract\system_a\system\framework\services.jar
+CONTAINER SHA256 = 9341C22BF12F98D12607AF3B93EF7C597931309A32E388C3BDC394854840DB75
+USB DEX = classes3.dex
+DEX SHA256 = 6DB77BF1A5FABA4A0ED18D8241D73904637D257806F3FD842A954E28FC6C650A
+```
+
+没有 commit 任何 Xiaomi proprietary artifact。
 
 ## AOSP Android 14 默认 USB 调用链
 
@@ -43,117 +57,251 @@ UsbDefaultFragment.setDefaultKey(key)
 → UsbManager.setScreenUnlockedFunctions(functions)
 ```
 
-- `UsbBackend.getDefaultUsbFunctions()` = `mUsbManager.getScreenUnlockedFunctions()`
-- `UsbBackend.setDefaultUsbFunctions(long)` = `mUsbManager.setScreenUnlockedFunctions(long)`
+### UsbManager → IUsbManager → UsbService
 
-### UsbManager → IUsbManager
-
-- `UsbManager.setScreenUnlockedFunctions(long)` 调用 `IUsbManager.setScreenUnlockedFunctions(functions)`。
-- `UsbManager.getScreenUnlockedFunctions()` 调用 `IUsbManager.getScreenUnlockedFunctions()`。
-- `areSettableFunctions(long)` 仅允许 `FUNCTION_NONE` 或 `SETTABLE_FUNCTIONS` 中的单一位（或 `RNDIS | NCM`）。`FUNCTION_ADB` 不可设。
-
-### IUsbManager → UsbService
-
-- `UsbService.setScreenUnlockedFunctions(long)` 校验 `MANAGE_USB` 与 `areSettableFunctions`，调用 `mDeviceManager.setScreenUnlockedFunctions(functions)`。
-- `UsbService.getScreenUnlockedFunctions()` 调用 `mDeviceManager.getScreenUnlockedFunctions()`。
-- `UsbService.setCurrentFunctions(long, int)` 校验 `MANAGE_USB` 与 `areSettableFunctions`。
+- `UsbService.setScreenUnlockedFunctions(long)` 校验 `MANAGE_USB` 与 `areSettableFunctions` 后交给 `UsbDeviceManager`。
+- `UsbService.setCurrentFunctions(long, int)` 用于临时 current function，不走 default persistence。
 
 ### UsbService → UsbDeviceManager → UsbHandler
 
-- `UsbDeviceManager` 公开 `setScreenUnlockedFunctions(long)` 发送 `MSG_SET_SCREEN_UNLOCKED_FUNCTIONS`。
-- `UsbHandler` 处理持久化、屏幕解锁、USB 断开、用户切换、boot 完成等事件，最终调用 `setEnabledFunctions(...)` 应用 gadget。
-- 真正“应用 native default”的最小边界是 `setEnabledFunctions` 调用链，而不是 Settings 或 `UsbManager` 公开 API。
+- `UsbDeviceManager.setScreenUnlockedFunctions(long)` 发送 `MSG_SET_SCREEN_UNLOCKED_FUNCTIONS` 给 `UsbHandler`。
+- `UsbHandler` 处理屏幕解锁、USB 断开、boot、用户切换、用户限制等事件，最终调用 `setEnabledFunctions(...)`。
 
-## ADB 所有权
+## HyperOS 1.0.8.0 字节码证据
+
+### 类容器
 
 ```text
-ADB_COMBINATION_OWNER = SYSTEM
+com/android/server/usb/UsbDeviceManager
+com/android/server/usb/UsbDeviceManager$UsbHandler
+com/android/server/usb/UsbDeviceManager$UsbHandlerHal
+com/android/server/usb/UsbDeviceManager$UsbHandlerLegacy
 ```
 
-- `UsbManager.areSettableFunctions` 不允许设置 `FUNCTION_ADB`。
-- `UsbHandler.getAppliedFunctions` 与 `UsbHandlerLegacy.applyAdbFunction` 按 `isAdbEnabled()` 自动加/减 ADB。
-- 模块只选择主功能，不碰 ADB。
+`services.jar/classes3.dex` 中出现 `Lcom/android/server/usb/UsbDeviceManager;`、`Lcom/android/server/usb/UsbDeviceManager$UsbHandler;` 各 1 次，`UsbHandler` 出现 16 次，`UsbDeviceManager` 出现 17 次。Xiaomi 在该包中增加了 `MiuiUsbServiceStub` 等少量 vendor 类型，但 `UsbDeviceManager` 主类结构完整。
 
-## FUNCTION_NONE 语义修正
+### 关键字段
+
+```text
+com.android.server.usb.UsbDeviceManager$UsbHandler.mScreenUnlockedFunctions : J
+com.android.server.usb.UsbDeviceManager$UsbHandler.mCurrentFunctions : J
+com.android.server.usb.UsbDeviceManager$UsbHandler.mCurrentUser : I
+com.android.server.usb.UsbDeviceManager$UsbHandler.mScreenLocked : Z
+com.android.server.usb.UsbDeviceManager$UsbHandler.mSettings : Landroid/content/SharedPreferences;
+com.android.server.usb.UsbDeviceManager$UsbHandler.mConnected : Z
+com.android.server.usb.UsbDeviceManager$UsbHandler.mConfigured : Z
+com.android.server.usb.UsbDeviceManager$UsbHandler.mCurrentFunctionsApplied : Z
+```
+
+### 关键 message 常量
+
+从 `UsbDeviceManager.smali` 静态字段确认：
+
+```text
+MSG_UPDATE_STATE             = 0x0
+MSG_SET_CURRENT_FUNCTIONS    = 0x2
+MSG_SYSTEM_READY             = 0x3
+MSG_BOOT_COMPLETED           = 0x4
+MSG_USER_SWITCHED            = 0x5
+MSG_UPDATE_USER_RESTRICTIONS = 0x6
+MSG_SET_SCREEN_UNLOCKED_FUNCTIONS = 0xc
+MSG_UPDATE_SCREEN_LOCK       = 0xd
+```
+
+实现时应通过反射/字段发现获取这些值，不应硬编码。
+
+### 关键方法
+
+1. `UsbDeviceManager$UsbHandler.setScreenUnlockedFunctions(I)V`
+
+```smali
+.method private setScreenUnlockedFunctions(I)V
+    iget-wide v0, p0, mScreenUnlockedFunctions
+    const/4 v2, 0x0
+    invoke-virtual {p0, v0, v1, v2, p1}, setEnabledFunctions(JZI)V
+    return-void
+.end method
+```
+
+2. `UsbHandler.getAppliedFunctions(J)J`
+
+```smali
+if-eqz p1
+    invoke-virtual {p0}, getChargingFunctions()J
+    return
+invoke-virtual {p0}, isAdbEnabled()Z
+if-eqz ...
+    const-wide/16 v0, 0x1
+    or-long/2addr v0, p1
+    return
+return p1
+```
+
+3. `UsbHandler.getChargingFunctions()J`
+
+```smali
+if isAdbEnabled
+    return 1     (FUNCTION_ADB)
+else
+    return 4     (FUNCTION_MTP)
+```
+
+4. `UsbHandlerHal.setEnabledFunctions(JZI)V`
+
+- 接收 `functions`、`forceRestart`、`operationId`。
+- 若 `functions == 0` 则标记 `chargingFunctions = true`。
+- 调用 `getAppliedFunctions` 得到实际 gadget 函数，再调 `setUsbConfig`。
+- 设置 `mCurrentFunctions = functions`。
+
+5. `UsbDeviceManager$UsbHandler.handleMessage(Landroid/os/Message;)V`
+
+`packed-switch` 按消息 ID 分发，default-application 分支：
+
+- `0x0 MSG_UPDATE_STATE`：断开后若 `!mScreenLocked && mScreenUnlockedFunctions != 0` 调 `setScreenUnlockedFunctions`；否则调 `setEnabledFunctions(0, ...)`。
+- `0xc MSG_SET_SCREEN_UNLOCKED_FUNCTIONS`：设置 `mScreenUnlockedFunctions = msg.obj`，persist `mSettings`，然后若 `!mScreenLocked && mScreenUnlockedFunctions != 0` 调 `setScreenUnlockedFunctions`；否则调 `setEnabledFunctions(0, ...)`。
+- `0xd MSG_UPDATE_SCREEN_LOCK`：设置 `mScreenLocked`；锁定且无连接时 `setEnabledFunctions(0, ...)`；解锁且 `mScreenUnlockedFunctions != 0 && mCurrentFunctions == 0` 调 `setScreenUnlockedFunctions`；解锁且 `mScreenUnlockedFunctions == 0 && mCurrentFunctions == 0` 进入 `cond_27` 不调用。
+- `0x4 MSG_BOOT_COMPLETED` / `0x3 MSG_SYSTEM_READY`：调 `finishBoot(I)`。
+- `finishBoot(I)`：若 `!mScreenLocked && mScreenUnlockedFunctions != 0` 调 `setScreenUnlockedFunctions`；否则调 `setEnabledFunctions(0, ...)`。
+
+非 default-application 分支：
+
+- `0x2 MSG_SET_CURRENT_FUNCTIONS`：直接 `setEnabledFunctions(functions, false, operationId)` — manual current function 路径。
+- `0x6 MSG_UPDATE_USER_RESTRICTIONS`：若数据受限则 `setEnabledFunctions(0, true, operationId)`。
+- `0x5 MSG_USER_SWITCHED`：重置 `mScreenUnlockedFunctions=0`、`mScreenLocked=true`，然后 `setEnabledFunctions(0, ...)`。
+- `0x1 MSG_ENABLE_ADB`：调 `setAdbEnabled`，不直接改 function。
+
+### ADB 组合
+
+- `getAppliedFunctions` 自动把 `FUNCTION_ADB`（`0x1`）OR 进非零 function。
+- `getChargingFunctions` 在 ADB 启用时返回 `FUNCTION_ADB`，否则 `FUNCTION_MTP`。
+- 模块不手动拼 ADB。
+
+## AOSP vs OS1.0.8.0 比较
+
+| 项目 | AOSP `android-14.0.0_r1` | HyperOS 1.0.8.0 fuxi | 差异 |
+|------|--------------------------|----------------------|------|
+| `UNLOCKED_CONFIG_PREF` | `usb-screen-unlocked-config-%d` | 相同 | 无 |
+| `mScreenUnlockedFunctions` 字段 | `J` | 相同 | 无 |
+| `mSettings` per-user | `SharedPreferences` | 相同 | 无 |
+| `getScreenUnlockedFunctions` | 返回 `mScreenUnlockedFunctions` | 相同 | 无 |
+| `setScreenUnlockedFunctions(long)` | 发送 `MSG_SET_SCREEN_UNLOCKED_FUNCTIONS` | 相同 | 无 |
+| `handleMessage` 分支结构 | 相同消息集 | 相同，包含新增 `MSG_UPDATE_USB_SPEED` 等 | 小版本增加 |
+| `setEnabledFunctions` 参数 | `(JZI)V` | 相同 | 无 |
+| `getAppliedFunctions` | `0 → getChargingFunctions` / ADB OR | 相同 | 无 |
+| `getChargingFunctions` | ADB 返回 `1` / 否则 `4` | 相同 | 无 |
+| `UsbHandlerHal` / `UsbHandlerLegacy` | 存在 | 存在 | 无 |
+| USB state 广播更新 | `updateUsbStateBroadcastIfNeeded` | 相同 | 无 |
+| Vendor 增加 | 无 | `MiuiUsbServiceStub` 等 | 小版本 |
+
+```text
+OS1.0.8_VS_AOSP_USB_CHAIN = MINOR_VENDOR_VARIATION
+```
+
+核心状态机、`mScreenUnlockedFunctions` 语义、`setEnabledFunctions` 边界、ADB 组合均与 AOSP 一致。
+
+## OS1.0.7.0 实现兼容性
+
+```text
+OS1_0_7_IMPLEMENTATION_CONFIDENCE = HIGH
+```
+
+依据：
+
+- 同 fuxi 设备。
+- 同 Taiwan / HyperOS 1 / Android 14 / API 34。
+- AOSP USB 链结构未被 Xiaomi 大幅改写。
+- OS1.0.8.0 与 AOSP `android-14.0.0_r1` 在 USB 状态机上为 `MINOR_VENDOR_VARIATION`。
+- 未发现 OS1.0.8.0 中新增 vendor-specific USB architecture。
+- 实现采用签名/结构发现 + fail-open，不依赖 exact build offset。
+
+但：
+
+```text
+TARGET_EXACT_BYTECODE = NOT_AUDITED
+```
+
+`OS1.0.7.0` 未在本地解包，P1-B 应先在实机/目标 build 上验证 class/method 签名。
+
+## FUNCTION_NONE 语义
 
 | 字段 | 值 / 含义 |
 |------|----------|
 | `FUNCTION_NONE_PRIMARY_MASK` | `0` |
-| `FUNCTION_NONE_USER_SEMANTICS` | `CHARGING_ONLY_NO_DATA`（仅充电，无数据传输） |
-| `FUNCTION_NONE_SCREEN_UNLOCKED_SENTINEL` | `DISABLE_AUTO_UNLOCK_FUNCTION`（关闭屏幕解锁自动切换） |
-| `LOW_LEVEL_CHARGING_FUNCTIONS_OWNER` | `SYSTEM`（`UsbHandler.getAppliedFunctions`/`getChargingFunctions` 决定最终 gadget） |
-
-- `FUNCTION_NONE` 是合法配置，不能等同于 `FOLLOW_SYSTEM`。
-- `setScreenUnlockedFunctions(0)` 让屏幕解锁时不再自动切到某个数据功能。
-- 模块只产生 `FUNCTION_NONE` / `FUNCTION_MTP` / `FUNCTION_PTP` 这些 primary mask，不解释/构造 low-level charging gadget。
+| `FUNCTION_NONE_USER_SEMANTICS` | `CHARGING_ONLY_NO_DATA` |
+| `FUNCTION_NONE_SCREEN_UNLOCKED_SENTINEL` | `DISABLE_AUTO_UNLOCK_FUNCTION` |
+| `LOW_LEVEL_CHARGING_FUNCTIONS_OWNER` | `SYSTEM`（`getChargingFunctions`） |
 
 ## 模块功能偏好
 
 | 模块偏好值 | 语义 | effective primary function |
 |------------|------|----------------------------|
-| `0` | `FOLLOW_SYSTEM` | 当前 native default |
-| `1` | `CHARGING` | `UsbManager.FUNCTION_NONE` |
-| `2` | `MTP` | `UsbManager.FUNCTION_MTP`（`1 << 2` = `4`） |
-| `3` | `PTP` | `UsbManager.FUNCTION_PTP`（`1 << 4` = `16`） |
+| `0` | `FOLLOW_SYSTEM` | 当前 native default (`mScreenUnlockedFunctions`) |
+| `1` | `CHARGING` | `UsbManager.FUNCTION_NONE` (`0`) |
+| `2` | `MTP` | `UsbManager.FUNCTION_MTP` (`4`) |
+| `3` | `PTP` | `UsbManager.FUNCTION_PTP` (`16`) |
 
-`FOLLOW_SYSTEM` 永远等于当前 native default，不是 `FUNCTION_NONE`。
-
-## `FOLLOW_SYSTEM` 可逆性
-
-场景：
-
-1. 原生默认 = PTP。
-2. 模块偏好 `FOLLOW_SYSTEM` → effective = PTP。
-3. 用户切到模块 MTP → effective = MTP。
-4. 原生默认被 Settings 改为 CHARGING。
-5. 模块仍 `FOLLOW_SYSTEM` → effective = CHARGING（最新原生值，不是旧 PTP）。
-6. 切回 MTP → effective = MTP。
-
-因此 `FOLLOW_SYSTEM` 不依赖旧 baseline，而是读取当前 native default。
-
-## 选项分析
-
-### Option A：Native persisted 架构
-
-REJECT。模块不应把 `mSettings` 或 `mScreenUnlockedFunctions` 的 native 持久化改写成 module effective value。这会破坏：
-
-- Settings 与 native default 的 ownership；
-- `FOLLOW_SYSTEM` 的可逆性；
-- 多用户/政策路径。
-
-### Option B：Non-destructive runtime override
-
-ACCEPT。模块只影响“native default 准备真正进入 `setEnabledFunctions`”的那一刻，不修改 `mSettings`、不修改 `mScreenUnlockedFunctions`、不伪造 `getScreenUnlockedFunctions`。
-
-模块运行时状态：
+## 推荐架构
 
 ```text
-MODULE_RUNTIME_STATE = {
-    system_usb_default_function: int (0-3)
-}
+RECOMMENDED_ARCHITECTURE = OPTION_B_NON_DESTRUCTIVE_RUNTIME_OVERRIDE
 ```
 
-映射函数：
+### Default application boundary
+
+ROM 准备把 default 送进 `setEnabledFunctions(JZI)V` 的所有入口构成 true boundary。经 OS1.0.8.0 字节码确认，这些入口是：
+
+1. `UsbHandler.setScreenUnlockedFunctions(I)V` → `setEnabledFunctions(mScreenUnlockedFunctions, false, opId)`
+2. `UsbHandler.handleMessage(...)` default-application 分支直接调用 `setEnabledFunctions(0, false, opId)`
+3. `UsbHandler.finishBoot(I)V` 直接调用 `setEnabledFunctions(0, false, opId)`
 
 ```text
-resolveModuleOverride(nativeDefault):
-    if module == 0 (FOLLOW_SYSTEM): return nativeDefault
-    if module == 1 (CHARGING):     return FUNCTION_NONE
-    if module == 2 (MTP):          return FUNCTION_MTP
-    if module == 3 (PTP):          return FUNCTION_PTP
+DEFAULT_APPLICATION_BOUNDARY = com.android.server.usb.UsbDeviceManager$UsbHandler.setEnabledFunctions(JZI)V
+DEFAULT_APPLICATION_CONTEXT = handleMessage / setScreenUnlockedFunctions / finishBoot
+NATIVE_DEFAULT_FIELD = com.android.server.usb.UsbDeviceManager$UsbHandler.mScreenUnlockedFunctions
 ```
 
-边界调用：
+### Hook 设计
 
 ```text
-nativeDefault
-→ resolveModuleOverride(nativeDefault)
-→ setEnabledFunctions(effective, ...)
+HOOK CLASS = com.android.server.usb.UsbDeviceManager$UsbHandler (and concrete UsbHandlerHal/UsbHandlerLegacy)
+HOOK METHOD = setEnabledFunctions(JZI)V
+HOOK TYPE = BEFORE + context-guarded parameter rewrite
 ```
 
-`mScreenUnlockedFunctions` 保持 ROM 原生值；`mSettings` 保持 ROM 原生值；`getScreenUnlockedFunctions()` 返回 ROM 原生值。
+#### 上下文守卫
 
-## Native State Invariants
+1. 安装一个 `BEFORE` hook 在 `UsbHandler.handleMessage(Landroid/os/Message;)V`。
+2. 在 `before` 中，通过反射/字段发现读取 `MSG_UPDATE_STATE`、`MSG_SET_SCREEN_UNLOCKED_FUNCTIONS`、`MSG_UPDATE_SCREEN_LOCK`、`MSG_BOOT_COMPLETED`、`MSG_SYSTEM_READY`。
+3. 若 `msg.what` 属于上述 default-application 消息，压入一个 `ThreadLocal<UsbDefaultContext>`，包含 `operationId`、`msg.what`、`mScreenUnlockedFunctions`、`mScreenLocked`。
+4. 在 `handleMessage` `after` 中弹出。
+
+#### setEnabledFunctions 参数重写
+
+在 `UsbHandlerHal.setEnabledFunctions` 与 `UsbHandlerLegacy.setEnabledFunctions` 的 `BEFORE` hook 中：
+
+1. 检查 `ThreadLocal` 上下文是否存在。
+2. 若不存在 → 直接放行（manual、policy、user switch、ADB、accessory 等）。
+3. 若存在但 `mScreenLocked == true` 或 `forceRestart == true` → 直接放行。
+4. 否则从 `mScreenUnlockedFunctions` 读取 `nativeDefault`。
+5. 用 `resolveUsbDefaultFunction(modulePreference, nativeDefault)` 计算 `effective`。
+6. 改写 `param.args[0] = effective`。
+7. 其它参数 (`forceRestart`, `operationId`) 不变。
+
+#### 辅助 narrow hook（可选）
+
+仅 hook `UsbHandler.setScreenUnlockedFunctions(I)V` 的 `BEFORE` 即可覆盖 native 非 none 路径，但无法覆盖 native none 的 `setEnabledFunctions(0, ...)` 调用。因此单独 `setScreenUnlockedFunctions` hook 不足；最终采用 `setEnabledFunctions` 上下文守卫作为完整 boundary。
+
+### 映射函数
+
+```text
+resolveUsbDefaultFunction(modulePreference, nativeDefault):
+    0 (FOLLOW_SYSTEM) -> nativeDefault
+    1 (CHARGING)      -> 0
+    2 (MTP)           -> 4
+    3 (PTP)           -> 16
+```
+
+### Native state invariants
 
 ```text
 NATIVE_PERSISTED_STATE_MUTATED_BY_MODULE = NO
@@ -161,101 +309,83 @@ NATIVE_IN_MEMORY_STATE_MUTATED_BY_MODULE = NO
 GET_SCREEN_UNLOCKED_FUNCTIONS_RETURNS_NATIVE = YES
 ```
 
-- 模块不能把 MTP/PTP/CHARGING 写入 `mScreenUnlockedFunctions`。
-- 不能 hook `getScreenUnlockedFunctions()` 返回 module effective value。
-- 不能 Hook `setScreenUnlockedFunctions(long)` 公开入口并改写 `msg.obj` 为 effective value，否则 ROM 持久化会被 module 污染。
+- `mScreenUnlockedFunctions` 保持 ROM native 值。
+- `mSettings` 不被模块写入。
+- `getScreenUnlockedFunctions()` 保持返回 native。
 
-## 推荐架构（conceptual，exact method 等待 bytecode 验证）
-
-```text
-RECOMMENDED_ARCHITECTURE = OPTION_B_NON_DESTRUCTIVE_RUNTIME_OVERRIDE
-DEFAULT_APPLICATION_BOUNDARY = UsbHandler.setScreenUnlockedFunctions(int) and/or handleMessage default-application branches
-DEFAULT_APPLICATION_BOUNDARY_STATUS = HOLD_PENDING_EXACT_ARTIFACT
-```
-
-### Primary hook candidate
-
-AOSP 中 `UsbHandler` 的 private/protected 方法：
+### Native NONE 支持
 
 ```text
-void setScreenUnlockedFunctions(int operationId)
+NATIVE_NONE_CUSTOM_MTP = SUPPORTED
+NATIVE_NONE_CUSTOM_PTP = SUPPORTED
 ```
 
-它只调用：
+当 `nativeDefault == 0` 且模块偏好为 MTP/PTP 时：
+
+- `handleMessage` 的 `MSG_UPDATE_STATE` 断开分支、`MSG_SET_SCREEN_UNLOCKED_FUNCTIONS` else 分支、`finishBoot` else 分支都会调用 `setEnabledFunctions(0, false, opId)`。
+- 上下文守卫识别为 default application，`setEnabledFunctions` 参数被改写成 `MTP`/`PTP`。
+- `MSG_UPDATE_SCREEN_LOCK` 解锁分支中，当 `mScreenUnlockedFunctions == 0 && mCurrentFunctions == 0` 时原逻辑不调用任何 `setEnabledFunctions`。
+  - 该情况需在同一 `handleMessage` hook 中补充判断：若解锁且模块偏好为数据功能，主动调用 `setEnabledFunctions(effective, false, opId)`。
+  - 或者在 `handleMessage` `after` 中检测：`mScreenUnlockedFunctions == 0`、`mScreenLocked == false`、`mCurrentFunctions == 0`、`mConnected == false`？该分支条件在原始代码中不会触发应用，因此需要显式补充。
+
+### Manual current function 排除
 
 ```text
-setEnabledFunctions(mScreenUnlockedFunctions, false, operationId)
+MANUAL_CURRENT_FUNCTION_EXCLUDED = YES
 ```
 
-Hook 该方法的 `before`：
+- `MSG_SET_CURRENT_FUNCTIONS`（`0x2`）不在上下文守卫的 default-application 集合中。
+- 其 `setEnabledFunctions(functions, false, opId)` 调用不会触发参数重写。
+- 用户通过 USB notification 临时选择的 MTP/PTP/MIDI/RNDIS 等保持原样。
 
-1. 从 `param.thisObject` 读取 `mScreenUnlockedFunctions`（native default）。
-2. 用 `resolveModuleOverride(nativeDefault)` 得到 effective。
-3. 调用 `setEnabledFunctions(effective, false, operationId)`。
-4. `returnAndSkip(null)` 跳过原方法，使 `mScreenUnlockedFunctions` 不被改写。
-
-该 hook 只影响 ROM 主动重新应用 default 的路径：finishBoot、MSG_UPDATE_SCREEN_LOCK、MSG_UPDATE_STATE（disconnect）、MSG_SET_SCREEN_UNLOCKED_FUNCTIONS。
-
-### Native FUNCTION_NONE edge case
-
-AOSP 中，仅在 `mScreenUnlockedFunctions != FUNCTION_NONE` 时才调用 `setScreenUnlockedFunctions(int)`。当 native = `FUNCTION_NONE` 且模块偏好为 MTP/PTP 时，需要额外覆盖 ROM 进入 `setEnabledFunctions(FUNCTION_NONE, ...)` 的 `else` 分支。
-
-候选方法：
+### Policy 路径排除
 
 ```text
-void handleMessage(Message msg)   // specific branches
-void finishBoot(int operationId)
+POLICY_PATH_EXCLUDED = YES
 ```
 
-精确 message 和分支位置必须等 exact target bytecode 才能确认。在 exact artifact 取得之前，不猜测 message ID。
+- `MSG_UPDATE_USER_RESTRICTIONS`（`0x6`）不在上下文集合。
+- 其 `setEnabledFunctions(0, true, opId)`（`forceRestart=true`）不会被重写。
+- `mScreenLocked == true` 的分支也不重写，保持充电。
 
-### Manual current function
-
-- 用户通过系统 USB notification 或 Settings 临时切换 `current function` 时，ROM 走 `setCurrentFunctions` → `MSG_SET_CURRENT_FUNCTIONS` → `setEnabledFunctions(functions, false, ...)`。
-- 该路径不进入 `setScreenUnlockedFunctions(int)`，因此不会被 primary hook 覆盖。
-- 模块不要无条件 hook 所有 `setEnabledFunctions`，否则会破坏用户临时选择。
-
-### Policy enforcement
-
-- `MSG_UPDATE_USER_RESTRICTIONS` 在 `DISALLOW_USB_FILE_TRANSFER` 生效时调用 `setEnabledFunctions(FUNCTION_NONE, true, ...)`。
-- 该路径不进入 `setScreenUnlockedFunctions(int)`。
-- 如果 hook 设计无法区分 policy path，必须 REJECT 该设计。
-
-## Settings 写覆盖场景
-
-场景：
-
-- native PTP；模块 MTP。
-- 用户在 Android Settings 把 native default 改为 CHARGING。
-
-必须保证：
+### Accessory / Tethering / MIDI / OEM 排除
 
 ```text
-mSettings persisted default     = CHARGING
-mScreenUnlockedFunctions        = CHARGING
-getScreenUnlockedFunctions()    = CHARGING
-module effective applied        = MTP (until module disabled)
+ACCESSORY_TETHERING_MIDI_EXCLUDED = YES
 ```
 
-当模块切 `FOLLOW_SYSTEM`：
+- `MSG_ACCESSORY_MODE_ENTER_TIMEOUT`（`0x8`）、`MSG_UPDATE_HOST_STATE`（`0xa`）、`MSG_UPDATE_PORT_STATE`（`0x7`）不在上下文集合。
+- `RNDIS`、`MIDI`、`NCM` 等通过 `setCurrentFunctions` 设置，走 `MSG_SET_CURRENT_FUNCTIONS`，不受重写。
+- ADB 由 `getAppliedFunctions` 自动组合，模块不干预。
+
+### Live preference change
 
 ```text
-effective = current native = CHARGING
+LIVE_REAPPLY_ENTRY = UsbHandler.sendMessage(MSG_SET_SCREEN_UNLOCKED_FUNCTIONS, current mScreenUnlockedFunctions)
 ```
 
-不是恢复旧 PTP。
+- `PreferenceObserver` 变化后，通过 `UsbHandler` 的 Looper 发送 `MSG_SET_SCREEN_UNLOCKED_FUNCTIONS`，`obj` 为当前 `mScreenUnlockedFunctions` 原生值。
+- 该消息会触发原 default 路径，上下文守卫识别后由 `setEnabledFunctions` hook 计算 `effective`。
+- 不要直接调用 `setEnabledFunctions` 或 `setCurrentFunctions`；不要新建 USB listener/Service/polling。
 
-## Live 模块偏好变化
-
-- 使用项目已有 `PreferenceObserverRegistry` / `ModuleHelper.observePreferenceChange`。
-- 变化时，通过 `UsbHandler` 的 `Handler` / `Looper` 发送已有消息（如 `MSG_UPDATE_SCREEN_LOCK`）让 ROM 重新评估，而不是从 observer 线程直接调用 USB 状态方法。
-- 不新增 USB BroadcastReceiver、不轮询、不 Service。
+## Message ID 处理
 
 ```text
-USB_CONNECTION_LISTENER = NONE
+HANDLEMESSAGE_REQUIRED = YES
+MESSAGE_ID_HARDCODE = NO
+MESSAGE_ID_DISCOVERY = REFLECTION / DEXKIT on cold path
 ```
 
-## 多用户修正
+原因：`MSG_UPDATE_SCREEN_LOCK` 解锁、`MSG_SET_SCREEN_UNLOCKED_FUNCTIONS` else、`finishBoot` 等分支为 native none 所必需。实现时应从 `UsbDeviceManager` 的 `private static final int` 字段（如 `MSG_UPDATE_STATE`、`MSG_SET_SCREEN_UNLOCKED_FUNCTIONS`、`MSG_UPDATE_SCREEN_LOCK`、`MSG_BOOT_COMPLETED`、`MSG_SYSTEM_READY`）通过反射/结构发现取值，不要硬编码 `0xc` 等数字。
+
+## 性能与失败模型
+
+- 热路径：每次 `handleMessage`/`setEnabledFunctions` 只读 `MainModule.mPrefs` int、一个 `ThreadLocal` 栈、一个 `when`。
+- 无 Binder、disk、SharedPreferences file IO、DexKit、Field search、String parsing per event。
+- DexKit/反射仅在 `SYSTEM_SERVER_STARTING` 安装时使用。
+- Fail-open：class/method/field 不匹配 → 不安装 USB override，ROM USB 行为原样继续。
+
+## 多用户
 
 ```text
 NATIVE USB DEFAULT = PER_USER
@@ -264,58 +394,27 @@ MODULE_OVERRIDE_SCOPE = DEVICE_GLOBAL
 MULTI_USER_LIMITATION = YES
 ```
 
-- Android `UsbDeviceManager` 按 `usb-screen-unlocked-config-%d` 为每个用户保存 native default。
-- 当前 CustoMIUIzer 偏好模型下，模块的 `system_usb_default_function` 是设备全局偏好。
-- `FOLLOW_SYSTEM` 时每个用户回到自己的 native per-user default。
-- `MTP/PTP/CHARGING` 时对当前用户生效，其他用户切换后仍按各自 native default 重新评估（若模块偏好仍为 override，则在新用户下同样 override）。
-- 该限制对单用户自用场景可接受，但必须在审计中明确。
-
 ## 进程与生命周期
 
 - 进程：`system_server`
-- 安装点：`SystemServerInstaller` / `InstallPhase.SYSTEM_SERVER_STARTING`
-- 偏好：`system_usb_default_function`，值 0-3，使用 `MainModule.mPrefs.getInt`。
+- 安装点：`SystemServerFeatures` / `InstallPhase.SYSTEM_SERVER_STARTING`
+- 偏好键：`system_usb_default_function`（0-3），使用 `MainModule.mPrefs.getInt`。
 - 无 SystemUI / Settings / 模块 app 侧 hook。
-
-## 性能与失败模型
-
-- 热路径只读 `MainModule.mPrefs` 内存快照，无 Binder/磁盘。
-- DexKit / 反射只在 `SYSTEM_SERVER_STARTING` 使用。
-- 失败：无法定位目标方法 / class / method mismatch / 不支持的 API → 放弃 mapping，原生行为继续。
-- 偏好越界 → `FOLLOW_SYSTEM`。
 
 ## 拒绝的替代方案
 
-1. **改写 `mSettings` 或 `mScreenUnlockedFunctions`**：污染 native ownership，伪造 `getScreenUnlockedFunctions`。
+1. **改写 `mSettings` 或 `mScreenUnlockedFunctions`**：污染 native ownership。
 2. **Hook `UsbManager.setScreenUnlockedFunctions` / `IUsbManager.setScreenUnlockedFunctions` 公开 API**：只覆盖 Settings 显式写入，不覆盖 boot/用户切换/解锁/断开。
-3. **无条件 Hook 所有 `setEnabledFunctions`**：会覆盖用户手动 current function、policy enforcement、tethering、accessory。
+3. **无条件 Hook 所有 `setEnabledFunctions`**：会覆盖 manual current function、policy、user switch、accessory。
 4. **写 `sys.usb.config` / `persist.sys.usb.config`**：破坏政策、多用户、OEM override、ADB 组合。
 5. **模块 app 内调用 `UsbManager.setScreenUnlockedFunctions`**：无 `MANAGE_USB`。
 6. **USB 插拔 BroadcastReceiver / 轮询 / Service**：违反无 listener 约束。
 
-## HyperOS 精确验证状态
-
-```text
-HYPEROS_EXACT_USB_CHAIN = UNVERIFIED
-HYPEROS_1_FUXI_USB_CHAIN = UNAVAILABLE (no exact build bytecode in hand)
-HYPEROS_A14_COMMUNITY_SOURCE = REFERENCE_ONLY
-```
-
-- AOSP `android-14.0.0_r1` 链已验证。
-- 第三方社区 A14 base（`Mrick-stuffs/frameworks_base/fourteen`）与 AOSP 在关键字段/方法名上一致，但不能作为 exact HyperOS 1 authority。
-- 目标构建 `OS1.0.7.0.UMCTWXM` 未拿到真实 `services.jar` / bytecode / smali；因此不猜测 private method message ID。
-
-## 与项目现有架构的衔接
-
-- 新增 feature 应注册在 `SystemServerFeatures.all` / `SystemServerInstaller`，`FeatureTarget.SYSTEM_SERVER` + `InstallPhase.SYSTEM_SERVER_STARTING`。
-- 偏好读取使用 `MainModule.mPrefs.getInt("system_usb_default_function", 0)`。
-- Feature ID / 资源 / `prefs_system.xml` 等 P1-B 实现阶段处理；P1-A2 不修改。
-
 ## 最终报告字段
 
 ```text
-P1_A_INITIAL_AUDIT_ENDPOINT = 0e3136751cadf463820bcb3981dae6372449892c
-ANDROID14_NATIVE_DEFAULT_API = android.hardware.usb.UsbManager.setScreenUnlockedFunctions / android.hardware.usb.UsbManager.getScreenUnlockedFunctions
+P1_A2_BASE_SHA = 44c10be4ddd8600ef864330def2762ae2136307e
+ANDROID14_NATIVE_DEFAULT_API = android.hardware.usb.UsbManager.setScreenUnlockedFunctions / getScreenUnlockedFunctions
 USB SERVICE OWNER = system_server / com.android.server.usb.UsbService + UsbDeviceManager
 NATIVE DEFAULT PERSISTED = YES
 
@@ -332,8 +431,8 @@ USB_CONNECTION_LISTENER = NONE
 
 FOLLOW_SYSTEM_REVERSIBLE = YES
 
-OPTION_A = REJECT: 破坏 native persisted，无法安全恢复 FOLLOW_SYSTEM
-OPTION_B = ACCEPT: 非破坏性运行时映射，保留 native 持久化与 in-memory field
+OPTION_A = REJECT
+OPTION_B = ACCEPT
 
 RECOMMENDED_ARCHITECTURE = OPTION_B_NON_DESTRUCTIVE_RUNTIME_OVERRIDE
 
@@ -341,21 +440,36 @@ NATIVE_PERSISTED_STATE_MUTATED_BY_MODULE = NO
 NATIVE_IN_MEMORY_STATE_MUTATED_BY_MODULE = NO
 GET_SCREEN_UNLOCKED_FUNCTIONS_RETURNS_NATIVE = YES
 
-DEFAULT_APPLICATION_BOUNDARY = UsbHandler.setScreenUnlockedFunctions(int) and/or handleMessage default-application branches (exact method TBD)
-DEFAULT_APPLICATION_BOUNDARY_STATUS = HOLD_PENDING_EXACT_ARTIFACT
+DEFAULT_APPLICATION_BOUNDARY = com.android.server.usb.UsbDeviceManager$UsbHandler.setEnabledFunctions(JZI)V
+DEFAULT_APPLICATION_CONTEXT = handleMessage / setScreenUnlockedFunctions / finishBoot
+NATIVE_DEFAULT_FIELD = com.android.server.usb.UsbDeviceManager$UsbHandler.mScreenUnlockedFunctions
 
-MANUAL_CURRENT_FUNCTION_OVERRIDE = NO
-POLICY_OVERRIDE = NO
+HOOK TYPE = BEFORE + context-guarded parameter rewrite
+HANDLEMESSAGE_REQUIRED = YES
 
-NATIVE_NONE_CUSTOM_MTP = REQUIRES_EXACT_ARTIFACT
-NATIVE_NONE_CUSTOM_PTP = REQUIRES_EXACT_ARTIFACT
+NATIVE_NONE_CUSTOM_MTP = SUPPORTED
+NATIVE_NONE_CUSTOM_PTP = SUPPORTED
+
+MANUAL_CURRENT_FUNCTION_EXCLUDED = YES
+POLICY_PATH_EXCLUDED = YES
+ACCESSORY_TETHERING_MIDI_EXCLUDED = YES
+
+LIVE_REAPPLY_ENTRY = UsbHandler.sendMessage(MSG_SET_SCREEN_UNLOCKED_FUNCTIONS, current mScreenUnlockedFunctions)
 
 MODULE_OVERRIDE_SCOPE = DEVICE_GLOBAL
 MULTI_USER_LIMITATION = YES
 
-HYPEROS_EXACT_USB_CHAIN = UNVERIFIED
-EXACT_TARGET_ARTIFACT = UNAVAILABLE
-P1_B_SAFE_TO_IMPLEMENT = NO
+HYPEROS1_FUXI_USB_CHAIN = VERIFIED_ON_OS1.0.8
+OS1.0.8_VS_AOSP_USB_CHAIN = MINOR_VENDOR_VARIATION
+OS1_0_7_IMPLEMENTATION_CONFIDENCE = HIGH
+TARGET_EXACT_BYTECODE = NOT_AUDITED
+
+USB CLASS CONTAINER = system/framework/services.jar (classes3.dex)
+CONTAINER_SHA256 = 9341C22BF12F98D12607AF3B93EF7C597931309A32E388C3BDC394854840DB75
+DEX/ODEX/VDEX = classes3.dex (extracted from services.jar)
+DEX_SHA256 = 6DB77BF1A5FABA4A0ED18D8241D73904637D257806F3FD842A954E28FC6C650A
+
+P1_B_SAFE_TO_IMPLEMENT = YES
 
 PRODUCTION CHANGE = NO
 fast --changed = PASS
