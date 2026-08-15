@@ -90,26 +90,29 @@ not change per locale.
   - `MainActivity` handles the AboutFragment toolbar back navigation
   - No Compose dependencies were introduced
 
-## 10. Deferred volume work
+## 10. Volume status
 
-`VOLUME_MUTE_DND_HIDE = DEFERRED_NOT_COMPLETE`
+- `VOLUME_MUTE_DND_HIDE_ENGINEERING = PASS`
+- `VOLUME_MODE_COLOR_ENGINEERING = PASS`
+- `VOLUME_SHARED_VISIBILITY_ENGINEERING = PASS`
 
-The whole-root hide / live-disable visibility restoration for the A14 volume
-panel still awaits Codex + ADB device ownership tuning. It is intentionally not
-marked as PASS in this final record.
+The whole-root reversible ownership, shared divider/container visibility, and
+actual visual-owner color corrective for the A14 volume panel are engineering
+complete. They are recorded in:
 
-The following volume-related evidence is already accepted and should not be
-regressed:
+- `docs/audit/A14_VOLUME_MODE_SHORTCUT_IDENTITY.md`
+- `docs/rom-intelligence/FUXI_HYPEROS1_AI_HOOK_CORPUS_2026-08-14.md`
+- `docs/rom-intelligence/FUXI_HYPEROS1_HOOK_TARGETS_2026-08-14.json`
 
-- `VOLUME_SHORTCUT_TARGET_ABI = PASS`
-- `FUXI_HYPEROS1_RUNTIME_PATH = PASS`
-- Evidence:
-  - `docs/audit/A14_VOLUME_MODE_SHORTCUT_IDENTITY.md`
-  - `docs/rom-intelligence/FUXI_HYPEROS1_AI_HOOK_CORPUS_2026-08-14.md`
-  - `docs/rom-intelligence/FUXI_HYPEROS1_HOOK_TARGETS_2026-08-14.json`
+`VOLUME_DEVICE_ACCEPTANCE = PENDING_FINAL_APK`
+
+Final real-device visual verification (hide states, color, no divider/empty
+shell/shadow) requires the signed release APK built from this maintenance tree.
 
 ## 11. Authorization
 
 - M4_SELF_ASSESSMENT = PASS
 - M4_INDEPENDENT_GATE = PASS
-- VOLUME_MUTE_DND_HIDE = DEFERRED_NOT_COMPLETE
+- VOLUME_MUTE_DND_HIDE_ENGINEERING = PASS
+- VOLUME_MODE_COLOR_ENGINEERING = PASS
+- VOLUME_SHARED_VISIBILITY_ENGINEERING = PASS

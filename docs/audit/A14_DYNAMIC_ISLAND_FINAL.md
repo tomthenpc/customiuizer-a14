@@ -180,3 +180,14 @@ Documentation:
   and reusing it for consecutive events. If a future ROM revision reparents
   `cl_strong_toast_msg` outside `mDarkToast` the `bindDynamicIslandShell()`
   copy logic will need a matching update.
+
+## Gate / status
+
+- `DYNAMIC_ISLAND_ENGINEERING_GATE = PASS`
+- `ENGINEERING_FREEZE = 7ecd1a3a1a1ecd55cfcdbf7dcf7da86c91d18302`
+- `FINAL_TREE_CONTAINS_CORRECTIVE = YES`
+- `DEVICE_VISUAL_ACCEPTANCE = PENDING_FINAL_SIGNED_APK`
+
+The implementation is complete and consistent with the HyperOS 1 A14 evidence.
+A device runtime smoke test with the signed release APK is still required to
+confirm the visual result on the target ROM.

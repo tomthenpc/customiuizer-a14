@@ -488,3 +488,16 @@ filters on the next `updateState()`. The ROM continues to call
 so the original ROM visual path is restored for the background drawable and the
 icon. The module does not attempt to store or restore ROM colors because the ROM
 itself re-applies them at the next state update.
+
+## Gate / status
+
+- `VOLUME_ENGINEERING_GATE = PASS`
+- `ROOT_VISIBILITY = PASS`
+- `SHARED_VISIBILITY = PASS`
+- `COLOR_VISUAL_OWNER = PASS`
+- `DEVICE_ACCEPTANCE = PENDING_FINAL_SIGNED_APK`
+
+Engineering implementation is complete and consistent with ROM evidence. Final
+real-device visual verification (mute/DND hide states, shared container/divider
+collapse, color application, no empty shell/shadow) requires the signed release
+APK built from the final maintenance tree.
