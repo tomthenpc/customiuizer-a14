@@ -56,8 +56,8 @@ class SystemServerFeaturesWiringTest {
         val features = SystemServerFeatures.all(fakeSystemServerStartingParam())
 
         assertEquals(
-            "All 53 system_server features should be present",
-            53,
+            "All 54 system_server features should be present",
+            54,
             features.size
         )
         val uniqueIds = features.map { it.id }.toSet()
@@ -185,6 +185,22 @@ class SystemServerFeaturesWiringTest {
         assertEquals(FeatureTarget.SYSTEM_SERVER, feature.target)
 
         val on = PrefMap().apply { put("various_disable_access_devicelogs", true) }
+        assertTrue(feature.isEnabled(on))
+    }
+
+    @Test
+    fun usbDefaultFunctionFeatureIsAlwaysInstalled() {
+        val feature = UsbDefaultFunctionFeature(fakeSystemServerStartingParam())
+
+        assertEquals(UsbDefaultFunctionFeatureId, feature.id)
+        assertEquals("system_usb_default_function", feature.preferenceKey)
+        assertEquals(FeatureTarget.SYSTEM_SERVER, feature.target)
+        assertEquals(InstallPhase.SYSTEM_SERVER_STARTING, feature.phase)
+
+        val off = PrefMap()
+        assertTrue("USB default function feature must be always-on", feature.isEnabled(off))
+
+        val on = PrefMap().apply { put("system_usb_default_function", 2) }
         assertTrue(feature.isEnabled(on))
     }
 

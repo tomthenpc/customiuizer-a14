@@ -1033,4 +1033,9 @@
     <string name="various_block_location_permission_prompts_summ">不授予前台或后台定位权限并直接关闭 Android 系统授权页；修改后需重启 PermissionController 或重启设备</string>
     <string name="various_permission_scope_unavailable">请将 PermissionController 加入本模块作用域，然后重启设备。</string>
     <string name="various_permission_scope_failed">PermissionController 作用域请求未获批准。</string>
+    <string name="system_usb_default_function_title">USB 默认用途</string>
+    <string name="usb_default_function_follow_system">跟随系统默认</string>
+    <string name="usb_default_function_charge_only">仅限充电</string>
+    <string name="usb_default_function_mtp">传输文件（MTP）</string>
+    <string name="usb_default_function_ptp">传输照片（PTP）</string>
 </resources>

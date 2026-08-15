@@ -1046,3 +1046,8 @@ data object UpdaterServicesBridgeFeatureId : FeatureId {
     override val id = 250
     override val name = "updater_services_bridge"
 }
+
+data object UsbDefaultFunctionFeatureId : FeatureId {
+    override val id = 251
+    override val name = "system_usb_default_function"
+}

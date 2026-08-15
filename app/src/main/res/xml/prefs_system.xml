@@ -1429,6 +1429,13 @@
 			miuizer:displayDividerValue="10"
 			miuizer:format="x%s"/>
 
+		<tv.withaibuild.customiuizer.prefs.ListPreferenceEx
+			android:key="pref_key_system_usb_default_function"
+			android:title="@string/system_usb_default_function_title"
+			android:entries="@array/usb_default_functions"
+			android:entryValues="@array/usb_default_functions_val"
+			android:defaultValue="0" />
+
 	</tv.withaibuild.customiuizer.prefs.PreferenceCategoryEx>
 
 </PreferenceScreen>

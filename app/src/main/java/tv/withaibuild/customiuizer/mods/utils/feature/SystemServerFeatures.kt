@@ -5,6 +5,7 @@ import tv.withaibuild.customiuizer.mods.Controls
 import tv.withaibuild.customiuizer.mods.GlobalActionSystemServerHooks
 import tv.withaibuild.customiuizer.mods.System as ModsSystem
 import tv.withaibuild.customiuizer.mods.SystemAudioHooks
+import tv.withaibuild.customiuizer.mods.SystemUsbDefaultHooks
 import tv.withaibuild.customiuizer.mods.SystemDisplayHooks
 import tv.withaibuild.customiuizer.mods.SystemLockScreenHooks
 import tv.withaibuild.customiuizer.mods.SystemNotificationHooks
@@ -1402,6 +1403,15 @@ object SystemServerFeatures {
             enabled = { prefs -> DisableWindowBlursFeature.evaluateEnabled(prefs) },
             factory = { DisableWindowBlursFeature(lpparam) },
         ),
+        LazyFeatureSpec(
+            id = UsbDefaultFunctionFeatureId,
+            name = "USB Default Function",
+            preferenceKey = "system_usb_default_function",
+            target = FeatureTarget.SYSTEM_SERVER,
+            phase = InstallPhase.SYSTEM_SERVER_STARTING,
+            enabled = { true },
+            factory = { UsbDefaultFunctionFeature(lpparam) },
+        ),
 )
 }
 
@@ -1427,4 +1437,22 @@ internal class UpdaterServicesBridgeFeature(
 ) {
     override fun isEnabledCondition(prefs: PrefMap): Boolean = true
     override fun installHook() = GlobalActionSystemServerHooks.setupUpdaterServicesBridge(lpparam)
+}
+
+internal class UsbDefaultFunctionFeature(
+    lpparam: XposedModuleInterface.SystemServerStartingParam
+) : BaseSystemServerFeature(
+    lpparam,
+    UsbDefaultFunctionFeatureId,
+    "USB Default Function",
+    "system_usb_default_function"
+) {
+    override fun isEnabledCondition(prefs: PrefMap): Boolean = true
+
+    override fun installHook() {
+        val result = SystemUsbDefaultHooks.hook(lpparam)
+        if (result != FeatureInstallResult.INSTALLED) {
+            throw IllegalStateException("USB default function hooks could not be installed: $result")
+        }
+    }
 }

@@ -475,3 +475,80 @@ PRODUCTION CHANGE = NO
 fast --changed = PASS
 diff --check = PASS
 ```
+
+## P1-B 实现记录
+
+### 改动文件
+
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUsbDefaultHooks.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/FeatureIds.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemServerFeatures.kt`
+- `app/src/main/res/xml/prefs_system.xml`
+- `app/src/main/res/values/arrays.xml`
+- `app/src/main/res/values*/strings.xml`
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/SystemUsbDefaultHooksTest.kt`
+- `app/src/test/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemServerFeaturesWiringTest.kt`
+
+### 设计核对
+
+```text
+PREFERENCE_KEY = system_usb_default_function
+PREFERENCE_STORAGE_READ = getStringAsInt
+FEATURE_INSTALL = ALWAYS_ON
+FOLLOW_SYSTEM FAST PATH = YES
+NATIVE PERSISTED MUTATION = NO
+NATIVE IN-MEMORY MUTATION = NO
+GET_SCREEN_UNLOCKED_FUNCTIONS HOOKED = NO
+NATIVE_NONE_MTP = SUPPORTED
+NATIVE_NONE_PTP = SUPPORTED
+MANUAL CURRENT SESSION OVERRIDDEN = NO
+ACCESSORY/TETHERING/MIDI OVERRIDDEN = NO
+ADB OWNER = SYSTEM
+LIVE PREF CHANGE = NEXT_DEFAULT_EVENT
+LIVE FORCE REAPPLY = NO
+USB CONNECTION LISTENER = NONE
+```
+
+### 实现要点
+
+1. `UsbDefaultFunctionFeature` always returns `isEnabled = true` and installs `SystemUsbDefaultHooks.hook()`.
+2. Hook target: `com.android.server.usb.UsbDeviceManager$UsbHandlerHal/UsbHandlerLegacy.setEnabledFunctions(JZI)V`.
+3. Context guard: before/after hooks on `UsbHandler.handleMessage`, `setScreenUnlockedFunctions`, and `finishBoot` push/pop a `ThreadLocal<ArrayDeque<ContextFrame>>`. The `setEnabledFunctions` hook only rewrites the argument when a context frame is present.
+4. Rewrite happens only when `!mScreenLocked && !forceRestart` and mode is not `FOLLOW_SYSTEM`.
+5. MTP/PTP calls ROM's own `isUsbTransferAllowed()` and falls back to `FUNCTION_NONE` when disallowed.
+6. In `MSG_UPDATE_SCREEN_LOCK` unlock branch where `mScreenUnlockedFunctions == 0 && mCurrentFunctions == 0` the ROM does not call `setEnabledFunctions`; `handleMessage.after` supplements the override when the user chose a data mode.
+7. `getScreenUnlockedFunctions` is not hooked; `mSettings` and `mCurrentFunctions` are not modified; no USB connection listener is registered; preference changes take effect on the next default event without forced reapply.
+
+### 测试覆盖
+
+- `SystemUsbDefaultHooksTest`
+  - `getStringAsInt` parsing for string, number, and invalid values
+  - `resolveEffective` mapping for FOLLOW_SYSTEM / CHARGING / MTP / PTP / invalid
+  - `computeEffectiveUsbFunctions` policy guards (screenLocked, forceRestart, transferAllowed, already-correct, charging override)
+  - `UsbDefaultContext` thread-local and nested push/pop ownership
+- `SystemServerFeaturesWiringTest`
+  - `UsbDefaultFunctionFeature` always-on wiring and catalog membership
+
+### 验证
+
+```text
+python tools/verify.py fast --tests SystemUsbDefaultHooksTest SystemServerFeaturesWiringTest
+# -> BUILD SUCCESSFUL
+
+python tools/verify.py full
+# -> BUILD SUCCESSFUL (compileDebugKotlin, compileDebugJavaWithJavac, testDebugUnitTest, lintDebug)
+
+git diff --check
+# -> (no output)
+
+python tools/audit-feature-semantics.py --validate
+# -> Validation passed
+```
+
+### 验收边界
+
+```text
+DEVICE_ACCEPTANCE = PENDING NEXT SIGNED APK
+```
+
+Real-device acceptance is pending a signed APK on `fuxi / OS1.0.7.0.UMCTWXM`.

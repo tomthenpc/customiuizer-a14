@@ -939,4 +939,9 @@
     <string name="various_xiaomi_trim_failed">No se pudieron actualizar todos los componentes; se revirtieron los cambios completados.</string>
     <string name="various_xiaomi_trim_success">Se ha actualizado el perfil de componentes Xiaomi.</string>
     <string name="various_xiaomi_trim_unavailable">No se encontró para el usuario actual ningún componente verificado instalado de este perfil de dispositivo.</string>
+    <string name="system_usb_default_function_title">USB default purpose</string>
+    <string name="usb_default_function_follow_system">Follow system default</string>
+    <string name="usb_default_function_charge_only">Charge only</string>
+    <string name="usb_default_function_mtp">File transfer (MTP)</string>
+    <string name="usb_default_function_ptp">Photo transfer (PTP)</string>
 </resources>

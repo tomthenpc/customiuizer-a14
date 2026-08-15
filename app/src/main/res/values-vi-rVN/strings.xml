@@ -1005,4 +1005,9 @@
     <string name="various_xiaomi_trim_failed">Không thể cập nhật mọi thành phần; các thay đổi đã hoàn tất đã được hoàn tác.</string>
     <string name="various_xiaomi_trim_success">Đã cập nhật hồ sơ thành phần Xiaomi.</string>
     <string name="various_xiaomi_trim_unavailable">Không tìm thấy thành phần đã xác minh nào từ hồ sơ thiết bị này được cài đặt cho người dùng hiện tại.</string>
+    <string name="system_usb_default_function_title">USB default purpose</string>
+    <string name="usb_default_function_follow_system">Follow system default</string>
+    <string name="usb_default_function_charge_only">Charge only</string>
+    <string name="usb_default_function_mtp">File transfer (MTP)</string>
+    <string name="usb_default_function_ptp">Photo transfer (PTP)</string>
 </resources>

@@ -1072,4 +1072,9 @@
     <string name="various_block_location_permission_prompts_summ">Closes the Android system prompt without granting foreground or background location; restart PermissionController or reboot after changing</string>
     <string name="various_permission_scope_unavailable">Add PermissionController to this module’s scope, then reboot.</string>
     <string name="various_permission_scope_failed">PermissionController scope request was not approved.</string>
+    <string name="system_usb_default_function_title">USB default purpose</string>
+    <string name="usb_default_function_follow_system">Follow system default</string>
+    <string name="usb_default_function_charge_only">Charge only</string>
+    <string name="usb_default_function_mtp">File transfer (MTP)</string>
+    <string name="usb_default_function_ptp">Photo transfer (PTP)</string>
 </resources>

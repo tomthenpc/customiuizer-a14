@@ -910,4 +910,9 @@ ss - iki basamaklı saniye(09)</string>
     <string name="various_xiaomi_trim_failed">Her bileşen güncellenemedi; tamamlanan değişiklikler geri alındı.</string>
     <string name="various_xiaomi_trim_success">Xiaomi bileşen profili güncellendi.</string>
     <string name="various_xiaomi_trim_unavailable">Bu cihaz profilindeki doğrulanmış bileşenlerden hiçbiri mevcut kullanıcı için yüklü bulunamadı.</string>
+    <string name="system_usb_default_function_title">USB default purpose</string>
+    <string name="usb_default_function_follow_system">Follow system default</string>
+    <string name="usb_default_function_charge_only">Charge only</string>
+    <string name="usb_default_function_mtp">File transfer (MTP)</string>
+    <string name="usb_default_function_ptp">Photo transfer (PTP)</string>
 </resources>

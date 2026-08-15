@@ -882,4 +882,9 @@
     <string name="various_disable_update_services_summ">僅提取 com.android.updater 宣告的服務；關閉時逐項還原原元件狀態</string>
     <string name="various_disable_update_services_title">停用小米系統更新服務</string>
     <string name="various_disable_update_services_unavailable">找不到小米系統更新或其宣告的服務。</string>
+    <string name="system_usb_default_function_title">USB 預設用途</string>
+    <string name="usb_default_function_follow_system">跟隨系統預設</string>
+    <string name="usb_default_function_charge_only">僅限充電</string>
+    <string name="usb_default_function_mtp">傳輸檔案（MTP）</string>
+    <string name="usb_default_function_ptp">傳輸照片（PTP）</string>
 </resources>
