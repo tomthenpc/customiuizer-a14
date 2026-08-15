@@ -3,85 +3,74 @@ package tv.withaibuild.customiuizer.utils
 import android.util.Log
 
 /**
- * Executes the set of matched [RestartTarget]s in a fixed order.
+ * Executes a matched-restart request given a 3-bit [mask].
  *
- * The executor performs a single root check, then attempts every selected
- * target independently.  Failures are isolated: one failing target does not
- * cancel the remaining attempts.  No soft reboot or system reboot is invoked.
+ * One root check, fixed order, attempt all selected targets, no soft/system reboot.
+ * Failures are isolated and logged with bounded diagnostics.
  */
-private const val TAG = "miuizer"
-
-class PreferenceRestartTargetExecutor(
+internal class MatchedRestartExecutor(
     private val commandRunner: (String) -> Pair<Int, String> = { cmd ->
         val result = AppHelper.executeRootCommand(cmd)
         Pair(result.first, result.second)
     }
 ) {
 
-    /**
-     * Result of a matched restart execution attempt.
-     */
     data class Result(
         val rootGranted: Boolean,
-        val attempted: List<RestartTarget>,
-        val succeeded: List<RestartTarget>,
-        val failed: List<RestartTarget>
-    )
+        val attemptedMask: Int,
+        val succeededMask: Int,
+        val failedMask: Int
+    ) {
+        val attempted: Int get() = Integer.bitCount(attemptedMask)
+        val succeeded: Int get() = Integer.bitCount(succeededMask)
+        val failed: Int get() = Integer.bitCount(failedMask)
+    }
 
-    companion object {
-        private val EXECUTION_ORDER = listOf(
-            RestartTarget.SECURITY_CENTER,
-            RestartTarget.LAUNCHER,
-            RestartTarget.SYSTEMUI
-        )
+    private companion object {
+        private const val TAG = "miuizer"
         private const val SECURITY_CENTER_PACKAGE = "com.miui.securitycenter"
         private const val LAUNCHER_PACKAGE = "com.miui.home"
         private const val SYSTEMUI_PROCESS = "com.android.systemui"
+
+        // Fixed execution order: SECURITY_CENTER -> LAUNCHER -> SYSTEMUI
+        private val ORDER = intArrayOf(
+            RestartMask.SECURITY_CENTER,
+            RestartMask.LAUNCHER,
+            RestartMask.SYSTEMUI
+        )
     }
 
-    /**
-     * Attempts to restart every target in [targets] that the registry has
-     * resolved for the current page.
-     */
-    fun execute(targets: Set<RestartTarget>): Result {
+    fun execute(mask: Int): Result {
         val idResult = commandRunner("id")
         val rootGranted = idResult.first == 0 && idResult.second.contains("uid=0")
         if (!rootGranted) {
-            return Result(
-                rootGranted = false,
-                attempted = emptyList(),
-                succeeded = emptyList(),
-                failed = emptyList()
-            )
+            return Result(rootGranted = false, attemptedMask = 0, succeededMask = 0, failedMask = 0)
         }
 
-        val attempted = mutableListOf<RestartTarget>()
-        val succeeded = mutableListOf<RestartTarget>()
-        val failed = mutableListOf<RestartTarget>()
+        var attempted = 0
+        var succeeded = 0
+        var failed = 0
 
-        for (target in EXECUTION_ORDER) {
-            if (target !in targets) continue
+        for (bit in ORDER) {
+            if (mask and bit == 0) continue
 
-            attempted.add(target)
-            val ok = when (target) {
-                RestartTarget.SECURITY_CENTER -> forceStopPackage(SECURITY_CENTER_PACKAGE)
-                RestartTarget.LAUNCHER -> forceStopPackage(LAUNCHER_PACKAGE)
-                RestartTarget.SYSTEMUI -> killProcess(SYSTEMUI_PROCESS)
+            attempted = attempted or bit
+
+            val ok = when (bit) {
+                RestartMask.SECURITY_CENTER -> forceStopPackage(SECURITY_CENTER_PACKAGE)
+                RestartMask.LAUNCHER -> forceStopPackage(LAUNCHER_PACKAGE)
+                RestartMask.SYSTEMUI -> killProcess(SYSTEMUI_PROCESS)
+                else -> false
             }
 
             if (ok) {
-                succeeded.add(target)
+                succeeded = succeeded or bit
             } else {
-                failed.add(target)
+                failed = failed or bit
             }
         }
 
-        return Result(
-            rootGranted = true,
-            attempted = attempted,
-            succeeded = succeeded,
-            failed = failed
-        )
+        return Result(rootGranted = true, attemptedMask = attempted, succeededMask = succeeded, failedMask = failed)
     }
 
     private fun forceStopPackage(packageName: String): Boolean {
@@ -123,10 +112,12 @@ class PreferenceRestartTargetExecutor(
         exitCode: Int,
         output: String
     ) {
+        val truncated = if (output.length > 240) output.take(240) + "…" else output
         Log.e(
             TAG,
             "Matched restart failed: target=$target, operation=$operation, " +
-                "command=\"$command\", exit=$exitCode, output=\"$output\""
+                "command=\"$command\", exit=$exitCode, output=\"$truncated\""
         )
     }
+
 }

@@ -33,6 +33,8 @@ import tv.withaibuild.customiuizer.subs.MultiAction
 import tv.withaibuild.customiuizer.subs.SortableList
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.RestartMask
+import tv.withaibuild.customiuizer.utils.RestartPagePolicy
 
 /**
  * Pure decision policy for whether a SubFragment-derived page should enable the
@@ -48,6 +50,7 @@ internal fun shouldEnablePreferenceToolbar(
 open class SubFragment : PreferenceFragmentBase() {
 
     private var contentResId = 0
+    private var pageRestartMask = RestartMask.NONE
     @JvmField
     var settingTitle = ""
     @JvmField
@@ -140,6 +143,11 @@ open class SubFragment : PreferenceFragmentBase() {
         highlightKey = args.getString("mod")
         if (abType == AppHelper.ActionBarType.Edit) {
             isCustomActionBar = true
+        }
+        pageRestartMask = if (settingsType == AppHelper.SettingsType.Preference) {
+            RestartPagePolicy.maskFor(contentResId, sub)
+        } else {
+            RestartMask.NONE
         }
         toolbarMenu = toolbarMenu || shouldEnablePreferenceToolbar(settingsType, isCustomActionBar)
 
@@ -409,4 +417,6 @@ open class SubFragment : PreferenceFragmentBase() {
         saveSharedPrefs()
         finish()
     }
+
+    override fun matchedRestartMask(): Int = pageRestartMask
 }

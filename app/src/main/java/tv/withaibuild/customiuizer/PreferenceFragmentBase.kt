@@ -45,9 +45,9 @@ import tv.withaibuild.customiuizer.utils.AppLocaleController
 import tv.withaibuild.customiuizer.utils.AppSelectionSanitizer
 import tv.withaibuild.customiuizer.utils.BackupRestore
 import tv.withaibuild.customiuizer.utils.Helpers
-import tv.withaibuild.customiuizer.utils.PreferenceRestartTargetExecutor
-import tv.withaibuild.customiuizer.utils.PreferenceRestartTargetResolver
-import tv.withaibuild.customiuizer.utils.RestartTarget
+import tv.withaibuild.customiuizer.utils.MatchedRestartExecutor
+import tv.withaibuild.customiuizer.utils.RestartMask
+import tv.withaibuild.customiuizer.utils.RestartPagePolicy
 import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
 open class PreferenceFragmentBase : PreferenceFragmentCompat() {
@@ -88,6 +88,8 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         return act?.supportActionBar
     }
 
+    protected open fun matchedRestartMask(): Int = RestartMask.NONE
+
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
         if (toolbarMenu) {
             inflater.inflate(R.menu.menu_mods, menu)
@@ -99,16 +101,12 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
             }
         } else {
             val isMainFragment = this is MainFragment
-            val matchedTargets = if (!isMainFragment && toolbarMenu && preferenceScreen != null) {
-                PreferenceRestartTargetResolver.resolvePreferenceScreen(preferenceScreen)
-            } else {
-                emptySet()
-            }
+            val matchedMask = if (!isMainFragment && toolbarMenu) matchedRestartMask() else RestartMask.NONE
             for (i in 0 until menu.size()) {
                 val item = menu.getItem(i)
                 val menuId = item.itemId
                 item.isVisible = when {
-                    menuId == R.id.restartmatched -> !isMainFragment && matchedTargets.isNotEmpty()
+                    menuId == R.id.restartmatched -> !isMainFragment && matchedMask != RestartMask.NONE
                     menuId == R.id.restartlauncher ||
                         menuId == R.id.restartsystemui ||
                         menuId == R.id.restartsecuritycenter -> {
@@ -125,31 +123,13 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         }
     }
 
-    override fun onPrepareOptionsMenu(menu: Menu) {
-        super.onPrepareOptionsMenu(menu)
-        if (isCustomActionBar || !toolbarMenu) return
+    private fun restartMatchedTargets() {
+        val mask = matchedRestartMask()
+        if (mask == RestartMask.NONE) return
 
-        if (this is MainFragment) {
-            menu.findItem(R.id.restartmatched)?.isVisible = false
-            return
-        }
-
-        val screen = preferenceScreen ?: return
-        val matchedTargets = PreferenceRestartTargetResolver.resolvePreferenceScreen(screen)
-        menu.findItem(R.id.restartmatched)?.isVisible = matchedTargets.isNotEmpty()
-    }
-
-    protected open fun resolveMatchedRestartTargets(): Set<RestartTarget> {
-        val screen = preferenceScreen ?: return emptySet()
-        return PreferenceRestartTargetResolver.resolvePreferenceScreen(screen)
-    }
-
-    private fun restartMatchedTargets(targets: Set<RestartTarget>) {
-        if (targets.isEmpty()) return
-
-        val executor = PreferenceRestartTargetExecutor()
+        val executor = MatchedRestartExecutor()
         lifecycleScope.launch(Dispatchers.IO) {
-            val result = executor.execute(targets)
+            val result = executor.execute(mask)
 
             withContext(Dispatchers.Main) {
                 val act = activity as? AppCompatActivity ?: return@withContext
@@ -157,14 +137,14 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
 
                 val message = when {
                     !result.rootGranted -> act.getString(R.string.restart_no_root)
-                    result.failed.isEmpty() -> act.getString(R.string.restart_affected_components_done)
-                    result.succeeded.isEmpty() -> act.getString(
+                    result.failed == 0 -> act.getString(R.string.restart_affected_components_done)
+                    result.succeeded == 0 -> act.getString(
                         R.string.restart_affected_components_failed,
-                        formatFailedTargets(result.failed)
+                        formatFailedMask(result.failedMask)
                     )
                     else -> act.getString(
                         R.string.restart_affected_components_partial,
-                        formatFailedTargets(result.failed)
+                        formatFailedMask(result.failedMask)
                     )
                 }
                 Toast.makeText(act, message, Toast.LENGTH_LONG).show()
@@ -172,12 +152,13 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
         }
     }
 
-    private fun formatFailedTargets(targets: List<RestartTarget>): String {
-        return targets.joinToString(", ") { target ->
-            when (target) {
-                RestartTarget.LAUNCHER -> getString(R.string.restart_launcher)
-                RestartTarget.SYSTEMUI -> getString(R.string.restart_systemui)
-                RestartTarget.SECURITY_CENTER -> getString(R.string.restart_securitycenter)
+    private fun formatFailedMask(mask: Int): String {
+        return RestartPagePolicy.toNameList(mask).joinToString(", ") { name ->
+            when (name) {
+                "launcher" -> getString(R.string.restart_launcher)
+                "systemui" -> getString(R.string.restart_systemui)
+                "securitycenter" -> getString(R.string.restart_securitycenter)
+                else -> name
             }
         }
     }
@@ -208,8 +189,7 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
                 return true
             }
             R.id.restartmatched -> {
-                val targets = resolveMatchedRestartTargets()
-                if (targets.isNotEmpty()) restartMatchedTargets(targets)
+                restartMatchedTargets()
                 return true
             }
             R.id.backuprestore -> {

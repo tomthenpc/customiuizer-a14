@@ -1420,3 +1420,121 @@ P3_B_FINAL_GATE = (not written)
 ```
 
 The final gate remains for the authorized reviewer.
+
+---
+
+## P3 Simplification — Page-Level Static Bitmask
+
+Implemented on top of the P3-A4 / P3-B evidence, this simplification replaces the
+preference-key registry and live preference-screen resolver with a single static
+page-to-mask `when`.
+
+### Design
+
+- `RestartMask`: 3-bit int (`LAUNCHER=1`, `SYSTEMUI=2`, `SECURITY_CENTER=4`).
+- `RestartPagePolicy.maskFor(contentResId, sub?)`: static table built from P3-A4
+  executable mapping and the generated/source preference XML.
+- `MatchedRestartExecutor.execute(mask)`: one root check, fixed order
+  `SECURITY_CENTER -> LAUNCHER -> SYSTEMUI`, attempt all selected bits, no soft reboot.
+- `PreferenceFragmentBase.matchedRestartMask()`: `SubFragment` overrides with the
+  pre-computed page mask.
+- `SubFragment` still enables `toolbarMenu` for all `SettingsType.Preference` pages,
+  but `restartmatched` visibility is now `matchedRestartMask() != 0`.
+
+### Removed
+
+- `PreferenceRestartTargetRegistry.kt`
+- `PreferenceRestartTargetResolver.kt`
+- `RestartTarget.kt`
+- `PreferenceRestartTargetExecutor.kt`
+- `PreferenceRestartTargetRegistryTest.kt`
+- `PreferenceRestartTargetResolverTest.kt`
+- `PreferenceRestartTargetExecutionOrderTest.kt`
+
+### Added / replaced
+
+- `RestartPagePolicy.kt`
+- `MatchedRestartExecutor.kt`
+- `RestartPagePolicyTest.kt`
+- `MatchedRestartExecutorTest.kt`
+
+### Page mask table
+
+| Page (contentResId) | Mask | Targets |
+|---|---|---|
+| `R.xml.mod_search_index` | `0` | NONE |
+| `R.xml.prefs_controls` | `3` | LAUNCHER,SYSTEMUI |
+| `R.xml.prefs_controls_cat` | `0` | NONE |
+| `R.xml.prefs_controls_fingerprint` | `0` | NONE |
+| `R.xml.prefs_controls_fsg` | `3` | LAUNCHER,SYSTEMUI |
+| `R.xml.prefs_controls_navbar` | `3` | LAUNCHER,SYSTEMUI |
+| `R.xml.prefs_controls_power` | `0` | NONE |
+| `R.xml.prefs_controls_volume` | `2` | SYSTEMUI |
+| `R.xml.prefs_launcher` | `5` | LAUNCHER,SECURITY_CENTER |
+| `R.xml.prefs_launcher_bugfixes` | `1` | LAUNCHER |
+| `R.xml.prefs_launcher_cat` | `0` | NONE |
+| `R.xml.prefs_launcher_folders` | `1` | LAUNCHER |
+| `R.xml.prefs_launcher_gestures` | `1` | LAUNCHER |
+| `R.xml.prefs_launcher_other` | `1` | LAUNCHER |
+| `R.xml.prefs_launcher_privacyapps` | `5` | LAUNCHER,SECURITY_CENTER |
+| `R.xml.prefs_launcher_titles` | `1` | LAUNCHER |
+| `R.xml.prefs_main` | `0` | NONE |
+| `R.xml.prefs_system` | `7` | LAUNCHER,SYSTEMUI,SECURITY_CENTER |
+| `R.xml.prefs_system_alarmonlock` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_albumartonlock` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_applock` | `4` | SECURITY_CENTER |
+| `R.xml.prefs_system_audio` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_autobrightness` | `0` | NONE |
+| `R.xml.prefs_system_batteryindicator` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_betterpopups` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_cat` | `0` | NONE |
+| `R.xml.prefs_system_charginginfo` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_controlcenter_clock` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_controlcenter_themestyle` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_detailednetspeed` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_drawer` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_floatingwindows` | `3` | LAUNCHER,SYSTEMUI |
+| `R.xml.prefs_system_hideicons` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_lockscreen` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_lockscreenshortcuts` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_noscreenlock` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_notifications` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_other` | `6` | SYSTEMUI,SECURITY_CENTER |
+| `R.xml.prefs_system_qs` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_recents` | `1` | LAUNCHER |
+| `R.xml.prefs_system_screen` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_screenshot` | `0` | NONE |
+| `R.xml.prefs_system_secureqs` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_statusbar` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_statusbar_batterystyle` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_statusbar_batterytempandcurrent` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_statusbar_clock` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_statusbar_mobilesignal` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_statusbar_righticons` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_statusbar_showdevicetemperature` | `0` | NONE |
+| `R.xml.prefs_system_statusbarcontrols` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_toasts` | `0` | NONE |
+| `R.xml.prefs_system_vibration` | `2` | SYSTEMUI |
+| `R.xml.prefs_system_vibration_amp` | `0` | NONE |
+| `R.xml.prefs_system_visualizer` | `2` | SYSTEMUI |
+| `R.xml.prefs_various` | `6` | SYSTEMUI,SECURITY_CENTER |
+| `R.xml.prefs_various_calls` | `2` | SYSTEMUI |
+| `R.xml.prefs_various_calluibright` | `0` | NONE |
+| `R.xml.prefs_various_cat` | `0` | NONE |
+| `R.xml.prefs_various_exclusive` | `0` | NONE |
+| `R.xml.prefs_various_gboard` | `0` | NONE |
+| `R.xml.prefs_various_general` | `0` | NONE |
+| `R.xml.prefs_various_hiddenfeatures` | `0` | NONE |
+| `R.xml.prefs_various_package_installer` | `0` | NONE |
+| `R.xml.prefs_various_security_center` | `4` | SECURITY_CENTER |
+| `R.xml.prefs_various_settings` | `4` | SECURITY_CENTER |
+
+### P3 simplification self assessment
+
+```text
+P3_SIMPLIFICATION_SELF_ASSESSMENT = PASS_CANDIDATE
+P3_COMPLEXITY_GATE = (not written)
+P3_FINAL_GATE = (not written)
+```
+
+The P3 simplification is a candidate; the final gate remains for the authorized reviewer.
