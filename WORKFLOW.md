@@ -14,14 +14,18 @@ Review 与 Implement 不分拆。
 修改代码、测试和必要的长期文档。普通技术决定由 Devin 自行完成。禁止顺手进行无关
 依赖升级、资源清理或大规模重排。
 
+正常编辑即可，`tools/verify.py` 会自动检查 EOL/Encoding；只有 verify 报告 EOL 失败时才人工调查。
+
 ## Verify
 
 1. 针对性单元测试；
-2. `python tools/verify.py fast --changed`；
+2. `python tools/verify.py fast --changed`（内置 EOL/Encoding 检查）；
 3. 修复；
-4. `python tools/verify.py full`；
+4. `python tools/verify.py full`（内置 EOL/Encoding 检查）；
 5. 工具改动时运行 Python 测试；
 6. 任务要求时构建 APK。
+
+正常任务无需单独运行 `git ls-files --eol`。
 
 ## Final Review
 

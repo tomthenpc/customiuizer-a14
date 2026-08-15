@@ -24,6 +24,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import eol_check
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 REQUIRED_JAVA_MAJOR = 25
 
@@ -164,6 +166,11 @@ def check_invariants(changed: bool = False, staged: bool = False) -> int:
     return run(cmd)
 
 
+def check_eol() -> int:
+    """Verify EOL / encoding policy via a single git ls-files --eol call."""
+    return eol_check.check()
+
+
 def check_feature_semantics() -> int:
     """Validate feature-semantics/a14.json against schema and current source."""
     cmd = [sys.executable, str(REPO_ROOT / "tools" / "audit-feature-semantics.py"), "--validate"]
@@ -275,6 +282,9 @@ def fast(tests: list[str] | None, changed: bool = False, staged: bool = False) -
     code = check_static_rules()
     if code != 0:
         return code
+    code = check_eol()
+    if code != 0:
+        return code
     code = check_observer_key_contract()
     if code != 0:
         return code
@@ -311,6 +321,9 @@ def full() -> int:
     if code != 0:
         return code
     code = check_static_rules()
+    if code != 0:
+        return code
+    code = check_eol()
     if code != 0:
         return code
     code = check_observer_key_contract()

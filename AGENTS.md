@@ -176,7 +176,19 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 - 自动创建 Release/Tag；
 - 自动公开上传 APK。
 
-## 11. 完成定义
+## 11. EOL / Encoding
+
+- Repository text canonical = UTF-8 without BOM + LF.
+- `.bat/.cmd` checkout may use CRLF (see `.gitattributes`).
+- `.gitattributes` is the authoritative EOL policy.
+- `.editorconfig` guides editors and agents.
+- Do not modify global/local `core.autocrlf` as a task workaround.
+- Do not use dos2unix, unix2dos, IDE bulk formatters, or manual whole-file conversion during normal feature tasks.
+- `tools/verify.py` owns EOL validation.
+- Normal tasks must not repeatedly perform manual `git ls-files --eol` audits unless verify reports a violation.
+- EOL-only differences are infrastructure, not feature changes.
+
+## 12. 完成定义
 
 - 用户目标已实际实现；
 - 验收标准逐项有证据；
