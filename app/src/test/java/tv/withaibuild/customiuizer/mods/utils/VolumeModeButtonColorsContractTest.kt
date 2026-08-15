@@ -52,11 +52,19 @@ class VolumeModeButtonColorsContractTest {
         assertFalse(applyColorsBody.contains("resources.getIdentifier"))
         assertFalse(applyColorsBody.contains("XposedHelpers.getObjectField"))
 
+        // The active-state is resolved once at install time from the exact plugin ClassLoader.
+        // The hot callback uses the prepared Field directly and fails open if resolution failed.
+        assertTrue(section.contains("resolveVolumeModeButtonStateField("))
+        assertTrue(source.contains("XposedHelpers.findFieldIfExists"))
+        assertTrue(applyColorsBody.contains("preparedField.getBoolean(helper)"))
+        assertFalse(applyColorsBody.contains("getBooleanField"))
+        assertFalse(applyColorsBody.contains("findField"))
+        assertFalse(applyColorsBody.contains("declaredFields"))
+
         // The active-state color semantics must be respected: the custom color is applied only
         // when the ROM helper reports mState == true (selected), and the module's own color
         // filters are cleared on the active -> inactive transition when the ROM has not already
         // replaced them. Filter identity is checked through the cached PorterDuffColorFilter.
-        assertTrue(applyColorsBody.contains("getBooleanField(helper, \"mState\")"))
         assertTrue(applyColorsBody.contains("isSelected"))
         assertTrue(applyColorsBody.contains("if (isSelected)"))
         assertTrue(applyColorsBody.contains("background.colorFilter"))

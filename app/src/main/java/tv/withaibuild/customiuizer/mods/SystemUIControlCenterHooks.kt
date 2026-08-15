@@ -39,6 +39,7 @@ import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.util.ArrayList
 import java.util.Comparator
 import java.lang.System
+import java.lang.reflect.Field
 import tv.withaibuild.customiuizer.utils.HookUtils
 import tv.withaibuild.customiuizer.mods.utils.ControlCenterPluginRuntime
 import tv.withaibuild.customiuizer.mods.volumedialogautohide.VolumeDialogAutohideDelayHook
@@ -602,6 +603,34 @@ object SystemUIControlCenterHooks {
             || MainModule.mPrefs.getBoolean("system_cc_slider_color_enable")
     }
 
+    private const val VOLUME_MODE_BUTTON_STATE_FIELD_NAME = "mState"
+
+    /**
+     * Resolves the ROM helper's active-state field once when the plugin ClassLoader is installed.
+     * The resolved [Field] is captured as prepared/cold state so the hot [updateState] callback
+     * can call [Field.getBoolean] directly without field discovery. If the field cannot be found
+     * or is not a boolean, color styling fails open and the ROM owns the inactive appearance.
+     */
+    private fun resolveVolumeModeButtonStateField(pluginLoader: ClassLoader): Field? {
+        val helperClassName =
+            "com.android.systemui.miui.volume.MiuiRingerModeLayout\$RingerButtonHelper"
+        return try {
+            val helperClass = XposedHelpers.findClassIfExists(helperClassName, pluginLoader)
+                ?: return null
+            val field = XposedHelpers.findFieldIfExists(helperClass, VOLUME_MODE_BUTTON_STATE_FIELD_NAME)
+            if (field?.type == Boolean::class.javaPrimitiveType) {
+                field
+            } else {
+                null
+            }
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            FatalErrors.rethrowIfFatal(t)
+            null
+        }
+    }
+
     /**
      * Styles and/or hides the ROM-owned silent and DND shortcuts at their state-update boundary.
      * Colors and visibility are captured once when the plugin ClassLoader is installed, keeping
@@ -611,6 +640,11 @@ object SystemUIControlCenterHooks {
     fun VolumeModeButtonColorsHook(pluginLoader: ClassLoader) {
         installVolumeModeButtonColorSnapshot()
         installVolumeModeButtonVisibilitySnapshot()
+
+        val mStateField = resolveVolumeModeButtonStateField(pluginLoader)
+        if (mStateField == null) {
+            XposedHelpers.log("VolumeModeButtonColors: mState field not resolved; color styling disabled")
+        }
 
         val helperClassName =
             "com.android.systemui.miui.volume.MiuiRingerModeLayout\$RingerButtonHelper"
@@ -665,8 +699,9 @@ object SystemUIControlCenterHooks {
                     helper,
                     VOLUME_MODE_BUTTON_COLOR_STATE_FIELD
                 ) as? VolumeModeButtonColorState ?: return@guarded
+                val preparedField = mStateField ?: return@guarded
                 val isSelected = try {
-                    XposedHelpers.getBooleanField(helper, "mState")
+                    preparedField.getBoolean(helper)
                 } catch (oom: OutOfMemoryError) {
                     throw oom
                 } catch (t: Throwable) {
