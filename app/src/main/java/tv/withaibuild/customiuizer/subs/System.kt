@@ -71,21 +71,8 @@ class System : SubFragment() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        toolbarMenu = true
         super.onCreate(savedInstanceState)
-        when (sub) {
-            "pref_key_system_cat_recents" -> {
-                toolbarMenu = true
-                activeMenus = "launcher"
-            }
-            "pref_key_system_cat_statusbar",
-            "pref_key_system_cat_lockscreen",
-            "pref_key_system_cat_qs",
-            "pref_key_system_cat_drawer" -> {
-                toolbarMenu = true
-                activeMenus = "systemui"
-            }
-            else -> toolbarMenu = false
-        }
     }
 
     private fun openSystemSubFragment(preference: Preference, isDynamic: Boolean = false, xmlResId: Int) {

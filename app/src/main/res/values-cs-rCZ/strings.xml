@@ -804,6 +804,10 @@
     <string name="restart_launcher">Restartovat spouštěč</string>
     <string name="restart_systemui">Restartovat SystemUI</string>
     <string name="restart_securitycenter">Restartovat bezpečnostní centrum</string>
+    <string name="restart_affected_components">Restartovat ovlivněné</string>
+    <string name="restart_affected_components_done">Restartováno</string>
+    <string name="restart_affected_components_partial">Částečně: %1$s</string>
+    <string name="restart_affected_components_failed">Selhalo: %1$s</string>
     <string name="backup_restore">Správa nastavení</string>
     <string name="reset_settings">Obnovit nastavení</string>
     <string name="reset_settings_done">Obnovení dokončeno. Restartujte prosím</string>

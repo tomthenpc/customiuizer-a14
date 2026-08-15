@@ -1317,3 +1317,61 @@ C:\Users\tv\AppData\Local\Temp\p3a4_registry.json
 ```
 
 This file is a temporary audit artifact and is not part of the repository.
+
+## P3-B IMPLEMENTATION CANDIDATE
+
+### Base
+
+```text
+BASE = 13f46ab3...
+```
+
+### Implementation summary
+
+P3-B is implemented as a positive-allowlist, fail-closed matched-restart action.
+
+- **Registry**: `PreferenceRestartTargetRegistry.kt` is the static source of truth.
+  It maps canonical preference keys to `Set<RestartTarget>` and returns `emptySet()`
+  on a miss.  Counts are 192 unique executable keys (LAUNCHER 61, SYSTEMUI 118,
+  SECURITY_CENTER 16) and 3 multi-host keys (`controls_fsg_assist_left_action`,
+  `controls_fsg_assist_right_action`, `controls_nonavbar`).
+
+- **Resolver**: `PreferenceRestartTargetResolver.kt` provides two entry points:
+  - `resolveForKeys(List<String?>)`: a pure lookup union for list-backed callers.
+  - `resolvePreferenceScreen(PreferenceScreen)`: an in-memory, recursive walk of the
+    current preference tree.  It only collects visible, enabled, functional leaves
+    (CheckBox/Switch, List/DropDown, EditText, Color, MultiSelect, SeekBar).
+    `PreferenceCategory` / `PreferenceCategoryEx`, navigation-only `PreferenceEx`,
+    nested `PreferenceScreen` rows and non-functional leaves are ignored.  It does
+    not cross into sub-fragments or intents.
+
+- **Menu behavior**: `PreferenceFragmentBase` adds `R.id.restartmatched`.  On
+  non-Main fragments with `toolbarMenu`, the item is shown only when
+  `resolvePreferenceScreen` returns a non-empty set.  The old individual
+  `restartlauncher` / `restartsystemui` / `restartsecuritycenter` items are hidden
+  on non-Main fragments; `MainFragment` keeps them.  `onPrepareOptionsMenu`
+  re-resolves when preferences may have changed visible/enabled/dependency state.
+  `MainFragment` search expand/collapse logic keeps `restartmatched` hidden.
+  `CategorySelector` and `System` no longer use page-name `activeMenus` mappings.
+
+- **Execution**: `PreferenceRestartTargetExecutor` performs a single root check,
+  then attempts the matched targets in fixed order: `SECURITY_CENTER`, `LAUNCHER`,
+  `SYSTEMUI`.  `SECURITY_CENTER` and `LAUNCHER` use `am force-stop` on their
+  package; `SYSTEMUI` uses `pidof` followed by `kill -9`.  Every selected target is
+  attempted; failures are isolated and aggregated.  One Toast is shown on the main
+  thread with `restart_affected_components_done`, `_partial` or `_failed`.
+  No soft reboot or system reboot is invoked.  The fragment guards against a
+  destroyed activity before showing the Toast.
+
+- **Soft-reboot exclusion**: the matched restart set is never mixed with
+  `R.id.softreboot`.  Soft reboot remains a separate, user-initiated action.
+
+### P3-B self assessment
+
+```text
+P3_B_SELF_ASSESSMENT = PASS_CANDIDATE
+P3_B_FINAL_GATE = (not written)
+```
+
+This implementation is a candidate; the final gate is left for the authorized
+reviewer to close.

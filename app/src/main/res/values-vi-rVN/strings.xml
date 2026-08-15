@@ -808,6 +808,10 @@
     <string name="restart_launcher">Khởi động lại trình khởi chạy</string>
     <string name="restart_systemui">Khởi động lại giao diện hệ thống</string>
     <string name="restart_securitycenter">Khởi động lại trung tâm bảo mật</string>
+    <string name="restart_affected_components">Khởi động lại các mục liên quan</string>
+    <string name="restart_affected_components_done">Đã khởi động lại</string>
+    <string name="restart_affected_components_partial">Một phần: %1$s</string>
+    <string name="restart_affected_components_failed">Thất bại: %1$s</string>
     <string name="backup_restore">Quản lý cài đặt</string>
     <string name="reset_settings">Đặt lại cài đặt</string>
     <string name="reset_settings_done">Đặt lại thành công. Vui lòng khởi động lại</string>

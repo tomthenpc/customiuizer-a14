@@ -740,6 +740,10 @@ ss - iki basamaklı saniye(09)</string>
     <string name="restart_launcher">Başlatıcıyı yeniden başlat</string>
     <string name="restart_systemui">Arayüzü yeniden başlat</string>
     <string name="restart_securitycenter">Güvenlik merkezini yeniden başlat</string>
+    <string name="restart_affected_components">Etkilenenleri yeniden başlat</string>
+    <string name="restart_affected_components_done">Yeniden başlatıldı</string>
+    <string name="restart_affected_components_partial">Kısmi: %1$s</string>
+    <string name="restart_affected_components_failed">Başarısız: %1$s</string>
     <string name="backup_restore">Ayarlar yönetimi</string>
     <string name="do_backup">Yedekle</string>
     <string name="do_restore">Eski haline getir</string>

@@ -808,6 +808,10 @@
     <string name="restart_launcher">ランチャーを再起動</string>
     <string name="restart_systemui">SystemUIを再起動</string>
     <string name="restart_securitycenter">セキュリティセンターを再起動</string>
+    <string name="restart_affected_components">影響する物を再起動</string>
+    <string name="restart_affected_components_done">再起動しました</string>
+    <string name="restart_affected_components_partial">一部失敗：%1$s</string>
+    <string name="restart_affected_components_failed">失敗：%1$s</string>
     <string name="backup_restore">設定の管理</string>
     <string name="reset_settings">設定をリセット</string>
     <string name="reset_settings_done">リセットが完了しました。再起動をしてください</string>

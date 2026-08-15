@@ -25,6 +25,10 @@
 		app:showAsAction="never"
 		android:title="@string/restart_securitycenter" />
 	<item
+		android:id="@+id/restartmatched"
+		app:showAsAction="never"
+		android:title="@string/restart_affected_components" />
+	<item
 		android:id="@+id/softreboot"
 		android:title="@string/soft_reboot"
 		app:showAsAction="never" />

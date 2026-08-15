@@ -789,6 +789,10 @@
     <string name="restart_launcher">Перезагрузить рабочий стол</string>
     <string name="restart_systemui">Перезапуск интерфейса</string>
     <string name="restart_securitycenter">Перезапустить центр безопасности</string>
+    <string name="restart_affected_components">Перезапустить затронутые</string>
+    <string name="restart_affected_components_done">Перезапущено</string>
+    <string name="restart_affected_components_partial">Частично: %1$s</string>
+    <string name="restart_affected_components_failed">Ошибка: %1$s</string>
     <string name="backup_restore">Управление настройками</string>
     <string name="reset_settings">Сброс настроек</string>
     <string name="reset_settings_done">Сброс завершен. Пожалуйста, перезагрузитесь</string>

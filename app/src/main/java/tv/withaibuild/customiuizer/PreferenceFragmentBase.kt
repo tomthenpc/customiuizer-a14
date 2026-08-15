@@ -45,6 +45,9 @@ import tv.withaibuild.customiuizer.utils.AppLocaleController
 import tv.withaibuild.customiuizer.utils.AppSelectionSanitizer
 import tv.withaibuild.customiuizer.utils.BackupRestore
 import tv.withaibuild.customiuizer.utils.Helpers
+import tv.withaibuild.customiuizer.utils.PreferenceRestartTargetExecutor
+import tv.withaibuild.customiuizer.utils.PreferenceRestartTargetResolver
+import tv.withaibuild.customiuizer.utils.RestartTarget
 import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
 open class PreferenceFragmentBase : PreferenceFragmentCompat() {
@@ -95,16 +98,86 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
                 item.isVisible = item.itemId == R.id.edit_confirm
             }
         } else {
+            val isMainFragment = this is MainFragment
+            val matchedTargets = if (!isMainFragment && toolbarMenu && preferenceScreen != null) {
+                PreferenceRestartTargetResolver.resolvePreferenceScreen(preferenceScreen)
+            } else {
+                emptySet()
+            }
             for (i in 0 until menu.size()) {
                 val item = menu.getItem(i)
                 val menuId = item.itemId
-                val menuKey = MAP_KEYS[menuId]
                 item.isVisible = when {
+                    menuId == R.id.restartmatched -> !isMainFragment && matchedTargets.isNotEmpty()
+                    menuId == R.id.restartlauncher ||
+                        menuId == R.id.restartsystemui ||
+                        menuId == R.id.restartsecuritycenter -> {
+                        isMainFragment && (activeMenus == "all" || activeMenus.contains(MAP_KEYS[menuId] ?: ""))
+                    }
                     activeMenus == "all" && menuId == R.id.edit_confirm -> false
                     activeMenus == "all" -> true
-                    menuKey != null && activeMenus.contains(menuKey) -> true
-                    else -> false
+                    else -> {
+                        val menuKey = MAP_KEYS[menuId]
+                        menuKey != null && activeMenus.contains(menuKey)
+                    }
                 }
+            }
+        }
+    }
+
+    override fun onPrepareOptionsMenu(menu: Menu) {
+        super.onPrepareOptionsMenu(menu)
+        if (isCustomActionBar || !toolbarMenu) return
+
+        if (this is MainFragment) {
+            menu.findItem(R.id.restartmatched)?.isVisible = false
+            return
+        }
+
+        val screen = preferenceScreen ?: return
+        val matchedTargets = PreferenceRestartTargetResolver.resolvePreferenceScreen(screen)
+        menu.findItem(R.id.restartmatched)?.isVisible = matchedTargets.isNotEmpty()
+    }
+
+    protected open fun resolveMatchedRestartTargets(): Set<RestartTarget> {
+        val screen = preferenceScreen ?: return emptySet()
+        return PreferenceRestartTargetResolver.resolvePreferenceScreen(screen)
+    }
+
+    private fun restartMatchedTargets(targets: Set<RestartTarget>) {
+        if (targets.isEmpty()) return
+
+        val executor = PreferenceRestartTargetExecutor()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val result = executor.execute(targets)
+
+            withContext(Dispatchers.Main) {
+                val act = activity as? AppCompatActivity ?: return@withContext
+                if (act.isFinishing || act.isDestroyed || !isAdded) return@withContext
+
+                val message = when {
+                    !result.rootGranted -> act.getString(R.string.restart_no_root)
+                    result.failed.isEmpty() -> act.getString(R.string.restart_affected_components_done)
+                    result.succeeded.isEmpty() -> act.getString(
+                        R.string.restart_affected_components_failed,
+                        formatFailedTargets(result.failed)
+                    )
+                    else -> act.getString(
+                        R.string.restart_affected_components_partial,
+                        formatFailedTargets(result.failed)
+                    )
+                }
+                Toast.makeText(act, message, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun formatFailedTargets(targets: List<RestartTarget>): String {
+        return targets.joinToString(", ") { target ->
+            when (target) {
+                RestartTarget.LAUNCHER -> getString(R.string.restart_launcher)
+                RestartTarget.SYSTEMUI -> getString(R.string.restart_systemui)
+                RestartTarget.SECURITY_CENTER -> getString(R.string.restart_securitycenter)
             }
         }
     }
@@ -132,6 +205,11 @@ open class PreferenceFragmentBase : PreferenceFragmentCompat() {
             }
             R.id.restartsecuritycenter -> {
                 restartTarget("com.miui.securitycenter", R.string.restart_securitycenter_done, R.string.restart_securitycenter_failed)
+                return true
+            }
+            R.id.restartmatched -> {
+                val targets = resolveMatchedRestartTargets()
+                if (targets.isNotEmpty()) restartMatchedTargets(targets)
                 return true
             }
             R.id.backuprestore -> {

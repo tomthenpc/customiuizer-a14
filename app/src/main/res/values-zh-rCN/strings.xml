@@ -957,6 +957,10 @@
     <string name="restart_securitycenter_failed">重启手机管家失败</string>
     <string name="restart_no_root">未获取 Root 权限</string>
     <string name="restart_target_not_running">目标进程未运行</string>
+    <string name="restart_affected_components">重启相关组件</string>
+    <string name="restart_affected_components_done">已重启</string>
+    <string name="restart_affected_components_partial">部分失败：%1$s</string>
+    <string name="restart_affected_components_failed">失败：%1$s</string>
     <string name="various_allow_untrusted_touch_title">允许不受信任的触摸操作</string>
     <string name="various_persist_batteryoptimization_settings_title">将电池优化设置持久化</string>
     <string name="various_disable_defraud_apps_detect_title">扫描时禁止应用远程检测</string>

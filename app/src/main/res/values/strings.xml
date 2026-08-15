@@ -893,6 +893,10 @@
     <string name="restart_securitycenter_failed">Failed to restart security center</string>
     <string name="restart_no_root">Root permission unavailable</string>
     <string name="restart_target_not_running">Target process is not running</string>
+    <string name="restart_affected_components">Restart affected</string>
+    <string name="restart_affected_components_done">Restarted</string>
+    <string name="restart_affected_components_partial">Partial: %1$s</string>
+    <string name="restart_affected_components_failed">Failed: %1$s</string>
     <string name="backup_restore">Settings management</string>
     <string name="reset_settings">Reset settings</string>
     <string name="reset_settings_done">Reset done. Please reboot</string>

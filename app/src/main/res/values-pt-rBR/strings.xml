@@ -808,6 +808,10 @@
     <string name="restart_launcher">Reiniciar launcher</string>
     <string name="restart_systemui">Reiniciar systemui</string>
     <string name="restart_securitycenter">Reiniciar centro de segurança</string>
+    <string name="restart_affected_components">Reiniciar afetados</string>
+    <string name="restart_affected_components_done">Reiniciado</string>
+    <string name="restart_affected_components_partial">Parcial: %1$s</string>
+    <string name="restart_affected_components_failed">Falhou: %1$s</string>
     <string name="backup_restore">Gerenciar configurações</string>
     <string name="reset_settings">Redefinir configurações</string>
     <string name="reset_settings_done">Redefinição concluída. Por favor, reinicie.</string>

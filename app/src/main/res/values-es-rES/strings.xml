@@ -763,6 +763,10 @@
     <string name="restart_launcher">Reiniciar navegador</string>
     <string name="restart_systemui">Reiniciar SystemUI</string>
     <string name="restart_securitycenter">Reiniciar centro de seguridad</string>
+    <string name="restart_affected_components">Reiniciar afectados</string>
+    <string name="restart_affected_components_done">Reiniciado</string>
+    <string name="restart_affected_components_partial">Parcial: %1$s</string>
+    <string name="restart_affected_components_failed">Fallido: %1$s</string>
     <string name="backup_restore">Administrar ajustes</string>
     <string name="reset_settings">Ajustes de reseteo</string>
     <string name="reset_settings_done">Reseteo finalizado. Por favor reinicie</string>
