@@ -77,6 +77,14 @@ open class SubFragmentWithSearch : SubFragment() {
         }
     }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        listView = null
+        searchView = null
+        textInput = null
+        isSearchFocused = false
+    }
+
     private fun applyFilter(filter: String) {
         val adapter = listView?.adapter ?: return
         when (adapter) {
