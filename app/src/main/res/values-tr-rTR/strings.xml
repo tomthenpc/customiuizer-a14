@@ -899,6 +899,8 @@ ss - iki basamaklı saniye(09)</string>
     <string name="various_disable_xiaomi_analytics_title">Xiaomi analizini ve sistem reklamlarını devre dışı bırak</string>
     <string name="various_exclusive_features_cat_title">Özel özellikler</string>
     <string name="various_permission_scope_failed">PermissionController kapsam isteği onaylanmadı.</string>
+    <string name="dynamic_app_scope_unavailable">Seçilen uygulamayı modül kapsamına eklemek için Vector/LSPosed API 102 gerekir. Çerçeve kapsam isteyemezse uygulamayı elle ekleyin.</string>
+    <string name="dynamic_app_scope_failed">Seçilen uygulama modül kapsamına eklenmedi. Ayar kaydedildi ancak uygulama kapsama girene kadar özellik uygulanmaz.</string>
     <string name="various_permission_scope_unavailable">PermissionController bileşenini bu modülün kapsamına ekleyip cihazı yeniden başlatın.</string>
     <string name="various_remove_security_center_antivirus_confirm">Doğrulanmış %1$d Güvenlik Merkezi antivirüs bileşeni devre dışı bırakılsın mı? Virüs taramaları, virüs uyarıları ve gecikmiş tarama hatırlatıcıları kullanılamaz. Bu seçeneği kapatmak her bileşeni önceki durumuna geri yükler.</string>
     <string name="various_remove_security_center_antivirus_summ">Gecikmiş tarama hatırlatıcılarını engellemek için antivirüs giriş noktalarını, korumaları, iletişim kutularını, güncellemeleri ve düzenli tarama işlerini devre dışı bırakır; izinleri, güvenlik duvarını, istenmeyen ileti engellemeyi ve pil araçlarını korur</string>

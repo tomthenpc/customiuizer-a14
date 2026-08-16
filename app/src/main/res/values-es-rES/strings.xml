@@ -928,6 +928,8 @@
     <string name="various_disable_xiaomi_analytics_title">Desactivar análisis de Xiaomi y anuncios del sistema</string>
     <string name="various_exclusive_features_cat_title">Funciones exclusivas</string>
     <string name="various_permission_scope_failed">No se aprobó la solicitud de ámbito de PermissionController.</string>
+    <string name="dynamic_app_scope_unavailable">Esta función necesita Vector/LSPosed API 102 para añadir la app seleccionada al ámbito del módulo. Si el marco no puede pedir el ámbito, añádela manualmente.</string>
+    <string name="dynamic_app_scope_failed">La app seleccionada no se añadió al ámbito del módulo. El ajuste se guardó, pero la función no se aplica hasta que la app esté en el ámbito.</string>
     <string name="various_permission_scope_unavailable">Añade PermissionController al ámbito de este módulo y reinicia.</string>
     <string name="various_remove_security_center_antivirus_confirm">¿Desactivar %1$d componentes antivirus verificados del Centro de seguridad? Los análisis y avisos de virus y los recordatorios de análisis atrasados dejarán de estar disponibles. Al desactivar esta opción, cada componente vuelve a su estado anterior.</string>
     <string name="various_remove_security_center_antivirus_summ">Desactiva los puntos de entrada, protecciones, diálogos, actualizaciones y tareas periódicas de análisis del antivirus para suprimir los recordatorios de análisis atrasados; mantiene los permisos, cortafuegos, antispam y herramientas de batería</string>

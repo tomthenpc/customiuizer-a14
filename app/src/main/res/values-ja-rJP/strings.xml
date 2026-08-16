@@ -994,6 +994,8 @@
     <string name="various_disable_xiaomi_analytics_title">Xiaomi分析とシステム広告を無効化</string>
     <string name="various_exclusive_features_cat_title">独自機能</string>
     <string name="various_permission_scope_failed">PermissionControllerのスコープ要求が承認されませんでした。</string>
+    <string name="dynamic_app_scope_unavailable">選択したアプリをモジュールのスコープに追加するには Vector/LSPosed API 102 が必要です。フレームワークがスコープを要求できない場合は手動で追加してください。</string>
+    <string name="dynamic_app_scope_failed">選択したアプリはモジュールのスコープに追加されませんでした。設定は保存されますが、スコープに入るまで機能は適用されません。</string>
     <string name="various_permission_scope_unavailable">このモジュールのスコープにPermissionControllerを追加し、再起動してください。</string>
     <string name="various_remove_security_center_antivirus_confirm">確認済みのセキュリティセンターのウイルス対策コンポーネント%1$d個を無効化しますか？ウイルススキャン、ウイルス警告、長期間未スキャンの通知が利用できなくなります。オフにすると各コンポーネントを以前の状態に戻します。</string>
     <string name="various_remove_security_center_antivirus_summ">ウイルス対策の入口、ガード、ダイアログ、更新、定期スキャンジョブを無効化して未スキャン通知を抑止します。権限、ファイアウォール、迷惑電話対策、バッテリーツールは維持します</string>

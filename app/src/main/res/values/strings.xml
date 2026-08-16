@@ -1077,6 +1077,8 @@
     <string name="various_block_location_permission_prompts_summ">Closes the Android system prompt without granting foreground or background location; restart PermissionController or reboot after changing</string>
     <string name="various_permission_scope_unavailable">Add PermissionController to this module’s scope, then reboot.</string>
     <string name="various_permission_scope_failed">PermissionController scope request was not approved.</string>
+    <string name="dynamic_app_scope_unavailable">This feature needs Vector/LSPosed API 102 to add the selected app to the module scope. Add it manually if the framework cannot request scope.</string>
+    <string name="dynamic_app_scope_failed">The selected app was not added to the module scope. The setting is saved, but the feature will not apply until the app is in scope.</string>
     <string name="system_usb_default_function_title">USB default purpose</string>
     <string name="usb_default_function_follow_system">Follow system default</string>
     <string name="usb_default_function_charge_only">Charge only</string>

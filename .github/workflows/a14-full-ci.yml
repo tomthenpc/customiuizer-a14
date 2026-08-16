@@ -3,7 +3,7 @@ name: A14 Full CI
 on:
   push:
     branches:
-      - devin/a14-rom-intelligence-audit
+      - main
   schedule:
     - cron: '0 0 * * 0'
   workflow_dispatch:
@@ -136,6 +136,7 @@ jobs:
           python tools/check_automation_state.py
           python tools/check_document_contracts.py
           python tools/check_goal_constitution.py
+          python tools/ci_contract_scan.py --expected-branch main --default-branch main
           python tools/progress_snapshot.py --check
 
       - name: Full machine verifier

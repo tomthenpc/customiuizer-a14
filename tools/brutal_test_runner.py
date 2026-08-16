@@ -303,7 +303,13 @@ def mutate_remove_fetch_depth(root: Path, cfg: dict) -> None:
 
 
 def mutate_wrong_branch(root: Path, cfg: dict) -> None:
-    replace_first(workflow_path(root, cfg), re.escape(cfg["expected_branch"]), "main")
+    path = workflow_path(root, cfg)
+    text = path.read_text(encoding="utf-8")
+    pattern = rf"(?m)^(\s+-\s+){re.escape(cfg['expected_branch'])}\s*$"
+    changed, count = re.subn(pattern, r"\1devin/stale-ci-branch", text, count=1)
+    if count != 1:
+        raise RuntimeError("expected CI branch not found")
+    path.write_text(changed, encoding="utf-8")
 
 
 def mutate_signing_leak(root: Path, cfg: dict) -> None:

@@ -1038,6 +1038,8 @@
     <string name="various_block_location_permission_prompts_summ">不授予前台或后台定位权限并直接关闭 Android 系统授权页；修改后需重启 PermissionController 或重启设备</string>
     <string name="various_permission_scope_unavailable">请将 PermissionController 加入本模块作用域，然后重启设备。</string>
     <string name="various_permission_scope_failed">PermissionController 作用域请求未获批准。</string>
+    <string name="dynamic_app_scope_unavailable">此功能需要 Vector/LSPosed API 102 才能将所选应用加入模块作用域。若框架无法请求作用域，请手动添加。</string>
+    <string name="dynamic_app_scope_failed">所选应用未加入模块作用域。设置已保存，但在应用进入作用域前功能不会生效。</string>
     <string name="system_usb_default_function_title">USB 默认用途</string>
     <string name="usb_default_function_follow_system">跟随系统默认</string>
     <string name="usb_default_function_charge_only">仅限充电</string>

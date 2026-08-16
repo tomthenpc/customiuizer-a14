@@ -1,7 +1,7 @@
 {
   "name": "A14",
   "schema_version": 2,
-  "expected_branch": "devin/a14-rom-intelligence-audit",
+  "expected_branch": "main",
   "coverage_target": 74,
   "minimum_independent_kills": 11,
   "required_independent_mutations": [
@@ -56,7 +56,7 @@
       "python",
       "tools/ci_contract_scan.py",
       "--expected-branch",
-      "devin/a14-rom-intelligence-audit",
+      "main",
       "--default-branch",
       "main"
     ],
@@ -107,7 +107,7 @@
       "python",
       "tools/ci_contract_scan.py",
       "--expected-branch",
-      "devin/a14-rom-intelligence-audit",
+      "main",
       "--default-branch",
       "main"
     ],

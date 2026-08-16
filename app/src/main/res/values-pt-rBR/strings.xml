@@ -994,6 +994,8 @@
     <string name="various_disable_xiaomi_analytics_title">Desativar análise da Xiaomi e anúncios do sistema</string>
     <string name="various_exclusive_features_cat_title">Recursos exclusivos</string>
     <string name="various_permission_scope_failed">A solicitação de escopo do PermissionController não foi aprovada.</string>
+    <string name="dynamic_app_scope_unavailable">Este recurso precisa da API 102 do Vector/LSPosed para adicionar o app selecionado ao escopo do módulo. Se o framework não puder solicitar o escopo, adicione-o manualmente.</string>
+    <string name="dynamic_app_scope_failed">O app selecionado não foi adicionado ao escopo do módulo. A configuração foi salva, mas o recurso só vale depois que o app estiver no escopo.</string>
     <string name="various_permission_scope_unavailable">Adicione o PermissionController ao escopo deste módulo e reinicie.</string>
     <string name="various_remove_security_center_antivirus_confirm">Desativar %1$d componentes antivírus verificados da Central de Segurança? Verificações e alertas de vírus e lembretes de verificação atrasada ficarão indisponíveis. Desativar esta opção restaura cada componente ao estado anterior.</string>
     <string name="various_remove_security_center_antivirus_summ">Desativa entradas, proteções, caixas de diálogo, atualizações e tarefas periódicas de verificação do antivírus para suprimir lembretes de verificação atrasada; mantém permissões, firewall, antispam e ferramentas de bateria</string>
