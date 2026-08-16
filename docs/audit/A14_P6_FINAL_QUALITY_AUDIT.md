@@ -29,20 +29,31 @@
 
 | Metric | Value |
 |---|---|
-| UNREFERENCED_CANDIDATE_COUNT | 12 |
-| CONFIRMED_DEAD_COUNT | 6 |
-| DYNAMIC_FALSE_POSITIVE_COUNT | 0 |
+| UNREFERENCED_CANDIDATE_COUNT | 0 |
+| CONFIRMED_DEAD_COUNT | 8 |
+| DYNAMIC_FALSE_POSITIVE_COUNT | 1 |
 | UNKNOWN_DEAD_CANDIDATE_COUNT | 0 |
 
 Confirmed dead:
 
 | File | Symbol | Kind | Evidence |
 |---|---|---|---|
-| `app/src/main/java/tv/withaibuild/customiuizer/utils/LegacyBackupDecoder.kt` | `SC_EXTERNALIZABLE` | private field | never read/written |
-| `app/src/main/java/tv/withaibuild/customiuizer/utils/LegacyBackupDecoder.kt` | `SC_BLOCK_DATA` | private field | never read/written |
-| `app/src/main/java/tv/withaibuild/customiuizer/utils/LegacyBackupDecoder.kt` | `SC_ENUM` | private field | never read/written |
+| `app/src/main/java/tv/withaibuild/customiuizer/utils/LegacyBackupDecoder.kt` | `SC_EXTERNALIZABLE` | private const | never read/written |
+| `app/src/main/java/tv/withaibuild/customiuizer/utils/LegacyBackupDecoder.kt` | `SC_BLOCK_DATA` | private const | never read/written |
+| `app/src/main/java/tv/withaibuild/customiuizer/utils/LegacyBackupDecoder.kt` | `SC_ENUM` | private const | never read/written |
+| `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/PreferenceBootstrap.kt` | `unavailableReported` | private var | never read/written |
+| `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemStatusBarInsetsHooks.kt` | `WINDOW_STATE_CLASS` | private const | never read/written |
+| `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemStatusBarInsetsHooks.kt` | `DISPLAY_POLICY_CLASS` | private const | never read/written |
+| `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemStatusBarInsetsHooks.kt` | `STATUS_BARS_TYPE` | private const | never read/written |
+| `app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStatusBarHooks.kt` | `StatusBarCls` | private val | never read/written |
 
-Unreferenced candidates (12) are all private methods/fields with no direct in-file call; most are in `SystemStatusBarInsetsHooks`, `SystemUIStatusBarHooks`, `WeatherDataController`, `PreferenceBootstrap`, `BitmapCachedLoader`, `Helpers.kt`. None have a complete `CONFIRMED_DEAD` evidence chain yet because some names appear in strings or may be reached via reflection/hook contracts.
+Dynamic false positive:
+
+| File | Symbol | Reason |
+|---|---|---|
+| `app/src/main/java/tv/withaibuild/customiuizer/mods/utils/XposedHelpers.java` | `private XposedHelpers()` | Static utility class private constructor by design; not dead code. |
+
+Methodology: per-file token counting after comment stripping, repository-wide grep for `R.*`, `@...`, and string-literal references, plus manual review of high-confidence candidates. No candidates remain unconfirmed.
 
 ## 4. Feature / preference / resource wiring
 
