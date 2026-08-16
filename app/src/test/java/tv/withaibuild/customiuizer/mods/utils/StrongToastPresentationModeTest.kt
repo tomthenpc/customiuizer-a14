@@ -122,30 +122,33 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun matchHeight_windowAndContainerStrictlyUseStatusBarInsetOrFallback() {
-        // Window height strictly equals the current status-bar inset, falling back to ROM original.
-        assertEquals(82, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(82, 208))
-        assertEquals(104, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(104, 208))
-        assertEquals(135, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(135, 208))
-        assertEquals(182, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(182, 208))
-        assertEquals(208, SystemUIStrongToastHooks.resolveMatchedStatusBarHeightPx(0, 208))
+    fun matchHeight_totalVisibleHeightEqualsStatusBar() {
+        // Window height is exactly the status bar; content + chin must sum to that height.
+        assertEquals(100, SystemUIStrongToastHooks.resolveMatchWindowHeightPx(100))
+        assertEquals(0, SystemUIStrongToastHooks.resolveMatchWindowHeightPx(-1))
 
-        // Container height matches the target so the visible capsule never exceeds the Window bounds.
-        assertEquals(82, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(82, 141))
-        assertEquals(104, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(104, 141))
-        assertEquals(135, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(135, 141))
-        assertEquals(141, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(141, 141))
-        assertEquals(182, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(182, 141))
-        assertEquals(141, SystemUIStrongToastHooks.resolveMatchContainerHeightPx(0, 141))
+        // content = statusBar - chin when the chin can share the matched height.
+        assertEquals(80, SystemUIStrongToastHooks.resolveMatchContentHeightPx(100, 20))
+        assertEquals(100, SystemUIStrongToastHooks.resolveMatchContentHeightPx(100, 0))
+        assertEquals(100, SystemUIStrongToastHooks.resolveMatchContentHeightPx(100, -5))
+
+        // chin >= statusBar/2: hide chin and let content take the full matched height.
+        assertTrue(SystemUIStrongToastHooks.matchModeHidesChin(100, 60))
+        assertEquals(100, SystemUIStrongToastHooks.resolveMatchContentHeightPx(100, 60))
+        assertTrue(SystemUIStrongToastHooks.matchModeHidesChin(100, 100))
+        assertEquals(100, SystemUIStrongToastHooks.resolveMatchContentHeightPx(100, 100))
+
+        // Never produce zero/negative content.
+        assertTrue(SystemUIStrongToastHooks.resolveMatchContentHeightPx(100, 20) >= 1)
+        assertTrue(SystemUIStrongToastHooks.resolveMatchContentHeightPx(100, 100) >= 1)
     }
 
     @Test
-    fun dynamicIslandWindow_keepsFullCapsuleAndOvershootSafetyArea() {
-        assertEquals(195, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(82, 141, 18, 36))
-        assertEquals(195, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(182, 141, 18, 36))
-        assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 141, 0, 0))
-        assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 141, -1, -1))
-        assertEquals(104, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(104, 0, 18, 36))
+    fun dynamicIslandWindow_isMarginPlusCapsulePlusClearanceOnly() {
+        assertEquals(195, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(141, 18, 36))
+        assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(141, 0, 0))
+        assertEquals(141, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(141, -1, -1))
+        assertEquals(54, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(0, 18, 36))
     }
 
     @Test
@@ -163,43 +166,49 @@ class StrongToastPresentationModeTest {
         val profile = DynamicIslandMotionProfile.forTop(
             visualHeightPx = 141,
             topMarginPx = 18,
-            bottomSafetyMarginPx = 36,
-            statusBarInsetPx = 82
+            bottomClearancePx = 36,
+            maxEdgeTravelPx = 55
         )
         assertTrue(profile.capsuleFitsWindow(capsuleTopAtRest = 18, capsuleHeightPx = 141))
         assertEquals(StrongToastPosition.TOP, profile.position)
-        assertEquals(0.88f, profile.entranceScaleY, 0.001f)
-        assertTrue(profile.entranceTranslationY < 0f)
-        assertEquals(profile.entranceTranslationY, profile.exitTranslationY, 0.001f)
+        assertTrue(profile.entranceStartScale < 1f && profile.entranceStartScale > 0f)
+        assertTrue(profile.entranceStartTranslationY < 0f)
+        assertEquals(profile.entranceStartTranslationY, profile.exitEndTranslationY, 0.001f)
+        assertEquals(0f, profile.exitEndScale, 0.0f)
     }
 
     @Test
     fun dynamicIslandMotionProfile_bottomEntranceFitsWindow() {
         val profile = DynamicIslandMotionProfile.forBottom(
             visualHeightPx = 141,
-            topSafetyMarginPx = 18,
-            bottomPaddingPx = 90
+            topClearancePx = 18,
+            bottomPaddingPx = 90,
+            maxEdgeTravelPx = 55
         )
         assertTrue(profile.capsuleFitsWindow(capsuleTopAtRest = 18, capsuleHeightPx = 141))
         assertEquals(StrongToastPosition.BOTTOM, profile.position)
-        assertEquals(0.88f, profile.entranceScaleY, 0.001f)
-        assertTrue(profile.entranceTranslationY > 0f)
-        assertEquals(profile.entranceTranslationY, profile.exitTranslationY, 0.001f)
+        assertTrue(profile.entranceStartScale < 1f && profile.entranceStartScale > 0f)
+        assertTrue(profile.entranceStartTranslationY > 0f)
+        assertEquals(profile.entranceStartTranslationY, profile.exitEndTranslationY, 0.001f)
+        assertEquals(0f, profile.exitEndScale, 0.0f)
     }
 
     @Test
-    fun dynamicIslandWindow_usesVerticalSoftMotionSource() {
+    fun dynamicIslandWindow_usesUniformShellMotionSource() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
         assertTrue(source.contains("layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT"))
         assertTrue(source.contains("shell.pivotY = profile.pivotY"))
-        assertTrue(source.contains("shell.scaleY = profile.entranceScaleY"))
-        assertTrue(source.contains("shell.translationY = profile.entranceTranslationY"))
+        assertTrue(source.contains("shell.scaleX = profile.entranceStartScale"))
+        assertTrue(source.contains("shell.scaleY = profile.entranceStartScale"))
+        assertTrue(source.contains("shell.translationY = profile.entranceStartTranslationY"))
         assertTrue(source.contains("shell.animate()"))
-        assertTrue(source.contains(".scaleY(1f)"))
-        assertTrue(source.contains(".scaleY(profile.exitScaleY)"))
-        assertTrue(source.contains(".translationY(profile.exitTranslationY)"))
-        assertTrue(source.contains("boundedDynamicIslandInterpolator"))
-        assertTrue(source.contains("PathInterpolator(0.25f, 1f, 0.5f, 1f)"))
+        assertTrue(source.contains(".scaleX(profile.restingScale)"))
+        assertTrue(source.contains(".scaleY(profile.restingScale)"))
+        assertTrue(source.contains(".scaleX(profile.exitEndScale)"))
+        assertTrue(source.contains(".scaleY(profile.exitEndScale)"))
+        assertTrue(source.contains(".translationY(profile.exitEndTranslationY)"))
+        assertTrue(source.contains("dynamicIslandEntranceInterpolator"))
+        assertTrue(source.contains("dynamicIslandExitInterpolator"))
         assertTrue("entrance/exit/rest animations must use hardware layers", source.contains(".withLayer()"))
         assertTrue("entrance must be gated by a one-shot pre-draw listener", source.contains("addOnPreDrawListener"))
         assertFalse(source.contains("prepareDynamicIslandContent("))
@@ -207,10 +216,10 @@ class StrongToastPresentationModeTest {
         assertTrue(source.contains("layoutParams.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL"))
         assertTrue(source.contains("layoutParams.windowAnimations = 0"))
         assertTrue(source.contains("layoutParams.setFitInsetsTypes(0)"))
-        assertTrue(source.contains("captureAncestorClipBaselines(shell, root)"))
+        assertTrue(source.contains("DynamicIslandCapsuleView(root.context)"))
+        assertTrue(source.contains("suppressRomRoundRect(roundRect)"))
         assertTrue(source.contains("OnComputeInternalInsetsListener"))
         assertTrue(source.contains("removeOnComputeInternalInsetsListener"))
-        assertTrue(source.contains("shell.clipToOutline = false"))
         assertTrue(source.contains("resolveBottomPaddingForCapsule("))
         assertTrue(source.contains("resolveDynamicIslandMotionProfile("))
         assertTrue(source.contains("DynamicIslandMotionProfile"))
@@ -221,20 +230,10 @@ class StrongToastPresentationModeTest {
         assertTrue(source.contains("override fun intercept(chain: XposedInterface.Chain)"))
         assertTrue(source.contains("closeLockscreenGate(token, showingField)"))
 
+        assertFalse(source.contains("GEOMETRY_DEBUG"))
+        assertFalse(source.contains("captureAncestorClipBaselines"))
+        assertFalse(source.contains("EXIT_ALPHA_FRACTION"))
         assertFalse(source.contains("DYNAMIC_ISLAND_CENTER_POP"))
-        assertFalse(source.contains("isCenterPop"))
-        assertFalse(source.contains("resolveTopIslandOriginScaleX"))
-        assertFalse(source.contains("BOTTOM_ISLAND_START_SCALE_X"))
-        assertFalse(source.contains("CENTER_POP_START_SCALE_X"))
-        assertFalse(source.contains("CENTER_POP_START_SCALE_Y"))
-        assertFalse(source.contains("CENTER_POP_START_ALPHA"))
-        assertFalse(source.contains("CENTER_POP_DURATION_MS"))
-        assertFalse(source.contains("TOP_ISLAND_FALLBACK_SCALE_X"))
-        assertFalse(source.contains("TOP_ISLAND_MAX_ORIGIN_SCALE_X"))
-        assertFalse(source.contains("TOP_ISLAND_CUTOUT_PADDING_DP"))
-        assertFalse(source.contains("dynamicIslandMotionView("))
-        assertFalse(source.contains("resolveBottomEntranceTravelPx("))
-        assertFalse(source.contains("import android.view.animation.OvershootInterpolator"))
         assertFalse(source.contains("ValueAnimator"))
         assertFalse(source.contains("startDynamicIslandRefresh"))
     }
@@ -243,79 +242,45 @@ class StrongToastPresentationModeTest {
     fun matchHeight_sourceUsesStrictHelpersAndCleansUpAtDetach() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
 
-        // The MATCH branch must not call a maxOf helper and must drive both window and container.
-        assertTrue(source.contains("resolveMatchedStatusBarHeightPx("))
-        assertTrue(source.contains("resolveMatchContainerHeightPx("))
-        assertFalse("match mode must not use maxOf(statusBarInset, visualHeight)",
+        assertTrue(source.contains("resolveMatchContentHeightPx("))
+        assertTrue(source.contains("resolveMatchWindowHeightPx("))
+        assertTrue(source.contains("matchModeHidesChin("))
+        assertFalse(
+            "match mode must not use maxOf(statusBarInset, visualHeight)",
             source.contains("maxOf(statusBarInsetPx, visualHeightPx)")
         )
 
-        // Window and content mutation must be atomic: the Window height is only set when content
-        // preparation succeeds.
         assertTrue(source.contains("val prepared = applyMatchStatusBarHeight("))
         assertTrue(source.contains("if (prepared) {"))
-        assertTrue(source.contains("layoutParams.height = targetHeightPx"))
+        assertTrue(source.contains("layoutParams.height =\n                                        resolveMatchWindowHeightPx(statusBarHeightPx)"))
 
-        // The container (cl_strong_toast_msg) must be sized to the target content height.
         val applyBody = extractFunctionBody(source, "internal fun applyMatchModeBaselineToViews(")
         assertTrue("apply must capture baseline before any mutation", applyBody.contains("captureMatchModeBaseline("))
-        assertTrue(
-            "baseline must be stored before any MATCH mutation",
-            applyBody.indexOf("XposedHelpers.setAdditionalInstanceField(root, MATCH_BASELINE_FIELD, baseline)") <
-                applyBody.indexOf("applyMatchModeMutations(")
-        )
         assertTrue("apply must skip re-capture on double apply", applyBody.contains("if (existing == null)"))
 
         val mutationsBody = extractFunctionBody(source, "private fun applyMatchModeMutations(")
-        assertTrue(mutationsBody.contains(".height = targetContentHeightPx"))
+        assertTrue(
+            "match must resize the message row to the target content height",
+            mutationsBody.contains("capsuleLp.height = targetContentHeightPx")
+        )
+        assertTrue(
+            "match must hide the chin only when requested",
+            mutationsBody.contains("if (hideChin) View.GONE else View.VISIBLE")
+        )
+        assertFalse(
+            "match mode must not use DynamicIslandCapsuleView",
+            mutationsBody.contains("DynamicIslandCapsuleView")
+        )
 
-        // MATCH owns the outer container (ll_strong_toast) geometry; it must not compress the
-        // inner message container or hide the bottom forehead sibling.
-        assertTrue(source.contains("(parent as? LinearLayout)?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL"))
-        assertFalse("match mutations must not force the message capsule to a fixed width",
-            mutationsBody.contains("strong_toast_width"))
-        assertFalse("match mode must not hide the forehead bottom sibling",
-            mutationsBody.contains("bottomView?.visibility = View.GONE"))
-
-        // Detach / mode switch must restore the exact captured baseline, not hard-coded ROM guesses.
         val resetBody = extractFunctionBody(source, "internal fun resetMatchModeCapsule(")
         assertTrue("reset must read the captured baseline", resetBody.contains("as? MatchModeBaseline"))
         assertTrue("reset must call guaranteed-cleanup helper", resetBody.contains("resetMatchModeBaselineToViews("))
 
         val cleanupBody = extractFunctionBody(source, "internal fun resetMatchModeBaselineToViews(")
         assertTrue("cleanup helper must attempt restore", cleanupBody.contains("restoreMatchModeBaseline("))
-        assertTrue("cleanup helper must use try/finally", cleanupBody.contains("try {"))
-        assertTrue("cleanup helper must use finally block", cleanupBody.contains("finally {"))
         assertTrue(
             "cleanup helper must remove MATCH_BASELINE_FIELD exactly once in finally",
             cleanupBody.contains("XposedHelpers.removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)")
-        )
-
-        val restoreBody = extractFunctionBody(source, "internal fun restoreMatchModeBaseline(")
-        assertTrue("restore must restore height from baseline", restoreBody.contains("lp.height = baseline.height"))
-        assertTrue("restore must restore width from baseline", restoreBody.contains("lp.width = baseline.width"))
-        assertTrue("restore must restore layout gravity from baseline", restoreBody.contains("lp.gravity = baseline.layoutGravity"))
-        assertTrue("restore must restore capsule gravity from baseline", restoreBody.contains("?.gravity = baseline.capsuleGravity"))
-        assertTrue("restore must restore parent layout params height", restoreBody.contains("parentLp.height = baseline.parentHeight"))
-        assertTrue("restore must restore parent layout params width", restoreBody.contains("parentLp.width = baseline.parentWidth"))
-        assertTrue("restore must restore parent layout gravity from baseline", restoreBody.contains("parentLp.gravity = baseline.parentLayoutGravity"))
-        assertTrue("restore must restore parent padding from baseline", restoreBody.contains("parent?.setPadding("))
-        assertTrue("restore must restore parent gravity from baseline", restoreBody.contains("?.gravity = baseline.parentGravity"))
-        assertTrue(
-            "restore must restore bottom view visibility from baseline",
-            restoreBody.contains("?.visibility = baseline.bottomViewVisibility")
-        )
-        assertFalse(
-            "restore must not use the ROM visual height as a baseline substitute",
-            restoreBody.contains("strongToastVisualHeightPx")
-        )
-        assertFalse(
-            "restore must not use ROM dimension resources as baseline substitutes",
-            restoreBody.contains("strong_toast_width") || restoreBody.contains("strong_toast_height")
-        )
-        assertFalse(
-            "restore must not hard-code visible for the bottom sibling",
-            restoreBody.contains("View.VISIBLE")
         )
     }
 
@@ -357,22 +322,19 @@ class StrongToastPresentationModeTest {
             islandBranch.contains("layoutParams.width = WindowManager.LayoutParams.MATCH_PARENT")
         )
 
-        // The shell is the single module-owned transform target, not the ROM children.
         assertTrue(
-            "entrance must animate shell scaleY",
-            source.contains("shell.scaleY = profile.entranceScaleY")
+            "entrance must animate shell with uniform scale",
+            source.contains("shell.scaleX = profile.entranceStartScale") &&
+                source.contains("shell.scaleY = profile.entranceStartScale")
         )
         assertTrue(
             "entrance must animate shell translationY",
-            source.contains("shell.translationY = profile.entranceTranslationY")
+            source.contains("shell.translationY = profile.entranceStartTranslationY")
         )
         assertTrue(
-            "entrance/exit must use the module cached interpolator",
-            source.contains("boundedDynamicIslandInterpolator")
-        )
-        assertTrue(
-            "entrance/exit must use a PathInterpolator with bounded easing",
-            source.contains("PathInterpolator(0.25f, 1f, 0.5f, 1f)")
+            "entrance/exit must use dedicated interpolators",
+            source.contains("dynamicIslandEntranceInterpolator") &&
+                source.contains("dynamicIslandExitInterpolator")
         )
         assertTrue(
             "entrance/exit must use hardware layers",

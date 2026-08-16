@@ -474,30 +474,27 @@ class SystemUIStrongToastHooksTest {
             capsule,
             root,
             bottomView,
-            82
+            82,
+            false
         )
         assertTrue("apply must succeed when baseline exists", applied)
 
-        // MATCH must own the outer container (parent) geometry, not the inner message capsule.
+        // MATCH resizes the message row and keeps the ROM chin when it can share the height.
         assertEquals(500, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
-        assertEquals(82, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
-        assertEquals(19, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
-        assertEquals(23, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
-        assertEquals(GRAVITY_PARENT_LAYOUT_BASELINE, (root.layoutParams as? LinearLayout.LayoutParams)?.gravity)
+        assertEquals(200, (root.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
         assertEquals(0, root.paddingLeft)
         assertEquals(0, root.paddingTop)
         assertEquals(0, root.paddingRight)
         assertEquals(0, root.paddingBottom)
         assertEquals(Gravity.TOP or Gravity.CENTER_HORIZONTAL, root.gravity)
 
-        // The inner capsule and its sibling must remain untouched.
         assertEquals(300, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.width)
-        assertEquals(141, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
+        assertEquals(82, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.height)
         assertEquals(7, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.topMargin)
         assertEquals(11, (capsule.layoutParams as? ViewGroup.MarginLayoutParams)?.bottomMargin)
         assertEquals(GRAVITY_LAYOUT_BASELINE, (capsule.layoutParams as? LinearLayout.LayoutParams)?.gravity)
         assertEquals(GRAVITY_CAPSULE_BASELINE, capsule.gravity)
-        assertEquals(View.INVISIBLE, bottomView.visibility)
+        assertEquals(View.VISIBLE, bottomView.visibility)
 
         SystemUIStrongToastHooks.restoreMatchModeBaseline(
             root,
@@ -531,8 +528,8 @@ class SystemUIStrongToastHooksTest {
     fun applyMatchModeBaselineToViews_doubleApply_doesNotOverwriteBaseline() {
         val (root, capsule, bottomView) = matchFixture()
 
-        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
-        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 150))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82, false))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 150, false))
 
         val baseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD) as SystemUIStrongToastHooks.MatchModeBaseline
         assertEquals(141, baseline.height)
@@ -565,7 +562,7 @@ class SystemUIStrongToastHooksTest {
     fun applyMatchModeBaselineToViews_nextEvent_capturesFreshBaseline() {
         val (root, capsule, bottomView) = matchFixture()
 
-        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82, false))
         val firstBaseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD) as SystemUIStrongToastHooks.MatchModeBaseline
         SystemUIStrongToastHooks.restoreMatchModeBaseline(root, capsule, root, bottomView, firstBaseline)
         XposedHelpers.removeAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
@@ -589,7 +586,7 @@ class SystemUIStrongToastHooksTest {
         }
         bottomView.visibility = View.GONE
 
-        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 104))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 104, false))
         val secondBaseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD) as SystemUIStrongToastHooks.MatchModeBaseline
 
         assertEquals(400, secondBaseline.width)
@@ -637,7 +634,7 @@ class SystemUIStrongToastHooksTest {
         val root = FakeRoot(res)
         val capsule = FakeCapsule(res)
 
-        val applied = SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, null, 82)
+        val applied = SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, null, 82, false)
         assertFalse("apply must fail when baseline cannot be captured", applied)
         assertNull(
             "no baseline must be stored when capture fails",
@@ -650,7 +647,7 @@ class SystemUIStrongToastHooksTest {
         val res = FakeResources(mapOf("strong_toast_width" to 91))
         val root = FakeRoot(res)
 
-        val applied = SystemUIStrongToastHooks.applyMatchStatusBarHeight(root, 82)
+        val applied = SystemUIStrongToastHooks.applyMatchStatusBarHeight(root, 82, false)
         assertFalse("apply must fail when no cl_strong_toast_msg child exists", applied)
         assertNull(
             "no baseline must be stored when apply fails",
@@ -675,7 +672,7 @@ class SystemUIStrongToastHooksTest {
     fun resetMatchModeBaselineToViews_restoresAndClearsBaseline() {
         val (root, capsule, bottomView) = matchFixture()
 
-        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82, false))
         val baseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
             as SystemUIStrongToastHooks.MatchModeBaseline
 
@@ -709,7 +706,7 @@ class SystemUIStrongToastHooksTest {
     fun resetMatchModeBaselineToViews_clearsBaselineWhenCapsuleMissing() {
         val (root, capsule, bottomView) = matchFixture()
 
-        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82, false))
         val baseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
             as SystemUIStrongToastHooks.MatchModeBaseline
 
@@ -727,7 +724,7 @@ class SystemUIStrongToastHooksTest {
     fun resetMatchModeBaselineToViews_clearsBaselineWhenRestoreThrows() {
         val (root, capsule, bottomView) = matchFixture()
 
-        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82, false))
         val baseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
             as SystemUIStrongToastHooks.MatchModeBaseline
 
@@ -753,7 +750,7 @@ class SystemUIStrongToastHooksTest {
         val (root, capsule, bottomView) = matchFixture()
 
         // Event A: apply MATCH, capture baseline A, then force restore to throw.
-        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 82, false))
         val baselineA = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
             as SystemUIStrongToastHooks.MatchModeBaseline
         assertEquals(300, baselineA.width)
@@ -792,7 +789,7 @@ class SystemUIStrongToastHooksTest {
         )
 
         // Event B: fresh apply must capture the new baseline, not stale baseline A.
-        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 104))
+        assertTrue(SystemUIStrongToastHooks.applyMatchModeBaselineToViews(root, capsule, root, bottomView, 104, false))
         val baselineB = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD)
             as SystemUIStrongToastHooks.MatchModeBaseline
 

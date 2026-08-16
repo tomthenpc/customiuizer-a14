@@ -5,23 +5,26 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.widget.FrameLayout
 
 /**
- * Module-owned Dynamic Island capsule.
+ * Module-owned Dynamic Island capsule and the single shape owner of the island.
+ *
+ * One cached [Path] defines both the painted pill and the clip applied to every child, so the
+ * black area the user sees and the area ROM content is allowed to draw in can never disagree.
+ * The path is rebuilt only in [onSizeChanged]; drawing allocates nothing.
  *
  * The pill is painted directly on the [Canvas] instead of being delegated to a
  * [android.graphics.drawable.GradientDrawable] background. HyperOS 1 enables
- * `persist.sys.support_view_smoothcorner` and substitutes its own smooth-corner
- * implementation for the platform rounded-rect drawables, so a `GradientDrawable`
- * background does not reproduce the measured View bounds exactly and the resulting
- * pill loses pixels at one edge. Painting here keeps the visible shape identical to
- * [getWidth] x [getHeight] on every ROM and keeps the corner radius a pure function
- * of the capsule height.
+ * `persist.sys.support_view_smoothcorner` and substitutes its own smooth-corner implementation for
+ * the platform rounded-rect drawables, so a `GradientDrawable` background does not reproduce the
+ * measured View bounds exactly and the resulting pill loses pixels at one edge.
  *
- * The capsule never clips: the rounded shape is drawn, not applied as an outline, so
- * ROM content inside the capsule keeps its own drawing bounds.
+ * Rounded clipping is done with [Canvas.clipPath] in [dispatchDraw]. An
+ * [android.view.ViewOutlineProvider] plus `clipToOutline` would be a second, independently
+ * rasterised rounded shape on the same View, so outline clipping is deliberately left off.
  */
 @SuppressLint("ViewConstructor")
 internal class DynamicIslandCapsuleView(context: Context) : FrameLayout(context) {
@@ -30,12 +33,11 @@ internal class DynamicIslandCapsuleView(context: Context) : FrameLayout(context)
         style = Paint.Style.FILL
         color = Color.BLACK
     }
-    private val shape = RectF()
+    private val shapeRect = RectF()
+    private val shapePath = Path()
 
     init {
         setWillNotDraw(false)
-        clipChildren = false
-        clipToPadding = false
         clipToOutline = false
         background = null
     }
@@ -50,12 +52,29 @@ internal class DynamicIslandCapsuleView(context: Context) : FrameLayout(context)
             }
         }
 
-    override fun onDraw(canvas: Canvas) {
-        val w = width.toFloat()
-        val h = height.toFloat()
-        if (w <= 0f || h <= 0f) return
-        shape.set(0f, 0f, w, h)
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        shapeRect.set(0f, 0f, w.toFloat(), h.toFloat())
         val radius = h / 2f
-        canvas.drawRoundRect(shape, radius, radius, fillPaint)
+        shapePath.reset()
+        if (w > 0 && h > 0) {
+            shapePath.addRoundRect(shapeRect, radius, radius, Path.Direction.CW)
+        }
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        if (shapePath.isEmpty) return
+        canvas.drawPath(shapePath, fillPaint)
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        if (shapePath.isEmpty) {
+            super.dispatchDraw(canvas)
+            return
+        }
+        val save = canvas.save()
+        canvas.clipPath(shapePath)
+        super.dispatchDraw(canvas)
+        canvas.restoreToCount(save)
     }
 }
