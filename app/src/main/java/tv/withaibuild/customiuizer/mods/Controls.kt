@@ -33,11 +33,11 @@ import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import io.github.libxposed.api.XposedModuleInterface.SystemServerStartingParam
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.R
+import tv.withaibuild.customiuizer.mods.utils.FatalErrors
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
-import java.lang.reflect.Field
 import java.lang.reflect.Method
 import tv.withaibuild.customiuizer.utils.HookUtils
 
@@ -1123,6 +1123,7 @@ object Controls {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
@@ -1139,6 +1140,7 @@ object Controls {
                         }
                     }
                 } catch (t: Throwable) {
+                    FatalErrors.unwrapAndRethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
 
