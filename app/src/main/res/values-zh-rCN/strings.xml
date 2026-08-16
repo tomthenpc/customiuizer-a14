@@ -1048,4 +1048,14 @@
     <string name="system_hideicons_sim1_title">SIM 1</string>
     <string name="system_hideicons_sim2_title">SIM 2</string>
     <string name="selectcolor_hsv">HSV</string>
+    <string name="dialog_change_locale_confirm">确认并退出</string>
+    <string name="dialog_change_locale_message">更改界面语言后需要重新打开应用才能生效。确认保存并退出应用吗？</string>
+    <string name="dialog_change_locale_save_failed">保存语言设置失败，请重试</string>
+    <string name="dialog_change_locale_title">更改界面语言</string>
+    <string name="system_volume_hide_dnd_shortcut_summ">从音量面板中移除勿扰快捷按钮</string>
+    <string name="system_volume_hide_dnd_shortcut_title">隐藏勿扰快捷按钮</string>
+    <string name="system_volume_hide_mute_shortcut_summ">从音量面板中移除静音快捷按钮</string>
+    <string name="system_volume_hide_mute_shortcut_title">隐藏静音快捷按钮</string>
+    <string name="unlock_token_missing">此已保存的 Tasker/Locale 任务缺少安全令牌。请重新保存以生成一个。</string>
+
 </resources>

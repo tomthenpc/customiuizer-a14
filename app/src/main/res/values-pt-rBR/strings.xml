@@ -1020,4 +1020,22 @@
     <string name="system_hideicons_sim1_title">SIM 1</string>
     <string name="system_hideicons_sim2_title">SIM 2</string>
     <string name="selectcolor_hsv">HSV</string>
+    <string name="dialog_change_locale_confirm">Confirmar e sair</string>
+    <string name="dialog_change_locale_message">O idioma da interface só será alterado após reabrir o aplicativo. Deseja salvar e sair do aplicativo?</string>
+    <string name="dialog_change_locale_save_failed">Falha ao salvar as configurações de idioma. Tente novamente.</string>
+    <string name="dialog_change_locale_title">Alterar idioma da interface</string>
+    <string name="restart_no_root">Permissão root indisponível</string>
+    <string name="restart_target_not_running">O processo de destino não está em execução</string>
+    <string name="system_charginginfo_fontsize_summary">Ajusta a indicação de carregamento na parte inferior. O padrão mantém o tamanho de texto do sistema. Reinicie a SystemUI para aplicar.</string>
+    <string name="system_charginginfo_fontsize_title">Tamanho do texto de carregamento na tela de bloqueio</string>
+    <string name="system_statusbarheight_summ">É necessária uma reinicialização completa após alterar a altura fixa.</string>
+    <string name="system_strong_toast_summ">É necessária uma reinicialização completa. A Ilha Dinâmica segue a elegibilidade de eventos do HyperOS, suporta a tela de bloqueio e o feedback de eventos consecutivos, e adiciona um movimento vertical suave com deslize direcional para dispensar, sem um serviço residente.</string>
+    <string name="system_strong_toast_title">Cápsula de status do HyperOS</string>
+    <string name="system_volume_hide_dnd_shortcut_summ">Remove o atalho Não perturbe do painel de volume.</string>
+    <string name="system_volume_hide_dnd_shortcut_title">Ocultar atalho Não perturbe</string>
+    <string name="system_volume_hide_mute_shortcut_summ">Remove o atalho Silencioso do painel de volume.</string>
+    <string name="system_volume_hide_mute_shortcut_title">Ocultar atalho Silencioso</string>
+    <string name="unlock_token_missing">Esta tarefa salva do Tasker/Locale não tem um token de segurança. Salve-a novamente para gerar um.</string>
+    <string name="various_gboardpadding_summ">Aplica-se apenas ao Gboard; outros métodos de entrada usam sua própria implementação de layout.</string>
+
 </resources>

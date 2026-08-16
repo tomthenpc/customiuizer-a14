@@ -1020,4 +1020,22 @@
     <string name="system_hideicons_sim1_title">SIM 1</string>
     <string name="system_hideicons_sim2_title">SIM 2</string>
     <string name="selectcolor_hsv">HSV</string>
+    <string name="dialog_change_locale_confirm">確認して終了</string>
+    <string name="dialog_change_locale_message">インターフェースの言語を変更した後、変更を反映するにはアプリを再度開く必要があります。保存して終了しますか？</string>
+    <string name="dialog_change_locale_save_failed">言語設定の保存に失敗しました。もう一度お試しください。</string>
+    <string name="dialog_change_locale_title">インターフェースの言語の変更</string>
+    <string name="restart_no_root">Root権限がありません</string>
+    <string name="restart_target_not_running">対象のプロセスが実行されていません</string>
+    <string name="system_charginginfo_fontsize_summary">ロック画面下部の充電表示の文字サイズを調整します。デフォルトではシステムのテキストサイズを維持します。適用するにはシステムUIを再起動してください。</string>
+    <string name="system_charginginfo_fontsize_title">ロック画面の充電文字サイズ</string>
+    <string name="system_statusbarheight_summ">固定高さを変更した後、完全な再起動が必要です</string>
+    <string name="system_strong_toast_summ">完全な再起動が必要です。ダイナミックアイランドはHyperOSのイベント条件に準拠し、ロック画面や連続イベントのフィードバックをサポートします。また、方向に応じたスワイプで消える柔らかな縦方向の動きを、常駐サービスなしで追加します。</string>
+    <string name="system_strong_toast_title">HyperOS のステータスカプセル</string>
+    <string name="system_volume_hide_dnd_shortcut_summ">音量パネルからおやすみモードボタンを削除します</string>
+    <string name="system_volume_hide_dnd_shortcut_title">おやすみモードのショートカットを非表示にする</string>
+    <string name="system_volume_hide_mute_shortcut_summ">音量パネルからサイレント/ミュートボタンを削除します</string>
+    <string name="system_volume_hide_mute_shortcut_title">サイレントショートカットを非表示にする</string>
+    <string name="unlock_token_missing">保存されたTasker/Localeタスクにセキュリティトークンがありません。トークンを生成するには、もう一度保存してください。</string>
+    <string name="various_gboardpadding_summ">Gboard にのみ適用されます。他の入力方法は独自のレイアウト実装を使用します。</string>
+
 </resources>

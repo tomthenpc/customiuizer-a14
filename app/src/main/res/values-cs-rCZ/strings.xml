@@ -1012,4 +1012,36 @@
     <string name="system_hideicons_sim1_title">SIM 1</string>
     <string name="system_hideicons_sim2_title">SIM 2</string>
     <string name="selectcolor_hsv">HSV</string>
+    <string name="dialog_change_locale_confirm">Potvrdit a ukončit</string>
+    <string name="dialog_change_locale_message">Po změně jazyka rozhraní je nutné aplikaci znovu otevřít, aby se změny projevily. Chcete uložit nastavení a ukončit aplikaci?</string>
+    <string name="dialog_change_locale_save_failed">Uložení jazykového nastavení se nezdařilo, zkuste to znovu.</string>
+    <string name="dialog_change_locale_title">Změna jazyka rozhraní</string>
+    <string name="launcher_dock_height_title">Výška doku</string>
+    <string name="launcher_wallpaper_colormode_title">Vynutit barevný režim tapety domovské obrazovky</string>
+    <string name="restart_no_root">Oprávnění root není k dispozici</string>
+    <string name="restart_target_not_running">Cílový proces neběží</string>
+    <string name="system_autobrightness_reset_when_screenoff_title">Spustit akci automatického jasu při vypnuté obrazovce</string>
+    <string name="system_charginginfo_fontsize_summary">Upraví dolní indikaci nabíjení. Výchozí zachovává systémovou velikost písma. Pro uplatnění restartujte SystemUI.</string>
+    <string name="system_charginginfo_fontsize_title">Velikost písma nabíjecího textu na zamykací obrazovce</string>
+    <string name="system_drawer_remove_emptynotify_title">Skrýt tip Žádná oznámení</string>
+    <string name="system_hidestatusbar_whenscreenrecord_title">Skrýt stavový řádek při nahrávání obrazovky</string>
+    <string name="system_hidestatusbar_whenscreenshot_title">Skrýt stavový řádek při pořizování snímku obrazovky</string>
+    <string name="system_qs_disable_fakeclock_anim_title">Vypnout animaci hodin při potáhnutí dolů</string>
+    <string name="system_statusbar_dualrows_left_ratio_title">Nastavit levou šířku pro zařízení bez výřezu</string>
+    <string name="system_statusbar_enable_weather_param_title">Použít tq pro zobrazení počasí při formátování</string>
+    <string name="system_statusbar_icons_atleft_onkeyguard">Přesunout doleva na zamykací obrazovce</string>
+    <string name="system_statusbar_mobile_digital_signal_in2rows_title">Zobrazit ve dvou řádcích při dvou SIM kartách</string>
+    <string name="system_statusbar_mobile_digital_signal_title">Zobrazit sílu signálu v číselném formátu dBm</string>
+    <string name="system_statusbarheight_summ">Po změně pevné výšky je nutný úplný restart.</string>
+    <string name="system_statusbaricons_privacy_prompt_title">Indikátor soukromí</string>
+    <string name="system_strong_toast_summ">Vyžaduje se úplný restart. Dynamický ostrov sleduje způsobilost událostí HyperOS, podporuje zamykací obrazovku a zpětnou vazbu při po sobě jdoucích událostech a přidává jemný svislý pohyb se směrovým přejetím pro zavření bez rezidentní služby.</string>
+    <string name="system_strong_toast_title">Kapsle stavu HyperOS</string>
+    <string name="system_volume_hide_dnd_shortcut_summ">Odebere tlačítko režimu Nerušit z panelu hlasitosti.</string>
+    <string name="system_volume_hide_dnd_shortcut_title">Skrýt zkratku Nerušit</string>
+    <string name="system_volume_hide_mute_shortcut_summ">Odebere tlačítko tichého režimu z panelu hlasitosti.</string>
+    <string name="system_volume_hide_mute_shortcut_title">Skrýt zkratku Tichý režim</string>
+    <string name="unlock_token_missing">Tento uložený úkol Tasker/Locale postrádá bezpečnostní token. Pro jeho vygenerování jej prosím znovu uložte.</string>
+    <string name="various_disable_reset_recents_privacy_blur_title">Zakázat resetování seznamu rozmazání soukromí v posledních aplikacích</string>
+    <string name="various_gboardpadding_summ">Platí pouze pro Gboard; ostatní metody zadávání používají vlastní implementaci rozvržení.</string>
+
 </resources>

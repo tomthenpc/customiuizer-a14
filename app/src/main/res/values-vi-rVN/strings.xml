@@ -1020,4 +1020,22 @@
     <string name="system_hideicons_sim1_title">SIM 1</string>
     <string name="system_hideicons_sim2_title">SIM 2</string>
     <string name="selectcolor_hsv">HSV</string>
+    <string name="dialog_change_locale_confirm">Xác nhận và thoát</string>
+    <string name="dialog_change_locale_message">Sau khi thay đổi ngôn ngữ giao diện, cần mở lại ứng dụng để thay đổi có hiệu lực. Bạn có muốn lưu và thoát ứng dụng không?</string>
+    <string name="dialog_change_locale_save_failed">Không thể lưu cài đặt ngôn ngữ. Vui lòng thử lại.</string>
+    <string name="dialog_change_locale_title">Thay đổi ngôn ngữ giao diện</string>
+    <string name="restart_no_root">Quyền root không khả dụng</string>
+    <string name="restart_target_not_running">Tiến trình mục tiêu không chạy</string>
+    <string name="system_charginginfo_fontsize_summary">Điều chỉnh thông báo sạc ở dưới cùng. Mặc định giữ cỡ chữ hệ thống. Khởi động lại SystemUI để áp dụng.</string>
+    <string name="system_charginginfo_fontsize_title">Cỡ chữ thông báo sạc trên màn hình khóa</string>
+    <string name="system_statusbarheight_summ">Cần khởi động lại hoàn toàn sau khi thay đổi chiều cao cố định.</string>
+    <string name="system_strong_toast_summ">Cần khởi động lại hoàn toàn. Đảo động tuân theo các điều kiện sự kiện của HyperOS, hỗ trợ màn hình khóa và phản hồi sự kiện liên tiếp, đồng thời thêm chuyển động dọc mềm mại với thao tác vuốt theo hướng để đóng mà không cần dịch vụ thường trú.</string>
+    <string name="system_strong_toast_title">Viên nang trạng thái HyperOS</string>
+    <string name="system_volume_hide_dnd_shortcut_summ">Loại bỏ nút Không làm phiền khỏi bảng âm lượng.</string>
+    <string name="system_volume_hide_dnd_shortcut_title">Ẩn lối tắt Không làm phiền</string>
+    <string name="system_volume_hide_mute_shortcut_summ">Loại bỏ nút Im lặng khỏi bảng âm lượng.</string>
+    <string name="system_volume_hide_mute_shortcut_title">Ẩn lối tắt Im lặng</string>
+    <string name="unlock_token_missing">Tác vụ Tasker/Locale đã lưu này thiếu mã thông báo bảo mật. Vui lòng lưu lại để tạo một mã mới.</string>
+    <string name="various_gboardpadding_summ">Chỉ áp dụng cho Gboard; các phương thức nhập khác sử dụng cách triển khai bố cục riêng của chúng.</string>
+
 </resources>

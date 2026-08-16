@@ -37,7 +37,7 @@ Top-level category selectors are derived directly from canonical categories. Eve
 | CATEGORY_SELECTOR_INFLATES_FULL_PAGE | NO |
 | SUBFRAGMENT_LOADS_ONLY_RESOLVED_XML | YES |
 
-`PreferenceResourceResolver` covers all 32 generated category/sub routes (13 system, 6 launcher, 5 controls, 7 various) plus the 4 fallback roots. No missing or stale route.
+`PreferenceResourceResolver` covers all 32 generated category/sub routes (14 system, 6 launcher, 5 controls, 7 various) plus the 4 fallback roots. No missing or stale route.
 
 ## 4. Search inventory
 
@@ -61,49 +61,53 @@ All search titles, category titles, and breadcrumb titles in `mod_search_index.x
 
 ## 5. Localization
 
-| Metric | P5-A0 | P5-B after fixes |
-|---|---|---|
-| FORMAL_LOCALIZED_LOCALE_COUNT | 9 | 9 |
-| FORMAL_STRING_SET_COUNT | 10 | 10 |
-| USER_VISIBLE_REQUIRED_STRING_COUNT | 755 | 751 |
-| UNIQUE_MISSING_KEY_COUNT | 114 | 114 |
-| TOTAL_MISSING_KEY_LOCALE_PAIRS | 351 | 351 |
-| FORMAT_MISMATCH_COUNT | 0 | 0 |
-| HARD_CODED_VISIBLE_TEXT_COUNT | 3 | 0 |
+| Metric | P5-A0 | P5-B after fixes | P5-C final |
+|---|---|---|---|
+| FORMAL_LOCALIZED_LOCALE_COUNT | 9 | 9 | 9 |
+| FORMAL_STRING_SET_COUNT | 10 | 10 | 10 |
+| USER_VISIBLE_REQUIRED_STRING_COUNT | 755 | 751 | 815 |
+| UNIQUE_MISSING_KEY_COUNT | 114 | 114 | 0 |
+| TOTAL_MISSING_KEY_LOCALE_PAIRS | 351 | 351 | 0 |
+| FORMAT_MISMATCH_COUNT | 0 | 0 | 0 |
+| HARD_CODED_VISIBLE_TEXT_COUNT | 3 | 0 | 0 |
+| SUSPICIOUS_ENGLISH_COPY_COUNT | - | - | 0 |
 
-### 5.1 P5-B completed localization hygiene
+### 5.1 A0 → P5-B scope reconciliation
+
+P5-A0 reported 414 missing pairs (117 unique keys). P5-B's corrected test reported 351 missing pairs (114 unique keys).
+The 63 dropped pairs are exclusively `translatable="false"` base resources:
+`app_name`, `array_global_toggle_nfc`, `array_global_toggle_wifi`, `system_statusbaricons_gps_title`, `system_statusbaricons_vpn_title`, `system_statusbaricons_vowifi_title`, `system_statusbaricons_nfc_title`.
+They are non-user-localized by contract and therefore removed from the required set.
+
+### 5.2 P5-B completed localization hygiene
 
 1. `app/src/main/res/xml/prefs_system_hideicons.xml` `SIM 1` / `SIM 2` moved to `@string/system_hideicons_sim1_title` / `system_hideicons_sim2_title`.
 2. `app/src/main/res/layout/fragment_selectcolor.xml` `HSV` moved to `@string/selectcolor_hsv`.
 3. `values-ru-rRU/strings.xml` `controls_hide_ime_dismiss_button_title` improved to `Скрыть кнопку скрытия клавиатуры`.
 
-### 5.2 Missing translations
+### 5.3 P5-C final closure
 
-Still `MISSING_TRANSLATION_COUNT = 351` (114 unique keys). Per-locale breakdown:
+P5-C expanded the required set with Kotlin UI-facing `R.string.*` references, producing a final pre-fix missing count of 420 pairs (124 unique keys). All 420 pairs were filled from the base string, page context, and existing locale terminology. No English placeholders were used. Translations were generated per-locale and then applied to the 9 formal `strings.xml` files.
 
-| Locale | Missing pairs |
+Per-locale additions:
+
+| Locale | Added pairs |
 |---|---|
-| values-zh-rCN | 4 |
-| values-zh-rTW | 108 |
-| values-cs-rCZ | 24 |
-| values-es-rES | 62 |
-| values-ja-rJP | 10 |
-| values-pt-rBR | 10 |
-| values-ru-rRU | 28 |
-| values-tr-rTR | 95 |
-| values-vi-rVN | 10 |
+| values-zh-rCN | 9 |
+| values-zh-rTW | 118 |
+| values-cs-rCZ | 31 |
+| values-es-rES | 71 |
+| values-ja-rJP | 17 |
+| values-pt-rBR | 17 |
+| values-ru-rRU | 35 |
+| values-tr-rTR | 105 |
+| values-vi-rVN | 17 |
 
-Reliable translation sources checked:
+Total added: 420.
 
-- `tomthenpc/customiuizer-a13`: base has 65 of the missing keys, but the localized `strings.xml` files do not contain the missing entries.
-- `devin/a14-settings-maintenance-final-r14.20.0`: same coverage as current A14 for the missing pairs; 0 usable extra translations.
-- A14 Git history on the current branch: no additional localized strings.
+### 5.4 Placeholder contract
 
-Therefore the 351 missing pairs cannot be resolved from existing project sources. Human/native translation is required. They are **not** filled with English placeholders.
-
-### 5.3 Placeholder contract
-
-`FORMAT_MISMATCH_COUNT = 0`. No translated string has altered placeholder set, index, or type.
+`FORMAT_MISMATCH_COUNT = 0`. The P5 localization test now normalizes placeholders by index, supports `%%` literal percent, skips `formatted="false"` strings, and correctly rejects missing, swapped, or type-changed placeholders.
 
 ## 6. Text-layout static risk
 
@@ -129,7 +133,7 @@ No `singleLine=true`, `maxLines=1`, or `lines=1` found on user-visible `Preferen
 | Feature | Canonical | Lazy page | Search | Locales |
 |---|---|---|---|---|
 | USB Default Function | `pref_key_system_usb_default_function` | `prefs_system_other.xml` | indexed | n/a |
-| P4 Hide IME Dismiss Button | `pref_key_controls_hide_ime_dismiss_button` | `prefs_controls_navbar.xml` | indexed | all 10 locales (Russian wording improved) |
+| P4 Hide IME Dismiss Button | `pref_key_controls_hide_ime_dismiss_button` | `prefs_controls_navbar.xml` | indexed | all 10 locales (Russian title and summary wording improved) |
 
 | Metric | Value |
 |---|---|
