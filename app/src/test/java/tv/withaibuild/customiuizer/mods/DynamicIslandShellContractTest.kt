@@ -16,6 +16,21 @@ class DynamicIslandShellContractTest {
         assertFalse(source.contains("DynamicIslandHost.shared"))
         assertFalse(source.contains("parent.removeView("))
         assertFalse(source.contains("layoutParams.width = 1"))
+        assertTrue(source.contains("DynamicIslandStatusBarFade.acquire(strongToast)"))
+        assertTrue(source.contains("DynamicIslandStatusBarFade.release(root)"))
+        assertFalse(functionBody(source, "applyDynamicIslandCapsule").contains("DynamicIslandStatusBarFade"))
+        val match = source.substringAfter("StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT -> {")
+            .substringBefore("StrongToastPresentationMode.DYNAMIC_ISLAND")
+        assertFalse(match.contains("DynamicIslandStatusBarFade"))
+        val fade = source("app/src/main/java/tv/withaibuild/customiuizer/mods/DynamicIslandStatusBarFade.kt")
+        assertTrue(fade.contains("status_bar_contents"))
+        assertTrue(fade.contains("mStatusBarLeftContainer"))
+        assertTrue(fade.contains("view.animate().cancel()"))
+        assertTrue(fade.contains("view.animate().alpha(target)"))
+        assertFalse(fade.contains("setDuration"))
+        assertFalse(fade.contains("PathInterpolator"))
+        assertFalse(fade.contains("View.GONE"))
+        assertFalse(fade.contains("View.INVISIBLE"))
     }
 
     @Test

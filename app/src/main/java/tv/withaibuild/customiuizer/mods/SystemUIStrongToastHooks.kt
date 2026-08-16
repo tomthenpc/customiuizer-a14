@@ -71,6 +71,7 @@ object SystemUIStrongToastHooks {
         installHeightMatch(lpparam)
         installLifecycleHooks(lpparam)
         installControlClassHooks(lpparam)
+        installStatusBarContentsCapture(lpparam)
     }
 
     private fun installHeightMatch(lpparam: PackageReadyParam) {
@@ -118,6 +119,7 @@ object SystemUIStrongToastHooks {
                                     layoutParams.setFitInsetsTypes(0)
                                     layoutParams.flags = layoutParams.flags or
                                         WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                                    DynamicIslandStatusBarFade.acquire(strongToast)
                                 }
                             }
                         }
@@ -138,6 +140,7 @@ object SystemUIStrongToastHooks {
                         // Shared by both mutating modes; a no-op when neither stored a baseline.
                         resetMatchModeCapsule(root)
                     } finally {
+                        DynamicIslandStatusBarFade.release(root)
                         XposedHelpers.removeAdditionalInstanceField(root, RUNTIME_SNAPSHOT_FIELD)
                     }
                 }
@@ -261,6 +264,30 @@ object SystemUIStrongToastHooks {
         override fun getOutline(view: View, outline: Outline) {
             if (view.width <= 0 || view.height <= 0) return
             outline.setRoundRect(0, 0, view.width, view.height, view.height / 2f)
+        }
+    }
+
+    private fun installStatusBarContentsCapture(lpparam: PackageReadyParam) {
+        ModuleHelper.findAndHookMethod(
+            "com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView",
+            lpparam.classLoader,
+            "onFinishInflate",
+            statusBarCaptureHook(),
+        )
+        ModuleHelper.findAndHookMethod(
+            "com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView",
+            lpparam.classLoader,
+            "onAttachedToWindow",
+            statusBarCaptureHook(),
+        )
+    }
+
+    private fun statusBarCaptureHook() = object : MethodHook() {
+        override fun after(callback: AfterHookCallback) {
+            ModuleHelper.guarded {
+                val statusBar = callback.getThisObject() as? View ?: return@guarded
+                DynamicIslandStatusBarFade.bindFromStatusBar(statusBar)
+            }
         }
     }
 

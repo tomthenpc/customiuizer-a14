@@ -11,6 +11,7 @@ class DynamicIslandDismissLifecycleTest {
         assertTrue(source.contains("resetMatchModeCapsule(root)"))
         assertTrue(source.contains("clipToOutline = false"))
         assertTrue(source.contains("IslandPillOutline"))
+        assertTrue(source.contains("DynamicIslandStatusBarFade.release(root)"))
     }
 
     private fun source(path: String): String {
