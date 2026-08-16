@@ -339,23 +339,228 @@ No `assembleRelease` / `bundle` / `package` / `install` / `sign` / `publish` / `
 | `git diff --check` | PASS |
 | `git status --short` | clean (only this doc uncommitted) |
 
-## 17. Final gate
+## 17. P6-A1 independent classification corrective (superseding P6-A0 findings)
+
+> Scope: docs-only. No production, resource, test, build, or APK changes.
+
+This section records the independent re-audit of P6-A0 finding classification. P6-A0 elevated several static candidates to confirmed P1 without sufficient evidence. P6-A1 reclassifies them using source-line evidence.
+
+### 17.1 Lifecycle reclassification
+
+| # | File / symbol | P6-A0 | P6-A1 | Evidence |
+|---|---|---|---|---|
+| 1 | `SystemUIScreenshotHooks.kt:76` `ScreenshotVisibilityReceiver` | LIFECYCLE_SUSPECT | **FALSE_POSITIVE** | `onViewDetachedFromWindow()` calls `unregisterReceiver(this)`. The `OnAttachStateChangeListener` is intentionally retained to re-register the receiver on re-attach. |
+| 2 | `LockScreenAlbumArtController.kt:184` `backgroundLifecycleListener` | LIFECYCLE_SUSPECT | **FALSE_POSITIVE** | `backgroundLifecycleListener` is an `object` singleton; it does not capture a `View`. `lastViewRef` is a `WeakReference<View>`. `clearViewBackground(view)` is called. A dedicated `LockScreenAlbumArtLifecycleContractTest` exists. |
+| 3 | `LauncherIconHooks.kt:354` `mMessage.addTextChangedListener(...)` | LIFECYCLE_SUSPECT | **VIEW_LIFETIME_BOUND** | Added inside `ItemIcon.onFinishInflate`, which is per-View initialization. No evidence that `onFinishInflate` is called repeatedly or that the `TextView` is held by an external owner. Listener lifetime is bound to the View. |
+| 4 | `SubFragmentWithSearch.kt:62` `textInput` / `listView` / `searchView` | LIFECYCLE_SUSPECT | **CONFIRMED_VIEW_LIFECYCLE_RETENTION** | `SubFragmentWithSearch` and its subclasses do not override `onDestroyView()`. The Fragment fields `listView`, `searchView`, and `textInput` retain the destroyed View hierarchy when the Fragment enters the back stack. The `TextWatcher` is a secondary symptom; the primary defect is field retention. |
+
+### 17.2 Hot-path reclassification
+
+P6-A0 reported **77** confirmed hot-path waste entries. P6-A1 re-examined them with the rule that a hot path must be a high-frequency callback (draw, onMeasure, onLayout, touch/motion, clock tick, battery/icon state update, notification row bind/update at scale, status bar icon visibility update, animation/frame callback, high-frequency sensor/audio callback).
+
+| Metric | Value |
+|---|---|
+| `HOT_PATH_CANDIDATE_COUNT` | 403 (P6-A0 total candidates) |
+| `CONFIRMED_HOT_PATH_WASTE_COUNT` | **0** |
+| `FALSE_POSITIVE_HOT_PATH_COUNT` | 77 (P6-A0 "confirmed" entries) |
+| `TOP_HOT_PATH_FIXES` | **NONE** |
+
+Key false-positive examples:
+
+- `Controls.kt:574` `MiuiKeyButtonRipple findClassIfExists` — inside `NavigationBarView.onFinishInflate`, a one-time View initialization path. Reclassified: `VIEW_INIT_COLD_PATH`.
+- `Controls.kt:310` `findMethodExact(MediaPlayerCls, "getAudioStreamType")` — inside `MediaPlayer.pause` hook. Reclassified: `AVOIDABLE_EVENT_PATH_REFLECTION`.
+- `GlobalActionSystemServerHooks.kt:597/632/806/858` `findClass` / `findField` inside `BroadcastReceiver.onReceive`. Reclassified: `LOW_FREQUENCY_CALLBACK`.
+
+The remaining candidates were not promoted to confirmed; no high-value hot-path optimization is recommended at this time.
+
+### 17.3 Fatal semantics reclassification
+
+Every production `catch (Throwable)` / `catch (Error)` was re-examined.
+
+| Category | Count |
+|---|---|
+| `GENERIC_THROWABLE_CATCH_COUNT` | 945 |
+| `SAFE_FATAL_HELPER` | 355 |
+| `SAFE_DEFERRED_RETHROW` | 263 |
+| `SAFE_DIRECT_RETHROW` | 16 |
+| `NARROW_COMPAT` | 0 |
+| `UNSAFE_DIRECT_SWALLOW` | **311** |
+| `UNSAFE_WRAPPED_FATAL_SWALLOW` | **0** |
+| `FINAL_FATAL_UNSAFE_COUNT` | **311** |
+
+The 311 unsafe sites are the P6-A1 conservative count. Examples:
+
+- `MainApplication.kt:61` — `catch (_: Throwable) {}` around `registerReceiver`.
+- `Credentials.kt:34,46` — `printStackTrace()` / `startActivityForResult`.
+- `PreferenceFragmentBase.kt:434,495` — `printStackTrace()` / empty catch.
+- `PrefsProvider.kt:50` — `t.printStackTrace()`.
+- `SubFragment.kt:272,290` — `Log.e("miuizer", ...)`.
+- `Controls.kt` — `XposedHelpers.log(t)` / `catch (ignore: Throwable)`.
+
+The full TSV inventory is at `C:\Users\tv\AppData\Local\Temp\a14-p6-final-audit\fatal_unsafe.tsv`.
+
+### 17.4 Production test-seam reclassification
+
+P6-A0 reported 9 test implementation seams and described them as "deliberate testability hooks". P6-A1 confirmed each symbol has **zero** production/runtime/ROM/reflective callers and is used only by tests or test-invariant scripts.
+
+| File / line | Symbol | Production callers | Test callers | Classification |
+|---|---|---|---|---|
+| `StatusBarIconVisibilityResolver.kt:48` | `resolve(ClassLoader?, String)` | 0 | >1 | `CONFIRMED_PRODUCTION_TEST_SEAM` |
+| `StatusBarIconVisibilityResolver.kt:56` | `resolve(Class<*>)` | 0 | >1 | `CONFIRMED_PRODUCTION_TEST_SEAM` |
+| `StatusBarIconVisibilityResolver.kt:69` | `resolve(Class<*>, Class<*>)` | 0 | >1 | `CONFIRMED_PRODUCTION_TEST_SEAM` |
+| `VolumeDialogAutohideDelayResolver.kt:40` | `resolve(Class<*>)` | 0 | >1 | `CONFIRMED_PRODUCTION_TEST_SEAM` |
+| `NotificationAutoExpandResolver.kt:38` | `resolve(ClassLoader?)` | 0 | >1 | `CONFIRMED_PRODUCTION_TEST_SEAM` |
+| `PhysicalGestureArbiter.kt:111` | `ownerOf(Token)` | 0 | >1 | `CONFIRMED_PRODUCTION_TEST_SEAM` |
+| `PhysicalGestureArbiter.kt:114` | `heldTokenCount()` | 0 | >1 | `CONFIRMED_PRODUCTION_TEST_SEAM` |
+| `PhysicalGestureArbiter.kt:117` | `tokensForOwner(Int)` | 0 | >1 | `CONFIRMED_PRODUCTION_TEST_SEAM` |
+| `PhysicalGestureArbiter.kt:120` | `heldTokens()` | 0 | >1 | `CONFIRMED_PRODUCTION_TEST_SEAM` |
+
+`PRODUCTION_TEST_SEAM_COUNT = 9`.
+
+### 17.5 Dead-code re-proof
+
+| Symbol | File / line | `DECLARATION_ONLY` | `RUNTIME_CONTRACT` | `DELETE_SAFE` |
+|---|---|---|---|---|
+| `SC_EXTERNALIZABLE` | `LegacyBackupDecoder.kt:59` | YES | NO | **NO** (M2 frozen) |
+| `SC_BLOCK_DATA` | `LegacyBackupDecoder.kt:60` | YES | NO | **NO** (M2 frozen) |
+| `SC_ENUM` | `LegacyBackupDecoder.kt:61` | YES | NO | **NO** (M2 frozen) |
+| `unavailableReported` | `PreferenceBootstrap.kt:69` | YES | NO | **YES** |
+| `WINDOW_STATE_CLASS` | `SystemStatusBarInsetsHooks.kt:69` | YES | NO | **YES** |
+| `DISPLAY_POLICY_CLASS` | `SystemStatusBarInsetsHooks.kt:70` | YES | NO | **YES** |
+| `STATUS_BARS_TYPE` | `SystemStatusBarInsetsHooks.kt:194` | YES | NO | **YES** |
+| `StatusBarCls` | `SystemUIStatusBarHooks.kt:179` | YES | NO | **YES** |
+
+`CONFIRMED_DEAD_SYMBOL_COUNT = 5` (the `DELETE_SAFE = YES` items). The three `LegacyBackupDecoder` constants are confirmed dead but frozen by Backup M2.
+
+### 17.6 Orphan-resource re-proof
+
+All 9 P6-A0 orphan candidates were rechecked for `R.*`, `@...`, `getIdentifier`, `addFakeResource`, `setThemeValueReplacement`, XML/style/manifest, generated XML, search index, and history.
+
+| Type | Name | Classification | Note |
+|---|---|---|---|
+| strings | `system_recents_blur_summ` | `CONFIRMED_ORPHAN` | No code/XML usage. |
+| strings | `system_fivegtile_summ` | `CONFIRMED_ORPHAN` | No code/XML usage. |
+| strings | `system_recents_card_style_summ` | `CONFIRMED_ORPHAN` | No code/XML usage. |
+| strings | `launcher_privacyapps_fail` | `CONFIRMED_ORPHAN` | No code/XML usage. |
+| strings | `settings` | `CONFIRMED_ORPHAN` | No `R.string.settings` usage; the literal `"settings"` is a route key in `MAP_KEYS`. |
+| strings | `miuizer` | `CONFIRMED_ORPHAN` | No `R.string.miuizer` usage; the literal `"miuizer"` is a `Log` tag. |
+| attrs | `DropDownPreferenceEx` | `CONFIRMED_ORPHAN` | The class exists, but `obtainStyledAttributes` uses `R.styleable.ListPreferenceEx`. |
+| attrs | `preferenceSecondaryTextColor` | `CONFIRMED_ORPHAN` | No code/XML usage. |
+| ids | `update_alert` | `CONFIRMED_ORPHAN` | No code/XML usage. |
+
+`CONFIRMED_ORPHAN_RESOURCE_COUNT = 9`.
+
+### 17.7 Duplicate feature-wiring reclassification
+
+| Preference key | Feature IDs | Target | Phases | Classification |
+|---|---|---|---|---|
+| `launcher_folder_cols` | `LauncherFolderColumnsFeatureId` + `LauncherFolderColumnsResFeatureId` | LAUNCHER | `APPLICATION_ATTACHED` + `PACKAGE_READY` | `INTENTIONAL_MULTI_TARGET_WIRING` |
+| `launcher_privacyapps_gest` | `LauncherPrivacyAppsGestFeatureId` + `LauncherPrivacyFolderFeatureId` | LAUNCHER | `PACKAGE_READY` + `APPLICATION_ATTACHED` | `INTENTIONAL_MULTI_TARGET_WIRING` |
+| `launcher_closefolders` | `LauncherCloseFolderOnLaunchFeatureId` + `LauncherCloseOnLaunchFeatureId` | LAUNCHER | `APPLICATION_ATTACHED` + `APPLICATION_ATTACHED` | `INTENTIONAL_MULTI_TARGET_WIRING` (different hook semantics) |
+| `various_restrictapp` | `PowerKeeperAppsRestrictFeatureId` + `SecurityCenterAppsRestrictFeatureId` | SYSTEM_PACKAGE | `PACKAGE_READY` + `PACKAGE_READY` | `INTENTIONAL_MULTI_TARGET_WIRING` (different packages) |
+| `system_detailednetspeed_style` | `DetailedNetSpeedFeatureId` + `NetSpeedStyleFeatureId` | SYSTEM_UI | `PACKAGE_READY` + `PACKAGE_READY` | `INTENTIONAL_MULTI_TARGET_WIRING` |
+
+`INTENTIONAL_MULTI_TARGET_WIRING_COUNT = 5`; `TRUE_DUPLICATE_WIRING_COUNT = 0`.
+
+### 17.8 Localization lint residual
+
+`lintDebug` produced **29** `MissingTranslation` warnings. P6-A1 reconciled each against actual code usage.
+
+| Metric | Value |
+|---|---|
+| `LINT_MISSING_TRANSLATION_WARNINGS` | 29 |
+| `REAL_MISSING_TRANSLATION_KEY_COUNT` | **28** |
+| `REAL_MISSING_TRANSLATION_PAIR_COUNT` | **145** |
+| `UNUSED_RESOURCE_MISSING_TRANSLATION` | 1 (`miuizer`) |
+| `P5_TEST_SCOPE_GAP` | **YES** |
+
+The 28 real missing user-visible keys are:
+
+`unlock_host_missing`, `unlock_host_untrusted`, `unlock_host_cert_mismatch`, `unlock_host_summary`, `unlock_host_first`, `unlock_host_reuse`, `system_epm_action_fastboot_title`, `system_epm_action_fastboot_confirm_title`, `system_epm_action_recovery_title`, `system_epm_action_recovery_confirm_title`, `various_calluibright_day_title`, `array_global_actions_splitscreen`, `array_global_actions_clear_notifs`, `array_lightupwithouanim`, `array_mobiletypeicon_show_disconnected`, `qs_toggle_floatingtime`, `fast_reboot_not_received`, `fast_reboot_failed`, `restart_launcher_done`, `restart_systemui_done`, `restart_securitycenter_done`, `restart_launcher_failed`, `restart_systemui_failed`, `restart_securitycenter_failed`, `lsposed_not_connected`, `lsposed_changes_not_delivered`, `system_strong_toast_mode_match_height`, `system_strong_toast_mode_hide`.
+
+The P5 contract test has a scope gap: it does not cover `arrays.xml` / `string-array` entries or all code-side `R.string` access patterns (e.g. `.text = getString(...)` and `restartTargetProcess(..., R.string.*, ...)`).
+
+### 17.9 P0 / P1 / P2 / FALSE_POSITIVE / SKIP findings
+
+P0 (confirmed correctness / crash / leak):
+
+1. `SubFragmentWithSearch` retains destroyed View fields (`listView`, `searchView`, `textInput`) and an attached `TextWatcher` after `onDestroyView()` because the class does not override it. **CONFIRMED_VIEW_LIFECYCLE_RETENTION**.
+
+P1 (confirmed release-quality issues; logical fixes, not per-site counts):
+
+1. **Fatal semantics closure** — 311 generic `catch (Throwable/Error)` sites swallow fatal errors. One project-wide logical fix: prepend `FatalErrors.unwrapAndRethrowIfFatal(t)` to swallowing catches.
+2. **Localization residual + P5 contract gap** — 28 user-visible missing keys / 145 missing pairs. One logical fix: extend the P5 contract test and fill translations.
+3. **Production test-seam removal** — 9 symbols (`StatusBarIconVisibilityResolver` overloads, `VolumeDialogAutohideDelayResolver` overload, `NotificationAutoExpandResolver` overload, `PhysicalGestureArbiter` diagnostic methods) are not called by production.
+4. **SubFragmentWithSearch lifecycle cleanup** — if separate from fatal, add `onDestroyView()` and clear Fragment fields. (This may be merged with the P0 finding; counted as one logical fix.)
+5. **Dead symbols + orphan resources cleanup** — 5 dead symbols and 9 orphan resources confirmed safe to remove after verification.
+
+P2 (maintenance / improvement, not correctness):
+
+1. Duplicate feature wiring is confirmed intentional, but the set of 5 multi-target keys should remain explicitly documented in the feature registry.
+2. Modularization of `SystemUiFeatures.kt` / `SystemUIStatusBarHooks.kt` remains deferred.
+3. Lint style rules (`UseKtx`, `DiscouragedApi`, `ObsoleteSdkInt`, `RtlHardcoded`, `ContentDescription`, `KotlinNullnessAnnotation`, `PrivateApi`/`PrivateResource`) remain SKIP.
+
+FALSE POSITIVE (reclassified from P1/P6-A0):
+
+1. `SystemUIScreenshotHooks` lifecycle — design valid.
+2. `LockScreenAlbumArtController` lifecycle — WeakReference + singleton.
+3. `LauncherIconHooks` TextWatcher — view-lifetime-bound, not confirmed leak.
+4. `Controls.NavBarButtonsHook` `MiuiKeyButtonRipple findClassIfExists` — `onFinishInflate` cold path.
+5. `Controls.MediaPlayer.pause` `findMethodExact` — event path, not hot path.
+6. `GlobalActionSystemServerHooks.onReceive` reflection calls — low-frequency callback, not hot path.
+7. The remaining P6-A0 hot-path "confirmed waste" entries are event / cold / install paths, not hot paths.
+
+SKIP (no runtime risk or frozen compatibility):
+
+- Same style/frozen categories as P6-A0.
+
+### 17.10 P6-B shortlist (not authorized)
+
+If `P6_B_AUTHORIZATION` becomes `YES`, the minimal ordered scope is:
+
+1. **B1 — Fatal semantics closure**: project-wide `FatalErrors.unwrapAndRethrowIfFatal(t)` in the 311 swallowing generic catches.
+2. **B2 — P5 localization residual + contract gap**: extend `test_p5_localization_contract.py` to cover `arrays.xml` / `string-array` and all `R.string`/`getString`/`restartTarget`/`restartTargetProcess` patterns, then fill 28 missing keys.
+3. **B3 — SubFragmentWithSearch lifecycle cleanup**: add `onDestroyView()` and clear `listView`/`searchView`/`textInput`.
+4. **B4 — Production test-seam removal**: remove the 9 production test seams.
+5. **B5 — Dead symbols and orphan resources cleanup**: remove 5 dead symbols and 9 orphan resources.
+6. **B6 — Hot-path optimization**: not recommended; `CONFIRMED_HOT_PATH_WASTE_COUNT = 0`.
+
+### 17.11 Validation
+
+| Command | Result |
+|---|---|
+| `python tools/verify.py full` | PASS |
+| `python tools/verify.py fast --changed` | PASS |
+| `python tools/audit-feature-semantics.py --validate` | PASS |
+| `python tools/check_main_source_cleanliness.py` | PASS |
+| `python -m compileall tools` | PASS |
+| `python -m unittest discover -s tools/tests -p "test_*.py"` | PASS |
+| `gradlew --no-daemon :app:lintDebug` | PASS |
+| `git diff --check` | PASS |
+| `git status --short` | clean |
+
+## 18. Final gate (P6-A1)
 
 ```text
-P6_A0 = PASS_CANDIDATE
+P6_A0_GIT_GATE = PASS
+P6_A0_SCOPE_GATE = PASS
+P6_A0_FINDING_CLASSIFICATION_GATE = PASS (after A1 corrective)
+
+P6_A1 = PASS_CANDIDATE
 P6_B_AUTHORIZATION = NO
 P6_C_AUTHORIZATION = NO
 
-P0_FINDING_COUNT = 0
+P0_FINDING_COUNT = 1
 P1_FINDING_COUNT = 5
 P2_FINDING_COUNT = 3
 SKIP_FINDING_COUNT = 7
+FALSE_POSITIVE_FINDINGS = 7
 
 P6_B_REQUIRED = YES
-P6_B_RECOMMENDED_SCOPE = fatal-safety, localization-test-gap, hot-path-waste, lifecycle-listeners, orphan-resources
+P6_B_RECOMMENDED_BATCHES = B1 fatal semantics, B2 localization, B3 SubFragment lifecycle, B4 test seams, B5 dead code / orphan resources, B6 none
 
 APK_GENERATED = NO
-P6_A0_SELF_ASSESSMENT = PASS_CANDIDATE
+P6_A1_SELF_ASSESSMENT = PASS_CANDIDATE
 ```
 
-Stop. Waiting `P6_A0_GATE`.
+Stop. Waiting independent `P6_A1_GATE`.
