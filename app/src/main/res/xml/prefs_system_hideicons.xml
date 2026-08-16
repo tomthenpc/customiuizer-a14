@@ -82,12 +82,12 @@
 
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 		android:key="pref_key_system_statusbaricons_sim1"
-		android:title="SIM 1"
+		android:title="@string/system_hideicons_sim1_title"
 		android:defaultValue="false" />
 
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 		android:key="pref_key_system_statusbaricons_sim2"
-		android:title="SIM 2"
+		android:title="@string/system_hideicons_sim2_title"
 		android:defaultValue="false" />
 
 	<tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx

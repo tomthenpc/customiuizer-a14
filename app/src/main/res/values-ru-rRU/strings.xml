@@ -543,7 +543,7 @@
     <string name="controls_volumemedia_vibrate_summ">Вибрировать при выполнении действия на долгое нажатие</string>
     <string name="controls_mods_navbar">Панель навигации</string>
     <string name="controls_nonavbar_title">Скрыть панель</string>
-    <string name="controls_hide_ime_dismiss_button_title">Скрыть кнопку сбора клавиатуры</string>
+    <string name="controls_hide_ime_dismiss_button_title">Скрыть кнопку скрытия клавиатуры</string>
     <string name="controls_hide_ime_dismiss_button_summ">Скрывает левую нижнюю кнопку сбора клавиатуры в жестовой навигации</string>
     <string name="controls_hidenavbar_whenscreenshot_title">Скрыть панель навигации и полноэкранный индикатор при скриншоте</string>
     <string name="controls_nonavbar_fix_inputmethod_title">Исправление оптимизации полноэкранной клавиатуры</string>
@@ -994,4 +994,7 @@
     <string name="usb_default_function_charge_only">Charge only</string>
     <string name="usb_default_function_mtp">File transfer (MTP)</string>
     <string name="usb_default_function_ptp">Photo transfer (PTP)</string>
+    <string name="system_hideicons_sim1_title">SIM 1</string>
+    <string name="system_hideicons_sim2_title">SIM 2</string>
+    <string name="selectcolor_hsv">HSV</string>
 </resources>

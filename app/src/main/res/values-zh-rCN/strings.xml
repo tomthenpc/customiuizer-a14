@@ -1045,4 +1045,7 @@
     <string name="usb_default_function_charge_only">仅限充电</string>
     <string name="usb_default_function_mtp">传输文件（MTP）</string>
     <string name="usb_default_function_ptp">传输照片（PTP）</string>
+    <string name="system_hideicons_sim1_title">SIM 1</string>
+    <string name="system_hideicons_sim2_title">SIM 2</string>
+    <string name="selectcolor_hsv">HSV</string>
 </resources>

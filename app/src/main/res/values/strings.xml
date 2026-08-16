@@ -1084,4 +1084,7 @@
     <string name="usb_default_function_charge_only">Charge only</string>
     <string name="usb_default_function_mtp">File transfer (MTP)</string>
     <string name="usb_default_function_ptp">Photo transfer (PTP)</string>
+    <string name="system_hideicons_sim1_title">SIM 1</string>
+    <string name="system_hideicons_sim2_title">SIM 2</string>
+    <string name="selectcolor_hsv">HSV</string>
 </resources>
