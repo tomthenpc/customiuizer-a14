@@ -266,6 +266,21 @@ P2_ALLOWED_NEW_CATEGORIES: set[tuple[str, frozenset[str], str]] = {
     ("prefs_system.xml", frozenset(), "@string/system_mods_connectivity"),
 }
 
+# Preferences added after the P2 freeze that are independently authorized.
+# Keyed by file name, value is a set of allowed added keys.
+POST_P2_ALLOWED_NEW_PREFERENCES: dict[str, set[str]] = {
+    "prefs_controls.xml": {
+        "pref_key_controls_hide_ime_dismiss_button",
+    },
+}
+
+# Attribute changes authorized after P2 (e.g. resourceizing hard-coded literals).
+# Tuple: (file_name, preference_key, attr, old_value, new_value)
+POST_P2_ALLOWED_ATTR_CHANGES: set[tuple[str, str, str, str, str]] = {
+    ("prefs_system_hideicons.xml", "pref_key_system_statusbaricons_sim1", f"{{{ANDROID_NS}}}title", "SIM 1", "@string/system_hideicons_sim1_title"),
+    ("prefs_system_hideicons.xml", "pref_key_system_statusbaricons_sim2", f"{{{ANDROID_NS}}}title", "SIM 2", "@string/system_hideicons_sim2_title"),
+}
+
 # -------------------------------------------------------------------------------
 
 
@@ -465,6 +480,11 @@ class P2SettingsInformationArchitectureTest(unittest.TestCase):
 
             added_keys = set(current_prefs) - set(base_prefs)
             removed_keys = set(base_prefs) - set(current_prefs)
+
+            # Allow post-P2 authorized additions (e.g. P4 feature wiring).
+            allowed_added = POST_P2_ALLOWED_NEW_PREFERENCES.get(path.name, set())
+            added_keys -= allowed_added
+
             if added_keys or removed_keys:
                 failures.append(
                     f"{path.name}: added keys={sorted(added_keys)}, removed keys={sorted(removed_keys)}"
@@ -486,6 +506,8 @@ class P2SettingsInformationArchitectureTest(unittest.TestCase):
                         continue
 
                     if cur_attrs.get(attr) != base_val:
+                        if (path.name, key, attr, base_val, cur_attrs.get(attr, "")) in POST_P2_ALLOWED_ATTR_CHANGES:
+                            continue
                         failures.append(
                             f"{path.name}:{key}:{attr}: {base_val!r} -> {cur_attrs.get(attr)!r}"
                         )
