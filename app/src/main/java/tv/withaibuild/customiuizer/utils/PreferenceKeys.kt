@@ -16,3 +16,13 @@ internal fun canonicalPreferenceKey(key: String?): String? {
     else if (key.startsWith("pref_key_")) key.substring("pref_key_".length)
     else key
 }
+
+/**
+ * Storage form used by the settings app SharedPreferences and backup files.
+ *
+ * Feature code speaks the canonical short key; XML and backup speak `pref_key_*`.
+ */
+internal fun storagePreferenceKey(key: String?): String? {
+    val canonical = canonicalPreferenceKey(key) ?: return null
+    return if (canonical.startsWith("pref_key_")) canonical else "pref_key_$canonical"
+}

@@ -76,17 +76,49 @@ class BackupRestoreTest {
     @Test
     fun validateAndNormalizeEntriesSkipsTombstones() {
         val map = LinkedHashMap<Any?, Any?>()
-        map["pref_key_system_notif_disable_strong_toast"] = true
+        map["pref_key_system_notif_disable_strong_toast_always"] = true
         map["pref_key_system_notif_strong_toast_width"] = 100
-        map["pref_key_valid"] = "keep"
+        map["pref_key_miuizer_launchericon"] = true
+
+        val (normalized, counts) = BackupRestore.validateAndNormalizeEntries(map)
+
+        assertFalse(normalized.containsKey("pref_key_system_notif_disable_strong_toast_always"))
+        assertFalse(normalized.containsKey("pref_key_system_notif_strong_toast_width"))
+        assertEquals(true, normalized["pref_key_miuizer_launchericon"])
+        assertEquals(2, counts.deprecatedIgnored)
+        assertEquals(0, counts.unknownIgnored)
+        assertEquals(1, counts.restored)
+    }
+
+    @Test
+    fun validateAndNormalizeEntriesMigratesLegacyStrongToastDisable() {
+        val map = LinkedHashMap<Any?, Any?>()
+        map["pref_key_system_notif_disable_strong_toast"] = true
+        map["pref_key_miuizer_locale"] = "en"
 
         val (normalized, counts) = BackupRestore.validateAndNormalizeEntries(map)
 
         assertFalse(normalized.containsKey("pref_key_system_notif_disable_strong_toast"))
-        assertFalse(normalized.containsKey("pref_key_system_notif_strong_toast_width"))
-        assertEquals("keep", normalized["pref_key_valid"])
-        assertEquals(2, counts.deprecatedIgnored)
-        // validateAndNormalizeEntries does not yet know sanitization; restored is adjusted later.
+        assertEquals("2", normalized["pref_key_system_strong_toast_mode"])
+        assertEquals("en", normalized["pref_key_miuizer_locale"])
+        assertEquals(1, counts.migrated)
+        assertEquals(2, counts.restored)
+        assertEquals(0, counts.unknownIgnored)
+        assertEquals(0, counts.invalidSkipped)
+    }
+
+    @Test
+    fun validateAndNormalizeEntriesIgnoresUnknownKeys() {
+        val map = LinkedHashMap<Any?, Any?>()
+        map["pref_key_removed_old_feature"] = true
+        map["pref_key_miuizer_launchericon"] = false
+
+        val (normalized, counts) = BackupRestore.validateAndNormalizeEntries(map)
+
+        assertFalse(normalized.containsKey("pref_key_removed_old_feature"))
+        assertEquals(false, normalized["pref_key_miuizer_launchericon"])
+        assertEquals(1, counts.unknownIgnored)
+        assertEquals(0, counts.invalidSkipped)
         assertEquals(1, counts.restored)
     }
 
@@ -94,52 +126,51 @@ class BackupRestoreTest {
     fun validateAndNormalizeEntriesSkipsNonStringKey() {
         val map = LinkedHashMap<Any?, Any?>()
         map[123] = "value"
-        map["pref_key_valid"] = true
+        map["pref_key_miuizer_launchericon"] = true
 
         val (normalized, counts) = BackupRestore.validateAndNormalizeEntries(map)
 
         assertEquals(1, counts.invalidSkipped)
         assertEquals(1, counts.restored)
-        assertTrue(normalized.containsKey("pref_key_valid"))
+        assertTrue(normalized.containsKey("pref_key_miuizer_launchericon"))
     }
 
     @Test
     fun validateAndNormalizeEntriesSkipsUnsupportedValue() {
         val map = LinkedHashMap<Any?, Any?>()
         map["pref_key_double"] = 1.5
-        map["pref_key_valid"] = 42
+        map["pref_key_miuizer_launchericon"] = 42
 
         val (normalized, counts) = BackupRestore.validateAndNormalizeEntries(map)
 
         assertEquals(1, counts.invalidSkipped)
         assertEquals(1, counts.restored)
-        assertEquals(42, normalized["pref_key_valid"])
+        assertEquals(42, normalized["pref_key_miuizer_launchericon"])
     }
 
     @Test
     fun validateAndNormalizeEntriesSkipsMalformedStringSet() {
         val map = LinkedHashMap<Any?, Any?>()
-        map["pref_key_apps"] = LinkedHashSet<Any?>().apply { add("com.example"); add(123) }
-        map["pref_key_valid"] = "keep"
+        map["pref_key_system_blocktoasts_apps"] = LinkedHashSet<Any?>().apply { add("com.example"); add(123) }
+        map["pref_key_miuizer_locale"] = "keep"
 
         val (normalized, counts) = BackupRestore.validateAndNormalizeEntries(map)
 
         assertEquals(1, counts.invalidSkipped)
         assertEquals(1, counts.restored)
-        assertNull(normalized["pref_key_apps"])
-        assertEquals("keep", normalized["pref_key_valid"])
+        assertNull(normalized["pref_key_system_blocktoasts_apps"])
+        assertEquals("keep", normalized["pref_key_miuizer_locale"])
     }
 
     @Test
     fun performRestoreReturnsSuccessForValidLegacyBackup() {
         val map = HashMap<String, Any?>()
-        map["pref_key_enabled"] = true
         map["pref_key_miuizer_launchericon"] = false
         map["pref_key_miuizer_locale"] = "en"
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences().apply {
-            put("pref_key_old", "value")
+            put("pref_key_removed_old_feature", "value")
         }
 
         val result = BackupRestore.performRestore(
@@ -152,21 +183,21 @@ class BackupRestoreTest {
         assertEquals(BackupRestore.Status.SUCCESS, result.status)
         assertTrue(result.commitSucceeded)
         assertTrue(result.deviceReconciled)
-        assertEquals(3, result.restored)
-        assertEquals(true, prefs.getBoolean("pref_key_enabled", false))
+        assertEquals(2, result.restored)
         assertFalse(prefs.getBoolean("pref_key_miuizer_launchericon", true))
         assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
         assertEquals("", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
+        assertNull(prefs.getString("pref_key_removed_old_feature", null))
     }
 
     @Test
     fun performRestorePrimaryCommitFalseAndRollbackTrueUpdatesAndRestoresVisibleState() {
         val map = HashMap<String, Any?>()
-        map["pref_key_new"] = "restored in memory"
+        map["pref_key_system_strong_toast_mode"] = "2"
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences().apply {
-            put("pref_key_old", "original")
+            put("pref_key_miuizer_locale", "original")
             put(AppLocaleController.APPLIED_LOCALE_PREF_KEY, "original-marker")
             commitSequence = listOf(false, true).iterator()
         }
@@ -185,30 +216,30 @@ class BackupRestoreTest {
 
         // Primary commit applies to in-memory map even though durability result is false.
         val primaryState = prefs.commitSnapshot(0)
-        assertNull(primaryState["pref_key_old"])
-        assertEquals("restored in memory", primaryState["pref_key_new"])
+        assertNull(primaryState["pref_key_miuizer_locale"])
+        assertEquals("2", primaryState["pref_key_system_strong_toast_mode"])
         assertEquals("", primaryState[AppLocaleController.APPLIED_LOCALE_PREF_KEY])
 
         // Rollback restores original snapshot.
         val rollbackState = prefs.commitSnapshot(1)
-        assertEquals("original", rollbackState["pref_key_old"])
-        assertNull(rollbackState["pref_key_new"])
+        assertEquals("original", rollbackState["pref_key_miuizer_locale"])
+        assertNull(rollbackState["pref_key_system_strong_toast_mode"])
         assertEquals("original-marker", rollbackState[AppLocaleController.APPLIED_LOCALE_PREF_KEY])
 
         // Final live state is original.
-        assertEquals("original", prefs.getString("pref_key_old", null))
-        assertNull(prefs.getString("pref_key_new", null))
+        assertEquals("original", prefs.getString("pref_key_miuizer_locale", null))
+        assertNull(prefs.getString("pref_key_system_strong_toast_mode", null))
         assertEquals("original-marker", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
     }
 
     @Test
     fun performRestorePrimaryCommitFalseAndRollbackFalseRestoresOriginalReconcileMarker() {
         val map = HashMap<String, Any?>()
-        map["pref_key_new"] = "restored in memory"
+        map["pref_key_system_strong_toast_mode"] = "2"
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences().apply {
-            put("pref_key_old", "original")
+            put("pref_key_miuizer_locale", "original")
             put(AppLocaleController.APPLIED_LOCALE_PREF_KEY, "original-marker")
             commitSequence = listOf(false, false).iterator()
         }
@@ -226,19 +257,19 @@ class BackupRestoreTest {
         assertFalse(result.rollbackSucceeded)
 
         // Both commits applied to in-memory map; rollback attempted even if durability result false.
-        assertEquals("original", prefs.getString("pref_key_old", null))
-        assertNull(prefs.getString("pref_key_new", null))
+        assertEquals("original", prefs.getString("pref_key_miuizer_locale", null))
+        assertNull(prefs.getString("pref_key_system_strong_toast_mode", null))
         assertEquals("original-marker", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
     }
 
     @Test
     fun performRestoreDoesNotReconcileWhenCommitFails() {
         val map = HashMap<String, Any?>()
-        map["pref_key_new"] = "should not persist"
+        map["pref_key_system_strong_toast_mode"] = "2"
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences().apply {
-            put("pref_key_old", "value")
+            put("pref_key_miuizer_locale", "value")
             commitSequence = listOf(false, true).iterator()
         }
 
@@ -465,7 +496,7 @@ class BackupRestoreTest {
             add("com.present")
             add("com.missing")
         }
-        map["pref_key_valid"] = "keep"
+        map["pref_key_miuizer_locale"] = "keep"
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences()
@@ -479,9 +510,9 @@ class BackupRestoreTest {
 
         assertEquals(BackupRestore.Status.SUCCESS, result.status)
         assertEquals(2, result.appSelectionsSanitized)
-        // Only pref_key_system_blocktoasts_apps and pref_key_valid survive.
+        // Only pref_key_system_blocktoasts_apps and pref_key_miuizer_locale survive.
         assertEquals(2, result.restored)
-        assertEquals("keep", prefs.getString("pref_key_valid", null))
+        assertEquals("keep", prefs.getString("pref_key_miuizer_locale", null))
         assertNull(prefs.getString("pref_key_system_clock_app", null))
         assertNull(prefs.getString("pref_key_system_clock_app_user", null))
         @Suppress("UNCHECKED_CAST")
@@ -555,7 +586,6 @@ class BackupRestoreTest {
     @Test
     fun performRestoreDetectsV2AndSucceeds() {
         val entries = linkedMapOf(
-            "pref_key_enabled" to true,
             "pref_key_miuizer_launchericon" to false,
         )
         val input = ByteArrayInputStream(BackupFormatV2.encode(entries))
@@ -570,15 +600,14 @@ class BackupRestoreTest {
 
         assertEquals(BackupRestore.Status.SUCCESS, result.status)
         assertTrue(result.commitSucceeded)
-        assertEquals(2, result.restored)
-        assertTrue(prefs.getBoolean("pref_key_enabled", false))
+        assertEquals(1, result.restored)
         assertFalse(prefs.getBoolean("pref_key_miuizer_launchericon", true))
     }
 
     @Test
     fun performRestoreDetectsLegacyJavaSerialization() {
         val map = HashMap<String, Any?>()
-        map["pref_key_enabled"] = true
+        map["pref_key_miuizer_launchericon"] = true
         val input = ByteArrayInputStream(serialize(map))
 
         val prefs = FakeSharedPreferences()
@@ -591,7 +620,7 @@ class BackupRestoreTest {
 
         assertEquals(BackupRestore.Status.SUCCESS, result.status)
         assertTrue(result.commitSucceeded)
-        assertTrue(prefs.getBoolean("pref_key_enabled", false))
+        assertTrue(prefs.getBoolean("pref_key_miuizer_launchericon", false))
     }
 
     @Test
@@ -613,9 +642,10 @@ class BackupRestoreTest {
     @Test
     fun performBackupWritesV2AndFiltersDroppedAndNonExportable() {
         val prefs = FakeSharedPreferences().apply {
-            put("pref_key_enabled", true)
-            put("pref_key_string", "value")
+            put("pref_key_miuizer_launchericon", true)
+            put("pref_key_miuizer_locale", "en")
             put("pref_key_system_notif_disable_strong_toast", true)
+            put("pref_key_removed_old_feature", true)
             put("pref_key_miuizer_locale_applied", "zh")
         }
 
@@ -625,17 +655,18 @@ class BackupRestoreTest {
         assertTrue(success)
 
         val decoded = BackupFormatV2.decode(output.toByteArray())
-        assertEquals(2, decoded.size)
-        assertTrue(decoded.containsKey("pref_key_enabled"))
-        assertTrue(decoded.containsKey("pref_key_string"))
+        assertTrue(decoded.containsKey("pref_key_miuizer_launchericon"))
+        assertTrue(decoded.containsKey("pref_key_miuizer_locale"))
+        assertEquals("2", decoded["pref_key_system_strong_toast_mode"])
         assertFalse(decoded.containsKey("pref_key_system_notif_disable_strong_toast"))
+        assertFalse(decoded.containsKey("pref_key_removed_old_feature"))
         assertFalse(decoded.containsKey("pref_key_miuizer_locale_applied"))
     }
 
     @Test
     fun performBackupFailsOnUnsupportedValueType() {
         val prefs = FakeSharedPreferences().apply {
-            put("pref_key_double", 1.5)
+            put("pref_key_miuizer_launchericon", 1.5)
         }
 
         try {
@@ -649,8 +680,9 @@ class BackupRestoreTest {
     @Test
     fun performRestoreV2IgnoresDroppedAndDeviceDerivedKeys() {
         val entries = linkedMapOf(
-            "pref_key_enabled" to true,
-            "pref_key_system_notif_disable_strong_toast" to true,
+            "pref_key_miuizer_launchericon" to true,
+            "pref_key_system_notif_strong_toast_width" to 100,
+            "pref_key_removed_old_feature" to true,
             "pref_key_miuizer_locale" to "en",
             "pref_key_miuizer_locale_applied" to "zh",
         )
@@ -666,10 +698,13 @@ class BackupRestoreTest {
 
         assertEquals(BackupRestore.Status.SUCCESS, result.status)
         assertEquals(2, result.deprecatedIgnored)
+        assertEquals(1, result.unknownIgnored)
+        assertEquals(0, result.invalidSkipped)
         assertEquals(2, result.restored)
-        assertTrue(prefs.getBoolean("pref_key_enabled", false))
+        assertTrue(prefs.getBoolean("pref_key_miuizer_launchericon", false))
         assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
-        assertNull(prefs.getString("pref_key_system_notif_disable_strong_toast", null))
+        assertNull(prefs.getString("pref_key_system_notif_strong_toast_width", null))
+        assertNull(prefs.getString("pref_key_removed_old_feature", null))
         // Device-derived marker gets local reconcile marker, not source value.
         assertEquals("", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
     }
@@ -855,7 +890,7 @@ class BackupRestoreTest {
     fun performRestoreLegacyCountsNonStringKeyAsInvalidSkipped() {
         val map = HashMap<Any?, Any?>()
         map[123] = "bad-key"
-        map["valid"] = true
+        map["pref_key_miuizer_launchericon"] = true
 
         val prefs = FakeSharedPreferences()
         val result = BackupRestore.performRestore(
@@ -868,7 +903,7 @@ class BackupRestoreTest {
         assertEquals(BackupRestore.Status.SUCCESS, result.status)
         assertEquals(1, result.invalidSkipped)
         assertEquals(1, result.restored)
-        assertTrue(prefs.getBoolean("valid", false))
+        assertTrue(prefs.getBoolean("pref_key_miuizer_launchericon", false))
         assertNull(prefs.getString("123", null))
     }
 
@@ -879,7 +914,7 @@ class BackupRestoreTest {
         set.add("com.ok")
         set.add(123)
         map["bad_set"] = set
-        map["valid"] = true
+        map["pref_key_miuizer_launchericon"] = true
 
         val prefs = FakeSharedPreferences()
         val result = BackupRestore.performRestore(
@@ -893,7 +928,7 @@ class BackupRestoreTest {
         assertEquals(1, result.invalidSkipped)
         assertEquals(1, result.restored)
         assertNull(prefs.getStringSet("bad_set", null))
-        assertTrue(prefs.getBoolean("valid", false))
+        assertTrue(prefs.getBoolean("pref_key_miuizer_launchericon", false))
     }
 
     @Test
@@ -902,7 +937,7 @@ class BackupRestoreTest {
         val nested = HashMap<String, Any?>()
         nested["x"] = true
         map["bad_value"] = nested
-        map["valid"] = true
+        map["pref_key_miuizer_launchericon"] = true
 
         val prefs = FakeSharedPreferences()
         val result = BackupRestore.performRestore(
@@ -916,7 +951,7 @@ class BackupRestoreTest {
         assertEquals(1, result.invalidSkipped)
         assertEquals(1, result.restored)
         assertNull(prefs.getString("bad_value", null))
-        assertTrue(prefs.getBoolean("valid", false))
+        assertTrue(prefs.getBoolean("pref_key_miuizer_launchericon", false))
     }
 
     @Test
@@ -1029,6 +1064,141 @@ class BackupRestoreTest {
         } catch (e: BackupRestore.BackupRestoreException) {
             assertTrue("Expected loadFactor validation", e.message?.contains("loadFactor") == true)
         }
+    }
+
+    @Test
+    fun catalogKnownPreferenceRoundTripsWithoutBackupWhitelist() {
+        assertTrue(
+            "launchericon must come from the generated catalog, not BackupRestore.DROPPED_KEYS",
+            "pref_key_miuizer_launchericon" !in BackupRestore.DROPPED_KEYS,
+        )
+        val prefs = FakeSharedPreferences().apply {
+            put("pref_key_miuizer_launchericon", true)
+        }
+        val output = ByteArrayOutputStream()
+        assertTrue(BackupRestore.performBackup(prefs, output))
+
+        val restored = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            ByteArrayInputStream(output.toByteArray()),
+            restored,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertEquals(0, result.unknownIgnored)
+        assertTrue(restored.getBoolean("pref_key_miuizer_launchericon", false))
+    }
+
+    @Test
+    fun backupOmitsOrphanKeysWhileKeepingCurrentKeys() {
+        val prefs = FakeSharedPreferences().apply {
+            put("pref_key_miuizer_locale", "en")
+            put("pref_key_removed_old_feature", true)
+        }
+        val output = ByteArrayOutputStream()
+        assertTrue(BackupRestore.performBackup(prefs, output))
+        val decoded = BackupFormatV2.decode(output.toByteArray())
+        assertEquals("en", decoded["pref_key_miuizer_locale"])
+        assertFalse(decoded.containsKey("pref_key_removed_old_feature"))
+    }
+
+    @Test
+    fun restoreIgnoresUnknownKeysWithoutTreatingThemAsCorruption() {
+        val entries = linkedMapOf(
+            "pref_key_miuizer_launchericon" to true,
+            "pref_key_removed_old_feature" to true,
+        )
+        val result = BackupRestore.performRestore(
+            ByteArrayInputStream(BackupFormatV2.encode(entries)),
+            FakeSharedPreferences(),
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertEquals(1, result.unknownIgnored)
+        assertEquals(0, result.invalidSkipped)
+        assertEquals(1, result.restored)
+        assertTrue(result.commitSucceeded)
+    }
+
+    @Test
+    fun restoreMigratesLegacyStrongToastDisableAndDropsOldKey() {
+        val entries = linkedMapOf(
+            "pref_key_system_notif_disable_strong_toast" to true,
+            "pref_key_miuizer_locale" to "en",
+        )
+        val prefs = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            ByteArrayInputStream(BackupFormatV2.encode(entries)),
+            prefs,
+            installedPackages = emptySet(),
+            launcherReconciler = { true },
+        )
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertEquals(1, result.migrated)
+        assertEquals("2", prefs.getString("pref_key_system_strong_toast_mode", null))
+        assertNull(prefs.getString("pref_key_system_notif_disable_strong_toast", null))
+        assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
+    }
+
+    @Test
+    fun restoreKeepsDynamicFamilyAndInternalKeys() {
+        val uuid = "0123456789abcdef0123456789abcdef"
+        val entries = linkedMapOf<String, Any?>(
+            "pref_key_launcher_renameapps_list:com.foo|com.foo.Bar|0" to "Renamed",
+            "pref_key_system_cleanopenwith_apps_com.foo_bar|0" to 7,
+            "pref_key_system_lockscreenshortcuts_right_${uuid}_action" to 8,
+            "pref_key_system_clock_app_user" to 10,
+            "pref_key_system_betterpopups_allowfloat_apps_black" to HashSet(setOf("com.present")),
+            "pref_key_system_vibration_amp_period_startstart_hour" to 22,
+            "internal_updater_service_names" to "svc.one",
+            "pref_key_qs_autorotate_state" to 1,
+        )
+        val prefs = FakeSharedPreferences()
+        val result = BackupRestore.performRestore(
+            ByteArrayInputStream(BackupFormatV2.encode(entries)),
+            prefs,
+            installedPackages = setOf("com.present"),
+            launcherReconciler = { true },
+        )
+        assertEquals(BackupRestore.Status.SUCCESS, result.status)
+        assertEquals(0, result.unknownIgnored)
+        assertEquals("Renamed", prefs.getString("pref_key_launcher_renameapps_list:com.foo|com.foo.Bar|0", null))
+        assertEquals(7, prefs.getInt("pref_key_system_cleanopenwith_apps_com.foo_bar|0", 0))
+        assertEquals(8, prefs.getInt("pref_key_system_lockscreenshortcuts_right_${uuid}_action", 0))
+        assertEquals(10, prefs.getInt("pref_key_system_clock_app_user", 0))
+        @Suppress("UNCHECKED_CAST")
+        assertEquals(
+            setOf("com.present"),
+            prefs.getStringSet("pref_key_system_betterpopups_allowfloat_apps_black", emptySet()) as Set<String>,
+        )
+        assertEquals(22, prefs.getInt("pref_key_system_vibration_amp_period_startstart_hour", 0))
+        assertEquals("svc.one", prefs.getString("internal_updater_service_names", null))
+        assertEquals(1, prefs.getInt("pref_key_qs_autorotate_state", 0))
+    }
+
+    @Test
+    fun localOrphanPruneRemovesStaleKeysOnce() {
+        val prefs = FakeSharedPreferences().apply {
+            put("pref_key_miuizer_locale", "en")
+            put("pref_key_removed_old_feature", true)
+            put("pref_key_system_notif_disable_strong_toast", true)
+            put("internal_updater_service_names", "svc.one")
+            put(AppLocaleController.APPLIED_LOCALE_PREF_KEY, "en")
+        }
+        assertTrue(CurrentPreferenceContract.pruneOrphanPreferences(prefs))
+        assertEquals("en", prefs.getString("pref_key_miuizer_locale", null))
+        assertEquals("2", prefs.getString("pref_key_system_strong_toast_mode", null))
+        assertNull(prefs.getString("pref_key_removed_old_feature", null))
+        assertNull(prefs.getString("pref_key_system_notif_disable_strong_toast", null))
+        assertEquals("svc.one", prefs.getString("internal_updater_service_names", null))
+        assertEquals("en", prefs.getString(AppLocaleController.APPLIED_LOCALE_PREF_KEY, null))
+        assertEquals(
+            CurrentPreferenceContract.CONTRACT_REVISION,
+            prefs.getInt(CurrentPreferenceContract.CONTRACT_REVISION_KEY, 0),
+        )
+        assertFalse(CurrentPreferenceContract.pruneOrphanPreferences(prefs))
     }
 
     private fun findFirstClassDataEnd(bytes: List<Byte>): Int {

@@ -40,12 +40,15 @@ object BackupRestore {
         "pref_key_system_notif_disable_strong_toast_always",
         "pref_key_system_notif_disable_strong_toast_dnd",
         "pref_key_system_notif_strong_toast_width",
+        "pref_key_system_strong_toast_position",
+        "pref_key_system_strong_toast_bottom_offset",
     )
 
     /** Source-device derived or runtime markers that must not be trusted on restore. */
     val NON_EXPORTABLE_KEYS = setOf(
         "pref_key_miuizer_locale_applied",
         "pref_key_miuizer_synced_from_lsposed",
+        CurrentPreferenceContract.CONTRACT_REVISION_KEY,
     )
 
     /** Legacy Java serialization stream header: 0xAC 0xED 0x00 0x05. */
@@ -71,6 +74,7 @@ object BackupRestore {
         val restored: Int = 0,
         val deprecatedIgnored: Int = 0,
         val invalidSkipped: Int = 0,
+        val unknownIgnored: Int = 0,
         val appSelectionsSanitized: Int = 0,
         val migrated: Int = 0,
         val commitSucceeded: Boolean = false,
@@ -93,15 +97,16 @@ object BackupRestore {
     /**
      * Copies and filters the current preference entries for backup output.
      *
-     * Dropped / non-exportable keys are removed. Unsupported value types cause
-     * a [BackupFormatV2.BackupFormatException] rather than silent partial output.
+     * Only current-contract exportable keys are encoded. Dropped, non-exportable,
+     * and unknown keys are omitted. Unsupported value types on exportable keys
+     * cause a [BackupFormatV2.BackupFormatException] rather than silent partial output.
      */
     @JvmStatic
     fun filterBackupEntries(prefs: SharedPreferences): Map<String, Any?> {
         val source = prefs.all
         val filtered = LinkedHashMap<String, Any?>(source.size)
         for ((key, value) in source) {
-            if (key in DROPPED_KEYS || key in NON_EXPORTABLE_KEYS) continue
+            if (!CurrentPreferenceContract.isExportable(key)) continue
             if (value != null && !isSupportedValue(value)) {
                 throw BackupFormatV2.BackupFormatException(
                     "Unsupported backup value type for key '$key': ${value.javaClass}"
@@ -115,7 +120,16 @@ object BackupRestore {
                 else -> value
             }
         }
-        return filtered
+        CurrentPreferenceContract.applyMigrations(filtered)
+        val exportable = LinkedHashMap<String, Any?>(filtered.size)
+        for ((key, value) in filtered) {
+            when (CurrentPreferenceContract.classify(key)) {
+                CurrentPreferenceContract.Kind.CURRENT,
+                CurrentPreferenceContract.Kind.INTERNAL -> exportable[key] = value
+                else -> Unit
+            }
+        }
+        return exportable
     }
 
     @JvmStatic
@@ -308,8 +322,9 @@ object BackupRestore {
      *   invalid input: the entire entry is skipped and `invalidSkipped` is incremented.
      * - `StringSet` members must all be non-null `String`s; otherwise the entire
      *   `StringSet` entry is skipped.
-     * - `DROPPED_KEYS` and `NON_EXPORTABLE_KEYS` are not written back; they are
-     *   counted in `deprecatedIgnored`.
+     * - `NON_EXPORTABLE_KEYS` and explicit tombstones are counted in `deprecatedIgnored`.
+     * - Unknown / stale keys are counted in `unknownIgnored` and are not written back.
+     * - Legacy aliases are migrated before the current-contract prune.
      *
      * This function performs no `SharedPreferences` mutation.
      */
@@ -320,16 +335,11 @@ object BackupRestore {
         val normalized = LinkedHashMap<String, Any?>(raw.size)
         var invalidSkipped = 0
         var deprecatedIgnored = 0
-        var restored = 0
+        var unknownIgnored = 0
 
         for ((rawKey, rawValue) in raw) {
             if (rawKey !is String) {
                 invalidSkipped++
-                continue
-            }
-
-            if (rawKey in DROPPED_KEYS || rawKey in NON_EXPORTABLE_KEYS) {
-                deprecatedIgnored++
                 continue
             }
 
@@ -339,17 +349,44 @@ object BackupRestore {
                 continue
             }
 
-            normalized[rawKey] = value
-            restored++
+            when (CurrentPreferenceContract.classify(rawKey)) {
+                CurrentPreferenceContract.Kind.NON_EXPORTABLE,
+                CurrentPreferenceContract.Kind.DROPPED -> {
+                    deprecatedIgnored++
+                }
+                CurrentPreferenceContract.Kind.UNKNOWN -> {
+                    unknownIgnored++
+                }
+                CurrentPreferenceContract.Kind.CURRENT,
+                CurrentPreferenceContract.Kind.INTERNAL,
+                CurrentPreferenceContract.Kind.LEGACY_MIGRATABLE -> {
+                    normalized[rawKey] = value
+                }
+            }
+        }
+
+        val migrated = CurrentPreferenceContract.applyMigrations(normalized)
+        val kept = LinkedHashMap<String, Any?>(normalized.size)
+        for ((key, value) in normalized) {
+            when (CurrentPreferenceContract.classify(key)) {
+                CurrentPreferenceContract.Kind.CURRENT,
+                CurrentPreferenceContract.Kind.INTERNAL -> kept[key] = value
+                CurrentPreferenceContract.Kind.DROPPED,
+                CurrentPreferenceContract.Kind.NON_EXPORTABLE -> deprecatedIgnored++
+                CurrentPreferenceContract.Kind.UNKNOWN -> unknownIgnored++
+                CurrentPreferenceContract.Kind.LEGACY_MIGRATABLE -> unknownIgnored++
+            }
         }
 
         val counts = RestoreResult(
             status = Status.FAILURE,
-            restored = restored,
+            restored = kept.size,
             deprecatedIgnored = deprecatedIgnored,
             invalidSkipped = invalidSkipped,
+            unknownIgnored = unknownIgnored,
+            migrated = migrated,
         )
-        return Pair(normalized, counts)
+        return Pair(kept, counts)
     }
 
     /**
@@ -486,6 +523,8 @@ object BackupRestore {
         val (entriesAfterValidation, validationCounts) = validateAndNormalizeEntries(rawRoot)
         val invalidSkipped = validationCounts.invalidSkipped
         val deprecatedIgnored = validationCounts.deprecatedIgnored
+        val unknownIgnored = validationCounts.unknownIgnored
+        val migrated = validationCounts.migrated
         var restored = validationCounts.restored
 
         val (sanitizedEntries, appSelectionsSanitized) = try {
@@ -502,6 +541,8 @@ object BackupRestore {
                 status = Status.FAILURE,
                 invalidSkipped = invalidSkipped,
                 deprecatedIgnored = deprecatedIgnored,
+                unknownIgnored = unknownIgnored,
+                migrated = migrated,
                 appSelectionsSanitized = 0,
                 restored = restored,
                 commitSucceeded = false,
@@ -517,6 +558,10 @@ object BackupRestore {
         primaryEditor.clear()
         putSupportedPreferenceEntries(primaryEditor, sanitizedEntries)
         AppLocaleController.stageReconcileMarker(primaryEditor)
+        primaryEditor.putInt(
+            CurrentPreferenceContract.CONTRACT_REVISION_KEY,
+            CurrentPreferenceContract.CONTRACT_REVISION,
+        )
         val primaryCommit = primaryEditor.commit()
 
         if (!primaryCommit) {
@@ -532,6 +577,8 @@ object BackupRestore {
                 restored = restored,
                 deprecatedIgnored = deprecatedIgnored,
                 invalidSkipped = invalidSkipped,
+                unknownIgnored = unknownIgnored,
+                migrated = migrated,
                 appSelectionsSanitized = appSelectionsSanitized,
                 commitSucceeded = false,
                 commitConfirmedDurable = false,
@@ -552,6 +599,8 @@ object BackupRestore {
             restored = restored,
             deprecatedIgnored = deprecatedIgnored,
             invalidSkipped = invalidSkipped,
+            unknownIgnored = unknownIgnored,
+            migrated = migrated,
             appSelectionsSanitized = appSelectionsSanitized,
             commitSucceeded = true,
             commitConfirmedDurable = true,

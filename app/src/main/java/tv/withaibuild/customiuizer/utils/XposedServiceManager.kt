@@ -207,7 +207,8 @@ object XposedServiceManager {
         "pref_key_miuizer_locale",
         "pref_key_miuizer_locale_applied",
         "pref_key_miuizer_launchericon",
-        "pref_key_miuizer_synced_from_lsposed"
+        "pref_key_miuizer_synced_from_lsposed",
+        CurrentPreferenceContract.CONTRACT_REVISION_KEY,
     )
 
     private val prefsChanged = SharedPreferences.OnSharedPreferenceChangeListener { sharedPreferences, key ->

@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import copy
 import dataclasses
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -285,7 +286,66 @@ def _append_compact_search_category(
         )
 
 
-def generate(source_dir: Path, output_dir: Path) -> None:
+FEATURE_PREFERENCE_KEY = re.compile(r'preferenceKey\s*=\s*"([A-Za-z][A-Za-z0-9_]*)"')
+
+
+def _storage_key(raw: str) -> str:
+    if raw.startswith("pref_key_"):
+        return raw
+    return f"pref_key_{raw}"
+
+
+def collect_xml_storage_keys(xml_dir: Path) -> set[str]:
+    keys: set[str] = set()
+    for path in sorted(xml_dir.glob("*.xml")):
+        root = ET.parse(path).getroot()
+        for element in root.iter():
+            key = element.get(ANDROID_KEY)
+            if key:
+                keys.add(_storage_key(key))
+    return keys
+
+
+def collect_feature_storage_keys(java_dir: Path) -> set[str]:
+    keys: set[str] = set()
+    if not java_dir.is_dir():
+        return keys
+    for path in java_dir.rglob("*.kt"):
+        text = path.read_text(encoding="utf-8")
+        for match in FEATURE_PREFERENCE_KEY.finditer(text):
+            keys.add(_storage_key(match.group(1)))
+    return keys
+
+
+def write_preference_catalog(output_dir: Path, keys: set[str]) -> None:
+    package_dir = output_dir / "tv" / "withaibuild" / "customiuizer" / "utils"
+    package_dir.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "package tv.withaibuild.customiuizer.utils",
+        "",
+        "/** Generated from preference XML and feature preferenceKey declarations. Do not edit. */",
+        "internal object CurrentPreferenceCatalog {",
+        "    @JvmField",
+        "    val STORAGE_KEYS: Set<String> = hashSetOf(",
+    ]
+    for key in sorted(keys):
+        lines.append(f'        "{key}",')
+    lines.extend(
+        [
+            "    )",
+            "}",
+            "",
+        ]
+    )
+    (package_dir / "CurrentPreferenceCatalog.kt").write_text("\n".join(lines), encoding="utf-8")
+
+
+def generate(
+    source_dir: Path,
+    output_dir: Path,
+    catalog_output: Path | None = None,
+    java_dir: Path | None = None,
+) -> None:
     xml_dir = output_dir / "xml"
     xml_dir.mkdir(parents=True, exist_ok=True)
     for stale_xml in xml_dir.glob("*.xml"):
@@ -311,13 +371,26 @@ def generate(source_dir: Path, output_dir: Path) -> None:
         )
     _write_xml(xml_dir / "mod_search_index.xml", index_root)
 
+    if catalog_output is not None:
+        keys = collect_xml_storage_keys(source_dir)
+        if java_dir is not None:
+            keys.update(collect_feature_storage_keys(java_dir))
+        write_preference_catalog(catalog_output, keys)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--catalog-output", type=Path, required=False)
+    parser.add_argument("--java-dir", type=Path, required=False)
     args = parser.parse_args()
-    generate(args.source_dir.resolve(), args.output_dir.resolve())
+    generate(
+        args.source_dir.resolve(),
+        args.output_dir.resolve(),
+        None if args.catalog_output is None else args.catalog_output.resolve(),
+        None if args.java_dir is None else args.java_dir.resolve(),
+    )
 
 
 if __name__ == "__main__":

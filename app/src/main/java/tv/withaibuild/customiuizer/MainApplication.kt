@@ -12,6 +12,7 @@ import android.content.SharedPreferences
 import android.os.Build
 import tv.withaibuild.customiuizer.utils.AppHelper
 import tv.withaibuild.customiuizer.utils.AppLocaleController
+import tv.withaibuild.customiuizer.utils.CurrentPreferenceContract
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.XposedServiceManager
 
@@ -31,7 +32,10 @@ class MainApplication : Application() {
         // setting is optional, so it must not put work on the start-up path when it is off.
         // Pass the Application context: without it the locale is applied through
         // AppCompat, which silently does nothing this early. See AppLocaleController.
-        AppHelper.appPrefs?.let { AppLocaleController.apply(it, this) }
+        AppHelper.appPrefs?.let { prefs ->
+            CurrentPreferenceContract.pruneOrphanPreferences(prefs)
+            AppLocaleController.apply(prefs, this)
+        }
         XposedServiceManager.init(AppHelper.appPrefs)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager

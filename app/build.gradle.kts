@@ -81,19 +81,17 @@ val supportedLocales = setOf(
 val preferenceSourceDir = layout.projectDirectory.dir("src/main/res/xml")
 val preferenceArtifactGenerator = rootProject.layout.projectDirectory.file("tools/generate_preference_artifacts.py")
 val generatedPreferenceResourcesDir = layout.buildDirectory.dir("generated/res/preference-artifacts/main")
-val preferenceSourceFiles = listOf(
-    "prefs_system.xml",
-    "prefs_launcher.xml",
-    "prefs_controls.xml",
-    "prefs_various.xml",
-).map(preferenceSourceDir::file)
+val generatedPreferenceCatalogDir = layout.buildDirectory.dir("generated/source/preference-catalog/main")
+val preferenceJavaDir = layout.projectDirectory.dir("src/main/java")
 
 val generatePreferenceArtifacts = tasks.register<Exec>("generatePreferenceArtifacts") {
-    description = "Generates lazy preference pages and the compact settings search index"
+    description = "Generates lazy preference pages, search index, and current preference catalog"
     group = "build"
     inputs.file(preferenceArtifactGenerator)
-    inputs.files(preferenceSourceFiles)
+    inputs.dir(preferenceSourceDir)
+    inputs.dir(preferenceJavaDir)
     outputs.dir(generatedPreferenceResourcesDir)
+    outputs.dir(generatedPreferenceCatalogDir)
     commandLine(
         providers.environmentVariable("PYTHON").orElse("python").get(),
         preferenceArtifactGenerator.asFile.absolutePath,
@@ -101,6 +99,10 @@ val generatePreferenceArtifacts = tasks.register<Exec>("generatePreferenceArtifa
         preferenceSourceDir.asFile.absolutePath,
         "--output-dir",
         generatedPreferenceResourcesDir.get().asFile.absolutePath,
+        "--catalog-output",
+        generatedPreferenceCatalogDir.get().asFile.absolutePath,
+        "--java-dir",
+        preferenceJavaDir.asFile.absolutePath,
     )
 }
 
@@ -205,6 +207,9 @@ android {
     }
     sourceSets.getByName("main").res.directories.add(
         generatedPreferenceResourcesDir.get().asFile.absolutePath
+    )
+    sourceSets.getByName("main").kotlin.directories.add(
+        generatedPreferenceCatalogDir.get().asFile.absolutePath
     )
 }
 

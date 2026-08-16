@@ -338,6 +338,9 @@ class GeneratePreferenceArtifactsTest(unittest.TestCase):
         self.assertNotIn("parsePrefXml(context", helpers)
         self.assertIn("generatePreferenceArtifacts", build_script)
         self.assertIn("dependsOn(generatePreferenceArtifacts)", build_script)
+        self.assertIn("--catalog-output", build_script)
+        self.assertIn("generatedPreferenceCatalogDir", build_script)
+        self.assertIn("kotlin.directories.add", build_script)
 
         expected_files = set(EXPECTED_SPLITS.values()) | {
             "prefs_system_cat.xml",
@@ -355,6 +358,39 @@ class GeneratePreferenceArtifactsTest(unittest.TestCase):
             (self.xml_dir / "mod_search_index.xml").stat().st_size,
             canonical_size // 2,
         )
+
+    def test_catalog_is_generated_from_xml_and_feature_keys(self) -> None:
+        catalog_dir = Path(self.temp_dir.name) / "catalog"
+        java_dir = REPO_ROOT / "app" / "src" / "main" / "java"
+        subprocess.run(
+            [
+                sys.executable,
+                str(GENERATOR),
+                "--source-dir",
+                str(SOURCE_DIR),
+                "--output-dir",
+                str(self.output_dir),
+                "--catalog-output",
+                str(catalog_dir),
+                "--java-dir",
+                str(java_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+        catalog = (
+            catalog_dir
+            / "tv"
+            / "withaibuild"
+            / "customiuizer"
+            / "utils"
+            / "CurrentPreferenceCatalog.kt"
+        ).read_text(encoding="utf-8")
+        self.assertIn("internal object CurrentPreferenceCatalog", catalog)
+        self.assertIn('"pref_key_miuizer_launchericon"', catalog)
+        self.assertIn('"pref_key_system_strong_toast_mode"', catalog)
+        self.assertNotIn('"pref_key_..."', catalog)
+        self.assertNotIn("val ALL_VALID_KEYS", catalog)
 
 
 if __name__ == "__main__":
