@@ -6,8 +6,8 @@
     <string name="about_based_on">Baseado no trabalho de Mikanoshi e MonwF</string>
     <string name="about_dynamic">Geralmente, os mods exigem reinicialização suave para serem ativados ou desativados, mas aqueles marcados com ⟲ requerem apenas uma reinicialização suave depois que seu valor for alterado de padrão para personalizado, as alterações subsequentes são aplicadas imediatamente.</string>
     <string name="about_unsupported">Mods marcados com ⨯ não são suportados neste dispositivo.</string>
-    <string name="about_paypal_title">PayPal</string>
-    <string name="about_paypal_summary">Doar com PayPal</string>
+    <string name="about_paypal_title">Doação PayPal</string>
+    <string name="about_paypal_summary">Apoiar o desenvolvimento com PayPal</string>
     <string name="mods">Mods</string>
     <string name="mods_actions">Ações</string>
     <string name="common_background_color">Cor de fundo</string>
@@ -947,8 +947,8 @@
     <string name="about_contact_summary">Telegram: @Jinji_Kiko</string>
     <string name="about_contact_title">Contato</string>
     <string name="about_donate_image_description">Código de doação do WeChat</string>
-    <string name="about_donate_summary">Ver código de doação do WeChat</string>
-    <string name="about_donate_title">Apoiar o desenvolvimento</string>
+    <string name="about_donate_summary">Escaneie para apoiar o desenvolvimento</string>
+    <string name="about_donate_title">Código de doação do WeChat</string>
     <string name="about_donation_unavailable">Não foi possível carregar o código de doação</string>
     <string name="about_link_unavailable">Nenhum aplicativo pode abrir este link</string>
     <string name="about_notes_category">Observações</string>
@@ -1050,4 +1050,6 @@
     <string name="restart_securitycenter_failed">Falha ao reiniciar o centro de segurança</string>
     <string name="system_strong_toast_mode_match_height">Igualar altura da barra de status</string>
     <string name="system_strong_toast_mode_hide">Ocultar cápsula de status</string>
+    <string name="system_strong_toast_island_offset_title">Posição vertical da ilha dinâmica</string>
+    <string name="system_strong_toast_island_offset_summ">Ajusta como a ilha se alinha ao recorte da câmera. 0 usa a posição do recorte informada pelo sistema.</string>
 </resources>

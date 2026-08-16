@@ -34,6 +34,42 @@ class StrongToastRuntimeConfigTest {
         assertEquals(StrongToastPresentationMode.DYNAMIC_ISLAND, snapshot.mode)
         assertEquals(StrongToastPosition.TOP, snapshot.position)
         assertEquals(0, snapshot.bottomOffsetDp)
+        assertEquals(0, snapshot.islandOffsetDp)
+    }
+
+    @Test
+    fun islandOffsetShiftMapsStoredMidpointToNeutralAndAcceptsSignedRange() {
+        assertEquals(0, StrongToastRuntimeState.resolveIslandOffsetDp(null))
+        assertEquals(0, StrongToastRuntimeState.resolveIslandOffsetDp(24))
+        assertEquals(-24, StrongToastRuntimeState.resolveIslandOffsetDp(0))
+        assertEquals(24, StrongToastRuntimeState.resolveIslandOffsetDp(48))
+        assertEquals(8, StrongToastRuntimeState.resolveIslandOffsetDp("32"))
+        assertEquals(-24, StrongToastRuntimeState.resolveIslandOffsetDp(-99))
+        assertEquals(24, StrongToastRuntimeState.resolveIslandOffsetDp(99))
+        assertEquals(
+            12,
+            StrongToastRuntimeState.buildSnapshot(
+                mapOf(
+                    "system_strong_toast_mode" to "3",
+                    "system_strong_toast_island_offset" to 36,
+                )
+            ).islandOffsetDp,
+        )
+    }
+
+    @Test
+    fun islandOffsetChangesApplyLiveToTheNextEvent() {
+        val prefs = PrefMap().apply {
+            put("system_strong_toast_mode", "3")
+            put("system_strong_toast_island_offset", 24)
+        }
+        val state = StrongToastRuntimeState.install(prefs)
+        assertEquals(0, state.snapshotRef.get().islandOffsetDp)
+
+        prefs.put("system_strong_toast_island_offset", 30)
+        state.preferenceObserver.onChange("system_strong_toast_island_offset")
+        assertEquals(6, state.snapshotRef.get().islandOffsetDp)
+        assertEquals(StrongToastPresentationMode.DYNAMIC_ISLAND, state.snapshotRef.get().mode)
     }
 
     @Test

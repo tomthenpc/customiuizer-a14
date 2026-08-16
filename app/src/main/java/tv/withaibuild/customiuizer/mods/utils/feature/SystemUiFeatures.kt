@@ -774,6 +774,14 @@ internal data class StrongToastRuntimeSnapshot(
     val position: StrongToastPosition = StrongToastPosition.TOP,
     /** Compatibility-only zero. Bottom offsets are not part of TOP-only runtime state. */
     val bottomOffsetDp: Int = 0,
+    /**
+     * Signed manual nudge for the Dynamic Island's vertical anchor, in dp.
+     *
+     * The island is anchored to the reported display cutout, but panels vary in how faithfully the
+     * declared cutout matches the visible camera hole, so a user-facing correction is needed. Zero
+     * means "use the anchor as reported".
+     */
+    val islandOffsetDp: Int = 0,
 ) {
     val isDynamicIsland: Boolean
         get() = mode == StrongToastPresentationMode.DYNAMIC_ISLAND
@@ -784,7 +792,7 @@ internal data class StrongToastRuntimeSnapshot(
  *
  * - Installs exactly one preference observer per process.
  * - Publishes an immutable [StrongToastRuntimeSnapshot] through an [AtomicReference].
- * - Rebuilds the snapshot only when the presentation mode preference changes.
+ * - Rebuilds the snapshot when the presentation mode or island offset changes.
  * - Keeps reflection, Binder and disk I/O out of the hot path.
  * - Never reinstalls hooks on preference change.
  */
@@ -805,7 +813,7 @@ internal class StrongToastRuntimeState private constructor(
 
     private fun onPreferenceChanged(key: String?) {
         // Legacy position / bottom-offset keys are ignored: TOP-only migration is unconditional.
-        if (key != null && key != MODE_KEY) {
+        if (key != null && key != MODE_KEY && key != ISLAND_OFFSET_KEY) {
             return
         }
         synchronized(refreshLock) {
@@ -838,14 +846,23 @@ internal class StrongToastRuntimeState private constructor(
 
     companion object {
         const val MODE_KEY = "system_strong_toast_mode"
+        const val ISLAND_OFFSET_KEY = "system_strong_toast_island_offset"
         /** Legacy key retained only so observers can ignore it without reinstall. */
         const val POSITION_KEY = "system_strong_toast_position"
         /** Legacy key retained only so observers can ignore it without reinstall. */
         const val BOTTOM_OFFSET_KEY = "system_strong_toast_bottom_offset"
 
+        /**
+         * SeekBarPreference clamps its minimum to zero, so a signed range is persisted unsigned and
+         * shifted by its own midpoint, matching every other signed offset in the project. This must
+         * stay equal to the `negativeShift` and `defaultValue` declared for the preference.
+         */
+        const val ISLAND_OFFSET_SHIFT = 24
+
         internal val DEFAULT_SNAPSHOT = StrongToastRuntimeSnapshot(
             StrongToastPresentationMode.SYSTEM_DEFAULT,
             StrongToastPosition.TOP,
+            0,
             0,
         )
 
@@ -857,14 +874,28 @@ internal class StrongToastRuntimeState private constructor(
         @JvmStatic
         internal fun buildSnapshot(source: Map<String, Any>): StrongToastRuntimeSnapshot {
             val mode = StrongToastPresentationMode.fromPreference(parsePreferenceInt(source[MODE_KEY]))
-            return StrongToastRuntimeSnapshot(mode, StrongToastPosition.TOP, 0)
+            return StrongToastRuntimeSnapshot(
+                mode,
+                StrongToastPosition.TOP,
+                0,
+                resolveIslandOffsetDp(source[ISLAND_OFFSET_KEY]),
+            )
         }
 
-        private fun parsePreferenceInt(value: Any?): Int = when (value) {
+        /**
+         * Absent means untouched, which is the shifted midpoint rather than a raw zero: a stored 0
+         * is the most negative end of the range, not the neutral position.
+         */
+        @JvmStatic
+        internal fun resolveIslandOffsetDp(value: Any?): Int =
+            (parsePreferenceInt(value, ISLAND_OFFSET_SHIFT) - ISLAND_OFFSET_SHIFT)
+                .coerceIn(-ISLAND_OFFSET_SHIFT, ISLAND_OFFSET_SHIFT)
+
+        private fun parsePreferenceInt(value: Any?, fallback: Int = 0): Int = when (value) {
             is Number -> value.toInt()
             is String -> value.toIntOrNull()
             else -> null
-        } ?: 0
+        } ?: fallback
 
         @JvmStatic
         internal fun install(prefs: PrefMap): StrongToastRuntimeState =

@@ -14019,6 +14019,29 @@
       "notes": "Master key controls feature installation at the declared install phase. A value change may require the host process to restart before install/uninstall takes effect."
     },
     {
+      "featureId": "system_strong_toast_island_offset",
+      "featureName": "system_strong_toast_island_offset",
+      "preferenceKeys": [
+        "system_strong_toast_island_offset",
+        "pref_key_system_strong_toast_island_offset"
+      ],
+      "xmlSource": "app/src/main/res/xml/prefs_system.xml",
+      "defaultValue": "24",
+      "sourceFile": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt",
+      "installer": "app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt:resolveIslandOffsetDp",
+      "targetPackage": "com.android.systemui",
+      "installPhase": "PACKAGE_READY",
+      "runtimeReadMode": "OBSERVER_PUSH",
+      "enableEffect": "Applies hook when enabled",
+      "disableEffect": "Restores default behavior",
+      "valueChangeEffect": "Updates applied hook behavior",
+      "restartTarget": "NONE",
+      "hotReloadable": true,
+      "confidence": "INFERRED",
+      "evidence": "PrefMap call at app/src/main/java/tv/withaibuild/customiuizer/mods/utils/feature/SystemUiFeatures.kt:resolveIslandOffsetDp",
+      "notes": "Signed Dynamic Island vertical correction. Stored 0..48 with negativeShift 24 so the default midpoint displays as 0."
+    },
+    {
       "featureId": "system_strong_toast_position",
       "featureName": "system_strong_toast_position",
       "preferenceKeys": [

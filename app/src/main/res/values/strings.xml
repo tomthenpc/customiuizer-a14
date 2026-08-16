@@ -11,11 +11,11 @@
     <string name="about_dynamic">Generally, mods require soft reboot to be activated or deactivated, but those marked with ⟲ only require one soft reboot after their value was changed from default to custom one, subsequent changes are applied immediately.</string>
     <string name="about_unsupported">Mods marked with ⨯ are not supported on this device.</string>
     <string name="about_support_category">Development and support</string>
-    <string name="about_donate_title">Support development</string>
-    <string name="about_donate_summary">View WeChat donation code</string>
+    <string name="about_donate_title">WeChat donation code</string>
+    <string name="about_donate_summary">Scan to support development</string>
     <string name="about_donate_image_description">WeChat donation code</string>
-    <string name="about_paypal_title">PayPal</string>
-    <string name="about_paypal_summary">Donate with PayPal</string>
+    <string name="about_paypal_title">PayPal donation</string>
+    <string name="about_paypal_summary">Support development with PayPal</string>
     <string name="about_repository_title">Repository</string>
     <string name="about_repository_summary">Source code and releases</string>
     <string name="about_contact_title">Contact</string>
@@ -1036,6 +1036,8 @@
     <string name="system_strong_toast_mode_match_height">Match status bar height</string>
     <string name="system_strong_toast_mode_dynamic_island">Dynamic Island</string>
     <string name="system_strong_toast_mode_hide">Hide status capsule</string>
+    <string name="system_strong_toast_island_offset_title">Dynamic Island vertical position</string>
+    <string name="system_strong_toast_island_offset_summ">Fine-tunes how the island lines up with the camera cutout. 0 uses the cutout position reported by the system.</string>
 
     <!-- Locale change confirmation -->
     <string name="dialog_change_locale_title">更改界面语言</string>

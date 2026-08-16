@@ -7,33 +7,27 @@ import java.io.File
 
 class DynamicIslandShellContractTest {
     @Test
-    fun dynamicIslandMovesContentToModuleOwnedSharedHost() {
+    fun dynamicIslandReshapesTheRomRowWithoutReparenting() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
-        assertTrue(source.contains("DynamicIslandHost.shared.attach"))
-        assertTrue(source.contains("capsule.addView("))
-        assertTrue(source.contains("parent.removeView(content)"))
-        assertTrue(source.contains("root.alpha = 0f"))
-        assertTrue(source.contains("DynamicIslandHost.shared.detachImmediate"))
-        assertTrue(source.contains("state.parent.addView(state.content"))
+        assertTrue(source.contains("applyDynamicIslandCapsule"))
+        assertTrue(source.contains("IslandPillOutline"))
+        assertTrue(source.contains("clipToOutline = true"))
+        assertTrue(source.contains("setPadding(0, 0, 0, 0)"))
+        assertFalse(source.contains("DynamicIslandHost.shared"))
+        assertFalse(source.contains("parent.removeView("))
+        assertFalse(source.contains("layoutParams.width = 1"))
     }
 
     @Test
-    fun dynamicIslandDoesNotUseRomStatusInsetAsHostGeometry() {
+    fun dynamicIslandDoesNotUseStatusBarHeightAsAnchor() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
-        val hostAttach = functionBody(source, "attachDynamicIslandHost")
-        assertFalse(hostAttach.contains("currentStatusBarInsetPx"))
-        assertFalse(hostAttach.contains("WindowInsets.Type.statusBars"))
-        assertTrue(hostAttach.contains("CAPSULE_TOP_MARGIN_DP"))
-        assertTrue(hostAttach.contains("CAPSULE_BOTTOM_CLEARANCE_DP"))
-    }
-
-    @Test
-    fun detachCleansHostAndRestoresStatusBarContents() {
-        val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
-        val detach = functionBody(source, "detachDynamicIslandHost")
-        assertTrue(detach.contains("DynamicIslandHost.shared.detachImmediate"))
-        assertTrue(source.contains("restoreStatusBarContents(root)"))
-        assertTrue(source.contains("removeAdditionalInstanceField(root, HOST_STATE_FIELD)"))
+        val apply = functionBody(source, "applyDynamicIslandCapsule")
+        assertFalse(apply.contains("currentStatusBarInsetPx"))
+        assertFalse(apply.contains("WindowInsets.Type.statusBars"))
+        val margin = functionBody(source, "resolveIslandTopMarginPx")
+        assertTrue(margin.contains("userOffsetPx"))
+        assertTrue(margin.contains("cutoutTopPx"))
+        assertFalse(margin.contains("statusBar"))
     }
 
     private fun functionBody(source: String, functionName: String): String {

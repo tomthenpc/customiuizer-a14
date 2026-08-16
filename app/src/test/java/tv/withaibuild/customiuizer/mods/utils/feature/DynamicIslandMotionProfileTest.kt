@@ -126,16 +126,16 @@ class DynamicIslandMotionProfileTest {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
 
         assertTrue(
-            "the event must be adapted before the shared host is attached",
-            source.contains("DynamicIslandEventAdapter.fromStrongToast")
+            "the island is the ROM row reshaped in place",
+            source.contains("applyDynamicIslandCapsule"),
         )
         assertTrue(
-            "the module-owned host must own the displayed capsule",
-            source.contains("DynamicIslandHost.shared.attach")
+            "the signed user offset is applied to the derived cutout anchor",
+            source.contains("snapshot.islandOffsetDp"),
         )
         assertTrue(
-            "detach must release the shared host",
-            source.contains("DynamicIslandHost.shared.detachImmediate")
+            "detach restores the shared baseline rather than a module-owned host",
+            source.contains("resetMatchModeCapsule(root)"),
         )
     }
 

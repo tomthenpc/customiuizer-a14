@@ -1,8 +1,10 @@
 package tv.withaibuild.customiuizer.mods
 
+import android.graphics.Outline
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.LinearLayout
@@ -15,19 +17,16 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
-import tv.withaibuild.customiuizer.mods.utils.feature.DynamicIslandEventAdapter
-import tv.withaibuild.customiuizer.mods.utils.feature.DynamicIslandHost
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeSnapshot
-import java.lang.ref.WeakReference
 import java.lang.reflect.Field
 import java.util.concurrent.atomic.AtomicReference
 
 /**
  * StrongToast presentation hooks for HyperOS 1.
  *
- * MATCH_STATUS_BAR_HEIGHT continues to mutate the ROM row. Dynamic Island deliberately does not:
- * its event content is moved into [DynamicIslandHost.shared], the module-owned surface. This keeps
- * the island independent from the ROM StrongToast window and its status-bar inset crop.
+ * Both mutating modes reshape the ROM row in place from `getWindowParam` and share one restore
+ * baseline: MATCH_STATUS_BAR_HEIGHT collapses it into the status bar, DYNAMIC_ISLAND narrows it into
+ * a floating pill. Neither owns a window, repaints ROM content or replaces ROM animators.
  */
 object SystemUIStrongToastHooks {
     private const val SYSTEM_UI_PACKAGE = "com.android.systemui"
@@ -35,21 +34,14 @@ object SystemUIStrongToastHooks {
     private const val STRONG_TOAST_CONTROL_CLASS = "com.android.systemui.toast.MIUIStrongToastControl"
     private const val BATTERY_CALLBACK_CLASS = "com.android.systemui.toast.MIUIStrongToastControl\$6"
     private const val KEYGUARD_STATE_CLASS = "com.android.systemui.statusbar.policy.KeyguardStateControllerImpl"
-    private const val STATUS_BAR_VIEW_CLASS = "com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView"
-    private const val STATUS_BAR_CONTENTS_ID = "status_bar_contents"
     private const val MESSAGE_CONTAINER_ID = "cl_strong_toast_msg"
     private const val FOREHEAD_BOTTOM_ID = "strong_toast_bottom_view"
     private const val RUNTIME_SNAPSHOT_FIELD = "customiuizer_strong_toast_runtime_snapshot"
     private const val MATCH_BASELINE_FIELD = "customiuizer_match_mode_baseline"
-    private const val HOST_STATE_FIELD = "customiuizer_dynamic_island_host_state"
-    private const val CAPSULE_TOP_MARGIN_DP = 6f
-    private const val CAPSULE_BOTTOM_CLEARANCE_DP = 8f
-    private const val MAX_EDGE_TRAVEL_DP = 28f
 
-    private var statusBarContentsRef = WeakReference<View>(null)
-    private var statusBarHiddenOwnerRef = WeakReference<View>(null)
-    private var statusBarContentsOriginalAlpha = 1f
-    private val pendingSourceHint = ThreadLocal<String?>()
+    /** The island's own size comes from the ROM, so it tracks each ROM's density and layout. */
+    private const val ISLAND_WIDTH_DIMEN = "strong_toast_width"
+    private const val ISLAND_HEIGHT_DIMEN = "strong_toast_height"
 
     @JvmField internal var snapshotRef: AtomicReference<StrongToastRuntimeSnapshot>? = null
     @JvmField internal var installed = false
@@ -68,14 +60,6 @@ object SystemUIStrongToastHooks {
         return stored ?: currentSnapshot()
     }
 
-    private data class DynamicIslandHostState(
-        val content: View,
-        val parent: ViewGroup,
-        val index: Int,
-        val layoutParams: ViewGroup.LayoutParams?,
-        val rootAlpha: Float,
-    )
-
     @JvmStatic
     internal fun install(
         lpparam: PackageReadyParam,
@@ -85,8 +69,7 @@ object SystemUIStrongToastHooks {
         if (installed) return
         installed = true
         installHeightMatch(lpparam)
-        installDynamicIslandHostHooks(lpparam)
-        installStatusBarContentsCapture(lpparam)
+        installLifecycleHooks(lpparam)
         installControlClassHooks(lpparam)
     }
 
@@ -117,14 +100,25 @@ object SystemUIStrongToastHooks {
                                 }
                             }
                             StrongToastPresentationMode.DYNAMIC_ISLAND -> {
-                                // This is only a transparent, non-contributing ROM trigger surface.
-                                // The host window owns actual island geometry and never derives it
-                                // from the status-bar inset.
-                                layoutParams.width = 1
-                                layoutParams.height = 1
-                                layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                                layoutParams.windowAnimations = 0
-                                layoutParams.setFitInsetsTypes(0)
+                                val capsuleHeightPx = strongToastDimensionPx(strongToast, ISLAND_HEIGHT_DIMEN)
+                                val topMarginPx = resolveIslandTopMarginPx(
+                                    displayCutoutTopPx(strongToast),
+                                    layoutParams.height,
+                                    capsuleHeightPx,
+                                    dpToPx(strongToast, snapshot.islandOffsetDp.toFloat()),
+                                )
+                                if (applyDynamicIslandCapsule(strongToast, capsuleHeightPx, topMarginPx)) {
+                                    layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                                    layoutParams.height = resolveIslandWindowHeightPx(
+                                        layoutParams.height, capsuleHeightPx, topMarginPx,
+                                    )
+                                    // The status bar height feature rewrites the statusBars
+                                    // InsetsSource, and a window that fits that inset gets cropped
+                                    // to the customised height. The island floats free of it.
+                                    layoutParams.setFitInsetsTypes(0)
+                                    layoutParams.flags = layoutParams.flags or
+                                        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                                }
                             }
                         }
                     } catch (e: Exception) {
@@ -135,39 +129,14 @@ object SystemUIStrongToastHooks {
         )
     }
 
-    private fun installDynamicIslandHostHooks(lpparam: PackageReadyParam) {
-        ModuleHelper.hookAllMethods(
-            STRONG_TOAST_CLASS, lpparam.classLoader, "onAttachedToWindow", object : MethodHook() {
-                override fun after(callback: AfterHookCallback) {
-                    val root = callback.getThisObject() as? View ?: return
-                    val snapshot = resolveSnapshot(root) ?: return
-                    storeSnapshot(root, snapshot)
-                    if (!snapshot.isDynamicIsland) return
-                    attachDynamicIslandHost(root, snapshot)
-                }
-            }
-        )
-        ModuleHelper.hookAllMethods(
-            STRONG_TOAST_CLASS, lpparam.classLoader, "onComplete", object : MethodHook() {
-                override fun before(callback: BeforeHookCallback) {
-                    val root = callback.getThisObject() as? View ?: return
-                    if (resolveSnapshot(root)?.isDynamicIsland == true) {
-                        restoreStatusBarContents(root)
-                    }
-                }
-            }
-        )
+    private fun installLifecycleHooks(lpparam: PackageReadyParam) {
         ModuleHelper.hookAllMethods(
             STRONG_TOAST_CLASS, lpparam.classLoader, "onDetachedFromWindow", object : MethodHook() {
                 override fun before(callback: BeforeHookCallback) {
                     val root = callback.getThisObject() as? View ?: return
                     try {
-                        if (resolveSnapshot(root)?.isDynamicIsland == true) {
-                            detachDynamicIslandHost(root)
-                            restoreStatusBarContents(root)
-                        } else {
-                            resetMatchModeCapsule(root)
-                        }
+                        // Shared by both mutating modes; a no-op when neither stored a baseline.
+                        resetMatchModeCapsule(root)
                     } finally {
                         XposedHelpers.removeAdditionalInstanceField(root, RUNTIME_SNAPSHOT_FIELD)
                     }
@@ -176,64 +145,122 @@ object SystemUIStrongToastHooks {
         )
     }
 
-    private fun attachDynamicIslandHost(root: View, snapshot: StrongToastRuntimeSnapshot) {
-        try {
-            detachDynamicIslandHost(root)
-            val content = findViewBySystemUiId(root, MESSAGE_CONTAINER_ID) ?: return
-            val parent = content.parent as? ViewGroup ?: return
-            val visualWidth = strongToastDimensionPx(root, "strong_toast_width")
-            val visualHeight = strongToastDimensionPx(root, "strong_toast_height")
-            if (visualWidth <= 0 || visualHeight <= 0) return
-            val event = DynamicIslandEventAdapter.fromStrongToast(root, snapshot, pendingSourceHint.get())
-            val capsule = DynamicIslandHost.shared.attach(
-                root.context,
-                event,
-                visualWidth,
-                visualHeight,
-                dpToPx(root, CAPSULE_TOP_MARGIN_DP),
-                dpToPx(root, CAPSULE_BOTTOM_CLEARANCE_DP),
-                dpToPx(root, MAX_EDGE_TRAVEL_DP),
-            ) ?: return
-            val index = parent.indexOfChild(content)
-            if (index < 0) return
-            val state = DynamicIslandHostState(content, parent, index, content.layoutParams, root.alpha)
-            parent.removeView(content)
-            capsule.addView(
-                content,
-                ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                ),
-            )
-            // Do not let the legacy StrongToast surface paint around the module host.
-            root.alpha = 0f
-            findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)?.visibility = View.GONE
-            XposedHelpers.setAdditionalInstanceField(root, HOST_STATE_FIELD, state)
-            hideStatusBarContents(root)
-        } catch (e: Exception) {
-            XposedHelpers.log("StrongToastDynamicIslandHost", e)
-            detachDynamicIslandHost(root)
+    /**
+     * Reshapes the ROM forehead into a floating capsule in place.
+     *
+     * The ROM row is a full-width black bar - `strong_toast_bg` is a stretched 1x1 black square, so
+     * the ROM contributes no rounding - sitting flush against the top edge above a concave shoulder
+     * (`strong_toast_down`). That combination is the forehead. The island is the same row narrowed
+     * to the ROM's own `strong_toast_width` x `strong_toast_height`, pushed off the edge by a
+     * margin, pill-clipped, with the shoulder hidden.
+     *
+     * Every change stays inside the ROM window and view tree so `MIUIStrongToast` keeps measuring
+     * and animating its own content. Re-parenting the subtree into a module-owned window made that
+     * measurement read zero, which left the bar full-width and the entrance animation stepping.
+     */
+    private fun applyDynamicIslandCapsule(root: View, capsuleHeightPx: Int, topMarginPx: Int): Boolean {
+        val capsule = findViewBySystemUiId(root, MESSAGE_CONTAINER_ID) ?: return false
+        val parent = capsule.parent as? ViewGroup
+        val chin = findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID)
+        val widthPx = strongToastDimensionPx(root, ISLAND_WIDTH_DIMEN)
+        if (widthPx <= 0 || capsuleHeightPx <= 0) return false
+        if (XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD) == null) {
+            val baseline = captureMatchModeBaseline(capsule, parent, chin) ?: return false
+            XposedHelpers.setAdditionalInstanceField(root, MATCH_BASELINE_FIELD, baseline)
         }
+        capsule.layoutParams?.let { lp ->
+            lp.width = widthPx
+            lp.height = capsuleHeightPx
+            (lp as? ViewGroup.MarginLayoutParams)?.topMargin = topMarginPx
+            (lp as? LinearLayout.LayoutParams)?.gravity = Gravity.CENTER_HORIZONTAL
+            capsule.layoutParams = lp
+        }
+        capsule.outlineProvider = IslandPillOutline
+        capsule.clipToOutline = true
+        chin?.visibility = View.GONE
+        // The ROM pads this container by the status bar height so the forehead lands under the bar.
+        // The island is anchored to the cutout instead, and leaving the padding in place would let
+        // the module's own status bar height feature push the pill down off the camera.
+        parent?.setPadding(0, 0, 0, 0)
+        (parent as? LinearLayout)?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        return true
     }
 
-    private fun detachDynamicIslandHost(root: View) {
-        val state = XposedHelpers.getAdditionalInstanceField(root, HOST_STATE_FIELD)
-            as? DynamicIslandHostState
-        try {
-            if (state != null) {
-                val capsule = DynamicIslandHost.shared.capsule
-                if (state.content.parent === capsule) capsule.removeView(state.content)
-                state.content.layoutParams = state.layoutParams
-                if (state.content.parent == null) {
-                    state.parent.addView(state.content, state.index.coerceIn(0, state.parent.childCount))
-                }
-                root.alpha = state.rootAlpha
-            }
-        } catch (e: Exception) {
-            XposedHelpers.log("StrongToastDynamicIslandHostDetach", e)
-        } finally {
-            DynamicIslandHost.shared.detachImmediate()
-            XposedHelpers.removeAdditionalInstanceField(root, HOST_STATE_FIELD)
+    /**
+     * Where the island's top edge sits.
+     *
+     * The pill is anchored to the display cutout, top edge flush with the cutout's, so the camera
+     * sits inside the pill instead of the pill reading as a bar pinned to the screen edge.
+     *
+     * Status bar height is deliberately not an input. The island is a strong prompt and is taller
+     * than the status bar by design, so the bar is neither a meaningful anchor nor a container for
+     * it - and keeping it out means the status bar height feature cannot move the island.
+     *
+     * Displays reporting no cutout have nothing to anchor to, so the pill is centred in the vertical
+     * band the ROM itself reserved for the strong toast.
+     *
+     * [userOffsetPx] is the signed manual correction. Panels differ in how faithfully the declared
+     * cutout matches the visible camera hole, so the derived anchor is a starting point rather than
+     * the final word.
+     */
+    @JvmStatic
+    internal fun resolveIslandTopMarginPx(
+        cutoutTopPx: Int,
+        romWindowHeightPx: Int,
+        capsuleHeightPx: Int,
+        userOffsetPx: Int,
+    ): Int {
+        val anchor = when {
+            cutoutTopPx >= 0 -> cutoutTopPx
+            romWindowHeightPx <= 0 -> 0
+            else -> (romWindowHeightPx - capsuleHeightPx) / 2
+        }
+        return (anchor + userOffsetPx).coerceAtLeast(0)
+    }
+
+    /** Grows the ROM window only when the anchored island would not fit in what the ROM asked for. */
+    @JvmStatic
+    internal fun resolveIslandWindowHeightPx(
+        romWindowHeightPx: Int,
+        capsuleHeightPx: Int,
+        topMarginPx: Int,
+    ): Int {
+        if (romWindowHeightPx <= 0) return romWindowHeightPx
+        return maxOf(romWindowHeightPx, topMarginPx.coerceAtLeast(0) + capsuleHeightPx.coerceAtLeast(0))
+    }
+
+    /**
+     * Top edge of the camera hole itself, or -1 when the display reports no top cutout.
+     *
+     * Read from `currentWindowMetrics` rather than the View: `getWindowParam` runs before the
+     * StrongToast is attached, so its `rootWindowInsets` is still null. `boundingRectTop` is a single
+     * Rect, so no bounding-rect list is allocated.
+     *
+     * The rect's own top cannot be used. HyperOS declares the cutout as a slot running from the
+     * screen edge down past the camera - 68x104px around a 68px hole on this panel - so `top` is the
+     * screen edge and anchoring to it puts the island flush against it. A punch hole is circular, so
+     * its height equals its width and it starts that far above the rect's bottom. Displays that
+     * report the hole itself, or a wide notch, are unaffected: for both, the shorter side is already
+     * the height, which yields the rect's own top.
+     */
+    private fun displayCutoutTopPx(view: View): Int {
+        val wm = view.context?.getSystemService(WindowManager::class.java) ?: return -1
+        val cutout = wm.currentWindowMetrics.windowInsets.displayCutout ?: return -1
+        val rect = cutout.boundingRectTop
+        if (rect.isEmpty) return -1
+        return rect.bottom - minOf(rect.width(), rect.height())
+    }
+
+    /**
+     * Pill shape for the island. Outline clipping is used rather than a replacement rounded
+     * background because HyperOS 1 enables `persist.sys.support_view_smoothcorner` and substitutes
+     * its own smooth-corner implementation for platform rounded-rect drawables, which does not
+     * reproduce the measured View bounds exactly and drops pixels at one edge.
+     */
+    private object IslandPillOutline : ViewOutlineProvider() {
+        override fun getOutline(view: View, outline: Outline) {
+            if (view.width <= 0 || view.height <= 0) return
+            outline.setRoundRect(0, 0, view.width, view.height, view.height / 2f)
         }
     }
 
@@ -247,20 +274,14 @@ object SystemUIStrongToastHooks {
             val showingField = keyguardClass?.let { XposedHelpers.findFieldIfExists(it, "mShowing") }
             ModuleHelper.hookAllMethods(
                 STRONG_TOAST_CONTROL_CLASS, lpparam.classLoader, "showCustomStrongToast",
-                StrongToastControlHook(
-                    controllerField, showingField, null, true,
-                    DynamicIslandEventAdapter.SOURCE_CUSTOM_SHOW,
-                ),
+                StrongToastControlHook(controllerField, showingField, null, true),
             )
             val batteryClass = XposedHelpers.findClassIfExists(BATTERY_CALLBACK_CLASS, lpparam.classLoader)
             val outerField = batteryClass?.let { XposedHelpers.findFieldIfExists(it, "this\$0") }
             if (batteryClass != null && outerField != null) {
                 ModuleHelper.hookAllMethods(
                     batteryClass, "onRefreshBatteryInfo",
-                    StrongToastControlHook(
-                        controllerField, showingField, outerField, false,
-                        DynamicIslandEventAdapter.SOURCE_CHARGING_BATTERY,
-                    ),
+                    StrongToastControlHook(controllerField, showingField, outerField, false),
                 )
             }
         } catch (e: Exception) {
@@ -275,7 +296,6 @@ object SystemUIStrongToastHooks {
         private val showingField: Field?,
         private val outerControlField: Field?,
         private val allowHide: Boolean,
-        private val sourceHint: String = DynamicIslandEventAdapter.SOURCE_CUSTOM_SHOW,
     ) : MethodHook() {
         @Throws(Throwable::class)
         override fun intercept(chain: XposedInterface.Chain): Any? {
@@ -291,12 +311,8 @@ object SystemUIStrongToastHooks {
             }
             val token = openLockscreenGate(control, controllerField, showingField)
             return try {
-                // StrongToast is constructed synchronously under this control path, so its
-                // lifecycle boundary captures this source identity without classifying text.
-                pendingSourceHint.set(sourceHint)
                 chain.proceed()
             } finally {
-                pendingSourceHint.remove()
                 if (token != null) closeLockscreenGate(token, showingField)
             }
         }
@@ -415,37 +431,12 @@ object SystemUIStrongToastHooks {
     internal fun resetMatchModeCapsule(root: View) {
         val baseline = XposedHelpers.getAdditionalInstanceField(root, MATCH_BASELINE_FIELD) as? MatchModeBaseline ?: return
         val capsule = findViewBySystemUiId(root, MESSAGE_CONTAINER_ID)
+        if (capsule?.outlineProvider === IslandPillOutline) {
+            // Back to what the ROM layout declares: no clip, outline follows the background.
+            capsule.clipToOutline = false
+            capsule.outlineProvider = ViewOutlineProvider.BACKGROUND
+        }
         resetMatchModeBaselineToViews(root, capsule, capsule?.parent as? ViewGroup, findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID), baseline)
-    }
-
-    private fun installStatusBarContentsCapture(lpparam: PackageReadyParam) {
-        ModuleHelper.hookAllMethods(STATUS_BAR_VIEW_CLASS, lpparam.classLoader, "onAttachedToWindow", object : MethodHook() {
-            override fun after(callback: AfterHookCallback) {
-                val statusBar = callback.getThisObject() as? View ?: return
-                val id = statusBar.resources.getIdentifier(STATUS_BAR_CONTENTS_ID, "id", SYSTEM_UI_PACKAGE)
-                if (id != 0) statusBar.findViewById<View>(id)?.let { statusBarContentsRef = WeakReference(it) }
-            }
-        })
-        ModuleHelper.hookAllMethods(STATUS_BAR_VIEW_CLASS, lpparam.classLoader, "onDetachedFromWindow", object : MethodHook() {
-            override fun before(callback: BeforeHookCallback) {
-                val statusBar = callback.getThisObject() as? View ?: return
-                if (statusBarContentsRef.get()?.parent === statusBar) statusBarContentsRef.clear()
-            }
-        })
-    }
-
-    private fun hideStatusBarContents(owner: View) {
-        val contents = statusBarContentsRef.get() ?: return
-        if (!contents.isAttachedToWindow || statusBarHiddenOwnerRef.get()?.isAttachedToWindow == true) return
-        statusBarContentsOriginalAlpha = contents.alpha
-        statusBarHiddenOwnerRef = WeakReference(owner)
-        contents.alpha = 0f
-    }
-
-    private fun restoreStatusBarContents(owner: View) {
-        if (statusBarHiddenOwnerRef.get() !== owner) return
-        statusBarContentsRef.get()?.let { if (it.alpha == 0f) it.alpha = statusBarContentsOriginalAlpha }
-        statusBarHiddenOwnerRef.clear()
     }
 
     private fun currentStatusBarInsetPx(view: View?): Int {
@@ -479,8 +470,4 @@ object SystemUIStrongToastHooks {
         statusBarHeightPx > 0 && chinHeightPx > statusBarHeightPx / 2
 
     @JvmStatic internal fun resolveMatchWindowHeightPx(statusBarHeightPx: Int): Int = statusBarHeightPx.coerceAtLeast(0)
-
-    @JvmStatic internal fun resolveDynamicIslandWindowHeightPx(
-        visualHeightPx: Int, topMarginPx: Int, bottomClearancePx: Int,
-    ): Int = visualHeightPx.coerceAtLeast(0) + topMarginPx.coerceAtLeast(0) + bottomClearancePx.coerceAtLeast(0)
 }

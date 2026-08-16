@@ -42,6 +42,18 @@ class AboutSupportContractTest {
         assertTrue(fragment.contains("Intent.ACTION_VIEW"))
     }
 
+    @Test
+    fun donationTitlesAreSymmetricPaymentMethods() {
+        val en = source("app/src/main/res/values/strings.xml")
+        val zh = source("app/src/main/res/values-zh-rCN/strings.xml")
+        assertTrue(en.contains("name=\"about_donate_title\">WeChat donation code</string>"))
+        assertTrue(en.contains("name=\"about_paypal_title\">PayPal donation</string>"))
+        assertTrue(zh.contains("name=\"about_donate_title\">微信赞赏码</string>"))
+        assertTrue(zh.contains("name=\"about_paypal_title\">PayPal 赞赏</string>"))
+        assertFalse(en.contains("name=\"about_donate_title\">Support development</string>"))
+        assertFalse(zh.contains("name=\"about_donate_title\">赞赏开发</string>"))
+    }
+
     private fun source(path: String): String {
         var directory = File(System.getProperty("user.dir") ?: "").absoluteFile
         while (true) {

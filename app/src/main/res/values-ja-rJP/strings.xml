@@ -6,8 +6,8 @@
     <string name="about_based_on">Mikanoshi / MonwF のオープンソースを基盤に開発</string>
     <string name="about_dynamic">一般的なModの有効化/無効化にはソフトリブートが必要です。⟲のマークがある物は値の変更後、ソフトリブートすることで設定が適用されます。</string>
     <string name="about_unsupported">⨯の付いたModは使用中のデバイスに対応していません。</string>
-    <string name="about_paypal_title">PayPal</string>
-    <string name="about_paypal_summary">PayPal で寄付する</string>
+    <string name="about_paypal_title">PayPal で支援</string>
+    <string name="about_paypal_summary">PayPal で開発を支援する</string>
     <string name="mods">Mod</string>
     <string name="mods_actions">アクション</string>
     <string name="common_background_color">背景の色</string>
@@ -947,8 +947,8 @@
     <string name="about_contact_summary">Telegram: @Jinji_Kiko</string>
     <string name="about_contact_title">連絡先</string>
     <string name="about_donate_image_description">WeChat寄付コード</string>
-    <string name="about_donate_summary">WeChat寄付コードを表示</string>
-    <string name="about_donate_title">開発を支援</string>
+    <string name="about_donate_summary">スキャンして開発を支援</string>
+    <string name="about_donate_title">WeChat寄付コード</string>
     <string name="about_donation_unavailable">寄付コードを読み込めません</string>
     <string name="about_link_unavailable">このリンクを開けるアプリがありません</string>
     <string name="about_notes_category">注意事項</string>
@@ -1050,4 +1050,6 @@
     <string name="restart_securitycenter_failed">セキュリティセンターの再起動に失敗しました</string>
     <string name="system_strong_toast_mode_match_height">ステータスバーの高さに合わせる</string>
     <string name="system_strong_toast_mode_hide">ステータスカプセルを非表示</string>
+    <string name="system_strong_toast_island_offset_title">ダイナミックアイランドの垂直位置</string>
+    <string name="system_strong_toast_island_offset_summ">カメラのパンチホールとの位置合わせを微調整します。0 はシステムが報告したパンチホールの位置を使用します。</string>
 </resources>

@@ -6,11 +6,11 @@ import java.io.File
 
 class DynamicIslandDismissLifecycleTest {
     @Test
-    fun romDetachOwnsSharedHostCleanup() {
+    fun romDetachRestoresTheSharedBaseline() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
-        assertTrue(source.contains("detachDynamicIslandHost(root)"))
-        assertTrue(source.contains("DynamicIslandHost.shared.detachImmediate"))
-        assertTrue(source.contains("restoreStatusBarContents(root)"))
+        assertTrue(source.contains("resetMatchModeCapsule(root)"))
+        assertTrue(source.contains("clipToOutline = false"))
+        assertTrue(source.contains("IslandPillOutline"))
     }
 
     private fun source(path: String): String {

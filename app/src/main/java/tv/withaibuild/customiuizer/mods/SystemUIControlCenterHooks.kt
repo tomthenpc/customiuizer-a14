@@ -16,6 +16,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
+import android.view.WindowInsets
+import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -1411,6 +1413,40 @@ object SystemUIControlCenterHooks {
     private val mPct: TextView?
         get() = mPctRef?.get()
 
+    private const val PCT_SOURCE_BRIGHTNESS = 2
+    private const val PCT_SOURCE_VOLUME = 3
+
+    /**
+     * Volume percentage sits in the volume overlay, which can draw under the status bar. Its top
+     * edge is the live statusBars inset, not a stored dp preference, so a custom status bar height
+     * moves the next overlay instead of leaving the number inside the bar.
+     */
+    @JvmStatic
+    internal fun resolveVolumePctTopMarginPx(statusBarBottomPx: Int): Int =
+        statusBarBottomPx.coerceAtLeast(0)
+
+    private fun statusBarBottomPx(view: View): Int {
+        val insets = view.rootWindowInsets
+            ?: view.context.getSystemService(WindowManager::class.java)
+                ?.currentWindowMetrics?.windowInsets
+            ?: return 0
+        return insets.getInsetsIgnoringVisibility(WindowInsets.Type.statusBars()).top
+    }
+
+    private fun applyPctTopMargin(pct: TextView, container: View, source: Int) {
+        val lp = (pct.layoutParams as? FrameLayout.LayoutParams) ?: return
+        lp.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
+        lp.topMargin = if (source == PCT_SOURCE_VOLUME) {
+            resolveVolumePctTopMarginPx(statusBarBottomPx(container))
+        } else {
+            Math.round(
+                MainModule.mPrefs.getInt("system_showpct_top", 28) *
+                    pct.resources.displayMetrics.density
+            )
+        }
+        pct.layoutParams = lp
+    }
+
     private fun initPct(container: ViewGroup, source: Int, context: Context): TextView {
         val res = context.resources
         var pct = mPct
@@ -1420,7 +1456,6 @@ object SystemUIControlCenterHooks {
             pct.gravity = Gravity.CENTER
             val density = res.displayMetrics.density
             val lp = FrameLayout.LayoutParams(FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT)
-            lp.topMargin = Math.round(MainModule.mPrefs.getInt("system_showpct_top", 28) * density)
             lp.gravity = Gravity.CENTER_HORIZONTAL or Gravity.TOP
             pct.setPadding(Math.round(20 * density), Math.round(10 * density), Math.round(18 * density), Math.round(12 * density))
             pct.layoutParams = lp
@@ -1435,6 +1470,7 @@ object SystemUIControlCenterHooks {
             container.addView(pct)
             mPctRef = WeakReference(pct)
         }
+        applyPctTopMargin(pct, container, source)
         pct.setTag(source)
         pct.visibility = View.GONE
         return pct
@@ -1452,7 +1488,7 @@ object SystemUIControlCenterHooks {
         val controlCenter = ModuleHelper.getDepInstance(lpparam.classLoader, "com.android.systemui.controlcenter.phone.ControlPanelWindowManager")
         val controlCenterWindowView = XposedHelpers.getObjectField(controlCenter, "windowView")
         val windowView = XposedHelpers.callMethod(controlCenterWindowView, "getView") as ViewGroup
-        initPct(windowView, 2, mContext).visibility = View.VISIBLE
+        initPct(windowView, PCT_SOURCE_BRIGHTNESS, mContext).visibility = View.VISIBLE
     }
 
     @JvmStatic
@@ -1513,7 +1549,7 @@ object SystemUIControlCenterHooks {
             override fun after(param: AfterHookCallback) {
                 val mDialogView = XposedHelpers.getObjectField(param.getThisObject(), "mDialogView") as View
                 val windowView = mDialogView.parent as FrameLayout
-                initPct(windowView, 3, windowView.context)
+                initPct(windowView, PCT_SOURCE_VOLUME, windowView.context)
             }
         })
 
@@ -1529,7 +1565,7 @@ object SystemUIControlCenterHooks {
                 if (nowLevel == param.getArgs()[1] as Int) return
                 val pct = mPct ?: return
                 val pctTag = pct.getTag() as? Int ?: 0
-                if (pctTag != 3) return
+                if (pctTag != PCT_SOURCE_VOLUME) return
                 val mColumn = XposedHelpers.getObjectField(param.getThisObject(), "mColumn")
                 val ss = XposedHelpers.getObjectField(mColumn, "ss")
                 if (ss == null) return

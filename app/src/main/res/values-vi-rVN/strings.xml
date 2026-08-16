@@ -6,8 +6,8 @@
     <string name="about_based_on">Dựa trên công trình của Mikanoshi và MonwF</string>
     <string name="about_dynamic">Nói chung, các mod yêu cầu khởi động lại mềm để được kích hoạt hoặc hủy kích hoạt, nhưng những mod được đánh dấu ⟲ chỉ yêu cầu một lần khởi động lại mềm sau khi giá trị của chúng được thay đổi từ mặc định thành tùy chỉnh, các thay đổi tiếp theo sẽ được áp dụng ngay lập tức.</string>
     <string name="about_unsupported">Mod được đánh dấu bằng ⨯ không được hỗ trợ trên thiết bị này.</string>
-    <string name="about_paypal_title">PayPal</string>
-    <string name="about_paypal_summary">Quyên góp bằng PayPal</string>
+    <string name="about_paypal_title">Quyên góp PayPal</string>
+    <string name="about_paypal_summary">Hỗ trợ phát triển qua PayPal</string>
     <string name="mods">Mod</string>
     <string name="mods_actions">Hành động</string>
     <string name="common_background_color">Màu nền</string>
@@ -947,8 +947,8 @@
     <string name="about_contact_summary">Telegram: @Jinji_Kiko</string>
     <string name="about_contact_title">Liên hệ</string>
     <string name="about_donate_image_description">Mã quyên góp WeChat</string>
-    <string name="about_donate_summary">Xem mã quyên góp WeChat</string>
-    <string name="about_donate_title">Hỗ trợ phát triển</string>
+    <string name="about_donate_summary">Quét mã để hỗ trợ phát triển</string>
+    <string name="about_donate_title">Mã quyên góp WeChat</string>
     <string name="about_donation_unavailable">Không thể tải mã quyên góp</string>
     <string name="about_link_unavailable">Không có ứng dụng nào có thể mở liên kết này</string>
     <string name="about_notes_category">Lưu ý</string>
@@ -1050,4 +1050,6 @@
     <string name="restart_securitycenter_failed">Không thể khởi động lại trung tâm bảo mật</string>
     <string name="system_strong_toast_mode_match_height">Khớp chiều cao thanh trạng thái</string>
     <string name="system_strong_toast_mode_hide">Ẩn viên nang trạng thái</string>
+    <string name="system_strong_toast_island_offset_title">Vị trí dọc của Dynamic Island</string>
+    <string name="system_strong_toast_island_offset_summ">Tinh chỉnh cách hòn đảo căn với lỗ khoét camera. 0 sử dụng vị trí lỗ khoét do hệ thống báo cáo.</string>
 </resources>

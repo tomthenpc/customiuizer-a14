@@ -6,8 +6,8 @@
     <string name="about_based_on">На основе работ Mikanoshi и MonwF</string>
     <string name="about_dynamic">Для активации или деактивации большинства модов требуется быстрая перезагрузка устройства. Но для модов, помеченных ⟲, перезагрузка требуется только один раз — после смены значения со стандартного на модифицированное, а последующие изменения будут применяться сразу.</string>
     <string name="about_unsupported">Моды, помеченные ⨯, несовместимы с данным устройством.</string>
-    <string name="about_paypal_title">PayPal</string>
-    <string name="about_paypal_summary">Пожертвовать через PayPal</string>
+    <string name="about_paypal_title">Пожертвование PayPal</string>
+    <string name="about_paypal_summary">Поддержать разработку через PayPal</string>
     <string name="mods">Моды</string>
     <string name="mods_actions">Действия</string>
     <string name="common_background_color">Цвет фона</string>
@@ -924,8 +924,8 @@
     <string name="about_contact_summary">Telegram: @Jinji_Kiko</string>
     <string name="about_contact_title">Связаться</string>
     <string name="about_donate_image_description">Код для пожертвования через WeChat</string>
-    <string name="about_donate_summary">Показать код для пожертвования через WeChat</string>
-    <string name="about_donate_title">Поддержать разработку</string>
+    <string name="about_donate_summary">Отсканируйте, чтобы поддержать разработку</string>
+    <string name="about_donate_title">Код пожертвования WeChat</string>
     <string name="about_donation_unavailable">Не удалось загрузить код для пожертвования</string>
     <string name="about_link_unavailable">Нет приложения для открытия этой ссылки</string>
     <string name="about_notes_category">Примечания</string>
@@ -1049,4 +1049,6 @@
     <string name="restart_securitycenter_failed">Не удалось перезапустить центр безопасности</string>
     <string name="system_strong_toast_mode_match_height">Подгонять высоту строки состояния</string>
     <string name="system_strong_toast_mode_hide">Скрыть капсулу состояния</string>
+    <string name="system_strong_toast_island_offset_title">Вертикальное положение островка</string>
+    <string name="system_strong_toast_island_offset_summ">Точная подстройка выравнивания островка с отверстием камеры. 0 — использовать положение отверстия, сообщённое системой.</string>
 </resources>

@@ -6,8 +6,8 @@
     <string name="about_based_on">Mikanoshi ve MonwF çalışmalarını temel alır (Çeviri: H.KÜPELİ❤ andheartman@gmail.com)</string>
     <string name="about_dynamic">Genel olarak, modların etkinleştirilmesi veya devre dışı bırakılması için arayüz yeniden başlatma gerekir, ancak ⟲ ile işaretlenmiş olanlar, değerleri varsayılandan özel olana değiştirildikten sonra yalnızca bir kez arayüz yeniden başlatma gerektirir, sonraki değişiklikler hemen uygulanır.</string>
     <string name="about_unsupported">⨯ ile işaretlenmiş modlar bu cihazda desteklenmiyor.</string>
-    <string name="about_paypal_title">PayPal</string>
-    <string name="about_paypal_summary">PayPal ile bağış yap</string>
+    <string name="about_paypal_title">PayPal bağışı</string>
+    <string name="about_paypal_summary">PayPal ile geliştirmeyi destekle</string>
     <string name="mods">Modlar</string>
     <string name="mods_actions">Hareketler</string>
     <string name="enable_mod">Modu etkinleştir Aşkım</string>
@@ -852,8 +852,8 @@ ss - iki basamaklı saniye(09)</string>
     <string name="about_contact_summary">Telegram: @Jinji_Kiko</string>
     <string name="about_contact_title">İletişim</string>
     <string name="about_donate_image_description">WeChat bağış kodu</string>
-    <string name="about_donate_summary">WeChat bağış kodunu görüntüle</string>
-    <string name="about_donate_title">Geliştirmeyi destekle</string>
+    <string name="about_donate_summary">Geliştirmeyi desteklemek için tarayın</string>
+    <string name="about_donate_title">WeChat bağış kodu</string>
     <string name="about_donation_unavailable">Bağış kodu yüklenemiyor</string>
     <string name="about_link_unavailable">Bu bağlantıyı açabilecek uygulama yok</string>
     <string name="about_notes_category">Notlar</string>
@@ -1055,4 +1055,6 @@ ss - iki basamaklı saniye(09)</string>
     <string name="lsposed_changes_not_delivered">O zamandan beri yapılan ayar değişiklikleri modüle ulaşmadığı için henüz yürürlükte değil. Kaydedildi ve bağlantı yeniden kurulduğunda gönderilecek.</string>
     <string name="system_strong_toast_mode_match_height">Durum çubuğu yüksekliğiyle eşleş</string>
     <string name="system_strong_toast_mode_hide">Durum kapsülünü gizle</string>
+    <string name="system_strong_toast_island_offset_title">Dinamik ada dikey konumu</string>
+    <string name="system_strong_toast_island_offset_summ">Adanın kamera çentiğiyle hizalanmasını ince ayarlar. 0, sistemin bildirdiği çentik konumunu kullanır.</string>
 </resources>

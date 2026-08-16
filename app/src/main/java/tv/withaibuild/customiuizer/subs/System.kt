@@ -20,6 +20,7 @@ import tv.withaibuild.customiuizer.R
 import tv.withaibuild.customiuizer.SubFragment
 import tv.withaibuild.customiuizer.mods.GlobalActions
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
+import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.prefs.CheckBoxPreferenceEx
 import tv.withaibuild.customiuizer.prefs.ListPreferenceEx
 import tv.withaibuild.customiuizer.prefs.SeekBarPreference
@@ -118,10 +119,18 @@ class System : SubFragment() {
 
             "pref_key_system_cat_statusbar" -> {
                 val strongToastMode = findPreference<ListPreferenceEx>("pref_key_system_strong_toast_mode")
+                val islandOffset = findPreference<Preference>("pref_key_system_strong_toast_island_offset")
+                fun showIslandOffset(mode: Any?) {
+                    islandOffset?.isVisible = StrongToastPresentationMode.fromPreference(
+                        mode?.toString()?.toIntOrNull() ?: 0
+                    ) == StrongToastPresentationMode.DYNAMIC_ISLAND
+                }
                 strongToastMode?.setOnPreferenceChangeListener { preference, newValue ->
                     syncPendingListSelection(preference, newValue)
+                    showIslandOffset(newValue)
                     true
                 }
+                showIslandOffset(strongToastMode?.value)
                 findPreference<Preference>("pref_key_system_statusbarcolor_apps")?.setOnPreferenceClickListener(openAppsEdit)
                 findPreference<Preference>("pref_key_system_detailednetspeed_cat")?.setOnPreferenceClickListener { openSystemSubFragment(it, false, R.xml.prefs_system_detailednetspeed); true }
                 findPreference<Preference>("pref_key_system_statusbar_batterytempandcurrent_cat")?.setOnPreferenceClickListener { openSystemSubFragment(it, true, R.xml.prefs_system_statusbar_batterytempandcurrent); true }

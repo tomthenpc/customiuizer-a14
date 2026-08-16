@@ -272,6 +272,9 @@ POST_P2_ALLOWED_NEW_PREFERENCES: dict[str, set[str]] = {
     "prefs_controls.xml": {
         "pref_key_controls_hide_ime_dismiss_button",
     },
+    "prefs_system.xml": {
+        "pref_key_system_strong_toast_island_offset",
+    },
 }
 
 # r14.20.0 removes the Dynamic Island Bottom-only configuration. Persisted values are

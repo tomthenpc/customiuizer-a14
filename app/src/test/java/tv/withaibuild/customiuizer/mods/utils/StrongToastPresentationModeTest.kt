@@ -6,6 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import tv.withaibuild.customiuizer.mods.SystemUIStrongToastHooks
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastPresentationFeature
+import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeState
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.io.File
 
@@ -29,27 +30,55 @@ class StrongToastPresentationModeTest {
     }
 
     @Test
-    fun matchModeAndTopIslandGeometryRemainBounded() {
+    fun matchModeGeometryRemainsBounded() {
         assertEquals(100, SystemUIStrongToastHooks.resolveMatchWindowHeightPx(100))
         assertEquals(80, SystemUIStrongToastHooks.resolveMatchContentHeightPx(100, 20))
         assertTrue(SystemUIStrongToastHooks.matchModeHidesChin(100, 60))
-        assertEquals(195, SystemUIStrongToastHooks.resolveDynamicIslandWindowHeightPx(141, 18, 36))
     }
 
     @Test
-    fun dynamicIslandUsesSharedHostAndHasNoLegacyBottomPath() {
+    fun islandTopMarginAnchorsToCutoutAndAppliesSignedUserOffset() {
+        assertEquals(36, SystemUIStrongToastHooks.resolveIslandTopMarginPx(36, 208, 141, 0))
+        assertEquals(46, SystemUIStrongToastHooks.resolveIslandTopMarginPx(36, 208, 141, 10))
+        assertEquals(26, SystemUIStrongToastHooks.resolveIslandTopMarginPx(36, 208, 141, -10))
+        assertEquals(0, SystemUIStrongToastHooks.resolveIslandTopMarginPx(36, 208, 141, -100))
+        assertEquals(33, SystemUIStrongToastHooks.resolveIslandTopMarginPx(-1, 208, 141, 0))
+        assertEquals(8, SystemUIStrongToastHooks.resolveIslandTopMarginPx(-1, 0, 141, 8))
+        assertEquals(0, SystemUIStrongToastHooks.resolveIslandTopMarginPx(-1, 0, 141, -8))
+    }
+
+    @Test
+    fun islandWindowGrowsOnlyWhenTheAnchoredPillWouldNotFit() {
+        assertEquals(208, SystemUIStrongToastHooks.resolveIslandWindowHeightPx(208, 141, 36))
+        assertEquals(241, SystemUIStrongToastHooks.resolveIslandWindowHeightPx(208, 141, 100))
+        assertEquals(-2, SystemUIStrongToastHooks.resolveIslandWindowHeightPx(-2, 141, 36))
+    }
+
+    @Test
+    fun dynamicIslandReshapesTheRomRowInPlace() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/SystemUIStrongToastHooks.kt")
-        assertTrue(source.contains("DynamicIslandEventAdapter.fromStrongToast"))
-        assertTrue(source.contains("DynamicIslandHost.shared.attach"))
-        assertTrue(source.contains("DynamicIslandHost.shared.detachImmediate"))
-        assertTrue(source.contains("SOURCE_CHARGING_BATTERY"))
-        assertTrue(source.contains("SOURCE_CUSTOM_SHOW"))
-        assertTrue(source.contains("layoutParams.width = 1"))
-        assertTrue(source.contains("layoutParams.height = 1"))
+        val branch = source.substringAfter("StrongToastPresentationMode.DYNAMIC_ISLAND -> {")
+            .substringBefore("\n                            }")
+        assertTrue(branch.contains("applyDynamicIslandCapsule"))
+        assertTrue(branch.contains("setFitInsetsTypes(0)"))
+        assertTrue(branch.contains("FLAG_LAYOUT_NO_LIMITS"))
+        assertFalse(branch.contains("layoutParams.width = 1"))
         assertFalse(source.contains("Gravity.BOTTOM"))
         assertFalse(source.contains("forBottom("))
         assertFalse(source.contains("resolveBottom"))
-        assertFalse(source.contains("currentStatusBarInsetPx(root)"))
+        assertFalse(source.contains("DynamicIslandHost.shared"))
+    }
+
+    @Test
+    fun islandOffsetPreferenceShiftStaysAlignedWithRuntime() {
+        val xml = source("app/src/main/res/xml/prefs_system.xml")
+        val block = xml.substringAfter("pref_key_system_strong_toast_island_offset")
+            .substringBefore("pref_key_system_statusbar_iconsize")
+        val shift = StrongToastRuntimeState.ISLAND_OFFSET_SHIFT
+        assertTrue(block.contains("android:defaultValue=\"$shift\""))
+        assertTrue(block.contains("miuizer:negativeShift=\"$shift\""))
+        assertTrue(block.contains("miuizer:maxValue=\"${shift * 2}\""))
+        assertTrue(block.contains("miuizer:showplus=\"true\""))
     }
 
     private fun source(path: String): String {

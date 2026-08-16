@@ -6,8 +6,8 @@
     <string name="about_based_on">založeno na práci Mikanoshi a MonwF (Překlad S11V3R 🇨🇿)</string>
     <string name="about_dynamic">Obecně platí, že změny vyžadují k aktivaci nebo deaktivaci měkký restart, ale změny označené symbolem ⟲ vyžadují pouze jeden měkký restart poté, co byla jejich hodnota změněna z výchozí na vlastní, další změny se použijí okamžitě.</string>
     <string name="about_unsupported">Modifikace označené ⨯ nejsou v tomto zařízení podporovány.</string>
-    <string name="about_paypal_title">PayPal</string>
-    <string name="about_paypal_summary">Přispět přes PayPal</string>
+    <string name="about_paypal_title">Příspěvek přes PayPal</string>
+    <string name="about_paypal_summary">Podpořit vývoj přes PayPal</string>
     <string name="mods">Modifikace</string>
     <string name="mods_actions">Akce</string>
     <string name="common_background_color">Barva pozadí</string>
@@ -939,8 +939,8 @@
     <string name="about_contact_summary">Telegram: @Jinji_Kiko</string>
     <string name="about_contact_title">Kontakt</string>
     <string name="about_donate_image_description">Kód pro příspěvek přes WeChat</string>
-    <string name="about_donate_summary">Zobrazit kód pro příspěvek přes WeChat</string>
-    <string name="about_donate_title">Podpořit vývoj</string>
+    <string name="about_donate_summary">Naskenujte kód a podpořte vývoj</string>
+    <string name="about_donate_title">Kód pro příspěvek přes WeChat</string>
     <string name="about_donation_unavailable">Kód pro příspěvek nelze načíst</string>
     <string name="about_link_unavailable">Tento odkaz nemůže otevřít žádná aplikace</string>
     <string name="about_notes_category">Poznámky</string>
@@ -1057,4 +1057,6 @@
     <string name="restart_securitycenter_failed">Nepodařilo se restartovat bezpečnostní centrum</string>
     <string name="system_strong_toast_mode_match_height">Přizpůsobit výšku stavové lišty</string>
     <string name="system_strong_toast_mode_hide">Skrýt stavovou kapsli</string>
+    <string name="system_strong_toast_island_offset_title">Svislá poloha ostrůvku</string>
+    <string name="system_strong_toast_island_offset_summ">Doladí zarovnání ostrůvku s výřezem kamery. 0 použije polohu výřezu hlášenou systémem.</string>
 </resources>

@@ -407,6 +407,19 @@
 			miuizer:valueAsSummary="true" />
 
 		<tv.withaibuild.customiuizer.prefs.SeekBarPreference
+			android:key="pref_key_system_strong_toast_island_offset"
+			android:title="@string/system_strong_toast_island_offset_title"
+			android:summary="@string/system_strong_toast_island_offset_summ"
+			android:defaultValue="24"
+			miuizer:indentLevel="1"
+			miuizer:minValue="0"
+			miuizer:maxValue="48"
+			miuizer:stepValue="1"
+			miuizer:negativeShift="24"
+			miuizer:showplus="true"
+			miuizer:format="%d dip" />
+
+		<tv.withaibuild.customiuizer.prefs.SeekBarPreference
 			android:key="pref_key_system_statusbar_iconsize"
 			android:title="@string/system_statusbar_iconsize_title"
 			android:defaultValue="6"

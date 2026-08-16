@@ -6,8 +6,8 @@
     <string name="about_based_on">Basado en Mikanoshi y MonwF</string>
     <string name="about_dynamic">Normalmente, los mods requieren un reinicio rápido para activarse o desactivarse, pero aquellos marcados con ⟲ solo requieren un reinicio rápido después de cambiarlos de su valor por defecto a uno personalizado, cambios posteriores se aplicarán inmediatamente.</string>
     <string name="about_unsupported">Mods señalados con ⨯ no son soportados en este dispositivo. </string>
-    <string name="about_paypal_title">PayPal</string>
-    <string name="about_paypal_summary">Donar con PayPal</string>
+    <string name="about_paypal_title">Donación de PayPal</string>
+    <string name="about_paypal_summary">Apoyar el desarrollo con PayPal</string>
     <string name="mods">Mods</string>
     <string name="mods_actions">Acciones</string>
     <string name="enable_mod">Habilitar mod</string>
@@ -881,8 +881,8 @@
     <string name="about_contact_summary">Telegram: @Jinji_Kiko</string>
     <string name="about_contact_title">Contacto</string>
     <string name="about_donate_image_description">Código de donación de WeChat</string>
-    <string name="about_donate_summary">Ver código de donación de WeChat</string>
-    <string name="about_donate_title">Apoyar el desarrollo</string>
+    <string name="about_donate_summary">Escanea para apoyar el desarrollo</string>
+    <string name="about_donate_title">Código de donación de WeChat</string>
     <string name="about_donation_unavailable">No se puede cargar el código de donación</string>
     <string name="about_link_unavailable">Ninguna aplicación puede abrir este enlace</string>
     <string name="about_notes_category">Notas</string>
@@ -1048,4 +1048,6 @@
     <string name="lsposed_changes_not_delivered">Los cambios de configuración realizados desde entonces no han llegado al módulo, por lo que aún no están en vigor. Están guardados y se enviarán en cuanto se restablezca la conexión.</string>
     <string name="system_strong_toast_mode_match_height">Coincidir con la altura de la barra de estado</string>
     <string name="system_strong_toast_mode_hide">Ocultar cápsula de estado</string>
+    <string name="system_strong_toast_island_offset_title">Posición vertical de la isla dinámica</string>
+    <string name="system_strong_toast_island_offset_summ">Ajusta cómo se alinea la isla con el recorte de la cámara. 0 usa la posición del recorte indicada por el sistema.</string>
 </resources>
