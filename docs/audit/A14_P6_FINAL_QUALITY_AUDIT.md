@@ -590,3 +590,121 @@ NEW_PRODUCTION_TEST_SEAM = NO
 
 P6_FINAL_GATE = WAITING_INDEPENDENT_GATE
 ```
+
+## 20. P6-B2 localization residual + P5 contract closure
+
+> Scope: resource translations and `tools/tests/test_p5_localization_contract.py` only. No production Kotlin/Java changes. `miuizer` reserved for P6-B5.
+
+```text
+P6_B2_AUTHORIZATION = YES
+P6_B2_BASE_SHA = d246db2f11e51a6b7a7746b335d7f2c2c3d000c9
+```
+
+### 20.1 Baseline
+
+| Metric | Value |
+|---|---|
+| `LINT_MISSING_TRANSLATION_WARNINGS` | 29 (28 real + 1 `miuizer` orphan) |
+| `LINT_REAL_MISSING_TRANSLATION_KEY_COUNT` | 28 |
+| `LINT_REAL_MISSING_TRANSLATION_PAIR_COUNT` | 145 |
+| `FORMAL_LOCALE_DIRECTORIES` | `values-cs-rCZ`, `values-es-rES`, `values-ja-rJP`, `values-pt-rBR`, `values-ru-rRU`, `values-tr-rTR`, `values-vi-rVN`, `values-zh-rCN`, `values-zh-rTW` |
+
+### 20.2 P5 contract coverage gap closure
+
+`tools/tests/test_p5_localization_contract.py` was replaced with a generic, non-hardcoded contract:
+
+| Coverage | Status |
+|---|---|
+| `FORMAL_LOCALE_DISCOVERY` | Discovered from `app/src/main/res/values-*` with non-language qualifier filtering (`night`, `v*`, `land`, `sw*`, `w*`, `h*`, `port`) |
+| `XML_VISIBLE_STRING_REFS` | `android:title`, `android:summary`, `android:text`, `android:hint`, `android:entries` |
+| `MENU_RESOURCES` | Covered by XML visible refs over `res/menu` |
+| `ARRAYS_XML_COVERAGE` | User-visible `R.array.*` and `@array/...` in XML are traced to `res/values/arrays.xml` and its `@string/` items |
+| `STRING_ARRAY_COVERAGE` | Placeholder parity and missing item checks for locales that override a `string-array`; base-only arrays with inline items are not forced into every locale |
+| `PRODUCTION_R_STRING_COVERAGE` | All `R.string.*` references in production `*.kt`/`*.java` (excluding `android.R.string.*`) |
+| `ANDROID_R_STRING_EXCLUDED` | `(?<!\w.)R\.string\.` pattern filters `android.R.string.*` |
+| `NON_LANGUAGE_QUALIFIERS_EXCLUDED` | `values-night`, `values-v*`, `values-land`, `values-sw*`, `values-w*`, `values-h*`, `values-port` excluded from formal locale set |
+| `TRANSLATABLE_FALSE_EXCLUDED` | Resources with `android:translatable="false"` are excluded from the required translation set |
+| `PLACEHOLDER_CONTRACT` | Placeholder parity enforced for all `%1$s` / `%2$s` / `%d` / `%%` etc., including positional reordering |
+| `HARDCODED_VISIBLE_TEXT` | XML `android:title`/`summary`/`text`/`hint`/`entries` must be `@string/...` or `@array/...` or `?attr/...` references, not literal text |
+| `HARD_CODED_28_KEY_ALLOWLIST` | NO |
+
+### 20.3 Contract-discovered missing scope
+
+The all-`R.string` formal-locale contract discovered 38 user-visible missing keys / 181 missing pairs. The additional 10 keys beyond the A1 28 are:
+
+`array_cpu_temp`, `array_dualsimin2rows_style_theme`, `array_dualsimin2rows_style_thick`, `array_global_actions_pinningwindow`, `array_power`, `array_power_current`, `array_temp_current`, `array_temp_power`, `Bs`, `qs_toggle_fps` — all missing in `values-zh-rTW`.
+
+### 20.4 Translations completed
+
+Only missing entries were added. Existing translations were not rewritten. `miuizer` was not modified, translated, or marked `translatable="false"`.
+
+Total inserted strings: 181 across 9 formal locales.
+
+| Locale | Inserted |
+|---|---|
+| `values-zh-rCN` | 6 |
+| `values-zh-rTW` | 36 |
+| `values-cs-rCZ` | 17 |
+| `values-es-rES` | 26 |
+| `values-ja-rJP` | 16 |
+| `values-pt-rBR` | 16 |
+| `values-ru-rRU` | 20 |
+| `values-tr-rTR` | 28 |
+| `values-vi-rVN` | 16 |
+
+### 20.5 Post-fix state
+
+| Metric | Value |
+|---|---|
+| `LINT_MISSING_TRANSLATION_WARNINGS` | 1 (`miuizer` only) |
+| `CONTRACT_MISSING_TRANSLATION_KEY_COUNT` | 0 |
+| `CONTRACT_MISSING_TRANSLATION_PAIR_COUNT` | 0 |
+| `REAL_MISSING_TRANSLATION_KEY_COUNT` (formal-locale all-R.string contract) | 0 |
+| `REAL_MISSING_TRANSLATION_PAIR_COUNT` (formal-locale all-R.string contract) | 0 |
+| `MIUIZER_CHANGED` | NO |
+| `PRODUCTION_KOTLIN_JAVA_CHANGE` | NO |
+| `RESOURCE_TEXT_CHANGE` | YES |
+| `HARD_CODED_28_KEY_ALLOWLIST` | NO |
+| `EXISTING_TRANSLATIONS_UNRELATED_REWRITE` | NO |
+
+### 20.6 Validation
+
+| Command | Result |
+|---|---|
+| `python tools/tests/test_p5_localization_contract.py` (direct run) | PASS (15 tests) |
+| `python -m unittest discover -s tools/tests -p "test_*.py"` | PASS (488 tests, skipped=5) |
+| `python tools/verify.py fast --changed` | PASS |
+| `python tools/verify.py full` | PASS |
+| `python tools/audit-feature-semantics.py --validate` | PASS |
+| `python tools/check_main_source_cleanliness.py` | PASS |
+| `python -m compileall tools` | PASS |
+| `gradlew.bat --no-daemon :app:lintDebug` | PASS |
+| `gradlew.bat --no-daemon :app:testDebugUnitTest` | PASS (via `verify full`) |
+| `git diff --check` | PASS |
+| `git status --short` | Modified: 9 `strings.xml` + 1 `test_p5_localization_contract.py` |
+
+### 20.7 Changed files
+
+```text
+app/src/main/res/values-cs-rCZ/strings.xml
+app/src/main/res/values-es-rES/strings.xml
+app/src/main/res/values-ja-rJP/strings.xml
+app/src/main/res/values-pt-rBR/strings.xml
+app/src/main/res/values-ru-rRU/strings.xml
+app/src/main/res/values-tr-rTR/strings.xml
+app/src/main/res/values-vi-rVN/strings.xml
+app/src/main/res/values-zh-rCN/strings.xml
+app/src/main/res/values-zh-rTW/strings.xml
+tools/tests/test_p5_localization_contract.py
+docs/audit/A14_P6_FINAL_QUALITY_AUDIT.md
+```
+
+### 20.8 Final gate
+
+```text
+P6_B2_SELF_ASSESSMENT = PASS_CANDIDATE
+P6_B2_GATE = WAITING_INDEPENDENT_GATE
+
+APK_GENERATED = NO
+ADB_USED = NO
+```
