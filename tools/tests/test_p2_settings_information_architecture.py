@@ -274,6 +274,15 @@ POST_P2_ALLOWED_NEW_PREFERENCES: dict[str, set[str]] = {
     },
 }
 
+# r14.20.0 removes the Dynamic Island Bottom-only configuration. Persisted values are
+# intentionally migrated to TOP by StrongToastPosition; the UI keys must not reappear.
+POST_P2_ALLOWED_REMOVED_PREFERENCES: dict[str, set[str]] = {
+    "prefs_system.xml": {
+        "pref_key_system_strong_toast_position",
+        "pref_key_system_strong_toast_bottom_offset",
+    },
+}
+
 # Attribute changes authorized after P2 (e.g. resourceizing hard-coded literals).
 # Tuple: (file_name, preference_key, attr, old_value, new_value)
 POST_P2_ALLOWED_ATTR_CHANGES: set[tuple[str, str, str, str, str]] = {
@@ -484,6 +493,8 @@ class P2SettingsInformationArchitectureTest(unittest.TestCase):
             # Allow post-P2 authorized additions (e.g. P4 feature wiring).
             allowed_added = POST_P2_ALLOWED_NEW_PREFERENCES.get(path.name, set())
             added_keys -= allowed_added
+            allowed_removed = POST_P2_ALLOWED_REMOVED_PREFERENCES.get(path.name, set())
+            removed_keys -= allowed_removed
 
             if added_keys or removed_keys:
                 failures.append(
@@ -492,6 +503,8 @@ class P2SettingsInformationArchitectureTest(unittest.TestCase):
                 continue
 
             for key, base_attrs in base_prefs.items():
+                if key in allowed_removed:
+                    continue
                 cur_attrs = current_prefs[key]
                 for attr, base_val in base_attrs.items():
                     # Allow removal of android:summary only for approved keys.

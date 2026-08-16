@@ -20,7 +20,7 @@ class LibXposedMetadataTest {
 
         assertEquals("101", properties.getProperty("minApiVersion"))
         assertEquals("102", properties.getProperty("targetApiVersion"))
-        assertEquals("false", properties.getProperty("staticScope"))
+        assertEquals("true", properties.getProperty("staticScope"))
         assertNull(properties.getProperty("autoHotReload"))
     }
 

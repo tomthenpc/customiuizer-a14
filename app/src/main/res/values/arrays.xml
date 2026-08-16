@@ -700,15 +700,6 @@
 		<item>2</item>
 		<item>3</item>
 	</string-array>
-	<string-array name="strong_toast_positions">
-		<item>@string/system_strong_toast_position_top</item>
-		<item>@string/system_strong_toast_position_bottom</item>
-	</string-array>
-	<string-array name="strong_toast_positions_val">
-		<item>0</item>
-		<item>1</item>
-	</string-array>
-
 	<string-array name="usb_default_functions">
 		<item>@string/usb_default_function_follow_system</item>
 		<item>@string/usb_default_function_charge_only</item>

@@ -39,17 +39,18 @@ class DynamicIslandCapsuleViewContractTest {
 
         for (function in listOf("onDraw", "dispatchDraw")) {
             val body = functionBody(source, function)
+            // drawPath / clipPath are allowed; only Path(...) construction is banned.
             assertFalse(
                 "$function must not allocate a Path per frame",
-                body.contains("Path(")
+                Regex("""\bPath\s*\(""").containsMatchIn(body),
             )
             assertFalse(
                 "$function must not allocate a RectF per frame",
-                body.contains("RectF(")
+                Regex("""\bRectF\s*\(""").containsMatchIn(body),
             )
             assertFalse(
                 "$function must not allocate a Paint per frame",
-                body.contains("Paint(")
+                Regex("""\bPaint\s*\(""").containsMatchIn(body),
             )
         }
     }
@@ -111,25 +112,26 @@ class DynamicIslandCapsuleViewContractTest {
 
     @Test
     fun outlineClippingIsNotASecondShapeOwner() {
+        val code = stripComments(source)
         assertFalse(
             "the capsule must not install an outline provider",
-            source.contains("ViewOutlineProvider") || source.contains("outlineProvider")
+            code.contains("ViewOutlineProvider") || code.contains("outlineProvider")
         )
         assertTrue(
             "outline clipping must stay off so the path clip is the only rounded clip",
-            source.contains("clipToOutline = false")
+            code.contains("clipToOutline = false")
         )
         assertFalse(
             "the capsule must not enable outline clipping",
-            source.contains("clipToOutline = true")
+            code.contains("clipToOutline = true")
         )
         assertFalse(
             "the capsule must not delegate the pill to a background drawable",
-            source.contains("GradientDrawable")
+            code.contains("GradientDrawable")
         )
         assertTrue(
             "the capsule must not inherit a background",
-            source.contains("background = null")
+            code.contains("background = null")
         )
     }
 
@@ -155,6 +157,11 @@ class DynamicIslandCapsuleViewContractTest {
             directory = directory.parentFile ?: error("Repository root not found for $path")
         }
     }
+
+    private fun stripComments(source: String): String =
+        source
+            .replace(Regex("""/\*[\s\S]*?\*/"""), "")
+            .replace(Regex("""(?m)^\s*//.*$"""), "")
 
     private fun functionBody(source: String, functionName: String): String {
         val start = source.indexOf("fun $functionName(")

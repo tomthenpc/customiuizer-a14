@@ -2,10 +2,12 @@
 <resources>
     <string name="app_about">O modulu</string>
     <string name="about_version">Verze %1$s</string>
-        <string name="about_maintainer">Spravuje tomthenpc</string>
+    <string name="about_maintainer">Vývoj a údržba: tomthenpc</string>
     <string name="about_based_on">založeno na práci Mikanoshi a MonwF (Překlad S11V3R 🇨🇿)</string>
     <string name="about_dynamic">Obecně platí, že změny vyžadují k aktivaci nebo deaktivaci měkký restart, ale změny označené symbolem ⟲ vyžadují pouze jeden měkký restart poté, co byla jejich hodnota změněna z výchozí na vlastní, další změny se použijí okamžitě.</string>
     <string name="about_unsupported">Modifikace označené ⨯ nejsou v tomto zařízení podporovány.</string>
+    <string name="about_paypal_title">PayPal</string>
+    <string name="about_paypal_summary">Přispět přes PayPal</string>
     <string name="mods">Modifikace</string>
     <string name="mods_actions">Akce</string>
     <string name="common_background_color">Barva pozadí</string>
@@ -955,13 +957,7 @@
     <string name="system_disable_window_blurs_title">Vypnout rozmazání na úrovni oken</string>
     <string name="system_recents_card_style_hide_title">Skrýt název aplikace</string>
     <string name="system_recents_card_style_summ">Skrýt názvy aplikací na kartách posledních úloh; po změně restartujte spouštěč</string>
-    <string name="system_strong_toast_bottom_offset_summ">Doladí polohu podle aktuální navigační a gestové výplně. Záporné hodnoty posunou kapsli blíže ke spodnímu okraji, kladné hodnoty ji posunou nahoru.</string>
-    <string name="system_strong_toast_bottom_offset_title">Dodatečná vzdálenost odspodu</string>
     <string name="system_strong_toast_mode_dynamic_island">Dynamický ostrov</string>
-    <string name="system_strong_toast_position_bottom">Dole</string>
-    <string name="system_strong_toast_position_summ">Horní ostrovy zavřete přejetím nahoru. Spodní ostrovy se zvednou nad navigační oblast a zavřete je přejetím dolů.</string>
-    <string name="system_strong_toast_position_title">Poloha Dynamického ostrova</string>
-    <string name="system_strong_toast_position_top">Nahoře</string>
     <string name="system_volume_mode_button_colors_summ">Přizpůsobí barvy pozadí a ikon dvou zkratek ve spodní části panelu hlasitosti. Po změně barev restartujte systémové rozhraní.</string>
     <string name="system_volume_mode_button_colors_title">Barvy zkratek Tichý režim a Nerušit</string>
     <string name="various_block_location_permission_prompts_summ">Zavře systémovou výzvu Androidu bez udělení oprávnění k poloze v popředí nebo na pozadí; po změně restartujte PermissionController nebo zařízení</string>

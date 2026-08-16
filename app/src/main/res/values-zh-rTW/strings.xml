@@ -3,7 +3,7 @@
     <string name="settings_title">設定</string>
     <string name="app_about">關於</string>
     <string name="about_version">版本：%1$s</string>
-        <string name="about_maintainer">維護：tomthenpc</string>
+    <string name="about_maintainer">維護與開發：tomthenpc</string>
     <string name="about_based_on">基於 Mikanoshi 與 MonwF 的开源工作</string>
     <string name="about_dynamic">標記有⟲的模組由預設值修改為其他值後只需軟重啟一次，之後的更改將立即應用；其他選項始終需要軟重啟。</string>
     <string name="about_unsupported">標記⨯的模組不支援此設備。</string>
@@ -11,6 +11,8 @@
     <string name="about_donate_title">贊賞開發</string>
     <string name="about_donate_summary">查看微信贊賞碼</string>
     <string name="about_donate_image_description">微信贊賞碼</string>
+    <string name="about_paypal_title">PayPal</string>
+    <string name="about_paypal_summary">透過 PayPal 贊賞</string>
     <string name="about_repository_title">倉庫首頁</string>
     <string name="about_repository_summary">原始碼與版本發布</string>
     <string name="about_contact_title">聯絡方式</string>
@@ -841,12 +843,6 @@
     <string name="system_strong_toast_mode_match_height">符合狀態列高度</string>
     <string name="system_strong_toast_mode_dynamic_island">動態島</string>
     <string name="system_strong_toast_mode_hide">隱藏靈動額頭</string>
-    <string name="system_strong_toast_position_title">動態島位置</string>
-    <string name="system_strong_toast_position_summ">頂部動態島上滑關閉；底部動態島從導覽區上方彈出，下滑關閉。</string>
-    <string name="system_strong_toast_position_top">頂部</string>
-    <string name="system_strong_toast_position_bottom">底部</string>
-    <string name="system_strong_toast_bottom_offset_title">額外底部距離</string>
-    <string name="system_strong_toast_bottom_offset_summ">在系統即時計算的導覽列和手勢安全區基礎上微調。負數讓膠囊更靠近螢幕底部，正數讓膠囊上移。</string>
     <string name="various_clear_update_state_title">清除澎湃 OS 更新提醒</string>
     <string name="various_clear_update_state_summ">一次性操作：清除更新程式資料與「設定」中快取的系統更新版本</string>
     <string name="various_clear_update_state_confirm">清除澎湃 OS 更新程式資料與快取的更新提醒？不會安裝、下載或重新啟用更新服務。</string>

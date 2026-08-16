@@ -244,7 +244,7 @@ def check_static_rules() -> int:
 
     require_in_text(prop, r"minApiVersion\s*=\s*101", "module.prop minApiVersion=101")
     require_in_text(prop, r"targetApiVersion\s*=\s*102", "module.prop targetApiVersion=102")
-    require_in_text(prop, r"staticScope\s*=\s*false", "module.prop staticScope=false")
+    require_in_text(prop, r"staticScope\s*=\s*true", "module.prop staticScope=true")
 
     # Legacy Xposed package must not appear outside the three allowed boundary files.
     allowed_legacy = {

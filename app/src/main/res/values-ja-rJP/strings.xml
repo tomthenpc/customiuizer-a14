@@ -2,10 +2,12 @@
 <resources>
     <string name="app_about">このアプリについて</string>
     <string name="about_version">バージョン %1$s</string>
-        <string name="about_maintainer">保守：tomthenpc</string>
+    <string name="about_maintainer">開発・保守：tomthenpc</string>
     <string name="about_based_on">Mikanoshi / MonwF のオープンソースを基盤に開発</string>
     <string name="about_dynamic">一般的なModの有効化/無効化にはソフトリブートが必要です。⟲のマークがある物は値の変更後、ソフトリブートすることで設定が適用されます。</string>
     <string name="about_unsupported">⨯の付いたModは使用中のデバイスに対応していません。</string>
+    <string name="about_paypal_title">PayPal</string>
+    <string name="about_paypal_summary">PayPal で寄付する</string>
     <string name="mods">Mod</string>
     <string name="mods_actions">アクション</string>
     <string name="common_background_color">背景の色</string>
@@ -963,13 +965,7 @@
     <string name="system_disable_window_blurs_title">ウィンドウ単位のぼかしを無効化</string>
     <string name="system_recents_card_style_hide_title">アプリ名を非表示</string>
     <string name="system_recents_card_style_summ">最近のタスクカードでアプリ名を非表示にする；変更後はランチャーを再起動してください</string>
-    <string name="system_strong_toast_bottom_offset_summ">実行時のナビゲーション領域とジェスチャー領域を基準に位置を微調整します。負の値ではカプセルが下端に近づき、正の値では上に移動します。</string>
-    <string name="system_strong_toast_bottom_offset_title">下端からの追加距離</string>
     <string name="system_strong_toast_mode_dynamic_island">ダイナミックアイランド</string>
-    <string name="system_strong_toast_position_bottom">下部</string>
-    <string name="system_strong_toast_position_summ">上部のアイランドは上にスワイプすると閉じます。下部のアイランドはナビゲーション領域の上に現れ、下にスワイプすると閉じます。</string>
-    <string name="system_strong_toast_position_title">ダイナミックアイランドの位置</string>
-    <string name="system_strong_toast_position_top">上部</string>
     <string name="system_volume_mode_button_colors_summ">音量パネル下部にある2つのショートカットの背景色とアイコン色を変更します。色の変更後はシステムUIを再起動してください。</string>
     <string name="system_volume_mode_button_colors_title">サイレントとおやすみモードのショートカット色</string>
     <string name="various_block_location_permission_prompts_summ">前景または背景の位置情報権限を付与せずにAndroidのシステムダイアログを閉じます。変更後はPermissionControllerまたはデバイスを再起動してください</string>

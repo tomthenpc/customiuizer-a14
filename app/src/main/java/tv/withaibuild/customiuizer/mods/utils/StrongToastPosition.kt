@@ -1,20 +1,28 @@
 package tv.withaibuild.customiuizer.mods.utils
 
 /**
- * Screen edge used by the event-scoped HyperOS StrongToast window.
+ * Historical screen-edge preference for StrongToast Dynamic Island.
  *
- * Unknown persisted values stay at the ROM edge. This keeps existing backups compatible and
- * prevents an unsupported future value from moving a trusted SystemUI overlay.
+ * r14.20.0 is TOP-only. Persisted Bottom values migrate to [TOP] so old backups cannot re-enter
+ * a removed Bottom geometry path.
  */
 enum class StrongToastPosition(val preferenceValue: Int) {
     TOP(0),
+    /**
+     * Source-compatibility sentinel while obsolete StrongToast shell code is removed.
+     * [fromPreference] never returns it and r14.20.0 exposes no Bottom configuration.
+     */
+    @Deprecated("Dynamic Island is TOP-only")
     BOTTOM(1);
 
     companion object {
+        /** Legacy preference value that meant Bottom before TOP-only. */
+        const val LEGACY_BOTTOM_VALUE = 1
+
         @JvmStatic
-        fun fromPreference(value: Int): StrongToastPosition = when (value) {
-            BOTTOM.preferenceValue -> BOTTOM
-            else -> TOP
+        fun fromPreference(value: Int): StrongToastPosition {
+            // Any non-top value, including legacy Bottom (1), migrates to TOP.
+            return TOP
         }
     }
 }

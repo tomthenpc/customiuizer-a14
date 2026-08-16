@@ -759,10 +759,21 @@ internal class StatusBarIconsPositionAdjustFeature(
 
 }
 
+/**
+ * Immutable StrongToast presentation snapshot for one process publish / one event freeze.
+ *
+ * Dynamic Island is TOP-only: position and bottom-offset are no longer part of runtime state.
+ * Legacy preference keys may still exist on disk and are ignored / migrated at read time.
+ */
 internal data class StrongToastRuntimeSnapshot(
     val mode: StrongToastPresentationMode,
-    val position: StrongToastPosition,
-    val bottomOffsetDp: Int,
+    /**
+     * Compatibility-only value for existing event ownership code. It is always TOP; legacy
+     * persisted Bottom data is deliberately not read into runtime configuration.
+     */
+    val position: StrongToastPosition = StrongToastPosition.TOP,
+    /** Compatibility-only zero. Bottom offsets are not part of TOP-only runtime state. */
+    val bottomOffsetDp: Int = 0,
 ) {
     val isDynamicIsland: Boolean
         get() = mode == StrongToastPresentationMode.DYNAMIC_ISLAND
@@ -773,8 +784,9 @@ internal data class StrongToastRuntimeSnapshot(
  *
  * - Installs exactly one preference observer per process.
  * - Publishes an immutable [StrongToastRuntimeSnapshot] through an [AtomicReference].
- * - Rebuilds the snapshot only when a relevant preference key changes.
+ * - Rebuilds the snapshot only when the presentation mode preference changes.
  * - Keeps reflection, Binder and disk I/O out of the hot path.
+ * - Never reinstalls hooks on preference change.
  */
 internal class StrongToastRuntimeState private constructor(
     private val refreshSource: () -> Map<String, Any>,
@@ -792,7 +804,8 @@ internal class StrongToastRuntimeState private constructor(
     }
 
     private fun onPreferenceChanged(key: String?) {
-        if (key != null && key != MODE_KEY && key != POSITION_KEY && key != BOTTOM_OFFSET_KEY) {
+        // Legacy position / bottom-offset keys are ignored: TOP-only migration is unconditional.
+        if (key != null && key != MODE_KEY) {
             return
         }
         synchronized(refreshLock) {
@@ -825,13 +838,15 @@ internal class StrongToastRuntimeState private constructor(
 
     companion object {
         const val MODE_KEY = "system_strong_toast_mode"
+        /** Legacy key retained only so observers can ignore it without reinstall. */
         const val POSITION_KEY = "system_strong_toast_position"
+        /** Legacy key retained only so observers can ignore it without reinstall. */
         const val BOTTOM_OFFSET_KEY = "system_strong_toast_bottom_offset"
 
         internal val DEFAULT_SNAPSHOT = StrongToastRuntimeSnapshot(
             StrongToastPresentationMode.SYSTEM_DEFAULT,
             StrongToastPosition.TOP,
-            0
+            0,
         )
 
         @Volatile
@@ -842,13 +857,7 @@ internal class StrongToastRuntimeState private constructor(
         @JvmStatic
         internal fun buildSnapshot(source: Map<String, Any>): StrongToastRuntimeSnapshot {
             val mode = StrongToastPresentationMode.fromPreference(parsePreferenceInt(source[MODE_KEY]))
-            val position = StrongToastPosition.fromPreference(parsePreferenceInt(source[POSITION_KEY]))
-            val bottomOffset = parsePreferenceInt(source[BOTTOM_OFFSET_KEY])
-            val boundedOffset = bottomOffset.coerceIn(
-                SystemUIStrongToastHooks.MIN_BOTTOM_OFFSET_DP,
-                SystemUIStrongToastHooks.MAX_BOTTOM_OFFSET_DP
-            )
-            return StrongToastRuntimeSnapshot(mode, position, boundedOffset)
+            return StrongToastRuntimeSnapshot(mode, StrongToastPosition.TOP, 0)
         }
 
         private fun parsePreferenceInt(value: Any?): Int = when (value) {
@@ -897,27 +906,12 @@ internal class StrongToastPresentationFeature(
                 prefs.getStringAsInt("system_strong_toast_mode", 0)
             )
 
-        @JvmStatic
-        fun resolvePosition(prefs: PrefMap): StrongToastPosition =
-            StrongToastPosition.fromPreference(
-                prefs.getStringAsInt("system_strong_toast_position", 0)
-            )
-
-        @JvmStatic
-        fun resolveBottomOffsetDp(prefs: PrefMap): Int =
-            prefs.getInt("system_strong_toast_bottom_offset", 0)
-                .coerceIn(
-                    SystemUIStrongToastHooks.MIN_BOTTOM_OFFSET_DP,
-                    SystemUIStrongToastHooks.MAX_BOTTOM_OFFSET_DP
-                )
-
         /**
          * Always installed for HyperOS 1 A14 P0.
          *
          * The StrongToast hooks own a fast passthrough for [StrongToastPresentationMode.SYSTEM_DEFAULT]
          * inside the event callbacks, so the hooks must be present even in the default mode.  This
-         * lets mode, position and bottom-offset changes reflect on the next SystemUI event without
-         * reinstalling hooks.  No preference lookup happens on the event hot path.
+         * lets mode changes reflect on the next SystemUI event without reinstalling hooks.
          */
         @JvmStatic
         fun evaluateEnabled(prefs: PrefMap): Boolean =

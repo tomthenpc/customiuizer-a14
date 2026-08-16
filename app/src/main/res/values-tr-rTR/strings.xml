@@ -2,10 +2,12 @@
 <resources>
     <string name="app_about">Hakkında</string>
     <string name="about_version">Versiyon %1$s</string>
-        <string name="about_maintainer">Bakım: tomthenpc</string>
+    <string name="about_maintainer">Geliştirme ve bakım: tomthenpc</string>
     <string name="about_based_on">Mikanoshi ve MonwF çalışmalarını temel alır (Çeviri: H.KÜPELİ❤ andheartman@gmail.com)</string>
     <string name="about_dynamic">Genel olarak, modların etkinleştirilmesi veya devre dışı bırakılması için arayüz yeniden başlatma gerekir, ancak ⟲ ile işaretlenmiş olanlar, değerleri varsayılandan özel olana değiştirildikten sonra yalnızca bir kez arayüz yeniden başlatma gerektirir, sonraki değişiklikler hemen uygulanır.</string>
     <string name="about_unsupported">⨯ ile işaretlenmiş modlar bu cihazda desteklenmiyor.</string>
+    <string name="about_paypal_title">PayPal</string>
+    <string name="about_paypal_summary">PayPal ile bağış yap</string>
     <string name="mods">Modlar</string>
     <string name="mods_actions">Hareketler</string>
     <string name="enable_mod">Modu etkinleştir Aşkım</string>
@@ -868,13 +870,7 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_disable_window_blurs_title">Pencere düzeyinde bulanıklığı devre dışı bırak</string>
     <string name="system_recents_card_style_hide_title">Uygulama adını gizle</string>
     <string name="system_recents_card_style_summ">Son görev kartlarındaki uygulama adlarını gizle; değişiklikten sonra başlatıcıyı yeniden başlatın</string>
-    <string name="system_strong_toast_bottom_offset_summ">Konumu çalışma anındaki gezinme ve hareket boşluklarına göre hassas şekilde ayarlar. Negatif değerler kapsülü alt kenara yaklaştırır; pozitif değerler yukarı taşır.</string>
-    <string name="system_strong_toast_bottom_offset_title">Alttan ek mesafe</string>
     <string name="system_strong_toast_mode_dynamic_island">Dinamik Ada</string>
-    <string name="system_strong_toast_position_bottom">Alt</string>
-    <string name="system_strong_toast_position_summ">Üst adalar yukarı kaydırılarak kapatılır. Alt adalar gezinme alanının üzerine yükselir ve aşağı kaydırılarak kapatılır.</string>
-    <string name="system_strong_toast_position_title">Dinamik Ada konumu</string>
-    <string name="system_strong_toast_position_top">Üst</string>
     <string name="system_volume_mode_button_colors_summ">Ses panelinin altındaki iki kısayolun arka plan ve simge renklerini özelleştirir. Renkleri değiştirdikten sonra Sistem Arayüzünü yeniden başlatın.</string>
     <string name="system_volume_mode_button_colors_title">Sessiz ve Rahatsız Etmeyin kısayol renkleri</string>
     <string name="various_block_location_permission_prompts_summ">Ön plan veya arka plan konum izni vermeden Android sistem istemini kapatır; değişiklikten sonra PermissionController bileşenini ya da cihazı yeniden başlatın</string>

@@ -2,10 +2,12 @@
 <resources>
     <string name="app_about">О приложении</string>
     <string name="about_version">Версия %1$s</string>
-        <string name="about_maintainer">Поддержка: tomthenpc</string>
+    <string name="about_maintainer">Разработка и поддержка: tomthenpc</string>
     <string name="about_based_on">На основе работ Mikanoshi и MonwF</string>
     <string name="about_dynamic">Для активации или деактивации большинства модов требуется быстрая перезагрузка устройства. Но для модов, помеченных ⟲, перезагрузка требуется только один раз — после смены значения со стандартного на модифицированное, а последующие изменения будут применяться сразу.</string>
     <string name="about_unsupported">Моды, помеченные ⨯, несовместимы с данным устройством.</string>
+    <string name="about_paypal_title">PayPal</string>
+    <string name="about_paypal_summary">Пожертвовать через PayPal</string>
     <string name="mods">Моды</string>
     <string name="mods_actions">Действия</string>
     <string name="common_background_color">Цвет фона</string>
@@ -940,13 +942,7 @@
     <string name="system_disable_window_blurs_title">Отключить размытие на уровне окон</string>
     <string name="system_recents_card_style_hide_title">Скрыть название приложения</string>
     <string name="system_recents_card_style_summ">Скрывать названия приложений на карточках недавних задач; после изменения перезапустите рабочий стол</string>
-    <string name="system_strong_toast_bottom_offset_summ">Точная настройка относительно вычисленных системой отступов навигации и жестов. Отрицательные значения приближают капсулу к нижнему краю, положительные поднимают её.</string>
-    <string name="system_strong_toast_bottom_offset_title">Дополнительный отступ снизу</string>
     <string name="system_strong_toast_mode_dynamic_island">Динамический остров</string>
-    <string name="system_strong_toast_position_bottom">Снизу</string>
-    <string name="system_strong_toast_position_summ">Верхний остров закрывается свайпом вверх. Нижний появляется над областью навигации и закрывается свайпом вниз.</string>
-    <string name="system_strong_toast_position_title">Положение динамического острова</string>
-    <string name="system_strong_toast_position_top">Сверху</string>
     <string name="system_volume_mode_button_colors_summ">Настройка цвета фона и значков двух кнопок внизу панели громкости. После изменения цветов перезапустите системный интерфейс.</string>
     <string name="system_volume_mode_button_colors_title">Цвета кнопок беззвучного режима и «Не беспокоить»</string>
     <string name="various_block_location_permission_prompts_summ">Закрывает системный запрос Android, не выдавая доступ к местоположению в активном или фоновом режиме; после изменения перезапустите PermissionController или устройство</string>

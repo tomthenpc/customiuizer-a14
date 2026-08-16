@@ -2,10 +2,12 @@
 <resources>
     <string name="app_about">Giới thiệu</string>
     <string name="about_version">Phiên bản %1$s</string>
-        <string name="about_maintainer">Duy trì bởi tomthenpc</string>
+    <string name="about_maintainer">Phát triển và bảo trì: tomthenpc</string>
     <string name="about_based_on">Dựa trên công trình của Mikanoshi và MonwF</string>
     <string name="about_dynamic">Nói chung, các mod yêu cầu khởi động lại mềm để được kích hoạt hoặc hủy kích hoạt, nhưng những mod được đánh dấu ⟲ chỉ yêu cầu một lần khởi động lại mềm sau khi giá trị của chúng được thay đổi từ mặc định thành tùy chỉnh, các thay đổi tiếp theo sẽ được áp dụng ngay lập tức.</string>
     <string name="about_unsupported">Mod được đánh dấu bằng ⨯ không được hỗ trợ trên thiết bị này.</string>
+    <string name="about_paypal_title">PayPal</string>
+    <string name="about_paypal_summary">Quyên góp bằng PayPal</string>
     <string name="mods">Mod</string>
     <string name="mods_actions">Hành động</string>
     <string name="common_background_color">Màu nền</string>
@@ -963,13 +965,7 @@
     <string name="system_disable_window_blurs_title">Tắt làm mờ ở cấp cửa sổ</string>
     <string name="system_recents_card_style_hide_title">Ẩn tên ứng dụng</string>
     <string name="system_recents_card_style_summ">Ẩn tên ứng dụng trên thẻ tác vụ gần đây; khởi động lại trình khởi chạy sau khi thay đổi</string>
-    <string name="system_strong_toast_bottom_offset_summ">Tinh chỉnh vị trí dựa trên vùng chèn điều hướng và cử chỉ khi chạy. Giá trị âm đưa viên nang đến gần cạnh dưới hơn; giá trị dương đưa nó lên trên.</string>
-    <string name="system_strong_toast_bottom_offset_title">Khoảng cách bổ sung từ cạnh dưới</string>
     <string name="system_strong_toast_mode_dynamic_island">Đảo động</string>
-    <string name="system_strong_toast_position_bottom">Dưới</string>
-    <string name="system_strong_toast_position_summ">Đảo ở trên vuốt lên để đóng. Đảo ở dưới nổi lên trên vùng điều hướng và vuốt xuống để đóng.</string>
-    <string name="system_strong_toast_position_title">Vị trí Đảo động</string>
-    <string name="system_strong_toast_position_top">Trên</string>
     <string name="system_volume_mode_button_colors_summ">Tùy chỉnh màu nền và biểu tượng của hai lối tắt ở cuối bảng âm lượng. Khởi động lại Giao diện hệ thống sau khi đổi màu.</string>
     <string name="system_volume_mode_button_colors_title">Màu lối tắt Im lặng và Không làm phiền</string>
     <string name="various_block_location_permission_prompts_summ">Đóng lời nhắc hệ thống Android mà không cấp quyền vị trí khi dùng hoặc trong nền; khởi động lại PermissionController hoặc thiết bị sau khi thay đổi</string>

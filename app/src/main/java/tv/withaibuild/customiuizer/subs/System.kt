@@ -118,22 +118,8 @@ class System : SubFragment() {
 
             "pref_key_system_cat_statusbar" -> {
                 val strongToastMode = findPreference<ListPreferenceEx>("pref_key_system_strong_toast_mode")
-                val strongToastPosition = findPreference<ListPreferenceEx>("pref_key_system_strong_toast_position")
-                val strongToastBottomOffset = findPreference<Preference>("pref_key_system_strong_toast_bottom_offset")
-                fun updateStrongToastGeometryVisibility(mode: String?, position: String?) {
-                    val dynamicIsland = mode == "3" || mode == "4"
-                    strongToastPosition?.isVisible = dynamicIsland
-                    strongToastBottomOffset?.isVisible = dynamicIsland && position == "1"
-                }
-                updateStrongToastGeometryVisibility(strongToastMode?.value, strongToastPosition?.value)
                 strongToastMode?.setOnPreferenceChangeListener { preference, newValue ->
-                    val selected = syncPendingListSelection(preference, newValue)
-                    updateStrongToastGeometryVisibility(selected, strongToastPosition?.value)
-                    true
-                }
-                strongToastPosition?.setOnPreferenceChangeListener { preference, newValue ->
-                    val selected = syncPendingListSelection(preference, newValue)
-                    updateStrongToastGeometryVisibility(strongToastMode?.value, selected)
+                    syncPendingListSelection(preference, newValue)
                     true
                 }
                 findPreference<Preference>("pref_key_system_statusbarcolor_apps")?.setOnPreferenceClickListener(openAppsEdit)

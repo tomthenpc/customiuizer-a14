@@ -12,6 +12,14 @@ class AboutSupportContractTest {
         val layout = source("app/src/main/res/layout/fragment_about.xml")
 
         assertTrue(layout.contains("about_donate_title"))
+        assertTrue(layout.contains("about_paypal_title"))
+        assertTrue(layout.contains("about_paypal_summary"))
+        assertFalse(
+            "No divider between donate_row and paypal_row (same group)",
+            layout.substringAfter("about_donate_row")
+                .substringBefore("about_paypal_row")
+                .contains("about_divider"),
+        )
         assertTrue(layout.contains("about_repository_title"))
         assertTrue(layout.contains("about_contact_title"))
         assertTrue(layout.contains("about_dynamic"))
@@ -22,6 +30,16 @@ class AboutSupportContractTest {
         assertTrue(fragment.contains("bitmap.recycle()"))
         assertTrue(fragment.contains("https://github.com/tomthenpc/customiuizer-a14"))
         assertTrue(fragment.contains("https://t.me/Jinji_Kiko"))
+        assertTrue(fragment.contains("PAYPAL_DONATION_URL"))
+        assertTrue(
+            "PayPal URL must be paypal.me/Jinjitv",
+            fragment.contains("https://paypal.me/Jinjitv"),
+        )
+        assertFalse(
+            "Old PayPal donations URL must be removed",
+            fragment.contains("cgi-bin/webscr"),
+        )
+        assertTrue(fragment.contains("Intent.ACTION_VIEW"))
     }
 
     private fun source(path: String): String {

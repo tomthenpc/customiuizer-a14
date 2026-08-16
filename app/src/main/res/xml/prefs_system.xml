@@ -406,27 +406,6 @@
 			android:defaultValue="0"
 			miuizer:valueAsSummary="true" />
 
-		<tv.withaibuild.customiuizer.prefs.ListPreferenceEx
-			android:key="pref_key_system_strong_toast_position"
-			android:title="@string/system_strong_toast_position_title"
-			android:summary="@string/system_strong_toast_position_summ"
-			android:entries="@array/strong_toast_positions"
-			android:entryValues="@array/strong_toast_positions_val"
-			android:defaultValue="0"
-			miuizer:indentLevel="1"
-			miuizer:valueAsSummary="true" />
-
-		<tv.withaibuild.customiuizer.prefs.SeekBarPreference
-			android:key="pref_key_system_strong_toast_bottom_offset"
-			android:title="@string/system_strong_toast_bottom_offset_title"
-			android:summary="@string/system_strong_toast_bottom_offset_summ"
-			android:defaultValue="0"
-			miuizer:indentLevel="2"
-			miuizer:minValue="-40"
-			miuizer:maxValue="80"
-			miuizer:stepValue="2"
-			miuizer:format="%d dip" />
-
 		<tv.withaibuild.customiuizer.prefs.SeekBarPreference
 			android:key="pref_key_system_statusbar_iconsize"
 			android:title="@string/system_statusbar_iconsize_title"
