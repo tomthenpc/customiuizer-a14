@@ -24,6 +24,7 @@ import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
+import tv.withaibuild.customiuizer.mods.utils.feature.DynamicIslandCapsuleView
 import tv.withaibuild.customiuizer.mods.utils.feature.DynamicIslandMotionProfile
 import tv.withaibuild.customiuizer.mods.utils.feature.DynamicIslandWindowEnvelope
 import tv.withaibuild.customiuizer.mods.utils.feature.StrongToastRuntimeSnapshot
@@ -81,13 +82,80 @@ object SystemUIStrongToastHooks {
         "com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView"
     private const val RUNTIME_SNAPSHOT_FIELD = "customiuizer_strong_toast_runtime_snapshot"
     private const val MATCH_BASELINE_FIELD = "customiuizer_match_mode_baseline"
-    // Mechanism reference: Ajaxy/telegram-tt, tag air_v2.11.5, commit d915b1b9,
-    // src/styles/_variables.scss and src/util/animation.ts (GPL-3.0). Only its bounded
-    // cubic-bezier curve and latest-animation-wins ownership are translated to Android here;
-    // no Telegram source or framework is copied. Avoiding geometric overshoot is mandatory
-    // because SurfaceFlinger clips StrongToast outside the ROM-owned Window surface.
-    private val boundedDynamicIslandInterpolator = PathInterpolator(0.25f, 1f, 0.5f, 1f)
-    private val dynamicIslandExitInterpolator = boundedDynamicIslandInterpolator
+    // Entrance settles the capsule into place: fast start, long decelerating tail, no overshoot.
+    // Geometric overshoot is not available here because SurfaceFlinger clips anything the module
+    // draws outside the ROM-owned Window surface.
+    private val dynamicIslandEntranceInterpolator = PathInterpolator(0.2f, 0.9f, 0.25f, 1f)
+
+    // Exit accelerates away from rest. The previous exit reused the entrance curve, which is
+    // front-loaded: it finished almost all of its movement in the first third of the duration and
+    // then held a static, fully opaque capsule until the Window was torn down. That stall followed
+    // by an instant removal is what read as a stutter.
+    private val dynamicIslandExitInterpolator = PathInterpolator(0.4f, 0f, 0.9f, 0.35f)
+
+    // The capsule must be fully transparent before the ROM removes the Window, otherwise the last
+    // visible frame is a solid capsule that simply vanishes. Fading over the leading part of the
+    // exit leaves a short, fully invisible tail that absorbs the teardown.
+    private const val EXIT_ALPHA_FRACTION = 0.82f
+    // TEMPORARY diagnostic instrumentation for the Dynamic Island geometry rework.
+    // Removed before the feature lands; never left enabled in a release build.
+    private const val GEOMETRY_DEBUG = true
+
+    internal fun dumpDynamicIslandGeometry(tag: String, root: View, shell: View?) {
+        if (!GEOMETRY_DEBUG) return
+        try {
+            val dm = root.resources.displayMetrics
+            val sb = StringBuilder(1024)
+            sb.append("[GEOM ").append(tag).append("] density=").append(dm.density)
+                .append(" dpi=").append(dm.densityDpi)
+                .append(" sbInset=").append(currentStatusBarInsetPx(root))
+                .append(" romH=").append(strongToastVisualHeightPx(root))
+                .append(" romW=").append(strongToastDimensionPx(root, "strong_toast_width"))
+            var v: View? = shell ?: root
+            var depth = 0
+            while (v != null && depth < 12) {
+                val g = v as? ViewGroup
+                sb.append("\n  #").append(depth).append(' ').append(v.javaClass.name)
+                    .append(" bounds=[").append(v.left).append(',').append(v.top)
+                    .append("][").append(v.right).append(',').append(v.bottom).append(']')
+                    .append(" wh=").append(v.width).append('x').append(v.height)
+                    .append(" pad=").append(v.paddingLeft).append(',').append(v.paddingTop)
+                    .append(',').append(v.paddingRight).append(',').append(v.paddingBottom)
+                    .append(" lp=").append(v.layoutParams?.width).append('x')
+                    .append(v.layoutParams?.height)
+                (v.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
+                    sb.append(" margins=").append(it.topMargin).append(',').append(it.bottomMargin)
+                }
+                sb.append(" clipCh=").append(g?.clipChildren)
+                    .append(" clipPad=").append(g?.clipToPadding)
+                    .append(" clipOutline=").append(v.clipToOutline)
+                    .append(" clipBounds=").append(v.clipBounds)
+                    .append(" vis=").append(v.visibility)
+                    .append(" transY=").append(v.translationY)
+                    .append(" scaleY=").append(v.scaleY)
+                    .append(" alpha=").append(v.alpha)
+                    .append(" bg=").append(v.background?.javaClass?.simpleName)
+                if (g != null) {
+                    sb.append(" children=").append(g.childCount)
+                    for (i in 0 until g.childCount) {
+                        val c = g.getChildAt(i)
+                        sb.append("\n      child").append(i).append(' ')
+                            .append(c.javaClass.simpleName)
+                            .append(" [").append(c.left).append(',').append(c.top)
+                            .append("][").append(c.right).append(',').append(c.bottom)
+                            .append("] vis=").append(c.visibility)
+                    }
+                }
+                v = v.parent as? View
+                depth++
+            }
+            XposedHelpers.log(sb.toString())
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            XposedHelpers.log("StrongToastGeometryDump", t)
+        }
+    }
+
     private var statusBarContentsRef = WeakReference<View>(null)
     private var statusBarHiddenOwnerRef = WeakReference<View>(null)
     private var statusBarContentsOriginalAlpha = 1f
@@ -217,13 +285,14 @@ object SystemUIStrongToastHooks {
                             StrongToastPresentationMode.SYSTEM_DEFAULT,
                             StrongToastPresentationMode.HIDE -> return
                             StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT -> {
+                                // The visible forehead is the ROM message row plus the
+                                // strong_toast_bottom_view sibling, which draws the concave
+                                // corners that blend the black area back into the screen.
+                                // Matching the status bar means resizing only the message row and
+                                // keeping the whole chin inside the Window, otherwise the corner
+                                // piece is clipped away and the forehead ends in a hard edge.
                                 val statusBarInsetPx = currentStatusBarInsetPx(strongToast)
                                 val visualHeightPx = strongToastVisualHeightPx(strongToast)
-                                val originalWindowHeightPx = layoutParams.height
-                                val targetHeightPx = resolveMatchedStatusBarHeightPx(
-                                    statusBarInsetPx,
-                                    originalWindowHeightPx
-                                )
                                 val targetContentHeightPx = resolveMatchContainerHeightPx(
                                     statusBarInsetPx,
                                     visualHeightPx
@@ -233,7 +302,10 @@ object SystemUIStrongToastHooks {
                                     targetContentHeightPx
                                 )
                                 if (prepared) {
-                                    layoutParams.height = targetHeightPx
+                                    layoutParams.height = resolveMatchWindowHeightPx(
+                                        targetContentHeightPx,
+                                        foreheadChinHeightPx(strongToast)
+                                    )
                                     layoutParams.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
                                 }
                             }
@@ -573,6 +645,7 @@ object SystemUIStrongToastHooks {
                         resetDynamicIslandTransform(shell)
                         return true
                     }
+                    dumpDynamicIslandGeometry("preDraw", view, shell)
                     ModuleHelper.guarded {
                         runDynamicIslandEntrance(view, shell, position)
                     }
@@ -618,27 +691,28 @@ object SystemUIStrongToastHooks {
             ) as? SwipeGestureState
             state?.motionProfile = profile
 
-            // The shell is laid out at its resting position. Set the pivot to the
-            // screen edge so vertical scaling grows from that edge, not the center.
+            // The capsule is laid out at its resting position. The pivot sits on the near screen
+            // edge so the uniform scale collapses toward that edge instead of the capsule centre.
             shell.pivotX = shell.width / 2f
             shell.pivotY = profile.pivotY
-            shell.scaleX = 1f
-            shell.scaleY = profile.entranceScaleY
-            shell.translationY = profile.entranceTranslationY
-            shell.alpha = 1f
+            shell.scaleX = profile.hiddenScale
+            shell.scaleY = profile.hiddenScale
+            shell.translationY = profile.hiddenTranslationY
+            shell.alpha = 0f
 
             shell.animate()
                 .alpha(1f)
-                .scaleX(1f)
-                .scaleY(1f)
+                .scaleX(profile.restingScale)
+                .scaleY(profile.restingScale)
                 .translationY(profile.restingTranslationY)
                 .setDuration(profile.entranceDurationMs)
-                .setInterpolator(boundedDynamicIslandInterpolator)
+                .setInterpolator(dynamicIslandEntranceInterpolator)
                 .withLayer()
                 .start()
 
-            // The ROM content children are animated by the ROM itself. Module does
-            // not own their alpha to avoid double ownership with ROM Folme.
+            // The ROM content children are animated by the ROM itself. The module owns the
+            // capsule alpha only, and `withLayer()` composites the whole capsule as one surface
+            // so ROM child alpha and capsule alpha cannot multiply into banding.
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
             restoreStatusBarContents(view)
@@ -685,11 +759,14 @@ object SystemUIStrongToastHooks {
                 state.moved = state.moved ||
                     kotlin.math.abs(deltaY) >= dpToPx(capsule, 4f)
 
-                val travel = profile.entranceTravelPx.toFloat().coerceAtLeast(1f)
+                val travel = profile.edgeTravelPx.toFloat().coerceAtLeast(1f)
                 val progress = (kotlin.math.abs(directionalDelta) / travel).coerceIn(0f, 1f)
 
+                capsule.pivotX = capsule.width / 2f
                 capsule.pivotY = profile.pivotY
-                capsule.scaleY = 1f - (1f - profile.entranceScaleY) * progress
+                val dragScale = profile.scaleForProgress(progress)
+                capsule.scaleX = dragScale
+                capsule.scaleY = dragScale
                 capsule.translationY = when (position) {
                     StrongToastPosition.BOTTOM ->
                         (state.startTranslationY + directionalDelta).coerceIn(0f, travel)
@@ -809,6 +886,7 @@ object SystemUIStrongToastHooks {
         shell: View,
         position: StrongToastPosition
     ) {
+        dumpDynamicIslandGeometry("dismissStart", strongToast, shell)
         XposedHelpers.setAdditionalInstanceField(strongToast, DISMISS_RUNNING_FIELD, true)
         setSwipeListenerRecursively(shell, null)
         (shell.parent as? View)?.setOnTouchListener(null)
@@ -832,17 +910,26 @@ object SystemUIStrongToastHooks {
             return
         }
 
+        shell.pivotX = shell.width / 2f
         shell.pivotY = profile.pivotY
-        shell.animate()
-            .alpha(1f)
-            .scaleX(1f)
-            .scaleY(profile.exitScaleY)
-            .translationY(profile.exitTranslationY)
+        // A View owns a single ViewPropertyAnimator, so the fade cannot be a second animator with
+        // its own duration. Driving alpha from the shared animated fraction keeps one clock and
+        // lets the capsule reach full transparency before the transform ends: the ROM teardown
+        // then happens behind an invisible capsule instead of cutting a solid one away.
+        val startAlpha = shell.alpha
+        val animator = shell.animate()
+            .scaleX(profile.hiddenScale)
+            .scaleY(profile.hiddenScale)
+            .translationY(profile.hiddenTranslationY)
             .setDuration(profile.exitDurationMs)
             .setInterpolator(dynamicIslandExitInterpolator)
             .withEndAction(complete)
             .withLayer()
-            .start()
+        animator.setUpdateListener { running ->
+            val faded = running.animatedFraction / EXIT_ALPHA_FRACTION
+            shell.alpha = (startAlpha * (1f - faded)).coerceIn(0f, 1f)
+        }
+        animator.start()
     }
     private fun installControlClassHooks(lpparam: PackageReadyParam) {
         try {
@@ -1049,11 +1136,7 @@ object SystemUIStrongToastHooks {
         val originalParentPaddingBottom = parent.paddingBottom
         val originalParentGravity = (parent as? LinearLayout)?.gravity ?: 0
 
-        val shell = FrameLayout(root.context).apply {
-            clipChildren = false
-            clipToPadding = false
-            clipToOutline = false
-        }
+        val shell = DynamicIslandCapsuleView(root.context)
 
         val shellLp = when (originalLp) {
             is LinearLayout.LayoutParams -> LinearLayout.LayoutParams(
@@ -1317,14 +1400,9 @@ object SystemUIStrongToastHooks {
                 layoutParams.gravity = Gravity.CENTER_HORIZONTAL
             }
             shell.layoutParams = layoutParams
-            shell.background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                setColor(Color.BLACK)
-                cornerRadius = visualHeightPx / 2f
-            }
-            // The ROM content lives inside the shell and must not clip to its own
-            // outline; the shell background provides the rounded pill shape.
-            shell.clipToOutline = false
+            // The capsule paints its own pill (see DynamicIslandCapsuleView); no background
+            // drawable and no outline clipping are involved, so the visible shape always matches
+            // the measured View bounds.
 
             // Capture all remaining baselines before any mutation. The updated
             // state is published immediately so the catch/restore path can roll
@@ -1372,14 +1450,16 @@ object SystemUIStrongToastHooks {
         view: View,
         profile: DynamicIslandMotionProfile
     ) {
+        view.animate().setUpdateListener(null)
+        view.pivotX = view.width / 2f
         view.pivotY = profile.pivotY
         view.animate()
             .alpha(1f)
-            .scaleX(1f)
-            .scaleY(1f)
-            .translationY(0f)
-            .setDuration(180L)
-            .setInterpolator(boundedDynamicIslandInterpolator)
+            .scaleX(profile.restingScale)
+            .scaleY(profile.restingScale)
+            .translationY(profile.restingTranslationY)
+            .setDuration(DynamicIslandMotionProfile.DRAG_RELEASE_DURATION_MS)
+            .setInterpolator(dynamicIslandEntranceInterpolator)
             .withLayer()
             .start()
     }
@@ -1392,12 +1472,14 @@ object SystemUIStrongToastHooks {
         val visualHeightPx = strongToastVisualHeightPx(root)
         if (visualHeightPx <= 0) return null
         val roundingPx = dpToPx(root, CAPSULE_ROUNDING_SAFETY_MARGIN_DP)
+        val maxTravelPx = dpToPx(root, DynamicIslandWindowEnvelope.MAX_EDGE_TRAVEL_DP)
         return when (position) {
             StrongToastPosition.TOP -> DynamicIslandWindowEnvelope.forTop(
                 visualHeightPx,
                 dpToPx(root, CAPSULE_TOP_MARGIN_DP),
                 dpToPx(root, CAPSULE_BOTTOM_SAFETY_MARGIN_DP),
-                roundingPx
+                roundingPx,
+                maxTravelPx
             )
             StrongToastPosition.BOTTOM -> DynamicIslandWindowEnvelope.forBottom(
                 visualHeightPx,
@@ -1407,7 +1489,8 @@ object SystemUIStrongToastHooks {
                     visualHeightPx,
                     bottomOffsetDp
                 ),
-                roundingPx
+                roundingPx,
+                maxTravelPx
             )
         }
     }
@@ -1420,6 +1503,7 @@ object SystemUIStrongToastHooks {
         val visualHeightPx = strongToastVisualHeightPx(root)
         if (visualHeightPx <= 0) return null
         val roundingPx = dpToPx(capsule, CAPSULE_ROUNDING_SAFETY_MARGIN_DP)
+        val maxTravelPx = dpToPx(capsule, DynamicIslandWindowEnvelope.MAX_EDGE_TRAVEL_DP)
         return when (position) {
             StrongToastPosition.TOP -> {
                 val topMarginPx = dpToPx(capsule, CAPSULE_TOP_MARGIN_DP)
@@ -1430,7 +1514,8 @@ object SystemUIStrongToastHooks {
                     topMarginPx,
                     bottomSafetyPx,
                     statusBarInsetPx,
-                    roundingPx
+                    roundingPx,
+                    maxTravelPx
                 )
             }
             StrongToastPosition.BOTTOM -> {
@@ -1444,7 +1529,8 @@ object SystemUIStrongToastHooks {
                     visualHeightPx,
                     topSafetyPx,
                     bottomPaddingPx,
-                    roundingPx
+                    roundingPx,
+                    maxTravelPx
                 )
             }
         }
@@ -1564,12 +1650,18 @@ object SystemUIStrongToastHooks {
         (capsule.parent as? View)?.setOnTouchListener(null)
         removeExpandedWindowTouchRegion(root)
 
-        val parentLp = parent?.layoutParams
-        if (parentLp != null) {
-            parentLp.height = targetContentHeightPx
-            parent.layoutParams = parentLp
+        // Resize the message row itself. The ROM declares it as MATCH_PARENT inside a
+        // WRAP_CONTENT column, so pinning the column height instead pushed the
+        // strong_toast_bottom_view chin - the piece that draws the concave corners - out of the
+        // Window and left the forehead ending in a hard square edge.
+        val capsuleLp = capsule.layoutParams
+        if (capsuleLp != null) {
+            capsuleLp.height = targetContentHeightPx
+            capsule.layoutParams = capsuleLp
         }
 
+        // The column keeps wrapping so the chin stays laid out directly under the message row.
+        bottomView?.visibility = View.VISIBLE
         parent?.setPadding(0, 0, 0, 0)
         (parent as? LinearLayout)?.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
     }
@@ -1747,16 +1839,37 @@ object SystemUIStrongToastHooks {
     }
 
     @JvmStatic
-    internal fun resolveMatchedStatusBarHeightPx(
-        statusBarInsetPx: Int,
-        originalWindowHeightPx: Int
-    ): Int = if (statusBarInsetPx > 0) statusBarInsetPx else originalWindowHeightPx
-
-    @JvmStatic
     internal fun resolveMatchContainerHeightPx(
         targetHeightPx: Int,
         romVisualHeightPx: Int
     ): Int = if (targetHeightPx > 0) targetHeightPx else romVisualHeightPx
+
+    /**
+     * Window height for [StrongToastPresentationMode.MATCH_STATUS_BAR_HEIGHT].
+     *
+     * The visible forehead is the resized message row plus the full ROM chin. Both have to fit
+     * inside the Window surface or the chin's concave corners are clipped and the forehead ends
+     * in a hard edge instead of blending back into the screen.
+     */
+    @JvmStatic
+    internal fun resolveMatchWindowHeightPx(
+        contentHeightPx: Int,
+        chinHeightPx: Int
+    ): Int = contentHeightPx.coerceAtLeast(0) + chinHeightPx.coerceAtLeast(0)
+
+    /**
+     * Natural height of the ROM's `strong_toast_bottom_view` chin.
+     *
+     * `getWindowParam` runs before the first measure pass, so the drawable's intrinsic height is
+     * the authoritative value; a measured height is preferred when one is already available.
+     */
+    private fun foreheadChinHeightPx(root: View): Int {
+        val bottomView = findViewBySystemUiId(root, FOREHEAD_BOTTOM_ID) ?: return 0
+        if (bottomView.visibility == View.GONE) return 0
+        val measured = bottomView.measuredHeight
+        if (measured > 0) return measured
+        return (bottomView.background?.intrinsicHeight ?: 0).coerceAtLeast(0)
+    }
 
     @JvmStatic
     internal fun resolveDynamicIslandWindowHeightPx(

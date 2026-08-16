@@ -3,15 +3,26 @@ package tv.withaibuild.customiuizer.mods.utils.feature
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 
 /**
- * Pure, testable geometry and timing for the single Dynamic Island vertical soft motion.
+ * Pure, testable geometry and timing for the Dynamic Island transition.
  *
- * The capsule enters from the screen edge that matches [position], grows/slides into a
- * resting state, and exits back to that same edge. Scaling only shrinks vertically
- * ([entranceScaleY] < 1f, pivot at the edge); translation only moves the capsule toward the
- * edge, never beyond the host Window surface.
+ * The transition has exactly two states, `hidden` and `resting`, and every animated property is
+ * a function of the same progress between them:
  *
- * The [windowEnvelope] owns the host height and margin layout; this class adds the
- * animation constants (scale, duration) that live on the shell [ViewPropertyAnimator].
+ * - `translationY` moves between [hiddenTranslationY] and [restingTranslationY]
+ * - `scaleX` / `scaleY` move between [hiddenScale] and [restingScale] (uniform, pivot on the
+ *   near screen edge, so the pill corners stay circular)
+ * - `alpha` moves between `0f` and `1f`
+ *
+ * Entrance runs hidden -> resting, exit runs resting -> hidden. Because both directions share one
+ * geometric definition, an interrupted entrance can hand its current values straight to the exit
+ * without a jump, and the capsule reads as one continuous object.
+ *
+ * Exit fades all the way to `0f` before the ROM tears the Window down. The previous exit stopped
+ * at a partially scaled, fully opaque capsule and let the Window removal do the rest, which is
+ * what made the disappearance pop.
+ *
+ * The [windowEnvelope] owns the host height and the resting layout; this class only adds the
+ * timing and the derived animation constants.
  */
 internal data class DynamicIslandMotionProfile(
     val position: StrongToastPosition,
@@ -19,26 +30,28 @@ internal data class DynamicIslandMotionProfile(
     val windowHeightPx: Int,
     val capsuleTopMarginPx: Int,
     val capsuleBottomMarginPx: Int,
-    val entranceTranslationY: Float,
-    val exitTranslationY: Float,
-    val maxDragTranslationY: Float,
-    val entranceScaleY: Float,
-    val restingScaleY: Float,
-    val exitScaleY: Float,
+    val hiddenTranslationY: Float,
     val restingTranslationY: Float,
+    val maxDragTranslationY: Float,
+    val hiddenScale: Float,
+    val restingScale: Float,
     val pivotY: Float,
     val entranceDurationMs: Long,
     val exitDurationMs: Long
 ) {
-    val entranceTravelPx: Int
-        get() = kotlin.math.abs(entranceTranslationY).toInt()
+    /** Absolute travel between the hidden and resting states, used to normalise drag progress. */
+    val edgeTravelPx: Int
+        get() = kotlin.math.abs(hiddenTranslationY - restingTranslationY).toInt()
 
-    val exitTravelPx: Int
-        get() = kotlin.math.abs(exitTranslationY).toInt()
+    /** Uniform scale for a drag that has moved [progress] of [edgeTravelPx] toward the edge. */
+    fun scaleForProgress(progress: Float): Float {
+        val p = progress.coerceIn(0f, 1f)
+        return restingScale + (hiddenScale - restingScale) * p
+    }
 
     /**
-     * Verifies that the full transformed capsule bounds stay within the Window surface
-     * at the animation extremes (entrance start, rest, and exit end).
+     * Verifies that the full transformed capsule stays within the Window surface at rest and at
+     * the hidden end of the transition.
      */
     fun capsuleFitsWindow(
         capsuleTopAtRest: Int,
@@ -47,15 +60,20 @@ internal data class DynamicIslandMotionProfile(
 
     companion object {
 
-        /**
-         * Vertical scale factor at the entrance/exit edge.
-         * Value must be <= 1f and > 0f to keep the full capsule inside the Window envelope.
-         */
-        internal const val EDGE_SCALE_Y = DynamicIslandWindowEnvelope.EDGE_SCALE_Y
+        /** Uniform scale at the hidden end of the transition. */
+        internal const val EDGE_SCALE = DynamicIslandWindowEnvelope.EDGE_SCALE
 
-        internal const val ENTRANCE_DURATION_TOP_MS = 360L
-        internal const val ENTRANCE_DURATION_BOTTOM_MS = 420L
-        internal const val EXIT_DURATION_MS = 300L
+        internal const val ENTRANCE_DURATION_TOP_MS = 340L
+        internal const val ENTRANCE_DURATION_BOTTOM_MS = 380L
+
+        /**
+         * The exit is deliberately shorter than the entrance and runs on an accelerating curve:
+         * a dismissal should clear the screen decisively instead of lingering at a nearly-resting
+         * pose, which is what produced the visible stall before the Window was removed.
+         */
+        internal const val EXIT_DURATION_MS = 240L
+
+        internal const val DRAG_RELEASE_DURATION_MS = 220L
 
         @JvmStatic
         internal fun forTop(
@@ -63,18 +81,19 @@ internal data class DynamicIslandMotionProfile(
             topMarginPx: Int,
             bottomSafetyMarginPx: Int,
             statusBarInsetPx: Int,
-            roundingSafetyPx: Int = 0
+            roundingSafetyPx: Int,
+            maxEdgeTravelPx: Int
         ): DynamicIslandMotionProfile {
             val envelope = DynamicIslandWindowEnvelope.forTop(
                 visualHeightPx,
                 topMarginPx,
                 bottomSafetyMarginPx,
-                roundingSafetyPx
+                roundingSafetyPx,
+                maxEdgeTravelPx
             )
-            val windowHeightPx = maxOf(statusBarInsetPx, envelope.requiredHostHeightPx)
             return fromEnvelope(
                 envelope = envelope,
-                windowHeightPx = windowHeightPx,
+                windowHeightPx = maxOf(statusBarInsetPx, envelope.requiredHostHeightPx),
                 entranceDurationMs = ENTRANCE_DURATION_TOP_MS,
                 exitDurationMs = EXIT_DURATION_MS
             )
@@ -85,13 +104,15 @@ internal data class DynamicIslandMotionProfile(
             visualHeightPx: Int,
             topSafetyMarginPx: Int,
             bottomPaddingPx: Int,
-            roundingSafetyPx: Int = 0
+            roundingSafetyPx: Int,
+            maxEdgeTravelPx: Int
         ): DynamicIslandMotionProfile {
             val envelope = DynamicIslandWindowEnvelope.forBottom(
                 visualHeightPx,
                 topSafetyMarginPx,
                 bottomPaddingPx,
-                roundingSafetyPx
+                roundingSafetyPx,
+                maxEdgeTravelPx
             )
             return fromEnvelope(
                 envelope = envelope,
@@ -106,24 +127,20 @@ internal data class DynamicIslandMotionProfile(
             windowHeightPx: Int,
             entranceDurationMs: Long,
             exitDurationMs: Long
-        ): DynamicIslandMotionProfile {
-            return DynamicIslandMotionProfile(
-                position = envelope.position,
-                windowEnvelope = envelope,
-                windowHeightPx = windowHeightPx,
-                capsuleTopMarginPx = envelope.shellTopMarginPx,
-                capsuleBottomMarginPx = envelope.shellBottomMarginPx,
-                entranceTranslationY = envelope.entranceTranslationY,
-                exitTranslationY = envelope.exitTranslationY,
-                maxDragTranslationY = envelope.maxDragTranslationY,
-                entranceScaleY = envelope.edgeScaleY,
-                restingScaleY = 1f,
-                exitScaleY = envelope.edgeScaleY,
-                restingTranslationY = 0f,
-                pivotY = envelope.pivotY,
-                entranceDurationMs = entranceDurationMs,
-                exitDurationMs = exitDurationMs
-            )
-        }
+        ): DynamicIslandMotionProfile = DynamicIslandMotionProfile(
+            position = envelope.position,
+            windowEnvelope = envelope,
+            windowHeightPx = windowHeightPx,
+            capsuleTopMarginPx = envelope.shellTopMarginPx,
+            capsuleBottomMarginPx = envelope.shellBottomMarginPx,
+            hiddenTranslationY = envelope.hiddenTranslationY,
+            restingTranslationY = 0f,
+            maxDragTranslationY = envelope.maxDragTranslationY,
+            hiddenScale = envelope.edgeScale,
+            restingScale = 1f,
+            pivotY = envelope.pivotY,
+            entranceDurationMs = entranceDurationMs,
+            exitDurationMs = exitDurationMs
+        )
     }
 }
