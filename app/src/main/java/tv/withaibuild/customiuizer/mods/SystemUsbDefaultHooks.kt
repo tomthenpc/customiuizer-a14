@@ -17,8 +17,10 @@ import java.util.concurrent.atomic.AtomicInteger
  * Non-destructive default USB function override for HyperOS 1 / Android 14.
  *
  * The ROM owns the persisted default ([UsbHandler.mScreenUnlockedFunctions]), ADB composition,
- * manual current-function sessions, policy paths and USB listeners.  This hook only rewrites the
- * effective function argument while the ROM itself is applying a default-function path.
+ * manual current-function sessions, policy paths and USB listeners.  This hook rewrites the
+ * effective function argument while the ROM itself is applying a default-function path, and
+ * supplements the two ROM branches that skip [setEnabledFunctions]: screen-unlock with a native
+ * charging default, and cable plug-in while already unlocked.
  *
  * Mode mapping (read from the ListPreference as a String and parsed by PrefMap.getStringAsInt):
  *   0 -> follow system default
@@ -348,10 +350,10 @@ object SystemUsbDefaultHooks {
                 if (callback.getThrowable() != null) return
 
                 val msg = callback.getArgs().getOrNull(0) as? Message ?: return
-                if (msg.what != targets.msgUpdateScreenLock) return
+                if (!shouldSupplementDefaultApplication(targets, msg)) return
 
                 val handler = callback.getThisObject() ?: return
-                maybeSupplementScreenUnlock(handler, targets, msg)
+                maybeApplyConfiguredDefault(handler, targets)
             } finally {
                 UsbDefaultContext.pop()
             }
@@ -359,35 +361,61 @@ object SystemUsbDefaultHooks {
     }
 
     /**
-     * Handles the special case where the ROM applies a screen-unlock/default branch for a native
-     * default of [FUNCTION_NONE] and does not call [setEnabledFunctions] on its own.  We only
-     * inject the override when the user has chosen a data mode, the screen is unlocked, and the
-     * ROM's transfer policy allows it.
+     * ROM default-application branches that do not always call [setEnabledFunctions] themselves:
+     *
+     * - `MSG_UPDATE_SCREEN_LOCK` unlock with native [FUNCTION_NONE]
+     * - `MSG_UPDATE_STATE` connect while already unlocked (typical HyperOS charging default)
+     *
+     * Cable plug-in is the user-visible path: Xiaomi's native default is charging, so connect
+     * never rewrites functions unless we apply the configured override here.
      */
-    private fun maybeSupplementScreenUnlock(handler: Any, targets: ResolvedTargets, msg: Message) {
-        if (msg.what != targets.msgUpdateScreenLock) return
-        if (msg.arg1 != 0) return // 0 == screen unlocked
+    internal fun shouldSupplementDefaultApplication(targets: ResolvedTargets, msg: Message): Boolean {
+        return when (msg.what) {
+            targets.msgUpdateScreenLock -> msg.arg1 == 0 // 0 == screen unlocked
+            targets.msgUpdateState -> msg.arg1 == 1 // 1 == connected
+            else -> false
+        }
+    }
+
+    /**
+     * True when [currentFunctions] is still the ROM default rather than a manual USB session
+     * (MIDI / RNDIS / accessory / notification-selected function).
+     */
+    internal fun isOverridableCurrentFunction(currentFunctions: Long, nativeDefault: Long): Boolean {
+        return currentFunctions == FUNCTION_NONE || currentFunctions == nativeDefault
+    }
+
+    /**
+     * Applies the configured USB default when the ROM's own default-application branch did not
+     * call [setEnabledFunctions].  Manual current-function sessions are left untouched.
+     */
+    private fun maybeApplyConfiguredDefault(handler: Any, targets: ResolvedTargets) {
         if (!readBoolean(handler, targets.fieldBootCompleted)) return
+        if (readBoolean(handler, targets.fieldScreenLocked)) return
 
         val mode = getMode()
-        if (mode != MODE_MTP && mode != MODE_PTP) return
+        if (mode == MODE_FOLLOW_SYSTEM) return
 
         val nativeDefault = readLong(handler, targets.fieldScreenUnlockedFunctions)
-        if (nativeDefault != FUNCTION_NONE) return
-
         val currentFunctions = readLong(handler, targets.fieldCurrentFunctions)
-        if (currentFunctions != FUNCTION_NONE) return
+        if (!isOverridableCurrentFunction(currentFunctions, nativeDefault)) return
 
-        if (readBoolean(handler, targets.fieldScreenLocked)) return
-        if (!isUsbTransferAllowed(handler, targets)) return
+        val transferAllowed = if (mode == MODE_MTP || mode == MODE_PTP) {
+            isUsbTransferAllowed(handler, targets)
+        } else {
+            true
+        }
+        val effective = computeEffectiveUsbFunctions(
+            mode = mode,
+            nativeDefault = nativeDefault,
+            currentFunctions = currentFunctions,
+            screenLocked = false,
+            forceRestart = false,
+            transferAllowed = transferAllowed,
+        ) ?: return
 
         val method = pickSetEnabledFunctionsMethod(handler, targets) ?: return
         val operationId = targets.operationCounter.incrementAndGet()
-        val effective = when (mode) {
-            MODE_MTP -> FUNCTION_MTP
-            MODE_PTP -> FUNCTION_PTP
-            else -> FUNCTION_NONE
-        }
         try {
             method.invoke(handler, effective, false, operationId)
         } catch (t: Throwable) {

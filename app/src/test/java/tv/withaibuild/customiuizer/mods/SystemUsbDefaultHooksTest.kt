@@ -24,6 +24,10 @@ import java.util.concurrent.atomic.AtomicInteger
 
 class SystemUsbDefaultHooksTest {
 
+    companion object {
+        private const val FUNCTION_MIDI = 8L
+    }
+
     @After
     fun tearDown() {
         MainModule.mPrefs.remove(SystemUsbDefaultHooks.PREF_KEY)
@@ -590,6 +594,233 @@ class SystemUsbDefaultHooksTest {
 
         assertEquals(-1L, handler.lastSetFunctions)
         assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_connectAppliesMtpWhenNativeDefaultIsCharging() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = 0L,
+            currentFunctions = 0L,
+            bootCompleted = true,
+            transferAllowed = true,
+        )
+        val targets = createTestTargets(handler, msgUpdateState = 0)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 0; arg1 = 1 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_MTP, handler.lastSetFunctions)
+        assertFalse(handler.lastSetForceRestart)
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_connectAppliesPtpWhenNativeDefaultIsCharging() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = 0L,
+            currentFunctions = 0L,
+            bootCompleted = true,
+            transferAllowed = true,
+        )
+        val targets = createTestTargets(handler, msgUpdateState = 0)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "3")
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 0; arg1 = 1 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_PTP, handler.lastSetFunctions)
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_connectAppliesChargingWhenNativeDefaultIsMtp() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = SystemUsbDefaultHooks.FUNCTION_MTP,
+            currentFunctions = SystemUsbDefaultHooks.FUNCTION_MTP,
+            bootCompleted = true,
+            transferAllowed = true,
+        )
+        val targets = createTestTargets(handler, msgUpdateState = 0)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "1")
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 0; arg1 = 1 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertEquals(SystemUsbDefaultHooks.FUNCTION_NONE, handler.lastSetFunctions)
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_connectDoesNotStealManualMidiSession() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = 0L,
+            currentFunctions = FUNCTION_MIDI,
+            bootCompleted = true,
+            transferAllowed = true,
+        )
+        val targets = createTestTargets(handler, msgUpdateState = 0)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 0; arg1 = 1 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertEquals(-1L, handler.lastSetFunctions)
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_disconnectDoesNotSupplementConnectOverride() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = 0L,
+            currentFunctions = 0L,
+            bootCompleted = true,
+            transferAllowed = true,
+        )
+        val targets = createTestTargets(handler, msgUpdateState = 0)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 0; arg1 = 0 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertEquals(-1L, handler.lastSetFunctions)
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_connectFollowSystemDoesNotOverride() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = 0L,
+            currentFunctions = 0L,
+            bootCompleted = true,
+            transferAllowed = true,
+        )
+        val targets = createTestTargets(handler, msgUpdateState = 0)
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 0; arg1 = 1 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertEquals(-1L, handler.lastSetFunctions)
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun handleMessageHook_connectBlockedWhenTransferDisallowed() {
+        val handler = TestHandler(
+            screenLocked = false,
+            screenUnlockedFunctions = 0L,
+            currentFunctions = 0L,
+            bootCompleted = true,
+            transferAllowed = false,
+        )
+        val targets = createTestTargets(handler, msgUpdateState = 0)
+        MainModule.mPrefs.put(SystemUsbDefaultHooks.PREF_KEY, "2")
+
+        val hook = SystemUsbDefaultHooks.HandleMessageHook(targets)
+        val msg = Message().apply { what = 0; arg1 = 1 }
+        val beforeCallback = createBeforeCallback(handler, arrayOf(msg))
+        hook.before(beforeCallback)
+
+        val afterCallback = HookerClassHelper.AfterHookCallback(beforeCallback, null, null)
+        hook.after(afterCallback)
+
+        assertEquals(-1L, handler.lastSetFunctions)
+        assertNull(UsbDefaultContext.peek())
+    }
+
+    @Test
+    fun isOverridableCurrentFunction_allowsNativeDefaultAndCharging() {
+        assertTrue(SystemUsbDefaultHooks.isOverridableCurrentFunction(0L, 0L))
+        assertTrue(
+            SystemUsbDefaultHooks.isOverridableCurrentFunction(
+                SystemUsbDefaultHooks.FUNCTION_MTP,
+                SystemUsbDefaultHooks.FUNCTION_MTP,
+            ),
+        )
+        assertTrue(SystemUsbDefaultHooks.isOverridableCurrentFunction(0L, SystemUsbDefaultHooks.FUNCTION_MTP))
+        assertFalse(
+            SystemUsbDefaultHooks.isOverridableCurrentFunction(
+                FUNCTION_MIDI,
+                0L,
+            ),
+        )
+        assertFalse(
+            SystemUsbDefaultHooks.isOverridableCurrentFunction(
+                SystemUsbDefaultHooks.FUNCTION_MTP,
+                0L,
+            ),
+        )
+    }
+
+    @Test
+    fun shouldSupplementDefaultApplication_recognizesUnlockAndConnect() {
+        val targets = createTestTargets(TestHandler(), msgUpdateState = 0, msgUpdateScreenLock = 13)
+        assertTrue(
+            SystemUsbDefaultHooks.shouldSupplementDefaultApplication(
+                targets,
+                Message().apply { what = 13; arg1 = 0 },
+            ),
+        )
+        assertFalse(
+            SystemUsbDefaultHooks.shouldSupplementDefaultApplication(
+                targets,
+                Message().apply { what = 13; arg1 = 1 },
+            ),
+        )
+        assertTrue(
+            SystemUsbDefaultHooks.shouldSupplementDefaultApplication(
+                targets,
+                Message().apply { what = 0; arg1 = 1 },
+            ),
+        )
+        assertFalse(
+            SystemUsbDefaultHooks.shouldSupplementDefaultApplication(
+                targets,
+                Message().apply { what = 0; arg1 = 0 },
+            ),
+        )
+        assertFalse(
+            SystemUsbDefaultHooks.shouldSupplementDefaultApplication(
+                targets,
+                Message().apply { what = 12; arg1 = 1 },
+            ),
+        )
     }
 
     // --- Thread-local ownership guard ---

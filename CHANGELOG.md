@@ -2,7 +2,7 @@
 
 English | [简体中文](CHANGELOG_CN.md)
 
-## r14.20.0 — 2026-08-16
+## r14.20.0 — 2026-08-17
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
 
@@ -20,7 +20,7 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/10
 ### Settings and Interface
 
 - The home page is regrouped into Mods and Settings; the interface language moved from About to home Settings.
-- About is a dedicated page that credits Development & Maintenance and offers WeChat and PayPal support.
+- About is now a dedicated page with author and project information.
 - Secondary categories, search, and long text continue to follow feature semantics, with clearer soft-reboot notes.
 
 ### Backup and Restore
