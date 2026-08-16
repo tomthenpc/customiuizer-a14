@@ -4,7 +4,7 @@
 
 CustoMIUIzer A14 是面向 **HyperOS 1 / Android 14（SDK 34）** 的系统界面与交互定制模块，基于 CustoMIUIzer 项目持续维护。它使用独立包名和版本线，不是上游官方版本。
 
-- 当前正式版：`r14.18.6`
+- 当前正式版：`r14.20.0`
 - 应用 ID：`tv.withaibuild.customiuizer.r14`
 - 源码仓库：<https://github.com/tomthenpc/customiuizer-a14>
 - 用户下载：<https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases>
@@ -12,7 +12,8 @@ CustoMIUIzer A14 是面向 **HyperOS 1 / Android 14（SDK 34）** 的系统界�
 ## 核心功能
 
 - 状态栏图标、电池、信号、网速、日期与温度；
-- 控制中心、通知、音量、亮度、锁屏、充电和媒体界面；
+- 灵动额头 / 动态岛、USB 默认用途、音量与亮度面板；
+- 控制中心、通知、锁屏、充电和媒体界面；
 - Launcher、最近任务、文件夹、图标与桌面手势；
 - 导航栏、按键、自定义动作、电源菜单和系统动画；
 - 应用、权限、安装、分享、隐私应用和应用锁行为。
@@ -27,7 +28,7 @@ CustoMIUIzer A14 是面向 **HyperOS 1 / Android 14（SDK 34）** 的系统界�
 | SDK | minSdk 34 / targetSdk 34 |
 | ABI | `arm64-v8a` |
 | Xposed 框架 | libxposed API 101/102 |
-| 模块元数据 | `minApiVersion=101`、`targetApiVersion=102`、`staticScope=false` |
+| 模块元数据 | `minApiVersion=101`、`targetApiVersion=102`、`staticScope=true` |
 
 不支持 Android 15、Android 16 或其他 MIUI / HyperOS 大版本。API 102 能力保持隔离，未接入 API 101 必经的生产 Hook 路径。
 
@@ -52,7 +53,7 @@ python tools/verify.py full
 
 ## 支持与联系
 
-如果这个项目对你有帮助，可以通过微信赞赏支持后续开发与维护。
+如果这个项目对你有帮助，可以通过微信赞赏或 [PayPal](https://paypal.me/Jinjitv) 支持后续开发与维护。
 
 <img src="app/src/main/res/drawable-nodpi/wechat_donation_code.png" alt="微信赞赏码" width="320">
 

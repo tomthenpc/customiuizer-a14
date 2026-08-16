@@ -4,7 +4,7 @@
 
 CustoMIUIzer A14 is a system UI and interaction customization module maintained for **HyperOS 1 / Android 14 (SDK 34)**. It has an independent package and release line and is not an official upstream release.
 
-- Current release: `r14.18.6`
+- Current release: `r14.20.0`
 - Application ID: `tv.withaibuild.customiuizer.r14`
 - Source: <https://github.com/tomthenpc/customiuizer-a14>
 - User downloads: <https://github.com/Xposed-Modules-Repo/tv.withaibuild.customiuizer.r14/releases>
@@ -12,7 +12,8 @@ CustoMIUIzer A14 is a system UI and interaction customization module maintained 
 ## Core Features
 
 - Status bar icons, battery, signal, network speed, date, and temperature;
-- Control center, notifications, volume, brightness, lock screen, charging, and media UI;
+- Status capsule / Dynamic Island, USB default purpose, volume, and brightness;
+- Control center, notifications, lock screen, charging, and media UI;
 - Launcher, recents, folders, icons, and home-screen gestures;
 - Navigation bar, buttons, custom actions, power menu, and system animations;
 - App, permission, installer, sharing, privacy-app, and app-lock behavior.
@@ -27,7 +28,7 @@ Availability depends on the device ROM and system-app versions. Do not enable th
 | SDK | minSdk 34 / targetSdk 34 |
 | ABI | `arm64-v8a` |
 | Xposed framework | libxposed API 101/102 |
-| Module metadata | `minApiVersion=101`, `targetApiVersion=102`, `staticScope=false` |
+| Module metadata | `minApiVersion=101`, `targetApiVersion=102`, `staticScope=true` |
 
 Android 15, Android 16, and other major MIUI / HyperOS versions are not supported. API 102 capabilities remain isolated from production Hook paths required on API 101.
 
@@ -52,7 +53,7 @@ See [BUILD_AND_VERIFICATION.md](docs/BUILD_AND_VERIFICATION.md) for the complete
 
 ## Support and Contact
 
-If this project is useful to you, you can support its continued development and maintenance via WeChat.
+If this project is useful to you, you can support its continued development and maintenance via WeChat or [PayPal](https://paypal.me/Jinjitv).
 
 <img src="app/src/main/res/drawable-nodpi/wechat_donation_code.png" alt="WeChat donation code" width="320">
 

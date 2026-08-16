@@ -2,6 +2,54 @@
 
 English | [简体中文](CHANGELOG_CN.md)
 
+## r14.20.0 — 2026-08-16
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+
+### New Features
+
+- Dynamic Island mode for the HyperOS status capsule: the ROM forehead is reshaped in place, aligned to the camera cutout, and can be fine-tuned with a signed vertical offset. Custom status-bar height is no longer a hard clip. Status-bar contents fade with platform alpha while the island is visible, consecutive events do not flash the icons back, and the ROM animation is kept.
+- USB default purpose: follow system default, charge only, file transfer (MTP), or photo transfer (PTP).
+- Recents cards can hide app names.
+- The keyboard dismiss button can be hidden in gesture navigation.
+- Folder background blur and window-level blur (volume panel, power menu, and similar surfaces) can be disabled.
+- Volume-panel Do Not Disturb / mute shortcuts can be hidden, and mode-button colors can be customized.
+- System location and notification permission prompts can be dismissed without granting access.
+- Exclusive options: disable Xiaomi updater services with exact restore, clear update state, disable MIUI daemon, trim daemon network components, disable Xiaomi analytics, trim Security Center marketing components, and remove the antivirus entry.
+
+### Settings and Interface
+
+- The home page is regrouped into Mods and Settings; the interface language moved from About to home Settings.
+- About is a dedicated page that credits Development & Maintenance and offers WeChat and PayPal support.
+- Secondary categories, search, and long text continue to follow feature semantics, with clearer soft-reboot notes.
+
+### Backup and Restore
+
+- Backups use a typed V2 format and can still restore older backups.
+- Restore validates structure, sanitizes app selections, rolls back a failed commit, and reconciles language / launcher-icon state.
+- Only settings still valid in this version are backed up and restored. Removed features and unrecognized old keys are ignored as compatibility cleanup, not treated as a corrupt backup. The old “disable status capsule” switch migrates to the new presentation mode.
+
+### Fixes
+
+- Volume percentage is placed below the live status-bar bottom and follows custom status-bar height in real time.
+- The status-bar digital-signal font-size slider now defaults to the system value.
+
+### Stability and Compatibility
+
+- The module now uses a static Xposed scope and only exposes currently supported Hook targets. After enabling it, confirm that LSPosed scope includes `system`, the launcher, and the other required apps.
+- Features install by process and preference, with tighter lifecycle, failure boundaries, and runtime status-bar height synchronization.
+
+### Performance
+
+- Status-bar, battery, clock, icon, and notification hot paths do less repeated resolution and allocation. Disabled features no longer create unrelated Hooks.
+
+### Artifact Information
+
+- APK: `CustoMIUIzer-A14-r14.20.0.apk`
+- versionCode / versionName: `198 / r14.20.0`
+
+---
+
 ## r14.18.6 — 2026-08-09
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
