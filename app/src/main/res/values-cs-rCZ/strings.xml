@@ -1044,4 +1044,21 @@
     <string name="various_disable_reset_recents_privacy_blur_title">Zakázat resetování seznamu rozmazání soukromí v posledních aplikacích</string>
     <string name="various_gboardpadding_summ">Platí pouze pro Gboard; ostatní metody zadávání používají vlastní implementaci rozvržení.</string>
 
+    <string name="unlock_host_missing">Nebyla nalezena volající aplikace. Plugin lze konfigurovat pouze z hostitelské aplikace, např. Taskeru nebo Locale.</string>
+    <string name="unlock_host_untrusted">Volající aplikaci se nepodařilo ověřit: %1$s</string>
+    <string name="unlock_host_cert_mismatch">%1$s (%2$s) neodpovídá dříve svázanému podpisovému certifikátu.\nAktuální certifikát: %3$s</string>
+    <string name="unlock_host_summary">Hostitel: %1$s\nBalíček: %2$s\nAktuální certifikát:\n%3$s\nHistorie certifikátů:\n%4$s</string>
+    <string name="unlock_host_first">%1$s\n\nKlepnutím na OK navážete tohoto hostitele a vydáte bezpečnostní token.</string>
+    <string name="unlock_host_reuse">%1$s\n\nTento hostitel je již svázán. Bude znovu použit existující token.</string>
+    <string name="various_calluibright_day_title">Denní režim</string>
+    <string name="fast_reboot_not_received">Příkaz rychlého restartu nebyl přijat SystemUI. Ujistěte se, že je modul aktivní, a poté zařízení plně restartujte.</string>
+    <string name="fast_reboot_failed">SystemUI přijal příkaz rychlého restartu, ale nebylo možné jej provést.</string>
+    <string name="restart_launcher_done">Spouštěč restartován</string>
+    <string name="restart_systemui_done">SystemUI restartováno</string>
+    <string name="restart_securitycenter_done">Bezpečnostní centrum restartováno</string>
+    <string name="restart_launcher_failed">Nepodařilo se restartovat spouštěč</string>
+    <string name="restart_systemui_failed">Nepodařilo se restartovat SystemUI</string>
+    <string name="restart_securitycenter_failed">Nepodařilo se restartovat bezpečnostní centrum</string>
+    <string name="system_strong_toast_mode_match_height">Přizpůsobit výšku stavové lišty</string>
+    <string name="system_strong_toast_mode_hide">Skrýt stavovou kapsli</string>
 </resources>

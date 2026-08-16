@@ -1038,4 +1038,20 @@
     <string name="unlock_token_missing">Tác vụ Tasker/Locale đã lưu này thiếu mã thông báo bảo mật. Vui lòng lưu lại để tạo một mã mới.</string>
     <string name="various_gboardpadding_summ">Chỉ áp dụng cho Gboard; các phương thức nhập khác sử dụng cách triển khai bố cục riêng của chúng.</string>
 
+    <string name="unlock_host_missing">Không tìm thấy ứng dụng gọi. Tiện ích chỉ có thể được cấu hình từ một ứng dụng chủ như Tasker hoặc Locale.</string>
+    <string name="unlock_host_untrusted">Không thể xác minh ứng dụng gọi: %1$s</string>
+    <string name="unlock_host_cert_mismatch">%1$s (%2$s) không khớp với chứng chỉ ký đã liên kết trước đó.\nChứng chỉ hiện tại: %3$s</string>
+    <string name="unlock_host_summary">Ứng dụng chủ: %1$s\nGói: %2$s\nChứng chỉ hiện tại:\n%3$s\nLịch sử chứng chỉ:\n%4$s</string>
+    <string name="unlock_host_first">%1$s\n\nNhấn OK để liên kết ứng dụng chủ này và cấp mã bảo mật.</string>
+    <string name="unlock_host_reuse">%1$s\n\nỨng dụng chủ này đã được liên kết. Mã bảo mật hiện có sẽ được sử dụng lại.</string>
+    <string name="fast_reboot_not_received">Lệnh khởi động lại nhanh không được SystemUI nhận. Hãy xác nhận mô-đun đã bật, sau đó khởi động lại toàn bộ thiết bị.</string>
+    <string name="fast_reboot_failed">SystemUI đã nhận lệnh khởi động lại nhanh nhưng không thể thực hiện.</string>
+    <string name="restart_launcher_done">Trình khởi chạy đã khởi động lại</string>
+    <string name="restart_systemui_done">Giao diện hệ thống đã khởi động lại</string>
+    <string name="restart_securitycenter_done">Trung tâm bảo mật đã khởi động lại</string>
+    <string name="restart_launcher_failed">Không thể khởi động lại trình khởi chạy</string>
+    <string name="restart_systemui_failed">Không thể khởi động lại giao diện hệ thống</string>
+    <string name="restart_securitycenter_failed">Không thể khởi động lại trung tâm bảo mật</string>
+    <string name="system_strong_toast_mode_match_height">Khớp chiều cao thanh trạng thái</string>
+    <string name="system_strong_toast_mode_hide">Ẩn viên nang trạng thái</string>
 </resources>

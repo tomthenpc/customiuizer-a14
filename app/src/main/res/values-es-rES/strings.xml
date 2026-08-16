@@ -1026,4 +1026,30 @@
     <string name="various_miuiinstaller_summ">Permitir actualizar apps del sistema</string>
     <string name="various_package_installer_cat_title">Desbloquear funciones del instalador de paquetes</string>
 
+    <string name="unlock_host_missing">No se encontró la aplicación que realiza la llamada. El complemento solo se puede configurar desde una aplicación host como Tasker o Locale.</string>
+    <string name="unlock_host_untrusted">No se pudo verificar la aplicación llamante: %1$s</string>
+    <string name="unlock_host_cert_mismatch">%1$s (%2$s) no coincide con el certificado de firma previamente vinculado.\nCertificado actual: %3$s</string>
+    <string name="unlock_host_summary">Host: %1$s\nPaquete: %2$s\nCertificado actual:\n%3$s\nHistorial de certificados:\n%4$s</string>
+    <string name="unlock_host_first">%1$s\n\nToque Aceptar para vincular este host y emitir un token de seguridad.</string>
+    <string name="unlock_host_reuse">%1$s\n\nEste host ya está vinculado. Se reutilizará el token existente.</string>
+    <string name="system_epm_action_fastboot_title">Fastboot</string>
+    <string name="system_epm_action_fastboot_confirm_title">Reiniciar en modo fastboot</string>
+    <string name="system_epm_action_recovery_title">Recovery</string>
+    <string name="system_epm_action_recovery_confirm_title">Reiniciar en modo recovery</string>
+    <string name="various_calluibright_day_title">Modo diurno</string>
+    <string name="array_global_actions_splitscreen">Pantalla dividida</string>
+    <string name="array_lightupwithouanim">Encender pantalla sin animación</string>
+    <string name="qs_toggle_floatingtime">Hora flotante</string>
+    <string name="fast_reboot_not_received">El comando de reinicio rápido no fue recibido por SystemUI. Asegúrese de que el módulo esté activado y reinicie completamente el dispositivo.</string>
+    <string name="fast_reboot_failed">SystemUI recibió el comando de reinicio rápido, pero no pudo ejecutarlo.</string>
+    <string name="restart_launcher_done">Lanzador reiniciado</string>
+    <string name="restart_systemui_done">SystemUI reiniciado</string>
+    <string name="restart_securitycenter_done">Centro de seguridad reiniciado</string>
+    <string name="restart_launcher_failed">No se pudo reiniciar el lanzador</string>
+    <string name="restart_systemui_failed">No se pudo reiniciar SystemUI</string>
+    <string name="restart_securitycenter_failed">No se pudo reiniciar el centro de seguridad</string>
+    <string name="lsposed_not_connected">Aún no se ha conectado al servicio LSPosed.\nSi el módulo no está activado, abra LSPosed, actívelo y reinicie.</string>
+    <string name="lsposed_changes_not_delivered">Los cambios de configuración realizados desde entonces no han llegado al módulo, por lo que aún no están en vigor. Están guardados y se enviarán en cuanto se restablezca la conexión.</string>
+    <string name="system_strong_toast_mode_match_height">Coincidir con la altura de la barra de estado</string>
+    <string name="system_strong_toast_mode_hide">Ocultar cápsula de estado</string>
 </resources>

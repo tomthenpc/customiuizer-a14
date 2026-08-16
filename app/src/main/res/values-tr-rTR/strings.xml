@@ -1031,4 +1031,32 @@ ss - iki basamaklı saniye(09)</string>
     <string name="various_privacyapps_column_nums4_title">Gizli uygulamalar görünümünde sütun sayısını 4 yap</string>
     <string name="white_lists">Beyaz listeyi aç</string>
 
+    <string name="unlock_host_missing">Çağrı yapan uygulama bulunamadı. Eklenti yalnızca Tasker veya Locale gibi bir ana uygulamadan yapılandırılabilir.</string>
+    <string name="unlock_host_untrusted">Çağrı yapan uygulama doğrulanamadı: %1$s</string>
+    <string name="unlock_host_cert_mismatch">%1$s (%2$s) daha önce bağlanan imza sertifikasıyla eşleşmiyor.\nMevcut sertifika: %3$s</string>
+    <string name="unlock_host_summary">Ana uygulama: %1$s\nPaket: %2$s\nMevcut sertifika:\n%3$s\nSertifika geçmişi:\n%4$s</string>
+    <string name="unlock_host_first">%1$s\n\nBu ana uygulamayı bağlamak ve bir güvenlik jetonu vermek için Tamam\'a dokunun.</string>
+    <string name="unlock_host_reuse">%1$s\n\nBu ana uygulama zaten bağlı. Mevcut jeton yeniden kullanılacak.</string>
+    <string name="system_epm_action_fastboot_title">Fastboot</string>
+    <string name="system_epm_action_fastboot_confirm_title">Fastboot modunda yeniden başlat</string>
+    <string name="system_epm_action_recovery_title">Recovery</string>
+    <string name="system_epm_action_recovery_confirm_title">Recovery modunda yeniden başlat</string>
+    <string name="various_calluibright_day_title">Gündüz modu</string>
+    <string name="array_global_actions_splitscreen">Bölünmüş ekran</string>
+    <string name="array_global_actions_clear_notifs">Bildirimleri temizle</string>
+    <string name="array_lightupwithouanim">Animasyon olmadan ekranı aç</string>
+    <string name="array_mobiletypeicon_show_disconnected">Bağlı olmadığında göster</string>
+    <string name="qs_toggle_floatingtime">Yüzen zaman</string>
+    <string name="fast_reboot_not_received">Hızlı yeniden başlatma komutu SystemUI tarafından alınmadı. Modülün etkin olduğundan emin olun ve ardından cihazı tamamen yeniden başlatın.</string>
+    <string name="fast_reboot_failed">SystemUI hızlı yeniden başlatma komutunu aldı ancak yürütemedi.</string>
+    <string name="restart_launcher_done">Başlatıcı yeniden başlatıldı</string>
+    <string name="restart_systemui_done">Arayüz yeniden başlatıldı</string>
+    <string name="restart_securitycenter_done">Güvenlik merkezi yeniden başlatıldı</string>
+    <string name="restart_launcher_failed">Başlatıcı yeniden başlatılamadı</string>
+    <string name="restart_systemui_failed">Arayüz yeniden başlatılamadı</string>
+    <string name="restart_securitycenter_failed">Güvenlik merkezi yeniden başlatılamadı</string>
+    <string name="lsposed_not_connected">Henüz LSPosed hizmetine bağlanılmadı.\nModül etkin değilse LSPosed\'i açın, etkinleştirin ve yeniden başlatın.</string>
+    <string name="lsposed_changes_not_delivered">O zamandan beri yapılan ayar değişiklikleri modüle ulaşmadığı için henüz yürürlükte değil. Kaydedildi ve bağlantı yeniden kurulduğunda gönderilecek.</string>
+    <string name="system_strong_toast_mode_match_height">Durum çubuğu yüksekliğiyle eşleş</string>
+    <string name="system_strong_toast_mode_hide">Durum kapsülünü gizle</string>
 </resources>

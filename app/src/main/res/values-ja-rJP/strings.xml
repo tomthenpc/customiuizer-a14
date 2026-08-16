@@ -1038,4 +1038,20 @@
     <string name="unlock_token_missing">保存されたTasker/Localeタスクにセキュリティトークンがありません。トークンを生成するには、もう一度保存してください。</string>
     <string name="various_gboardpadding_summ">Gboard にのみ適用されます。他の入力方法は独自のレイアウト実装を使用します。</string>
 
+    <string name="unlock_host_missing">呼び出し元のアプリが見つかりませんでした。プラグインは Tasker や Locale などのホストアプリからのみ設定できます。</string>
+    <string name="unlock_host_untrusted">呼び出し元のアプリを確認できませんでした：%1$s</string>
+    <string name="unlock_host_cert_mismatch">%1$s（%2$s）は以前にバインドされた署名証明書と一致しません。\n現在の証明書：%3$s</string>
+    <string name="unlock_host_summary">ホスト：%1$s\nパッケージ：%2$s\n現在の証明書：\n%3$s\n証明書履歴：\n%4$s</string>
+    <string name="unlock_host_first">%1$s\n\nOKをタップしてこのホストをバインドし、セキュリティトークンを発行します。</string>
+    <string name="unlock_host_reuse">%1$s\n\nこのホストはすでにバインドされています。既存のトークンを再利用します。</string>
+    <string name="fast_reboot_not_received">高速再起動コマンドが SystemUI によって受信されませんでした。モジュールが有効になっていることを確認し、端末を完全に再起動してください。</string>
+    <string name="fast_reboot_failed">SystemUI は高速再起動コマンドを受信しましたが、実行できませんでした。</string>
+    <string name="restart_launcher_done">ランチャーを再起動しました</string>
+    <string name="restart_systemui_done">SystemUIを再起動しました</string>
+    <string name="restart_securitycenter_done">セキュリティセンターを再起動しました</string>
+    <string name="restart_launcher_failed">ランチャーの再起動に失敗しました</string>
+    <string name="restart_systemui_failed">SystemUIの再起動に失敗しました</string>
+    <string name="restart_securitycenter_failed">セキュリティセンターの再起動に失敗しました</string>
+    <string name="system_strong_toast_mode_match_height">ステータスバーの高さに合わせる</string>
+    <string name="system_strong_toast_mode_hide">ステータスカプセルを非表示</string>
 </resources>

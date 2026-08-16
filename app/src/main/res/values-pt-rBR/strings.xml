@@ -1038,4 +1038,20 @@
     <string name="unlock_token_missing">Esta tarefa salva do Tasker/Locale não tem um token de segurança. Salve-a novamente para gerar um.</string>
     <string name="various_gboardpadding_summ">Aplica-se apenas ao Gboard; outros métodos de entrada usam sua própria implementação de layout.</string>
 
+    <string name="unlock_host_missing">Nenhum aplicativo chamador encontrado. O plug-in só pode ser configurado a partir de um host como o Tasker ou o Locale.</string>
+    <string name="unlock_host_untrusted">Não foi possível verificar o aplicativo chamador: %1$s</string>
+    <string name="unlock_host_cert_mismatch">%1$s (%2$s) não corresponde ao certificado de assinatura vinculado anteriormente.\nCertificado atual: %3$s</string>
+    <string name="unlock_host_summary">Host: %1$s\nPacote: %2$s\nCertificado atual:\n%3$s\nHistórico de certificados:\n%4$s</string>
+    <string name="unlock_host_first">%1$s\n\nToque em OK para vincular este host e emitir um token de segurança.</string>
+    <string name="unlock_host_reuse">%1$s\n\nEste host já está vinculado. O token existente será reutilizado.</string>
+    <string name="fast_reboot_not_received">O comando de reinicialização rápida não foi recebido pela SystemUI. Confirme que o módulo está ativo e reinicie completamente o dispositivo.</string>
+    <string name="fast_reboot_failed">A SystemUI recebeu o comando de reinicialização rápida, mas não conseguiu executá-lo.</string>
+    <string name="restart_launcher_done">Launcher reiniciado</string>
+    <string name="restart_systemui_done">SystemUI reiniciado</string>
+    <string name="restart_securitycenter_done">Centro de segurança reiniciado</string>
+    <string name="restart_launcher_failed">Falha ao reiniciar o launcher</string>
+    <string name="restart_systemui_failed">Falha ao reiniciar a SystemUI</string>
+    <string name="restart_securitycenter_failed">Falha ao reiniciar o centro de segurança</string>
+    <string name="system_strong_toast_mode_match_height">Igualar altura da barra de status</string>
+    <string name="system_strong_toast_mode_hide">Ocultar cápsula de status</string>
 </resources>

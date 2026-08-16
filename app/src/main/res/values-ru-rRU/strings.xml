@@ -1033,4 +1033,24 @@
     <string name="various_disable_reset_recents_privacy_blur_title">Отключить сброс списка размытия конфиденциальности в недавних</string>
     <string name="various_gboardpadding_summ">Применяется только к Gboard; другие способы ввода используют собственную реализацию раскладки.</string>
 
+    <string name="unlock_host_missing">Вызывающее приложение не найдено. Плагин можно настроить только из хост-приложения, например Tasker или Locale.</string>
+    <string name="unlock_host_untrusted">Не удалось проверить вызывающее приложение: %1$s</string>
+    <string name="unlock_host_cert_mismatch">%1$s (%2$s) не соответствует ранее привязанному сертификату подписи.\nТекущий сертификат: %3$s</string>
+    <string name="unlock_host_summary">Хост: %1$s\nПакет: %2$s\nТекущий сертификат:\n%3$s\nИстория сертификатов:\n%4$s</string>
+    <string name="unlock_host_first">%1$s\n\nНажмите OK, чтобы привязать этот хост и выдать маркер безопасности.</string>
+    <string name="unlock_host_reuse">%1$s\n\nЭтот хост уже привязан. Будет использован существующий токен.</string>
+    <string name="various_calluibright_day_title">Дневной режим</string>
+    <string name="array_global_actions_splitscreen">Разделение экрана</string>
+    <string name="array_lightupwithouanim">Включить экран без анимации</string>
+    <string name="qs_toggle_floatingtime">Плавающее время</string>
+    <string name="fast_reboot_not_received">Команда быстрой перезагрузки не была получена SystemUI. Убедитесь, что модуль включён, затем полностью перезагрузите устройство.</string>
+    <string name="fast_reboot_failed">SystemUI получил команду быстрой перезагрузки, но не смог выполнить её.</string>
+    <string name="restart_launcher_done">Рабочий стол перезагружен</string>
+    <string name="restart_systemui_done">Интерфейс перезапущен</string>
+    <string name="restart_securitycenter_done">Центр безопасности перезапущен</string>
+    <string name="restart_launcher_failed">Не удалось перезагрузить рабочий стол</string>
+    <string name="restart_systemui_failed">Не удалось перезапустить интерфейс</string>
+    <string name="restart_securitycenter_failed">Не удалось перезапустить центр безопасности</string>
+    <string name="system_strong_toast_mode_match_height">Подгонять высоту строки состояния</string>
+    <string name="system_strong_toast_mode_hide">Скрыть капсулу состояния</string>
 </resources>

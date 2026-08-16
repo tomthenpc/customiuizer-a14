@@ -1058,4 +1058,10 @@
     <string name="system_volume_hide_mute_shortcut_title">隐藏静音快捷按钮</string>
     <string name="unlock_token_missing">此已保存的 Tasker/Locale 任务缺少安全令牌。请重新保存以生成一个。</string>
 
+    <string name="unlock_host_missing">未找到调用应用。该插件只能从 Tasker 或 Locale 等宿主应用中进行配置。</string>
+    <string name="unlock_host_untrusted">无法验证调用应用：%1$s</string>
+    <string name="unlock_host_cert_mismatch">%1$s（%2$s）与此前绑定的签名证书不匹配。\n当前证书：%3$s</string>
+    <string name="unlock_host_summary">宿主：%1$s\n包名：%2$s\n当前证书：\n%3$s\n证书历史：\n%4$s</string>
+    <string name="unlock_host_first">%1$s\n\n点击确定以绑定此宿主并签发安全令牌。</string>
+    <string name="unlock_host_reuse">%1$s\n\n此宿主已绑定。现有令牌将复用。</string>
 </resources>
