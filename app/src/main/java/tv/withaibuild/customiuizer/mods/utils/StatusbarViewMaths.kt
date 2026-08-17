@@ -128,7 +128,10 @@ object StatusbarViewMaths {
             lineSpacingMultiplier,
             minPx,
         )
-        val metricsHeight = if (fontMetricsHeightPx > 0f) fontMetricsHeightPx else requestedPx
+        val metricsHeight = maxOf(
+            if (fontMetricsHeightPx > 0f) fontMetricsHeightPx else 0f,
+            requestedPx * 1.25f,
+        )
         val sizeFromMetrics = shrinkToFitPx(
             metricsHeight,
             availableHeightPx,

@@ -400,8 +400,10 @@ object SystemUIStatusBarHooks {
         val dualRows = (optIsDualContent(MainModule.mPrefs.getStringAsInt("system_statusbar_${subKey}_content", 1))
             && !MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_singlerow"))
         val lineCount = if (dualRows) 2 else 1
+        iconTextView.includeFontPadding = false
+        iconTextView.setSingleLine(false)
+        iconTextView.maxLines = lineCount
         if (dualRows) {
-            iconTextView.maxLines = 2
             val textSizeDp = iconTextView.textSize / res.displayMetrics.density
             iconTextView.setLineSpacing(0f, if (textSizeDp > 8.5f) 0.85f else 0.9f)
         }

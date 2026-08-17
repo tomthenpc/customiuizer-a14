@@ -128,7 +128,7 @@ internal object StatusBarTextFit {
         if (available <= 0) return
         val minRequested = HookUtils.dp2px(MIN_TEXT_SIZE_DP).coerceAtLeast(1f)
         val fm = textView.paint.fontMetrics
-        val fontH = (fm.bottom - fm.top).coerceAtLeast(textView.textSize)
+        val fontH = maxOf(fm.bottom - fm.top, fm.descent - fm.ascent, textView.textSize * 1.25f)
         val next = StatusbarViewMaths.fittedTextSizePx(
             requestedPx,
             fontH,

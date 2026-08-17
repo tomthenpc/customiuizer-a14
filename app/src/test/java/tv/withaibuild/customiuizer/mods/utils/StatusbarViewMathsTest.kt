@@ -104,6 +104,14 @@ class StatusbarViewMathsTest {
     }
 
     @Test
+    fun degenerateMetricsStillShrinksDualLineIntoWindow() {
+        val fitted = StatusbarViewMaths.fittedTextSizePx(38f, 38f, 80, 2, 0.85f, 6f)
+        assertTrue(fitted < 38f)
+        val occupied = StatusbarViewMaths.occupiedHeightPx(38f * 1.25f * (fitted / 38f), 2, 0.85f)
+        assertTrue(occupied <= 80f + 0.5f)
+    }
+
+    @Test
     fun localOffsetClampsInsideAvailable() {
         assertEquals(2f, StatusbarViewMaths.clampVerticalOffsetPx(10f, 20, 16), 0.001f)
         assertEquals(-2f, StatusbarViewMaths.clampVerticalOffsetPx(-10f, 20, 16), 0.001f)
