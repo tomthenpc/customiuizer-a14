@@ -2,7 +2,7 @@
 
 ## 版本
 
-- `versionName` 形如 `r14.20.2`
+- `versionName` 形如 `r14.20.5`
 - `versionCode` 必须单调增加
 - LSPosed tag：`<versionCode>-<versionName>`
 - 个人仓库 tag：`<versionName>`

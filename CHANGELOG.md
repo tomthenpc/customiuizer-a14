@@ -2,40 +2,7 @@
 
 English | [简体中文](CHANGELOG_CN.md)
 
-## r14.20.4 — 2026-08-18
-
-Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
-
-### Fixes
-
-- Disable wallpaper scale now clamps the actual launcher zoom-out calls on HyperOS 1, so recents and app open/close transitions stay unscaled instead of relying only on `ZOOM_ENABLED`.
-- Launcher → Other and System → Recents wallpaper-scale toggles now have distinct titles and summaries; either one disables recents/app wallpaper zoom, and only the launcher toggle also disables unlock wallpaper scale and recents dim.
-
-### Artifact Information
-
-- APK: `CustoMIUIzer-A14-r14.20.4.apk`
-- versionCode / versionName: `201 / r14.20.4`
-
----
-
-## r14.20.3 — 2026-08-18
-
-Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
-
-### Fixes
-
-- Disabling folder background blur no longer flashes the HyperOS default blur while dragging icons inside a folder, and the folder stays clear after the drop.
-- Recents "disable wallpaper scale" now keeps wallpaper zoom off for the whole recents session instead of restoring it at the end of `onStateEnabled`.
-- Recents background blur at 0% now applies on full-screen gesture enter. It stays on the launcher blur path and does not share state with System-Other window-level blur disable; an active folder keeps its own blur ratio.
-
-### Artifact Information
-
-- APK: `CustoMIUIzer-A14-r14.20.3.apk`
-- versionCode / versionName: `200 / r14.20.3`
-
----
-
-## r14.20.2 — 2026-08-17
+## r14.20.5 — 2026-08-18
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
 
@@ -45,11 +12,20 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/10
 - In dual-row mode, temperature moves to the left when “show on the right” is off.
 - Default font size is kept when it fits. If a custom height or vertical offset leaves too little room, text shrinks instead of being clipped.
 - Status-bar contents can be moved vertically without leaving the status-bar window.
+- Battery details that should appear only while charging no longer leak when battery status is unavailable.
+
+### Launcher and Recents
+
+- Disabling folder background blur no longer flashes the HyperOS default blur while dragging icons inside a folder, and the folder stays clear after the drop.
+- Disable wallpaper scale now clamps the actual launcher zoom-out calls on HyperOS 1, so recents and app open/close transitions stay unscaled instead of relying only on `ZOOM_ENABLED`.
+- Launcher → Other and System → Recents wallpaper-scale toggles now have distinct titles and summaries; either one disables recents/app wallpaper zoom, and only the launcher toggle also disables unlock wallpaper scale and recents dim.
+- Recents background blur at 0% now applies on full-screen gesture enter. It stays on the launcher blur path and does not share state with System-Other window-level blur disable; an active folder keeps its own blur ratio.
 
 ### Fixes
 
 - Dynamic Island upward recall is more reliable.
 - Device-info updates no longer depend on network-speed controller slots, so temperature text can still appear without that controller.
+- Charging wake suppression option 2 restores the intended POWER / PLUGGED / RAPID / WIRELESS behavior on A14.
 
 ### Stability and Compatibility
 
@@ -57,8 +33,8 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/10
 
 ### Artifact Information
 
-- APK: `CustoMIUIzer-A14-r14.20.2.apk`
-- versionCode / versionName: `199 / r14.20.2`
+- APK: `CustoMIUIzer-A14-r14.20.5.apk`
+- versionCode / versionName: `202 / r14.20.5`
 
 ---
 

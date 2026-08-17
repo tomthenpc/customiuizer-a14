@@ -12,8 +12,8 @@ Do not treat current production code as source of truth.
 
 | Field | Value |
 | --- | --- |
-| BATCH_1_GATE | PASS_CANDIDATE |
-| LEGACY_SEMANTIC_CALIBRATION_STAGE | HOLD |
+| BATCH_1_GATE | PASS |
+| LEGACY_SEMANTIC_CALIBRATION_STAGE | COMPLETE |
 | CONFIRMED_SEMANTIC_DRIFT | 2 |
 | SEMANTIC_DRIFT_FIXED | 2 |
 | ROM_COMPATIBILITY_GAPS | 2 |
