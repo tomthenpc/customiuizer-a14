@@ -187,22 +187,22 @@ object SystemDisplayHooks {
     }
 
     /**
-     * Upstream v24.10.12 `NoLightUpOnChargeHook` contract:
-     * - 2 = block POWER, PLUGGED, and SystemUI charge-anim wake reasons
-     * - 3 = block POWER and PLUGGED only
+     * A14 product contract, not upstream option-3 restoration:
+     * - 1 = stock wake
+     * - 2 = suppress charging wake reasons
+     * - 3 = native wake; SystemUI still hides the charge animation
+     *
+     * Option is read on each callback so a live change from 2 to 3 stops blocking wake
+     * without reinstalling the hook.
      */
     @JvmStatic
     internal fun shouldSkipChargeWake(option: Int, reason: String): Boolean {
-        val powerOrPlugged = reason == "android.server.power:POWER" ||
-            reason.startsWith("android.server.power:PLUGGED")
-        val chargeAnim = reason == "com.android.systemui:RAPID_CHARGE" ||
+        if (option != 2) return false
+        return reason == "android.server.power:POWER" ||
+            reason.startsWith("android.server.power:PLUGGED") ||
+            reason == "com.android.systemui:RAPID_CHARGE" ||
             reason == "com.android.systemui:WIRELESS_CHARGE" ||
             reason == "com.android.systemui:WIRELESS_RAPID_CHARGE"
-        return when (option) {
-            3 -> powerOrPlugged
-            2 -> powerOrPlugged || chargeAnim
-            else -> false
-        }
     }
 
     /**

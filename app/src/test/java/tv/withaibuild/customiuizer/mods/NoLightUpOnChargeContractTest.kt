@@ -9,43 +9,54 @@ import tv.withaibuild.customiuizer.utils.PrefMap
 
 class NoLightUpOnChargeContractTest {
 
-    @Test
-    fun systemServerInstallsForBothNonDefaultOptions() {
-        assertFalse(NoLightUpOnChargeFeature.evaluateEnabled(PrefMap()))
-        assertFalse(NoLightUpOnChargeFeature.evaluateEnabled(prefs(1)))
-        assertTrue(NoLightUpOnChargeFeature.evaluateEnabled(prefs(2)))
-        assertTrue(NoLightUpOnChargeFeature.evaluateEnabled(prefs(3)))
-    }
+    private val chargingWakeReasons = listOf(
+        "android.server.power:POWER",
+        "android.server.power:PLUGGED:USB",
+        "com.android.systemui:RAPID_CHARGE",
+        "com.android.systemui:WIRELESS_CHARGE",
+        "com.android.systemui:WIRELESS_RAPID_CHARGE",
+    )
 
     @Test
-    fun systemUiInstallsForBothNonDefaultOptions() {
-        assertFalse(NoLightUpOnChargeSystemUiFeature.evaluateEnabled(PrefMap()))
+    fun installGatesFollowA14ProductOptions() {
+        assertFalse(NoLightUpOnChargeFeature.evaluateEnabled(prefs(1)))
+        assertFalse(NoLightUpOnChargeSystemUiFeature.evaluateEnabled(prefs(1)))
+
+        assertTrue(NoLightUpOnChargeFeature.evaluateEnabled(prefs(2)))
         assertTrue(NoLightUpOnChargeSystemUiFeature.evaluateEnabled(prefs(2)))
+
+        assertFalse(NoLightUpOnChargeFeature.evaluateEnabled(prefs(3)))
         assertTrue(NoLightUpOnChargeSystemUiFeature.evaluateEnabled(prefs(3)))
     }
 
     @Test
-    fun option2BlocksPowerPluggedAndChargeAnimReasons() {
-        assertTrue(SystemDisplayHooks.shouldSkipChargeWake(2, "android.server.power:POWER"))
-        assertTrue(SystemDisplayHooks.shouldSkipChargeWake(2, "android.server.power:PLUGGED:USB"))
-        assertTrue(SystemDisplayHooks.shouldSkipChargeWake(2, "com.android.systemui:RAPID_CHARGE"))
-        assertTrue(SystemDisplayHooks.shouldSkipChargeWake(2, "com.android.systemui:WIRELESS_CHARGE"))
-        assertTrue(SystemDisplayHooks.shouldSkipChargeWake(2, "com.android.systemui:WIRELESS_RAPID_CHARGE"))
+    fun option2BlocksAllKnownChargingWakeReasons() {
+        for (reason in chargingWakeReasons) {
+            assertTrue(reason, SystemDisplayHooks.shouldSkipChargeWake(2, reason))
+        }
         assertFalse(SystemDisplayHooks.shouldSkipChargeWake(2, "android.server.power:DREAM"))
     }
 
     @Test
-    fun option3BlocksPowerAndPluggedOnly() {
-        assertTrue(SystemDisplayHooks.shouldSkipChargeWake(3, "android.server.power:POWER"))
-        assertTrue(SystemDisplayHooks.shouldSkipChargeWake(3, "android.server.power:PLUGGED:USB"))
-        assertFalse(SystemDisplayHooks.shouldSkipChargeWake(3, "com.android.systemui:RAPID_CHARGE"))
-        assertFalse(SystemDisplayHooks.shouldSkipChargeWake(3, "com.android.systemui:WIRELESS_CHARGE"))
+    fun option1AndOption3NeverBlockWake() {
+        for (option in intArrayOf(1, 3)) {
+            for (reason in chargingWakeReasons) {
+                assertFalse(
+                    "option $option must not block $reason",
+                    SystemDisplayHooks.shouldSkipChargeWake(option, reason),
+                )
+            }
+        }
     }
 
     @Test
-    fun defaultOptionNeverSkips() {
-        assertFalse(SystemDisplayHooks.shouldSkipChargeWake(1, "android.server.power:POWER"))
-        assertFalse(SystemDisplayHooks.shouldSkipChargeWake(1, "android.server.power:PLUGGED:USB"))
+    fun liveChangeFromOption2ToOption3StopsBlockingWake() {
+        for (reason in chargingWakeReasons) {
+            assertTrue(SystemDisplayHooks.shouldSkipChargeWake(2, reason))
+        }
+        for (reason in chargingWakeReasons) {
+            assertFalse(SystemDisplayHooks.shouldSkipChargeWake(3, reason))
+        }
     }
 
     private fun prefs(option: Int): PrefMap =

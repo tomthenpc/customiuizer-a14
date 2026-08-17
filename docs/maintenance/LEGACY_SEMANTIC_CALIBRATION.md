@@ -12,18 +12,25 @@ Do not treat current production code as source of truth.
 
 | Field | Value |
 | --- | --- |
+| BATCH_1_GATE | PASS_CANDIDATE |
+| LEGACY_SEMANTIC_CALIBRATION_STAGE | HOLD |
 | CONFIRMED_SEMANTIC_DRIFT | 2 |
 | SEMANTIC_DRIFT_FIXED | 2 |
 | ROM_COMPATIBILITY_GAPS | 2 |
 | DEAD_FEATURES | 0 |
 | REMOVED_BY_PRODUCT | 58 |
+| NO_LIGHT_OPTION_3 | INTENTIONAL_A14_PRODUCT_DIVERGENCE |
 | NETSPEED_FORMATSPEED | ROM_EVIDENCE_HOLD |
 | LOCKSCREEN_TIMEOUT | ROM_EVIDENCE_HOLD |
 
 Confirmed Batch 1 production fixes:
 
-1. `system_nolightuponcharges` charging wake suppression
+1. `system_nolightuponcharges` option **2** charging wake suppression (POWER / PLUGGED / RAPID / WIRELESS)
 2. Battery details “only while charging” when `sBatteryStatus` is unavailable
+
+`NO_LIGHT_OPTION_3 = INTENTIONAL_A14_PRODUCT_DIVERGENCE`
+
+A14 option 3 is **not** an upstream semantic restoration. Upstream option 3 blocked POWER/PLUGGED. A14 option 3 is native screen wake + charge animation suppressed. Do not count that redesign as `SEMANTIC_DRIFT`.
 
 ## Inventory snapshot
 
@@ -36,7 +43,7 @@ Confirmed Batch 1 production fixes:
 | Upstream-only keys | 74 |
 | XML default mismatches (including omitted `defaultValue="false"`) | 28 |
 | Real XML default mismatches | 4 |
-| Array entry mismatches | 1 (`lightups` labels) |
+| Array entry mismatches | 1 (`lightups` labels; A14 option-3 wording is product, not upstream restore) |
 | SeekBar range mismatches | 7 |
 
 Regenerate the raw key diff with:
@@ -52,6 +59,7 @@ python tools/legacy_semantic_compare.py --upstream /path/to/MonwF-customiuizer
 | SEMANTIC_MATCH | Current architecture preserves upstream user contract |
 | SEMANTIC_DRIFT | Visible legacy feature still exists; behavior diverged without documented intent |
 | INTENTIONAL_DIVERGENCE | A14 product change (HyperOS 1, changelog, or explicit redesign) |
+| INTENTIONAL_A14_PRODUCT_DIVERGENCE | Named A14 product marker. `NO_LIGHT_OPTION_3` uses this; it is not an upstream restoration |
 | ROM_COMPATIBILITY_GAP | Semantics known; HyperOS 1 target missing or unproven |
 | DEAD_FEATURE | Current A14 UI/pref still exists, and runtime is unreachable |
 | REMOVED_BY_PRODUCT | Upstream-only feature deliberately dropped from the A14 product |
@@ -69,12 +77,17 @@ Dynamic Island, StrongToast geometry, Backup V2, USB default purpose, matched re
 ### No screen light up on charge
 
 - Feature: `system_nolightuponcharges`
-- Upstream contract: `> 1` installs `wakePowerGroupLocked` hook; option `2` blocks POWER + PLUGGED + charge-anim reasons; option `3` blocks POWER + PLUGGED only
-- Previous A14: system_server installed only for `== 2`, skipped PLUGGED/charge-anim, omitted POWER, and did not branch on 2 vs 3
-- Fix: install for `> 1`; callback-read option; `SystemDisplayHooks.shouldSkipChargeWake`
+- A14 product contract (authoritative; differs from MonwF upstream option 3):
+  - `1` = stock
+  - `2` = do not wake on charging + do not show charge animation
+  - `3` = native screen wake + do not show charge animation (`NO_LIGHT_OPTION_3 = INTENTIONAL_A14_PRODUCT_DIVERGENCE`)
+- Actual charging drift fixed: option **2** omitted `POWER` / incomplete wake-reason suppression
+- system_server installer: `option == 2` only. Option 3 must not depend on RAPID_CHARGE/WIRELESS_CHARGE existing on a ROM
+- `shouldSkipChargeWake`: option 2 blocks POWER, PLUGGED*, RAPID_CHARGE, WIRELESS_CHARGE, WIRELESS_RAPID_CHARGE; option 1 and 3 block none. Callback-read so a live 2→3 change without process restart stops blocking wake
+- SystemUI installer stays `option > 1`; `MiuiChargeController.shouldShowChargeAnim = false` for both 2 and 3
+- UI: English “Light up screen without animation”; Chinese “点亮但不显示动画”. Do not restore upstream “Only events without animation.”
 - Tests: `NoLightUpOnChargeContractTest`
-- Result: SEMANTIC_DRIFT → fixed
-- A14 extra kept: SystemUI `shouldShowChargeAnim=false` for `> 1`
+- Result: option-2 wake suppression = SEMANTIC_DRIFT → fixed; option 3 = INTENTIONAL_A14_PRODUCT_DIVERGENCE, not SEMANTIC_DRIFT
 
 ### Battery details “show when charging only”
 
@@ -83,6 +96,7 @@ Dynamic Island, StrongToast geometry, Backup V2, USB default purpose, matched re
 - Previous A14: missing status showed the reading anyway
 - Fix: `DeviceInfoChargeVisibility.shouldShowWhenInChargeOnly`; resolve `com.miui.charge.ChargeUtils` then `com.android.keyguard.charge.ChargeUtils`
 - Missing ChargeUtils class still skips the filter (show), matching upstream
+- When ChargeUtils exists but `sBatteryStatus` is `NOT_EXIST_SYMBOL`, keep the resolved class. Clearing it fail-opens the next tick (`chargeUtilsClass ?: return true`) and shows the reading
 - Tests: `DeviceInfoChargeVisibilityTest`
 - Result: SEMANTIC_DRIFT → fixed
 

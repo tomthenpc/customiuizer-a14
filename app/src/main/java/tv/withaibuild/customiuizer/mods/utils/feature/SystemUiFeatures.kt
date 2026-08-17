@@ -2161,6 +2161,7 @@ internal class NoLightUpOnChargeSystemUiFeature(
     "system_nolightuponcharges"
 ) {
     companion object {
+        // Option 2 and 3 both suppress the charge animation. Option 3 still wakes natively.
         @JvmStatic
         fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_nolightuponcharges", 1) > 1
     }

@@ -20,6 +20,15 @@ class DeviceInfoChargeVisibilityTest {
     }
 
     @Test
+    fun missingStatusStaysHiddenOnRepeatedTicks() {
+        repeat(3) {
+            assertFalse(
+                DeviceInfoChargeVisibility.shouldShowWhenInChargeOnly(notExist, notExist) { true }
+            )
+        }
+    }
+
+    @Test
     fun chargingStatusShowsWhenInChargeOnly() {
         val status = Any()
         assertTrue(

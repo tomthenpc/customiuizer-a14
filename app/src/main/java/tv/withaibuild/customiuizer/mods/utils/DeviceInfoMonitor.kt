@@ -708,9 +708,8 @@ object DeviceInfoMonitor {
         if (!cfg.batteryInCharge) return true
         val chargeUtils = chargeUtilsClass ?: return true
         val batteryStatus = ModuleHelper.getStaticObjectFieldSilently(chargeUtils, "sBatteryStatus")
-        if (batteryStatus === ModuleHelper.NOT_EXIST_SYMBOL) {
-            chargeUtilsClass = null
-        }
+        // Keep the resolved class across ticks. Clearing it on NOT_EXIST would fail-open
+        // on the next pass (`chargeUtilsClass ?: return true`) and show the reading.
         return DeviceInfoChargeVisibility.shouldShowWhenInChargeOnly(
             batteryStatus,
             ModuleHelper.NOT_EXIST_SYMBOL,
