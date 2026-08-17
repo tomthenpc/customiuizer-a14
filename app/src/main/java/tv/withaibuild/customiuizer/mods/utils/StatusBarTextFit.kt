@@ -28,7 +28,8 @@ internal object StatusBarTextFit {
     private const val HOST_LISTENER = "customiuizer_sb_text_shrink_host_listener"
     private const val HOST_VIEWS = "customiuizer_sb_text_shrink_host_views"
     private const val ATTACH_LISTENER = "customiuizer_sb_text_shrink_attach"
-    private const val HOST_WALK = 3
+    private const val HOST_WALK = 8
+    private const val WINDOW_SUFFIX = "StatusBarWindowView"
 
     fun applyBoldPreservingFamily(textView: TextView, bold: Boolean) {
         if (!bold) return
@@ -92,6 +93,7 @@ internal object StatusBarTextFit {
         while (host != null && steps < HOST_WALK) {
             host.addOnLayoutChangeListener(listener)
             hosts.add(host)
+            if (host.javaClass.name.endsWith(WINDOW_SUFFIX)) break
             host = host.parent as? View
             steps++
         }
@@ -178,14 +180,18 @@ internal object StatusBarTextFit {
     }
 
     private fun resolvedHeight(textView: TextView): Int {
-        val parent = textView.parent as? View
-        val row = parent?.parent as? View
-        val owner = row?.parent as? View
-        return StatusbarViewMaths.resolvedTextFitHeightPx(
-            textView.height,
-            parent?.height ?: 0,
-            row?.height ?: 0,
-            owner?.height ?: 0,
-        )
+        var envelope = 0
+        var host: View? = textView.parent as? View
+        var steps = 0
+        while (host != null && steps < HOST_WALK) {
+            val height = host.height
+            if (height > 0) {
+                envelope = if (envelope > 0) minOf(envelope, height) else height
+            }
+            if (host.javaClass.name.endsWith(WINDOW_SUFFIX)) break
+            host = host.parent as? View
+            steps++
+        }
+        return StatusbarViewMaths.resolvedTextFitHeightPx(textView.height, envelope)
     }
 }

@@ -455,6 +455,9 @@ object SystemUIStatusBarHooks {
             throw IllegalStateException("Failed to inflate statusbar_text_icon for type $iconType", t)
         }
         iconView.setTag(textIconTagId, iconType)
+        if (lp.height == ViewGroup.LayoutParams.WRAP_CONTENT) {
+            lp.height = ViewGroup.LayoutParams.MATCH_PARENT
+        }
         iconView.layoutParams = lp
         val mNumber = iconView.findViewWithTag<View>("network_speed_number")
         val mUnit = iconView.findViewWithTag<View>("network_speed_unit")
