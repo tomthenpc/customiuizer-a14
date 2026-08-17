@@ -606,31 +606,39 @@ object DeviceInfoMonitor {
 
         val shouldShowBattery = if (cfg.showBatteryDetail) shouldShowBatteryInfo(cfg) else false
         val shouldShowTemp = cfg.showDeviceTemp
+        val needBatteryTemp = shouldShowTemp && DeviceInfoFormatter.needsBatteryTemperature(cfg.deviceTempContentOpt)
+        val needCpuTemp = shouldShowTemp && DeviceInfoFormatter.needsCpuTemperature(cfg.deviceTempContentOpt)
 
         if (!shouldShowBattery && !shouldShowTemp) return DeviceData(false, "", false, "")
 
-        val props: Properties? = if (shouldShowBattery || shouldShowTemp) DeviceInfoFormatter.readBatteryProps() else null
-        val cpuProps: String? = if (shouldShowTemp) DeviceInfoFormatter.readCpuTemp(ModuleHelper.getCPUThermalId()) else null
+        val props: Properties? = if (shouldShowBattery || needBatteryTemp) DeviceInfoFormatter.readBatteryProps() else null
+        val cpuProps: String? = if (needCpuTemp) DeviceInfoFormatter.readCpuTemp(ModuleHelper.getCPUThermalId()) else null
 
         val batteryFailed = shouldShowBattery && props == null
-        val tempFailed = shouldShowTemp && cpuProps == null
+        val tempFailed = when {
+            !shouldShowTemp -> false
+            needBatteryTemp && needCpuTemp -> props == null && cpuProps.isNullOrEmpty()
+            needBatteryTemp -> props == null
+            needCpuTemp -> cpuProps.isNullOrEmpty()
+            else -> false
+        }
         val anyFailed = batteryFailed || tempFailed
 
         if (anyFailed) {
             monitorState.bumpFailCount()
-            if (props == null && cpuProps == null) return null
+            if (props == null && cpuProps.isNullOrEmpty()) return null
         } else {
             monitorState.resetFailCount()
         }
 
         val fmtCfg = cfg.toFormatterConfig()
         val batteryText = if (shouldShowBattery && props != null) DeviceInfoFormatter.formatBatteryInfo(fmtCfg, props) else ""
-        val deviceText = if (shouldShowTemp && props != null && cpuProps != null) DeviceInfoFormatter.formatDeviceInfo(fmtCfg, props, cpuProps) else ""
+        val deviceText = if (shouldShowTemp) DeviceInfoFormatter.formatDeviceInfo(fmtCfg, props, cpuProps) else ""
 
         return DeviceData(
             batteryShow = shouldShowBattery,
             batteryText = batteryText,
-            tempShow = shouldShowTemp,
+            tempShow = shouldShowTemp && deviceText.isNotEmpty(),
             tempText = deviceText
         )
     }
