@@ -46,7 +46,8 @@ import tv.withaibuild.customiuizer.mods.utils.StatusBarDisplayRegistry
 import tv.withaibuild.customiuizer.mods.utils.StatusBarDisplayState
 import tv.withaibuild.customiuizer.mods.utils.StatusBarNetworkSpeedDispatcher
 import tv.withaibuild.customiuizer.mods.utils.releaseRegistrationSilently
-import tv.withaibuild.customiuizer.mods.utils.StepCounterController
+import tv.withaibuild.customiuizer.mods.utils.StatusBarTextFit
+import tv.withaibuild.customiuizer.mods.utils.StatusbarViewMaths
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.HookUtils
@@ -57,7 +58,6 @@ import java.util.ArrayList
 import java.util.HashSet
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-import kotlin.math.roundToInt
 
 /**
  * Status bar content hooks.
@@ -382,33 +382,44 @@ object SystemUIStatusBarHooks {
         }
         val res = mContext.resources
         val styleId = res.getIdentifier("TextAppearance.StatusBar.Clock", "style", "com.android.systemui")
-        iconTextView.setTextAppearance(styleId)
+        if (styleId != 0) iconTextView.setTextAppearance(styleId)
+        iconTextView.includeFontPadding = false
+        iconTextView.ellipsize = null
         var subKey = ""
         if (iconType == 91) {
             subKey = "batterytempandcurrent"
         } else if (iconType == 92) {
             subKey = "showdevicetemperature"
         }
-        val fontSize = MainModule.mPrefs.getInt("system_statusbar_${subKey}_fontsize", 16) * 0.5f
-        val opt = MainModule.mPrefs.getStringAsInt("system_statusbar_${subKey}_content", 1)
-        if ((opt == 1 || opt == 4 || opt == 5) && !MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_singlerow")) {
+        val customSizeDp = StatusbarViewMaths.resolveCustomTextSizeDp(
+            MainModule.mPrefs.getInt("system_statusbar_${subKey}_fontsize", 0)
+        )
+        if (customSizeDp != null) {
+            iconTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, customSizeDp)
+        }
+        val dualRows = (optIsDualContent(MainModule.mPrefs.getStringAsInt("system_statusbar_${subKey}_content", 1))
+            && !MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_singlerow"))
+        val lineCount = if (dualRows) 2 else 1
+        if (dualRows) {
             iconTextView.maxLines = 2
-            iconTextView.setLineSpacing(0f, if (fontSize > 8.5f) 0.85f else 0.9f)
+            val textSizeDp = iconTextView.textSize / res.displayMetrics.density
+            iconTextView.setLineSpacing(0f, if (textSizeDp > 8.5f) 0.85f else 0.9f)
         }
-        iconTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, fontSize)
-        if (MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_bold")) {
-            iconTextView.typeface = Typeface.DEFAULT_BOLD
-        }
+        StatusBarTextFit.applyBoldPreservingFamily(
+            iconTextView,
+            MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_bold")
+        )
         var leftMargin = MainModule.mPrefs.getInt("system_statusbar_${subKey}_leftmargin", 8)
         leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
         var rightMargin = MainModule.mPrefs.getInt("system_statusbar_${subKey}_rightmargin", 8)
         rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
-        var topMargin = 0
+        iconTextView.setPaddingRelative(leftMargin, 0, rightMargin, 0)
         val verticalOffset = MainModule.mPrefs.getInt("system_statusbar_${subKey}_verticaloffset", 8)
-        if (verticalOffset != 8) {
-            topMargin = HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
+        val offsetPx = if (verticalOffset != 8) {
+            HookUtils.dp2px((verticalOffset - 8) * 0.5f)
+        } else {
+            0f
         }
-        iconTextView.setPaddingRelative(leftMargin, topMargin, rightMargin, 0)
         val fixedWidth = MainModule.mPrefs.getInt("system_statusbar_${subKey}_fixedcontent_width", 10)
         if (fixedWidth > 10) {
             val lp = iconTextView.layoutParams as LinearLayout.LayoutParams
@@ -424,7 +435,11 @@ object SystemUIStatusBarHooks {
         } else if (align == 4) {
             iconTextView.textAlignment = View.TEXT_ALIGNMENT_TEXT_END
         }
+        StatusBarTextFit.enableShrinkToFit(iconTextView, lineCount, iconTextView.lineSpacingMultiplier)
+        StatusBarTextFit.applyVerticalOffset(iconTextView, offsetPx)
     }
+
+    private fun optIsDualContent(opt: Int): Boolean = opt == 1 || opt == 4 || opt == 5
 
     @JvmStatic
     fun createStatusbarTextIcon(mContext: Context, lp: LinearLayout.LayoutParams, iconType: Int, fromController: Boolean): View {
@@ -466,6 +481,7 @@ object SystemUIStatusBarHooks {
      * dropped on every register/update. All access happens on the SystemUI main thread.
      */
     private val statusbarTextIcons = ArrayList<WeakReference<View>>(4)
+    private val firstType92UpdateLog = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /**
      * DarkIconDispatcher receivers and StatusBarIconController icon groups registered by this
@@ -676,6 +692,9 @@ object SystemUIStatusBarHooks {
             try {
                 XposedHelpers.callMethod(iconView, "setVisibilityByController", show)
                 if (show) XposedHelpers.callMethod(iconView, "setNetworkSpeed", text, "")
+                if (iconType == 92 && firstType92UpdateLog.compareAndSet(false, true)) {
+                    XposedHelpers.log("DeviceInfoMonitor: ICON_UPDATE_92 show=$show text=$text matchCount=${statusbarTextIcons.size}")
+                }
             } catch (t: Throwable) {
                 FatalErrors.unwrapAndRethrowIfFatal(t)
                 // If the custom NetworkSpeedView does not have the expected methods, fall back to
@@ -804,6 +823,9 @@ object SystemUIStatusBarHooks {
                         val iconView = createStatusbarTextIcon(mContext, LinearLayout.LayoutParams(-2, -2), iconType, false)
                         secondRight.addView(iconView, 0)
                         registerStatusbarTextIcon(iconView)
+                        if (iconType == 92) {
+                            XposedHelpers.log("DeviceInfoMonitor: TYPE92_VIEW_CREATED fromController=false")
+                        }
                         val handle = CustomTextIconTintRoute.register(iconView, lpparam.classLoader, "right")
                         state.registrations.register(sbView) {
                             handle.release("generation-replaced")
@@ -865,40 +887,36 @@ object SystemUIStatusBarHooks {
         }
         val dualRows = MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_in2rows")
         digitalTextView.includeFontPadding = false
+        digitalTextView.ellipsize = null
         digitalTextView.gravity = Gravity.CENTER_VERTICAL
         digitalTextView.layoutParams = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.MATCH_PARENT,
             Gravity.CENTER_VERTICAL
         )
+        val lineCount = if (dualRows) 2 else 1
         if (dualRows) {
             digitalTextView.maxLines = 2
             val textSizeDp = digitalTextView.textSize / res.displayMetrics.density
             digitalTextView.setLineSpacing(0f, resolveDigitalSignalLineSpacing(textSizeDp))
-            val minTextSizePx = HookUtils.dp2px(6f).roundToInt().coerceAtLeast(1)
-            val maxTextSizePx = digitalTextView.textSize.roundToInt().coerceAtLeast(minTextSizePx)
-            digitalTextView.setAutoSizeTextTypeUniformWithConfiguration(
-                minTextSizePx,
-                maxTextSizePx,
-                1,
-                TypedValue.COMPLEX_UNIT_PX
-            )
         } else {
             digitalTextView.maxLines = 1
         }
-        if (MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_bold")) {
-            digitalTextView.typeface = Typeface.create(digitalTextView.typeface, Typeface.BOLD)
-        }
+        StatusBarTextFit.applyBoldPreservingFamily(
+            digitalTextView,
+            MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_bold")
+        )
         var leftMargin = MainModule.mPrefs.getInt("system_statusbar_${subKey}_leftmargin", 8)
         leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
         var rightMargin = MainModule.mPrefs.getInt("system_statusbar_${subKey}_rightmargin", 8)
         rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
-        var topMargin = 0
+        digitalTextView.setPaddingRelative(leftMargin, 0, rightMargin, 0)
         val verticalOffset = MainModule.mPrefs.getInt("system_statusbar_${subKey}_verticaloffset", 8)
-        if (verticalOffset != 8) {
-            topMargin = HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
+        val offsetPx = if (verticalOffset != 8) {
+            HookUtils.dp2px((verticalOffset - 8) * 0.5f)
+        } else {
+            0f
         }
-        digitalTextView.setPaddingRelative(leftMargin, topMargin, rightMargin, 0)
         val align = MainModule.mPrefs.getStringAsInt("system_statusbar_${subKey}_align", 1)
         if (align == 2) {
             digitalTextView.textAlignment = View.TEXT_ALIGNMENT_TEXT_START
@@ -907,6 +925,8 @@ object SystemUIStatusBarHooks {
         } else if (align == 4) {
             digitalTextView.textAlignment = View.TEXT_ALIGNMENT_TEXT_END
         }
+        StatusBarTextFit.enableShrinkToFit(digitalTextView, lineCount, digitalTextView.lineSpacingMultiplier)
+        StatusBarTextFit.applyVerticalOffset(digitalTextView, offsetPx)
     }
 
     @JvmStatic
@@ -2265,6 +2285,19 @@ object SystemUIStatusBarHooks {
                 unitText?.let { ensureNetSpeedTypeface(it, bold) }
             }
 
+            if (speedView.height > 0) {
+                val netSpeedLines = if (speedStyle == 2) 2 else 1
+                StatusBarTextFit.enableShrinkToFit(numberText, netSpeedLines, numberText.lineSpacingMultiplier)
+                val clamped = StatusbarViewMaths.clampVerticalOffsetPx(
+                    speedView.translationY,
+                    speedView.height,
+                    numberText.height,
+                )
+                if (clamped != speedView.translationY) {
+                    speedView.translationY = clamped
+                }
+            }
+
             if (layoutParamsReady) {
                 speedView.setTag(viewInitedTag, true)
                 XposedHelpers.setAdditionalInstanceField(speedView, NETSPEED_LAST_FULL_STYLE_SNAPSHOT_ID, snapshot.id)
@@ -2472,15 +2505,24 @@ object SystemUIStatusBarHooks {
                     mlp.rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
                 }
                 val verticalOffset = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_verticaloffset", 8)
-                if (verticalOffset != 8) {
-                    mlp.topMargin = HookUtils.dp2px((verticalOffset - 8) * 0.5f).toInt()
+                val offsetPx = if (verticalOffset != 8) {
+                    HookUtils.dp2px((verticalOffset - 8) * 0.5f)
+                } else {
+                    0f
                 }
+                mlp.topMargin = StatusbarViewMaths.clampVerticalOffsetPx(
+                    offsetPx,
+                    mMobileGroup.height,
+                    mMobileTypeSingle.textSize.toInt(),
+                ).toInt()
                 mMobileTypeSingle.layoutParams = mlp
                 val fontSize = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_fontsize", 27)
                 mMobileTypeSingle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, fontSize * 0.5f)
-                if (MainModule.mPrefs.getBoolean("system_statusbar_mobiletype_single_bold")) {
-                    mMobileTypeSingle.typeface = Typeface.DEFAULT_BOLD
-                }
+                StatusBarTextFit.applyBoldPreservingFamily(
+                    mMobileTypeSingle,
+                    MainModule.mPrefs.getBoolean("system_statusbar_mobiletype_single_bold")
+                )
+                StatusBarTextFit.enableShrinkToFit(mMobileTypeSingle, 1, mMobileTypeSingle.lineSpacingMultiplier)
             }
         }
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "setDripEnd", Boolean::class.javaPrimitiveType!!, initHook)

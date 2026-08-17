@@ -20,6 +20,7 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.BeforeHookCallba
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.utils.PrefMap
 import java.util.Properties
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Battery / device-temperature status bar text icon monitor.
@@ -69,7 +70,14 @@ object DeviceInfoMonitor {
         val batteryContentOpt: Int,
         val deviceTempContentOpt: Int
     ) {
-        val customIconTypes: List<Int> = buildList {
+        val hasDeviceInfoWork: Boolean get() = showBatteryDetail || showDeviceTemp
+
+        /**
+         * Icon types injected through StatusBarIconController. Dual-row right-side
+         * views are created by DualRowsStatusbarHook instead, so they are not listed
+         * here. Monitor enablement uses [hasDeviceInfoWork], not this list.
+         */
+        val controllerManagedIconTypes: List<Int> = buildList {
             if (batteryAtLeft || batteryAtRight) add(91)
             if (tempAtLeft || tempAtRight) add(92)
         }
@@ -106,6 +114,13 @@ object DeviceInfoMonitor {
         val tempText: String
     )
 
+    private val firstLifecycleLog = AtomicBoolean(false)
+    private val firstConstructorLog = AtomicBoolean(false)
+    private val firstIconGraphLog = AtomicBoolean(false)
+    private val firstTickLog = AtomicBoolean(false)
+    private val firstType92ViewLog = AtomicBoolean(false)
+    private val firstType92SetIconLog = AtomicBoolean(false)
+
     private val monitorState = DeviceInfoMonitorState()
 
     private val monitorLock = Any()
@@ -140,12 +155,25 @@ object DeviceInfoMonitor {
         val cfg = buildConfig(mPrefs)
         config = cfg
         lpClassLoader = lpparam.classLoader
-        if (cfg.customIconTypes.isEmpty()) return
+        if (firstLifecycleLog.compareAndSet(false, true)) {
+            XposedHelpers.log(
+                "DeviceInfoMonitor: DEVICE_INFO_FEATURE_INSTALLED work=${cfg.hasDeviceInfoWork} " +
+                    "showTemp=${cfg.showDeviceTemp} showBattery=${cfg.showBatteryDetail} " +
+                    "dualRows=${cfg.dualRows} tempAtRight=${cfg.tempAtRight} tempAtLeft=${cfg.tempAtLeft} " +
+                    "controllerTypes=${cfg.controllerManagedIconTypes}"
+            )
+        }
+        if (!cfg.hasDeviceInfoWork) return
 
         val networkSpeedViewClass = resolveNetworkSpeedViewClassName(lpparam.classLoader)
         if (networkSpeedViewClass == null) {
             XposedHelpers.log("DeviceInfoMonitor: NetworkSpeedView not available, skipping icon slots")
-            return
+        } else {
+            if (cfg.controllerManagedIconTypes.isNotEmpty()) {
+                hookIconSlots(lpparam, cfg)
+            }
+            hookNetworkSpeedView(lpparam, networkSpeedViewClass)
+            XposedHelpers.log("DeviceInfoMonitor: NETWORK_SPEED_VIEW_CLASS=$networkSpeedViewClass")
         }
 
         if (cfg.showBatteryDetail && cfg.batteryInCharge) {
@@ -155,15 +183,11 @@ object DeviceInfoMonitor {
             )
         }
 
-        // hookIconSlots is the one part that genuinely cannot follow a later change: it adds
-        // the icon slots as SystemUI builds its status bar, so which slots exist and which
-        // side they sit on are fixed for the life of this process. The two preferences that
-        // decide that - the master toggle and "on the right" - say so in their summary.
-        // Everything the ticker reads (formats, units, content options, the in-charge
-        // condition) is picked up on the next tick.
-        hookIconSlots(lpparam, cfg)
-        hookNetworkSpeedView(lpparam, networkSpeedViewClass)
+        // Icon slot placement is a StatusBarIconController concern and is skipped when DualRows
+        // owns the right-side views. The ticker must still run whenever battery or temperature
+        // work is enabled.
         hookMonitor(lpparam)
+        XposedHelpers.log("DeviceInfoMonitor: MONITOR_HOOK_INSTALLED")
     }
 
     /**
@@ -195,19 +219,21 @@ object DeviceInfoMonitor {
     private fun buildConfig(mPrefs: PrefMap): ConfigSnapshot {
         val showBatteryDetail = mPrefs.getBoolean("system_statusbar_batterytempandcurrent")
         val showDeviceTemp = mPrefs.getBoolean("system_statusbar_showdevicetemperature")
-        val dualRows = mPrefs.getBoolean("system_statusbar_dualrows")
-        val batteryAtRight = showBatteryDetail && !dualRows && mPrefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
-        val tempAtRight = showDeviceTemp && !dualRows && mPrefs.getBoolean("system_statusbar_showdevicetemperature_atright")
-        val batteryAtLeft = showBatteryDetail && !mPrefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
-        val tempAtLeft = showDeviceTemp && !mPrefs.getBoolean("system_statusbar_showdevicetemperature_atright")
+        val placement = resolveDeviceInfoPlacement(
+            showBatteryDetail = showBatteryDetail,
+            showDeviceTemp = showDeviceTemp,
+            dualRows = mPrefs.getBoolean("system_statusbar_dualrows"),
+            batteryAtRightPref = mPrefs.getBoolean("system_statusbar_batterytempandcurrent_atright"),
+            tempAtRightPref = mPrefs.getBoolean("system_statusbar_showdevicetemperature_atright"),
+        )
         return ConfigSnapshot(
             showBatteryDetail = showBatteryDetail,
             showDeviceTemp = showDeviceTemp,
-            dualRows = dualRows,
-            batteryAtRight = batteryAtRight,
-            tempAtRight = tempAtRight,
-            batteryAtLeft = batteryAtLeft,
-            tempAtLeft = tempAtLeft,
+            dualRows = placement.dualRows,
+            batteryAtRight = placement.batteryAtRight,
+            tempAtRight = placement.tempAtRight,
+            batteryAtLeft = placement.batteryAtLeft,
+            tempAtLeft = placement.tempAtLeft,
             batteryInCharge = mPrefs.getBoolean("system_statusbar_batterytempandcurrent_incharge"),
             batteryTempDecimal = mPrefs.getBoolean("system_statusbar_batterytempandcurrent_temp_decimal"),
             batteryFixCurrentRatio = mPrefs.getBoolean("system_statusbar_batterytempandcurrent_fixcurrentratio"),
@@ -228,7 +254,7 @@ object DeviceInfoMonitor {
         val newConfig = buildConfig(mPrefs)
         config = newConfig
 
-        if (newConfig.customIconTypes.isEmpty()) {
+        if (!newConfig.hasDeviceInfoWork) {
             stopMonitoring()
             return
         }
@@ -260,17 +286,26 @@ object DeviceInfoMonitor {
             object : MethodHook() {
                 override fun after(param: AfterHookCallback) {
                     val iconController = XposedHelpers.getObjectField(
-                        XposedHelpers.getObjectField(param.getThisObject(), "mStatusBarIconController"),
-                        "mStatusBarIconList"
+                        param.getThisObject(),
+                        "mStatusBarIconController"
                     ) ?: return
-                    for (iconType in cfg.customIconTypes) {
+                    val iconList = XposedHelpers.getObjectField(iconController, "mStatusBarIconList") ?: return
+                    if (firstIconGraphLog.compareAndSet(false, true)) {
+                        XposedHelpers.log(
+                            "DeviceInfoMonitor: ICON_CONTROLLER_CLASS=${iconController.javaClass.name} " +
+                                "ICON_LIST_CLASS=${iconList.javaClass.name} SET_ICON_OWNER=${iconController.javaClass.name}"
+                        )
+                    }
+                    for (iconType in cfg.controllerManagedIconTypes) {
                         val slot = SystemUIStatusBarHooks.getSlotNameByType(iconType)
-                        val mStatusBarIconList = XposedHelpers.getObjectField(iconController, "mStatusBarIconList")
-                        var iconHolder = XposedHelpers.callMethod(mStatusBarIconList, "getIconHolder", 0, slot)
+                        var iconHolder = XposedHelpers.callMethod(iconList, "getIconHolder", 0, slot)
                         if (iconHolder == null) {
                             iconHolder = XposedHelpers.newInstance(StatusBarIconHolder)
                             XposedHelpers.setObjectField(iconHolder, "mType", iconType)
                             XposedHelpers.callMethod(iconController, "setIcon", slot, iconHolder)
+                            if (iconType == 92 && firstType92SetIconLog.compareAndSet(false, true)) {
+                                XposedHelpers.log("DeviceInfoMonitor: TYPE92_SETICON_REACHED slot=$slot")
+                            }
                         }
                     }
                 }
@@ -360,6 +395,9 @@ object DeviceInfoMonitor {
             val safeIndex = StatusbarViewMaths.clampStatusIconInsertIndex(requestedIndex, group.childCount)
             group.addView(iconView, safeIndex)
             SystemUIStatusBarHooks.registerStatusbarTextIcon(iconView)
+            if (type == 92 && firstType92ViewLog.compareAndSet(false, true)) {
+                XposedHelpers.log("DeviceInfoMonitor: TYPE92_VIEW_CREATED fromController=true")
+            }
 
             val classLoader = lpClassLoader
             if (classLoader != null) {
@@ -429,8 +467,27 @@ object DeviceInfoMonitor {
             lpparam.classLoader,
             object : MethodHook() {
                 override fun after(param: AfterHookCallback) {
-                    val mContext = param.getArgs().getOrNull(0) as? Context ?: return
-                    val looper = param.getArgs().getOrNull(1) as? Looper ?: return
+                    val args = param.getArgs()
+                    if (firstConstructorLog.compareAndSet(false, true)) {
+                        val argClasses = args.mapIndexed { index, value ->
+                            "ARG${index}_CLASS=${value?.javaClass?.name ?: "null"}"
+                        }
+                        XposedHelpers.log(
+                            "DeviceInfoMonitor: NETWORK_SPEED_CONTROLLER_CONSTRUCTOR " +
+                                argClasses.joinToString(" ")
+                        )
+                    }
+                    val mContext = resolveNetworkSpeedControllerContext(args) ?: return
+                    val bgHandler = try {
+                        XposedHelpers.getObjectField(param.getThisObject(), "mBgHandler") as? Handler
+                    } catch (oom: OutOfMemoryError) {
+                        throw oom
+                    } catch (t: Throwable) {
+                        FatalErrors.unwrapAndRethrowIfFatal(t)
+                        null
+                    }
+                    val looper = resolveNetworkSpeedControllerLooper(args, bgHandler) ?: return
+                    XposedHelpers.log("DeviceInfoMonitor: MONITOR_CONSTRUCTOR_REACHED")
 
                     synchronized(monitorLock) {
                         activeBgHandler?.removeMessages(MONITOR_MESSAGE)
@@ -484,6 +541,7 @@ object DeviceInfoMonitor {
 
                     activeBgHandler?.removeMessages(MONITOR_MESSAGE)
                     activeBgHandler?.sendEmptyMessage(MONITOR_MESSAGE)
+                    XposedHelpers.log("DeviceInfoMonitor: MONITOR_HANDLER_STARTED")
                 }
             }
         )
@@ -564,6 +622,12 @@ object DeviceInfoMonitor {
         try {
             val data = readDeviceData(mContext, cfg, handlerId)
             if (data != null && monitorState.isActiveBg(handlerId)) {
+                if (firstTickLog.compareAndSet(false, true)) {
+                    XposedHelpers.log(
+                        "DeviceInfoMonitor: MONITOR_TICK_REACHED batteryShow=${data.batteryShow} " +
+                            "tempShow=${data.tempShow} batteryText=${data.batteryText} tempText=${data.tempText}"
+                    )
+                }
                 publishReadings(cfg, data, handlerId)
             }
         } finally {
@@ -660,4 +724,55 @@ object DeviceInfoMonitor {
             true
         }
     }
+}
+
+internal data class DeviceInfoPlacement(
+    val hasDeviceInfoWork: Boolean,
+    val dualRows: Boolean,
+    val batteryAtRight: Boolean,
+    val tempAtRight: Boolean,
+    val batteryAtLeft: Boolean,
+    val tempAtLeft: Boolean,
+) {
+    val controllerManagedIconTypes: List<Int> = buildList {
+        if (batteryAtLeft || batteryAtRight) add(91)
+        if (tempAtLeft || tempAtRight) add(92)
+    }
+}
+
+internal fun resolveDeviceInfoPlacement(
+    showBatteryDetail: Boolean,
+    showDeviceTemp: Boolean,
+    dualRows: Boolean,
+    batteryAtRightPref: Boolean,
+    tempAtRightPref: Boolean,
+): DeviceInfoPlacement {
+    return DeviceInfoPlacement(
+        hasDeviceInfoWork = showBatteryDetail || showDeviceTemp,
+        dualRows = dualRows,
+        batteryAtRight = showBatteryDetail && !dualRows && batteryAtRightPref,
+        tempAtRight = showDeviceTemp && !dualRows && tempAtRightPref,
+        batteryAtLeft = showBatteryDetail && !batteryAtRightPref,
+        tempAtLeft = showDeviceTemp && !tempAtRightPref,
+    )
+}
+
+internal fun findUniqueInstance(args: Array<Any?>, matcher: (Any) -> Boolean): Any? {
+    var found: Any? = null
+    for (arg in args) {
+        if (arg != null && matcher(arg)) {
+            if (found != null) return null
+            found = arg
+        }
+    }
+    return found
+}
+
+internal fun resolveNetworkSpeedControllerContext(args: Array<Any?>): Context? =
+    findUniqueInstance(args) { it is Context } as? Context
+
+internal fun resolveNetworkSpeedControllerLooper(args: Array<Any?>, bgHandler: Handler?): Looper? {
+    (findUniqueInstance(args) { it is Looper } as? Looper)?.let { return it }
+    (findUniqueInstance(args) { it is Handler } as? Handler)?.looper?.let { return it }
+    return bgHandler?.looper
 }

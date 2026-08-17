@@ -25,6 +25,8 @@ import tv.withaibuild.customiuizer.mods.clock.ClockEffect
 import tv.withaibuild.customiuizer.mods.clock.ClockEffectPublication
 import tv.withaibuild.customiuizer.mods.clock.ClockResolver
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
+import tv.withaibuild.customiuizer.mods.utils.StatusBarTextFit
+import tv.withaibuild.customiuizer.mods.utils.StatusbarViewMaths
 import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.ResourceHooks
@@ -545,7 +547,11 @@ object SystemClockHooks {
                 mClock.setTextSize(TypedValue.COMPLEX_UNIT_PX, originalState.textSizePx)
             }
 
-            mClock.typeface = if (snapshot.statusbarBold) Typeface.DEFAULT_BOLD else originalState.typeface
+            mClock.typeface = if (snapshot.statusbarBold) {
+                Typeface.create(originalState.typeface, Typeface.BOLD)
+            } else {
+                originalState.typeface
+            }
 
             if (snapshot.statusbarChip &&
                 (snapshot.statusbarChipUseMonet || snapshot.statusbarChipCustomTextColor)
@@ -644,6 +650,23 @@ object SystemClockHooks {
             mClock.maxLines = originalState.maxLines
         }
         mClock.setLineSpacing(desiredLineSpacingExtra, desiredLineSpacingMultiplier)
+
+        if (statusBarClock && mClock.height > 0) {
+            val clockLines = if (dualRows) 2 else 1
+            StatusBarTextFit.enableShrinkToFit(mClock, clockLines, mClock.lineSpacingMultiplier)
+            val clamped = StatusbarViewMaths.clampVerticalOffsetPx(
+                mClock.translationY,
+                mClock.height,
+                StatusbarViewMaths.occupiedHeightPx(
+                    mClock.textSize,
+                    clockLines,
+                    mClock.lineSpacingMultiplier,
+                ).toInt(),
+            )
+            if (clamped != mClock.translationY) {
+                mClock.translationY = clamped
+            }
+        }
 
         return layoutParamsReady
     }
