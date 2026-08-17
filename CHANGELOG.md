@@ -12,7 +12,6 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/10
 - In dual-row mode, temperature moves to the left when “show on the right” is off.
 - Default font size is kept when it fits. If a custom height or vertical offset leaves too little room, text shrinks instead of being clipped.
 - Status-bar contents can be moved vertically without leaving the status-bar window.
-- Battery details that should appear only while charging no longer leak when battery status is unavailable.
 
 ### Launcher and Recents
 
@@ -25,7 +24,6 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/10
 
 - Dynamic Island upward recall is more reliable.
 - Device-info updates no longer depend on network-speed controller slots, so temperature text can still appear without that controller.
-- Charging wake suppression option 2 restores the intended POWER / PLUGGED / RAPID / WIRELESS behavior on A14.
 
 ### Stability and Compatibility
 
