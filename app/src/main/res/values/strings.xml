@@ -764,7 +764,7 @@
     <string name="array_media_playpause">Play/Pause</string>
     <string name="array_media_next">Next track</string>
     <string name="array_media_prev">Previous track</string>
-    <string name="array_lightupwithouanim">Lightup screen without animation</string>
+    <string name="array_lightupwithouanim">Light up screen without animation</string>
     <string name="array_screenlock_no">System default</string>
     <string name="array_screenlock_none">Disable completely</string>
     <string name="array_screenlock_bootonly">Require authentication after boot</string>

@@ -177,10 +177,7 @@ object DeviceInfoMonitor {
         }
 
         if (cfg.showBatteryDetail && cfg.batteryInCharge) {
-            chargeUtilsClass = XposedHelpers.findClassIfExists(
-                "com.miui.charge.ChargeUtils",
-                lpparam.classLoader
-            )
+            chargeUtilsClass = DeviceInfoChargeVisibility.resolveChargeUtilsClass(lpparam.classLoader)
         }
 
         // Icon slot placement is a StatusBarIconController concern and is skipped when DualRows
@@ -711,19 +708,72 @@ object DeviceInfoMonitor {
         if (!cfg.batteryInCharge) return true
         val chargeUtils = chargeUtilsClass ?: return true
         val batteryStatus = ModuleHelper.getStaticObjectFieldSilently(chargeUtils, "sBatteryStatus")
-        if (ModuleHelper.NOT_EXIST_SYMBOL == batteryStatus) {
-            chargeUtilsClass = null
-            return true
+        // Keep the resolved class across ticks. Clearing it on NOT_EXIST would fail-open
+        // on the next pass (`chargeUtilsClass ?: return true`) and show the reading.
+        return DeviceInfoChargeVisibility.shouldShowWhenInChargeOnly(
+            batteryStatus,
+            ModuleHelper.NOT_EXIST_SYMBOL,
+        )
+    }
+}
+
+internal object DeviceInfoChargeVisibility {
+    private val CHARGE_UTILS_CLASSES = arrayOf(
+        "com.miui.charge.ChargeUtils",
+        "com.android.keyguard.charge.ChargeUtils",
+    )
+
+    fun resolveChargeUtilsClass(
+        classLoader: ClassLoader,
+        find: (String, ClassLoader) -> Class<*>? = { name, loader ->
+            XposedHelpers.findClassIfExists(name, loader)
+        },
+    ): Class<*>? {
+        for (name in CHARGE_UTILS_CLASSES) {
+            val found = find(name, classLoader)
+            if (found != null) return found
         }
+        return null
+    }
+
+    /**
+     * Upstream v24.10.12: when "show when charging only" is on and ChargeUtils was found,
+     * a missing `sBatteryStatus` hides the reading instead of showing it unconditionally.
+     * A missing ChargeUtils class still skips the in-charge filter (show).
+     */
+    fun shouldShowWhenInChargeOnly(
+        batteryStatus: Any?,
+        notExistSymbol: Any,
+    ): Boolean {
+        if (batteryStatus == null || batteryStatus === notExistSymbol) return false
         return try {
-            XposedHelpers.callMethod(batteryStatus, "isCharging") as? Boolean ?: true
+            readIsCharging(batteryStatus) ?: false
         } catch (oom: OutOfMemoryError) {
             throw oom
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
-            true
+            false
         }
     }
+
+    fun shouldShowWhenInChargeOnly(
+        batteryStatus: Any?,
+        notExistSymbol: Any,
+        isCharging: (Any) -> Boolean?,
+    ): Boolean {
+        if (batteryStatus == null || batteryStatus === notExistSymbol) return false
+        return try {
+            isCharging(batteryStatus) ?: false
+        } catch (oom: OutOfMemoryError) {
+            throw oom
+        } catch (t: Throwable) {
+            FatalErrors.unwrapAndRethrowIfFatal(t)
+            false
+        }
+    }
+
+    private fun readIsCharging(status: Any): Boolean? =
+        XposedHelpers.callMethod(status, "isCharging") as? Boolean
 }
 
 internal data class DeviceInfoPlacement(

@@ -167,12 +167,12 @@ object SystemDisplayHooks {
 
                     val reason = chain.getArg(3) as String?
                     if (reason == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
-                    if (
-                        reason.startsWith("android.server.power:PLUGGED")
-                        || reason == "com.android.systemui:RAPID_CHARGE"
-                        || reason == "com.android.systemui:WIRELESS_CHARGE"
-                        || reason == "com.android.systemui:WIRELESS_RAPID_CHARGE"
-                    ) { skipped = true; result = null; throwable = null }
+                    val option = MainModule.mPrefs.getStringAsInt("system_nolightuponcharges", 1)
+                    if (shouldSkipChargeWake(option, reason)) {
+                        skipped = true
+                        result = null
+                        throwable = null
+                    }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
@@ -184,6 +184,25 @@ object SystemDisplayHooks {
                 return XposedHelpers.throwOrReturn(throwable, result)
             }
         })
+    }
+
+    /**
+     * A14 product contract, not upstream option-3 restoration:
+     * - 1 = stock wake
+     * - 2 = suppress charging wake reasons
+     * - 3 = native wake; SystemUI still hides the charge animation
+     *
+     * Option is read on each callback so a live change from 2 to 3 stops blocking wake
+     * without reinstalling the hook.
+     */
+    @JvmStatic
+    internal fun shouldSkipChargeWake(option: Int, reason: String): Boolean {
+        if (option != 2) return false
+        return reason == "android.server.power:POWER" ||
+            reason.startsWith("android.server.power:PLUGGED") ||
+            reason == "com.android.systemui:RAPID_CHARGE" ||
+            reason == "com.android.systemui:WIRELESS_CHARGE" ||
+            reason == "com.android.systemui:WIRELESS_RAPID_CHARGE"
     }
 
     /**
