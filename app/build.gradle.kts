@@ -34,8 +34,8 @@ if (officialRelease) {
     }
 }
 
-val lastVersion = 199
-val lastVersionName = "r14.20.2"
+val lastVersion = 200
+val lastVersionName = "r14.20.3"
 
 fun resolveBuildRevision(): String {
     val prop = project.findProperty("buildRevision")?.toString()

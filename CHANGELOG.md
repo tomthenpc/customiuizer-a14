@@ -2,6 +2,23 @@
 
 English | [简体中文](CHANGELOG_CN.md)
 
+## r14.20.3 — 2026-08-18
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+
+### Fixes
+
+- Disabling folder background blur no longer flashes the HyperOS default blur while dragging icons inside a folder, and the folder stays clear after the drop.
+- Recents "disable wallpaper scale" now keeps wallpaper zoom off for the whole recents session instead of restoring it at the end of `onStateEnabled`.
+- Recents background blur at 0% now applies on full-screen gesture enter. It stays on the launcher blur path and does not share state with System-Other window-level blur disable; an active folder keeps its own blur ratio.
+
+### Artifact Information
+
+- APK: `CustoMIUIzer-A14-r14.20.3.apk`
+- versionCode / versionName: `200 / r14.20.3`
+
+---
+
 ## r14.20.2 — 2026-08-17
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.

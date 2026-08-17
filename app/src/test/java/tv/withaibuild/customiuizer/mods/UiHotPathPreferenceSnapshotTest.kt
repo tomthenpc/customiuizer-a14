@@ -49,6 +49,7 @@ class UiHotPathPreferenceSnapshotTest {
 
         assertFalse(body.contains("MainModule.mPrefs"))
         assertTrue(body.contains("folderBlurRatio"))
+        assertTrue(body.contains("isFolderActiveForBlur"))
     }
 
     @Test
@@ -61,8 +62,24 @@ class UiHotPathPreferenceSnapshotTest {
 
         assertFalse(body.contains("MainModule.mPrefs"))
         assertTrue(body.contains("folderBlurRatio"))
+        assertTrue(body.contains("resolveAppliedFolderBlurRatio"))
         assertTrue(body.contains("\"fastBlur\""))
         assertFalse("do not depend on FolderCling open/close ABI", source.contains("\"com.miui.home.launcher.FolderCling\""))
+    }
+
+    @Test
+    fun recentsBlurFastBlurReadsSnapshotRatio() {
+        val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/Launcher.kt")
+        val fastBlurBody = hookBody(
+            "app/src/main/java/tv/withaibuild/customiuizer/mods/Launcher.kt",
+            "hookAllMethods(utilsClass, \"fastBlur\"",
+        )
+
+        assertFalse(fastBlurBody.contains("MainModule.mPrefs"))
+        assertTrue(fastBlurBody.contains("recentsBlurRatio"))
+        assertTrue(fastBlurBody.contains("isFolderActiveForBlur"))
+        assertFalse(source.contains("system_disable_window_blurs"))
+        assertFalse(source.contains("getBlurDisabledSetting"))
     }
 
     @Test

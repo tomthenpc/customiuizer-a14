@@ -23,6 +23,7 @@ class PreferenceObserverKeyContractTest {
         MainModule.mPrefs.clear()
         setObserverRegisteredFlag(SystemUILockScreenHooks, "swipeSuppressionObserverRegistered", false)
         setObserverRegisteredFlag(LauncherFolderHooks, "folderPreferenceObserverRegistered", false)
+        setObserverRegisteredFlag(Launcher, "recentsBlurObserverRegistered", false)
         setObserverRegisteredFlag(SystemUIBatteryHooks, "batteryStyleObserverRegistered", false)
     }
 
@@ -115,6 +116,46 @@ class PreferenceObserverKeyContractTest {
         assertFalse(LauncherFolderHooks.resolveFolderBlurOverrideEnabled(false, 0))
         assertTrue(LauncherFolderHooks.resolveFolderBlurOverrideEnabled(true, 0))
         assertTrue(LauncherFolderHooks.resolveFolderBlurOverrideEnabled(false, 80))
+        assertEquals(null, LauncherFolderHooks.resolveAppliedFolderBlurRatio(false, true, 0.8f))
+        assertEquals(0.8f, LauncherFolderHooks.resolveAppliedFolderBlurRatio(true, true, 0.8f)!!, 0.001f)
+        assertEquals(0f, LauncherFolderHooks.resolveAppliedFolderBlurRatio(true, false, 0.8f)!!, 0.001f)
+        assertEquals(0f, LauncherFolderHooks.resolveAppliedFolderBlurRatio(true, false, 0f)!!, 0.001f)
+        assertFalse(LauncherFolderHooks.shouldClampFolderFastBlur(true, false))
+        assertTrue(LauncherFolderHooks.shouldClampFolderFastBlur(true, true))
+        assertFalse(LauncherFolderHooks.shouldClampFolderFastBlur(false, true))
+    }
+
+    @Test
+    fun recentsBlurSpecificKeyRefreshes() {
+        MainModule.mPrefs.put("system_recents_blur", 40)
+        Launcher.installRecentsBlurSnapshot()
+
+        MainModule.mPrefs.put("system_recents_blur", 0)
+        PreferenceObserverRegistry.handlePreferenceChanged("system_recents_blur")
+
+        assertEquals(0f, getRecentsBlurRatio(), 0.001f)
+    }
+
+    @Test
+    fun recentsBlurUnrelatedKeyDoesNotRefresh() {
+        MainModule.mPrefs.put("system_recents_blur", 40)
+        Launcher.installRecentsBlurSnapshot()
+
+        MainModule.mPrefs.put("system_recents_blur", 0)
+        PreferenceObserverRegistry.handlePreferenceChanged("system_statusbarheight")
+
+        assertEquals(0.4f, getRecentsBlurRatio(), 0.001f)
+    }
+
+    @Test
+    fun recentsBlurNullKeyRefreshes() {
+        MainModule.mPrefs.put("system_recents_blur", 40)
+        Launcher.installRecentsBlurSnapshot()
+
+        MainModule.mPrefs.put("system_recents_blur", 0)
+        PreferenceObserverRegistry.handlePreferenceChanged(null)
+
+        assertEquals(0f, getRecentsBlurRatio(), 0.001f)
     }
 
     @Test
@@ -173,6 +214,12 @@ class PreferenceObserverKeyContractTest {
 
     private fun getFolderBlurRatio(): Float {
         val field = LauncherFolderHooks::class.java.getDeclaredField("folderBlurRatio")
+        field.isAccessible = true
+        return field.get(null) as Float
+    }
+
+    private fun getRecentsBlurRatio(): Float {
+        val field = Launcher::class.java.getDeclaredField("recentsBlurRatio")
         field.isAccessible = true
         return field.get(null) as Float
     }

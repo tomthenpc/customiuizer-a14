@@ -2,6 +2,23 @@
 
 [English](CHANGELOG.md) | 简体中文
 
+## r14.20.3 — 2026-08-18
+
+面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a` 与 libxposed API 101/102。
+
+### 修复
+
+- 关闭文件夹背景模糊后，在文件夹内拖动应用不再闪出 HyperOS 默认模糊，松手后也保持清晰。
+- 「系统 → 最近任务 → 禁用壁纸缩放」在整个最近任务期间保持关闭，不再在 `onStateEnabled` 结束后立刻恢复缩放。
+- 最近任务背景模糊 0% 在全面屏手势进入时也会生效。它只作用在桌面模糊路径上，不改「关闭窗口级模糊」；文件夹打开时仍使用文件夹自己的模糊比例。
+
+### 产物信息
+
+- APK：`CustoMIUIzer-A14-r14.20.3.apk`
+- versionCode / versionName：`200 / r14.20.3`
+
+---
+
 ## r14.20.2 — 2026-08-17
 
 面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a` 与 libxposed API 101/102。
