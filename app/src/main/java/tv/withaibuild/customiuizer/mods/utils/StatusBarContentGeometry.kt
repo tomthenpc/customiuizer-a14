@@ -40,6 +40,22 @@ object StatusBarContentGeometry {
     }
 
     /**
+     * True when the live window is a custom/taller status bar and content may need
+     * a measured center correction. Stock window height keeps the native path.
+     */
+    @JvmStatic
+    fun shouldAutoCenter(
+        windowHeightPx: Int,
+        viewHeightPx: Int,
+        customHeightEnabled: Boolean,
+        stockHeightPx: Int,
+    ): Boolean {
+        if (customHeightEnabled) return true
+        if (shouldResizeOwner(windowHeightPx, viewHeightPx)) return true
+        return windowHeightPx > 0 && stockHeightPx > 0 && windowHeightPx > stockHeightPx + 1
+    }
+
+    /**
      * A MATCH_PARENT leaf that already fills [parentHeightPx] is a container, not optical
      * content. WRAP_CONTENT / shorter leaves are the measured center signal.
      */

@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import io.github.libxposed.api.XposedModuleInterface.PackageReadyParam
 import tv.withaibuild.customiuizer.MainModule
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
@@ -90,8 +91,12 @@ object StatusBarContentGeometryHooks {
 
     internal fun applyToView(statusBarView: View) {
         try {
+            val windowHeight = findStatusBarWindowView(statusBarView)?.height ?: 0
             val resized = resizeOwnerToWindowIfNeeded(statusBarView)
-            if (!resized) {
+            val alreadyFilled = windowHeight > 0 &&
+                statusBarView.height > 0 &&
+                kotlin.math.abs(statusBarView.height - windowHeight) <= 1
+            if (!resized || alreadyFilled) {
                 applyContentOffset(statusBarView)
             }
         } catch (oom: OutOfMemoryError) {
@@ -145,8 +150,13 @@ object StatusBarContentGeometryHooks {
         )
         val userOffsetPx = StatusBarContentGeometry.resolveOffsetPx(raw, density)
         val windowHeight = findStatusBarWindowView(statusBarView)?.height ?: 0
-        val autoCenter = StatusBarHeightConfig.enabled ||
-            StatusBarContentGeometry.shouldResizeOwner(windowHeight, statusBarView.height)
+        val stockHeightPx = (StatusBarHeightConfig.DEFAULT_DP * density).toInt()
+        val autoCenter = StatusBarContentGeometry.shouldAutoCenter(
+            windowHeight,
+            statusBarView.height,
+            StatusBarHeightConfig.enabled,
+            stockHeightPx,
+        )
         if (!autoCenter && userOffsetPx == 0f) {
             if (contents.translationY != 0f) {
                 contents.translationY = 0f
@@ -240,8 +250,26 @@ object StatusBarContentGeometryHooks {
             return
         }
         val lpHeight = view.layoutParams?.height ?: 0
-        if (!StatusBarContentGeometry.isOpticalLeaf(view.height, parentHeight, lpHeight)) return
+        if (!StatusBarContentGeometry.isOpticalLeaf(view.height, parentHeight, lpHeight)) {
+            recordTextLineBounds(root, view)
+            return
+        }
         visualRect.set(0, 0, view.width.coerceAtLeast(0), view.height)
+        includeVisualRect(root, view)
+    }
+
+    private fun recordTextLineBounds(root: ViewGroup, view: View) {
+        val textView = view as? TextView ?: return
+        val layout = textView.layout ?: return
+        if (layout.lineCount <= 0) return
+        val top = textView.totalPaddingTop + layout.getLineTop(0)
+        val bottom = textView.totalPaddingTop + layout.getLineBottom(layout.lineCount - 1)
+        if (bottom <= top) return
+        visualRect.set(0, top, view.width.coerceAtLeast(0), bottom)
+        includeVisualRect(root, view)
+    }
+
+    private fun includeVisualRect(root: ViewGroup, view: View) {
         root.offsetDescendantRectToMyCoords(view, visualRect)
         if (visualRect.top < visualBounds[0]) visualBounds[0] = visualRect.top
         if (visualRect.bottom > visualBounds[1]) visualBounds[1] = visualRect.bottom

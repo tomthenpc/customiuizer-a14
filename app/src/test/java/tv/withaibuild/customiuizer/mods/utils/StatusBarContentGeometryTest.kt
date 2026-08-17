@@ -157,4 +157,13 @@ class StatusBarContentGeometryTest {
             0.001f,
         )
     }
+
+    @Test
+    fun autoCenterFollowsCustomWindowEvenAfterOwnerFilled() {
+        assertTrue(StatusBarContentGeometry.shouldAutoCenter(129, 80, true, 80))
+        assertTrue(StatusBarContentGeometry.shouldAutoCenter(129, 129, true, 80))
+        assertTrue(StatusBarContentGeometry.shouldAutoCenter(129, 129, false, 80))
+        assertFalse(StatusBarContentGeometry.shouldAutoCenter(80, 80, false, 80))
+        assertFalse(StatusBarContentGeometry.shouldAutoCenter(0, 80, false, 80))
+    }
 }
