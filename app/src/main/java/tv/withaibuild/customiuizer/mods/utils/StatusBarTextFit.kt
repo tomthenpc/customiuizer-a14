@@ -5,12 +5,16 @@ import android.util.TypedValue
 import android.view.View
 import android.widget.TextView
 import tv.withaibuild.customiuizer.utils.HookUtils
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
  * Shared TextView metrics for status-bar custom text. No lifecycle owner, no
  * preference layer: callers apply this on view create, preference change,
  * configuration change, or layout size change — never on a 2s ticker.
+ *
+ * Default size is kept when it fits. Overflow shrinks downward toward a stored
+ * requested size, which is restored when the row grows.
  */
 internal object StatusBarTextFit {
 
@@ -28,20 +32,14 @@ internal object StatusBarTextFit {
     }
 
     /**
-     * Default SystemUI size is left untouched. A user-requested or dual-line size
-     * is kept unless FontMetrics overflow the laid-out row, in which case it is
-     * shrunk once. Autosize is not used. Retry happens on layout, not on text.
+     * KEEP_NATIVE_IF_IT_FITS. [textView.textSize] at this call is the requested
+     * size for later restore. Layout retries fit; text-content changes do not.
      */
     fun enableShrinkToFit(
         textView: TextView,
         lineCount: Int,
         lineSpacingMultiplier: Float,
-        customSizeRequested: Boolean,
     ) {
-        if (!customSizeRequested) {
-            XposedHelpers.removeAdditionalInstanceField(textView, SHRINK_REQUESTED)
-            return
-        }
         val requestedPx = textView.textSize
         if (requestedPx <= 0f) return
         XposedHelpers.setAdditionalInstanceField(textView, SHRINK_REQUESTED, requestedPx)
@@ -64,27 +62,24 @@ internal object StatusBarTextFit {
         val lineSpacingMultiplier = XposedHelpers.getAdditionalInstanceField(textView, SHRINK_SPACING) as? Float
             ?: textView.lineSpacingMultiplier
         val parentHeight = resolvedHeight(textView)
-        if (parentHeight <= 0) return
+        val available = StatusbarViewMaths.availableTextHeightPx(
+            parentHeight,
+            textView.compoundPaddingTop,
+            textView.compoundPaddingBottom,
+        )
+        if (available <= 0) return
         val minRequested = HookUtils.dp2px(MIN_TEXT_SIZE_DP).coerceAtLeast(1f)
         val fm = textView.paint.fontMetrics
         val fontH = (fm.bottom - fm.top).coerceAtLeast(textView.textSize)
-        val fitted = StatusbarViewMaths.shrinkToFitPx(
+        val next = StatusbarViewMaths.fittedTextSizePx(
             requestedPx,
-            parentHeight,
-            lineCount,
-            lineSpacingMultiplier,
-            minRequested,
-        )
-        val metricsFitted = StatusbarViewMaths.shrinkToFitPx(
             fontH,
-            parentHeight,
+            available,
             lineCount,
             lineSpacingMultiplier,
             minRequested,
         )
-        val scale = if (fontH > 0f) metricsFitted / fontH else 1f
-        val next = (requestedPx * scale).coerceAtMost(fitted).coerceAtMost(requestedPx)
-        if (kotlin.math.abs(next - textView.textSize) > 0.5f) {
+        if (abs(next - textView.textSize) > 0.5f) {
             textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, next)
         }
     }
@@ -106,8 +101,13 @@ internal object StatusBarTextFit {
 
     private fun applyVerticalOffsetNow(textView: TextView, requestedOffsetPx: Float) {
         val parentHeight = resolvedHeight(textView)
+        val available = StatusbarViewMaths.availableTextHeightPx(
+            parentHeight,
+            textView.compoundPaddingTop,
+            textView.compoundPaddingBottom,
+        )
         val fm = textView.paint.fontMetrics
-        val fontH = fm.descent - fm.ascent
+        val fontH = fm.bottom - fm.top
         val lineCount = textView.maxLines.coerceAtLeast(1)
         val textH = StatusbarViewMaths.occupiedHeightPx(
             fontH,
@@ -116,7 +116,7 @@ internal object StatusBarTextFit {
         ).roundToInt()
         textView.translationY = StatusbarViewMaths.clampVerticalOffsetPx(
             requestedOffsetPx,
-            parentHeight,
+            available,
             textH,
         )
     }

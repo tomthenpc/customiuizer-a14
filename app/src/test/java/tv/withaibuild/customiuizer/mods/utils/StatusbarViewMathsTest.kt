@@ -56,6 +56,80 @@ class StatusbarViewMathsTest {
     }
 
     @Test
+    fun availableHeightSubtractsPadding() {
+        assertEquals(40, StatusbarViewMaths.availableTextHeightPx(50, 6, 4))
+        assertEquals(0, StatusbarViewMaths.availableTextHeightPx(8, 6, 4))
+        assertEquals(0, StatusbarViewMaths.availableTextHeightPx(0, 0, 0))
+    }
+
+    @Test
+    fun defaultSizeUnchangedWhenItFits() {
+        assertEquals(16f, StatusbarViewMaths.fittedTextSizePx(16f, 18f, 20, 1, 1f, 6f), 0.001f)
+    }
+
+    @Test
+    fun defaultSizeShrinksOnOverflow() {
+        val fitted = StatusbarViewMaths.fittedTextSizePx(16f, 18f, 10, 1, 1f, 6f)
+        assertTrue(fitted < 16f)
+        assertTrue(fitted >= 6f)
+        val occupied = StatusbarViewMaths.occupiedHeightPx(18f * (fitted / 16f), 1, 1f)
+        assertTrue(occupied <= 10f + 0.5f)
+    }
+
+    @Test
+    fun customSizeUnchangedWhenItFits() {
+        assertEquals(22f, StatusbarViewMaths.fittedTextSizePx(22f, 24f, 40, 1, 1f, 6f), 0.001f)
+    }
+
+    @Test
+    fun customSizeShrinksOnOverflow() {
+        val fitted = StatusbarViewMaths.fittedTextSizePx(22f, 24f, 12, 1, 1f, 6f)
+        assertTrue(fitted < 22f)
+        assertTrue(fitted >= 6f)
+    }
+
+    @Test
+    fun dualLineFitUsesLineSpacing() {
+        val fitted = StatusbarViewMaths.fittedTextSizePx(20f, 22f, 20, 2, 0.85f, 6f)
+        assertTrue(fitted < 20f)
+        val occupied = StatusbarViewMaths.occupiedHeightPx(fitted, 2, 0.85f)
+        assertTrue(occupied <= 20f + 0.05f)
+    }
+
+    @Test
+    fun localOffsetClampsInsideAvailable() {
+        assertEquals(2f, StatusbarViewMaths.clampVerticalOffsetPx(10f, 20, 16), 0.001f)
+        assertEquals(-2f, StatusbarViewMaths.clampVerticalOffsetPx(-10f, 20, 16), 0.001f)
+    }
+
+    @Test
+    fun globalThenLocalStayInsideRow() {
+        val global = StatusBarSafeGeometry.resolve(120, 120, 10f)
+        assertTrue(global.staysInsideWindow(120))
+        val row = global.safeContentHeightPx / 2
+        val fitted = StatusbarViewMaths.fittedTextSizePx(18f, 20f, row, 2, 0.85f, 6f)
+        val occupied = StatusbarViewMaths.occupiedHeightPx(fitted, 2, 0.85f).toInt()
+        val local = StatusbarViewMaths.clampVerticalOffsetPx(8f, row, occupied)
+        val slack = ((row - occupied) / 2f).coerceAtLeast(0f)
+        assertTrue(kotlin.math.abs(local) <= slack + 0.001f)
+    }
+
+    @Test
+    fun heightGrowRestoresTowardRequested() {
+        val requested = 16f
+        val shrunk = StatusbarViewMaths.fittedTextSizePx(requested, 18f, 10, 1, 1f, 6f)
+        assertTrue(shrunk < requested)
+        val restored = StatusbarViewMaths.fittedTextSizePx(requested, 18f, 40, 1, 1f, 6f)
+        assertEquals(requested, restored, 0.001f)
+    }
+
+    @Test
+    fun unlaidViewDefersFit() {
+        assertEquals(16f, StatusbarViewMaths.fittedTextSizePx(16f, 18f, 0, 2, 0.85f, 6f), 0.001f)
+        assertEquals(16f, StatusbarViewMaths.shrinkToFitPx(16f, 0, 2, 0.85f, 6f), 0.001f)
+    }
+
+    @Test
     fun shrinkKeepsRequestedWhenItFitsSingleLine() {
         assertEquals(16f, StatusbarViewMaths.shrinkToFitPx(16f, 20, 1, 1f, 6f), 0.001f)
     }

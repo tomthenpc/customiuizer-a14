@@ -77,6 +77,60 @@ object StatusbarViewMaths {
     }
 
     /**
+     * Height available for glyphs inside a row after padding. Local offset is
+     * applied after fit and is clamped separately.
+     */
+    @JvmStatic
+    fun availableTextHeightPx(
+        parentHeightPx: Int,
+        paddingTopPx: Int,
+        paddingBottomPx: Int,
+    ): Int {
+        if (parentHeightPx <= 0) return 0
+        val padTop = if (paddingTopPx > 0) paddingTopPx else 0
+        val padBottom = if (paddingBottomPx > 0) paddingBottomPx else 0
+        val available = parentHeightPx - padTop - padBottom
+        return if (available > 0) available else 0
+    }
+
+    /**
+     * Fitted text size from a requested size and the FontMetrics line height.
+     * Never larger than [requestedPx]. Unlaid-out available height keeps requested.
+     */
+    @JvmStatic
+    fun fittedTextSizePx(
+        requestedPx: Float,
+        fontMetricsHeightPx: Float,
+        availableHeightPx: Int,
+        lineCount: Int,
+        lineSpacingMultiplier: Float,
+        minPx: Float,
+    ): Float {
+        if (requestedPx <= 0f) return requestedPx
+        val sizeFromRequested = shrinkToFitPx(
+            requestedPx,
+            availableHeightPx,
+            lineCount,
+            lineSpacingMultiplier,
+            minPx,
+        )
+        val metricsHeight = if (fontMetricsHeightPx > 0f) fontMetricsHeightPx else requestedPx
+        val sizeFromMetrics = shrinkToFitPx(
+            metricsHeight,
+            availableHeightPx,
+            lineCount,
+            lineSpacingMultiplier,
+            minPx,
+        )
+        val scale = if (metricsHeight > 0f) sizeFromMetrics / metricsHeight else 1f
+        val next = requestedPx * scale
+        return when {
+            next < sizeFromRequested -> next
+            else -> sizeFromRequested
+        }.coerceAtMost(requestedPx)
+    }
+
+    /**
      * Clamp a vertical translation so the text block stays inside the parent.
      * Unlaid-out views ([parentHeightPx] or [textHeightPx] <= 0) keep the requested
      * offset instead of collapsing it to 0.

@@ -24,48 +24,28 @@ class StatusBarContentGeometryTest {
     }
 
     @Test
-    fun dualRowsMayFillWindow_singleRowDoesNot() {
+    fun dualRowsMayFillWindow_singleRowDoesNotWithoutOffset() {
         assertTrue(StatusBarContentGeometry.shouldFillWindowForDualRows(true, 129))
         assertFalse(StatusBarContentGeometry.shouldFillWindowForDualRows(false, 129))
         assertFalse(StatusBarContentGeometry.shouldFillWindowForDualRows(true, 0))
+        assertFalse(StatusBarContentGeometry.shouldFillWindowForOffset(0f, 129))
+        assertTrue(StatusBarContentGeometry.shouldFillWindowForOffset(10f, 129))
     }
 
     @Test
-    fun singleRowCentersNativeBlockWhenWindowGrew() {
-        assertTrue(StatusBarContentGeometry.shouldCenterNativeBlock(false, 129, 80))
-        assertFalse(StatusBarContentGeometry.shouldCenterNativeBlock(false, 80, 80))
-        assertFalse(StatusBarContentGeometry.shouldCenterNativeBlock(true, 129, 80))
-        assertFalse(StatusBarContentGeometry.shouldCenterNativeBlock(false, 0, 80))
+    fun ownerTargetCapsSingleRowToWindowAndFillsForOffset() {
+        assertEquals(80, StatusBarContentGeometry.ownerTargetHeightPx(80, 129, false, 0f))
+        assertEquals(60, StatusBarContentGeometry.ownerTargetHeightPx(80, 60, false, 0f))
+        assertEquals(129, StatusBarContentGeometry.ownerTargetHeightPx(80, 129, false, 8f))
+        assertEquals(129, StatusBarContentGeometry.ownerTargetHeightPx(80, 129, true, 0f))
+        assertEquals(-1, StatusBarContentGeometry.ownerTargetHeightPx(-1, 129, false, 0f))
     }
 
     @Test
-    fun zeroUserOffsetIsZeroTranslation() {
-        assertEquals(0f, StatusBarContentGeometry.resolveUserTranslationY(129, 80, 0f), 0.001f)
-        assertEquals(0f, StatusBarContentGeometry.resolveUserTranslationY(80, 80, 0f), 0.001f)
-    }
-
-    @Test
-    fun userOffsetClampsToSlack() {
-        assertEquals(8f, StatusBarContentGeometry.resolveUserTranslationY(40, 24, 20f), 0.001f)
-        assertEquals(-8f, StatusBarContentGeometry.resolveUserTranslationY(40, 24, -20f), 0.001f)
-        assertEquals(4f, StatusBarContentGeometry.resolveUserTranslationY(100, 40, 4f), 0.001f)
-    }
-
-    @Test
-    fun unmeasuredParentDoesNotProduceHugeTranslation() {
-        assertEquals(0f, StatusBarContentGeometry.resolveUserTranslationY(0, 80, 80f), 0.001f)
-        assertEquals(0f, StatusBarContentGeometry.resolveUserTranslationY(-1, 80, 80f), 0.001f)
-    }
-
-    @Test
-    fun fillingContentHasNoGlobalSlack() {
-        assertEquals(0f, StatusBarContentGeometry.resolveUserTranslationY(40, 40, 10f), 0.001f)
-    }
-
-    @Test
-    fun requestedOffsetClampsToVisualSlack() {
-        assertEquals(8f, StatusbarViewMaths.clampVerticalOffsetPx(20f, 40, 24), 0.001f)
-        assertEquals(-8f, StatusbarViewMaths.clampVerticalOffsetPx(-20f, 40, 24), 0.001f)
-        assertEquals(0f, StatusbarViewMaths.clampVerticalOffsetPx(8f, 40, 40), 0.001f)
+    fun naturalContentFollowsWindowForDualRowsAndMatchParent() {
+        assertEquals(129, StatusBarContentGeometry.naturalContentHeightPx(-1, 129, false))
+        assertEquals(129, StatusBarContentGeometry.naturalContentHeightPx(80, 129, true))
+        assertEquals(80, StatusBarContentGeometry.naturalContentHeightPx(80, 129, false))
+        assertEquals(60, StatusBarContentGeometry.naturalContentHeightPx(80, 60, false))
     }
 }

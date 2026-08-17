@@ -4,8 +4,8 @@ package tv.withaibuild.customiuizer.mods.utils
  * View-layer status-bar geometry.
  *
  * Window / insets height is owned by [tv.withaibuild.customiuizer.mods.SystemStatusBarInsetsHooks].
- * Auto-center optical scanning is not used: a negative translation on `status_bar_contents`
- * is clipped by `StatusBarWindowView.clipChildren`.
+ * Global offset is applied through [StatusBarSafeGeometry]: reserve height, then
+ * translate. Optical leaf scanning is not used.
  */
 object StatusBarContentGeometry {
 
@@ -28,35 +28,48 @@ object StatusBarContentGeometry {
 
     /**
      * Dual-row is a custom layout and may consume the extra window pixels.
-     * Single-row keeps the inflated SystemUI height.
+     * Single-row keeps the inflated SystemUI height unless a non-zero offset
+     * needs window-space room to place the content block.
      */
     @JvmStatic
     fun shouldFillWindowForDualRows(dualRows: Boolean, windowHeightPx: Int): Boolean =
         dualRows && windowHeightPx > 0
 
     @JvmStatic
-    fun shouldCenterNativeBlock(
-        dualRows: Boolean,
-        windowHeightPx: Int,
-        viewHeightPx: Int,
-    ): Boolean {
-        if (dualRows) return false
-        if (windowHeightPx <= 0 || viewHeightPx <= 0) return false
-        return windowHeightPx > viewHeightPx + 1
-    }
+    fun shouldFillWindowForOffset(requestedOffsetPx: Float, windowHeightPx: Int): Boolean =
+        windowHeightPx > 0 && kotlin.math.abs(requestedOffsetPx) >= 0.5f
 
     /**
-     * User fine-offset only. Unmeasured parent → 0 so a bad layout cannot
-     * produce a huge translation into the window clip.
+     * Intrinsic height used as [StatusBarSafeGeometry] natural content.
+     * MATCH_PARENT / unknown originals follow the window.
      */
     @JvmStatic
-    fun resolveUserTranslationY(
-        parentHeightPx: Int,
-        contentHeightPx: Int,
-        userOffsetPx: Float,
-    ): Float {
-        if (parentHeightPx <= 0) return 0f
-        val content = if (contentHeightPx > 0) contentHeightPx else parentHeightPx
-        return StatusbarViewMaths.clampVerticalOffsetPx(userOffsetPx, parentHeightPx, content)
+    fun naturalContentHeightPx(
+        originalOwnerHeightPx: Int,
+        windowHeightPx: Int,
+        dualRows: Boolean,
+    ): Int {
+        if (windowHeightPx <= 0) {
+            return if (originalOwnerHeightPx > 0) originalOwnerHeightPx else 0
+        }
+        if (dualRows || originalOwnerHeightPx <= 0) return windowHeightPx
+        return if (originalOwnerHeightPx > windowHeightPx) windowHeightPx else originalOwnerHeightPx
+    }
+
+    @JvmStatic
+    fun ownerTargetHeightPx(
+        originalOwnerHeightPx: Int,
+        windowHeightPx: Int,
+        dualRows: Boolean,
+        requestedOffsetPx: Float,
+    ): Int {
+        if (windowHeightPx <= 0) return originalOwnerHeightPx
+        if (dualRows || shouldFillWindowForOffset(requestedOffsetPx, windowHeightPx)) {
+            return windowHeightPx
+        }
+        if (originalOwnerHeightPx > 0) {
+            return if (originalOwnerHeightPx > windowHeightPx) windowHeightPx else originalOwnerHeightPx
+        }
+        return originalOwnerHeightPx
     }
 }

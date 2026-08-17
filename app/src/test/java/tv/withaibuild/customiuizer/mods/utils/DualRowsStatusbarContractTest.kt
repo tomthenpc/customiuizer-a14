@@ -53,6 +53,8 @@ class DualRowsStatusbarContractTest {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/StatusBarContentGeometryHooks.kt")
         assertTrue(source.contains("status_bar_contents"))
         assertTrue(source.contains("contents.translationY"))
+        assertTrue(source.contains("StatusBarSafeGeometry"))
+        assertFalse(source.contains("SafeContentHost"))
         assertFalse(source.contains("import tv.withaibuild.customiuizer.mods.SystemStatusBarInsetsHooks"))
         assertFalse(source.contains("collectVisualBounds"))
         assertFalse(source.contains("isOpticalLeaf"))

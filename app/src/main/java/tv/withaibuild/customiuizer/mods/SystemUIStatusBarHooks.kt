@@ -439,7 +439,6 @@ object SystemUIStatusBarHooks {
             iconTextView,
             lineCount,
             iconTextView.lineSpacingMultiplier,
-            customSizeDp != null || lineCount >= 2,
         )
         StatusBarTextFit.applyVerticalOffset(iconTextView, offsetPx)
     }
@@ -970,7 +969,6 @@ object SystemUIStatusBarHooks {
             digitalTextView,
             lineCount,
             digitalTextView.lineSpacingMultiplier,
-            customTextSizeDp != null || lineCount >= 2,
         )
         StatusBarTextFit.applyVerticalOffset(digitalTextView, offsetPx)
     }
@@ -2342,7 +2340,6 @@ object SystemUIStatusBarHooks {
                     numberText,
                     netSpeedLines,
                     numberText.lineSpacingMultiplier,
-                    fontSize > 13 || netSpeedLines >= 2,
                 )
                 val clamped = StatusbarViewMaths.clampVerticalOffsetPx(
                     speedView.translationY,
@@ -2582,7 +2579,6 @@ object SystemUIStatusBarHooks {
                     mMobileTypeSingle,
                     1,
                     mMobileTypeSingle.lineSpacingMultiplier,
-                    fontSize != 27,
                 )
             }
         }
