@@ -620,9 +620,50 @@ object Various {
         upEvent.recycle()
     }
 
+    internal const val SIDE_BAR_EXPAND_RECEIVER_KEY = "showSideBarReceiver"
+
+    /**
+     * Process-scoped ShowSideBar receiver. The [View] is held only through a
+     * [WeakReference] so [ReceiverRegistry] cannot pin the sidebar view after detach.
+     */
+    internal fun createSideBarExpandReceiver(
+        view: View,
+        originDockLocation: Int,
+    ): BroadcastReceiver {
+        val viewRef = WeakReference(view)
+        return object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
+                val target = viewRef.get() ?: return@guarded
+                val fromPackage = getSentFromPackage()
+                if (fromPackage != Helpers.modulePkg &&
+                    fromPackage != "android" &&
+                    fromPackage != "com.android.systemui" &&
+                    fromPackage != "com.miui.home"
+                ) {
+                    if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_FAILED)
+                    return@guarded
+                }
+                val bundle = intent.getBundleExtra("actionInfo")
+                var pos = originDockLocation
+                if (bundle != null) {
+                    pos = bundle.getInt("inDirection", 0)
+                    target.context.getSharedPreferences("sp_video_box", 0).edit().putInt("dock_line_location", pos).apply()
+                }
+                showSideBar(target, pos)
+                if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
+            }
+        }
+    }
+
+    internal fun releaseSideBarExpandReceiver(receiver: BroadcastReceiver?) {
+        if (receiver == null) return
+        ModuleHelper.unregisterModuleReceiver(SIDE_BAR_EXPAND_RECEIVER_KEY, receiver)
+    }
+
     @JvmStatic
     fun AddSideBarExpandReceiverHook(lpparam: PackageReadyParam) {
         val isHooked = booleanArrayOf(false, false)
+        val registeredReceiver = arrayOf<BroadcastReceiver?>(null)
         val enableSideBar = MainModule.mPrefs.getBoolean("various_swipe_expand_sidebar")
         if (!enableSideBar) {
             MainModule.resHooks.setThemeValueReplacement("com.miui.securitycenter", "dimen", "sidebar_height_default", 8)
@@ -642,40 +683,30 @@ object Various {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
                 try {
-                    val thisObject = chain.thisObject
-
                     if (!isHooked[0]) {
                         isHooked[0] = true
                         val view = chain.getArg(0) as View
                         if (originDockLocation == -1) {
                             originDockLocation = view.context.getSharedPreferences("sp_video_box", 0).getInt("dock_line_location", 0)
                         }
-                        val showReceiver = object : BroadcastReceiver() {
-                            override fun onReceive(context: Context, intent: Intent) = ModuleHelper.guarded {
-                                val fromPackage = getSentFromPackage()
-                                if (fromPackage != Helpers.modulePkg &&
-                                    fromPackage != "android" &&
-                                    fromPackage != "com.android.systemui" &&
-                                    fromPackage != "com.miui.home"
-                                ) {
-                                    if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_FAILED)
-                                    return@guarded
-                                }
-                                val bundle = intent.getBundleExtra("actionInfo")
-                                var pos = originDockLocation
-                                if (bundle != null) {
-                                    pos = bundle.getInt("inDirection", 0)
-                                    view.context.getSharedPreferences("sp_video_box", 0).edit().putInt("dock_line_location", pos).apply()
-                                }
-                                showSideBar(view, pos)
-                                if (isOrderedBroadcast) setResultCode(GlobalActions.ACTION_HANDLED)
-                            }
+                        val showReceiver = createSideBarExpandReceiver(view, originDockLocation)
+                        if (ModuleHelper.registerModuleReceiver(
+                                view.context,
+                                SIDE_BAR_EXPAND_RECEIVER_KEY,
+                                showReceiver,
+                                IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"),
+                                Context.RECEIVER_EXPORTED,
+                            )
+                        ) {
+                            registeredReceiver[0] = showReceiver
+                        } else {
+                            isHooked[0] = false
                         }
-                        ModuleHelper.registerModuleReceiver(view.context, "showSideBarReceiver", showReceiver, IntentFilter(GlobalActions.ACTION_PREFIX + "ShowSideBar"), Context.RECEIVER_EXPORTED)
 
                         if (!isHooked[1]) {
                             isHooked[1] = true
@@ -699,6 +730,7 @@ object Various {
                                                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                                                 result = chain.proceed()
                                             } catch (t: Throwable) {
+                                                FatalErrors.rethrowIfFatal(t)
                                                 throwable = t
                                                 result = null
                                             }
@@ -717,6 +749,7 @@ object Various {
                                                 if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                                                 result = chain.proceed()
                                             } catch (t: Throwable) {
+                                                FatalErrors.rethrowIfFatal(t)
                                                 throwable = t
                                                 result = null
                                             }
@@ -730,6 +763,10 @@ object Various {
                         }
                     }
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
+                    if (registeredReceiver[0] == null) {
+                        isHooked[0] = false
+                    }
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
@@ -743,14 +780,17 @@ object Various {
                 try {
                     result = chain.proceed()
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     throwable = t
                     result = null
                 }
+                val receiverToRelease = registeredReceiver[0]
+                registeredReceiver[0] = null
+                isHooked[0] = false
                 try {
-                    val thisObject = chain.thisObject
-
-                    isHooked[0] = false
+                    releaseSideBarExpandReceiver(receiverToRelease)
                 } catch (t: Throwable) {
+                    FatalErrors.rethrowIfFatal(t)
                     XposedHelpers.log(t)
                 }
                 return XposedHelpers.throwOrReturn(throwable, result)
