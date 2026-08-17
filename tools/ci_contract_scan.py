@@ -50,16 +50,23 @@ def scan_workflow(path: Path, expected_branch: str, default_branch: str) -> list
         add("CI_SDK_LEGACY_TOOLS", "legacy tools package pulls obsolete emulator/tooling")
 
     hardcoded_37 = re.search(r'sdkmanager[^\n]*["\']platforms;android-37["\']', text)
-    has_resolver = (
-        "android-CinnamonBun" in text
-        and re.search(r"sdkmanager\s+--list", text)
-        and re.search(r"PLATFORM_PACKAGE|SDK_PLATFORM_PACKAGE", text)
-    )
-    if hardcoded_37 and not has_resolver:
+    if hardcoded_37:
         add(
             "CI_API37_RESOLUTION",
-            "API 37 must be discovered with android-37/CinnamonBun fallback",
+            "unversioned platforms;android-37 is not a stable pin; use tools/ci_install_android_sdk.sh",
             hardcoded_37.start(),
+        )
+    if re.search(r"android-37\*|android-CinnamonBun", text) or (
+        re.search(r"sdkmanager\s+--list", text) and re.search(r"sort\s+-V", text)
+    ):
+        add(
+            "CI_SDK_NONDETERMINISTIC",
+            "do not glob or sort API 37 packages; pin exact stable packages",
+        )
+    if "android-actions/setup-android" in text and "tools/ci_install_android_sdk.sh" not in text:
+        add(
+            "CI_SDK_PIN",
+            "setup-android workflows must install compile SDK via tools/ci_install_android_sdk.sh",
         )
 
     if "actions/checkout@" in text:
@@ -130,6 +137,30 @@ def scan_workflow(path: Path, expected_branch: str, default_branch: str) -> list
     return errors
 
 
+def scan_android_sdk_script(repo_root: Path) -> list[str]:
+    path = repo_root / "tools" / "ci_install_android_sdk.sh"
+    rel = "tools/ci_install_android_sdk.sh"
+    if not path.is_file():
+        return [f"{rel}:1: CI_SDK_PIN: missing Android SDK install script"]
+    text = path.read_text(encoding="utf-8")
+    errors: list[str] = []
+    if re.search(r'PLATFORM_PACKAGE="[^"]*(?:beta|preview|rc[0-9])[^"]*"', text, re.I) or re.search(
+        r'BUILD_TOOLS_PACKAGE="[^"]*(?:beta|preview|rc[0-9])[^"]*"',
+        text,
+        re.I,
+    ):
+        errors.append(f"{rel}:1: CI_SDK_STABLE: pinned SDK packages must not include beta/rc/preview")
+    if not re.search(r'PLATFORM_PACKAGE="platforms;android-37\.\d+"', text):
+        errors.append(f"{rel}:1: CI_SDK_PIN: PLATFORM_PACKAGE must be a stable platforms;android-37.N pin")
+    if not re.search(r'BUILD_TOOLS_PACKAGE="build-tools;37\.\d+\.\d+"', text):
+        errors.append(f"{rel}:1: CI_SDK_PIN: BUILD_TOOLS_PACKAGE must be a stable build-tools;37.x.y pin")
+    if re.search(r"\bfind\b", text) or re.search(r"sort\s+-V", text) or "head -n 1" in text:
+        errors.append(f"{rel}:1: CI_SDK_NONDETERMINISTIC: verify the pinned package directories, do not glob")
+    if "android.jar" not in text or "/aapt" not in text:
+        errors.append(f"{rel}:1: CI_SDK_PIN: must verify android.jar and aapt for the pinned packages")
+    return errors
+
+
 def scan_repo_scripts(repo_root: Path) -> list[str]:
     errors: list[str] = []
     path_replace = re.compile(r'\.replace\s*\(\s*["\']/["\']\s*,\s*["\']\\\\?["\']\s*\)')
@@ -173,7 +204,9 @@ def main(argv: list[str] | None = None) -> int:
     errors: list[str] = []
     for path in paths:
         errors.extend(scan_workflow(path, args.expected_branch, args.default_branch))
-    errors.extend(scan_repo_scripts(Path(args.repo_root).resolve()))
+    repo_root = Path(args.repo_root).resolve()
+    errors.extend(scan_repo_scripts(repo_root))
+    errors.extend(scan_android_sdk_script(repo_root))
 
     if errors:
         print("CI contract violations:")

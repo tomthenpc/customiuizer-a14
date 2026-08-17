@@ -468,7 +468,13 @@ def mutate_source_test_seam(root: Path, cfg: dict) -> None:
 def mutate_feature_semantics(root: Path, cfg: dict) -> None:
     path = root / "feature-semantics/a14.json"
     data = json.loads(path.read_text(encoding="utf-8"))
-    data.pop("schemaVersion", None)
+    entries = data.get("entries")
+    if not isinstance(entries, list) or not entries:
+        raise RuntimeError("feature-semantics/a14.json has no entries")
+    first = entries[0]
+    if not isinstance(first, dict):
+        raise RuntimeError("feature-semantics/a14.json first entry is not an object")
+    first["installPhase"] = "BRUTAL_INVALID_PHASE"
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 

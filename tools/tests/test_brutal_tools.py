@@ -68,6 +68,41 @@ jobs:
             self.assertIn("CI_API37_RESOLUTION", text)
             self.assertIn("CI_EXACT_BRANCH", text)
 
+    def test_pinned_sdk_script_satisfies_api37_contract(self):
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "good.yml"
+            path.write_text(
+                """name: good
+on:
+  push:
+    branches:
+      - main
+jobs:
+  x:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+      - run: bash tools/ci_install_android_sdk.sh
+""",
+                encoding="utf-8",
+            )
+            errors = ci_contract_scan.scan_workflow(path, "main", "main")
+            text = "\n".join(errors)
+            self.assertNotIn("CI_API37_RESOLUTION", text)
+            self.assertNotIn("CI_SDK_NONDETERMINISTIC", text)
+    def test_pinned_sdk_script_is_stable_and_exact(self):
+        repo = Path(__file__).resolve().parents[2]
+        errors = ci_contract_scan.scan_android_sdk_script(repo)
+        self.assertEqual([], errors)
+
     def test_catches_windows_only_tool_path(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
