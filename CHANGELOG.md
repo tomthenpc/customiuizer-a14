@@ -6,35 +6,21 @@ English | [简体中文](CHANGELOG_CN.md)
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
 
-### New Features
+### Status Bar
 
-- Dynamic Island mode for the HyperOS status capsule: the ROM forehead is reshaped in place, aligned to the camera cutout, and can be fine-tuned vertically. The system animation is kept, and status-bar contents fade smoothly while the island is visible.
-- USB default purpose: follow system default, charge only, file transfer (MTP), or photo transfer (PTP).
-- Recents can hide app names; gesture navigation can hide the keyboard dismiss button.
-- Folder background blur and some window-level blur can be disabled.
-- Volume-panel Do Not Disturb / mute shortcuts can be hidden, and mode-button colors can be customized.
-- Location and notification permission prompts can be dismissed without granting access.
-- Added controls for Xiaomi updater services, MIUI daemon, analytics, Security Center marketing components, and the antivirus entry.
+- Device temperature now uses separate CPU and battery sources, with more compatible CPU thermal-zone parsing.
+- In dual-row mode, temperature moves to the left when “show on the right” is off.
+- Default font size is kept when it fits. If a custom height or vertical offset leaves too little room, text shrinks instead of being clipped.
+- Status-bar contents can be moved vertically without leaving the status-bar window.
 
-### Settings and Data
+### Fixes
 
-- Home, secondary pages, and search are regrouped by feature semantics. Language settings moved to home. About is a dedicated page.
-- Search no longer leaves some switches visually out of sync after opening a page. Page navigation lifecycle is more complete.
-- Backups use typed V2 format, with old-backup migration, integrity checks, invalid-item cleanup, and restore rollback.
+- Dynamic Island upward recall is more reliable.
+- Device-info updates no longer depend on network-speed controller slots, so temperature text can still appear without that controller.
 
 ### Stability and Compatibility
 
-- Static Xposed scope and on-demand dynamic app-scope requests on supported LSPosed APIs.
-- SystemUI, launcher, and system Hook lifecycle, failure boundaries, and resource release are tighter.
-- Sidebar expand receiver ownership is bound to the owning View across rebuilds.
-- Status-bar height, volume percentage, and USB-plug default purpose behave correctly at runtime.
-
-### Performance and Engineering
-
-- Status-bar, battery, clock, icon, and notification hot paths do less repeated parsing, Binder work, and temporary allocation.
-- Preference updates read a single typed value instead of copying the full map on ordinary changes.
-- Release diagnostics and rebuildable caches are narrower, with less resident data.
-- Unused experimental code was removed. Docs, tests, tools, and GitHub Actions verification were cleaned up.
+- Custom status-bar height, dual-row layout, and vertical offset keep text and system icons inside the status-bar window.
 
 ### Artifact Information
 
