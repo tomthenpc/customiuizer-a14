@@ -251,7 +251,7 @@ open class SubFragment : PreferenceFragmentBase() {
         val editor = AppHelper.appPrefs?.edit() ?: return
         var dirty = false
         for (nView in nViews) {
-            if (nView != null) try {
+            try {
                 if (nView.tag != null) {
                     when (nView) {
                         is TextView -> {
@@ -283,7 +283,7 @@ open class SubFragment : PreferenceFragmentBase() {
         }
         val nViews = Helpers.getChildViewsRecursive(root.findViewById(R.id.container), false)
         for (nView in nViews) {
-            if (nView != null) try {
+            try {
                 if (nView.tag != null && nView is TextView) {
                     nView.text = AppHelper.getStringOfAppPrefs(nView.tag as String, "")
                 }
@@ -408,7 +408,7 @@ open class SubFragment : PreferenceFragmentBase() {
         val act = activity as? AppCompatActivity
         Helpers.hideKeyboard(act, view)
         val fragmentManager = parentFragmentManager
-        if (fragmentManager != null && isAdded && !fragmentManager.isStateSaved) {
+        if (isAdded && !fragmentManager.isStateSaved) {
             fragmentManager.popBackStackImmediate()
         }
     }

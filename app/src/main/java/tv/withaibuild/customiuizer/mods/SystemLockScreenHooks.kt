@@ -1628,7 +1628,7 @@ object SystemLockScreenHooks {
                     val actName = intent.component!!.className
                     val key = "system_applock_skip_activities"
                     val itemStr = MainModule.mPrefs.getString(key, "")
-                    if (itemStr == null || itemStr.isEmpty()) { return XposedHelpers.throwOrReturn(throwable, result) }
+                    if (itemStr.isEmpty()) { return XposedHelpers.throwOrReturn(throwable, result) }
                     val itemArr = itemStr.trim().split(PrefPair.DELIMITER)
                     for (uuid in itemArr) {
                         val pkgAct = MainModule.mPrefs.getString(key + "_" + uuid + "_activity", "")
@@ -1709,7 +1709,7 @@ object SystemLockScreenHooks {
 
                     if (throwable != null || result == null || args[5] as Int == 1 || "com.android.thememanager" == args[1]) { return XposedHelpers.throwOrReturn(throwable, result) }
 
-                    val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
+                    val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context?
                     if (mContext == null) { return XposedHelpers.throwOrReturn(throwable, result) }
 
                     val handleIncomingUser = resolveWallpaperUserId {

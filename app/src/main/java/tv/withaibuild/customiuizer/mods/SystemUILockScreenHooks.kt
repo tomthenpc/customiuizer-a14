@@ -436,10 +436,8 @@ object SystemUILockScreenHooks {
     @JvmStatic
     fun LockScreenSecureLaunchHook() {
         ModuleHelper.findAndHookMethod(Activity::class.java, "onCreate", Bundle::class.java, object : MethodHook() {
-            @Suppress("ConstantConditions")
             override fun after(param: AfterHookCallback) {
-                val act = param.getThisObject() as Activity
-                if (act == null) return
+                val act = param.getThisObject() as Activity? ?: return
                 val intent = act.intent
                 if (intent == null) return
                 val mFromSecureKeyguard = intent.getBooleanExtra("StartActivityWhenLocked", false)

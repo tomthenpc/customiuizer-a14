@@ -229,7 +229,7 @@ object System {
         try {
             val opt = MainModule.mPrefs.getStringAsInt("system_blocktoasts", 1)
             val selectedApps = MainModule.mPrefs.getStringSet("system_blocktoasts_apps")
-            val isSelected = selectedApps != null && selectedApps.contains(pkgName)
+            val isSelected = selectedApps.contains(pkgName)
             return (opt == 2 && !isSelected) || (opt == 3 && isSelected)
         } catch (t: Throwable) {
             XposedHelpers.log(t)

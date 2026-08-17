@@ -27,6 +27,33 @@ def scan_workflow(path: Path, expected_branch: str, default_branch: str) -> list
 
     if "actions/checkout@" in text and not re.search(r"fetch-depth\s*:\s*0\b", text):
         add("CI_FULL_HISTORY", "checkout must use fetch-depth: 0")
+    if "actions/checkout@" in text:
+        if re.search(r"persist-credentials\s*:\s*true\b", text):
+            add(
+                "CI_CHECKOUT_CREDENTIALS",
+                "checkout must set persist-credentials: false; later steps do not need authenticated git",
+            )
+        elif not re.search(r"persist-credentials\s*:\s*false\b", text):
+            add(
+                "CI_CHECKOUT_CREDENTIALS",
+                "checkout must set persist-credentials: false; later steps do not need authenticated git",
+            )
+    if re.search(r"chmod\s+\+x\s+\./gradlew\b", text):
+        add(
+            "CI_GRADLEW_MODE",
+            "do not chmod ./gradlew in CI; git tracks the wrapper as 100755",
+        )
+    for match in re.finditer(r"(?m)^[ \t]*(?:-\s+)?uses:[ \t]*(\S+)", text):
+        spec = match.group(1)
+        if spec.startswith("./") or spec.startswith(".\\"):
+            continue
+        ref = spec.rsplit("@", 1)[-1] if "@" in spec else ""
+        if not re.fullmatch(r"[0-9a-f]{40}", ref):
+            add(
+                "CI_ACTION_PIN",
+                f"action must be pinned to a 40-char commit SHA, not {spec}",
+                match.start(),
+            )
 
     if re.search(r"\bpw[s]h\b|\bpowe[r]shell\b", text, re.I):
         add("CI_LINUX_SHELL", "Ubuntu workflow invokes PowerShell")
@@ -161,6 +188,35 @@ def scan_android_sdk_script(repo_root: Path) -> list[str]:
     return errors
 
 
+def scan_compile_sdk_contract(repo_root: Path) -> list[str]:
+    gradle_path = repo_root / "app" / "build.gradle.kts"
+    script_path = repo_root / "tools" / "ci_install_android_sdk.sh"
+    errors: list[str] = []
+    if not gradle_path.is_file():
+        return ["app/build.gradle.kts:1: CI_SDK_COMPILE_MAJOR: missing app/build.gradle.kts"]
+    if not script_path.is_file():
+        return ["tools/ci_install_android_sdk.sh:1: CI_SDK_COMPILE_MAJOR: missing Android SDK install script"]
+
+    gradle = gradle_path.read_text(encoding="utf-8")
+    script = script_path.read_text(encoding="utf-8")
+    compile = re.search(r"(?m)^\s*compileSdk\s*=\s*(\d+)\s*$", gradle)
+    platform = re.search(r'(?m)^\s*PLATFORM_PACKAGE="platforms;android-(\d+)(?:\.\d+)?"\s*$', script)
+    if compile is None:
+        errors.append("app/build.gradle.kts:1: CI_SDK_COMPILE_MAJOR: compileSdk major is missing")
+        return errors
+    if platform is None:
+        errors.append(
+            "tools/ci_install_android_sdk.sh:1: CI_SDK_COMPILE_MAJOR: PLATFORM_PACKAGE must be platforms;android-N or android-N.M"
+        )
+        return errors
+    if compile.group(1) != platform.group(1):
+        errors.append(
+            "app/build.gradle.kts:1: CI_SDK_COMPILE_MAJOR: "
+            f"compileSdk {compile.group(1)} does not match pinned platform major {platform.group(1)}"
+        )
+    return errors
+
+
 def scan_repo_scripts(repo_root: Path) -> list[str]:
     errors: list[str] = []
     path_replace = re.compile(r'\.replace\s*\(\s*["\']/["\']\s*,\s*["\']\\\\?["\']\s*\)')
@@ -207,6 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     repo_root = Path(args.repo_root).resolve()
     errors.extend(scan_repo_scripts(repo_root))
     errors.extend(scan_android_sdk_script(repo_root))
+    errors.extend(scan_compile_sdk_contract(repo_root))
 
     if errors:
         print("CI contract violations:")

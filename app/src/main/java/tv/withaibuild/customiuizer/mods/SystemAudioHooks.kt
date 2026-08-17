@@ -449,7 +449,7 @@ object SystemAudioHooks {
             val callingPackage = XposedHelpers.getObjectField(record, "callingPackage") as String?
             val events = XposedHelpers.getIntField(record, "events")
             val selectedApps = MainModule.mPrefs.getStringSet("system_ignorecalls_apps")
-            if ((events and PhoneStateListener.LISTEN_CALL_STATE) == PhoneStateListener.LISTEN_CALL_STATE && callingPackage != null && selectedApps != null && selectedApps.contains(callingPackage)) {
+            if ((events and PhoneStateListener.LISTEN_CALL_STATE) == PhoneStateListener.LISTEN_CALL_STATE && callingPackage != null && selectedApps.contains(callingPackage)) {
                 val newEvents = events and PhoneStateListener.LISTEN_CALL_STATE.inv()
                 XposedHelpers.setIntField(record, "events", newEvents)
             }
