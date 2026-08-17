@@ -2,6 +2,22 @@
 
 English | [简体中文](CHANGELOG_CN.md)
 
+## r14.20.4 — 2026-08-18
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+
+### Fixes
+
+- Disable wallpaper scale now clamps the actual launcher zoom-out calls on HyperOS 1, so recents and app open/close transitions stay unscaled instead of relying only on `ZOOM_ENABLED`.
+- Launcher → Other and System → Recents wallpaper-scale toggles now have distinct titles and summaries; either one disables recents/app wallpaper zoom, and only the launcher toggle also disables unlock wallpaper scale and recents dim.
+
+### Artifact Information
+
+- APK: `CustoMIUIzer-A14-r14.20.4.apk`
+- versionCode / versionName: `201 / r14.20.4`
+
+---
+
 ## r14.20.3 — 2026-08-18
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.

@@ -361,7 +361,10 @@
     <string name="system_mods_recents">最近應用列表</string>
     <string name="system_removecleaner_title">移除清理按鈕</string>
     <string name="system_removecleaner_summ">隱藏清理最近應用和記憶體的按鈕</string>
-    <string name="system_recents_disable_wallpaperscale_title">禁用壁紙縮放</string>
+    <string name="launcher_disable_wallpaperscale_title">停用壁紙縮放</string>
+    <string name="launcher_disable_wallpaperscale_summ">關閉最近任務、開啟/關閉應用時的壁紙縮放，並關閉解鎖壁紙縮放動畫。修改後請強制停止桌面。</string>
+    <string name="system_recents_disable_wallpaperscale_title">最近任務中停用壁紙縮放</string>
+    <string name="system_recents_disable_wallpaperscale_summ">與「啟動器 → 其它」為同一套桌面壁紙縮放，但不包含解鎖動畫。兩者不衝突，最近任務和應用過渡開一個即可。修改後請強制停止桌面。</string>
     <string name="system_clearalltasks_title">清空</string>
     <string name="system_clearalltasks_summ">使清潔器按鈕結束所有正在執行中的任務</string>
     <string name="system_hidefromrecents_title">隱藏最近</string>

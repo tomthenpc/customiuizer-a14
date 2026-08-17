@@ -432,7 +432,10 @@
     <string name="system_mods_recents">Recent apps list</string>
     <string name="system_removecleaner_title">Remove cleaner button</string>
     <string name="system_removecleaner_summ">Hide button that clears recent apps and cleans memory</string>
-    <string name="system_recents_disable_wallpaperscale_title">Disable wallpaper scale</string>
+    <string name="launcher_disable_wallpaperscale_title">Disable wallpaper scale</string>
+    <string name="launcher_disable_wallpaperscale_summ">Keep wallpaper from zooming in recents and app open/close, and disable the unlock wallpaper scale animation. Force-stop the launcher after changing.</string>
+    <string name="system_recents_disable_wallpaperscale_title">Disable wallpaper scale in recents</string>
+    <string name="system_recents_disable_wallpaperscale_summ">Same launcher wallpaper zoom as Launcher → Other, without the unlock wallpaper animation. The two switches do not conflict; either one is enough for recents and app transitions. Force-stop the launcher after changing.</string>
     <string name="system_recents_card_style_summ">Hide app names on recent-task cards; requires Launcher restart to apply.</string>
     <string name="system_recents_card_style_hide_title">Hide app name</string>
     <string name="system_clearalltasks_title">Clean all</string>

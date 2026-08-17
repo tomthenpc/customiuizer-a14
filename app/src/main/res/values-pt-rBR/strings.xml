@@ -388,7 +388,10 @@
     <string name="system_mods_recents">Lista de apps recentes</string>
     <string name="system_removecleaner_title">Remover botão de limpeza</string>
     <string name="system_removecleaner_summ">Oculte o botão que limpa os apps recentes e a memória</string>
-    <string name="system_recents_disable_wallpaperscale_title">Desativar escala do plano de fundo</string>
+    <string name="launcher_disable_wallpaperscale_title">Desativar escala do plano de fundo</string>
+    <string name="launcher_disable_wallpaperscale_summ">Impede o zoom do papel de parede em Recentes e ao abrir/fechar apps, e desativa a animação de escala ao desbloquear. Após alterar, force a parada do launcher.</string>
+    <string name="system_recents_disable_wallpaperscale_title">Desativar escala do plano de fundo em Recentes</string>
+    <string name="system_recents_disable_wallpaperscale_summ">O mesmo zoom do launcher que em Launcher → Outros, sem a animação de desbloqueio. Os dois interruptores não conflitam; um basta. Após alterar, force a parada do launcher.</string>
     <string name="system_clearalltasks_title">Limpar tudo</string>
     <string name="system_clearalltasks_summ">Faça com que o botão de limpeza mate todas as tarefas em execução</string>
     <string name="system_hidefromrecents_title">Ocultar dos recentes</string>

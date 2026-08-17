@@ -377,7 +377,10 @@
     <string name="system_mods_recents">Список последних приложений</string>
     <string name="system_removecleaner_title">Убрать кнопку очистки</string>
     <string name="system_removecleaner_summ">Скрывает кнопку для очистки списка последних приложений и памяти</string>
-    <string name="system_recents_disable_wallpaperscale_title">Отключить масштаб обоев</string>
+    <string name="launcher_disable_wallpaperscale_title">Отключить масштаб обоев</string>
+    <string name="launcher_disable_wallpaperscale_summ">Отключает масштаб обоев в недавних задачах и при открытии/закрытии приложений, а также анимацию масштаба при разблокировке. После изменения принудительно остановите рабочий стол.</string>
+    <string name="system_recents_disable_wallpaperscale_title">Отключить масштаб обоев в недавних</string>
+    <string name="system_recents_disable_wallpaperscale_summ">Тот же масштаб обоев рабочего стола, что и в «Рабочий стол → Другое», без анимации разблокировки. Переключатели не конфликтуют; достаточно одного. После изменения принудительно остановите рабочий стол.</string>
     <string name="system_clearalltasks_title">Очистить все</string>
     <string name="system_clearalltasks_summ">Закрывает все запущенные приложения при нажатиии на кнопку очистки</string>
     <string name="system_hidefromrecents_title">Скрыть в недавних</string>

@@ -1,6 +1,7 @@
 package tv.withaibuild.customiuizer.mods
 
 import java.io.File
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -8,30 +9,46 @@ import org.junit.Test
 class LauncherWallpaperScalePolicyTest {
 
     @Test
-    fun recentsPrefKeepsZoomDisabledWithoutPermanentLauncherPref() {
+    fun eitherPrefSuppressesLauncherWallpaperZoom() {
+        assertFalse(LauncherAnimationHooks.shouldSuppressLauncherWallpaperZoom(false, false))
+        assertTrue(LauncherAnimationHooks.shouldSuppressLauncherWallpaperZoom(true, false))
+        assertTrue(LauncherAnimationHooks.shouldSuppressLauncherWallpaperZoom(false, true))
+        assertTrue(LauncherAnimationHooks.shouldSuppressLauncherWallpaperZoom(true, true))
+        assertTrue(LauncherAnimationHooks.shouldKeepRecentsWallpaperZoomDisabled(true, false))
         assertFalse(LauncherAnimationHooks.shouldDisableLauncherWallpaperZoomPermanently(false))
         assertTrue(LauncherAnimationHooks.shouldDisableLauncherWallpaperZoomPermanently(true))
-        assertTrue(LauncherAnimationHooks.shouldKeepRecentsWallpaperZoomDisabled(true, false))
-        assertTrue(LauncherAnimationHooks.shouldKeepRecentsWallpaperZoomDisabled(false, true))
-        assertFalse(LauncherAnimationHooks.shouldKeepRecentsWallpaperZoomDisabled(false, false))
     }
 
     @Test
-    fun recentsOnStateEnabledDoesNotRestoreZoomBeforeExit() {
+    fun launcherPrefOwnsDimLayerRecentsPrefDoesNot() {
+        assertFalse(LauncherAnimationHooks.shouldDisableLauncherWallpaperZoomPermanently(false))
+        assertTrue(LauncherAnimationHooks.shouldDisableLauncherWallpaperZoomPermanently(true))
+    }
+
+    @Test
+    fun suppressedZoomStaysAtHomeScale() {
+        assertEquals(0f, LauncherAnimationHooks.wallpaperZoomOutValue(0.8f, true), 0.001f)
+        assertEquals(0.8f, LauncherAnimationHooks.wallpaperZoomOutValue(0.8f, false), 0.001f)
+        assertTrue(LauncherAnimationHooks.shouldSkipWallpaperZoomAnimation(true))
+        assertFalse(LauncherAnimationHooks.shouldSkipWallpaperZoomAnimation(false))
+    }
+
+    @Test
+    fun applyPathHooksDoNotDependOnZoomEnabledRestore() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/LauncherAnimationHooks.kt")
-        val enabledStart = source.indexOf("\"onStateEnabled\"")
-        check(enabledStart >= 0) { "onStateEnabled hook missing" }
-        val enabledEnd = source.indexOf("\"onStateDisabled\"", enabledStart)
-        check(enabledEnd > enabledStart) { "onStateDisabled hook missing" }
-        val onStateEnabled = source.substring(enabledStart, enabledEnd)
-        assertTrue(onStateEnabled.contains("setWallpaperZoomEnabled(zoomClass, false)"))
+        val bodyStart = source.indexOf("fun DisableLauncherWallpaperScale")
+        check(bodyStart >= 0) { "DisableLauncherWallpaperScale missing" }
+        val colorMode = source.indexOf("fun WallpaperColorModeHook", bodyStart)
+        check(colorMode > bodyStart) { "WallpaperColorModeHook missing" }
+        val body = source.substring(bodyStart, colorMode)
+        assertTrue(body.contains("\"setWallpaperZoomOut\""))
+        assertTrue(body.contains("\"animateWallpaperZoom\""))
+        assertTrue(body.contains("android.app.WallpaperManager"))
         assertFalse(
-            "restoring ZOOM_ENABLED inside onStateEnabled lets the recents gesture keep scaling",
-            onStateEnabled.contains("setWallpaperZoomEnabled(zoomClass, true)")
+            "recents enter/exit must not be the only wallpaper-zoom switch",
+            body.contains("\"onStateEnabled\""),
         )
-        assertTrue(source.contains("\"fastBlurWhenEnterRecents\""))
-        assertTrue(source.contains("\"fastBlurWhenExitRecents\""))
-        assertTrue(source.contains("\"getWallpaperZoomOut\""))
+        assertFalse(body.contains("\"fastBlurWhenEnterRecents\""))
     }
 
     private fun source(relativePath: String): String {

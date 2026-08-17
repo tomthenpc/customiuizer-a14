@@ -388,7 +388,10 @@
     <string name="system_mods_recents">Danh sách ứng dụng gần đây</string>
     <string name="system_removecleaner_title">Xóa nút dọn dẹp</string>
     <string name="system_removecleaner_summ">Ẩn các nút để dọn dẹp các ứng dụng và bộ nhớ gần đây</string>
-    <string name="system_recents_disable_wallpaperscale_title">Vô hiệu hóa tỷ lệ hình nền</string>
+    <string name="launcher_disable_wallpaperscale_title">Tắt thu phóng hình nền</string>
+    <string name="launcher_disable_wallpaperscale_summ">Tắt thu phóng hình nền khi vào đa nhiệm và khi mở/đóng ứng dụng, đồng thời tắt hiệu ứng thu phóng khi mở khóa. Sau khi đổi, hãy buộc dừng trình khởi chạy.</string>
+    <string name="system_recents_disable_wallpaperscale_title">Tắt thu phóng hình nền trong đa nhiệm</string>
+    <string name="system_recents_disable_wallpaperscale_summ">Cùng đường thu phóng hình nền launcher với Trình khởi chạy → Khác, không gồm hiệu ứng mở khóa. Hai công tắc không xung đột; bật một cái là đủ. Sau khi đổi, hãy buộc dừng trình khởi chạy.</string>
     <string name="system_clearalltasks_title">Dọn sạch tất cả</string>
     <string name="system_clearalltasks_summ">Làm cho nút dọn dẹp kết thúc tất cả các tác vụ đang chạy</string>
     <string name="system_hidefromrecents_title">Ẩn gần đây</string>

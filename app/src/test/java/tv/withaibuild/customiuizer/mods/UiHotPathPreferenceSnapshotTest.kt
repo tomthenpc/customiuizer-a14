@@ -68,6 +68,19 @@ class UiHotPathPreferenceSnapshotTest {
     }
 
     @Test
+    fun wallpaperZoomHotPathReadsSnapshotFlags() {
+        val body = methodBody(
+            "app/src/main/java/tv/withaibuild/customiuizer/mods/LauncherAnimationHooks.kt",
+            "fun DisableLauncherWallpaperScale",
+        )
+
+        assertFalse(body.contains("MainModule.mPrefs"))
+        assertTrue(body.contains("suppressLauncherWallpaperZoom"))
+        assertTrue(body.contains("\"setWallpaperZoomOut\""))
+        assertTrue(body.contains("\"animateWallpaperZoom\""))
+    }
+
+    @Test
     fun recentsBlurFastBlurReadsSnapshotRatio() {
         val source = source("app/src/main/java/tv/withaibuild/customiuizer/mods/Launcher.kt")
         val fastBlurBody = hookBody(

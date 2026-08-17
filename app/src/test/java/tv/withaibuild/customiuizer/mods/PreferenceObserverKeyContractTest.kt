@@ -24,6 +24,7 @@ class PreferenceObserverKeyContractTest {
         setObserverRegisteredFlag(SystemUILockScreenHooks, "swipeSuppressionObserverRegistered", false)
         setObserverRegisteredFlag(LauncherFolderHooks, "folderPreferenceObserverRegistered", false)
         setObserverRegisteredFlag(Launcher, "recentsBlurObserverRegistered", false)
+        setObserverRegisteredFlag(LauncherAnimationHooks, "wallpaperZoomObserverRegistered", false)
         setObserverRegisteredFlag(SystemUIBatteryHooks, "batteryStyleObserverRegistered", false)
     }
 
@@ -159,6 +160,57 @@ class PreferenceObserverKeyContractTest {
     }
 
     @Test
+    fun wallpaperZoomSpecificKeyRefreshes() {
+        MainModule.mPrefs.put("system_recents_disable_wallpaperscale", false)
+        MainModule.mPrefs.put("launcher_disable_wallpaperscale", false)
+        LauncherAnimationHooks.installWallpaperZoomSnapshot()
+
+        MainModule.mPrefs.put("system_recents_disable_wallpaperscale", true)
+        PreferenceObserverRegistry.handlePreferenceChanged("system_recents_disable_wallpaperscale")
+
+        assertTrue(getSuppressLauncherWallpaperZoom())
+        assertFalse(getDisableRecentsDimLayer())
+    }
+
+    @Test
+    fun wallpaperZoomLauncherKeyEnablesDimLayer() {
+        MainModule.mPrefs.put("system_recents_disable_wallpaperscale", false)
+        MainModule.mPrefs.put("launcher_disable_wallpaperscale", false)
+        LauncherAnimationHooks.installWallpaperZoomSnapshot()
+
+        MainModule.mPrefs.put("launcher_disable_wallpaperscale", true)
+        PreferenceObserverRegistry.handlePreferenceChanged("launcher_disable_wallpaperscale")
+
+        assertTrue(getSuppressLauncherWallpaperZoom())
+        assertTrue(getDisableRecentsDimLayer())
+    }
+
+    @Test
+    fun wallpaperZoomUnrelatedKeyDoesNotRefresh() {
+        MainModule.mPrefs.put("system_recents_disable_wallpaperscale", true)
+        LauncherAnimationHooks.installWallpaperZoomSnapshot()
+
+        MainModule.mPrefs.put("system_recents_disable_wallpaperscale", false)
+        PreferenceObserverRegistry.handlePreferenceChanged("system_statusbarheight")
+
+        assertTrue(getSuppressLauncherWallpaperZoom())
+    }
+
+    @Test
+    fun wallpaperZoomNullKeyRefreshes() {
+        MainModule.mPrefs.put("system_recents_disable_wallpaperscale", true)
+        MainModule.mPrefs.put("launcher_disable_wallpaperscale", true)
+        LauncherAnimationHooks.installWallpaperZoomSnapshot()
+
+        MainModule.mPrefs.put("system_recents_disable_wallpaperscale", false)
+        MainModule.mPrefs.put("launcher_disable_wallpaperscale", false)
+        PreferenceObserverRegistry.handlePreferenceChanged(null)
+
+        assertFalse(getSuppressLauncherWallpaperZoom())
+        assertFalse(getDisableRecentsDimLayer())
+    }
+
+    @Test
     fun batterySpecificKeyRefreshes() {
         MainModule.mPrefs.put("system_statusbar_batterystyle_fontsize", 20)
         SystemUIBatteryHooks.installBatteryStyleSnapshot()
@@ -222,6 +274,18 @@ class PreferenceObserverKeyContractTest {
         val field = Launcher::class.java.getDeclaredField("recentsBlurRatio")
         field.isAccessible = true
         return field.get(null) as Float
+    }
+
+    private fun getSuppressLauncherWallpaperZoom(): Boolean {
+        val field = LauncherAnimationHooks::class.java.getDeclaredField("suppressLauncherWallpaperZoom")
+        field.isAccessible = true
+        return field.get(null) as Boolean
+    }
+
+    private fun getDisableRecentsDimLayer(): Boolean {
+        val field = LauncherAnimationHooks::class.java.getDeclaredField("disableRecentsDimLayer")
+        field.isAccessible = true
+        return field.get(null) as Boolean
     }
 
     private fun setObserverRegisteredFlag(obj: Any, name: String, value: Boolean) {

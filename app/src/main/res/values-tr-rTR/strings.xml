@@ -341,7 +341,10 @@ ss - iki basamaklı saniye(09)</string>
     <string name="system_mods_recents">Son uygulamalar listesi</string>
     <string name="system_removecleaner_title">Temizleyici düğmesini kaldır</string>
     <string name="system_removecleaner_summ">Son uygulamaları temizleyen ve belleği temizleyen gizle düğmesi</string>
-    <string name="system_recents_disable_wallpaperscale_title">Duvar kağıdı ölçeğini devre dışı bırak</string>
+    <string name="launcher_disable_wallpaperscale_title">Duvar kağıdı ölçeğini kapat</string>
+    <string name="launcher_disable_wallpaperscale_summ">Son uygulamalar ve uygulama açma/kapama sırasında duvar kağıdı yakınlaştırmasını kapatır; kilit açma ölçek animasyonunu da kapatır. Değiştirdikten sonra başlatıcıyı zorla durdurun.</string>
+    <string name="system_recents_disable_wallpaperscale_title">Son uygulamalarda duvar kağıdı ölçeğini kapat</string>
+    <string name="system_recents_disable_wallpaperscale_summ">Başlatıcı → Diğer ile aynı başlatıcı duvar kağıdı yakınlaştırmasıdır; kilit açma animasyonu yoktur. Çakışmazlar; biri yeter. Değiştirdikten sonra başlatıcıyı zorla durdurun.</string>
     <string name="system_clearalltasks_title">Hepsini temizle</string>
     <string name="system_clearalltasks_summ">Temizleyici düğmesinin çalışan tüm görevleri sonlandırmasını sağlayın</string>
     <string name="system_hidefromrecents_title">Son kullanılanlardan gizle</string>

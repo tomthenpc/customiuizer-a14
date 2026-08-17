@@ -382,7 +382,10 @@
     <string name="system_mods_recents">Seznam posledních aplikací</string>
     <string name="system_removecleaner_title">Odstranit tlačítko Smazat</string>
     <string name="system_removecleaner_summ">Skrytí tlačítka, které vymaže poslední aplikace a vyčistí paměť</string>
-    <string name="system_recents_disable_wallpaperscale_title">Zakázat měřítko tapety</string>
+    <string name="launcher_disable_wallpaperscale_title">Zakázat měřítko tapety</string>
+    <string name="launcher_disable_wallpaperscale_summ">Vypne přiblížení tapety v přehledu a při otevírání/zavírání aplikací a také animaci měřítka při odemknutí. Po změně násilně ukončete spouštěč.</string>
+    <string name="system_recents_disable_wallpaperscale_title">Zakázat měřítko tapety v přehledu</string>
+    <string name="system_recents_disable_wallpaperscale_summ">Stejné přiblížení tapety spouštěče jako Spouštěč → Ostatní, bez animace odemknutí. Přepínače se nebijí; stačí jeden. Po změně násilně ukončete spouštěč.</string>
     <string name="system_clearalltasks_title">Smazat vše</string>
     <string name="system_clearalltasks_summ">Tlačítko Smazat zabije všechny spuštěné úlohy</string>
     <string name="system_hidefromrecents_title">Skrýt z posledních spuštěných</string>
