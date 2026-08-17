@@ -747,13 +747,16 @@ internal fun resolveDeviceInfoPlacement(
     batteryAtRightPref: Boolean,
     tempAtRightPref: Boolean,
 ): DeviceInfoPlacement {
+    // Dual-row owns both left and right custom text views itself. Controller
+    // slots are only the single-row StatusBarIconController path.
+    val controllerLeftRight = !dualRows
     return DeviceInfoPlacement(
         hasDeviceInfoWork = showBatteryDetail || showDeviceTemp,
         dualRows = dualRows,
-        batteryAtRight = showBatteryDetail && !dualRows && batteryAtRightPref,
-        tempAtRight = showDeviceTemp && !dualRows && tempAtRightPref,
-        batteryAtLeft = showBatteryDetail && !batteryAtRightPref,
-        tempAtLeft = showDeviceTemp && !tempAtRightPref,
+        batteryAtRight = showBatteryDetail && controllerLeftRight && batteryAtRightPref,
+        tempAtRight = showDeviceTemp && controllerLeftRight && tempAtRightPref,
+        batteryAtLeft = showBatteryDetail && controllerLeftRight && !batteryAtRightPref,
+        tempAtLeft = showDeviceTemp && controllerLeftRight && !tempAtRightPref,
     )
 }
 

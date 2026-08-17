@@ -24,7 +24,7 @@ class DeviceInfoPlacementTest {
     }
 
     @Test
-    fun dualRowsTempAtLeftUsesControllerSlot() {
+    fun dualRowsTempAtLeftKeepsMonitorWorkWithoutControllerSlots() {
         val placement = resolveDeviceInfoPlacement(
             showBatteryDetail = false,
             showDeviceTemp = true,
@@ -33,9 +33,9 @@ class DeviceInfoPlacementTest {
             tempAtRightPref = false,
         )
         assertTrue(placement.hasDeviceInfoWork)
-        assertEquals(listOf(92), placement.controllerManagedIconTypes)
-        assertTrue(placement.tempAtLeft)
+        assertTrue(placement.controllerManagedIconTypes.isEmpty())
         assertFalse(placement.tempAtRight)
+        assertFalse(placement.tempAtLeft)
     }
 
     @Test

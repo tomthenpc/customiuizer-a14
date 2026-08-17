@@ -48,6 +48,7 @@ import tv.withaibuild.customiuizer.mods.utils.StatusBarNetworkSpeedDispatcher
 import tv.withaibuild.customiuizer.mods.utils.releaseRegistrationSilently
 import tv.withaibuild.customiuizer.mods.utils.StatusBarTextFit
 import tv.withaibuild.customiuizer.mods.utils.StatusbarViewMaths
+import tv.withaibuild.customiuizer.mods.utils.resolveDeviceInfoPlacement
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import tv.withaibuild.customiuizer.utils.Helpers
 import tv.withaibuild.customiuizer.utils.HookUtils
@@ -713,6 +714,35 @@ object SystemUIStatusBarHooks {
         }
     }
 
+    private fun addDualRowsDeviceInfoIcons(
+        parent: ViewGroup,
+        types: List<Int>,
+        insertAtStart: Boolean,
+        side: String,
+        classLoader: ClassLoader,
+        sbView: View,
+        state: StatusBarDisplayState<View, LinearLayout>,
+    ) {
+        if (types.isEmpty()) return
+        for (iconType in types) {
+            val iconView = createStatusbarTextIcon(
+                parent.context,
+                LinearLayout.LayoutParams(-2, ViewGroup.LayoutParams.MATCH_PARENT),
+                iconType,
+                false,
+            )
+            if (insertAtStart) parent.addView(iconView, 0) else parent.addView(iconView)
+            registerStatusbarTextIcon(iconView)
+            if (iconType == 92) {
+                XposedHelpers.log("DeviceInfoMonitor: TYPE92_VIEW_CREATED fromController=false side=$side")
+            }
+            val handle = CustomTextIconTintRoute.register(iconView, classLoader, side)
+            state.registrations.register(sbView) {
+                handle.release("generation-replaced")
+            }
+        }
+    }
+
     @JvmStatic
     fun DualRowsStatusbarHook(lpparam: PackageReadyParam) {
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
@@ -814,32 +844,32 @@ object SystemUIStatusBarHooks {
                 val showDeviceTemp = MainModule.mPrefs.getBoolean("system_statusbar_showdevicetemperature")
                 val batteryAtRight = showBatteryDetail && MainModule.mPrefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
                 val tempAtRight = showDeviceTemp && MainModule.mPrefs.getBoolean("system_statusbar_showdevicetemperature_atright")
-                val customIconTypes = ArrayList<Int>()
-                if (batteryAtRight) {
-                    customIconTypes.add(91)
+                val leftIconTypes = ArrayList<Int>()
+                val rightIconTypes = ArrayList<Int>()
+                if (showBatteryDetail) {
+                    if (batteryAtRight) rightIconTypes.add(91) else leftIconTypes.add(91)
                 }
-                if (tempAtRight) {
-                    customIconTypes.add(92)
+                if (showDeviceTemp) {
+                    if (tempAtRight) rightIconTypes.add(92) else leftIconTypes.add(92)
                 }
-                if (!customIconTypes.isEmpty()) {
-                    for (iconType in customIconTypes) {
-                        val iconView = createStatusbarTextIcon(
-                            mContext,
-                            LinearLayout.LayoutParams(-2, ViewGroup.LayoutParams.MATCH_PARENT),
-                            iconType,
-                            false,
-                        )
-                        secondRight.addView(iconView, 0)
-                        registerStatusbarTextIcon(iconView)
-                        if (iconType == 92) {
-                            XposedHelpers.log("DeviceInfoMonitor: TYPE92_VIEW_CREATED fromController=false")
-                        }
-                        val handle = CustomTextIconTintRoute.register(iconView, lpparam.classLoader, "right")
-                        state.registrations.register(sbView) {
-                            handle.release("generation-replaced")
-                        }
-                    }
-                }
+                addDualRowsDeviceInfoIcons(
+                    parent = leftContainer,
+                    types = leftIconTypes,
+                    insertAtStart = false,
+                    side = "left",
+                    classLoader = lpparam.classLoader,
+                    sbView = sbView,
+                    state = state,
+                )
+                addDualRowsDeviceInfoIcons(
+                    parent = secondRight,
+                    types = rightIconTypes,
+                    insertAtStart = true,
+                    side = "right",
+                    classLoader = lpparam.classLoader,
+                    sbView = sbView,
+                    state = state,
+                )
 
                 statusBarcontents.removeView(rightContainer)
 
@@ -1303,12 +1333,17 @@ object SystemUIStatusBarHooks {
         val swapWifiSignal = mPrefs.getBoolean("system_statusbaricons_swap_wifi_mobile")
         val moveSignalLeft = mPrefs.getBoolean("system_statusbaricons_wifi_mobile_atleft")
         val netspeedAtRow2 = dualRows && mPrefs.getBoolean("system_statusbar_netspeed_atsecondrow")
-        val showBatteryDetail = mPrefs.getBoolean("system_statusbar_batterytempandcurrent")
-        val showDeviceTemp = mPrefs.getBoolean("system_statusbar_showdevicetemperature")
-        val batteryAtRight = showBatteryDetail && !dualRows && mPrefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
-        val tempAtRight = showDeviceTemp && !dualRows && mPrefs.getBoolean("system_statusbar_showdevicetemperature_atright")
-        val batteryAtLeft = showBatteryDetail && !mPrefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
-        val tempAtLeft = showDeviceTemp && !mPrefs.getBoolean("system_statusbar_showdevicetemperature_atright")
+        val placement = resolveDeviceInfoPlacement(
+            showBatteryDetail = mPrefs.getBoolean("system_statusbar_batterytempandcurrent"),
+            showDeviceTemp = mPrefs.getBoolean("system_statusbar_showdevicetemperature"),
+            dualRows = dualRows,
+            batteryAtRightPref = mPrefs.getBoolean("system_statusbar_batterytempandcurrent_atright"),
+            tempAtRightPref = mPrefs.getBoolean("system_statusbar_showdevicetemperature_atright"),
+        )
+        val batteryAtRight = placement.batteryAtRight
+        val tempAtRight = placement.tempAtRight
+        val batteryAtLeft = placement.batteryAtLeft
+        val tempAtLeft = placement.tempAtLeft
 
         val leftIcons = HashSet<String>()
         if (!netspeedAtRow2 && mPrefs.getBoolean("system_statusbar_netspeed_atleft")) {

@@ -29,6 +29,7 @@ import tv.withaibuild.customiuizer.mods.utils.InstallPhase
 import tv.withaibuild.customiuizer.mods.utils.FeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.LazyFeatureSpec
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
+import tv.withaibuild.customiuizer.mods.utils.resolveDeviceInfoPlacement
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPosition
 import tv.withaibuild.customiuizer.mods.utils.StrongToastPresentationMode
 import tv.withaibuild.customiuizer.mods.utils.FatalErrors
@@ -3065,26 +3066,27 @@ object SystemUiFeatures {
 private fun computeStatusBarIconsAdjust(prefs: PrefMap): Pair<Boolean, Boolean> {
     val dualRows = prefs.getBoolean("system_statusbar_dualrows")
     val netspeedAtRow2 = dualRows && prefs.getBoolean("system_statusbar_netspeed_atsecondrow")
-    val showBatteryDetail = prefs.getBoolean("system_statusbar_batterytempandcurrent")
-    val showDeviceTemp = prefs.getBoolean("system_statusbar_showdevicetemperature")
-    val batteryAtRight = showBatteryDetail && !dualRows && prefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
-    val tempAtRight = showDeviceTemp && !dualRows && prefs.getBoolean("system_statusbar_showdevicetemperature_atright")
-    val batteryAtLeft = showBatteryDetail && !prefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
-    val tempAtLeft = showDeviceTemp && !prefs.getBoolean("system_statusbar_showdevicetemperature_atright")
+    val placement = resolveDeviceInfoPlacement(
+        showBatteryDetail = prefs.getBoolean("system_statusbar_batterytempandcurrent"),
+        showDeviceTemp = prefs.getBoolean("system_statusbar_showdevicetemperature"),
+        dualRows = dualRows,
+        batteryAtRightPref = prefs.getBoolean("system_statusbar_batterytempandcurrent_atright"),
+        tempAtRightPref = prefs.getBoolean("system_statusbar_showdevicetemperature_atright"),
+    )
 
     val alwaysShowAtRight = prefs.getBoolean("system_statusbar_alarm_atright") ||
         prefs.getBoolean("system_statusbar_nfc_atright") ||
         prefs.getBoolean("system_statusbar_btbattery_atright") ||
         prefs.getBoolean("system_statusbar_headset_atright") ||
         prefs.getBoolean("system_statusbar_vpn_atright") ||
-        batteryAtRight || tempAtRight
+        placement.batteryAtRight || placement.tempAtRight
     val moveLeft = prefs.getBoolean("system_statusbar_alarm_atleft") ||
         prefs.getBoolean("system_statusbar_sound_atleft") ||
         prefs.getBoolean("system_statusbar_netspeed_atleft") ||
         prefs.getBoolean("system_statusbar_dnd_atleft") ||
         prefs.getBoolean("system_statusbar_gps_atleft") ||
         prefs.getBoolean("system_statusbaricons_wifi_mobile_atleft") ||
-        batteryAtLeft || tempAtLeft
+        placement.batteryAtLeft || placement.tempAtLeft
     val needsAdjust = alwaysShowAtRight || moveLeft || netspeedAtRow2 ||
         prefs.getBoolean("system_statusbaricons_swap_wifi_mobile")
     return needsAdjust to moveLeft

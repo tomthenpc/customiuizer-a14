@@ -24,11 +24,20 @@ class DualRowsStatusbarContractTest {
             "dual-row columns must fill the status-bar contents height",
             dualRows.contains("LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)"),
         )
+        val addIcons = methodBody(source, "private fun addDualRowsDeviceInfoIcons")
         assertTrue(
-            "custom text icons in the second row must use MATCH_PARENT height for shrink-to-fit",
-            dualRows.contains("LinearLayout.LayoutParams(-2, ViewGroup.LayoutParams.MATCH_PARENT)"),
+            "custom text icons must use MATCH_PARENT height for shrink-to-fit",
+            addIcons.contains("LinearLayout.LayoutParams(-2, ViewGroup.LayoutParams.MATCH_PARENT)"),
         )
         assertTrue("generation guard must remain", dualRows.contains("dualRowsLayoutAdded"))
+        assertTrue(
+            "dual-row left custom icons must be created when atRight is off",
+            dualRows.contains("parent = leftContainer") && dualRows.contains("side = \"left\""),
+        )
+        assertTrue(
+            "dual-row right custom icons must stay on the second right row",
+            dualRows.contains("parent = secondRight") && dualRows.contains("side = \"right\""),
+        )
         assertFalse(
             "system icons must not be scaled to fit a short dual-row",
             dualRows.contains("scaleX") || dualRows.contains("scaleY"),
