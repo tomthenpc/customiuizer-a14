@@ -4,30 +4,25 @@ English | [简体中文](CHANGELOG_CN.md)
 
 ## r14.20.5 — 2026-08-18
 
-Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
 
 ### Status Bar
 
-- Device temperature now uses separate CPU and battery sources, with more compatible CPU thermal-zone parsing.
-- In dual-row mode, temperature moves to the left when “show on the right” is off.
-- Default font size is kept when it fits. If a custom height or vertical offset leaves too little room, text shrinks instead of being clipped.
-- Status-bar contents can be moved vertically without leaving the status-bar window.
+- Temperature can use separate CPU and battery sources, with better thermal-zone parsing.
+- In dual-row mode, temperature moves left when “show on the right” is off.
+- Text shrinks when space is tight; vertical offset stays within the status-bar window.
 
 ### Launcher and Recents
 
-- Disabling folder background blur no longer flashes the HyperOS default blur while dragging icons inside a folder, and the folder stays clear after the drop.
-- Disable wallpaper scale now clamps the actual launcher zoom-out calls on HyperOS 1, so recents and app open/close transitions stay unscaled instead of relying only on `ZOOM_ENABLED`.
-- Launcher → Other and System → Recents wallpaper-scale toggles now have distinct titles and summaries; either one disables recents/app wallpaper zoom, and only the launcher toggle also disables unlock wallpaper scale and recents dim.
-- Recents background blur at 0% now applies on full-screen gesture enter. It stays on the launcher blur path and does not share state with System-Other window-level blur disable; an active folder keeps its own blur ratio.
+- Folder blur stays off while dragging icons inside a folder.
+- Disable wallpaper scale now clamps actual zoom calls, including recents and app transitions.
+- Launcher and Recents toggles have clearer labels; either one disables transition zoom, and only the launcher toggle also disables unlock zoom and recents dim.
+- Recents blur at 0% applies on gesture enter and is independent of window-level blur disable.
 
 ### Fixes
 
 - Dynamic Island upward recall is more reliable.
-- Device-info updates no longer depend on network-speed controller slots, so temperature text can still appear without that controller.
-
-### Stability and Compatibility
-
-- Custom status-bar height, dual-row layout, and vertical offset keep text and system icons inside the status-bar window.
+- Device info still refreshes without a network-speed controller slot.
 
 ### Artifact Information
 
