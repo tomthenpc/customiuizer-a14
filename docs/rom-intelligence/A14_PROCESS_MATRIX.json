@@ -3262,6 +3262,19 @@
       "enableCondition": "prefs.getBoolean(\"controls_hide_ime_dismiss_button\")",
       "allowedProcess": "com.android.systemui",
       "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
+    },
+    {
+      "featureIdInt": 253,
+      "featureIdName": "systemui_statusbar_content_geometry",
+      "name": "Status Bar Content Geometry",
+      "preferenceKey": "system_statusbar_content_vertical_offset",
+      "target": "SYSTEM_UI",
+      "phase": "PACKAGE_READY",
+      "installer": "SystemUiFeatures",
+      "installHook": "StatusBarContentGeometryHooks.hook(lpparam)",
+      "enableCondition": "{ true }",
+      "allowedProcess": "com.android.systemui",
+      "deniedProcess": "miui.systemui.plugin (ClassLoader extracted at runtime)"
     }
   ],
   "scope": [
