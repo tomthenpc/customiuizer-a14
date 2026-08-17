@@ -390,7 +390,10 @@
     <string name="system_mods_recents">最近のタスクの表示</string>
     <string name="system_removecleaner_title">クリーナーボタンを非表示にする</string>
     <string name="system_removecleaner_summ">すべてのアプリを終了させてメモリ解放を行なうボタンを非表示にします</string>
-    <string name="system_recents_disable_wallpaperscale_title">壁紙のスケールを無効化する</string>
+    <string name="launcher_disable_wallpaperscale_title">壁紙の拡大を無効にする</string>
+    <string name="launcher_disable_wallpaperscale_summ">最近のタスクとアプリの開閉時の壁紙ズームを無効にし、ロック解除時の壁紙スケールも無効にします。変更後はランチャーを強制停止してください。</string>
+    <string name="system_recents_disable_wallpaperscale_title">最近のタスクで壁紙の拡大を無効にする</string>
+    <string name="system_recents_disable_wallpaperscale_summ">「ランチャー → その他」と同じランチャー壁紙ズームです。ロック解除アニメーションは含まれません。競合しないため、どちらか一方で十分です。変更後はランチャーを強制停止してください。</string>
     <string name="system_clearalltasks_title">タスクをすべて終了する</string>
     <string name="system_clearalltasks_summ">クリーナーボタンで実行中のタスクをすべて終了させます</string>
     <string name="system_hidefromrecents_title">履歴上から非表示にする</string>

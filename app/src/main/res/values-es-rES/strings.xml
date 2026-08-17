@@ -360,7 +360,10 @@
     <string name="system_mods_recents">Lista de aplicaciones recientes</string>
     <string name="system_removecleaner_title">Remover botón de cierre</string>
     <string name="system_removecleaner_summ">Ocultar el botón que cierra las apps recientes y limpia la memoria</string>
-    <string name="system_recents_disable_wallpaperscale_title">Desactivar escala de fondo de pantalla</string>
+    <string name="launcher_disable_wallpaperscale_title">Desactivar escala del fondo</string>
+    <string name="launcher_disable_wallpaperscale_summ">Evita el zoom del fondo en Recientes y al abrir/cerrar apps, y desactiva la animación de escala al desbloquear. Tras cambiarlo, fuerza la detención del launcher.</string>
+    <string name="system_recents_disable_wallpaperscale_title">Desactivar escala del fondo en Recientes</string>
+    <string name="system_recents_disable_wallpaperscale_summ">El mismo zoom del launcher que en Launcher → Otros, sin la animación de desbloqueo. No entran en conflicto; basta con uno. Tras cambiarlo, fuerza la detención del launcher.</string>
     <string name="system_clearalltasks_title">Limpiar todo</string>
     <string name="system_clearalltasks_summ">Hacer que el botón de cierre mate todas las apps en ejecución</string>
     <string name="system_hidefromrecents_title">Ocultar de recientes</string>
