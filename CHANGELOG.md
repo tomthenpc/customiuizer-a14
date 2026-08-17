@@ -2,6 +2,47 @@
 
 English | [简体中文](CHANGELOG_CN.md)
 
+## r14.20.2 — 2026-08-17
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+
+### New Features
+
+- Dynamic Island mode for the HyperOS status capsule: the ROM forehead is reshaped in place, aligned to the camera cutout, and can be fine-tuned vertically. The system animation is kept, and status-bar contents fade smoothly while the island is visible.
+- USB default purpose: follow system default, charge only, file transfer (MTP), or photo transfer (PTP).
+- Recents can hide app names; gesture navigation can hide the keyboard dismiss button.
+- Folder background blur and some window-level blur can be disabled.
+- Volume-panel Do Not Disturb / mute shortcuts can be hidden, and mode-button colors can be customized.
+- Location and notification permission prompts can be dismissed without granting access.
+- Added controls for Xiaomi updater services, MIUI daemon, analytics, Security Center marketing components, and the antivirus entry.
+
+### Settings and Data
+
+- Home, secondary pages, and search are regrouped by feature semantics. Language settings moved to home. About is a dedicated page.
+- Search no longer leaves some switches visually out of sync after opening a page. Page navigation lifecycle is more complete.
+- Backups use typed V2 format, with old-backup migration, integrity checks, invalid-item cleanup, and restore rollback.
+
+### Stability and Compatibility
+
+- Static Xposed scope and on-demand dynamic app-scope requests on supported LSPosed APIs.
+- SystemUI, launcher, and system Hook lifecycle, failure boundaries, and resource release are tighter.
+- Sidebar expand receiver ownership is bound to the owning View across rebuilds.
+- Status-bar height, volume percentage, and USB-plug default purpose behave correctly at runtime.
+
+### Performance and Engineering
+
+- Status-bar, battery, clock, icon, and notification hot paths do less repeated parsing, Binder work, and temporary allocation.
+- Preference updates read a single typed value instead of copying the full map on ordinary changes.
+- Release diagnostics and rebuildable caches are narrower, with less resident data.
+- Unused experimental code was removed. Docs, tests, tools, and GitHub Actions verification were cleaned up.
+
+### Artifact Information
+
+- APK: `CustoMIUIzer-A14-r14.20.2.apk`
+- versionCode / versionName: `199 / r14.20.2`
+
+---
+
 ## r14.20.0 — 2026-08-17
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
