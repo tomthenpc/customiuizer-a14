@@ -68,6 +68,8 @@
     <string name="system_batteryindicator_test_title">Test</string>
     <string name="system_batteryindicator_test_summ" formatted="false">Animace pruhu ze 100 % na 0 % ve stavu vybíjení</string>
     <string name="system_statusbarheight_title">Výška stavového řádku</string>
+    <string name="system_statusbar_content_vertical_offset_title">Svislá poloha obsahu stavového řádku</string>
+    <string name="system_statusbar_content_vertical_offset_summ">Upraví celkovou svislou polohu hodin, ikon a vlastního obsahu ve stavovém řádku. Nemění výšku stavového řádku.</string>
     <string name="system_statusbar_iconsize_title">Velikost ikony ve stavovém řádku</string>
     <string name="system_statusbarcolor_title">Barva pozadí stavového řádku</string>
     <string name="system_statusbarcolor_summ">Pokud je to možné, barvy pozadí stavového řádku a akčního řádku aplikace jsou stejné</string>

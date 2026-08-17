@@ -85,6 +85,8 @@
     <string name="system_batteryindicator_test_summ">未充电时显示电量条</string>
     <string name="system_statusbarheight_title">状态栏高度</string>
     <string name="system_statusbarheight_summ">修改固定高度后需完整重启生效。</string>
+    <string name="system_statusbar_content_vertical_offset_title">状态栏内容垂直位置</string>
+    <string name="system_statusbar_content_vertical_offset_summ">调整状态栏内时钟、图标及自定义内容的整体垂直位置。不会改变状态栏高度。</string>
     <string name="system_statusbar_iconsize_title">图标大小</string>
     <string name="system_statusbarcolor_title">背景色同步</string>
     <string name="system_statusbarcolor_summ">尽量将状态栏和应用操作栏的背景颜色保持一致</string>

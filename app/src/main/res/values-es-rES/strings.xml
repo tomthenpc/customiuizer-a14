@@ -65,6 +65,8 @@
     <string name="system_batteryindicator_test_title">Probar</string>
     <string name="system_batteryindicator_test_summ" formatted="false">Anima la barra en estado de descarga desde 100% a 0%</string>
     <string name="system_statusbarheight_title">Altura de la barra de estado</string>
+    <string name="system_statusbar_content_vertical_offset_title">Posición vertical del contenido de la barra de estado</string>
+    <string name="system_statusbar_content_vertical_offset_summ">Ajusta la posición vertical conjunta del reloj, los iconos y el contenido personalizado. No cambia la altura de la barra de estado.</string>
     <string name="system_statusbar_iconsize_title">Tamaño de iconos en barra de estado</string>
     <string name="system_statusbarcolor_title">Color de fondo de la barra de estado</string>
     <string name="system_statusbarcolor_summ">Hacer que los colores de fondo de la barra de estado y la barra de acción de la aplicación sean iguales cuando sea posible</string>

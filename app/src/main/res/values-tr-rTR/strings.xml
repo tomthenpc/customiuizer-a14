@@ -59,6 +59,8 @@
     <string name="system_batteryindicator_test_title">Test Et</string>
     <string name="system_batteryindicator_test_summ" formatted="false">Boşalma durumunda çubuğu 100% den 0% a canlandırın</string>
     <string name="system_statusbarheight_title">Durum çubuğu yüksekliği</string>
+    <string name="system_statusbar_content_vertical_offset_title">Durum çubuğu içeriğinin dikey konumu</string>
+    <string name="system_statusbar_content_vertical_offset_summ">Saat, simgeler ve özel içeriğin durum çubuğu içindeki genel dikey konumunu ayarlar. Durum çubuğu yüksekliğini değiştirmez.</string>
     <string name="system_statusbar_iconsize_title">Durum çubuğu boyutu</string>
     <string name="system_statusbarcolor_title">Durum çubuğu arkaplan rengi</string>
     <string name="system_statusbarcolor_summ">Durum çubuğunu ve uygulamanın eylem çubuğu arka plan renklerini mümkün olduğunca aynı yapın</string>

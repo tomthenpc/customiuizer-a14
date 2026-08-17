@@ -18,6 +18,7 @@ import tv.withaibuild.customiuizer.mods.SystemUIControlCenterHooks
 import tv.withaibuild.customiuizer.mods.SystemUILockScreenHooks
 import tv.withaibuild.customiuizer.mods.SystemUINotificationHooks
 import tv.withaibuild.customiuizer.mods.SystemUIScreenshotHooks
+import tv.withaibuild.customiuizer.mods.StatusBarContentGeometryHooks
 import tv.withaibuild.customiuizer.mods.SystemUIStatusBarHooks
 import tv.withaibuild.customiuizer.mods.SystemWindowHooks
 import tv.withaibuild.customiuizer.mods.utils.FeatureDefinition
@@ -581,6 +582,31 @@ internal class HideImeDismissButtonFeature(
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
     override fun installHook() = Controls.HideImeDismissButtonHook(lpparam)
+}
+
+internal class StatusBarContentGeometryFeature(
+    lpparam: PackageReadyParam,
+    mPrefs: PrefMap
+) : BaseSystemUiFeature(
+    lpparam,
+    mPrefs,
+    StatusBarContentGeometryFeatureId,
+    "Status Bar Content Geometry",
+    "system_statusbar_content_vertical_offset"
+) {
+    companion object {
+        /**
+         * Always installed so status-bar height live changes can re-center content
+         * and the global offset can apply without reinstalling hooks.
+         * The hot path is a no-op when the window already matches the view and
+         * the stored offset is the auto-center sentinel.
+         */
+        @JvmStatic
+        fun evaluateEnabled(prefs: PrefMap): Boolean = true
+    }
+
+    override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
+    override fun installHook() = StatusBarContentGeometryHooks.hook(lpparam)
 }
 
 internal class HideNavBarFeature(
@@ -2393,6 +2419,15 @@ object SystemUiFeatures {
             phase = InstallPhase.PACKAGE_READY,
             enabled = { prefs -> HideImeDismissButtonFeature.evaluateEnabled(prefs) },
             factory = { HideImeDismissButtonFeature(lpparam, mPrefs) },
+        ),
+        LazyFeatureSpec(
+            id = StatusBarContentGeometryFeatureId,
+            name = "Status Bar Content Geometry",
+            preferenceKey = "system_statusbar_content_vertical_offset",
+            target = FeatureTarget.SYSTEM_UI,
+            phase = InstallPhase.PACKAGE_READY,
+            enabled = { prefs -> StatusBarContentGeometryFeature.evaluateEnabled(prefs) },
+            factory = { StatusBarContentGeometryFeature(lpparam, mPrefs) },
         ),
         LazyFeatureSpec(
             id = HideNavBarFeatureId,

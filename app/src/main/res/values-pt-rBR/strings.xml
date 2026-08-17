@@ -69,6 +69,8 @@
     <string name="system_batteryindicator_test_title">Teste</string>
     <string name="system_batteryindicator_test_summ" formatted="false">Barra animada de 100% a 0% durante o descarregamento</string>
     <string name="system_statusbarheight_title">Altura da barra de status</string>
+    <string name="system_statusbar_content_vertical_offset_title">Posição vertical do conteúdo da barra de status</string>
+    <string name="system_statusbar_content_vertical_offset_summ">Ajusta a posição vertical geral do relógio, dos ícones e do conteúdo personalizado na barra de status. Não altera a altura da barra.</string>
     <string name="system_statusbar_iconsize_title">Tamanho dos ícones da barra de status</string>
     <string name="system_statusbarcolor_title">Cor de fundo da barra de status</string>
     <string name="system_statusbarcolor_summ">Torne as cores de fundo da barra de status e da barra de ação do app iguais sempre que possível</string>

@@ -68,6 +68,8 @@
     <string name="system_batteryindicator_test_title">Тест</string>
     <string name="system_batteryindicator_test_summ" formatted="false">Анимировать полоску от 100% до 0% в режиме разрядки</string>
     <string name="system_statusbarheight_title">Высота строки состояния</string>
+    <string name="system_statusbar_content_vertical_offset_title">Вертикальное положение содержимого строки состояния</string>
+    <string name="system_statusbar_content_vertical_offset_summ">Смещает часы, значки и пользовательское содержимое внутри строки состояния целиком. Высоту строки состояния не меняет.</string>
     <string name="system_statusbar_iconsize_title">Размер иконок в строке состояния</string>
     <string name="system_statusbarcolor_title">Фоновый цвет строки состояния</string>
     <string name="system_statusbarcolor_summ">Делает одинаковыми цвета фона строки состояния и панели действий приложения, где это возможно</string>

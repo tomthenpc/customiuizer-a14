@@ -72,6 +72,8 @@
     <string name="system_batteryindicator_test_summ" formatted="false">未充電時顯示電量條</string>
     <string name="system_statusbarheight_title">狀態欄高度</string>
     <string name="system_statusbarheight_summ">修改固定高度後需完整重啟生效。</string>
+    <string name="system_statusbar_content_vertical_offset_title">狀態欄內容垂直位置</string>
+    <string name="system_statusbar_content_vertical_offset_summ">調整狀態欄內時鐘、圖示及自訂內容的整體垂直位置。不會改變狀態欄高度。</string>
     <string name="system_statusbarcolor_title">狀態欄背景顏色</string>
     <string name="system_statusbarcolor_summ">盡量將狀態欄和應用操作欄的背景顏色保持一致</string>
     <string name="system_statusbarcolor_apps_title">黑名單</string>

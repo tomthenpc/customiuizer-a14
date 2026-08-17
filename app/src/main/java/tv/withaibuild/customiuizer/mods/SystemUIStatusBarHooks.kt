@@ -645,7 +645,7 @@ object SystemUIStatusBarHooks {
             if (layoutResId == 0) return
             val created = LayoutInflater.from(ctx).inflate(layoutResId, null) ?: return
             created.tag = NETSPEED_ROW2_TAG
-            row.addView(created, 0, LinearLayout.LayoutParams(-2, -2))
+            row.addView(created, 0, LinearLayout.LayoutParams(-2, ViewGroup.LayoutParams.MATCH_PARENT))
 
             val classLoader = netSpeedSecondRowClassLoader ?: return
             val DarkIconDispatcher = ModuleHelper.getDepInstance(classLoader, "com.android.systemui.plugins.DarkIconDispatcher")
@@ -743,6 +743,8 @@ object SystemUIStatusBarHooks {
                 val rightLayout = LinearLayout(mContext)
                 statusBarcontents.addView(leftLayout, 0)
                 statusBarcontents.addView(rightLayout)
+                leftLayout.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
+                rightLayout.layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f)
                 val leftGroup: LinearLayout
 
                 if (clock2Rows) {
@@ -760,6 +762,7 @@ object SystemUIStatusBarHooks {
                         leftContainer.setPaddingRelative(firstRowLeftPadding, 0, 0, 0)
                     }
                 }
+                leftGroup.orientation = LinearLayout.VERTICAL
                 statusBarcontents.removeView(leftContainer)
                 leftGroup.addView(leftContainer)
                 val secondLeft = LinearLayout(mContext)
@@ -820,7 +823,12 @@ object SystemUIStatusBarHooks {
                 }
                 if (!customIconTypes.isEmpty()) {
                     for (iconType in customIconTypes) {
-                        val iconView = createStatusbarTextIcon(mContext, LinearLayout.LayoutParams(-2, -2), iconType, false)
+                        val iconView = createStatusbarTextIcon(
+                            mContext,
+                            LinearLayout.LayoutParams(-2, ViewGroup.LayoutParams.MATCH_PARENT),
+                            iconType,
+                            false,
+                        )
                         secondRight.addView(iconView, 0)
                         registerStatusbarTextIcon(iconView)
                         if (iconType == 92) {

@@ -69,6 +69,8 @@
     <string name="system_batteryindicator_test_title">Thử nghiệm</string>
     <string name="system_batteryindicator_test_summ" formatted="false">Hiển thị vạch pin khi không sạc</string>
     <string name="system_statusbarheight_title">Chiều cao thanh trạng thái</string>
+    <string name="system_statusbar_content_vertical_offset_title">Vị trí dọc nội dung thanh trạng thái</string>
+    <string name="system_statusbar_content_vertical_offset_summ">Điều chỉnh vị trí dọc tổng thể của đồng hồ, biểu tượng và nội dung tùy chỉnh trong thanh trạng thái. Không thay đổi chiều cao thanh trạng thái.</string>
     <string name="system_statusbar_iconsize_title">Kích thước biểu tượng thanh trạng thái</string>
     <string name="system_statusbarcolor_title">Màu nền thanh trạng thái</string>
     <string name="system_statusbarcolor_summ">Làm cho màu nền của thanh trạng thái và thanh hành động của ứng dụng giống nhau nếu có thể</string>

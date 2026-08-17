@@ -274,6 +274,7 @@ POST_P2_ALLOWED_NEW_PREFERENCES: dict[str, set[str]] = {
     },
     "prefs_system.xml": {
         "pref_key_system_strong_toast_island_offset",
+        "pref_key_system_statusbar_content_vertical_offset",
     },
 }
 
@@ -291,6 +292,12 @@ POST_P2_ALLOWED_REMOVED_PREFERENCES: dict[str, set[str]] = {
 POST_P2_ALLOWED_ATTR_CHANGES: set[tuple[str, str, str, str, str]] = {
     ("prefs_system_hideicons.xml", "pref_key_system_statusbaricons_sim1", f"{{{ANDROID_NS}}}title", "SIM 1", "@string/system_hideicons_sim1_title"),
     ("prefs_system_hideicons.xml", "pref_key_system_statusbaricons_sim2", f"{{{ANDROID_NS}}}title", "SIM 2", "@string/system_hideicons_sim2_title"),
+    ("prefs_system_statusbar_batterytempandcurrent.xml", "pref_key_system_statusbar_batterytempandcurrent_fontsize", f"{{{ANDROID_NS}}}defaultValue", "16", "0"),
+    ("prefs_system_statusbar_batterytempandcurrent.xml", "pref_key_system_statusbar_batterytempandcurrent_fontsize", f"{{{MIUIZER_NS}}}minValue", "14", "0"),
+    ("prefs_system_statusbar_batterytempandcurrent.xml", "pref_key_system_statusbar_batterytempandcurrent_fontsize", f"{{{MIUIZER_NS}}}offtext", "", "@string/array_default"),
+    ("prefs_system_statusbar_showdevicetemperature.xml", "pref_key_system_statusbar_showdevicetemperature_fontsize", f"{{{ANDROID_NS}}}defaultValue", "16", "0"),
+    ("prefs_system_statusbar_showdevicetemperature.xml", "pref_key_system_statusbar_showdevicetemperature_fontsize", f"{{{MIUIZER_NS}}}minValue", "14", "0"),
+    ("prefs_system_statusbar_showdevicetemperature.xml", "pref_key_system_statusbar_showdevicetemperature_fontsize", f"{{{MIUIZER_NS}}}offtext", "", "@string/array_default"),
 }
 
 # -------------------------------------------------------------------------------
@@ -530,6 +537,8 @@ class P2SettingsInformationArchitectureTest(unittest.TestCase):
 
                 # Disallow new attributes on keyed preferences.
                 for attr in set(cur_attrs) - set(base_attrs):
+                    if (path.name, key, attr, "", cur_attrs[attr]) in POST_P2_ALLOWED_ATTR_CHANGES:
+                        continue
                     failures.append(
                         f"{path.name}:{key}: new attribute {attr}={cur_attrs[attr]!r}"
                     )

@@ -69,6 +69,8 @@
     <string name="system_batteryindicator_test_title">テスト</string>
     <string name="system_batteryindicator_test_summ" formatted="false">放電状態での100%から0%へのアニメーションバー</string>
     <string name="system_statusbarheight_title">ステータスバーの高さ</string>
+    <string name="system_statusbar_content_vertical_offset_title">ステータスバー内容の垂直位置</string>
+    <string name="system_statusbar_content_vertical_offset_summ">時計、アイコン、カスタム内容の全体的な垂直位置を調整します。ステータスバーの高さは変わりません。</string>
     <string name="system_statusbar_iconsize_title">ステータスバーアイコンの大きさ</string>
     <string name="system_statusbarcolor_title">ステータスバーの背景色</string>
     <string name="system_statusbarcolor_summ">ステータスバーとアプリアクションバーの背景色を可能な限り同期します</string>
