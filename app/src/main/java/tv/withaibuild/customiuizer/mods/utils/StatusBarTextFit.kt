@@ -25,6 +25,10 @@ internal object StatusBarTextFit {
     private const val SHRINK_LINES = "customiuizer_sb_text_shrink_lines"
     private const val SHRINK_SPACING = "customiuizer_sb_text_shrink_spacing"
     private const val SHRINK_LISTENER = "customiuizer_sb_text_shrink_listener"
+    private const val HOST_LISTENER = "customiuizer_sb_text_shrink_host_listener"
+    private const val HOST_VIEWS = "customiuizer_sb_text_shrink_host_views"
+    private const val ATTACH_LISTENER = "customiuizer_sb_text_shrink_attach"
+    private const val HOST_WALK = 3
 
     fun applyBoldPreservingFamily(textView: TextView, bold: Boolean) {
         if (!bold) return
@@ -46,14 +50,66 @@ internal object StatusBarTextFit {
         XposedHelpers.setAdditionalInstanceField(textView, SHRINK_LINES, lineCount)
         XposedHelpers.setAdditionalInstanceField(textView, SHRINK_SPACING, lineSpacingMultiplier)
         applyShrinkNow(textView)
-        if (XposedHelpers.getAdditionalInstanceField(textView, SHRINK_LISTENER) != null) return
-        val listener = View.OnLayoutChangeListener { v, _, top, _, bottom, _, oldTop, _, oldBottom ->
-            if (bottom - top == oldBottom - oldTop && (bottom - top) > 0) return@OnLayoutChangeListener
-            val tv = v as? TextView ?: return@OnLayoutChangeListener
-            applyShrinkNow(tv)
+        ensureShrinkListeners(textView)
+    }
+
+    private fun ensureShrinkListeners(textView: TextView) {
+        if (XposedHelpers.getAdditionalInstanceField(textView, SHRINK_LISTENER) == null) {
+            val listener = View.OnLayoutChangeListener { v, _, top, _, bottom, _, oldTop, _, oldBottom ->
+                if (bottom - top == oldBottom - oldTop && (bottom - top) > 0) return@OnLayoutChangeListener
+                val tv = v as? TextView ?: return@OnLayoutChangeListener
+                applyShrinkNow(tv)
+            }
+            textView.addOnLayoutChangeListener(listener)
+            XposedHelpers.setAdditionalInstanceField(textView, SHRINK_LISTENER, true)
         }
-        textView.addOnLayoutChangeListener(listener)
-        XposedHelpers.setAdditionalInstanceField(textView, SHRINK_LISTENER, true)
+        bindHostListener(textView)
+        if (XposedHelpers.getAdditionalInstanceField(textView, ATTACH_LISTENER) != null) return
+        val attach = object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                val tv = v as? TextView ?: return
+                bindHostListener(tv)
+                applyShrinkNow(tv)
+            }
+            override fun onViewDetachedFromWindow(v: View) {
+                unbindHostListener(v as? TextView ?: return)
+            }
+        }
+        textView.addOnAttachStateChangeListener(attach)
+        XposedHelpers.setAdditionalInstanceField(textView, ATTACH_LISTENER, true)
+    }
+
+    private fun bindHostListener(textView: TextView) {
+        if (XposedHelpers.getAdditionalInstanceField(textView, HOST_LISTENER) != null) return
+        val parent = textView.parent as? View ?: return
+        val listener = View.OnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            if (bottom - top == oldBottom - oldTop && (bottom - top) > 0) return@OnLayoutChangeListener
+            applyShrinkNow(textView)
+        }
+        val hosts = ArrayList<View>(HOST_WALK)
+        var host: View? = parent
+        var steps = 0
+        while (host != null && steps < HOST_WALK) {
+            host.addOnLayoutChangeListener(listener)
+            hosts.add(host)
+            host = host.parent as? View
+            steps++
+        }
+        XposedHelpers.setAdditionalInstanceField(textView, HOST_LISTENER, listener)
+        XposedHelpers.setAdditionalInstanceField(textView, HOST_VIEWS, hosts)
+    }
+
+    private fun unbindHostListener(textView: TextView) {
+        val listener = XposedHelpers.getAdditionalInstanceField(textView, HOST_LISTENER)
+            as? View.OnLayoutChangeListener
+        val hosts = XposedHelpers.getAdditionalInstanceField(textView, HOST_VIEWS) as? ArrayList<*>
+        if (listener != null && hosts != null) {
+            for (i in hosts.indices) {
+                (hosts[i] as? View)?.removeOnLayoutChangeListener(listener)
+            }
+        }
+        XposedHelpers.removeAdditionalInstanceField(textView, HOST_LISTENER)
+        XposedHelpers.removeAdditionalInstanceField(textView, HOST_VIEWS)
     }
 
     private fun applyShrinkNow(textView: TextView) {
@@ -123,6 +179,13 @@ internal object StatusBarTextFit {
 
     private fun resolvedHeight(textView: TextView): Int {
         val parent = textView.parent as? View
-        return StatusbarViewMaths.resolvedTextFitHeightPx(textView.height, parent?.height ?: 0)
+        val row = parent?.parent as? View
+        val owner = row?.parent as? View
+        return StatusbarViewMaths.resolvedTextFitHeightPx(
+            textView.height,
+            parent?.height ?: 0,
+            row?.height ?: 0,
+            owner?.height ?: 0,
+        )
     }
 }

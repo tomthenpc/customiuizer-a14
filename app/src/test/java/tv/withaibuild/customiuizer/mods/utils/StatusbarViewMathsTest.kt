@@ -56,6 +56,13 @@ class StatusbarViewMathsTest {
     }
 
     @Test
+    fun textFitHeightUsesSmallestLaidOutAncestor() {
+        assertEquals(60, StatusbarViewMaths.resolvedTextFitHeightPx(90, 90, 60, 129))
+        assertEquals(60, StatusbarViewMaths.resolvedTextFitHeightPx(40, 60, 60, 129))
+        assertEquals(90, StatusbarViewMaths.resolvedTextFitHeightPx(90, 0, 0, 0))
+    }
+
+    @Test
     fun availableHeightSubtractsPadding() {
         assertEquals(40, StatusbarViewMaths.availableTextHeightPx(50, 6, 4))
         assertEquals(0, StatusbarViewMaths.availableTextHeightPx(8, 6, 4))
@@ -89,11 +96,11 @@ class StatusbarViewMathsTest {
     }
 
     @Test
-    fun dualLineFitUsesLineSpacing() {
-        val fitted = StatusbarViewMaths.fittedTextSizePx(20f, 22f, 20, 2, 0.85f, 6f)
-        assertTrue(fitted < 20f)
-        val occupied = StatusbarViewMaths.occupiedHeightPx(fitted, 2, 0.85f)
-        assertTrue(occupied <= 20f + 0.05f)
+    fun dualLineClockSizeShrinksToRow() {
+        val fitted = StatusbarViewMaths.fittedTextSizePx(38f, 42f, 60, 2, 0.85f, 6f)
+        assertTrue(fitted < 38f)
+        val occupied = StatusbarViewMaths.occupiedHeightPx(42f * (fitted / 38f), 2, 0.85f)
+        assertTrue(occupied <= 60f + 0.5f)
     }
 
     @Test

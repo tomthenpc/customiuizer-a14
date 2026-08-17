@@ -43,13 +43,27 @@ object StatusbarViewMaths {
     }
 
     /**
-     * Height available for status-bar text. Dual-row fitting must use the row
-     * ([parentHeightPx]), never a wrap_content leaf that already overflowed.
+     * Height available for status-bar text. Dual-row fitting must use the
+     * clipping row, never a wrap_content leaf or MATCH_PARENT host that still
+     * reports the overflowed measured height. Among laid-out ancestors, the
+     * smallest positive height is the clipping envelope.
      */
     @JvmStatic
-    fun resolvedTextFitHeightPx(viewHeightPx: Int, parentHeightPx: Int): Int {
-        if (parentHeightPx > 0) return parentHeightPx
-        return viewHeightPx
+    fun resolvedTextFitHeightPx(viewHeightPx: Int, parentHeightPx: Int): Int =
+        resolvedTextFitHeightPx(viewHeightPx, parentHeightPx, 0, 0)
+
+    @JvmStatic
+    fun resolvedTextFitHeightPx(
+        viewHeightPx: Int,
+        parentHeightPx: Int,
+        rowHeightPx: Int,
+        ownerHeightPx: Int,
+    ): Int {
+        var best = 0
+        if (parentHeightPx > 0) best = parentHeightPx
+        if (rowHeightPx > 0) best = if (best > 0) minOf(best, rowHeightPx) else rowHeightPx
+        if (ownerHeightPx > 0) best = if (best > 0) minOf(best, ownerHeightPx) else ownerHeightPx
+        return if (best > 0) best else viewHeightPx
     }
 
     /**
