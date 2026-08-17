@@ -72,7 +72,12 @@ def scan_workflow(path: Path, expected_branch: str, default_branch: str) -> list
     )
     if push_block:
         body = push_block.group("body")
-        branches = re.findall(r"^\s*-\s*([A-Za-z0-9_./-]+)\s*$", body, re.M)
+        branches_match = re.search(
+            r"(?ms)^\s*branches\s*:\s*\n(?P<list>(?:^[ \t]+-.*\n?)*)",
+            body,
+        )
+        branch_text = branches_match.group("list") if branches_match else body
+        branches = re.findall(r"^\s*-\s*['\"]?([A-Za-z0-9_./-]+)['\"]?\s*$", branch_text, re.M)
         if expected_branch not in branches:
             add("CI_EXACT_BRANCH", f"push must include exact branch {expected_branch!r}")
         unexpected = [b for b in branches if b != expected_branch]
