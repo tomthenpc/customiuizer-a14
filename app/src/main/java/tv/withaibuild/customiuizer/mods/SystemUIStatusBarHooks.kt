@@ -2518,6 +2518,26 @@ object SystemUIStatusBarHooks {
     )
 
     /**
+     * True when [HideIconsSignalHook] still has work after a runtime preference change.
+     * The hook itself is not uninstalled; this is the disabled-feature hot-path gate.
+     */
+    internal fun hasMobileSignalHidingWork(snapshot: StatusBarIconVisibilitySnapshot): Boolean {
+        return snapshot.hideSignal ||
+            snapshot.hideSim1 ||
+            snapshot.hideSim2 ||
+            snapshot.hideSimNoData ||
+            snapshot.hideRoaming ||
+            snapshot.hideVolte
+    }
+
+    /**
+     * SubscriptionManager lookups are only required for SIM-slot / data-sub hiding.
+     */
+    internal fun needsSubscriptionLookup(snapshot: StatusBarIconVisibilitySnapshot): Boolean {
+        return snapshot.hideSim1 || snapshot.hideSim2 || snapshot.hideSimNoData
+    }
+
+    /**
      * Computes the visibility/roaming/volte changes for [HideIconsSignalHook].
      *
      * Pure function: it reads only the supplied primitives and the [snapshot]. It does not
