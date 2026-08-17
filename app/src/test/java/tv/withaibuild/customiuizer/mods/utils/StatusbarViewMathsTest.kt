@@ -49,6 +49,13 @@ class StatusbarViewMathsTest {
     }
 
     @Test
+    fun textFitHeightPrefersLaidOutParentOverOverflowingLeaf() {
+        assertEquals(60, StatusbarViewMaths.resolvedTextFitHeightPx(92, 60))
+        assertEquals(80, StatusbarViewMaths.resolvedTextFitHeightPx(80, 0))
+        assertEquals(40, StatusbarViewMaths.resolvedTextFitHeightPx(0, 40))
+    }
+
+    @Test
     fun shrinkKeepsRequestedWhenItFitsSingleLine() {
         assertEquals(16f, StatusbarViewMaths.shrinkToFitPx(16f, 20, 1, 1f, 6f), 0.001f)
     }

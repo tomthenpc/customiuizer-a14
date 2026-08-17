@@ -54,6 +54,8 @@ class DualRowsStatusbarContractTest {
         assertTrue(source.contains("status_bar_contents"))
         assertTrue(source.contains("contents.translationY"))
         assertFalse(source.contains("import tv.withaibuild.customiuizer.mods.SystemStatusBarInsetsHooks"))
+        assertFalse(source.contains("collectVisualBounds"))
+        assertFalse(source.contains("isOpticalLeaf"))
         assertFalse(source.contains("statusBarView.translationY"))
         assertFalse(source.contains("setFrame"))
         assertFalse(source.contains("InsetsSourceControl"))

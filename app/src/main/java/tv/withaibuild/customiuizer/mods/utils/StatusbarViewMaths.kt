@@ -43,6 +43,16 @@ object StatusbarViewMaths {
     }
 
     /**
+     * Height available for status-bar text. Dual-row fitting must use the row
+     * ([parentHeightPx]), never a wrap_content leaf that already overflowed.
+     */
+    @JvmStatic
+    fun resolvedTextFitHeightPx(viewHeightPx: Int, parentHeightPx: Int): Int {
+        if (parentHeightPx > 0) return parentHeightPx
+        return viewHeightPx
+    }
+
+    /**
      * Shrink-to-fit only. Never enlarges [requestedPx]. If the parent has not been
      * laid out yet ([parentHeightPx] <= 0), the requested size is kept so text is
      * not collapsed to 0 before the first layout.

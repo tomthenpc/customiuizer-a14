@@ -657,7 +657,7 @@ object SystemClockHooks {
                 mClock,
                 clockLines,
                 mClock.lineSpacingMultiplier,
-                snapshot.statusbarFontSize > 13,
+                snapshot.statusbarFontSize > 13 || clockLines >= 2,
             )
             val clamped = StatusbarViewMaths.clampVerticalOffsetPx(
                 mClock.translationY,
