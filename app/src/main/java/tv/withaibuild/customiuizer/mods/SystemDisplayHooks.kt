@@ -167,12 +167,12 @@ object SystemDisplayHooks {
 
                     val reason = chain.getArg(3) as String?
                     if (reason == null) { return XposedHelpers.proceedOrThrow(chain, throwable) }
-                    if (
-                        reason.startsWith("android.server.power:PLUGGED")
-                        || reason == "com.android.systemui:RAPID_CHARGE"
-                        || reason == "com.android.systemui:WIRELESS_CHARGE"
-                        || reason == "com.android.systemui:WIRELESS_RAPID_CHARGE"
-                    ) { skipped = true; result = null; throwable = null }
+                    val option = MainModule.mPrefs.getStringAsInt("system_nolightuponcharges", 1)
+                    if (shouldSkipChargeWake(option, reason)) {
+                        skipped = true
+                        result = null
+                        throwable = null
+                    }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
@@ -184,6 +184,25 @@ object SystemDisplayHooks {
                 return XposedHelpers.throwOrReturn(throwable, result)
             }
         })
+    }
+
+    /**
+     * Upstream v24.10.12 `NoLightUpOnChargeHook` contract:
+     * - 2 = block POWER, PLUGGED, and SystemUI charge-anim wake reasons
+     * - 3 = block POWER and PLUGGED only
+     */
+    @JvmStatic
+    internal fun shouldSkipChargeWake(option: Int, reason: String): Boolean {
+        val powerOrPlugged = reason == "android.server.power:POWER" ||
+            reason.startsWith("android.server.power:PLUGGED")
+        val chargeAnim = reason == "com.android.systemui:RAPID_CHARGE" ||
+            reason == "com.android.systemui:WIRELESS_CHARGE" ||
+            reason == "com.android.systemui:WIRELESS_RAPID_CHARGE"
+        return when (option) {
+            3 -> powerOrPlugged
+            2 -> powerOrPlugged || chargeAnim
+            else -> false
+        }
     }
 
     /**

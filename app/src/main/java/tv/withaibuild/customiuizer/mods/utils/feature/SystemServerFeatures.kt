@@ -721,7 +721,8 @@ internal class NoLightUpOnChargeFeature(
 ) {
     companion object {
         @JvmStatic
-        fun evaluateEnabled(prefs: PrefMap): Boolean = prefs.getStringAsInt("system_nolightuponcharges", 1) == 2
+        fun evaluateEnabled(prefs: PrefMap): Boolean =
+            prefs.getStringAsInt("system_nolightuponcharges", 1) > 1
     }
 
     override fun isEnabledCondition(prefs: PrefMap) = Companion.evaluateEnabled(prefs)
