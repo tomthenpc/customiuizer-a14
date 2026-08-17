@@ -23,7 +23,8 @@ Actions 在 fresh Ubuntu runner 上从 clone 运行。禁止本机路径、本�
 2. 检查 applicationId、versionName、versionCode、debuggable=false、V2 签名、signer、APK SHA-256。
 3. signer 必须与上一正式版相同。
 4. 已连接设备可 `adb install -r` 做 smoke，不要清用户数据。
-5. 同一 APK binary 发布到个人仓库和 LSPosed 仓库。LSPosed 发布不含个人赞赏内容。
+5. 同一 APK binary 发布到个人仓库和 LSPosed 仓库。
+6. `CHANGELOG`、`CHANGELOG_CN` 与 GitHub Release 说明只写版本变更与 SHA-256，不写赞赏或支持内容；支持方式仅在 `README.md` / `README_EN.md`。
 
 ## 密钥
 

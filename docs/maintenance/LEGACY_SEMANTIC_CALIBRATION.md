@@ -23,7 +23,7 @@ Do not treat current production code as source of truth.
 | NETSPEED_FORMATSPEED | ROM_EVIDENCE_HOLD |
 | LOCKSCREEN_TIMEOUT | ROM_EVIDENCE_HOLD |
 
-Confirmed Batch 1 production fixes:
+Confirmed Batch 1 code changes (internal audit; not all are user-facing release notes):
 
 1. `system_nolightuponcharges` option **2** charging wake suppression (POWER / PLUGGED / RAPID / WIRELESS)
 2. Battery details “only while charging” when `sBatteryStatus` is unavailable

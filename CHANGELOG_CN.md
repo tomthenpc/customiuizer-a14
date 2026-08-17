@@ -208,6 +208,4 @@
 - 正式 Release APK 使用 A14 专用证书，产物的版本、SHA-256、签名、zipalign、`debuggable=false` 与 Xposed 元数据在 GitHub Release 中记录。
 - 既有 Xiaomi 13 / HyperOS 1 基线未发现模块导致的 P0/P1、重复安装或持续安装异常；本版本新增的运行期与界面变化尚未完成全部功能逐项实机行为验证，不标记为全面 `DEVICE_VERIFIED`。
 
-### 历代核心实现总结
-
-r14 系列建立了独立包名、签名和 HyperOS 1 / Android 14 维护线，完成设置与核心 Hook 的分批 Kotlin 迁移、libxposed API 101/102 单 APK 兼容、`system` 作用域恢复、偏好同步与快速重启修复、Receiver/Observer/View 生命周期治理、反射与资源缓存加固、状态栏和 Launcher 热路径优化，以及网速、锁屏、控制中心和设置界面的持续修复；细节保留在 Git commits 与历史 tags 中，旧 APK 不再保留为 Release 资产。
+---

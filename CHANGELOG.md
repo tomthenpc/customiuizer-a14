@@ -208,6 +208,4 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/10
 - The formal Release APK uses the A14-specific certificate; version, SHA-256, signature, zip alignment, `debuggable=false`, and Xposed metadata are recorded in the GitHub Release.
 - The existing Xiaomi 13 / HyperOS 1 baseline found no module-attributable P0/P1, duplicate-install, or stuck-installing issue. The new runtime and UI changes in this release have not completed per-feature device behavior verification and are not claimed as fully `DEVICE_VERIFIED`.
 
-### Historical Core Implementation Summary
-
-The r14 line established an independent package, signing identity, and HyperOS 1 / Android 14 maintenance path; completed staged Kotlin migration of settings and core Hooks; delivered one-APK libxposed API 101/102 compatibility; restored the `system` scope; fixed preference delivery and quick restart; governed Receiver, Observer, and View lifecycles; hardened reflection and resource caches; optimized status-bar and Launcher hot paths; and continuously refined network speed, lock screen, control center, and settings UI behavior. Fine-grained history remains in Git commits and historical tags, while obsolete APKs are no longer retained as Release assets.
+---
