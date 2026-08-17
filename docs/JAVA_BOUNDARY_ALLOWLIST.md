@@ -20,4 +20,20 @@
 |---|---|
 | `app/src/main/java/org/apache/commons/lang3/reflect/MemberUtilsX.java` | Apache Commons Lang 3 第三方补丁。 |
 
-Installer 已是 Kotlin `object`，并通过 `@JvmStatic` 保留 `MainModule.java` 调用点。
+## 已是 Kotlin 的 Installer
+
+这些 installer 是 Kotlin `object`，并通过 `@JvmStatic` 保留 `MainModule.java` 调用点：
+
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/AndroidPackageInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/GenericAppInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/GuardProviderInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/InputMethodInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/LauncherInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/MediaInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/PackageInstallerRouter.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/PermissionControllerInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/PhoneInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/PowerKeeperInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/SecurityCenterInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/SettingsInstaller.kt`
+- `app/src/main/java/tv/withaibuild/customiuizer/installers/SystemUiInstaller.kt`
