@@ -24,15 +24,22 @@ internal object StatusBarTextFit {
     }
 
     /**
-     * Caps auto-size at the current (system or requested) size so the framework
-     * may only shrink. If the view has no size yet, auto-size still defers fit
-     * to the first layout instead of collapsing to 0sp.
+     * Default SystemUI size is left untouched. A user-requested size is kept
+     * unless it actually overflows the laid-out parent, in which case it is
+     * shrunk once. Autosize is not used.
      */
-    fun enableShrinkToFit(textView: TextView, lineCount: Int, lineSpacingMultiplier: Float) {
+    fun enableShrinkToFit(
+        textView: TextView,
+        lineCount: Int,
+        lineSpacingMultiplier: Float,
+        customSizeRequested: Boolean,
+    ) {
+        if (!customSizeRequested) return
         val requestedPx = textView.textSize
         if (requestedPx <= 0f) return
-        val minRequested = HookUtils.dp2px(MIN_TEXT_SIZE_DP).coerceAtLeast(1f)
         val parentHeight = resolvedHeight(textView)
+        if (parentHeight <= 0) return
+        val minRequested = HookUtils.dp2px(MIN_TEXT_SIZE_DP).coerceAtLeast(1f)
         val fitted = StatusbarViewMaths.shrinkToFitPx(
             requestedPx,
             parentHeight,
@@ -40,32 +47,15 @@ internal object StatusBarTextFit {
             lineSpacingMultiplier,
             minRequested,
         )
-        if (parentHeight > 0 && fitted < requestedPx) {
+        if (fitted < requestedPx) {
             textView.setTextSize(TypedValue.COMPLEX_UNIT_PX, fitted)
-        }
-        val maxPx = (if (parentHeight > 0) fitted else requestedPx).roundToInt().coerceAtLeast(1)
-        val minPx = minRequested.roundToInt().coerceAtMost(maxPx).coerceAtLeast(1)
-        try {
-            textView.setAutoSizeTextTypeUniformWithConfiguration(
-                minPx,
-                maxPx,
-                1,
-                TypedValue.COMPLEX_UNIT_PX,
-            )
-        } catch (oom: OutOfMemoryError) {
-            throw oom
-        } catch (td: ThreadDeath) {
-            throw td
-        } catch (vme: VirtualMachineError) {
-            throw vme
-        } catch (t: Throwable) {
-            FatalErrors.unwrapAndRethrowIfFatal(t)
         }
     }
 
     fun applyVerticalOffset(textView: TextView, requestedOffsetPx: Float) {
         XposedHelpers.setAdditionalInstanceField(textView, OFFSET_GUARD, requestedOffsetPx)
         applyVerticalOffsetNow(textView, requestedOffsetPx)
+        if (requestedOffsetPx == 0f) return
         if (XposedHelpers.getAdditionalInstanceField(textView, OFFSET_LISTENER) != null) return
         val listener = View.OnLayoutChangeListener { v, _, top, _, bottom, _, oldTop, _, oldBottom ->
             if (bottom - top == oldBottom - oldTop && (bottom - top) > 0) return@OnLayoutChangeListener

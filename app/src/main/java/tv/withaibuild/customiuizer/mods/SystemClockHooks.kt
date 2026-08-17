@@ -653,7 +653,12 @@ object SystemClockHooks {
 
         if (statusBarClock && mClock.height > 0) {
             val clockLines = if (dualRows) 2 else 1
-            StatusBarTextFit.enableShrinkToFit(mClock, clockLines, mClock.lineSpacingMultiplier)
+            StatusBarTextFit.enableShrinkToFit(
+                mClock,
+                clockLines,
+                mClock.lineSpacingMultiplier,
+                snapshot.statusbarFontSize > 13,
+            )
             val clamped = StatusbarViewMaths.clampVerticalOffsetPx(
                 mClock.translationY,
                 mClock.height,

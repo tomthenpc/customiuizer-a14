@@ -13,7 +13,6 @@ import tv.withaibuild.customiuizer.mods.utils.HookerClassHelper.MethodHook
 import tv.withaibuild.customiuizer.mods.utils.ModuleHelper
 import tv.withaibuild.customiuizer.mods.utils.StatusBarContentGeometry
 import tv.withaibuild.customiuizer.mods.utils.StatusBarHeightConfig
-import tv.withaibuild.customiuizer.mods.utils.StatusbarViewMaths
 import tv.withaibuild.customiuizer.mods.utils.XposedHelpers
 import java.lang.ref.WeakReference
 
@@ -22,9 +21,12 @@ import java.lang.ref.WeakReference
  *
  * Does not touch InsetsSource, WindowState, DisplayPolicy or cutout insets.
  * Does not translate [MiuiPhoneStatusBarView] itself (background, touch and
- * animation hosts stay put). Auto-centering expands the inflated view to fill
- * the already-resized window; the user fine-offset is translationY on
- * `status_bar_contents` only.
+ * animation hosts stay put). Does not mutate `status_bar_container`.
+ *
+ * Owner: `MiuiPhoneStatusBarView` height follows the already-resized window in px.
+ * Correction: one `translationY` on `status_bar_contents` from measured optical
+ * center plus the user fine-offset. Alpha on that same view stays with
+ * [DynamicIslandStatusBarFade].
  */
 object StatusBarContentGeometryHooks {
 
@@ -36,6 +38,8 @@ object StatusBarContentGeometryHooks {
         Handler(Looper.getMainLooper())
     }
     private val attachedBars = ArrayList<WeakReference<View>>(2)
+    private val visualBounds = intArrayOf(Int.MAX_VALUE, Int.MIN_VALUE)
+    private val visualRect = Rect()
 
     private val preferenceObserver = object : ModuleHelper.PreferenceObserver {
         override fun onChange(key: String?) {
@@ -86,8 +90,10 @@ object StatusBarContentGeometryHooks {
 
     internal fun applyToView(statusBarView: View) {
         try {
-            expandToWindowIfNeeded(statusBarView)
-            applyContentOffset(statusBarView)
+            val resized = resizeOwnerToWindowIfNeeded(statusBarView)
+            if (!resized) {
+                applyContentOffset(statusBarView)
+            }
         } catch (oom: OutOfMemoryError) {
             throw oom
         } catch (td: ThreadDeath) {
@@ -100,19 +106,34 @@ object StatusBarContentGeometryHooks {
         }
     }
 
-    internal fun expandToWindowIfNeeded(statusBarView: View) {
+    /**
+     * One owner: `MiuiPhoneStatusBarView`. The ROM `status_bar_container` stays
+     * WRAP_CONTENT and wraps this explicit height. Parent MATCH_PARENT is not used.
+     *
+     * @return true when layout params changed and a later layout pass must apply offset.
+     */
+    internal fun resizeOwnerToWindowIfNeeded(statusBarView: View): Boolean {
         val window = findStatusBarWindowView(statusBarView)
         val windowHeight = window?.height ?: 0
+        if (windowHeight <= 0) return false
+        val lp = statusBarView.layoutParams ?: return false
+        if (lp.height == windowHeight) return false
         val viewHeight = statusBarView.height
         val customHeight = StatusBarHeightConfig.enabled
-        if (!customHeight && !StatusBarContentGeometry.shouldExpandToWindow(windowHeight, viewHeight)) {
-            return
+        if (!customHeight) {
+            if (lp.height == ViewGroup.LayoutParams.MATCH_PARENT &&
+                viewHeight > 0 &&
+                kotlin.math.abs(viewHeight - windowHeight) <= 1
+            ) {
+                return false
+            }
+            if (!StatusBarContentGeometry.shouldResizeOwner(windowHeight, viewHeight)) {
+                return false
+            }
         }
-        setMatchParentHeight(statusBarView)
-        val container = statusBarView.parent as? View
-        if (container != null && container !== window) {
-            setMatchParentHeight(container)
-        }
+        lp.height = windowHeight
+        statusBarView.layoutParams = lp
+        return true
     }
 
     internal fun applyContentOffset(statusBarView: View) {
@@ -122,16 +143,38 @@ object StatusBarContentGeometryHooks {
             StatusBarContentGeometry.PREF_KEY,
             StatusBarContentGeometry.RAW_DEFAULT,
         )
-        val requestedPx = StatusBarContentGeometry.resolveOffsetPx(raw, density)
-        val parentHeight = statusBarView.height
-        val contentHeight = visualContentHeight(contents, parentHeight)
-        val clamped = StatusbarViewMaths.clampVerticalOffsetPx(
-            requestedPx,
-            parentHeight,
-            contentHeight,
+        val userOffsetPx = StatusBarContentGeometry.resolveOffsetPx(raw, density)
+        val windowHeight = findStatusBarWindowView(statusBarView)?.height ?: 0
+        val autoCenter = StatusBarHeightConfig.enabled ||
+            StatusBarContentGeometry.shouldResizeOwner(windowHeight, statusBarView.height)
+        if (!autoCenter && userOffsetPx == 0f) {
+            if (contents.translationY != 0f) {
+                contents.translationY = 0f
+            }
+            return
+        }
+        val parentBottom = statusBarView.height
+        collectOpticalLeafBounds(contents)
+        val contentTop: Int
+        val contentBottom: Int
+        if (visualBounds[1] <= visualBounds[0]) {
+            contentTop = Int.MAX_VALUE
+            contentBottom = Int.MIN_VALUE
+        } else {
+            contentTop = contents.top + visualBounds[0]
+            contentBottom = contents.top + visualBounds[1]
+        }
+        val translation = StatusBarContentGeometry.resolveContentsTranslationY(
+            0,
+            parentBottom,
+            contentTop,
+            contentBottom,
+            userOffsetPx,
+            StatusBarContentGeometry.centerTolerancePx(density),
+            autoCenter,
         )
-        if (contents.translationY != clamped) {
-            contents.translationY = clamped
+        if (contents.translationY != translation) {
+            contents.translationY = translation
         }
     }
 
@@ -172,37 +215,35 @@ object StatusBarContentGeometryHooks {
         return start.rootView
     }
 
-    private fun setMatchParentHeight(view: View) {
-        val lp = view.layoutParams ?: return
-        if (lp.height == ViewGroup.LayoutParams.MATCH_PARENT) return
-        lp.height = ViewGroup.LayoutParams.MATCH_PARENT
-        view.layoutParams = lp
-    }
-
-    private fun visualContentHeight(contents: View, fallback: Int): Int {
-        val group = contents as? ViewGroup ?: return if (contents.height > 0) contents.height else fallback
-        val bounds = intArrayOf(Int.MAX_VALUE, Int.MIN_VALUE)
-        val rect = Rect()
+    /**
+     * Leaf bounds in `status_bar_contents` layout coordinates. Existing
+     * `translationY` is not part of those coordinates, so each apply starts
+     * from the raw layout rather than accumulating.
+     */
+    private fun collectOpticalLeafBounds(contents: View) {
+        visualBounds[0] = Int.MAX_VALUE
+        visualBounds[1] = Int.MIN_VALUE
+        val group = contents as? ViewGroup ?: return
+        val parentHeight = if (group.height > 0) group.height else 0
         for (i in 0 until group.childCount) {
-            walkVisualBounds(group, group.getChildAt(i), bounds, rect)
+            walkOpticalBounds(group, group.getChildAt(i), parentHeight)
         }
-        val fallbackHeight = if (group.height > 0) group.height else fallback
-        return StatusBarContentGeometry.visualHeightPx(bounds[0], bounds[1], fallbackHeight)
     }
 
-    private fun walkVisualBounds(root: ViewGroup, view: View, bounds: IntArray, rect: Rect) {
+    private fun walkOpticalBounds(root: ViewGroup, view: View, parentHeight: Int) {
         if (view.visibility == View.GONE) return
         val nested = view as? ViewGroup
         if (nested != null && nested.childCount > 0) {
             for (i in 0 until nested.childCount) {
-                walkVisualBounds(root, nested.getChildAt(i), bounds, rect)
+                walkOpticalBounds(root, nested.getChildAt(i), parentHeight)
             }
             return
         }
-        if (view.width <= 0 && view.height <= 0) return
-        rect.set(0, 0, view.width, view.height)
-        root.offsetDescendantRectToMyCoords(view, rect)
-        if (rect.top < bounds[0]) bounds[0] = rect.top
-        if (rect.bottom > bounds[1]) bounds[1] = rect.bottom
+        val lpHeight = view.layoutParams?.height ?: 0
+        if (!StatusBarContentGeometry.isOpticalLeaf(view.height, parentHeight, lpHeight)) return
+        visualRect.set(0, 0, view.width.coerceAtLeast(0), view.height)
+        root.offsetDescendantRectToMyCoords(view, visualRect)
+        if (visualRect.top < visualBounds[0]) visualBounds[0] = visualRect.top
+        if (visualRect.bottom > visualBounds[1]) visualBounds[1] = visualRect.bottom
     }
 }

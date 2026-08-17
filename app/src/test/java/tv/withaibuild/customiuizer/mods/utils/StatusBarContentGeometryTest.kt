@@ -24,26 +24,87 @@ class StatusBarContentGeometryTest {
     }
 
     @Test
-    fun expandWhenWindowGrewPastInflatedView() {
-        assertFalse(StatusBarContentGeometry.shouldExpandToWindow(0, 80))
-        assertFalse(StatusBarContentGeometry.shouldExpandToWindow(80, 0))
-        assertFalse(StatusBarContentGeometry.shouldExpandToWindow(80, 80))
-        assertFalse(StatusBarContentGeometry.shouldExpandToWindow(80, 81))
-        assertTrue(StatusBarContentGeometry.shouldExpandToWindow(120, 80))
+    fun resizeWhenWindowGrewOrShrank() {
+        assertFalse(StatusBarContentGeometry.shouldResizeOwner(0, 80))
+        assertFalse(StatusBarContentGeometry.shouldResizeOwner(80, 0))
+        assertFalse(StatusBarContentGeometry.shouldResizeOwner(80, 80))
+        assertFalse(StatusBarContentGeometry.shouldResizeOwner(80, 81))
+        assertTrue(StatusBarContentGeometry.shouldResizeOwner(120, 80))
+        assertTrue(StatusBarContentGeometry.shouldResizeOwner(80, 120))
     }
 
     @Test
-    fun centeredContentHasZeroDelta() {
-        val delta = StatusBarContentGeometry.centerDeltaPx(0, 80, 20, 60)
-        assertEquals(0f, delta, 0.001f)
-        assertTrue(StatusBarContentGeometry.isCenteredWithinTolerance(delta, 1f))
+    fun matchParentFillingLeafIsNotOptical() {
+        assertFalse(
+            StatusBarContentGeometry.isOpticalLeaf(100, 100, StatusBarContentGeometry.MATCH_PARENT),
+        )
+        assertTrue(StatusBarContentGeometry.isOpticalLeaf(40, 100, 40))
+        assertFalse(StatusBarContentGeometry.isOpticalLeaf(0, 100, 40))
     }
 
     @Test
-    fun topStuckContentIsAboveParentCenter() {
-        val delta = StatusBarContentGeometry.centerDeltaPx(0, 80, 0, 40)
-        assertEquals(-20f, delta, 0.001f)
-        assertFalse(StatusBarContentGeometry.isCenteredWithinTolerance(delta, 2f))
+    fun centeredContentHasZeroCorrection() {
+        val correction = StatusBarContentGeometry.centerCorrectionPx(0, 100, 30, 70)
+        assertEquals(0f, correction, 0.001f)
+        assertEquals(
+            0f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 100, 30, 70, 0f, 1f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun topStuckContentMovesDownToParentCenter() {
+        val correction = StatusBarContentGeometry.centerCorrectionPx(0, 120, 30, 70)
+        assertEquals(10f, correction, 0.001f)
+        assertEquals(
+            10f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 120, 30, 70, 0f, 1f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun userOffsetAddsAfterCenterCorrection() {
+        assertEquals(
+            14f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 120, 30, 70, 4f, 1f),
+            0.001f,
+        )
+        assertEquals(
+            6f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 120, 30, 70, -4f, 1f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun withinToleranceProducesZeroAutoCorrection() {
+        assertTrue(StatusBarContentGeometry.isCenteredWithinTolerance(0.5f, 1f))
+        assertEquals(
+            0f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 100, 30, 71, 0f, 1f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun unmeasuredBoundsDoNotProduceHugeTranslation() {
+        assertEquals(
+            0f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 0, 30, 70, 80f, 1f),
+            0.001f,
+        )
+        assertEquals(
+            40f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 80, Int.MAX_VALUE, Int.MIN_VALUE, 80f, 1f),
+            0.001f,
+        )
+        assertEquals(
+            -40f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 80, 10, 10, -80f, 1f),
+            0.001f,
+        )
     }
 
     @Test
@@ -76,5 +137,24 @@ class StatusBarContentGeometryTest {
     @Test
     fun dualRowGroupFillingParentHasNoGlobalSlack() {
         assertEquals(0f, StatusbarViewMaths.clampVerticalOffsetPx(10f, 40, 40), 0.001f)
+        assertEquals(
+            0f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 40, 0, 40, 10f, 1f),
+            0.001f,
+        )
+    }
+
+    @Test
+    fun stockNativePathDoesNotAutoCenter() {
+        assertEquals(
+            0f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 100, 0, 40, 0f, 1f, false),
+            0.001f,
+        )
+        assertEquals(
+            4f,
+            StatusBarContentGeometry.resolveContentsTranslationY(0, 100, 0, 40, 4f, 1f, false),
+            0.001f,
+        )
     }
 }

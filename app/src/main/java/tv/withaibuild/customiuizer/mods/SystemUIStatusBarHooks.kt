@@ -384,7 +384,6 @@ object SystemUIStatusBarHooks {
         val res = mContext.resources
         val styleId = res.getIdentifier("TextAppearance.StatusBar.Clock", "style", "com.android.systemui")
         if (styleId != 0) iconTextView.setTextAppearance(styleId)
-        iconTextView.includeFontPadding = false
         iconTextView.ellipsize = null
         var subKey = ""
         if (iconType == 91) {
@@ -436,7 +435,12 @@ object SystemUIStatusBarHooks {
         } else if (align == 4) {
             iconTextView.textAlignment = View.TEXT_ALIGNMENT_TEXT_END
         }
-        StatusBarTextFit.enableShrinkToFit(iconTextView, lineCount, iconTextView.lineSpacingMultiplier)
+        StatusBarTextFit.enableShrinkToFit(
+            iconTextView,
+            lineCount,
+            iconTextView.lineSpacingMultiplier,
+            customSizeDp != null,
+        )
         StatusBarTextFit.applyVerticalOffset(iconTextView, offsetPx)
     }
 
@@ -924,7 +928,6 @@ object SystemUIStatusBarHooks {
             digitalTextView.setTextSize(TypedValue.COMPLEX_UNIT_DIP, customTextSizeDp)
         }
         val dualRows = MainModule.mPrefs.getBoolean("system_statusbar_${subKey}_in2rows")
-        digitalTextView.includeFontPadding = false
         digitalTextView.ellipsize = null
         digitalTextView.gravity = Gravity.CENTER_VERTICAL
         digitalTextView.layoutParams = FrameLayout.LayoutParams(
@@ -963,7 +966,12 @@ object SystemUIStatusBarHooks {
         } else if (align == 4) {
             digitalTextView.textAlignment = View.TEXT_ALIGNMENT_TEXT_END
         }
-        StatusBarTextFit.enableShrinkToFit(digitalTextView, lineCount, digitalTextView.lineSpacingMultiplier)
+        StatusBarTextFit.enableShrinkToFit(
+            digitalTextView,
+            lineCount,
+            digitalTextView.lineSpacingMultiplier,
+            customTextSizeDp != null,
+        )
         StatusBarTextFit.applyVerticalOffset(digitalTextView, offsetPx)
     }
 
@@ -2330,7 +2338,12 @@ object SystemUIStatusBarHooks {
 
             if (speedView.height > 0) {
                 val netSpeedLines = if (speedStyle == 2) 2 else 1
-                StatusBarTextFit.enableShrinkToFit(numberText, netSpeedLines, numberText.lineSpacingMultiplier)
+                StatusBarTextFit.enableShrinkToFit(
+                    numberText,
+                    netSpeedLines,
+                    numberText.lineSpacingMultiplier,
+                    fontSize > 13,
+                )
                 val clamped = StatusbarViewMaths.clampVerticalOffsetPx(
                     speedView.translationY,
                     speedView.height,
@@ -2565,7 +2578,12 @@ object SystemUIStatusBarHooks {
                     mMobileTypeSingle,
                     MainModule.mPrefs.getBoolean("system_statusbar_mobiletype_single_bold")
                 )
-                StatusBarTextFit.enableShrinkToFit(mMobileTypeSingle, 1, mMobileTypeSingle.lineSpacingMultiplier)
+                StatusBarTextFit.enableShrinkToFit(
+                    mMobileTypeSingle,
+                    1,
+                    mMobileTypeSingle.lineSpacingMultiplier,
+                    fontSize != 27,
+                )
             }
         }
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "setDripEnd", Boolean::class.javaPrimitiveType!!, initHook)
