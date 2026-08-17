@@ -660,10 +660,31 @@ object Various {
         ModuleHelper.unregisterModuleReceiver(SIDE_BAR_EXPAND_RECEIVER_KEY, receiver)
     }
 
+    /**
+     * Releases the process-scoped sidebar receiver only when [detachedView] is the
+     * current owner. A detach from any other [RegionSamplingHelper] instance, or a
+     * collected owner WeakReference, leaves the slot unchanged.
+     */
+    internal fun takeSideBarExpandReceiverIfOwner(
+        registeredReceiver: Array<BroadcastReceiver?>,
+        registeredOwnerView: Array<WeakReference<View>?>,
+        isHooked: BooleanArray,
+        detachedView: View?,
+    ): BroadcastReceiver? {
+        val currentOwner = registeredOwnerView[0]?.get() ?: return null
+        if (currentOwner !== detachedView) return null
+        val receiverToRelease = registeredReceiver[0]
+        registeredReceiver[0] = null
+        registeredOwnerView[0] = null
+        isHooked[0] = false
+        return receiverToRelease
+    }
+
     @JvmStatic
     fun AddSideBarExpandReceiverHook(lpparam: PackageReadyParam) {
         val isHooked = booleanArrayOf(false, false)
         val registeredReceiver = arrayOf<BroadcastReceiver?>(null)
+        val registeredOwnerView = arrayOf<WeakReference<View>?>(null)
         val enableSideBar = MainModule.mPrefs.getBoolean("various_swipe_expand_sidebar")
         if (!enableSideBar) {
             MainModule.resHooks.setThemeValueReplacement("com.miui.securitycenter", "dimen", "sidebar_height_default", 8)
@@ -704,7 +725,10 @@ object Various {
                             )
                         ) {
                             registeredReceiver[0] = showReceiver
+                            registeredOwnerView[0] = WeakReference(view)
                         } else {
+                            registeredReceiver[0] = null
+                            registeredOwnerView[0] = null
                             isHooked[0] = false
                         }
 
@@ -765,6 +789,7 @@ object Various {
                 } catch (t: Throwable) {
                     FatalErrors.rethrowIfFatal(t)
                     if (registeredReceiver[0] == null) {
+                        registeredOwnerView[0] = null
                         isHooked[0] = false
                     }
                     XposedHelpers.log(t)
@@ -784,9 +809,12 @@ object Various {
                     throwable = t
                     result = null
                 }
-                val receiverToRelease = registeredReceiver[0]
-                registeredReceiver[0] = null
-                isHooked[0] = false
+                val receiverToRelease = takeSideBarExpandReceiverIfOwner(
+                    registeredReceiver,
+                    registeredOwnerView,
+                    isHooked,
+                    chain.getArg(0) as? View,
+                )
                 try {
                     releaseSideBarExpandReceiver(receiverToRelease)
                 } catch (t: Throwable) {
