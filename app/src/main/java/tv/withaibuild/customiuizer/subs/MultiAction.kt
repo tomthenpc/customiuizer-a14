@@ -68,7 +68,8 @@ class MultiAction : SubFragment() {
         actionSpinner.entries = resources.getTextArray(entriesResId)
         actionSpinner.entryValues = resources.getIntArray(entryValuesResId)
         actionSpinner.tag = mKey + "_action"
-        actionSpinner.init(AppHelper.getIntOfAppPrefs(mKey + "_action", 1))
+        val savedAction = AppHelper.getIntOfAppPrefs(mKey + "_action", 1)
+        actionSpinner.init(if (savedAction <= 0) 1 else savedAction)
         actionSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 updateControls(parent as SpinnerEx, position)
