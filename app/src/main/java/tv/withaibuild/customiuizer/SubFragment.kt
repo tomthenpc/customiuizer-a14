@@ -247,28 +247,27 @@ open class SubFragment : PreferenceFragmentBase() {
             Log.e("miuizer", "View not yet ready!")
             return
         }
-        val nViews = Helpers.getChildViewsRecursive(root.findViewById(R.id.container), false)
+        val nViews = collectEditPersistenceViews(root.findViewById(R.id.container))
         val editor = AppHelper.appPrefs?.edit() ?: return
         var dirty = false
         for (nView in nViews) {
             try {
-                if (nView.tag != null) {
-                    when (nView) {
-                        is TextView -> {
-                            editor.putString(nView.tag as String, nView.text.toString())
-                            dirty = true
-                        }
-                        is SpinnerExFake -> {
-                            editor.putString(nView.tag as String, nView.value)
-                            dirty = true
-                            nView.applyOthers()
-                        }
-                        is SpinnerEx -> {
-                            editor.putInt(nView.tag as String, nView.getSelectedArrayValue())
-                            dirty = true
-                        }
-                    }
-                }
+                val wrote = applyTaggedEditPersistence(
+                    editPersistenceKind(nView),
+                    nView.tag as? String,
+                    onSpinnerInt = {
+                        editor.putInt(nView.tag as String, (nView as SpinnerEx).getSelectedArrayValue())
+                    },
+                    onSpinnerFake = {
+                        val spinner = nView as SpinnerExFake
+                        editor.putString(nView.tag as String, spinner.value)
+                        spinner.applyOthers()
+                    },
+                    onText = {
+                        editor.putString(nView.tag as String, (nView as TextView).text.toString())
+                    },
+                )
+                if (wrote) dirty = true
             } catch (e: Throwable) {
                 Log.e("miuizer", "Cannot save sub preference!")
             }
@@ -281,11 +280,11 @@ open class SubFragment : PreferenceFragmentBase() {
             Log.e("miuizer", "View not yet ready!")
             return
         }
-        val nViews = Helpers.getChildViewsRecursive(root.findViewById(R.id.container), false)
+        val nViews = collectEditPersistenceViews(root.findViewById(R.id.container))
         for (nView in nViews) {
             try {
-                if (nView.tag != null && nView is TextView) {
-                    nView.text = AppHelper.getStringOfAppPrefs(nView.tag as String, "")
+                if (nView.tag != null && editPersistenceKind(nView) == EditPersistenceKind.TEXT) {
+                    (nView as TextView).text = AppHelper.getStringOfAppPrefs(nView.tag as String, "")
                 }
             } catch (e: Throwable) {
                 Log.e("miuizer", "Cannot load sub preference!")

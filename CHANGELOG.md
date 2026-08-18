@@ -12,6 +12,10 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
 - `MethodHook` body PrefMap reads are now frozen at zero and guarded by a scanner ceiling check.
 - Preference changes refresh immutable snapshots without reinstalling hooks.
 
+### Fixes
+
+- Gesture and other MultiAction edit pages persist the selected action, app, shortcut, activity, and toggle on confirm. SpinnerEx controls were previously skipped because they are ViewGroups.
+
 ### Audit Evidence
 
 - `python tools/verify.py full` passed.

@@ -12,6 +12,10 @@
 - `MethodHook` 体内 PrefMap 读取已冻结为零，并由扫描上限门禁保护。
 - 偏好变更刷新不可变快照，不再重装 Hook。
 
+### 修复
+
+- 手势及其他 MultiAction 编辑页在确认后会真正写入所选动作、应用、快捷方式、Activity 与开关。此前 SpinnerEx 作为 ViewGroup 被保存遍历跳过。
+
 ### 审计证据
 
 - `python tools/verify.py full` 已通过。
