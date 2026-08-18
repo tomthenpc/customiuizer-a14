@@ -328,6 +328,18 @@ POST_P2_ALLOWED_NEW_ATTRIBUTES: set[tuple[str, str, str, str]] = {
         f"{{{ANDROID_NS}}}summary",
         "@string/system_recents_disable_wallpaperscale_summ",
     ),
+    (
+        "prefs_system_statusbar_batterytempandcurrent.xml",
+        "pref_key_system_statusbar_batterytempandcurrent_fontsize",
+        f"{{{MIUIZER_NS}}}offtext",
+        "@string/array_default",
+    ),
+    (
+        "prefs_system_statusbar_showdevicetemperature.xml",
+        "pref_key_system_statusbar_showdevicetemperature_fontsize",
+        f"{{{MIUIZER_NS}}}offtext",
+        "@string/array_default",
+    ),
 }
 
 # -------------------------------------------------------------------------------

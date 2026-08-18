@@ -29,6 +29,11 @@ object LauncherFolderHooks {
     private const val PREF_FOLDER_WIDTH = "launcher_folderwidth"
     private const val PREF_FOLDER_BLUR = "launcher_folderblur_opacity"
     private const val PREF_FOLDER_BLUR_DISABLED = "launcher_folderblur_disable"
+    private const val PREF_CLOSE_FOLDERS = "launcher_closefolders"
+    private const val PREF_FOLDER_COLS = "launcher_folder_cols"
+    private const val PREF_FOLDER_SPACE = "launcher_folderspace"
+    private const val PREF_PRIVACY_GEST = "launcher_privacyapps_gest"
+    private const val PREF_CLOSE_DRAWER = "launcher_closedrawer"
 
     /**
      * Folder state read from layout and blur callbacks.
@@ -45,6 +50,21 @@ object LauncherFolderHooks {
 
     @Volatile
     private var folderBlurOverrideEnabled = false
+
+    @Volatile
+    private var closeFoldersMode = 1
+
+    @Volatile
+    private var folderCols = 1
+
+    @Volatile
+    private var folderSpace = false
+
+    @Volatile
+    private var privacyGest = false
+
+    @Volatile
+    private var closeDrawer = false
 
     @Volatile
     private var folderPreferenceObserverRegistered = false
@@ -78,12 +98,17 @@ object LauncherFolderHooks {
 
     private val folderOpenedResolveLock = Any()
 
-    private fun refreshFolderPreferences() {
+    internal fun refreshFolderPreferences() {
         folderWidthEnabled = MainModule.mPrefs.getBoolean(PREF_FOLDER_WIDTH)
         val disabled = MainModule.mPrefs.getBoolean(PREF_FOLDER_BLUR_DISABLED)
         val opacityPercent = MainModule.mPrefs.getInt(PREF_FOLDER_BLUR, 0)
         folderBlurRatio = resolveFolderBlurRatio(disabled, opacityPercent)
         folderBlurOverrideEnabled = resolveFolderBlurOverrideEnabled(disabled, opacityPercent)
+        closeFoldersMode = MainModule.mPrefs.getStringAsInt(PREF_CLOSE_FOLDERS, 1)
+        folderCols = MainModule.mPrefs.getInt(PREF_FOLDER_COLS, 1)
+        folderSpace = MainModule.mPrefs.getBoolean(PREF_FOLDER_SPACE)
+        privacyGest = MainModule.mPrefs.getBoolean(PREF_PRIVACY_GEST)
+        closeDrawer = MainModule.mPrefs.getBoolean(PREF_CLOSE_DRAWER)
     }
 
     @JvmStatic
@@ -97,7 +122,12 @@ object LauncherFolderHooks {
                     key == null ||
                     key == PREF_FOLDER_WIDTH ||
                     key == PREF_FOLDER_BLUR ||
-                    key == PREF_FOLDER_BLUR_DISABLED
+                    key == PREF_FOLDER_BLUR_DISABLED ||
+                    key == PREF_CLOSE_FOLDERS ||
+                    key == PREF_FOLDER_COLS ||
+                    key == PREF_FOLDER_SPACE ||
+                    key == PREF_PRIVACY_GEST ||
+                    key == PREF_CLOSE_DRAWER
                 ) {
                     refreshFolderPreferences()
                 }
@@ -128,6 +158,7 @@ object LauncherFolderHooks {
 
     @JvmStatic
     fun CloseFolderOnLaunchHook(lpparam: PackageReadyParam) {
+        installFolderPreferenceSnapshot()
         ModuleHelper.findAndHookMethod("com.miui.home.launcher.Launcher", lpparam.classLoader, "launch", "com.miui.home.launcher.ShortcutInfo", View::class.java, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
@@ -141,7 +172,7 @@ object LauncherFolderHooks {
                 try {
                     val thisObject = chain.getThisObject()
 
-                    if (MainModule.mPrefs.getStringAsInt("launcher_closefolders", 1) != 2) { return XposedHelpers.throwOrReturn(throwable, result) }
+                    if (closeFoldersMode != 2) { return XposedHelpers.throwOrReturn(throwable, result) }
                     val mHasLaunchedAppFromFolder = XposedHelpers.getBooleanField(thisObject, "mHasLaunchedAppFromFolder")
                     if (mHasLaunchedAppFromFolder) XposedHelpers.callMethod(thisObject, "closeFolder")
 
@@ -184,8 +215,8 @@ object LauncherFolderHooks {
                     val thisObject = chain.getThisObject()
 
                     setFolderWidth(thisObject)
-                    val cols = MainModule.mPrefs.getInt("launcher_folder_cols", 1)
-                    if (cols > 3 && MainModule.mPrefs.getBoolean("launcher_folderspace")) {
+                    val cols = folderCols
+                    if (cols > 3 && folderSpace) {
                         val mBackgroundView = XposedHelpers.getObjectField(thisObject, "mBackgroundView") as ViewGroup
                         mBackgroundView.setPadding(
                             mBackgroundView.paddingLeft / 3,
@@ -253,7 +284,8 @@ object LauncherFolderHooks {
 
     @JvmStatic
     fun PrivacyFolderHook(lpparam: PackageReadyParam) {
-        if (MainModule.mPrefs.getBoolean("launcher_privacyapps_gest")) {
+        installFolderPreferenceSnapshot()
+        if (privacyGest) {
             ModuleHelper.findAndHookMethod("com.miui.home.launcher.Launcher", lpparam.classLoader, "registerBroadcastReceivers", object : MethodHook() {
                 override fun intercept(chain: XposedInterface.Chain): Any? {
                     var result: Any? = null
@@ -310,7 +342,7 @@ object LauncherFolderHooks {
                     if (GlobalActions.handleAction(thisObject as Activity, "launcher_spread")) {
                         return XposedHelpers.throwOrReturn(throwable, result)
                     }
-                    val opt = MainModule.mPrefs.getBoolean("launcher_privacyapps_gest")
+                    val opt = privacyGest
                     if (opt) { skipped = true; result = null; throwable = null }
 
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
@@ -572,6 +604,7 @@ object LauncherFolderHooks {
 
     @JvmStatic
     fun CloseFolderOrDrawerOnLaunchShortcutMenuHook(lpparam: PackageReadyParam) {
+        installFolderPreferenceSnapshot()
         ModuleHelper.findAndHookMethod("com.miui.home.launcher.shortcuts.AppShortcutMenuItem", lpparam.classLoader, "getOnClickListener", object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
@@ -591,8 +624,8 @@ object LauncherFolderHooks {
                         if (appCls == null) return@OnClickListener
                         val launcher = XposedHelpers.callStaticMethod(appCls, "getLauncher")
                         if (launcher == null) return@OnClickListener
-                        if (MainModule.mPrefs.getBoolean("launcher_closedrawer")) XposedHelpers.callMethod(launcher, "hideAppView")
-                        if (MainModule.mPrefs.getStringAsInt("launcher_closefolders", 1) > 1) XposedHelpers.callMethod(launcher, "closeFolder")
+                        if (closeDrawer) XposedHelpers.callMethod(launcher, "hideAppView")
+                        if (closeFoldersMode > 1) XposedHelpers.callMethod(launcher, "closeFolder")
                     }
                     throwable = null
 
