@@ -55,11 +55,13 @@ open class SpinnerEx(context: Context, attrs: AttributeSet?) : AppCompatSpinner(
         val vals = entryValues ?: return
         val adapter = ArrayAdapterEx(context, android.R.layout.simple_spinner_item, ent)
         setAdapter(adapter)
-        setSelection(findIndex(value, vals))
+        val targetIndex = findIndex(value, vals).let { if (it >= 0) it else 0 }
+        setSelection(targetIndex)
     }
 
     fun getSelectedArrayValue(): Int {
-        return entryValues?.getOrNull(selectedItemPosition) ?: 0
+        val vals = entryValues ?: return 0
+        return vals.getOrNull(selectedItemPosition) ?: vals.firstOrNull() ?: 0
     }
 
     private inner class ArrayAdapterEx(
