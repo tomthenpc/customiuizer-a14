@@ -18,6 +18,13 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
 - `python -m unittest discover -s tools/tests -p "test_*.py"` passed.
 - Feature-semantics validation and invariant checks passed.
 
+### Artifact Information
+
+- APK: `CustoMIUIzer-A14-r14.20.6.apk`
+- versionCode / versionName: `203 / r14.20.6`
+
+---
+
 ## r14.20.5 — 2026-08-18
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.

@@ -2,6 +2,29 @@
 
 [English](CHANGELOG.md) | 简体中文
 
+## r14.20.6 — 2026-08-18
+
+面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a`、libxposed API 101/102。
+
+### 性能与热路径安全
+
+- 完成按 hook-body 数量与进程热度排序的 PrefMap 迁移积压。
+- `MethodHook` 体内 PrefMap 读取已冻结为零，并由扫描上限门禁保护。
+- 偏好变更刷新不可变快照，不再重装 Hook。
+
+### 审计证据
+
+- `python tools/verify.py full` 已通过。
+- `python -m unittest discover -s tools/tests -p "test_*.py"` 已通过。
+- 功能语义校验与不变量检查已通过。
+
+### 产物信息
+
+- APK：`CustoMIUIzer-A14-r14.20.6.apk`
+- versionCode / versionName：`203 / r14.20.6`
+
+---
+
 ## r14.20.5 — 2026-08-18
 
 面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a`、libxposed API 101/102。
