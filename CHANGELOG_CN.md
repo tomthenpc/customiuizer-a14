@@ -2,6 +2,28 @@
 
 [English](CHANGELOG.md) | 简体中文
 
+## r14.20.7 — 2026-08-19
+
+面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a`、libxposed API 101/102。
+
+### 修复
+
+- 修复扩展动作页面进入「启动应用 / 启动快捷方式 / 启动活动」选择页面时可能闪退的问题。
+- 修复 MultiAction「切换功能」动作失效的问题。
+- 修复锁屏扩展动作「切换功能」显示项与内部值不一致的问题。
+
+### 稳定性
+
+- 完善启动器 10 项手势动作的映射与执行契约校验。
+- 完善 MultiAction action / toggle / array contract，防止 UI 暴露无执行端动作或 label/value 再次错位。
+
+### 产物信息
+
+- APK：`CustoMIUIzer-A14-r14.20.7.apk`
+- versionCode / versionName：`204 / r14.20.7`
+
+---
+
 ## r14.20.6 — 2026-08-18
 
 面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a`、libxposed API 101/102。

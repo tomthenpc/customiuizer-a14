@@ -2,6 +2,28 @@
 
 English | [简体中文](CHANGELOG_CN.md)
 
+## r14.20.7 — 2026-08-19
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
+
+### Fixes
+
+- Opening Launch App / Launch Shortcut / Launch Activity from an Extended Action page no longer crashes.
+- The MultiAction Toggle action works again.
+- Lock-screen Extended Action now shows Toggle aligned with its stored value.
+
+### Stability
+
+- Launcher's ten gesture actions now have mapping and execution contract checks.
+- MultiAction action, toggle, and array contracts now reject advertised IDs without handlers and label/value mismatches.
+
+### Artifact Information
+
+- APK: `CustoMIUIzer-A14-r14.20.7.apk`
+- versionCode / versionName: `204 / r14.20.7`
+
+---
+
 ## r14.20.6 — 2026-08-18
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.

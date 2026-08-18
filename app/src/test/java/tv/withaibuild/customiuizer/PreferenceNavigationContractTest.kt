@@ -37,6 +37,7 @@ class PreferenceNavigationContractTest {
         assertTrue(stringOverload.contains("isStateSaved"))
         assertTrue(stringOverload.contains(".commit()"))
         assertFalse(stringOverload.contains("commitAllowingStateLoss"))
+        assertFalse(stringOverload.contains("executePendingTransactions"))
     }
 }
 
