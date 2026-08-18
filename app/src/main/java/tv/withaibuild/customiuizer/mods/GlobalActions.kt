@@ -735,25 +735,8 @@ object GlobalActions {
     }
 
     private fun toggleThis(context: Context, what: Int): Boolean {
-        return ModuleHelper.guarded(false) {
-            val whatStr = when (what) {
-                1 -> "WiFi"
-                2 -> "Bluetooth"
-                3 -> "GPS"
-                4 -> "NFC"
-                5 -> "SoundProfile"
-                6 -> "AutoBrightness"
-                7 -> "AutoRotation"
-                8 -> "Flashlight"
-                9 -> "MobileData"
-                10 -> "Hotspot"
-                11 -> "ZenMode"
-                12 -> "NightMode"
-                else -> return false
-            }
-            context.sendBroadcast(Intent(ACTION_PREFIX + "Toggle" + whatStr))
-            true
-        }
+        val action = GlobalActionToggles.broadcastAction(what) ?: return false
+        return commonSendAction(context, action)
     }
 
     @JvmStatic

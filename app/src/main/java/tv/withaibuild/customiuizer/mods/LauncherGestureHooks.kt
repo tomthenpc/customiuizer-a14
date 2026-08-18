@@ -141,19 +141,14 @@ object LauncherGestureHooks {
                         if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                         return XposedHelpers.proceedOrThrow(chain, throwable)
                     }
-                    var key: String? = null
                     val helperContext = (thisObject as ViewGroup).context
                     var numOfFingers = 1
                     if (args[1] != null) numOfFingers = (args[1] as MotionEvent).pointerCount
-                    when (args[0] as Int) {
-                        11 -> {
-                            key = if (numOfFingers == 1) "launcher_swipedown" else if (numOfFingers == 2) "launcher_swipedown2" else key
-                            if (GlobalActions.handleAction(helperContext, key)) { skipped = true; result = true; throwable = null }
-                        }
-                        10 -> {
-                            key = if (numOfFingers == 1) "launcher_swipeup" else if (numOfFingers == 2) "launcher_swipeup2" else key
-                            if (GlobalActions.handleAction(helperContext, key)) { skipped = true; result = true; throwable = null }
-                        }
+                    val key = LauncherVerticalGesture.resolveKey(args[0] as Int, numOfFingers)
+                    if (key != null && GlobalActions.handleAction(helperContext, key)) {
+                        skipped = true
+                        result = true
+                        throwable = null
                     }
                     if (skipped) { return XposedHelpers.throwOrReturn(throwable, result) }
                     result = chain.proceed()
