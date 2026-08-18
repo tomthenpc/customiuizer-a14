@@ -96,6 +96,7 @@ object LauncherAnimationHooks {
 
     private const val PREF_LAUNCHER_WALLPAPER_SCALE = "launcher_disable_wallpaperscale"
     private const val PREF_RECENTS_WALLPAPER_SCALE = "system_recents_disable_wallpaperscale"
+    private const val PREF_WALLPAPER_COLOR_MODE = "launcher_wallpaper_colormode"
 
     /**
      * Wallpaper zoom is applied from recents and app-open/close callbacks. Snapshot the two
@@ -107,6 +108,9 @@ object LauncherAnimationHooks {
 
     @Volatile
     private var disableRecentsDimLayer = false
+
+    @Volatile
+    private var wallpaperColorMode = 1
 
     @Volatile
     private var wallpaperZoomObserverRegistered = false
@@ -244,7 +248,7 @@ object LauncherAnimationHooks {
         wallpaperZoomObserverRegistered = true
         ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
             override fun onChange(key: String?) = ModuleHelper.guarded {
-                if (key == null || key == PREF_LAUNCHER_WALLPAPER_SCALE || key == PREF_RECENTS_WALLPAPER_SCALE) {
+                if (key == null || key == PREF_LAUNCHER_WALLPAPER_SCALE || key == PREF_RECENTS_WALLPAPER_SCALE || key == PREF_WALLPAPER_COLOR_MODE) {
                     refreshWallpaperZoomPreferences()
                     applyWallpaperZoomEnabledFlag(wallpaperZoomClassLoader, !suppressLauncherWallpaperZoom)
                 }
@@ -257,6 +261,7 @@ object LauncherAnimationHooks {
         val recentsPref = MainModule.mPrefs.getBoolean(PREF_RECENTS_WALLPAPER_SCALE)
         suppressLauncherWallpaperZoom = shouldSuppressLauncherWallpaperZoom(recentsPref, launcherPref)
         disableRecentsDimLayer = shouldDisableLauncherWallpaperZoomPermanently(launcherPref)
+        wallpaperColorMode = MainModule.mPrefs.getStringAsInt(PREF_WALLPAPER_COLOR_MODE, 1)
     }
 
     private val WALLPAPER_ZOOM_MANAGER_CLASSES = arrayOf(
@@ -295,6 +300,7 @@ object LauncherAnimationHooks {
 
     @JvmStatic
     fun WallpaperColorModeHook(lpparam: PackageReadyParam) {
+        installWallpaperZoomSnapshot()
         ModuleHelper.findAndHookMethod("com.miui.home.launcher.WallpaperUtils", lpparam.classLoader, "setCurrentStatusBarAreaColorMode", Int::class.javaPrimitiveType!!, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any? = null
@@ -302,7 +308,7 @@ object LauncherAnimationHooks {
                 val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val v = MainModule.mPrefs.getStringAsInt("launcher_wallpaper_colormode", 1)
+                    val v = wallpaperColorMode
                     if (v > 1) {
                         args[0] = if (v == 2) 2 else 0
                     }
@@ -322,7 +328,7 @@ object LauncherAnimationHooks {
                 val args = XposedHelpers.getArgsArray(chain)
                 try {
 
-                    val v = MainModule.mPrefs.getStringAsInt("launcher_wallpaper_colormode", 1)
+                    val v = wallpaperColorMode
                     if (v > 1) {
                         args[0] = if (v == 2) 2 else 0
                     }

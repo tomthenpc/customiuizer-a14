@@ -41,6 +41,7 @@ object Launcher {
 
     private const val MIUI_HOME_PACKAGE = "com.miui.home"
     private const val PREF_RECENTS_BLUR = "system_recents_blur"
+    private const val PREF_HIDE_FROM_RECENTS = "system_hidefromrecents_apps"
 
     /**
      * Recents blur ratio is read from gesture and `fastBlur` callbacks. Snapshot it so those
@@ -58,6 +59,9 @@ object Launcher {
 
     @Volatile
     private var recentsBlurObserverRegistered = false
+
+    @Volatile
+    private var hideFromRecentsApps: Set<String> = emptySet()
 
     @JvmStatic
     fun HideNavBarHook(lpparam: PackageReadyParam) {
@@ -207,6 +211,7 @@ object Launcher {
 
     @JvmStatic
     fun HideFromRecentsHook(lpparam: PackageReadyParam) {
+        installRecentsBlurSnapshot()
         val ActivityManagerWrapper = XposedHelpers.findClassIfExists("com.android.systemui.shared.recents.system.ActivityManagerWrapper", lpparam.classLoader)
         val TaskInfoCompat = XposedHelpers.findClassIfExists("com.android.systemui.shared.recents.model.GroupedRecentTaskInfoCompat", lpparam.classLoader)
         if (TaskInfoCompat == null) {
@@ -238,7 +243,7 @@ object Launcher {
                             }
                         }
                         if (pkgName != null) {
-                            val selectedApps = MainModule.mPrefs.getStringSet("system_hidefromrecents_apps")
+                            val selectedApps = hideFromRecentsApps
                             if (selectedApps.contains(pkgName)) {
                                 result = true
                                 throwable = null
@@ -377,6 +382,7 @@ object Launcher {
         val percent = MainModule.mPrefs.getInt(PREF_RECENTS_BLUR, 100)
         recentsBlurRatio = resolveRecentsBlurRatio(percent)
         recentsBlurOverrideEnabled = resolveRecentsBlurOverrideEnabled(percent)
+        hideFromRecentsApps = HashSet(MainModule.mPrefs.getStringSet(PREF_HIDE_FROM_RECENTS))
     }
 
     @JvmStatic
@@ -386,7 +392,7 @@ object Launcher {
         recentsBlurObserverRegistered = true
         ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
             override fun onChange(key: String?) = ModuleHelper.guarded {
-                if (key == null || key == PREF_RECENTS_BLUR) {
+                if (key == null || key == PREF_RECENTS_BLUR || key == PREF_HIDE_FROM_RECENTS) {
                     refreshRecentsBlurPreferences()
                 }
             }

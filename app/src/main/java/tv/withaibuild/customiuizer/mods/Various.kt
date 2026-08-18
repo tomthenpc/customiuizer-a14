@@ -73,6 +73,69 @@ import tv.withaibuild.customiuizer.utils.HookUtils
 
 object Various {
 
+    internal data class VariousSnapshot(
+        val alarmCompatApps: Set<String> = emptySet(),
+        val showCallUi: Int = 0,
+        val callUiBrightType: Int = 0,
+        val callUiBrightNight: Boolean = false,
+        val callUiBrightNightStartHour: Int = 0,
+        val callUiBrightNightStartMinute: Int = 0,
+        val callUiBrightNightEndHour: Int = 0,
+        val callUiBrightNightEndMinute: Int = 0,
+        val callUiBrightVal: Int = 0,
+        val gboardPaddingPort: Int = 0,
+        val gboardPaddingLand: Int = 0,
+    )
+
+    @Volatile
+    internal var variousConfig = VariousSnapshot()
+
+    private var variousObserverRegistered = false
+
+    private val VARIOUS_PREF_KEYS = setOf(
+        "various_alarmcompat_apps",
+        "various_showcallui",
+        "various_calluibright_type",
+        "various_calluibright_night",
+        "various_calluibright_night_start_hour",
+        "various_calluibright_night_start_minute",
+        "various_calluibright_night_end_hour",
+        "various_calluibright_night_end_minute",
+        "various_calluibright_val",
+        "various_gboardpadding_port",
+        "various_gboardpadding_land",
+    )
+
+    internal fun refreshVariousSnapshot() {
+        val prefs = MainModule.mPrefs
+        val nightKey = "various_calluibright_night"
+        variousConfig = VariousSnapshot(
+            alarmCompatApps = HashSet(prefs.getStringSet("various_alarmcompat_apps")),
+            showCallUi = prefs.getStringAsInt("various_showcallui", 0),
+            callUiBrightType = prefs.getStringAsInt("various_calluibright_type", 0),
+            callUiBrightNight = prefs.getBoolean(nightKey),
+            callUiBrightNightStartHour = prefs.getInt(nightKey + "_start_hour", 0),
+            callUiBrightNightStartMinute = prefs.getInt(nightKey + "_start_minute", 0),
+            callUiBrightNightEndHour = prefs.getInt(nightKey + "_end_hour", 0),
+            callUiBrightNightEndMinute = prefs.getInt(nightKey + "_end_minute", 0),
+            callUiBrightVal = prefs.getInt("various_calluibright_val", 0),
+            gboardPaddingPort = prefs.getInt("various_gboardpadding_port", 0),
+            gboardPaddingLand = prefs.getInt("various_gboardpadding_land", 0),
+        )
+    }
+
+    @JvmStatic
+    internal fun installVariousSnapshot() {
+        refreshVariousSnapshot()
+        if (variousObserverRegistered) return
+        variousObserverRegistered = true
+        ModuleHelper.observePreferenceChange(object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) = ModuleHelper.guarded {
+                if (key == null || key in VARIOUS_PREF_KEYS) refreshVariousSnapshot()
+            }
+        })
+    }
+
     @JvmField
     var mLastPackageInfo: PackageInfo? = null
 
@@ -1288,6 +1351,7 @@ object Various {
 
     @JvmStatic
     fun AlarmCompatServiceHook(lpparam: SystemServerStartingParam) {
+        installVariousSnapshot()
         ModuleHelper.findAndHookMethod("com.android.server.alarm.AlarmManagerService", lpparam.classLoader, "onBootPhase", Int::class.javaPrimitiveType!!, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any?
@@ -1343,7 +1407,7 @@ object Various {
                     if (mContext != null) {
                         val pkgName = mContext.packageManager.getNameForUid(Binder.getCallingUid())
                         val mNextAlarmTime = XposedHelpers.getAdditionalInstanceField(thisObject, "mNextAlarmTime")
-                        val set = MainModule.mPrefs.getStringSet("various_alarmcompat_apps")
+                        val set = variousConfig.alarmCompatApps
                         if (mNextAlarmTime != null && pkgName != null && set.contains(pkgName)) {
                             result = if (mNextAlarmTime as Long == 0L) null else AlarmManager.AlarmClockInfo(mNextAlarmTime as Long, null)
                             throwable = null
@@ -1388,6 +1452,7 @@ object Various {
 
     @JvmStatic
     fun ShowCallUIHook(lpparam: PackageReadyParam) {
+        installVariousSnapshot()
         ModuleHelper.hookAllMethods("com.android.incallui.InCallPresenter", lpparam.classLoader, "startUi", object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any?
@@ -1403,14 +1468,14 @@ object Various {
 
                     if (!(result as Boolean) || chain.getArg(0).toString() != "INCOMING") { return XposedHelpers.throwOrReturn(throwable, result) }
                     val mContext = XposedHelpers.getObjectField(thisObject, "mContext") as Context
-                    if (MainModule.mPrefs.getStringAsInt("various_showcallui", 0) == 3) {
+                    if (variousConfig.showCallUi == 3) {
                         val topPackage = Settings.Global.getString(mContext.contentResolver, Helpers.modulePkg + ".foreground.package")
                         if (topPackage != null && topPackage != "com.miui.home") {
                             return XposedHelpers.throwOrReturn(throwable, result)
                         }
                     }
 
-                    if (MainModule.mPrefs.getStringAsInt("various_showcallui", 0) == 1) {
+                    if (variousConfig.showCallUi == 1) {
                         val fullScreen = Settings.Global.getInt(mContext.contentResolver, Helpers.modulePkg + ".foreground.fullscreen", 0)
                         if (fullScreen == 1) { return XposedHelpers.throwOrReturn(throwable, result) }
                     }
@@ -1430,6 +1495,7 @@ object Various {
 
     @JvmStatic
     fun InCallBrightnessHook(lpparam: PackageReadyParam) {
+        installVariousSnapshot()
         ModuleHelper.findAndHookMethod("com.android.incallui.InCallActivity", lpparam.classLoader, "onCreate", Bundle::class.java, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var result: Any?
@@ -1445,7 +1511,7 @@ object Various {
 
                     val act = thisObject as Activity
 
-                    val opt = MainModule.mPrefs.getStringAsInt("various_calluibright_type", 0)
+                    val opt = variousConfig.callUiBrightType
                     if (opt == 1 || opt == 2) {
                         val presenter = XposedHelpers.callStaticMethod(XposedHelpers.findClass("com.android.incallui.InCallPresenter", lpparam.classLoader), "getInstance")
                         if (presenter == null) {
@@ -1458,13 +1524,13 @@ object Various {
                         else if (opt == 2 && state != "OUTGOING" && state != "PENDING_OUTGOING") { return XposedHelpers.throwOrReturn(throwable, result) }
                     }
 
-                    val key = "various_calluibright_night"
-                    val checkNight = MainModule.mPrefs.getBoolean(key)
+                    val cfg = variousConfig
+                    val checkNight = cfg.callUiBrightNight
                     if (checkNight) {
-                        val start_hour = MainModule.mPrefs.getInt(key + "_start_hour", 0)
-                        val start_minute = MainModule.mPrefs.getInt(key + "_start_minute", 0)
-                        val end_hour = MainModule.mPrefs.getInt(key + "_end_hour", 0)
-                        val end_minute = MainModule.mPrefs.getInt(key + "_end_minute", 0)
+                        val start_hour = cfg.callUiBrightNightStartHour
+                        val start_minute = cfg.callUiBrightNightStartMinute
+                        val end_hour = cfg.callUiBrightNightEndHour
+                        val end_minute = cfg.callUiBrightNightEndMinute
 
                         val formatter = SimpleDateFormat("H:m", Locale.ENGLISH)
                         formatter.timeZone = TimeZone.getDefault()
@@ -1478,7 +1544,7 @@ object Various {
                     }
 
                     val params = act.window.attributes
-                    val brightness = MainModule.mPrefs.getInt("various_calluibright_val", 0)
+                    val brightness = variousConfig.callUiBrightVal
                     if (brightness == 0) { return XposedHelpers.throwOrReturn(throwable, result) }
                     params.screenBrightness = brightness / 100f
                     act.window.setAttributes(params)
@@ -1687,6 +1753,7 @@ object Various {
 
     @JvmStatic
     fun GboardPaddingHook(lpparam: PackageReadyParam) {
+        installVariousSnapshot()
         ModuleHelper.findAndHookMethod(XposedHelpers.findClass("android.os.SystemProperties", lpparam.classLoader), "get", String::class.java, object : MethodHook() {
             override fun intercept(chain: XposedInterface.Chain): Any? {
                 var skipped = false
@@ -1695,10 +1762,10 @@ object Various {
                 try {
                     val key = chain.getArg(0) as String
                     if (key == "ro.com.google.ime.kb_pad_port_b") {
-                        val opt = MainModule.mPrefs.getInt("various_gboardpadding_port", 0)
+                        val opt = variousConfig.gboardPaddingPort
                         if (opt > 0) { skipped = true; result = opt.toString(); throwable = null }
                     } else if (key == "ro.com.google.ime.kb_pad_land_b") {
-                        val opt = MainModule.mPrefs.getInt("various_gboardpadding_land", 0)
+                        val opt = variousConfig.gboardPaddingLand
                         if (opt > 0) { skipped = true; result = opt.toString(); throwable = null }
                     }
 

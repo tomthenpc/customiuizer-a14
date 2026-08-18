@@ -89,6 +89,9 @@ object SystemClockHooks {
         // Pre-computed seconds flags for the SecondTicker
         val showStatusBarSeconds: Boolean,
         val showCCSeconds: Boolean,
+        val ccClockTweak: Boolean,
+        val qsForceSystemFonts: Boolean,
+        val ccClockVerticalOffset: Int,
     )
 
     /** Maximum number of `mClockListeners` to iterate during a style refresh. */
@@ -130,6 +133,9 @@ object SystemClockHooks {
         "system_cc_dateformat",
         "system_drawer_dateformat",
         "system_statusbar_enable_weather_param",
+        "system_cc_clocktweak",
+        "system_qs_force_systemfonts",
+        "system_cc_clock_verticaloffset",
     )
 
     @Volatile
@@ -229,6 +235,9 @@ object SystemClockHooks {
             statusbarFixedWidth = prefs.getInt("system_statusbar_clock_fixedcontent_width", 10),
             showStatusBarSeconds = showStatusBarSeconds,
             showCCSeconds = showCCSeconds,
+            ccClockTweak = prefs.getBoolean("system_cc_clocktweak"),
+            qsForceSystemFonts = prefs.getBoolean("system_qs_force_systemfonts"),
+            ccClockVerticalOffset = prefs.getInt("system_cc_clock_verticaloffset", 10),
         )
     }
 
@@ -1250,11 +1259,12 @@ object SystemClockHooks {
                     val thisObject = chain.thisObject
 
                     val clock = XposedHelpers.getObjectField(thisObject, "mBigTime") as TextView
-                    val ccClockTweak = MainModule.mPrefs.getBoolean("system_cc_clocktweak")
-                    val useSystemFonts = MainModule.mPrefs.getBoolean("system_qs_force_systemfonts")
+                    val snapshot = ensureClockStyleSnapshot(clock.resources)
+                    val ccClockTweak = snapshot.ccClockTweak
+                    val useSystemFonts = snapshot.qsForceSystemFonts
                     if (ccClockTweak) {
                         val defaultVerticalOffset = 10
-                        val verticalOffset = MainModule.mPrefs.getInt("system_cc_clock_verticaloffset", defaultVerticalOffset)
+                        val verticalOffset = snapshot.ccClockVerticalOffset
                         if (verticalOffset != defaultVerticalOffset) {
                             val marginTop = HookUtils.dp2px((verticalOffset - defaultVerticalOffset).toFloat())
                             clock.translationY = marginTop

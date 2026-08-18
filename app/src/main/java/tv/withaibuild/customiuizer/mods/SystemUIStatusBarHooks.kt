@@ -171,6 +171,57 @@ internal data class StatusBarIconVisibilitySnapshot(
     val hideWirelessHeadset: Boolean,
 )
 
+/**
+ * Immutable snapshot of remaining status-bar layout flags that still lived in MethodHook bodies.
+ *
+ * Dual-row inflation, digital-signal ticks, network-type labels, mobile-type layout, horizontal
+ * insets and the mobile-indicator hide path read only this object. Preference changes rebuild it;
+ * they do not reinstall hooks.
+ */
+internal data class StatusBarLayoutSnapshot(
+    val id: Long,
+    val firstRowLeftPadding: Int,
+    val firstRowRightPadding: Int,
+    val clockSpan2Rows: Boolean,
+    val showBatteryDetail: Boolean,
+    val showDeviceTemp: Boolean,
+    val batteryAtRight: Boolean,
+    val tempAtRight: Boolean,
+    val netspeedAtSecondRow: Boolean,
+    val dualRowsLeftRatio: Int,
+    val digitalSignalDualRows: Boolean,
+    val digitalSignalHideUnit: Boolean,
+    val netSpeedIntervalMs: Long,
+    val convert4gToLte: Boolean,
+    val mobileShownName: String,
+    val mobileTypeSingleAtLeft: Boolean,
+    val mobileTypeSingleLeftMargin: Int,
+    val mobileTypeSingleRightMargin: Int,
+    val mobileTypeSingleVerticalOffset: Int,
+    val mobileTypeSingleFontSize: Int,
+    val mobileTypeSingleBold: Boolean,
+    val horizMarginLeft: Int,
+    val horizMarginRight: Int,
+    val mobileTypeIconOpt: Int,
+    val hideMobileNetworkIndicator: Boolean,
+    val mobileTypeSingle: Boolean,
+    val mobileTypeShowOnWifi: Boolean,
+)
+
+internal fun resolveMobileTypeDisplayName(romName: String, snapshot: StatusBarLayoutSnapshot): String {
+    if (snapshot.convert4gToLte) {
+        return when (romName) {
+            "4G" -> "LTE"
+            "4G+" -> "LTE+"
+            else -> romName
+        }
+    }
+    return snapshot.mobileShownName
+}
+
+internal fun formatDigitalSignalLabel(level: Int, hideUnit: Boolean): String =
+    if (hideUnit) level.toString() else level.toString() + "dBm"
+
 /** Converts [dp] to physical pixels using the current [Resources] display metrics. */
 private fun Resources.dp2px(dp: Float): Float =
     dp * getDisplayMetrics().density
@@ -191,6 +242,9 @@ object SystemUIStatusBarHooks {
 
     /** Nullable B3 icon-visibility runtime-state holder. Only created when a B3 feature is installed. */
     private var iconVisibilityRuntimeState: StatusBarIconVisibilityRuntimeState? = null
+
+    /** Nullable layout-snapshot holder. Created when a remaining layout/type hook is installed. */
+    private var layoutRuntimeState: StatusBarLayoutRuntimeState? = null
 
     /** Runtime state for the B1 network-speed text-style feature. */
     private class NetSpeedStyleRuntimeState {
@@ -315,6 +369,48 @@ object SystemUIStatusBarHooks {
         }
     }
 
+    /** Runtime state for remaining status-bar layout MethodHook bodies. */
+    private class StatusBarLayoutRuntimeState {
+        val currentSnapshot = AtomicReference<StatusBarLayoutSnapshot?>(null)
+        val idGenerator = AtomicLong(0L)
+        val relevantKeys = setOf(
+            "system_statusbar_dualrows_firstrow_horizmargin",
+            "system_statusbar_dualrows_firstrow_horizmargin_left",
+            "system_statusbar_dualrows_firstrow_horizmargin_right",
+            "system_statusbar_dualrows_clock_span2rows",
+            "system_statusbar_batterytempandcurrent",
+            "system_statusbar_showdevicetemperature",
+            "system_statusbar_batterytempandcurrent_atright",
+            "system_statusbar_showdevicetemperature_atright",
+            "system_statusbar_netspeed_atsecondrow",
+            "system_statusbar_dualrows_left_ratio",
+            "system_statusbar_mobile_digital_signal_in2rows",
+            "system_statusbar_mobile_digital_signal_hideunit",
+            "system_netspeedinterval",
+            "system_4gtolte",
+            "system_statusbar_mobile_showname",
+            "system_statusbar_mobiletype_single_atleft",
+            "system_statusbar_mobiletype_single_leftmargin",
+            "system_statusbar_mobiletype_single_rightmargin",
+            "system_statusbar_mobiletype_single_verticaloffset",
+            "system_statusbar_mobiletype_single_fontsize",
+            "system_statusbar_mobiletype_single_bold",
+            "system_statusbar_horizmargin_left",
+            "system_statusbar_horizmargin_right",
+            "system_mobiletypeicon",
+            "system_networkindicator_mobile",
+            "system_statusbar_mobiletype_single",
+            "system_statusbar_mobiletype_show_wificonnected",
+        )
+        val observer = object : ModuleHelper.PreferenceObserver {
+            override fun onChange(key: String?) = ModuleHelper.guarded {
+                val state = this@StatusBarLayoutRuntimeState
+                if (key != null && key !in state.relevantKeys) return@guarded
+                state.currentSnapshot.set(buildStatusBarLayoutSnapshot(MainModule.mPrefs, state.idGenerator))
+            }
+        }
+    }
+
     /** Ensures the B1/B2 runtime-state holder exists, creating it and registering a shared observer on first use. */
     private fun ensureNetSpeedRuntimeState(): NetSpeedRuntimeState {
         return netSpeedRuntimeState ?: NetSpeedRuntimeState().also { created ->
@@ -339,6 +435,17 @@ object SystemUIStatusBarHooks {
             iconVisibilityRuntimeState = created
             ModuleHelper.observePreferenceChange(created.observer, created)
         }
+    }
+
+    private fun ensureStatusBarLayoutRuntimeState(): StatusBarLayoutRuntimeState {
+        return layoutRuntimeState ?: StatusBarLayoutRuntimeState().also { created ->
+            layoutRuntimeState = created
+            ModuleHelper.observePreferenceChange(created.observer, created)
+        }
+    }
+
+    internal fun installStatusBarLayoutSnapshot() {
+        ensureStatusBarLayoutRuntimeState()
     }
 
     @JvmStatic
@@ -753,6 +860,7 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun DualRowsStatusbarHook(lpparam: PackageReadyParam) {
+        ensureStatusBarLayoutRuntimeState()
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.phone.MiuiPhoneStatusBarView", lpparam.classLoader, "onFinishInflate", object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val sbView = param.getThisObject() as FrameLayout
@@ -766,13 +874,10 @@ object SystemUIStatusBarHooks {
                 } else {
                     statusBarDisplayRegistry.getOrCreatePending(sbView)
                 }
-                var firstRowLeftPadding = 0
-                var firstRowRightPadding = 0
-                if (MainModule.mPrefs.getBoolean("system_statusbar_dualrows_firstrow_horizmargin")) {
-                    firstRowLeftPadding = MainModule.mPrefs.getInt("system_statusbar_dualrows_firstrow_horizmargin_left", 0)
-                    firstRowRightPadding = MainModule.mPrefs.getInt("system_statusbar_dualrows_firstrow_horizmargin_right", 0)
-                }
-                val clock2Rows = MainModule.mPrefs.getBoolean("system_statusbar_dualrows_clock_span2rows")
+                val layout = currentOrBuildStatusBarLayoutSnapshot()
+                val firstRowLeftPadding = layout.firstRowLeftPadding
+                val firstRowRightPadding = layout.firstRowRightPadding
+                val clock2Rows = layout.clockSpan2Rows
                 val mContext = sbView.context
                 val leftContainer = XposedHelpers.getObjectField(sbView, "mStatusBarLeftContainer") as LinearLayout
                 leftContainer.setTag("mStatusBarLeftContainer")
@@ -848,10 +953,10 @@ object SystemUIStatusBarHooks {
                 val resSystemIconsId = sbView.resources.getIdentifier("system_icons", "id", lpparam.packageName)
                 rightLayout.id = resSystemIconsId
 
-                val showBatteryDetail = MainModule.mPrefs.getBoolean("system_statusbar_batterytempandcurrent")
-                val showDeviceTemp = MainModule.mPrefs.getBoolean("system_statusbar_showdevicetemperature")
-                val batteryAtRight = showBatteryDetail && MainModule.mPrefs.getBoolean("system_statusbar_batterytempandcurrent_atright")
-                val tempAtRight = showDeviceTemp && MainModule.mPrefs.getBoolean("system_statusbar_showdevicetemperature_atright")
+                val showBatteryDetail = layout.showBatteryDetail
+                val showDeviceTemp = layout.showDeviceTemp
+                val batteryAtRight = layout.batteryAtRight
+                val tempAtRight = layout.tempAtRight
                 val leftIconTypes = ArrayList<Int>()
                 val rightIconTypes = ArrayList<Int>()
                 if (showBatteryDetail) {
@@ -885,7 +990,7 @@ object SystemUIStatusBarHooks {
                 XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "rightLayout", rightLayout)
                 XposedHelpers.setAdditionalInstanceField(param.getThisObject(), "dualRowsLayoutAdded", true)
 
-                if (MainModule.mPrefs.getBoolean("system_statusbar_netspeed_atsecondrow")) {
+                if (layout.netspeedAtSecondRow) {
                     // The second row for this display is where the network speed view lives.
                     // The hook itself is installed at most once per process via a state machine.
                     state.secondRow = WeakReference(secondRight)
@@ -904,7 +1009,7 @@ object SystemUIStatusBarHooks {
 
                 if (leftLayout != null && rightLayout != null) {
                     if (mCurrentStatusBarType == 0) {
-                        val leftWidth = MainModule.mPrefs.getInt("system_statusbar_dualrows_left_ratio", 4)
+                        val leftWidth = currentOrBuildStatusBarLayoutSnapshot().dualRowsLeftRatio
                         val leftLayoutLp = LinearLayout.LayoutParams(0, -1, leftWidth.toFloat())
                         leftLayout.layoutParams = leftLayoutLp
                         val rightLayoutLp = LinearLayout.LayoutParams(0, -1, (10 - leftWidth).toFloat())
@@ -980,6 +1085,7 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun StatusBarDigitalSignalHook(lpparam: PackageReadyParam) {
+        ensureStatusBarLayoutRuntimeState()
         val signalLevelMap = SparseIntArray()
         val MobileStatusTrackerClass = XposedHelpers.findClass("com.android.systemui.statusbar.mobile.MobileStatusTracker", lpparam.classLoader)
         val mCallback = XposedHelpers.findField(MobileStatusTrackerClass, "mCallback")
@@ -1023,19 +1129,20 @@ object SystemUIStatusBarHooks {
                     if (!visible) return
                     val airplane = XposedHelpers.getBooleanField(mobileIconState, "airplane")
                     if (airplane) return
-                    val dualRows = MainModule.mPrefs.getBoolean("system_statusbar_mobile_digital_signal_in2rows")
+                    val layout = currentOrBuildStatusBarLayoutSnapshot()
+                    val dualRows = layout.digitalSignalDualRows
                     val subId = XposedHelpers.getObjectField(mobileIconState, "subId") as Int
                     val digitalView = signalImageContainer.findViewWithTag<TextView>("digitalSignalView")
-                    val hideUnit = MainModule.mPrefs.getBoolean("system_statusbar_mobile_digital_signal_hideunit")
+                    val hideUnit = layout.digitalSignalHideUnit
                     if (dualRows) {
                         val slotId = SubscriptionManager.getSlotIndex(subId)
                         if (slotId == 0) {
                             val subSubId = SubscriptionManager.getSubscriptionId(1)
-                            digitalView?.text = signalLevelMap.get(subId).toString() + (if (hideUnit) "" else "dBm") +
-                                "\n" + signalLevelMap.get(subSubId).toString() + (if (hideUnit) "" else "dBm")
+                            digitalView?.text = formatDigitalSignalLabel(signalLevelMap.get(subId), hideUnit) +
+                                "\n" + formatDigitalSignalLabel(signalLevelMap.get(subSubId), hideUnit)
                         }
                     } else {
-                        digitalView?.text = signalLevelMap.get(subId).toString() + (if (hideUnit) "" else "dBm")
+                        digitalView?.text = formatDigitalSignalLabel(signalLevelMap.get(subId), hideUnit)
                     }
                 }
                 if (!updateStateMethod) {
@@ -1054,7 +1161,7 @@ object SystemUIStatusBarHooks {
                 }
             }
         })
-        val dualRows = MainModule.mPrefs.getBoolean("system_statusbar_mobile_digital_signal_in2rows")
+        val dualRows = currentOrBuildStatusBarLayoutSnapshot().digitalSignalDualRows
         if (dualRows) {
             ModuleHelper.hookAllMethods("com.android.systemui.statusbar.phone.StatusBarIconControllerImpl", lpparam.classLoader, "setMobileIcons", object : MethodHook() {
                 private var isHooked = false
@@ -2165,6 +2272,62 @@ object SystemUIStatusBarHooks {
     }
 
     /**
+     * Builds an immutable [StatusBarLayoutSnapshot] from [prefs].
+     *
+     * This is the only place the remaining layout/type keys are read for DualRows inflation,
+     * digital-signal ticks, network-type labels, mobile-type layout, horizontal insets and
+     * the mobile-indicator hide path.
+     */
+    internal fun buildStatusBarLayoutSnapshot(prefs: PrefMap): StatusBarLayoutSnapshot {
+        val state = layoutRuntimeState ?: error("Status bar layout state not installed")
+        return buildStatusBarLayoutSnapshot(prefs, state.idGenerator)
+    }
+
+    private fun buildStatusBarLayoutSnapshot(prefs: PrefMap, idGenerator: AtomicLong): StatusBarLayoutSnapshot {
+        val showBatteryDetail = prefs.getBoolean("system_statusbar_batterytempandcurrent")
+        val showDeviceTemp = prefs.getBoolean("system_statusbar_showdevicetemperature")
+        val firstRowHorizMargin = prefs.getBoolean("system_statusbar_dualrows_firstrow_horizmargin")
+        return StatusBarLayoutSnapshot(
+            id = idGenerator.incrementAndGet(),
+            firstRowLeftPadding = if (firstRowHorizMargin) prefs.getInt("system_statusbar_dualrows_firstrow_horizmargin_left", 0) else 0,
+            firstRowRightPadding = if (firstRowHorizMargin) prefs.getInt("system_statusbar_dualrows_firstrow_horizmargin_right", 0) else 0,
+            clockSpan2Rows = prefs.getBoolean("system_statusbar_dualrows_clock_span2rows"),
+            showBatteryDetail = showBatteryDetail,
+            showDeviceTemp = showDeviceTemp,
+            batteryAtRight = showBatteryDetail && prefs.getBoolean("system_statusbar_batterytempandcurrent_atright"),
+            tempAtRight = showDeviceTemp && prefs.getBoolean("system_statusbar_showdevicetemperature_atright"),
+            netspeedAtSecondRow = prefs.getBoolean("system_statusbar_netspeed_atsecondrow"),
+            dualRowsLeftRatio = prefs.getInt("system_statusbar_dualrows_left_ratio", 4),
+            digitalSignalDualRows = prefs.getBoolean("system_statusbar_mobile_digital_signal_in2rows"),
+            digitalSignalHideUnit = prefs.getBoolean("system_statusbar_mobile_digital_signal_hideunit"),
+            netSpeedIntervalMs = prefs.getInt("system_netspeedinterval", 4) * 1000L,
+            convert4gToLte = prefs.getBoolean("system_4gtolte"),
+            mobileShownName = prefs.getString("system_statusbar_mobile_showname", ""),
+            mobileTypeSingleAtLeft = prefs.getBoolean("system_statusbar_mobiletype_single_atleft"),
+            mobileTypeSingleLeftMargin = prefs.getInt("system_statusbar_mobiletype_single_leftmargin", 4),
+            mobileTypeSingleRightMargin = prefs.getInt("system_statusbar_mobiletype_single_rightmargin", 0),
+            mobileTypeSingleVerticalOffset = prefs.getInt("system_statusbar_mobiletype_single_verticaloffset", 8),
+            mobileTypeSingleFontSize = prefs.getInt("system_statusbar_mobiletype_single_fontsize", 27),
+            mobileTypeSingleBold = prefs.getBoolean("system_statusbar_mobiletype_single_bold"),
+            horizMarginLeft = prefs.getInt("system_statusbar_horizmargin_left", 16),
+            horizMarginRight = prefs.getInt("system_statusbar_horizmargin_right", 16),
+            mobileTypeIconOpt = prefs.getStringAsInt("system_mobiletypeicon", 1),
+            hideMobileNetworkIndicator = prefs.getBoolean("system_networkindicator_mobile"),
+            mobileTypeSingle = prefs.getBoolean("system_statusbar_mobiletype_single"),
+            mobileTypeShowOnWifi = prefs.getBoolean("system_statusbar_mobiletype_show_wificonnected"),
+        )
+    }
+
+    private fun currentOrBuildStatusBarLayoutSnapshot(): StatusBarLayoutSnapshot {
+        val state = layoutRuntimeState ?: error("Status bar layout state not installed")
+        val existing = state.currentSnapshot.get()
+        if (existing != null) return existing
+        val built = buildStatusBarLayoutSnapshot(MainModule.mPrefs, state.idGenerator)
+        state.currentSnapshot.set(built)
+        return built
+    }
+
+    /**
      * Applies the network-speed text style to [speedView].
      *
      * The style is fully reversible: the original system-provided state is captured once per view
@@ -2467,6 +2630,7 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun NetSpeedIntervalHook(lpparam: PackageReadyParam) {
+        ensureStatusBarLayoutRuntimeState()
         val NetworkSpeedController = XposedHelpers.findClass("com.android.systemui.statusbar.policy.NetworkSpeedController", lpparam.classLoader)
         val mBgHandlerField = XposedHelpers.findField(NetworkSpeedController, "mBgHandler")
         ModuleHelper.findAndHookMethod(mBgHandlerField.type, "handleMessage", Message::class.java, object : MethodHook() {
@@ -2475,7 +2639,7 @@ object SystemUIStatusBarHooks {
                 if (message.what == 200001) {
                     val mBgHandler = param.getThisObject() as Handler
                     mBgHandler.removeMessages(200001)
-                    val newInterval = MainModule.mPrefs.getInt("system_netspeedinterval", 4) * 1000L
+                    val newInterval = currentOrBuildStatusBarLayoutSnapshot().netSpeedIntervalMs
                     mBgHandler.sendEmptyMessageDelayed(200001, newInterval)
                 }
             }
@@ -2484,16 +2648,11 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun MobileNetworkTypeHook(lpparam: PackageReadyParam) {
+        ensureStatusBarLayoutRuntimeState()
         ModuleHelper.findAndHookMethod("com.android.systemui.statusbar.connectivity.MobileSignalController", lpparam.classLoader, "getMobileTypeName", Int::class.javaPrimitiveType!!, object : MethodHook() {
             override fun after(param: AfterHookCallback) {
                 val net = param.getResult() as String
-                if (MainModule.mPrefs.getBoolean("system_4gtolte")) {
-                    if ("4G" == net) param.setResult("LTE")
-                    else if ("4G+" == net) param.setResult("LTE+")
-                } else {
-                    val mobileType = MainModule.mPrefs.getString("system_statusbar_mobile_showname", "")
-                    param.setResult(mobileType)
-                }
+                param.setResult(resolveMobileTypeDisplayName(net, currentOrBuildStatusBarLayoutSnapshot()))
             }
         })
     }
@@ -2513,6 +2672,7 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun MobileTypeSingleHook(lpparam: PackageReadyParam) {
+        ensureStatusBarLayoutRuntimeState()
         ModuleHelper.hookAllMethods("com.android.systemui.statusbar.StatusBarMobileView", lpparam.classLoader, "updateMobileTypeLayout", HookerClassHelper.DO_NOTHING)
         val stateHook = object : MethodHook(XposedInterface.PRIORITY_HIGHEST) {
             private var initAction = false
@@ -2549,20 +2709,21 @@ object SystemUIStatusBarHooks {
                 } else {
                     return
                 }
+                val layout = currentOrBuildStatusBarLayoutSnapshot()
                 val mMobileGroup = XposedHelpers.getObjectField(param.getThisObject(), "mMobileGroup") as LinearLayout
                 val mMobileTypeSingle = XposedHelpers.getObjectField(param.getThisObject(), "mMobileTypeSingle") as TextView
-                if (!MainModule.mPrefs.getBoolean("system_statusbar_mobiletype_single_atleft")) {
+                if (!layout.mobileTypeSingleAtLeft) {
                     mMobileGroup.removeView(mMobileTypeSingle)
                     mMobileGroup.addView(mMobileTypeSingle)
                 }
                 val mlp = mMobileTypeSingle.layoutParams as ViewGroup.MarginLayoutParams
-                var leftMargin = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_leftmargin", 4)
+                var leftMargin = layout.mobileTypeSingleLeftMargin
                 mlp.leftMargin = HookUtils.dp2px(leftMargin * 0.5f).toInt()
-                val rightMargin = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_rightmargin", 0)
+                val rightMargin = layout.mobileTypeSingleRightMargin
                 if (rightMargin > 0) {
                     mlp.rightMargin = HookUtils.dp2px(rightMargin * 0.5f).toInt()
                 }
-                val verticalOffset = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_verticaloffset", 8)
+                val verticalOffset = layout.mobileTypeSingleVerticalOffset
                 val offsetPx = if (verticalOffset != 8) {
                     HookUtils.dp2px((verticalOffset - 8) * 0.5f)
                 } else {
@@ -2574,11 +2735,11 @@ object SystemUIStatusBarHooks {
                     mMobileTypeSingle.textSize.toInt(),
                 ).toInt()
                 mMobileTypeSingle.layoutParams = mlp
-                val fontSize = MainModule.mPrefs.getInt("system_statusbar_mobiletype_single_fontsize", 27)
+                val fontSize = layout.mobileTypeSingleFontSize
                 mMobileTypeSingle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, fontSize * 0.5f)
                 StatusBarTextFit.applyBoldPreservingFamily(
                     mMobileTypeSingle,
-                    MainModule.mPrefs.getBoolean("system_statusbar_mobiletype_single_bold")
+                    layout.mobileTypeSingleBold
                 )
                 StatusBarTextFit.enableShrinkToFit(
                     mMobileTypeSingle,
@@ -2592,12 +2753,12 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun HorizMarginHook(lpparam: PackageReadyParam) {
+        ensureStatusBarLayoutRuntimeState()
         val horizHook = object : MethodHook() {
             override fun before(param: BeforeHookCallback) {
-                val leftMargin = MainModule.mPrefs.getInt("system_statusbar_horizmargin_left", 16)
-                val leftMarginPx = HookUtils.dp2px(leftMargin.toFloat()).toInt()
-                val rightMargin = MainModule.mPrefs.getInt("system_statusbar_horizmargin_right", 16)
-                val rightMarginPx = HookUtils.dp2px(rightMargin.toFloat()).toInt()
+                val layout = currentOrBuildStatusBarLayoutSnapshot()
+                val leftMarginPx = HookUtils.dp2px(layout.horizMarginLeft.toFloat()).toInt()
+                val rightMarginPx = HookUtils.dp2px(layout.horizMarginRight.toFloat()).toInt()
                 param.returnAndSkip(Pair(leftMarginPx, rightMarginPx))
             }
         }
@@ -2792,8 +2953,7 @@ object SystemUIStatusBarHooks {
 
     @JvmStatic
     fun HideMobileNetworkIndicatorHook(lpparam: PackageReadyParam) {
-        val singleMobileType = MainModule.mPrefs.getBoolean("system_statusbar_mobiletype_single")
-        val showOnWifi = MainModule.mPrefs.getBoolean("system_statusbar_mobiletype_show_wificonnected")
+        ensureStatusBarLayoutRuntimeState()
         val hideMobileActivity = object : MethodHook() {
             private var initAction = false
             override fun before(param: BeforeHookCallback) {
@@ -2806,8 +2966,11 @@ object SystemUIStatusBarHooks {
             override fun after(param: AfterHookCallback) {
                 val updateStateMethod = "updateState" == param.getMember().name
                 if (updateStateMethod || initAction) {
-                    val opt = MainModule.mPrefs.getStringAsInt("system_mobiletypeicon", 1)
-                    val hideIndicator = MainModule.mPrefs.getBoolean("system_networkindicator_mobile")
+                    val layout = currentOrBuildStatusBarLayoutSnapshot()
+                    val opt = layout.mobileTypeIconOpt
+                    val hideIndicator = layout.hideMobileNetworkIndicator
+                    val singleMobileType = layout.mobileTypeSingle
+                    val showOnWifi = layout.mobileTypeShowOnWifi
                     val mMobileType = XposedHelpers.getObjectField(param.getThisObject(), "mMobileType") as View
                     val dataConnected = XposedHelpers.getBooleanField(param.getArgs()[0], "dataConnected")
                     val wifiAvailable = XposedHelpers.getObjectField(param.getArgs()[0], "wifiAvailable") as Boolean
