@@ -2,6 +2,22 @@
 
 English | [简体中文](CHANGELOG_CN.md)
 
+## r14.20.6 — 2026-08-18
+
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
+
+### Performance and Hot Path Safety
+
+- Completed the hook-body PrefMap migration backlog, prioritized by hook-body count and process hotness.
+- `MethodHook` body PrefMap reads are now frozen at zero and guarded by a scanner ceiling check.
+- Preference changes refresh immutable snapshots without reinstalling hooks.
+
+### Audit Evidence
+
+- `python tools/verify.py full` passed.
+- `python -m unittest discover -s tools/tests -p "test_*.py"` passed.
+- Feature-semantics validation and invariant checks passed.
+
 ## r14.20.5 — 2026-08-18
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
