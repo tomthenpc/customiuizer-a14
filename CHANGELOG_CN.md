@@ -2,6 +2,28 @@
 
 [English](CHANGELOG.md) | 简体中文
 
+## r14.20.6 — 2026-08-18
+
+面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a`、libxposed API 101/102。
+
+### 修复
+
+- 启动器手势以及导航栏、状态栏、锁屏、启动等 MultiAction 页面，选择动作后可以保存，重新进入仍保持设置。
+- 启动器 → 手势页的「重启相关组件」会同时重启桌面和系统界面。
+
+### 性能与稳定性
+
+- 桌面手势热路径复用预分配命令列表。
+- 全局动作部分反射方法改为缓存。
+- Hook 体内 PrefMap 读取已清零并由扫描上限保护；偏好变化刷新快照，不再重装 Hook。
+
+### 产物信息
+
+- APK：`CustoMIUIzer-A14-r14.20.6.apk`
+- versionCode / versionName：`203 / r14.20.6`
+
+---
+
 ## r14.20.5 — 2026-08-18
 
 面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a`、libxposed API 101/102。
