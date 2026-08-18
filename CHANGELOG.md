@@ -15,6 +15,7 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
 ### Fixes
 
 - Gesture and other MultiAction edit pages persist the selected action, app, shortcut, activity, and toggle on confirm. SpinnerEx controls were previously skipped because they are ViewGroups.
+- Launcher gesture matched restart now also restarts SystemUI, so action execution receivers are installed with the detector hooks.
 
 ### Audit Evidence
 

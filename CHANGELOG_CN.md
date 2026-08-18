@@ -15,6 +15,7 @@
 ### 修复
 
 - 手势及其他 MultiAction 编辑页在确认后会真正写入所选动作、应用、快捷方式、Activity 与开关。此前 SpinnerEx 作为 ViewGroup 被保存遍历跳过。
+- 启动器手势页的匹配重启现在同时重启 SystemUI，动作执行接收端会与检测 Hook 一起生效。
 
 ### 审计证据
 
