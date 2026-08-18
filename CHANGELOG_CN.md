@@ -6,22 +6,16 @@
 
 面向 HyperOS 1 / Android 14（SDK 34）、`arm64-v8a`、libxposed API 101/102。
 
-### 性能与热路径安全
-
-- 完成按 hook-body 数量与进程热度排序的 PrefMap 迁移积压。
-- `MethodHook` 体内 PrefMap 读取已冻结为零，并由扫描上限门禁保护。
-- 偏好变更刷新不可变快照，不再重装 Hook。
-
 ### 修复
 
-- 手势及其他 MultiAction 编辑页在确认后会真正写入所选动作、应用、快捷方式、Activity 与开关。此前 SpinnerEx 作为 ViewGroup 被保存遍历跳过。
-- 启动器手势页的匹配重启现在同时重启 SystemUI，动作执行接收端会与检测 Hook 一起生效。
+- 启动器手势以及导航栏、状态栏、锁屏、启动等 MultiAction 页面，选择动作后可以保存，重新进入仍保持设置。
+- 启动器 → 手势页的「重启相关组件」会同时重启桌面和系统界面。
 
-### 审计证据
+### 性能与稳定性
 
-- `python tools/verify.py full` 已通过。
-- `python -m unittest discover -s tools/tests -p "test_*.py"` 已通过。
-- 功能语义校验与不变量检查已通过。
+- 桌面手势热路径复用预分配命令列表。
+- 全局动作部分反射方法改为缓存。
+- Hook 体内 PrefMap 读取已清零并由扫描上限保护；偏好变化刷新快照，不再重装 Hook。
 
 ### 产物信息
 

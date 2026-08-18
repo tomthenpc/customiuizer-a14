@@ -6,22 +6,16 @@ English | [简体中文](CHANGELOG_CN.md)
 
 Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
 
-### Performance and Hot Path Safety
-
-- Completed the hook-body PrefMap migration backlog, prioritized by hook-body count and process hotness.
-- `MethodHook` body PrefMap reads are now frozen at zero and guarded by a scanner ceiling check.
-- Preference changes refresh immutable snapshots without reinstalling hooks.
-
 ### Fixes
 
-- Gesture and other MultiAction edit pages persist the selected action, app, shortcut, activity, and toggle on confirm. SpinnerEx controls were previously skipped because they are ViewGroups.
-- Launcher gesture matched restart now also restarts SystemUI, so action execution receivers are installed with the detector hooks.
+- Launcher gestures and other MultiAction pages now keep the selected action after save and reopen.
+- Launcher → Gestures “restart related components” now restarts both the launcher and SystemUI.
 
-### Audit Evidence
+### Performance and Stability
 
-- `python tools/verify.py full` passed.
-- `python -m unittest discover -s tools/tests -p "test_*.py"` passed.
-- Feature-semantics validation and invariant checks passed.
+- Home-screen gesture hot path reuses preallocated command lists.
+- Some GlobalActions reflection methods are cached.
+- PrefMap reads in `MethodHook` bodies are frozen at zero and guarded by a scanner ceiling. Preference changes refresh snapshots without reinstalling hooks.
 
 ### Artifact Information
 
