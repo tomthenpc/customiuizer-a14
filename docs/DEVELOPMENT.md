@@ -22,7 +22,9 @@ python -m unittest discover -s tools/tests -p "test_*.py"
 git diff --check
 ```
 
-`verify.py` 会检查 JDK 25、静态规则、EOL、observer 契约、hook-body PrefMap 上限、源码清洁度、不变量和 feature semantics，然后编译并跑 Android 单元测试与 lint。它不构建正式 APK。
+`verify.py` 会检查 JDK 25、静态规则、EOL、observer 契约、hook-body PrefMap 上限、热路径分配预算、源码清洁度、不变量和 feature semantics，然后编译并跑 Android 单元测试与 lint。它不构建正式 APK。
+
+优化相关门禁详见 [docs/OPTIMIZATION_GATES.md](OPTIMIZATION_GATES.md)。
 
 ## 分支整合
 
