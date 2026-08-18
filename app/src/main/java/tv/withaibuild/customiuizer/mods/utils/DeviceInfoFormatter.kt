@@ -47,15 +47,11 @@ object DeviceInfoFormatter {
      * Reads the whole battery uevent file. Returns `null` when the file is missing, empty or
      * cannot be parsed.
      */
-    private val reusableProps = Properties()
-
     @JvmStatic
     internal fun readBatteryProps(): Properties? {
         return try {
             FileInputStream("/sys/class/power_supply/battery/uevent").use { fis ->
-                reusableProps.clear()
-                reusableProps.load(fis)
-                reusableProps
+                Properties().apply { load(fis) }
             }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
@@ -67,27 +63,13 @@ object DeviceInfoFormatter {
      * Reads the CPU thermal zone temperature. Returns `null` when the zone is unknown or the file
      * cannot be read.
      */
-    private var cpuTempFile: RandomAccessFile? = null
-    private var cpuTempFileId: Int = -1
-
     @JvmStatic
     internal fun readCpuTemp(thermalId: Int): String? {
         if (thermalId == -1) return null
         return try {
-            val raf = if (cpuTempFileId == thermalId && cpuTempFile != null) {
-                cpuTempFile!!.also { it.seek(0) }
-            } else {
-                cpuTempFile?.close()
-                RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$thermalId/temp", "r").also {
-                    cpuTempFile = it
-                    cpuTempFileId = thermalId
-                }
-            }
-            raf.readLine()
+            RandomAccessFile("/sys/devices/virtual/thermal/thermal_zone$thermalId/temp", "r").use { it.readLine() }
         } catch (t: Throwable) {
             FatalErrors.unwrapAndRethrowIfFatal(t)
-            cpuTempFile = null
-            cpuTempFileId = -1
             null
         }
     }
