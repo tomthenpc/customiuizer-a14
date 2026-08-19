@@ -27,22 +27,41 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
 
 ## r14.20.7 — 2026-08-19
 
-Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
+Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, and libxposed API 101/102.
+
+### Status Bar
+
+- Device temperature now uses separate CPU and battery sources, with more compatible CPU thermal-zone parsing.
+- In dual-row mode, temperature moves to the left when "show on the right" is off.
+- Default font size is kept when it fits. If a custom height or vertical offset leaves too little room, text shrinks instead of being clipped.
+- Status-bar contents can be moved vertically without leaving the status-bar window.
+
+### Launcher and Recents
+
+- Folder blur stays off while dragging icons inside a folder.
+- Disable wallpaper scale now clamps actual zoom calls, including recents and app transitions.
+- Launcher and Recents toggles have clearer labels; either one disables transition zoom, and only the launcher toggle also disables unlock zoom and recents dim.
+- Recents blur at 0% applies on gesture enter and is independent of window-level blur disable.
 
 ### Fixes
 
 - Opening Launch App / Launch Shortcut / Launch Activity from an Extended Action page no longer crashes.
 - The MultiAction Toggle action works again.
 - Lock-screen Extended Action now shows Toggle aligned with its stored value.
+- Dynamic Island upward recall is more reliable.
+- Device-info updates no longer depend on network-speed controller slots, so temperature text can still appear without that controller.
 
-### Stability
+### Stability and Compatibility
 
 - Launcher's ten gesture actions now have mapping and execution contract checks.
 - MultiAction action, toggle, and array contracts now reject advertised IDs without handlers and label/value mismatches.
+- Custom status-bar height, dual-row layout, and vertical offset keep text and system icons inside the status-bar window.
 
 ### Artifact Information
 
 - APK: `CustoMIUIzer-A14-r14.20.7.apk`
+- Size: `3882834` bytes
+- SHA-256: `D713D2D36A99C79AA1597952AE339788E8CC1E48084A805D779123E752414312`
 - versionCode / versionName: `204 / r14.20.7`
 
 ---
@@ -66,35 +85,6 @@ Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
 
 - APK: `CustoMIUIzer-A14-r14.20.6.apk`
 - versionCode / versionName: `203 / r14.20.6`
-
----
-
-## r14.20.5 — 2026-08-18
-
-Targeting HyperOS 1 / Android 14 (SDK 34), `arm64-v8a`, libxposed API 101/102.
-
-### Status Bar
-
-- Temperature can use separate CPU and battery sources, with better thermal-zone parsing.
-- In dual-row mode, temperature moves left when “show on the right” is off.
-- Text shrinks when space is tight; vertical offset stays within the status-bar window.
-
-### Launcher and Recents
-
-- Folder blur stays off while dragging icons inside a folder.
-- Disable wallpaper scale now clamps actual zoom calls, including recents and app transitions.
-- Launcher and Recents toggles have clearer labels; either one disables transition zoom, and only the launcher toggle also disables unlock zoom and recents dim.
-- Recents blur at 0% applies on gesture enter and is independent of window-level blur disable.
-
-### Fixes
-
-- Dynamic Island upward recall is more reliable.
-- Device info still refreshes without a network-speed controller slot.
-
-### Artifact Information
-
-- APK: `CustoMIUIzer-A14-r14.20.5.apk`
-- versionCode / versionName: `202 / r14.20.5`
 
 ---
 
